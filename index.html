@@ -20,64 +20,63 @@
       <div class="top-right"><span class="network-dot" id="netDot"></span><span id="netStatus">พร้อมเล่น</span><span class="tag">GAME FRIENDS</span></div>
     </header>
 
-    <main id="home" class="layout">
-      <section class="game-picker panel" aria-labelledby="pickTitle">
-        <div class="picker-heading">
-          <div><div class="eyebrow">01 / PICK YOUR GAME</div><h2 id="pickTitle">เลือกมินิเกมก่อนเล่น</h2><p>เลือกสนามที่อยากเล่น แล้วสร้างห้องชวนเพื่อน • เปลี่ยนเกมได้ทุกครั้งที่กลับล็อบบี้</p></div>
-          <span class="picker-counter">7 MINI GAMES</span>
-        </div>
-        <div id="gameCards" class="mini-game-grid" role="group" aria-label="เลือกมินิเกม">
-          <button type="button" class="mini-game-card selected" data-game="stars" aria-pressed="true"><span class="mini-art art-stars"><span>★</span></span><span class="mini-card-text"><strong>STAR RUSH</strong><small>เก็บดาวแข่งกัน</small></span><span class="mini-tag">PLATFORM</span></button>
-          <button type="button" class="mini-game-card" data-game="brawl" aria-pressed="false"><span class="mini-art art-brawl"><span>✹</span></span><span class="mini-card-text"><strong>BRAWL ARENA</strong><small>ตะลุมบอนแย่งคะแนน</small></span><span class="mini-tag">FIGHT</span></button>
-          <button type="button" class="mini-game-card" data-game="lava" aria-pressed="false"><span class="mini-art art-lava"><span>♨</span></span><span class="mini-card-text"><strong>LAVA RUN</strong><small>เอาชีวิตรอดจากลาวา</small></span><span class="mini-tag">SURVIVAL</span></button>
-          <button type="button" class="mini-game-card" data-game="tanks" aria-pressed="false"><span class="mini-art art-tanks"><span>▰</span></span><span class="mini-card-text"><strong>TANK BLAST</strong><small>รถถังยิงกันมุมบน</small></span><span class="mini-tag">SHOOTER</span></button>
-          <button type="button" class="mini-game-card" data-game="soccer" aria-pressed="false"><span class="mini-art art-soccer"><span>⚽</span></span><span class="mini-card-text"><strong>FOOTBALL</strong><small>สองทีมแข่งยิงประตู</small></span><span class="mini-tag">SPORT</span></button>
-          <button type="button" class="mini-game-card" data-game="rally" aria-pressed="false"><span class="mini-art art-rally"><span>🏎</span></span><span class="mini-card-text"><strong>MICRO RALLY</strong><small>รถแข่งผ่านจุดตรวจ</small></span><span class="mini-tag">RACING</span></button>
-          <button type="button" class="mini-game-card" data-game="paint" aria-pressed="false"><span class="mini-art art-paint"><span>▦</span></span><span class="mini-card-text"><strong>COLOR CLASH</strong><small>แย่งยึดพื้นที่สี</small></span><span class="mini-tag">PARTY</span></button>
-        </div>
-        <p id="selectedGameText" class="picked-summary" aria-live="polite">เลือกแล้ว: STAR RUSH • เก็บดาวแข่งกัน</p>
-      </section>
+    <main id="home" class="layout party-entry">
       <section class="hero">
-        <div class="eyebrow"><span class="sparkle">✦</span> PARTY GAME • PLAY TOGETHER</div>
-        <h1>รวมแก๊งแล้ว<br><em>ลุยให้สุด!</em></h1>
-        <p>เปลี่ยนมือถือให้เป็นจอย เล่นเกมเต็มจอบนเครื่องหลัก แล้วให้เพื่อนใช้มือถือควบคุม ไม่ต้องลงแอป</p>
-        <div class="feature-tags"><span>2–12 ผู้เล่น</span><span>7 มินิเกม</span><span>มือถือเป็นจอย</span><span>QR เข้าร่วม</span></div>
-        <div class="stick-display" aria-hidden="true"><div class="stick-figure pink"><i></i><b></b></div><div class="stick-figure cyan"><i></i><b></b></div><div class="stick-figure yellow"><i></i><b></b></div><div class="stick-figure purple"><i></i><b></b></div><div class="floor-line"></div></div>
-      </section>
-
-      <section class="panel setup">
-        <div class="section-heading"><span class="section-icon">02</span><div><h2>สร้างปาร์ตี้</h2><p>เลือกมินิเกมจากการ์ดด้านบน แล้วชวนเพื่อนเข้าห้อง</p></div></div>
-        <label class="visually-hidden" for="mode">โหมดเกม</label>
-        <select id="mode" class="visually-hidden">
-          <option value="stars">⭐ STAR RUSH — วิ่งเก็บดาว</option>
-          <option value="brawl">🥊 BRAWL — ต่อยแย่งคะแนน</option>
-          <option value="lava">🌋 LAVA RUN — หนีลาวา</option>
-          <option value="tanks">TANK BLAST — รถถังยิงกัน (มุมบน)</option>
-          <option value="soccer">FOOTBALL — ฟุตบอลแบ่งทีม (มุมบน)</option>
-          <option value="rally">MICRO RALLY — รถแข่งผ่านจุดตรวจ (มุมบน)</option>
-          <option value="paint">COLOR CLASH — ยึดพื้นที่ (มุมบน)</option>
-        </select>
-        <label for="sessionMode">รูปแบบการแข่งขัน</label>
-        <select id="sessionMode"><option value="quick">QUICK GAME — เล่นทีละเกม</option><option value="tournament">TOURNAMENT — แข่ง 5 เกม สะสมคะแนน</option></select>
-        <label for="duration">เวลาต่อรอบ</label>
-        <select id="duration"><option value="60">60 วินาที</option><option value="90">90 วินาที</option><option value="45">45 วินาที</option></select>
+        <div class="eyebrow">STICK SQUAD • PARTY ROOM</div>
+        <h1>สร้างห้อง<br><em>แล้วให้เพื่อนเลือกเกม</em></h1>
+        <p>จอหลักสร้าง QR Code กำหนดเวลาและรูปแบบการแข่งขัน ส่วนผู้เล่นเลือกมินิเกมจากจอยมือถือคนละหนึ่งเกม เกมที่เลือกซ้ำจะถูกเล่นซ้ำตามจำนวนคนที่เลือก</p>
+        <div class="feature-tags"><span>สูงสุด 12 ผู้เล่น</span><span>7 มินิเกม</span><span>สุ่มลำดับทุกตัวเลือก</span></div>
         <div class="button-group">
-          <button id="hostBtn" class="btn btn-primary">สร้างห้อง + QR Code <span>↗</span></button>
-          <button id="offlineBtn" class="btn btn-secondary">ทดลองเล่นด้วยคีย์บอร์ด</button>
-        </div>
-        <div class="hint">ห้องออนไลน์ใช้ WebRTC • เจ้าของห้องต้องเปิดหน้านี้ไว้ตลอด</div>
-        <div id="roomPanel" class="room-panel hidden">
-          <div class="room-top"><div><small>ROOM CODE</small><strong id="roomCode">------</strong></div><span class="live-pill">● LIVE</span></div>
-          <div class="share-layout"><div id="qrBox" class="qr-box"></div><div class="share-content"><p>ให้เพื่อนสแกนเพื่อเปิดจอยบนมือถือ หรือส่งลิงก์ให้เพื่อน</p><input id="roomUrl" aria-label="ลิงก์เข้าร่วม" readonly><button class="btn btn-outline" id="copyBtn">คัดลอกลิงก์</button></div></div>
+          <button id="hostBtn" class="btn btn-primary" type="button">สร้างห้อง + เปิดจอหลัก <span>↗</span></button>
+          <button id="offlineBtn" class="btn btn-secondary" type="button">ทดลองเล่นด้วยคีย์บอร์ด</button>
         </div>
       </section>
+    </main>
 
-      <section class="panel roster-panel">
-        <div class="section-heading"><span class="section-icon">03</span><div><h2>ผู้เล่นในห้อง <span id="rosterCount" class="count">0/12</span></h2><p>คนเข้าห้องแล้วจะปรากฏที่นี่</p></div></div>
-        <div id="roster" class="roster"><p class="empty">ยังไม่มีผู้เล่น เริ่มจากเพิ่มผู้เล่นบนจอ หรือสร้างห้องให้เพื่อนสแกน</p></div>
-        <div class="roster-actions"><button id="addLocalBtn" class="btn btn-outline">+ เพิ่มผู้เล่นคีย์บอร์ด</button><button id="startBtn" class="btn btn-green" disabled>เริ่มเกม <span>▶</span></button></div>
-        <div class="hint">จอหลักแสดงเกมเต็มจอ • ใช้มือถือสแกน QR เพื่อควบคุม หรือเล่นด้วยคีย์บอร์ด</div>
-      </section>
+    <main id="hostLobby" class="host-lobby hidden" aria-label="จอหลักห้องปาร์ตี้">
+      <header class="lobby-bar">
+        <div class="lobby-bar-brand"><strong>STICK SQUAD PARTY</strong><small>จอหลักควบคุมห้องและการแข่งขัน</small></div>
+        <span id="hostRoomBadge" class="lobby-code-badge">กำลังสร้างห้อง...</span>
+        <button id="closeRoomBtn" class="lobby-close-btn" type="button">ออกจากห้อง</button>
+      </header>
+      <div class="host-lobby-grid">
+        <section class="lobby-qr-panel">
+          <h2>ให้เพื่อนสแกน QR</h2>
+          <div id="roomPanel" class="room-panel hidden">
+            <div class="room-top"><div><small>ROOM CODE</small><strong id="roomCode">------</strong></div><span class="live-pill">● LIVE</span></div>
+            <div class="share-layout">
+              <div id="qrBox" class="qr-box"></div>
+              <div class="share-content"><p>สแกนด้วยมือถือเพื่อเข้าร่วมห้อง แล้วเลือกมินิเกมบนจอยของตัวเอง</p><input id="roomUrl" aria-label="ลิงก์เข้าร่วม" readonly><button class="btn btn-outline" id="copyBtn" type="button">คัดลอกลิงก์</button></div>
+            </div>
+          </div>
+          <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ ผู้เล่นคีย์บอร์ดจะเลือก STAR RUSH เป็นค่าเริ่มต้น</p>
+        </section>
+        <section class="lobby-player-panel">
+          <div class="lobby-section-title"><h2>รายชื่อผู้เล่นและเกมที่เลือก</h2><span id="rosterCount" class="count">0/12</span></div>
+          <p class="lobby-hint">หนึ่งคนเลือกหนึ่งเกม • เลือกซ้ำกันได้ และจะอยู่ในคิวเกมหลายรอบ</p>
+          <div id="roster" class="roster lobby-roster"><p class="empty">ยังไม่มีผู้เล่น • ให้เพื่อนสแกน QR เพื่อเข้าห้อง</p></div>
+          <h3>เกมที่รอสุ่ม</h3>
+          <div id="hostQueue" class="host-queue" aria-live="polite">รอผู้เล่นเลือกมินิเกม</div>
+        </section>
+      </div>
+      <div class="lobby-controls">
+        <div class="lobby-control"><label for="sessionMode">รูปแบบการแข่งขัน</label>
+          <select id="sessionMode">
+            <option value="queue" selected>เล่นครบทุกเกมที่เพื่อนเลือก (รวมเกมซ้ำ)</option>
+            <option value="quick">สุ่มเล่น 1 เกมจากทุกตัวเลือก</option>
+          </select>
+        </div>
+        <div class="lobby-control"><label for="duration">เวลาต่อรอบ</label>
+          <select id="duration"><option value="60">60 วินาที</option><option value="90">90 วินาที</option><option value="45">45 วินาที</option></select>
+        </div>
+        <div class="lobby-control auto-next-control"><label for="autoNext">เล่นเกมต่อเนื่อง</label>
+          <label class="lobby-toggle"><input id="autoNext" type="checkbox" checked> เริ่มรอบถัดไปอัตโนมัติหลังดูผล 7 วินาที</label>
+        </div>
+        <div class="lobby-room-actions">
+          <button id="addLocalBtn" class="btn btn-outline" type="button">+ ผู้เล่นคีย์บอร์ด</button>
+          <button id="startBtn" class="btn btn-green" type="button" disabled>สุ่มและเริ่มเล่น ▶</button>
+        </div>
+      </div>
     </main>
 
     <main id="game" class="game-page hidden" aria-label="จอเกมเต็มหน้าจอ">
@@ -97,7 +96,7 @@
         <div class="game-pause-card">
           <div class="pause-icon" aria-hidden="true">Ⅱ</div>
           <h2 id="pauseHeading">หยุดเกมชั่วคราว</h2>
-          <p>เกมและเวลาจะหยุดจนกว่าจะกดเล่นต่อ</p>
+          <p>เกมและเวลาจะหยุดจนกว่าจะกดเล่นต่อ</p><div id="gameChoiceList" class="game-choice-list" aria-label="ผู้เล่นและเกมที่เลือก"></div>
           <button id="resumeBtn" class="btn btn-green" type="button">▶ เล่นต่อ</button>
           <button id="exitBtn" class="btn btn-outline pause-exit" type="button">ออกจากเกม / กลับล็อบบี้</button>
         </div>
@@ -132,6 +131,19 @@
         <div class="controller-buttons" aria-label="จอยเกมแบบอนาล็อกและปุ่ม A B">
           <div id="joystickZone" class="joystick-group joystick-zone" role="group" aria-label="พื้นที่อนาล็อกอิสระ แตะจุดใดก็ได้แล้วลากเพื่อเดิน"><span class="gamepad-label joystick-hint">LEFT STICK • แตะตรงไหนก็เดินได้</span><div id="joystickBase" class="joystick-base" aria-hidden="true"><span class="joystick-direction direction-up">▲</span><span class="joystick-direction direction-left">◀</span><span class="joystick-direction direction-right">▶</span><span class="joystick-direction direction-down">▼</span><div id="joystickKnob" class="joystick-knob"></div></div></div>
           <div class="gamepad-middle gamepad-preview-column">
+            <div id="phoneGamePicker" class="phone-game-picker hidden" aria-label="เลือกมินิเกมที่จะเล่น">
+              <span class="phone-picker-title">เลือกมินิเกมของคุณ</span>
+              <div id="phoneGameChoices" class="phone-game-choices" role="group" aria-label="เลือกได้คนละหนึ่งเกม">
+                <button type="button" data-pick="stars" class="phone-game-choice" aria-pressed="false">★ STAR RUSH</button>
+                <button type="button" data-pick="brawl" class="phone-game-choice" aria-pressed="false">✹ BRAWL</button>
+                <button type="button" data-pick="lava" class="phone-game-choice" aria-pressed="false">♨ LAVA RUN</button>
+                <button type="button" data-pick="tanks" class="phone-game-choice" aria-pressed="false">▰ TANKS</button>
+                <button type="button" data-pick="soccer" class="phone-game-choice" aria-pressed="false">⚽ FOOTBALL</button>
+                <button type="button" data-pick="rally" class="phone-game-choice" aria-pressed="false">🏎 RALLY</button>
+                <button type="button" data-pick="paint" class="phone-game-choice" aria-pressed="false">▦ COLOR CLASH</button>
+              </div>
+              <small id="phoneChoiceStatus" class="phone-choice-status">เลือกเกมหนึ่งเกมเพื่อให้เจ้าของห้องเริ่มการแข่งขัน</small>
+            </div>
             <div id="controllerPreview" class="gamepad-preview" aria-label="จอพรีวิวเกมจากเจ้าของห้อง">
               <img id="controllerPreviewImage" class="gamepad-preview-image hidden" alt="ภาพพรีวิวเกมที่ส่งมาจากจอหลัก" draggable="false">
               <div id="controllerPreviewPlaceholder" class="gamepad-preview-placeholder">

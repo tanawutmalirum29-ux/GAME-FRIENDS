@@ -18,7 +18,7 @@ function pickUnusedColor(){
 }
 const MODES = { stars:'STAR RUSH', brawl:'BRAWL ARENA', lava:'LAVA RUN', tanks:'TANK BLAST',soccer:'FOOTBALL',rally:'MICRO RALLY',paint:'COLOR CLASH' };
 const TOPDOWN = ['tanks','soccer','rally','paint'];
-const TOURNAMENT_GAMES=['tanks','soccer','rally','paint','brawl','stars','lava'];
+// The match list is nominated by phone players rather than a fixed tournament deck.
 let tournament=null;
 const KEYS = [
   {left:'KeyA',right:'KeyD',jump:'KeyW',down:'KeyS',action:'Space',alt:'ShiftLeft'},
@@ -51,7 +51,7 @@ function syncZoomPolicy(){
 }
 function setView(view) {
   currentView=view;
-  ['home','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
+  ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
   syncZoomPolicy();
   window.scrollTo(0,0);
@@ -105,7 +105,8 @@ function makePlayer(name,type,conn) {
   if(!color)return null;
   const p={id:'p'+nextId++,name:cleanName(name),type:type,color,conn:conn||null,
     input:blankInput(),x:480,y:WORLD.ground,vx:0,vy:0,grounded:true,face:1,
-    hp:3,score:0,total:0,alive:true,active:false,invulnerable:0,cooldown:0,dash:0,attack:0,latch:false,respawn:0};
+    hp:3,score:0,total:0,choice:type==='local'?'stars':null,
+    alive:true,active:false,invulnerable:0,cooldown:0,dash:0,attack:0,latch:false,respawn:0};
   players.push(p);renderRoster();return p;
 }
 function removePlayer(id) {
@@ -117,7 +118,7 @@ function removePlayer(id) {
   if(p.conn&&p.conn.open){try{p.conn.close();}catch(e){}}
   renderRoster();broadcastRoster();
 }
-function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active};}
+function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active,choice:p.choice};}
 function send(conn,msg){if(conn&&conn.open){try{conn.send(msg);}catch(e){/* peer disconnected */}}}
 function broadcast(msg){hostConnections.forEach(c=>send(c,msg));}
 // Low-bandwidth game view for phone controllers (no microphone, no screen capture).
@@ -150,22 +151,47 @@ function broadcastGamePreview(){
 }
 function networkPhase(){return round?(round.paused?'paused':round.phase):'lobby';}
 function broadcastRoster(){
-  broadcast({t:'roster',players:players.map(playerPublic),phase:networkPhase(),mode:round?round.mode:$('mode').value});
+  broadcast({t:'roster',players:players.map(playerPublic),phase:networkPhase(),
+    mode:round?round.mode:'stars',selectionOpen:!round});
+}
+function nominatedGames(){
+  return players.map(p=>p.choice).filter(mode=>Object.hasOwn(MODES,mode));
+}
+function updateHostQueue(){
+  const picks=nominatedGames();
+  if(!picks.length){$('hostQueue').textContent='รอผู้เล่นเลือกมินิเกมบนมือถือ';return;}
+  const totals=new Map();
+  for(const mode of picks)totals.set(mode,(totals.get(mode)||0)+1);
+  const counts=[...totals].map(([mode,count])=>MODES[mode]+' ×'+count);
+  const waiting=players.length-picks.length;
+  $('hostQueue').textContent='เลือกแล้ว '+picks.length+'/'+players.length+' คน • '+counts.join(' • ')+
+    (waiting?' • รออีก '+waiting+' คน':' • พร้อมสุ่มลำดับ');
+}
+function renderPauseChoiceList(){
+  const box=$('gameChoiceList');box.replaceChildren();
+  for(const p of players){
+    const row=document.createElement('div');row.className='game-choice-row';
+    row.textContent=p.name+' — '+(MODES[p.choice]||'ยังไม่ได้เลือก');
+    row.style.borderLeftColor=p.color;box.append(row);
+  }
 }
 function renderRoster(){
   const el=$('roster');el.replaceChildren();
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
-  $('startBtn').disabled=players.length<1;
+  $('startBtn').disabled=players.length<1||nominatedGames().length!==players.length;
+  updateHostQueue();
   if(!players.length){const p=document.createElement('p');p.className='empty';p.textContent='ยังไม่มีผู้เล่น ชวนเพื่อนสแกน QR Code หรือเพิ่มผู้เล่นคีย์บอร์ด';el.append(p);return;}
   players.forEach(p=>{
     const item=document.createElement('div');item.className='roster-item';
     const color=document.createElement('span');color.className='swatch';color.style.background=p.color;
     const name=document.createElement('b');name.textContent=p.name;
     const type=document.createElement('small');type.textContent=p.type==='local'?'คีย์บอร์ด':'มือถือ';
+    const chosen=document.createElement('span');chosen.className='roster-pick'+(p.choice?' picked':'');
+    chosen.textContent=p.choice?'เลือก '+MODES[p.choice]:'ยังไม่เลือกเกม';
     const kick=document.createElement('button');kick.type='button';kick.textContent='×';kick.title='เอาผู้เล่นออก';kick.setAttribute('aria-label','เอา '+p.name+' ออกจากห้อง');
     kick.addEventListener('click',()=>removePlayer(p.id));
-    item.append(color,name,type,kick);el.append(item);
+    item.append(color,name,type,chosen,kick);el.append(item);
   });
 }
 function addLocal(){
@@ -179,11 +205,12 @@ function resetInputs(){
 }
 function closeHost(){
   onlineHost=false;roomCode='';$('roomPanel').classList.add('hidden');$('hostBtn').disabled=false;
+  $('hostRoomBadge').textContent='ห้องปิดแล้ว';
   hostConnections.forEach(c=>{send(c,{t:'closed'});try{c.close();}catch(e){}});
   hostConnections.clear();
   if(hostPeer){try{hostPeer.destroy();}catch(e){}hostPeer=null;}
   for(const p of players.filter(p=>p.type==='remote')){players.splice(players.indexOf(p),1);}
-  renderRoster();setStatus('พร้อมเล่น');
+  tournament=null;round=null;renderRoster();setStatus('พร้อมเล่น');
 }
 function shareUrl(code){
   const u=new URL(window.location.href);
@@ -194,12 +221,12 @@ function renderQr(code){
   $('roomUrl').value=link;
   const box=$('qrBox');box.replaceChildren();
   if(typeof QRCode==='function'){
-    try{new QRCode(box,{text:link,width:126,height:126,correctLevel:QRCode.CorrectLevel.M});return;}catch(e){}
+    try{new QRCode(box,{text:link,width:230,height:230,correctLevel:QRCode.CorrectLevel.M});return;}catch(e){}
   }
   box.textContent='QR ไม่พร้อม กรุณาคัดลอกลิงก์';
 }
 function startHost(retries=0){
-  if(onlineHost){$('roomPanel').scrollIntoView({behavior:'smooth'});return;}
+  if(onlineHost){setView('hostLobby');return;}
   if(typeof Peer!=='function'){setStatus('โหลดระบบเชื่อมต่อไม่สำเร็จ',true);alert('ยังโหลด PeerJS ไม่ได้ ตรวจสอบอินเทอร์เน็ต แล้วโหลดหน้าใหม่ (โหมดเล่นบนจอยังใช้ได้)');return;}
   if(location.protocol==='file:'){alert('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย');return;}
   const code=randomCode();
@@ -209,9 +236,10 @@ function startHost(retries=0){
   peer.on('open',()=>{
     if(hostPeer!==peer)return;
     roomCode=code;onlineHost=true;$('roomCode').textContent=code;
-    $('roomPanel').classList.remove('hidden');$('hostBtn').disabled=false;
+    $('roomPanel').classList.remove('hidden');$('offlineRoomHint').classList.add('hidden');
+    $('hostBtn').disabled=false;$('hostRoomBadge').textContent='ROOM '+code;
     renderQr(code);setStatus('เปิดห้อง '+code);
-    $('roomPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+    setView('hostLobby');renderRoster();broadcastRoster();
   });
   peer.on('connection',conn=>{
     if(hostPeer!==peer){conn.close();return;}
@@ -224,8 +252,13 @@ function startHost(retries=0){
         if(!p)return;
         conn.playerId=p.id;p.lastInputAt=Date.now();
         if(round&&round.phase!=='results')p.active=false;
-        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:$('mode').value});
+        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'stars',phase:networkPhase(),choice:p.choice});
         broadcastRoster();
+      }else if(msg.t==='pick'&&conn.playerId){
+        if(round||currentView!=='hostLobby'||!Object.hasOwn(MODES,msg.mode))return;
+        const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
+        if(!p||p.choice===msg.mode)return;
+        p.choice=msg.mode;renderRoster();broadcastRoster();
       }else if(msg.t==='input'&&conn.playerId){
         if(round&&round.paused)return;
         const p=players.find(p=>p.id===conn.playerId);
@@ -255,6 +288,22 @@ function copyInvite(){
   const done=()=>{const b=$('copyBtn');b.textContent='คัดลอกแล้ว ✓';setTimeout(()=>b.textContent='คัดลอกลิงก์',1600);};
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(done).catch(()=>{ $('roomUrl').select();document.execCommand('copy');done();});}
   else{$('roomUrl').select();document.execCommand('copy');done();}
+}
+let phoneSelectionOpen=false;
+let myChosenMode=null;
+function updatePhoneGamePicker(phase,choice){
+  phoneSelectionOpen=phase==='lobby'&&controllerReady;
+  myChosenMode=Object.hasOwn(MODES,choice)?choice:null;
+  $('phoneGamePicker').classList.toggle('hidden',!phoneSelectionOpen);
+  $('controllerPreview').classList.toggle('hidden',phoneSelectionOpen);
+  for(const button of document.querySelectorAll('[data-pick]')){
+    const selected=button.dataset.pick===myChosenMode;
+    button.classList.toggle('selected',selected);
+    button.setAttribute('aria-pressed',String(selected));
+  }
+  $('phoneChoiceStatus').textContent=myChosenMode?
+    'เลือก '+MODES[myChosenMode]+' แล้ว • รอเจ้าของห้องสุ่มเกม':
+    'เลือกหนึ่งเกม • เปลี่ยนใจก่อนเริ่มเล่นได้';
 }
 function resetPhonePreview(){
   $('controllerPreviewImage').src='';
@@ -414,6 +463,7 @@ function resetControllerForRoomChange(message){
   $('controllerActive').classList.add('hidden');
   $('joinForm').classList.remove('hidden');
   $('joinBtn').disabled=false;
+  controllerReady=false;updatePhoneGamePicker('closed',null);
   controllerState(message||'เลือกห้องใหม่ได้เลย โดยไม่ต้องเปิดแท็บใหม่');
 }
 function joinRoom(){
@@ -445,8 +495,9 @@ function joinRoom(){
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
         document.body.classList.add('controller-playing');
         syncZoomPolicy();
-        showControllerMode(data.mode);sendInputs();
-        announceControllerTakeover();
+        showControllerMode(data.mode);
+        updatePhoneGamePicker(data.phase||'lobby',data.choice||null);
+        sendInputs();announceControllerTakeover();
       }else if(data.t==='preview'){
         if(controllerReady)receivePhonePreview(data.image);
       }else if(data.t==='preview-reset'){
@@ -457,12 +508,14 @@ function joinRoom(){
       }else if(data.t==='roster'){
         showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
+        updatePhoneGamePicker(data.phase,self&&self.choice);
         $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
           data.phase==='playing'?(self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):
           data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':
           'กำลังรอเจ้าของห้องเริ่มเกม';
       }else if(data.t==='state'){
         showControllerMode(data.mode);
+        if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
           data.phase==='playing'?'กำลังเล่น • เหลือ '+Math.ceil(data.remaining)+' วินาที':
           data.phase==='results'?'จบรอบแล้ว':'รอเริ่มรอบ';
@@ -629,7 +682,7 @@ window.addEventListener('blur',()=>{
 function startRound(forcedMode=null){
   if(!players.length)return;
   $('results').classList.add('hidden');
-  const mode=typeof forcedMode==='string'?forcedMode:$('mode').value,duration=Number($('duration').value)||60;
+  const mode=Object.hasOwn(MODES,forcedMode)?forcedMode:'stars',duration=Number($('duration').value)||60;
   round={mode,duration,remaining:duration,phase:'countdown',paused:false,countdown:3.25,stars:[],starClock:0};
   players.forEach((p,i)=>{
     p.active=true;p.alive=true;p.x=55+((i+.5)*850/players.length);p.y=WORLD.ground;
@@ -645,7 +698,7 @@ function startRound(forcedMode=null){
     tanks:'รถถังยิงกันบนสนาม',soccer:'สองทีมแย่งยิงประตู',rally:'ผ่านจุดตรวจให้ครบเพื่อทำรอบ',paint:'ระบายสีแย่งพื้นที่'
   };
   $('gameMode').textContent=MODES[mode];$('gameTitle').textContent=subtitles[mode];
-  $('replayBtn').textContent=tournament?'รอบถัดไป':'เล่นอีกครั้ง';
+  $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').classList.remove('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
@@ -761,11 +814,12 @@ function endRound(){
       p.total=(p.total||0)+Math.max(1,ranked.length-sharedRank);
     });
     if(tournament.index===tournament.schedule.length-1){
-      $('replayBtn').textContent='เริ่มทัวร์นาเมนต์ใหม่';
+      $('replayBtn').textContent='สุ่มชุดใหม่จากตัวเลือกเดิม';
     }else{
       $('replayBtn').textContent='เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
     }
-  }else{$('replayBtn').textContent='เล่นอีกครั้ง';}
+  }else{$('replayBtn').textContent='สุ่มเล่นใหม่';}
+  round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
   const list=$('resultList');list.replaceChildren();
   ranked.forEach((p,i)=>{
     const r=document.createElement('div');r.className='result-player';
@@ -883,6 +937,12 @@ function animate(ts){
   if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
     updateRound(dt);drawGame(graphicsClock);
+    if(round&&round.phase==='results'&&round.autoNextRemaining>0){
+      round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
+      if(round.autoNextRemaining===0)advanceParty();
+      else $('replayBtn').textContent='เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+
+        ') • อีก '+Math.ceil(round.autoNextRemaining)+' วิ';
+    }
     hudClock+=dt;
     if(hudClock>.22){
       const seconds=Math.max(0,Math.ceil(round.remaining));
@@ -909,6 +969,7 @@ function broadcastGameState(){
 }
 function pauseGame(){
   if(currentView!=='game'||!round||round.phase==='results'||round.paused)return;
+  renderPauseChoiceList();
   round.paused=true;
   resetInputs();
   $('pauseMenu').classList.remove('hidden');
@@ -931,7 +992,7 @@ function returnToLobby(){
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
   releaseHostFullscreen();
-  setView('home');renderRoster();broadcastRoster();
+  setView('hostLobby');renderRoster();broadcastRoster();
 }
 $('pauseBtn').addEventListener('click',pauseGame);
 $('resumeBtn').addEventListener('click',resumeGame);
@@ -944,14 +1005,26 @@ document.addEventListener('keydown',e=>{
 });
 $('addLocalBtn').addEventListener('click',addLocal);
 $('hostBtn').addEventListener('click',()=>startHost());
+function shuffleGames(items){
+  const result=[...items];
+  for(let i=result.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [result[i],result[j]]=[result[j],result[i]];
+  }
+  return result;
+}
 function beginParty(){
-  if($('sessionMode').value==='tournament'){
-    const shuffled=[...TOURNAMENT_GAMES];
-    for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
-    tournament={schedule:shuffled.slice(0,5),index:0};
+  const picks=nominatedGames();
+  if(!picks.length||picks.length!==players.length)return;
+  const shuffled=shuffleGames(picks);
+  if($('sessionMode').value==='queue'){
+    tournament={schedule:shuffled,index:0};
     players.forEach(p=>p.total=0);
     startRound(tournament.schedule[0]);
-  }else{tournament=null;startRound();}
+  }else{
+    tournament=null;
+    startRound(shuffled[0]);
+  }
 }
 function advanceParty(){
   if(tournament&&tournament.index+1<tournament.schedule.length){
@@ -962,33 +1035,23 @@ $('offlineBtn').addEventListener('click',()=>{
   if(onlineHost&&!confirm('ปิดห้องออนไลน์และถอดจอยมือถือทั้งหมดเพื่อเล่นออฟไลน์?'))return;
   if(onlineHost)closeHost();
   if(!players.length){addLocal();addLocal();}
-  beginParty();
+  $('hostRoomBadge').textContent='OFFLINE';
+  $('roomPanel').classList.add('hidden');
+  $('offlineRoomHint').classList.remove('hidden');
+  setView('hostLobby');renderRoster();
 });
 $('startBtn').addEventListener('click',beginParty);
+$('closeRoomBtn').addEventListener('click',()=>{
+  if(onlineHost&&!confirm('ปิดห้องนี้และตัดการเชื่อมต่อจอยมือถือทุกเครื่อง?'))return;
+  if(onlineHost)closeHost();
+  tournament=null;round=null;setView('home');
+});
 $('copyBtn').addEventListener('click',copyInvite);
 $('exitBtn').addEventListener('click',returnToLobby);
 $('backBtn').addEventListener('click',returnToLobby);
 $('replayBtn').addEventListener('click',advanceParty);
-function selectMiniGame(mode){
-  if(!MODES[mode])return;
-  $('mode').value=mode;
-  document.querySelectorAll('[data-game]').forEach(btn=>{
-    const active=btn.dataset.game===mode;
-    btn.classList.toggle('selected',active);
-    btn.setAttribute('aria-pressed',String(active));
-  });
-  const details={stars:'เก็บดาวแข่งกัน',brawl:'ตะลุมบอนแย่งคะแนน',lava:'เอาชีวิตรอดจากลาวา',
-    tanks:'รถถังยิงกันมุมบน',soccer:'สองทีมแข่งยิงประตู',rally:'รถแข่งผ่านจุดตรวจ',paint:'แย่งยึดพื้นที่สี'};
-  $('selectedGameText').textContent=$('sessionMode').value==='tournament'?
-    'TOURNAMENT • ระบบสุ่ม 5 จาก 7 มินิเกมเพื่อสะสมคะแนน':
-    'เลือกแล้ว: '+MODES[mode]+' • '+details[mode];
-  broadcastRoster();
-}
-document.querySelectorAll('[data-game]').forEach(btn=>btn.addEventListener('click',()=>selectMiniGame(btn.dataset.game)));
 $('sessionMode').addEventListener('change',()=>{
-  const isTourney=$('sessionMode').value==='tournament';
-  $('gameCards').parentElement.classList.toggle('tournament-selected',isTourney);
-  selectMiniGame($('mode').value);
+  updateHostQueue();
 });
 $('landscapeBtn').addEventListener('click',()=>{void requestLandscape();});
 $('rotateRetryBtn').addEventListener('click',()=>{void requestLandscape();});
@@ -1007,6 +1070,12 @@ $('roomCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();
 $('switchRoomBtn').addEventListener('click',()=>{
   resetControllerForRoomChange('เปลี่ยนห้องในแท็บเดิมได้เลย สแกน QR หรือกรอกรหัสใหม่');
 });
+document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener('click',()=>{
+  const mode=button.dataset.pick;
+  if(!phoneSelectionOpen||!controllerReady||!Object.hasOwn(MODES,mode))return;
+  updatePhoneGamePicker('lobby',mode);
+  send(controllerConn,{t:'pick',mode});
+}));
 $('scanRoomBtn').addEventListener('click',()=>{void startRoomScanner();});
 $('cancelScanBtn').addEventListener('click',()=>{void stopRoomScanner();});
 $('leaveBtn').addEventListener('click',()=>{
@@ -1046,7 +1115,7 @@ if(joinCode){
   $('nick').value=getSavedNickname();
   setStatus('พร้อมเชื่อมจอย • จำชื่อเล่นไว้ในเครื่องนี้');
 }else{
-  setView('home');renderRoster();selectMiniGame($('mode').value||'stars');
+  setView('home');renderRoster();
 }
 requestAnimationFrame(animate);
 })();
