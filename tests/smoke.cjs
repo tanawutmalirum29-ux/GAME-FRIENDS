@@ -86,6 +86,14 @@ host.instances[0].fire('open');
 assert.equal(host.elements.get('roomCode').textContent.length,6);
 assert.match(host.elements.get('roomUrl').value,/join=[A-Z2-9]{6}/);
 
+// Remote player can be kicked without a recursive connection-close loop.
+const guest=host.instances[0].connect();
+host.instances[0].fire('connection',guest);
+guest.fire('data',{t:'join',name:'Friend'});
+assert.equal(host.elements.get('rosterCount').textContent,'2/12');
+host.elements.get('roster').children[1].children[3].fire('click');
+assert.equal(host.elements.get('rosterCount').textContent,'1/12');
+
 const mobile=setup('https://game.example/?join=ABCD23');
 assert.equal(mobile.elements.get('controller').classList.contains('hidden'),false);
 mobile.elements.get('nick').value='ทดสอบ';
@@ -120,4 +128,12 @@ assert.equal(tour.elements.get('results').classList.contains('hidden'),false);
 assert.match(tour.elements.get('replayBtn').textContent,/เกมถัดไป/);
 tour.click('replayBtn');
 assert.equal(tour.elements.get('results').classList.contains('hidden'),true);
+// Finish tournament and verify the overall podium exists.
+for(let roundIndex=1;roundIndex<5;roundIndex++){
+  for(let i=0;i<1660;i++)tour.step(i*45);
+  assert.equal(tour.elements.get('results').classList.contains('hidden'),false);
+  if(roundIndex<4)tour.click('replayBtn');
+}
+assert.match(tour.elements.get('resultList').children[0].textContent,/แชมป์ทัวร์นาเมนต์/);
+assert.equal(tour.elements.get('replayBtn').textContent,'เริ่มทัวร์นาเมนต์ใหม่');
 console.log('SMOKE PASS: offline, QR controller, all 4 top-down games and tournament transitions');
