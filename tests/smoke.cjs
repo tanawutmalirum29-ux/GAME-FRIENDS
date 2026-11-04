@@ -146,6 +146,25 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
  ghost.update(.016,x.round,x.players);
  assert.ok(p.input.axisX>.4,'bot seeks loot when the ghost is stunned');
 }
+// Corridor escape: the AI must navigate around a solid wall, without
+// frame-by-frame left/right oscillation.
+{
+ const x=init(3);x.round.phase='playing';x.state.ghostSpawned=true;
+ const [p,q,r]=x.players;p.isBot=true;p.botMind=null;
+ p.x=320;p.y=265;q.x=850;q.y=80;r.x=820;r.y=450;
+ x.state.obstacles=[{x:355,y:145,w:85,h:250,style:0}];
+ x.state.npcs.forEach(g=>g.stun=999);
+ x.state.boxes=[{x:520,y:265,ttl:30,item:'cloak'}];
+ let flips=0,lastX=0;
+ for(let i=0;i<130;i++){
+   ghost.update(.05,x.round,x.players);
+   const sign=Math.sign(p.input.axisX||0);
+   if(lastX&&sign&&sign!==lastX)flips++;
+   if(sign)lastX=sign;
+ }
+ assert.ok(p.x>450||p.item==='cloak','bot reaches exit around wall');
+ assert.ok(flips<16,'bot keeps path instead of jittering');
+}
  // Movement starts while the three-second warning counts down.
 {
  const x=init(2),p=x.players[0],prev=p.x;
@@ -284,6 +303,59 @@ for(const item of ['cloak','boost','stun','trap','slow']){
    assert.ok(q.stun>0,'human stepping on armed trap is rooted');
   }
  }
+}
+// Cloak must protect from every infection source for its full duration.
+{
+ const x=init(3);x.round.phase='playing';x.state.ghostSpawned=true;
+ const [human,spirit,other]=x.players;
+ x.state.obstacles=[];x.state.npcs.forEach(g=>g.stun=999);
+ human.x=310;human.y=260;human.cloak=1;
+ spirit.x=human.x+3;spirit.y=human.y;spirit.ghost=true;spirit.stun=0;
+ other.x=850;other.y=430;
+ ghost.update(.016,x.round,x.players);
+ assert.equal(human.ghost,false,'cloak prevents infected player touch');
+ spirit.stun=999;
+ const npc=x.state.npcs[0];npc.stun=0;npc.x=human.x+1;npc.y=human.y;
+ ghost.update(.016,x.round,x.players);
+ assert.equal(human.ghost,false,'cloak prevents NPC infection');
+ human.cloak=0;npc.stun=999;spirit.stun=0;
+ ghost.update(.016,x.round,x.players);
+ assert.equal(human.ghost,true,'infection resumes when cloak expires');
+}
+// Traps affect humans only. A ghost cannot trigger or consume the trap.
+{
+ const x=init(4);x.round.phase='playing';
+ const [owner,human,spirit,far]=x.players;
+ x.state.npcs.forEach(g=>g.stun=999);
+ spirit.ghost=true;
+ owner.x=260;owner.y=250;owner.cloak=5;
+ human.x=600;human.y=430;far.x=850;far.y=80;
+ spirit.x=owner.x;spirit.y=owner.y;
+ owner.item='trap';owner.input.alt=true;
+ ghost.update(.016,x.round,x.players);
+ assert.equal(x.state.traps.length,1);
+ ghost.update(.5,x.round,x.players);
+ assert.equal(spirit.stun,0,'trap ignores ghost');
+ assert.equal(x.state.traps.length,1,'ghost does not consume trap');
+ spirit.stun=999;human.x=owner.x;human.y=owner.y;human.stun=0;
+ ghost.update(.016,x.round,x.players);
+ assert.ok(human.stun>0,'trap hits human');
+ assert.equal(human.stunColor,owner.color,'trap sparkle has owner color');
+}
+// Slow can select only other human players, never converted ghosts.
+{
+ const x=init(3);x.round.phase='playing';
+ const [owner,friend,spirit]=x.players;
+ x.state.npcs.forEach(g=>g.stun=999);
+ spirit.ghost=true;owner.item='slow';owner.input.alt=true;
+ ghost.update(.016,x.round,x.players);
+ assert.equal(owner.targetId,friend.id);
+ assert.equal(ghost.cycleTarget(x.state,x.players,owner,1),true);
+ assert.equal(owner.targetId,friend.id,'ghost is excluded from target rotation');
+ owner.input.alt=false;ghost.update(.016,x.round,x.players);
+ owner.input.alt=true;ghost.update(.016,x.round,x.players);
+ assert.ok(friend.slow>0);
+ assert.equal(spirit.slow,0);
 }
 // A pickup notice fades automatically; using an item does not replay pickup.
 {
