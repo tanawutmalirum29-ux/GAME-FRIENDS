@@ -3,7 +3,7 @@ frontend:
   phases:
     build:
       commands:
-        - echo "Static browser game - no build step"
+        - node scripts/build-static.cjs
   artifacts:
     baseDirectory: .
     files:

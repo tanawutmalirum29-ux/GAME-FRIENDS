@@ -105,6 +105,7 @@ function setView(view) {
   // landscape without blocking the form if automatic rotation is disallowed.
   if(view==='controller'&&!controllerReady)tryLandscapeOrientation();
   window.scrollTo(0,0);
+  window.GameAutoUpdate?.onSafePoint();
 }
 function tryLandscapeOrientation(){
   // Browsers may require fullscreen plus a direct user gesture. Failure must
@@ -733,6 +734,7 @@ function resetControllerForRoomChange(message){
   $('joinBtn').disabled=false;
   controllerReady=false;updatePhoneGamePicker('closed',null);
   controllerState(message||'เลือกห้องใหม่ได้เลย โดยไม่ต้องเปิดแท็บใหม่');
+  window.GameAutoUpdate?.onSafePoint();
 }
 function joinRoom(){
   if(typeof Peer!=='function'){controllerState('ไม่สามารถโหลดระบบจอยออนไลน์ได้',true);return;}
@@ -1420,5 +1422,12 @@ if(launchedHost&&!joinCode){
   $('nick').value=getSavedNickname();
   setStatus('พร้อมเข้าร่วมห้อง • กรอกรหัสหรือสแกน QR');
 }
+// Never terminate a live PeerJS host, room, or controller for a software update.
+window.GAME_CAN_AUTO_RELOAD=()=>(
+  currentView==='home'&&!round&&!onlineHost&&!hostPeer
+)||(
+  currentView==='controller'&&!controllerReady&&!controllerConn&&!controllerPeer
+);
+window.GAME_NOTIFY_UPDATE=()=>showToast('มีเวอร์ชันใหม่ จะอัปเดตอัตโนมัติเมื่อออกจากห้อง');
 requestAnimationFrame(animate);
 })();

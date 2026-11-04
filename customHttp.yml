@@ -1,0 +1,18 @@
+# Hosted assets are refreshed by revalidating index.html and the manifest.
+customHeaders:
+  - pattern: '/'
+    headers:
+      - key: Cache-Control
+        value: 'no-cache, max-age=0, s-maxage=0, must-revalidate'
+  - pattern: '/*.html'
+    headers:
+      - key: Cache-Control
+        value: 'no-cache, max-age=0, s-maxage=0, must-revalidate'
+  - pattern: '/version.json'
+    headers:
+      - key: Cache-Control
+        value: 'no-store, max-age=0, s-maxage=0'
+  - pattern: '/build-version.js'
+    headers:
+      - key: Cache-Control
+        value: 'no-cache, max-age=0, s-maxage=0, must-revalidate'

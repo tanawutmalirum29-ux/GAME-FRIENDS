@@ -15,8 +15,12 @@ jobs:
         run: |
           node --check app.js
           node --check ghost-attack.js
+          node --check auto-update.js
+          node --check scripts/build-static.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
+      - name: Auto-update and build tests
+        run: node tests/auto-update.cjs
       - name: HTML-to-JavaScript references
         run: |
           node <<'NODE'
