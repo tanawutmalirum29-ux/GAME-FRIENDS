@@ -31,6 +31,10 @@ assert.doesNotMatch(ghostSource,/มนุษย์เหลือ|ผีจะ�
 assert.match(css,/#game \.game-center-hud\{\s*position:relative;\s*transform:translateY\(-9px\)/);
 assert.match(css,/#game \.leaderboard\{\s*display:grid;\s*grid-template-columns:repeat\(var\(--leader-count,1\),minmax\(0,1fr\)\)/);
 assert.match(css,/#game \.leaderboard\{[\s\S]*?height:23px;[\s\S]*?overflow:hidden;/);
+assert.match(css,/#game \.leader-chip \.leader-held-item\{[\s\S]*?max-width:55%/);
+assert.match(source,/item\.className='leader-held-item'/);
+assert.match(ghostSource,/function drawPickupNotice\(ctx,p,w,h\)/);
+assert.match(ghostSource,/p\.pickupNoticeTime=2\.1/);
 assert.match(source,/root\.style\.setProperty\('--leader-count'/);
 assert.match(html,/ไม่จับเวลา/);
 assert.doesNotMatch(html,/id="duration"/);
@@ -118,6 +122,16 @@ assert.equal(ghost.ITEM_NAMES.slow,'ยาสโลว์เพื่อน');
  assert.ok(x.players[1].stun>.35&&x.players[1].stun<1);
  assert.ok(x.players[0].punchCooldown>.9);
 }
+// The render test observes exactly what spectators see over the collector.
+const drawTexts=[];
+const drawProbe=new Proxy({},{
+  get(_obj,key){
+    if(key==='createLinearGradient')return ()=>({addColorStop(){}});
+    if(key==='fillText')return (...args)=>drawTexts.push(args);
+    return ()=>{};
+  },
+  set(){return true;}
+});
 // Five items, one carried at a time. B first arms slow targeting, second uses it.
 for(const item of ['cloak','boost','stun','trap','slow']){
  const x=init(3);x.round.phase='playing';
@@ -127,6 +141,16 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  x.state.boxes.push({x:p.x,y:p.y,ttl:20,item});
  ghost.update(.016,x.round,x.players);
  assert.equal(p.item,item,'pickup '+item);
+ assert.equal(p.pickupNotice,ghost.ITEM_NAMES[item],'popup shows the actual item name');
+ assert.ok(p.pickupNoticeTime>2,'popup starts immediately after a real pickup');
+ drawTexts.length=0;
+ p.x=400;p.y=240;
+ ghost.draw(drawProbe,0,x.round,x.players);
+ const itemText=drawTexts.find(args=>args[0]==='ได้รับ: '+ghost.ITEM_NAMES[item]);
+ const nameText=drawTexts.find(args=>args[0]===p.name);
+ assert.ok(itemText,'collector sees obtained item above the character: '+item);
+ assert.ok(nameText&&itemText[2]<nameText[2],
+   'item notification is vertically above the collector name');
  // A second box is not collectible while already carrying something.
  x.state.boxes.push({x:p.x,y:p.y,ttl:20,item:'cloak'});
  ghost.update(.016,x.round,x.players);
@@ -165,6 +189,25 @@ for(const item of ['cloak','boost','stun','trap','slow']){
   }
  }
 }
+// A pickup notice fades automatically; using an item does not replay pickup.
+{
+ const x=init(3);x.round.phase='playing';
+ const p=x.players[0];x.state.npcs.forEach(n=>n.stun=999);
+ x.state.boxes=[{x:p.x,y:p.y,ttl:8,item:'boost'}];
+ ghost.update(.01,x.round,x.players);
+ assert.equal(p.pickupNotice,'บูสต์สปีด');
+ x.state.boxes=[];x.round.phase='countdown';
+ ghost.update(2.5,x.round,x.players);
+ assert.equal(p.pickupNoticeTime,0);
+ drawTexts.length=0;
+ ghost.draw(drawProbe,0,x.round,x.players);
+ assert.ok(!drawTexts.some(args=>String(args[0]).startsWith('ได้รับ:')),
+   'expired pickup announcement is no longer painted');
+ const nextRound={mode:'ghost',phase:'countdown'};
+ ghost.setup(nextRound,x.players);
+ assert.equal(p.pickupNotice,null,'no stale item popup in a fresh round');
+ assert.equal(p.pickupNoticeTime,0);
+}
 // AI target lock only changes for very close alternatives; conversion retains
 // player control as a colored ghost, with a clear last-survivor winner.
 {
@@ -188,8 +231,11 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  npc.stun=0;
  b.x=90;b.y=90;c.x=x.state.world.w-80;c.y=x.state.world.h-80;
  a.x=npc.x;a.y=npc.y;
+ a.item='cloak';a.pickupNotice='ผ้าคลุมล่องหน';a.pickupNoticeTime=2.1;
  ghost.update(.016,x.round,x.players);
  assert.equal(a.ghost,true,'AI ghost touch infects a human');
+ assert.equal(a.item,null,'infected player no longer holds an item');
+ assert.equal(a.pickupNotice,null,'infection clears an outdated pickup notification');
  assert.equal(a.active,true,'infected human remains controllable');
  npc.stun=999;
  a.x=c.x-4;a.y=c.y;
@@ -383,10 +429,29 @@ assert.ok(/คน/.test(host.elements.get('timer').textContent));
 assert.equal(host.elements.get('leaderboard').children.length,1);
 assert.equal(host.elements.get('leaderboard').style['--leader-count'],'1');
 const matchPlayers=host.scope.window.__ghostTest.getPlayers();
+matchPlayers[0].item='cloak';
+host.scope.window.__ghostTest.renderLeaderboard();
+let firstChip=host.elements.get('leaderboard').children[0];
+assert.equal(firstChip.children[1].textContent,matchPlayers[0].name);
+assert.equal(firstChip.children[2].textContent,'ผ้าคลุมล่องหน',
+ 'full held-item name is shown directly after player name');
+assert.equal(firstChip.children[2].title,'ผ้าคลุมล่องหน');
+matchPlayers[0].item=null;
+host.scope.window.__ghostTest.renderLeaderboard();
+firstChip=host.elements.get('leaderboard').children[0];
+assert.equal(firstChip.children.length,3,'item tag disappears after use');
+
 const addedPlayers=mkPlayers(11).map((p,i)=>({...p,id:'extra-'+i,ghost:i%2===0}));
 matchPlayers.push(...addedPlayers);
+addedPlayers[1].item='boost';
 host.scope.window.__ghostTest.renderLeaderboard();
 assert.equal(host.elements.get('leaderboard').children.length,12);
+const busyItemChip=host.elements.get('leaderboard').children[2];
+assert.equal(busyItemChip.children[1].textContent,addedPlayers[1].name);
+assert.equal(busyItemChip.children[2].textContent,'สปีด',
+ '5-12 player HUD uses a short recognizable item label');
+assert.equal(busyItemChip.children[2].title,'บูสต์สปีด',
+ 'full item label remains accessible in a tooltip');
 assert.equal(host.elements.get('leaderboard').style['--leader-count'],'12',
   'twelve players use one fixed row instead of extending into the arena');
 matchPlayers.splice(-11);host.scope.window.__ghostTest.renderLeaderboard();
