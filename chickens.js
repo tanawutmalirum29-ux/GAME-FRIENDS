@@ -2,7 +2,7 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2;
-const C=Object.freeze({playerSpeed:172,chickenSpeed:183,playerRadius:15,chickenRadius:10,
+const C=Object.freeze({playerSpeed:172,chickenSpeed:191,playerRadius:15,chickenRadius:8.3,
   pickupRadius:26,carryOffset:37,headOffset:12,entryDepth:9,depositTime:.30,
   punchRange:57,punchHalfAngle:.86,punchCooldown:1,dropImmunity:.35});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -57,7 +57,20 @@ function makeChicken(state,players){
   const angle=rand(0,TAU),dir=normal(angle);
   return {id:++state.nextChickenId,x:p.x,y:p.y,dir,vx:dir.x*65,vy:dir.y*65,
     status:'free',carrierId:null,penId:null,depositPenId:null,depositFor:0,
-    decision:rand(0,.24),escapeAngle:angle,invulnerable:0,flap:rand(0,TAU),stuckFor:0};
+    decision:rand(0,.18),escapeAngle:angle,invulnerable:0,flap:rand(0,TAU),stuckFor:0,
+    panicFor:0,panicRecharge:rand(0,.35)};
+}
+function refillChickens(state,players){
+  // Count carried chickens too: a dropped chicken cannot overflow the
+  // 20-chicken live-world cap. Use only the reserve, never recycle a score.
+  let active=state.chickens.reduce((n,c)=>
+    n+(c.status==='free'||c.status==='carried'?1:0),0);
+  while(active<state.spawnLimit&&state.remainingReserve>0){
+    state.chickens.push(makeChicken(state,players));
+    state.remainingReserve--;
+    state.spawnedCount++;
+    active++;
+  }
 }
 function setup(round,players){
   const n=Math.max(1,Math.min(12,players.length));
@@ -73,9 +86,13 @@ function setup(round,players){
       angle,normal:v,gateNormal:v,tangent:t,gatePosition,gateWidth,
       entryDepth:C.entryDepth,depth:54,points:0};
   });
+  // A finite per-round inventory. Only 20 can be active (running or carried)
+  // at once; penned chickens are retired forever and never re-spawn.
+  const totalChickens=Math.round(n*4.5);
   const state={world,center,radius,pens,chickens:[],nextChickenId:0,
-    targetFree:Math.max(9,Math.round(n*4.5)),remaining:n<=4?20:n<=8?30:40,
-    spawnClock:0,effects:[],time:0};
+    totalChickens,spawnLimit:Math.min(20,totalChickens),
+    remainingReserve:totalChickens,spawnedCount:0,scoredCount:0,
+    remaining:n<=4?20:n<=8?30:40,effects:[],time:0};
   for(const [i,p] of players.entries()){
     const a=-Math.PI/2+TAU*(i+.45)/n;
     const radial=Math.min(radius*.54,110);
@@ -88,7 +105,7 @@ function setup(round,players){
   }
   round.chickens=state;round.remaining=state.remaining;
   round.countdown=3;round.phase='countdown';
-  for(let i=0;i<state.targetFree;i++)state.chickens.push(makeChicken(state,players));
+  refillChickens(state,players);
 }
 function dropChicken(state,p,force={x:0,y:0}){
   if(p.carriedChickenId==null)return;
@@ -231,19 +248,29 @@ function chooseEscape(state,c,players){
 function advanceChicken(state,c,players,dt){
   if(c.status!=='free')return;
   c.invulnerable=Math.max(0,c.invulnerable-dt);
-  c.flap+=dt*13;
+  c.flap+=dt*16;
   c.decision-=dt;
   const wallRoom=state.radius-distance(c,state.center);
   if(c.decision<=0||wallRoom<26){
     c.escapeAngle=chooseEscape(state,c,players);
-    c.decision=wallRoom<26?.035:rand(.14,.28);
+    c.decision=wallRoom<26?.028:rand(.09,.19);
   }
   const old=Math.atan2(c.dir.y,c.dir.x);
   const delta=deltaAngle(old,c.escapeAngle);
-  const angle=old+clamp(delta,-5.1*dt,5.1*dt);
+  const angle=old+clamp(delta,-8.2*dt,8.2*dt);
   c.dir=normal(angle);
   const danger=players.some(p=>p.active&&distance(c,p)<205);
-  const speed=danger?C.chickenSpeed:75;
+  const close=players.some(p=>p.active&&distance(c,p)<105);
+  c.panicRecharge=Math.max(0,(c.panicRecharge||0)-dt);
+  c.panicFor=Math.max(0,(c.panicFor||0)-dt);
+  if(close&&c.panicRecharge<=0){
+    c.panicFor=.23;
+    c.panicRecharge=1.05;
+    c.decision=0;
+  }
+  // Short acceleration pulses, frequent smooth evasive turns, and livelier
+  // cruising; the burst is brief so humans and bots can still intercept.
+  const speed=c.panicFor>0?217:danger?C.chickenSpeed:96;
   c.vx=c.dir.x*speed;c.vy=c.dir.y*speed;
   const oldX=c.x,oldY=c.y;
   moveCircle(state,c,c.vx,c.vy,dt,C.chickenRadius+2);
@@ -279,7 +306,7 @@ function collect(state,c,p){
 function scoreDeposit(state,c,p,pen){
   if(c.status!=='carried'||p.carriedChickenId!==c.id)return;
   c.status='penned';c.carrierId=null;c.penId=pen.id;c.depositFor=0;c.depositPenId=null;
-  p.carriedChickenId=null;pen.points++; 
+  p.carriedChickenId=null;pen.points++;state.scoredCount++; 
   const owner=state.playersById&&state.playersById[pen.ownerId];
   if(owner)owner.score++;
   // Keep every penned chicken physically inside the fenced storage rectangle,
@@ -326,13 +353,7 @@ function step(state,players,dt){
     c.dir=v;advanceDeposit(state,c,p,dt);
   }
   state.effects=state.effects.filter(e=>(e.life-=dt)>0);
-  const free=state.chickens.reduce((v,c)=>v+(c.status==='free'?1:0),0);
-  if(free<state.targetFree){
-    state.spawnClock+=dt;
-    if(state.spawnClock>=1.7){
-      state.spawnClock=0;state.chickens.push(makeChicken(state,players));
-    }
-  }else state.spawnClock=0;
+  refillChickens(state,players);
 }
 function update(dt,round,players){
   const state=round.chickens;
@@ -353,7 +374,8 @@ function update(dt,round,players){
 function hud(players,round){
   const state=round.chickens;
   return {remaining:state?.remaining||0,free:state?.chickens.filter(c=>c.status==='free').length||0,
-    total:players.filter(p=>p.active).length};
+    total:players.filter(p=>p.active).length,flock:state?.totalChickens||0,
+    left:(state?.totalChickens||0)-(state?.scoredCount||0)};
 }
 function drawChicken(ctx,c,t,scale=1){
   const angle=Math.atan2(c.dir.y,c.dir.x);
@@ -437,13 +459,13 @@ function draw(ctx,time,round,players){
   }ctx.restore();
   for(const pen of s.pens)drawPen(ctx,s,pen,time);
   // Pen residents remain visible and inert, never re-entering the arena.
-  for(const c of s.chickens)if(c.status==='penned')drawChicken(ctx,c,time,.78);
-  for(const c of s.chickens)if(c.status==='free')drawChicken(ctx,c,time);
+  for(const c of s.chickens)if(c.status==='penned')drawChicken(ctx,c,time,.66);
+  for(const c of s.chickens)if(c.status==='free')drawChicken(ctx,c,time,.82);
   for(const p of players)if(p.active){
     drawPlayer(ctx,p,time);
     const c=s.chickens.find(q=>q.id===p.carriedChickenId&&q.status==='carried');
     if(c){
-      drawChicken(ctx,c,time,1);
+      drawChicken(ctx,c,time,.82);
       if(c.depositPenId&&c.depositFor>0){
         ctx.save();ctx.strokeStyle='#ffee7a';ctx.lineWidth=4;
         ctx.beginPath();ctx.arc(c.x,c.y,18,-Math.PI/2,-Math.PI/2+
@@ -456,11 +478,11 @@ function draw(ctx,time,round,players){
     ctx.font='bold 25px sans-serif';ctx.textAlign='center';
     ctx.fillText(e.text,e.x,e.y-e.life*24);ctx.restore();
   }
-  ctx.fillStyle='#101d31de';ctx.fillRect(12,12,166,65);
+  ctx.fillStyle='#101d31de';ctx.fillRect(12,12,228,65);
   ctx.fillStyle='#ffffff';ctx.font='bold 23px sans-serif';ctx.textAlign='left';
   ctx.fillText(round.phase==='countdown'?Math.ceil(round.countdown)+'':'เวลา '+Math.ceil(s.remaining),22,38);
   ctx.font='14px sans-serif';ctx.fillStyle='#b9f0d9';
-  ctx.fillText('ไก่อิสระ '+s.chickens.filter(c=>c.status==='free').length,22,61);
+  ctx.fillText('ไก่สนาม '+s.chickens.filter(c=>c.status==='free').length+' · เหลือ '+(s.totalChickens-s.scoredCount)+'/'+s.totalChickens,22,61);
   ctx.restore();
 }
 window.Chickens=Object.freeze({setup,update,draw,hud,dropChicken,gateInside,goalHead,
