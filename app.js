@@ -226,17 +226,12 @@ function nominatedGames(){
 }
 function updateHostQueue(){
   const picks=nominatedGames();
-  if(!picks.length){
-    $('hostQueue').textContent='รอผู้เล่นเลือกมินิเกมบนมือถือ';
-    $('hostQueue').title=$('hostQueue').textContent;
-    return;
-  }
-  const totals=new Map();
-  for(const mode of picks)totals.set(mode,(totals.get(mode)||0)+1);
-  const counts=[...totals].map(([mode,count])=>MODES[mode]+' ×'+count);
   const waiting=players.length-picks.length;
-  $('hostQueue').textContent='เลือกแล้ว '+picks.length+'/'+players.length+' คน • '+counts.join(' • ')+
-    (waiting?' • รออีก '+waiting+' คน':' • พร้อมสุ่มลำดับ');
+  // Show individual game names only beside their player; this line is status only.
+  $('hostQueue').textContent=!players.length?'รอผู้เล่นเข้าห้อง':
+    !picks.length?'รอผู้เล่นเลือกมินิเกม • 0/'+players.length+' คน':
+    'เลือกแล้ว '+picks.length+'/'+players.length+' คน • '+
+      (waiting?'รออีก '+waiting+' คน':'พร้อมสุ่มเล่น '+picks.length+' รอบ (รวมเกมซ้ำ)');
   $('hostQueue').title=$('hostQueue').textContent;
 }
 function renderPauseChoiceList(){
@@ -261,7 +256,8 @@ function renderRoster(){
     const name=document.createElement('b');name.textContent=p.name;
     const type=document.createElement('small');type.textContent=p.type==='local'?'คีย์บอร์ด':'มือถือ';
     const chosen=document.createElement('span');chosen.className='roster-pick'+(p.choice?' picked':'');
-    chosen.textContent=p.choice?'เลือก '+MODES[p.choice]:'ยังไม่เลือกเกม';
+    chosen.textContent=p.choice?MODES[p.choice]:'ยังไม่เลือกเกม';
+    chosen.title=p.choice?MODES[p.choice]:'ยังไม่ได้เลือกเกม';
     const kick=document.createElement('button');kick.type='button';kick.textContent='×';kick.title='เอาผู้เล่นออก';kick.setAttribute('aria-label','เอา '+p.name+' ออกจากห้อง');
     kick.addEventListener('click',()=>removePlayer(p.id));
     item.append(color,name,type,chosen,kick);el.append(item);
