@@ -271,3 +271,114 @@ body.controller-playing .portrait-restore{display:none}
   }
   body.controller-playing.portrait-fallback #controllerActive .gamepad-brand{font-size:12px}
 }
+
+
+
+/* Immersive host view: game consumes the entire viewport, all controls live on phones. */
+body.host-playing{overflow:hidden;overscroll-behavior:none;touch-action:none}
+#game.game-page{
+  position:fixed;inset:0;z-index:70;display:block;
+  width:100vw;height:100vh;height:100dvh;min-height:0;
+  margin:0;padding:0;overflow:hidden;background:#0a1327;
+  border:0;border-radius:0;touch-action:none;
+}
+#game .game-frame{
+  position:absolute;inset:0;margin:0;padding:0;
+  border:0;border-radius:0;overflow:hidden;
+  background:radial-gradient(ellipse at center,#1e3454 0%,#0b152b 75%);
+}
+#game .game-frame canvas{
+  width:100%;height:100%;aspect-ratio:auto;
+  max-width:100%;max-height:100%;object-fit:contain;
+  display:block;touch-action:none;
+}
+#game .game-banner{z-index:3;top:35%;font-size:clamp(34px,6vw,80px)}
+#game .game-toolbar{
+  position:absolute;inset:0 0 auto 0;z-index:4;
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:start;gap:12px;margin:0;
+  padding:max(12px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) 32px max(14px,env(safe-area-inset-left,0px));
+  background:linear-gradient(180deg,#081222bd 0%,#08122277 67%,transparent 100%);
+  pointer-events:none;
+}
+#game .game-name{min-width:0;text-shadow:0 2px 9px #000b}
+#game .game-name .eyebrow{font-size:clamp(10px,1.35vw,14px);letter-spacing:1px;color:#8dedf4}
+#game .game-name h2{font-size:clamp(11px,1.5vw,17px);margin:2px 0 0;line-height:1.2;font-weight:800}
+#game .timer-box{
+  background:#101f38ca;color:#fff;
+  border:1px solid #90acd47a;border-radius:13px;
+  padding:7px 18px;min-width:100px;line-height:1.12;
+  backdrop-filter:blur(8px);box-shadow:0 4px 18px #0006;
+}
+#game .timer-box strong{font-size:clamp(19px,3.3vw,32px)}
+#game .timer-box span{font-size:9px;letter-spacing:1.2px}
+#game .game-pause-btn{
+  pointer-events:auto;justify-self:end;display:flex;gap:9px;align-items:center;
+  min-height:51px;padding:10px 17px;border:1px solid #b0c3e18c;
+  color:#fff;background:#182d48d9;border-radius:13px;
+  font-size:18px;font-weight:1000;box-shadow:0 5px 18px #0008;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  backdrop-filter:blur(9px);
+}
+#game .game-pause-btn span{font-size:13px;letter-spacing:.2px}
+#game .game-pause-btn:active{background:#3b5c83}
+#game .leaderboard{
+  position:absolute;bottom:0;left:0;right:0;z-index:3;
+  display:flex;flex-wrap:nowrap;gap:7px;
+  margin:0;padding:26px max(13px,env(safe-area-inset-right,0px)) max(11px,env(safe-area-inset-bottom,0px)) max(13px,env(safe-area-inset-left,0px));
+  overflow-x:auto;overflow-y:hidden;min-height:48px;
+  scrollbar-width:thin;scrollbar-color:#516581 transparent;
+  background:linear-gradient(0deg,#091327de 0%,#0913276d 54%,transparent 100%);
+  touch-action:pan-x;
+}
+#game .leader-chip{
+  flex:0 0 auto;min-height:34px;padding:6px 10px;
+  border-radius:9px;background:#1a2946cf;
+  border:1px solid #6d86a663;font-size:11px;
+  box-shadow:0 3px 12px #0005;backdrop-filter:blur(5px);
+}
+#game .leader-chip small{font-size:11px}
+#game .game-pause-overlay{
+  position:absolute;inset:0;z-index:12;display:grid;place-items:center;
+  padding:20px;background:#06101fca;backdrop-filter:blur(13px);
+}
+#game .game-pause-card{
+  width:min(100%,400px);max-height:95%;overflow:auto;
+  background:linear-gradient(150deg,#263b5b,#131d33);
+  border:1px solid #8a9fc277;border-radius:22px;
+  padding:clamp(22px,4vw,34px);text-align:center;
+  box-shadow:0 24px 80px #000b;
+}
+#game .pause-icon{
+  margin:0 auto 10px;display:grid;place-items:center;
+  width:64px;height:64px;border:2px solid #89e1e9;
+  border-radius:20px;color:#8ceaf2;font-size:34px;
+}
+#game .game-pause-card h2{margin:6px 0;font-size:clamp(24px,4vw,33px)}
+#game .game-pause-card p{color:#bccbe0;font-size:13px;margin:0 0 23px}
+#game .game-pause-card .btn{display:flex;width:100%;min-height:53px;margin-top:12px;font-size:15px}
+#game .pause-exit{background:#3c2b46;border-color:#b77396}
+#game .result-overlay{
+  position:absolute;inset:0;z-index:10;
+  padding:14px;background:#06101fd9;
+}
+#game .result-card{max-height:94dvh;overflow:auto}
+@media(max-width:620px){
+  #game .game-toolbar{gap:6px;padding-top:max(7px,env(safe-area-inset-top,0px));padding-left:8px;padding-right:8px}
+  #game .game-name h2{font-size:11px;max-width:110px}
+  #game .timer-box{min-width:80px;padding:6px 10px}
+  #game .game-pause-btn{min-height:44px;padding:8px 10px;gap:5px}
+  #game .game-pause-btn span{font-size:11px}
+  #game .leader-chip{font-size:10px;padding:5px 7px}
+  #game .leader-chip small{font-size:10px}
+}
+@media(max-height:400px){
+  #game .game-toolbar{padding-top:5px}
+  #game .game-name h2{display:none}
+  #game .timer-box{padding:4px 9px}
+  #game .game-pause-btn{min-height:39px;padding:6px 10px}
+  #game .game-pause-card{padding:16px;max-width:350px}
+  #game .pause-icon{width:45px;height:45px;font-size:23px}
+  #game .game-pause-card p{margin-bottom:12px}
+  #game .game-pause-card .btn{min-height:40px;margin-top:8px}
+}
