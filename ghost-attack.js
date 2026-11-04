@@ -845,6 +845,26 @@ function drawPickupNotice(ctx,p,w,h){
   ctx.fillText(msg,textX,y,220);
   ctx.restore();
 }
+// Text is positioned with measured LEFT edges, not textAlign='center'.
+// Some host Canvas/browser combinations were anchoring Thai text at the
+// center point as if it were left-aligned, so "12 คน" escaped the frame.
+function drawFittedHudText(ctx,text,cx,y,maxWidth,fontSize,weight,color){
+  ctx.textAlign='left';
+  ctx.textBaseline='middle';
+  ctx.fillStyle=color;
+  const label=String(text);
+  let size=fontSize;
+  let width=0;
+  // Fit by measuring actual shaped Thai glyphs before drawing.
+  for(let attempt=0;attempt<22;attempt++){
+    ctx.font=weight+' '+size.toFixed(2)+'px system-ui';
+    width=ctx.measureText(label).width;
+    if(width<=maxWidth||size<=7)break;
+    size=Math.max(7,size-.6);
+  }
+  const textX=cx-Math.min(width,maxWidth)/2;
+  ctx.fillText(label,textX,y,maxWidth);
+}
 function drawCornerHud(ctx,round,players,state){
   const o=state.hudBlocker;if(!o)return;
   const unit=o.w/88;
@@ -862,16 +882,20 @@ function drawCornerHud(ctx,round,players,state){
     o.w-6*unit,o.h-6*unit,5*unit);
   ctx.fillStyle='#193d49';ctx.fill();
   ctx.strokeStyle='#3e8490';ctx.lineWidth=.75*unit;ctx.stroke();
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillStyle='#c4e7e5';ctx.font='bold '+(9*unit)+'px system-ui';
-  ctx.fillText(countdown?'เริ่มใน':'ผู้เล่น',cx,o.y+13*unit,o.w-9*unit);
-  ctx.fillStyle='#fff2b6';ctx.font='900 '+(19*unit)+'px system-ui';
-  ctx.fillText(countdown?
+  // Clip to the INNER frame as a final safeguard on narrow phone screens.
+  ctx.beginPath();
+  ctx.roundRect(o.x+4*unit,o.y+4*unit,
+    o.w-8*unit,o.h-8*unit,4*unit);
+  ctx.clip();
+  const maxWidth=o.w-14*unit;
+  drawFittedHudText(ctx,countdown?'เริ่มใน':'ผู้เล่น',
+    cx,o.y+12.5*unit,maxWidth,8.5*unit,'bold','#c4e7e5');
+  drawFittedHudText(ctx,countdown?
     String(Math.max(1,Math.ceil(round.countdown||0)))+' วิ':
-    String(count)+' คน',cx,o.y+32*unit,o.w-8*unit);
-  ctx.fillStyle='#aee4e7';ctx.font='bold '+(9*unit)+'px system-ui';
-  ctx.fillText(countdown?count+' คน':'กำลังแข่ง',
-    cx,o.y+49*unit,o.w-9*unit);
+    String(count)+' คน',
+    cx,o.y+29*unit,maxWidth,16.5*unit,'900','#fff2b6');
+  drawFittedHudText(ctx,countdown?count+' คน':'กำลังแข่ง',
+    cx,o.y+45.5*unit,maxWidth,8.2*unit,'bold','#aee4e7');
   ctx.restore();
 }
 function draw(ctx,t,round,players){
