@@ -48,6 +48,7 @@ function resetPlayer(p,pos){
   p.x=pos.x;p.y=pos.y;p.vx=0;p.vy=0;p.face=1;
   p.active=true;p.alive=true;p.ghost=false;p.score=0;
   p.item=null;p.selecting=false;p.targetId=null;
+  p.pickupNotice=null;p.pickupNoticeTime=0;
   p.stun=0;p.slow=0;p.cloak=0;p.boost=0;p.punchCooldown=0;
   p.punchFX=0;p.altLatch=false;p.actionLatch=false;
   p.input={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0};
@@ -117,6 +118,7 @@ function nearestTarget(npc,players,state,preferLock=true){
 function convert(p,state){
   if(!p.active||p.ghost)return;
   p.ghost=true;p.item=null;p.selecting=false;p.targetId=null;
+  p.pickupNotice=null;p.pickupNoticeTime=0;
   p.cloak=0;p.boost=0;p.slow=0;p.stun=.17;
   p.infectedAt=state.time;p.score=Math.floor(p.survival*10);
   state.converted.push(p.id);
@@ -186,7 +188,7 @@ function tickPlayers(dt,players,state){
   for(const p of players){
     if(!p.active)continue;
     p.survival+=p.ghost?0:dt;
-    for(const key of ['stun','slow','cloak','boost','punchCooldown','punchFX'])
+    for(const key of ['stun','slow','cloak','boost','punchCooldown','punchFX','pickupNoticeTime'])
       p[key]=Math.max(0,(p[key]||0)-dt);
     const input=p.input||{};
     // Button presses require release before they can trigger again.
@@ -235,6 +237,10 @@ function updateBoxes(dt,players,state){
     for(const p of players){
       if(!p.active||p.ghost||p.item||dist(b,p)>27)continue;
       p.item=b.item;
+      // Independent of the inventory slot: announce what this player JUST
+      // collected above their character, for a brief, readable interval.
+      p.pickupNotice=ITEM_NAMES[b.item]||'ไอเทม';
+      p.pickupNoticeTime=2.1;
       state.boxes.splice(i,1);
       break;
     }
@@ -324,6 +330,24 @@ function drawPerson(ctx,p,color,ghost,t,alpha=1){
   ctx.fillStyle='#fff';ctx.fillText(p.name||'GHOST',x,y-39);
   ctx.restore();
 }
+function drawPickupNotice(ctx,p,w,h){
+  if(!p.pickupNotice||p.pickupNoticeTime<=0)return;
+  const elapsed=2.1-p.pickupNoticeTime;
+  const x=clamp(p.x,110,Math.max(110,w-110));
+  const y=clamp(p.y-66-elapsed*9,26,Math.max(26,h-48));
+  ctx.save();
+  ctx.globalAlpha=clamp(p.pickupNoticeTime/.38,0,1);
+  ctx.textAlign='center';
+  ctx.font='bold 15px system-ui';
+  ctx.lineJoin='round';
+  ctx.lineWidth=5;
+  ctx.strokeStyle='#07192a';
+  ctx.fillStyle='#ffe69b';
+  const msg='ได้รับ: '+p.pickupNotice;
+  ctx.strokeText(msg,x,y,220);
+  ctx.fillText(msg,x,y,220);
+  ctx.restore();
+}
 function draw(ctx,t,round,players){
   const state=round.ghost;if(!state)return;
   const w=state.world.w,h=state.world.h;
@@ -370,6 +394,8 @@ function draw(ctx,t,round,players){
     if(!p.active)continue;
     const alpha=p.cloak>0?.19:1;
     drawPerson(ctx,p,p.color,p.ghost,t,alpha);
+    // Show the freshly obtained item above THIS player, not globally.
+    drawPickupNotice(ctx,p,w,h);
     if(p.boost>0){ctx.save();ctx.strokeStyle=p.color;ctx.lineWidth=2.5;
       ctx.beginPath();ctx.arc(p.x,p.y,29,0,TAU);ctx.stroke();ctx.restore();}
   }
