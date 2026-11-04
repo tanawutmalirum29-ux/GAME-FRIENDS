@@ -197,8 +197,9 @@ function separatePlayers(state,players){
 }
 function chooseEscape(state,c,players){
   const threatened=players.filter(p=>p.active&&distance(p,c)<215);
-  if(!threatened.length){
-    return Math.atan2(c.dir.y,c.dir.x)+rand(-.45,.45);
+  const wallRoom=state.radius-distance(c,state.center);
+  if(!threatened.length&&wallRoom>64){
+    return Math.atan2(c.dir.y,c.dir.x)+rand(-.35,.35);
   }
   const current=Math.atan2(c.dir.y,c.dir.x);
   let best=current,bestScore=-Infinity;
@@ -215,6 +216,10 @@ function chooseEscape(state,c,players){
       const approach=dot(v,unit(p.x-c.x,p.y-c.y));
       score+=Math.min(175,gap)*.65-Math.max(0,95-gap)*2.2-approach*12;
     }
+    // Prefer travelling tangentially around the circular fence.
+    // Without this, an unthreatened chicken can press against the wall.
+    const radial=unit(c.x-state.center.x,c.y-state.center.y);
+    score-=Math.max(0,75-wallRoom)*Math.max(0,dot(v,radial))*1.9;
     for(const other of state.chickens){
       if(other===c||other.status!=='free'||distance(c,other)>45)continue;
       score-=Math.max(0,30-distance(pred,other))*.85;
