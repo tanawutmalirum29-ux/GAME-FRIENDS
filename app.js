@@ -1014,9 +1014,15 @@ function animate(ts){
     }
     hudClock+=dt;
     if(hudClock>.22){
-      const seconds=Math.max(0,Math.ceil(round.remaining));
-      $('timer').textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+      const h=window.GhostAttack.hud(players,round);
+      $('timer').textContent=round.phase==='countdown'?
+        Math.max(0,Math.ceil(round.countdown))+' วิ':h.survivors+' คน';
       renderLeaderboard();hudClock=0;
+    }
+    inventoryClock+=dt;
+    if(inventoryClock>=.28){
+      inventoryClock=0;
+      broadcastPlayerInventories();
     }
     remotePreviewClock+=dt;
     if(remotePreviewClock>=1.1&&!round.paused){
@@ -1025,7 +1031,8 @@ function animate(ts){
     }
     networkClock+=dt;
     if(networkClock>.85){
-      broadcast({t:'state',phase:networkPhase(),remaining:round.remaining,mode:round.mode});
+      broadcast({t:'state',phase:networkPhase(),
+        survivors:window.GhostAttack.hud(players,round).survivors,mode:round.mode});
       networkClock=0;
     }
   }
@@ -1034,7 +1041,8 @@ function animate(ts){
 
 function broadcastGameState(){
   if(!round)return;
-  broadcast({t:'state',phase:networkPhase(),remaining:round.remaining,mode:round.mode});
+  broadcast({t:'state',phase:networkPhase(),
+    survivors:window.GhostAttack.hud(players,round).survivors,mode:round.mode});
 }
 function pauseGame(){
   if(currentView!=='game'||!round||round.phase==='results'||round.paused)return;
@@ -1171,6 +1179,23 @@ $('videoStartBtn').addEventListener('click',()=>{
       }).catch(()=>{});
     }catch(_){}
   }
+});
+const cyclePhoneTarget=(direction)=>{
+  if(!controllerReady||!controllerConn||!controllerConn.open)return;
+  send(controllerConn,{t:'target-cycle',direction});
+};
+$('targetPrevBtn').addEventListener('click',()=>cyclePhoneTarget(-1));
+$('targetNextBtn').addEventListener('click',()=>cyclePhoneTarget(1));
+document.addEventListener('keydown',e=>{
+  if(currentView!=='game'||!round||round.phase!=='playing'||e.repeat)return;
+  const locals=players.filter(p=>p.type==='local');
+  const controls=[['KeyQ','KeyE'],['Numpad8','Numpad2']];
+  controls.forEach((keys,i)=>{
+    const direction=e.code===keys[0]?-1:e.code===keys[1]?1:0;
+    if(direction&&locals[i]){
+      if(window.GhostAttack.cycleTarget(round.ghost,players,locals[i],direction))e.preventDefault();
+    }
+  });
 });
 $('scanRoomBtn').addEventListener('click',()=>{void startRoomScanner();});
 $('cancelScanBtn').addEventListener('click',()=>{void stopRoomScanner();});
