@@ -2379,14 +2379,14 @@ body.controller-playing #controller #controllerActive > .controller-inventory{
 #game .leaderboard{
   width:min(calc(100vw - 20px),calc(var(--leader-count,1) * 174px));
 }
-#game .leader-chip .leader-name{
+#game .leader-chip span.leader-name{
   flex:1 1 auto;
   min-width:0;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-#game .leader-chip .leader-held-item{
+#game .leader-chip span.leader-held-item{
   display:inline-block;
   flex:0 1 auto;
   min-width:0;
