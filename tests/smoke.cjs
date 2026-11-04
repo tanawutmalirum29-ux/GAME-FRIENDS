@@ -10,6 +10,14 @@ const css=fs.readFileSync('style.css','utf8');
 assert.match(css,/@media\(orientation:portrait\)/);
 assert.match(html,/id="joystickBase"/);
 assert.match(html,/id="joystickZone"/);
+assert.match(html,/id="controllerPreviewImage"/);
+assert.match(html,/id="controllerPreviewPlaceholder"/);
+assert.match(html,/id="leaveConfirm"/);
+assert.match(html,/id="confirmLeaveBtn"/);
+assert.match(html,/id="stayInRoomBtn"/);
+assert.match(css,/\.gamepad-preview\{/);
+assert.match(css,/\.controller-leave-overlay\{/);
+assert.match(css,/\.gamepad-preview-column/);
 assert.match(html,/id="switchRoomBtn"/);
 assert.match(html,/id="roomCodeInput"/);
 assert.match(html,/id="scanRoomBtn"/);
@@ -63,7 +71,9 @@ function setup(url='https://game.example/',portrait=false) {
       prepend(item){this.children.unshift(item);},
       setAttribute(name,value){this.attributes??={};this.attributes[name]=value;if(name==='content')this.content=value;},
       select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
-      getContext(){return context;},getBoundingClientRect(){return {left:0,top:0,width:200,height:200};},parentElement:null
+      getContext(){return context;},
+      toDataURL(mime){assert.equal(mime,'image/jpeg');return 'data:image/jpeg;base64,QUJDRA==';},
+      getBoundingClientRect(){return {left:0,top:0,width:200,height:200};},parentElement:null
     };
   };
   const context=new Proxy({},{
@@ -128,6 +138,7 @@ function setup(url='https://game.example/',portrait=false) {
     fire(name){for(const fn of windowHandlers[name]||[])fn();},
     scrollTo(){}
   };
+  win.location.assign=function(url){this.href=url;};
   win.history={replaceState(_state,_title,next){win.location=new URL(next);}};
   const sessionStorage={
     getItem(key){return sessionData.get(key)||null;},
@@ -215,8 +226,13 @@ const guest=host.instances[0].connect();
 host.instances[0].fire('connection',guest);
 guest.fire('data',{t:'join',name:'Friend'});
 assert.equal(host.elements.get('rosterCount').textContent,'2/12');
-// Paused status is broadcast to remote phone controllers.
+// A game frame is compressed on the host then sent only to joined controllers.
 host.click('startBtn');
+host.step(10000);
+const snapshot=guest.sent.find(packet=>packet.t==='preview');
+assert.ok(snapshot,'a remote joined controller receives a real game-frame packet');
+assert.match(snapshot.image,/^data:image\/jpeg;base64,/);
+assert.equal(snapshot.mode,'stars');
 host.click('pauseBtn');
 assert.equal(guest.sent.at(-1).t,'state');
 assert.equal(guest.sent.at(-1).phase,'paused');
@@ -243,6 +259,24 @@ conn.fire('data',{t:'welcome',id:'p1',name:'ทดสอบ',color:'#ff628c',mod
 assert.equal(mobile.elements.get('controllerActive').classList.contains('hidden'),false);
 assert.equal(mobile.elements.get('controllerName').textContent,'ทดสอบ');
 assert.equal(mobile.elements.get('controllerModeName').textContent,'STAR RUSH');
+assert.equal(mobile.elements.get('controllerPreviewImage').classList.contains('hidden'),true);
+conn.fire('data',snapshot);
+assert.equal(mobile.elements.get('controllerPreviewImage').src,snapshot.image,
+  'controller shows the host-generated frame');
+assert.equal(mobile.elements.get('controllerPreviewImage').classList.contains('hidden'),false);
+assert.equal(mobile.elements.get('controllerPreviewPlaceholder').classList.contains('hidden'),true);
+conn.fire('data',{t:'preview',image:'data:text/html;base64,PHNjcmlwdD4='});
+assert.equal(mobile.elements.get('controllerPreviewImage').src,snapshot.image,'unsafe image ignored');
+conn.fire('data',{t:'preview-reset'});
+assert.equal(mobile.elements.get('controllerPreviewImage').classList.contains('hidden'),true);
+assert.equal(mobile.elements.get('controllerPreviewPlaceholder').classList.contains('hidden'),false);
+// The first press of Exit opens confirmation, not a disconnect.
+mobile.click('leaveBtn');
+assert.equal(conn.open,true,'still connected before confirmation');
+assert.equal(mobile.elements.get('leaveConfirm').classList.contains('hidden'),false);
+mobile.click('stayInRoomBtn');
+assert.equal(conn.open,true,'cancel preserves session');
+assert.equal(mobile.elements.get('leaveConfirm').classList.contains('hidden'),true);
 assert.equal(mobile.scope.document.body.classList.contains('controller-playing'),true);
 assert.equal(mobile.scope.document.body.classList.contains('portrait-fallback'),false,
   'normal landscape remains the default even on portrait phones');
@@ -367,6 +401,20 @@ conn.fire('close');
 assert.equal(mobile.scope.document.body.classList.contains('controller-playing'),false);
 assert.equal(mobile.scope.document.body.classList.contains('zoom-locked'),false);
 assert.doesNotMatch(mobile.elements.get('viewportMeta').content,/user-scalable=no/);
+// Confirming exit, unlike cancel, disconnects the phone and returns to the home URL.
+const exitMobile=setup('https://game.example/?join=ABCDE3');
+exitMobile.elements.get('nick').value='ExitTester';exitMobile.click('joinBtn');
+exitMobile.instances[0].fire('open');
+const exitConn=exitMobile.instances[0].conn;
+exitConn.fire('open');
+exitConn.fire('data',{t:'welcome',id:'p-exit',name:'ExitTester',color:'#ffcf62',mode:'stars'});
+exitMobile.click('leaveBtn');
+assert.equal(exitConn.open,true);
+exitMobile.click('confirmLeaveBtn');
+assert.equal(exitConn.open,false,'confirmation disconnects PeerJS');
+assert.equal(exitMobile.scope.document.body.classList.contains('controller-playing'),false);
+assert.equal(exitMobile.elements.get('leaveConfirm').classList.contains('hidden'),true);
+assert.equal(exitMobile.scope.window.location.search,'','exiting removes join code');
 // The new B secondary action and half-strength analog must alter minigame movement.
 const fighter={
   id:'p-test',name:'Stick',color:'#fff',active:true,alive:true,
@@ -443,5 +491,5 @@ void (async()=>{
   newTab.instances[2].fire('open');
   newTab.instances[2].conn.fire('open');
   assert.equal(newTab.instances[2].conn.sent[0].name,'ทดสอบ');
-  console.log('SMOKE PASS: centered 1-12 player top HUD, compact pause, separated right A/B, nickname, QR and minigames');
+  console.log('SMOKE PASS: streamed phone game preview, compact HUD, confirmed exit, joystick, nickname, QR and 7 games');
 })().catch(err=>{console.error(err);process.exitCode=1;});
