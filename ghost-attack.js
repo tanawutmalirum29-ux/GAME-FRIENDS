@@ -245,9 +245,11 @@ function updateBoxes(dt,players,state){
 }
 function update(dt,round,players){
   const state=round.ghost;
-  if(!state||round.phase!=='playing')return;
+  if(!state||!['countdown','playing'].includes(round.phase))return;
   state.time+=dt;
+  // Players can move and juke DURING the 3-second warning.
   tickPlayers(dt,players,state);
+  if(round.phase==='countdown')return null;
   advanceNpcs(dt,players,state);
   // Player ghosts convert people by touch, and pass obstacles completely.
   for(const spirit of players){
