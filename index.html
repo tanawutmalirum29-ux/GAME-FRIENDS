@@ -54,29 +54,28 @@
               </div>
             </div>
           </div>
-          <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ ผู้เล่นคีย์บอร์ดจะเลือก GHOST ATTACK เป็นค่าเริ่มต้น</p>
+          <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ บอทจะเลือก GHOST ATTACK เป็นค่าเริ่มต้น</p>
         </section>
         <section class="lobby-player-panel">
-          <div class="lobby-section-title"><h2>รายชื่อผู้เล่นและเกมที่เลือก</h2><span id="rosterCount" class="count">0/12</span></div>
+          <div class="lobby-section-title"><h2>รายชื่อผู้เล่นและเกมที่เลือก</h2><span id="rosterCount" class="count">0/24</span></div>
           <p class="lobby-hint">เกมแรก GHOST ATTACK • ทุกคนต้องเลือกก่อนเริ่ม • เลือกซ้ำเพื่อเล่นหลายรอบได้</p>
-          <div id="roster" class="roster lobby-roster"><p class="empty">ยังไม่มีผู้เล่น • ให้เพื่อนสแกน QR เพื่อเข้าห้อง</p></div>
-          <h3>สถานะการเลือกเกม</h3>
-          <div id="hostQueue" class="host-queue" aria-live="polite">รอผู้เล่นเลือกมินิเกม</div>
+          <div id="roster" class="roster lobby-roster"><p class="empty">ยังไม่มีผู้เล่น • สแกน QR หรือเพิ่มบอท</p></div>
+          <div id="hostQueue" class="host-queue hidden" aria-hidden="true"></div>
         </section>
       </div>
       <div class="lobby-controls">
-        <div class="lobby-control"><label for="sessionMode">รูปแบบการแข่งขัน</label>
-          <select id="sessionMode">
-            <option value="queue" selected>เล่นครบทุกตัวเลือก (เกมซ้ำเล่นหลายรอบ)</option>
-            <option value="quick">สุ่มเล่น 1 เกมจากทุกตัวเลือก</option>
-          </select>
+        <div class="lobby-control"><label id="sessionModeLabel">รูปแบบการแข่งขัน</label>
+          <div id="sessionMode" class="segmented-choice" role="group" aria-labelledby="sessionModeLabel">
+            <button type="button" class="seg-option active" data-session-mode="queue" aria-pressed="true">เล่นครบทุกตัวเลือก</button>
+            <button type="button" class="seg-option" data-session-mode="quick" aria-pressed="false">สุ่มเล่น 1 เกม</button>
+          </div>
         </div>
         <div class="lobby-control"><label>กฎการจบเกม</label><div class="ghost-no-timer">ไม่จับเวลา · รอดคนสุดท้าย</div></div>
         <div class="lobby-control auto-next-control"><label for="autoNext">เล่นเกมต่อเนื่อง</label>
           <label class="lobby-toggle"><input id="autoNext" type="checkbox" checked> เริ่มรอบถัดไปอัตโนมัติหลังดูผล 7 วินาที</label>
         </div>
         <div class="lobby-room-actions">
-          <button id="addLocalBtn" class="btn btn-outline" type="button">+ ผู้เล่นคีย์บอร์ด</button>
+          <button id="addLocalBtn" class="btn btn-outline" type="button">+ เพิ่มบอท</button>
           <button id="startBtn" class="btn btn-green" type="button" disabled>สุ่มและเริ่มเล่น ▶</button>
         </div>
       </div>
@@ -194,6 +193,17 @@
       </div>
     </main>
     <footer>STICK SQUAD PARTY <span>•</span> Original browser party game <span>•</span> Built for GAME FRIENDS</footer>
+  </div>
+  <div id="uiToast" class="ui-toast" role="status" aria-live="polite"></div>
+  <div id="uiModal" class="ui-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uiModalTitle">
+    <div class="ui-modal-card">
+      <h2 id="uiModalTitle">ยืนยันการทำรายการ</h2>
+      <p id="uiModalText"></p>
+      <div class="ui-modal-actions">
+        <button id="uiCancelBtn" class="btn btn-outline" type="button">ยกเลิก</button>
+        <button id="uiConfirmBtn" class="btn btn-primary" type="button">ตกลง</button>
+      </div>
+    </div>
   </div>
 </body>
 </html>

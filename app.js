@@ -2,8 +2,8 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const MAX_PLAYERS = 12;
-const COLORS = ['#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0','#ff9b64','#7fb4ff','#f283e9','#e5ed78','#83e1c8','#f8a9b6','#c4aafa'];
+const MAX_PLAYERS = 24;
+const COLORS = ['#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0','#ff9b64','#7fb4ff','#f283e9','#e5ed78','#83e1c8','#f8a9b6','#c4aafa','#f36f6c','#39caa4','#ffdd40','#826bff','#57baee','#e777d5','#b2d858','#ffae84','#7d9bff','#58ddc7','#e79c5c','#d5a1f7'];
 let lastAssignedColor = null;
 function pickUnusedColor(){
   // Assign randomly, but never repeat another player's color in this room.
@@ -17,8 +17,41 @@ function pickUnusedColor(){
   return color;
 }
 const MODES = {ghost:'GHOST ATTACK'};
+
+const MODE_COVER_SVG={
+ ghost:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true">
+ <rect width="160" height="90" rx="10" fill="#11283f"/>
+ <circle cx="124" cy="23" r="14" fill="#c6e7ff"/>
+ <path d="M0 78 28 54 47 67 69 44 92 68 117 48 160 73V90H0" fill="#21516b"/>
+ <path d="M54 15c-16 0-26 12-26 27v20q0 9 8 9 6 0 9-6 7 11 13 0 7 10 13 0 5 8 10 4V42C81 26 69 15 54 15Z" fill="#eaf7ff"/>
+ <circle cx="45" cy="39" r="4" fill="#19344e"/><circle cx="64" cy="39" r="4" fill="#19344e"/>
+ <path d="M46 53q8 8 17 0" fill="none" stroke="#19344e" stroke-width="3" stroke-linecap="round"/>
+ <circle cx="117" cy="63" r="6" fill="#65e9bf"/>
+ <path d="M117 69v12m-9-7 18-1m-9 7-7 8m7-8 7 8" fill="none" stroke="#65e9bf" stroke-width="4" stroke-linecap="round"/>
+ <circle cx="143" cy="62" r="5" fill="#ff8cae"/>
+ <path d="M143 67v11m-7-7 14 2m-7 5-6 8m6-8 7 8" fill="none" stroke="#ff8cae" stroke-width="3" stroke-linecap="round"/>
+ </svg>`
+};
+function gameCover(mode){
+ const cover=document.createElement('span');
+ cover.className='mode-cover';
+ cover.innerHTML=MODE_COVER_SVG[mode]||'';
+ cover.setAttribute('aria-hidden','true');
+ return cover;
+}
+function renderModeChoices(){
+ for(const button of document.querySelectorAll('[data-pick]')){
+  const mode=button.dataset.pick;
+  if(!Object.hasOwn(MODES,mode))continue;
+  const label=document.createElement('span');label.className='mode-choice-title';
+  label.textContent=MODES[mode];button.replaceChildren(gameCover(mode),label);
+  button.title=MODES[mode];
+ }
+}
+
 // The match list is nominated by phone players rather than a fixed tournament deck.
 let tournament=null;
+let selectedSessionMode='queue';
 const KEYS = [
   {left:'KeyA',right:'KeyD',jump:'KeyW',down:'KeyS',action:'Space',alt:'ShiftLeft'},
   {left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',down:'ArrowDown',action:'Enter',alt:'ShiftRight'}
@@ -35,6 +68,25 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const cleanName=(value)=>String(value||'').trim().replace(/[<>]/g,'').slice(0,14)||'เพื่อนใหม่';
 const blankInput=()=>({left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0});
 function setStatus(text,bad=false){$('netStatus').textContent=text;$('netDot').classList.toggle('bad',bad);}
+
+let toastHandle=null,pendingConfirmation=null;
+function showToast(message,bad=false){
+ const box=$('uiToast');box.textContent=message;
+ box.classList.toggle('bad',!!bad);box.classList.add('visible');
+ if(toastHandle!==null&&typeof clearTimeout==='function')clearTimeout(toastHandle);
+ toastHandle=setTimeout(()=>box.classList.remove('visible'),3000);
+}
+function confirmAction(message){
+ if(pendingConfirmation)return Promise.resolve(false);
+ $('uiModalText').textContent=message;$('uiModal').classList.remove('hidden');
+ return new Promise(resolve=>{pendingConfirmation=resolve;});
+}
+function finishConfirmation(answer){
+ $('uiModal').classList.add('hidden');
+ const resolve=pendingConfirmation;pendingConfirmation=null;
+ if(resolve)resolve(answer);
+}
+
 // Only lock page zoom while playing. Keep the lobby and nickname form accessible.
 const FREE_VIEWPORT='width=device-width,initial-scale=1,viewport-fit=cover';
 const LOCKED_VIEWPORT='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
@@ -115,7 +167,8 @@ function makePlayer(name,type,conn) {
   const p={id:'p'+nextId++,name:cleanName(name),type,color,conn:conn||null,
     input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,score:0,total:0,
     choice:type==='local'?'ghost':null,
-    ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false};
+    ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
+    isBot:type==='local'};
   players.push(p);renderRoster();return p;
 }
 function removePlayer(id) {
@@ -245,16 +298,7 @@ function broadcastRoster(){
 function nominatedGames(){
   return players.map(p=>p.choice).filter(mode=>Object.hasOwn(MODES,mode));
 }
-function updateHostQueue(){
-  const picks=nominatedGames();
-  const waiting=players.length-picks.length;
-  // Show individual game names only beside their player; this line is status only.
-  $('hostQueue').textContent=!players.length?'รอผู้เล่นเข้าห้อง':
-    !picks.length?'รอผู้เล่นเลือกมินิเกม • 0/'+players.length+' คน':
-    'เลือกแล้ว '+picks.length+'/'+players.length+' คน • '+
-      (waiting?'รออีก '+waiting+' คน':'พร้อมสุ่มเล่น '+picks.length+' รอบ (รวมเกมซ้ำ)');
-  $('hostQueue').title=$('hostQueue').textContent;
-}
+function updateHostQueue(){$('hostQueue').textContent='';}
 function sendPlayerInventory(conn){
   // Game-specific metadata must never leak into the lobby or another game's UI.
   if(!conn||!conn.playerId||!round||round.mode!=='ghost'||
@@ -278,18 +322,22 @@ function renderPauseChoiceList(){
 function renderRoster(){
   const el=$('roster');el.replaceChildren();
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
+  el.style.setProperty('--roster-count',String(Math.max(1,players.length)));
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
   $('startBtn').disabled=players.length<1||nominatedGames().length!==players.length;
   updateHostQueue();
-  if(!players.length){const p=document.createElement('p');p.className='empty';p.textContent='ยังไม่มีผู้เล่น ชวนเพื่อนสแกน QR Code หรือเพิ่มผู้เล่นคีย์บอร์ด';el.append(p);return;}
+  if(!players.length){const p=document.createElement('p');p.className='empty';p.textContent='ยังไม่มีผู้เล่น สแกน QR Code หรือเพิ่มบอท';el.append(p);return;}
   players.forEach(p=>{
     const item=document.createElement('div');item.className='roster-item';
     item.title=p.name+' — '+(MODES[p.choice]||'ยังไม่ได้เลือกเกม');
     const color=document.createElement('span');color.className='swatch';color.style.background=p.color;
     const name=document.createElement('b');name.textContent=p.name;
-    const type=document.createElement('small');type.textContent=p.type==='local'?'คีย์บอร์ด':'มือถือ';
+    const type=document.createElement('small');type.textContent=p.isBot?'บอท':'มือถือ';
     const chosen=document.createElement('span');chosen.className='roster-pick'+(p.choice?' picked':'');
-    chosen.textContent=p.choice?MODES[p.choice]:'ยังไม่เลือกเกม';
+    if(p.choice){
+      const label=document.createElement('span');label.className='mode-choice-title';
+      label.textContent=MODES[p.choice];chosen.append(gameCover(p.choice),label);
+    }else chosen.textContent='ยังไม่เลือกเกม';
     chosen.title=p.choice?MODES[p.choice]:'ยังไม่ได้เลือกเกม';
     const kick=document.createElement('button');kick.type='button';kick.textContent='×';kick.title='เอาผู้เล่นออก';kick.setAttribute('aria-label','เอา '+p.name+' ออกจากห้อง');
     kick.addEventListener('click',()=>removePlayer(p.id));
@@ -297,10 +345,9 @@ function renderRoster(){
   });
 }
 function addLocal(){
-  const localCount=players.filter(p=>p.type==='local').length;
-  if(players.length>=MAX_PLAYERS)return;
-  makePlayer('หน้าจอ '+(localCount+1),'local');
-  broadcastRoster();
+  if(players.length>=MAX_PLAYERS){showToast('ห้องเต็ม '+MAX_PLAYERS+' คน',true);return;}
+  let number=1;while(players.some(p=>p.name==='บอท '+number))number++;
+  makePlayer('บอท '+number,'local');broadcastRoster();
 }
 function resetInputs(){
   players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
@@ -330,8 +377,8 @@ function renderQr(code){
 }
 function startHost(retries=0){
   if(onlineHost){setView('hostLobby');return;}
-  if(typeof Peer!=='function'){setStatus('โหลดระบบเชื่อมต่อไม่สำเร็จ',true);alert('ยังโหลด PeerJS ไม่ได้ ตรวจสอบอินเทอร์เน็ต แล้วโหลดหน้าใหม่ (โหมดเล่นบนจอยังใช้ได้)');return;}
-  if(location.protocol==='file:'){alert('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย');return;}
+  if(typeof Peer!=='function'){setStatus('โหลดระบบเชื่อมต่อไม่สำเร็จ',true);showToast('ยังโหลด PeerJS ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วโหลดหน้าใหม่',true);return;}
+  if(location.protocol==='file:'){showToast('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย',true);return;}
   const code=randomCode();
   $('hostBtn').disabled=true;setStatus('กำลังสร้างห้อง...');
   const peer=new Peer('gf-party-'+code,{debug:0});
@@ -351,7 +398,7 @@ function startHost(retries=0){
     conn.on('data',msg=>{
       if(!msg||typeof msg!=='object')return;
       if(msg.t==='join'&&!conn.playerId){
-        if(players.length>=MAX_PLAYERS){send(conn,{t:'reject',reason:'ห้องเต็มแล้ว (สูงสุด 12 คน)'});return;}
+        if(players.length>=MAX_PLAYERS){send(conn,{t:'reject',reason:'ห้องเต็มแล้ว (สูงสุด '+MAX_PLAYERS+' คน)'});return;}
         const p=makePlayer(msg.name,'remote',conn);
         if(!p)return;
         conn.playerId=p.id;p.lastInputAt=Date.now();
@@ -936,11 +983,11 @@ function bindControl(btn, target, id){
 }
 document.addEventListener('keydown',e=>{
   if(currentView!=='game'||e.target.matches('input,select,textarea'))return;
-  const locals=players.filter(p=>p.type==='local');
+  const locals=players.filter(p=>p.type==='local'&&!p.isBot);
   KEYS.forEach((mapping,i)=>{const p=locals[i];if(!p)return;for(const k of INPUT_NAMES)if(e.code===mapping[k]){p.input[k]=true;e.preventDefault();}});
 });
 document.addEventListener('keyup',e=>{
-  const locals=players.filter(p=>p.type==='local');
+  const locals=players.filter(p=>p.type==='local'&&!p.isBot);
   KEYS.forEach((mapping,i)=>{const p=locals[i];if(!p)return;for(const k of INPUT_NAMES)if(e.code===mapping[k]){p.input[k]=false;e.preventDefault();}});
 });
 window.addEventListener('blur',()=>{
@@ -1046,6 +1093,8 @@ function renderLeaderboard(){
   // One compact top-header row, even with twelve players. The CSS grid uses
   // the actual count to prevent flex wrapping down across the playfield.
   root.style.setProperty('--leader-count',String(Math.max(1,active.length)));
+  root.style.setProperty('--leader-cols',String(Math.min(12,Math.max(1,active.length))));
+  root.style.setProperty('--leader-rows',String(active.length>12?2:1));
   if(!round)return;
   active.sort((a,b)=>Number(a.ghost)-Number(b.ghost)).forEach(p=>{
     const box=document.createElement('div');box.className='leader-chip';
@@ -1171,7 +1220,7 @@ function beginParty(){
   const picks=nominatedGames();
   if(!picks.length||picks.length!==players.length)return;
   const shuffled=shuffleGames(picks);
-  if($('sessionMode').value==='queue'){
+  if(selectedSessionMode==='queue'){
     tournament={schedule:shuffled,index:0};
     players.forEach(p=>p.total=0);
     startRound(tournament.schedule[0]);
@@ -1185,28 +1234,45 @@ function advanceParty(){
     tournament.index++;startRound(tournament.schedule[tournament.index]);
   }else beginParty();
 }
+function openOfflineLobby(){
+ if(onlineHost)closeHost();
+ if(!players.length){addLocal();addLocal();}
+ $('hostRoomBadge').textContent='OFFLINE';
+ $('roomPanel').classList.add('hidden');$('offlineRoomHint').classList.remove('hidden');
+ setView('hostLobby');renderRoster();
+}
 $('offlineBtn').addEventListener('click',()=>{
-  if(onlineHost&&!confirm('ปิดห้องออนไลน์และถอดจอยมือถือทั้งหมดเพื่อเล่นออฟไลน์?'))return;
-  if(onlineHost)closeHost();
-  if(!players.length){addLocal();addLocal();}
-  $('hostRoomBadge').textContent='OFFLINE';
-  $('roomPanel').classList.add('hidden');
-  $('offlineRoomHint').classList.remove('hidden');
-  setView('hostLobby');renderRoster();
+ if(!onlineHost){openOfflineLobby();return;}
+ confirmAction('ปิดห้องออนไลน์และถอดจอยมือถือทั้งหมดเพื่อเล่นออฟไลน์?')
+  .then(yes=>{if(yes)openOfflineLobby();});
 });
 $('startBtn').addEventListener('click',beginParty);
+function closeHostRoom(){
+ if(onlineHost)closeHost();
+ tournament=null;round=null;setView('home');
+}
 $('closeRoomBtn').addEventListener('click',()=>{
-  if(onlineHost&&!confirm('ปิดห้องนี้และตัดการเชื่อมต่อจอยมือถือทุกเครื่อง?'))return;
-  if(onlineHost)closeHost();
-  tournament=null;round=null;setView('home');
+ if(!onlineHost){closeHostRoom();return;}
+ confirmAction('ปิดห้องนี้และตัดการเชื่อมต่อจอยมือถือทุกเครื่อง?')
+  .then(yes=>{if(yes)closeHostRoom();});
 });
 $('copyBtn').addEventListener('click',copyInvite);
 $('exitBtn').addEventListener('click',returnToLobby);
 $('backBtn').addEventListener('click',returnToLobby);
 $('replayBtn').addEventListener('click',advanceParty);
-$('sessionMode').addEventListener('change',()=>{
-  updateHostQueue();
+document.querySelectorAll('[data-session-mode]').forEach(button=>{
+ button.addEventListener('click',()=>{
+  selectedSessionMode=button.dataset.sessionMode==='quick'?'quick':'queue';
+  for(const other of document.querySelectorAll('[data-session-mode]')){
+   const active=other.dataset.sessionMode===selectedSessionMode;
+   other.classList.toggle('active',active);
+   other.setAttribute('aria-pressed',String(active));
+  }
+ });
 });
+$('uiCancelBtn').addEventListener('click',()=>finishConfirmation(false));
+$('uiConfirmBtn').addEventListener('click',()=>finishConfirmation(true));
+$('uiModal').addEventListener('click',e=>{if(e.target===$('uiModal'))finishConfirmation(false);});
 $('landscapeBtn').addEventListener('click',()=>{void requestLandscape();});
 $('joinLandscapeBtn').addEventListener('click',()=>{void requestLandscape();});
 $('rotateRetryBtn').addEventListener('click',()=>{void requestLandscape();});
@@ -1225,6 +1291,7 @@ $('roomCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();
 $('switchRoomBtn').addEventListener('click',()=>{
   resetControllerForRoomChange('เปลี่ยนห้องในแท็บเดิมได้เลย สแกน QR หรือกรอกรหัสใหม่');
 });
+renderModeChoices();
 document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener('click',()=>{
   const mode=button.dataset.pick;
   if(!phoneSelectionOpen||!controllerReady||!Object.hasOwn(MODES,mode))return;
@@ -1265,7 +1332,7 @@ $('targetPrevBtn').addEventListener('click',()=>cyclePhoneTarget(-1));
 $('targetNextBtn').addEventListener('click',()=>cyclePhoneTarget(1));
 document.addEventListener('keydown',e=>{
   if(currentView!=='game'||!round||round.phase!=='playing'||e.repeat)return;
-  const locals=players.filter(p=>p.type==='local');
+  const locals=players.filter(p=>p.type==='local'&&!p.isBot);
   const controls=[['KeyQ','KeyE'],['Numpad8','Numpad2']];
   controls.forEach((keys,i)=>{
     const direction=e.code===keys[0]?-1:e.code===keys[1]?1:0;

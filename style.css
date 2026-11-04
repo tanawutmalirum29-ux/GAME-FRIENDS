@@ -2703,3 +2703,121 @@ body.controller-playing #controller #controllerActive .controller-buttons.is-pic
     display:none;
   }
 }
+
+/* Expanded 24-person roster: spread cards across the otherwise empty lobby. */
+#hostLobby .lobby-roster{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+ grid-template-rows:none;grid-auto-flow:row;
+ grid-auto-rows:clamp(33px,6.4dvh,60px);
+ align-content:space-evenly;align-items:stretch;
+ gap:clamp(3px,.6dvh,7px);min-height:0;
+ overflow:auto!important;scrollbar-width:thin;
+}
+#hostLobby .lobby-roster .roster-item{
+ grid-template-columns:10px minmax(0,1fr) minmax(0,1.1fr) 21px;
+ gap:3px;min-height:0;padding:3px 5px;
+}
+#hostLobby .lobby-roster .roster-item b{font-size:clamp(10px,.95vw,14px)}
+#hostLobby .lobby-roster .roster-pick.picked{
+ display:inline-flex;align-items:center;gap:5px;
+ min-width:0;width:100%;max-width:100%;padding:3px 4px;
+}
+#hostLobby .lobby-roster .mode-cover{
+ width:clamp(22px,2.8vw,43px);height:clamp(18px,2.2vw,28px);
+ flex:0 0 clamp(22px,2.8vw,43px);
+}
+.mode-cover{
+ display:inline-flex;align-items:center;justify-content:center;
+ flex:0 0 auto;overflow:hidden;border:1px solid #78d8edaa;
+ border-radius:6px;background:#0b2638;
+}
+.mode-cover .mode-cover-svg{display:block;width:100%;height:100%;object-fit:contain}
+.mode-choice-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:900}
+@media(max-width:950px){
+ #hostLobby .lobby-roster{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(orientation:portrait) and (max-width:720px){
+ #hostLobby .lobby-roster{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:clamp(25px,4dvh,39px)}
+ #hostLobby .lobby-roster .roster-item{grid-template-columns:8px minmax(0,1fr) 17px;gap:2px}
+ #hostLobby .lobby-roster .roster-item .roster-pick{display:none}
+ #hostLobby .lobby-roster .roster-item b{font-size:clamp(9px,2vw,12px)}
+}
+@media(orientation:landscape) and (max-height:520px){
+ #hostLobby .lobby-roster{grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:clamp(26px,5.2dvh,39px)}
+}
+body.host-playing #game .game-name{
+ left:max(9px,env(safe-area-inset-left,0px));
+ top:max(4px,env(safe-area-inset-top,0px));
+ width:max-content;max-width:none;white-space:nowrap;overflow:visible;z-index:5;
+}
+body.host-playing #game .game-name .eyebrow{
+ display:block;max-width:none;overflow:visible;white-space:nowrap;
+ font-size:clamp(11px,1.15vw,17px);letter-spacing:.4px;
+}
+body.host-playing #game .leaderboard{
+ grid-template-columns:repeat(var(--leader-cols,1),minmax(0,1fr));
+ grid-template-rows:repeat(var(--leader-rows,1),minmax(0,1fr));
+ width:min(calc(100vw - 20px),calc(var(--leader-cols,1) * 120px));
+ height:calc(var(--leader-rows,1) * 23px);max-height:48px;
+}
+@media(max-height:520px){
+ body.host-playing #game .leaderboard{height:calc(var(--leader-rows,1) * 19px);max-height:40px}
+}
+@media(orientation:portrait){
+ body.host-playing #game .leaderboard{
+  width:min(calc(100dvh - 20px),calc(var(--leader-cols,1) * 120px));
+ }
+}
+body.controller-playing #controllerActive #phoneGameChoices .phone-game-choice{
+ display:flex;flex-direction:row;align-items:center;justify-content:center;
+ gap:clamp(9px,2vw,21px);text-align:left;
+}
+body.controller-playing #controllerActive #phoneGameChoices .phone-game-choice .mode-cover{
+ width:clamp(64px,15vw,126px);height:clamp(40px,12dvh,75px);
+ border-radius:9px;flex:0 0 auto;
+}
+body.controller-playing #controllerActive #phoneGameChoices .phone-game-choice .mode-choice-title{
+ font-size:clamp(16px,3.1dvh,27px);overflow:visible;max-width:none;
+}
+#hostLobby .segmented-choice{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:5px;width:100%;min-height:35px;
+}
+#hostLobby .seg-option{
+ min-width:0;min-height:35px;padding:5px 7px;
+ border-radius:9px;border:1px solid #5c7ca2;
+ background:#16253e;color:#dceaff;
+ font-size:clamp(9px,.85vw,12px);font-weight:900;
+ line-height:1.2;white-space:normal;
+}
+#hostLobby .seg-option.active{
+ background:linear-gradient(160deg,#236a60,#183c4b);
+ color:#fff;border:2px solid #97f1cf;
+ box-shadow:0 0 0 2px #64e7c32d,inset 0 0 12px #a7ffe021;
+}
+#hostLobby #hostQueue{display:none!important}
+.ui-toast{
+ position:fixed;z-index:401;left:50%;bottom:max(12px,env(safe-area-inset-bottom,0px));
+ transform:translate(-50%,12px);width:max-content;max-width:min(92vw,420px);
+ padding:11px 15px;border-radius:12px;background:#132b43ee;
+ border:1px solid #8cbed8;color:#fff;font-size:13px;font-weight:800;
+ text-align:center;box-shadow:0 14px 32px #000a;opacity:0;pointer-events:none;
+ transition:opacity .2s ease,transform .2s ease;
+}
+.ui-toast.visible{opacity:1;transform:translate(-50%,0)}
+.ui-toast.bad{background:#512137ee;border-color:#ee8dad}
+.ui-modal{
+ position:fixed;inset:0;z-index:402;display:grid;place-items:center;
+ padding:15px;background:#041021db;backdrop-filter:blur(7px);
+}
+.ui-modal.hidden{display:none!important}
+.ui-modal-card{
+ width:min(96vw,440px);max-height:90dvh;overflow:auto;
+ border:1px solid #7894b7;border-radius:18px;
+ background:linear-gradient(155deg,#243752,#141d32);
+ padding:clamp(14px,3vw,24px);box-shadow:0 22px 65px #000b;
+}
+.ui-modal-card h2{font-size:21px;margin:0 0 8px}
+.ui-modal-card p{font-size:14px;color:#d9e7f7;margin:0 0 18px}
+.ui-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.ui-modal-actions .btn{min-width:0;min-height:44px}
