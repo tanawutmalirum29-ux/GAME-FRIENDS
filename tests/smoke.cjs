@@ -411,8 +411,8 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  assert.equal(a.active,true,'infected human remains controllable');
  npc.stun=999;
  a.x=c.x-4;a.y=c.y;
- ghost.update(.016,x.round,x.players);
- assert.equal(c.ghost,true,'player-ghost touch infects another human');
+ ghost.update(.2,x.round,x.players); // Freshly converted ghosts are briefly stunned.
+ assert.equal(c.ghost,true,'player-ghost infects when initial stun wears off');
  assert.equal(x.state.winnerId,b.id,'the last human wins');
 }
 
