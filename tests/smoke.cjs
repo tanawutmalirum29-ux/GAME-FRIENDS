@@ -356,6 +356,52 @@ const drawProbe=new Proxy({},{
   },
   set(){return true;}
 });
+// Thai text placement regression: Canvas implementations that ignore
+// textAlign='center' must not push "12 คน" or the footer beyond the compact HUD.
+{
+ const styles={font:'16px system-ui',textAlign:'start'};
+ const captures=[];
+ let clipped=false;
+ const hudProbe=new Proxy({},{
+  get(_target,key){
+   if(key==='createLinearGradient')return ()=>({addColorStop(){}});
+   if(key==='measureText')return text=>{
+    const size=Number((styles.font.match(/([\\d.]+)px/)||[])[1]||16);
+    return {width:Array.from(String(text)).length*size*.63};
+   };
+   if(key==='fillText')return (text,x,y,maxWidth)=>
+    captures.push({text,x,y,maxWidth,font:styles.font,align:styles.textAlign});
+   if(key==='clip')return ()=>{clipped=true;};
+   return ()=>{};
+  },
+  set(_target,key,value){styles[key]=value;return true;}
+ });
+ for(const n of [1,9,12]){
+  const x=init(n),o=x.state.hudBlocker;
+  for(const phase of ['countdown','playing']){
+   captures.length=0;
+   x.round.phase=phase;x.round.countdown=3;
+   ghost.draw(hudProbe,0,x.round,x.players);
+   const main=phase==='countdown'?'3 วิ':n+' คน';
+   const lines=[phase==='countdown'?'เริ่มใน':'ผู้เล่น',
+     main,phase==='countdown'?n+' คน':'กำลังแข่ง'];
+   for(const line of lines){
+    const entry=captures.find(e=>e.text===line);
+    assert.ok(entry,'HUD must draw '+line);
+    assert.equal(entry.align,'left','never rely on center-alignment on Thai Canvas');
+    const size=Number((entry.font.match(/([\\d.]+)px/)||[])[1]||16);
+    const rendered=Math.min(Array.from(line).length*size*.63,entry.maxWidth);
+    assert.ok(entry.x>=o.x+4*o.w/88-1,
+      'HUD label left edge fits inside '+n+'-person panel');
+    assert.ok(entry.x+rendered<=o.x+o.w-4*o.w/88+1,
+      'HUD label right edge fits inside '+n+'-person panel');
+    assert.ok(entry.y>=o.y+9*o.h/58&&entry.y<=o.y+48*o.h/58,
+      'HUD text stays between inner top/bottom borders');
+   }
+  }
+ }
+ assert.equal(clipped,true,'HUD prevents glyph overflow outside the frame');
+}
 // Five items, one carried at a time. B first arms slow targeting, second uses it.
 for(const item of ['cloak','boost','stun','trap','slow']){
  const x=init(3);x.round.phase='playing';
