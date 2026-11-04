@@ -210,7 +210,7 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
  x.state.npcs.forEach(n=>n.stun=999);
  const [attacker,victim,far]=x.players;
  attacker.x=120;attacker.y=120;attacker.input.action=true;attacker.input.axisX=1;
- victim.x=151;victim.y=120;far.x=800;far.y=400;
+ victim.x=157;victim.y=120;far.x=800;far.y=400;
  ghost.update(.016,x.round,x.players);
  assert.equal(victim.stun,0,'no instant punch');
  assert.equal(attacker.x,120,'start of strike freezes movement');
