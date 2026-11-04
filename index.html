@@ -45,8 +45,13 @@
           <div id="roomPanel" class="room-panel hidden">
             <div class="room-top"><div><small>ROOM CODE</small><strong id="roomCode">------</strong></div><span class="live-pill">● LIVE</span></div>
             <div class="share-layout">
-              <div id="qrBox" class="qr-box"></div>
-              <div class="share-content"><p>สแกนด้วยมือถือเพื่อเข้าร่วมห้อง แล้วเลือกมินิเกมบนจอยของตัวเอง</p><input id="roomUrl" aria-label="ลิงก์เข้าร่วม" readonly><button class="btn btn-outline" id="copyBtn" type="button">คัดลอกลิงก์</button></div>
+              <div class="qr-share-stack">
+                <div id="qrBox" class="qr-box"></div>
+                <div class="share-content">
+                  <input id="roomUrl" aria-label="ลิงก์เข้าร่วมห้อง" title="ลิงก์เข้าร่วม" readonly>
+                  <button class="btn btn-outline" id="copyBtn" type="button">คัดลอกลิงก์</button>
+                </div>
+              </div>
             </div>
           </div>
           <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ ผู้เล่นคีย์บอร์ดจะเลือก STAR RUSH เป็นค่าเริ่มต้น</p>
@@ -55,7 +60,7 @@
           <div class="lobby-section-title"><h2>รายชื่อผู้เล่นและเกมที่เลือก</h2><span id="rosterCount" class="count">0/12</span></div>
           <p class="lobby-hint">หนึ่งคนเลือกหนึ่งเกม • เลือกซ้ำกันได้ และจะอยู่ในคิวเกมหลายรอบ</p>
           <div id="roster" class="roster lobby-roster"><p class="empty">ยังไม่มีผู้เล่น • ให้เพื่อนสแกน QR เพื่อเข้าห้อง</p></div>
-          <h3>เกมที่รอสุ่ม</h3>
+          <h3>สถานะการเลือกเกม</h3>
           <div id="hostQueue" class="host-queue" aria-live="polite">รอผู้เล่นเลือกมินิเกม</div>
         </section>
       </div>
