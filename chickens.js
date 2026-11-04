@@ -255,8 +255,11 @@ function scoreDeposit(state,c,p,pen){
   p.carriedChickenId=null;pen.points++; 
   const owner=state.playersById&&state.playersById[pen.ownerId];
   if(owner)owner.score++;
-  const k=pen.points-1,col=Math.floor(k/3),row=k%3;
-  const target=penPosition(state,pen,state.radius+17+col*10,(row-1)*15);
+  // Keep every penned chicken physically inside the fenced storage rectangle,
+  // even if a player deposits far more than the initial flock size.
+  const k=pen.points-1,col=k%5,row=Math.floor(k/5)%4;
+  const side=(col-2)*(pen.gateWidth-22)/5;
+  const target=penPosition(state,pen,state.radius+12+row*9,side);
   c.x=target.x;c.y=target.y;c.dir=pen.normal;c.vx=0;c.vy=0;
   state.effects.push({x:target.x,y:target.y,text:'+1',color:pen.color,life:.85});
 }
