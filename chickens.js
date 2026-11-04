@@ -57,7 +57,7 @@ function makeChicken(state,players){
   const angle=rand(0,TAU),dir=normal(angle);
   return {id:++state.nextChickenId,x:p.x,y:p.y,dir,vx:dir.x*65,vy:dir.y*65,
     status:'free',carrierId:null,penId:null,depositPenId:null,depositFor:0,
-    decision:rand(0,.24),escapeAngle:angle,invulnerable:0,flap:rand(0,TAU)};
+    decision:rand(0,.24),escapeAngle:angle,invulnerable:0,flap:rand(0,TAU),stuckFor:0};
 }
 function setup(round,players){
   const n=Math.max(1,Math.min(12,players.length));
@@ -240,8 +240,30 @@ function advanceChicken(state,c,players,dt){
   const danger=players.some(p=>p.active&&distance(c,p)<205);
   const speed=danger?C.chickenSpeed:75;
   c.vx=c.dir.x*speed;c.vy=c.dir.y*speed;
+  const oldX=c.x,oldY=c.y;
   moveCircle(state,c,c.vx,c.vy,dt,C.chickenRadius+2);
+  if(length(c.x-oldX,c.y-oldY)<speed*dt*.18)c.stuckFor+=dt;
+  else c.stuckFor=0;
+  if(c.stuckFor>.35){
+    const radial=unit(c.x-state.center.x,c.y-state.center.y);
+    const tangent=right(radial);
+    c.escapeAngle=Math.atan2(tangent.y,tangent.x)+rand(-.15,.15);
+    c.decision=.32;c.stuckFor=0;
+  }
   if(!inside(state,c.x+c.dir.x*22,c.y+c.dir.y*22,12))c.decision=0;
+}
+function separateChickens(state){
+  const free=state.chickens.filter(c=>c.status==='free');
+  for(let i=0;i<free.length;i++)for(let j=i+1;j<free.length;j++){
+    const a=free[i],b=free[j],dx=b.x-a.x,dy=b.y-a.y,d=length(dx,dy);
+    if(d>=C.chickenRadius*2+1)continue;
+    const axis=d>1e-5?{x:dx/d,y:dy/d}:normal((i*31+j*13)*2.399963);
+    const shift=(C.chickenRadius*2+1-d)*.5;
+    a.x-=axis.x*shift;a.y-=axis.y*shift;
+    b.x+=axis.x*shift;b.y+=axis.y*shift;
+    bound(state,a,C.chickenRadius+2);bound(state,b,C.chickenRadius+2);
+    a.decision=0;b.decision=0;
+  }
 }
 function collect(state,c,p){
   if(p.carriedChickenId!=null||c.status!=='free'||c.invulnerable>0)return false;
@@ -285,6 +307,7 @@ function step(state,players,dt){
   for(const p of players)advancePlayer(state,p,players,dt);
   separatePlayers(state,players);
   for(const c of state.chickens)advanceChicken(state,c,players,dt);
+  separateChickens(state);
   // The host resolves every pickup sequentially, so a chicken has one carrier.
   for(const c of state.chickens)if(c.status==='free'&&c.invulnerable<=0){
     for(const p of players)if(p.active&&p.carriedChickenId==null&&
