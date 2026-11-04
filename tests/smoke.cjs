@@ -31,7 +31,7 @@ assert.doesNotMatch(ghostSource,/มนุษย์เหลือ|ผีจะ�
 assert.match(css,/#game \.game-center-hud\{\s*position:relative;\s*transform:translateY\(-9px\)/);
 assert.match(css,/#game \.leaderboard\{\s*display:grid;\s*grid-template-columns:repeat\(var\(--leader-count,1\),minmax\(0,1fr\)\)/);
 assert.match(css,/#game \.leaderboard\{[\s\S]*?height:23px;[\s\S]*?overflow:hidden;/);
-assert.match(css,/#game \.leader-chip \.leader-held-item\{[\s\S]*?max-width:55%/);
+assert.match(css,/#game \.leader-chip span\.leader-held-item\{[\s\S]*?max-width:55%/);
 assert.match(source,/item\.className='leader-held-item'/);
 assert.match(ghostSource,/function drawPickupNotice\(ctx,p,w,h\)/);
 assert.match(ghostSource,/p\.pickupNoticeTime=2\.1/);
