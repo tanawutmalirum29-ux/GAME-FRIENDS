@@ -462,9 +462,9 @@ auto.click('offlineBtn');
 auto.elements.get('autoNext').checked=true;
 auto.elements.get('sessionMode').value='queue';
 auto.click('startBtn');
-for(let i=0;i<1660;i++)auto.step(i*45);
+for(let i=0;i<1440;i++)auto.step(i*45);
 assert.equal(auto.elements.get('results').classList.contains('hidden'),false);
-for(let i=1660;i<1830;i++)auto.step(i*45);
+for(let i=1440;i<1610;i++)auto.step(i*45);
 assert.equal(auto.elements.get('results').classList.contains('hidden'),true,
   'queue proceeds automatically after results countdown');
 // Disconnect must exit landscape mode and clear the analog stick.
