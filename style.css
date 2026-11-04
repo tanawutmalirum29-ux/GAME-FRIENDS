@@ -2051,38 +2051,68 @@ body.controller-playing #controllerActive #controllerButtons.is-picking .gamepad
 #game .timer-box strong{font-size:clamp(16px,2vw,24px);white-space:nowrap}
 #game .leader-chip small{color:#a1f0d3}
 #game .game-name .eyebrow{color:#d8ecff}
-/* The controller holds at most one item; never create a scroll panel. */
-body.controller-playing #controller #controllerActive{
+/* Game-only status belongs INSIDE the top rail, not beneath the preview.
+   The hidden state is stronger than the active-controller flex layout. */
+body.controller-playing #controller #controllerActive #controllerInventory{
   position:relative;
-}
-body.controller-playing #controller #controllerInventory{
-  position:absolute;z-index:12;
-  left:max(8px,env(safe-area-inset-left,0px));
-  bottom:max(5px,env(safe-area-inset-bottom,0px));
-  width:min(55%,420px);max-width:60%;
-  display:flex;flex-direction:column;align-items:flex-start;
-  gap:2px;box-sizing:border-box;
-  padding:5px 10px;border-radius:10px;
-  background:#08192edb;border:1px solid #7291ac80;
-  text-align:left;pointer-events:none;overflow:hidden;
-  box-shadow:0 4px 15px #0006;
-}
-body.controller-playing #controller #controllerInventory .controller-role{
-  font-size:clamp(9px,1.3dvh,11px);line-height:1.1;color:#abf0df;
-  font-weight:1000;
-}
-body.controller-playing #controller #controllerInventory .inventory-item{
-  font-size:clamp(11px,1.85dvh,15px);line-height:1.15;
-  color:#ffe6a0;font-weight:1000;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis;max-width:100%;
-}
-body.controller-playing #controller #controllerInventory .inventory-guide{
-  font-size:clamp(8px,1.2dvh,10px);line-height:1.1;
-  color:#c9daee;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  inset:auto;
+  display:flex;
+  flex:1 1 auto;
+  align-items:center;
+  justify-content:flex-start;
+  min-width:0;max-width:100%;
+  width:auto;height:auto;
+  max-height:40px;
+  margin:0 2px 0 clamp(3px,.7vw,11px);
+  padding:3px clamp(5px,.8vw,11px);
+  gap:clamp(4px,.8vw,11px);
+  border-radius:8px;
+  box-sizing:border-box;
+  background:#0d243ad8;
+  border:1px solid #718eac77;
+  box-shadow:0 2px 9px #0004;
+  overflow:hidden;
+  pointer-events:none;
   white-space:nowrap;
 }
-body.controller-playing #controller #controllerInventory.is-ghost .controller-role{
+body.controller-playing #controller #controllerActive #controllerInventory.hidden{
+  display:none!important;
+}
+body.controller-playing #controller #controllerActive #controllerInventory .controller-role{
+  flex:0 0 auto;
+  color:#abf0df;
+  font-weight:1000;
+  font-size:clamp(10px,1.5dvh,14px);
+  line-height:1.15;
+}
+body.controller-playing #controller #controllerActive #controllerInventory .inventory-item{
+  flex:0 1 auto;min-width:0;
+  font-size:clamp(10px,1.5dvh,13px);
+  line-height:1.15;
+  font-weight:900;
+  color:#ffe6a0;
+  overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;
+}
+body.controller-playing #controller #controllerActive #controllerInventory .inventory-guide{
+  flex:0 1 auto;
+  min-width:0;
+  color:#c9daee;
+  font-size:clamp(9px,1.2dvh,11px);
+  line-height:1.15;
+  overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;
+}
+body.controller-playing #controller #controllerActive #controllerInventory.is-ghost .controller-role{
   color:#ffb2d0;
+}
+@media(max-width:950px),(max-height:390px){
+  body.controller-playing #controller #controllerActive #controllerInventory .inventory-guide{
+    display:none;
+  }
+  body.controller-playing #controller #controllerActive #controllerInventory{
+    padding:2px 5px;gap:5px;
+  }
 }
 /* Target-cycle arrows sit BESIDE B, never on top of A or B.
    They appear only while slow medicine is armed after B's first press. */
@@ -2169,4 +2199,75 @@ body.controller-playing #controllerActive #phoneGameChoices .phone-game-choice{
     grid-template-columns:minmax(165px,min(100%,390px));
     grid-template-rows:minmax(70px,auto);
   }
+}
+
+
+
+/* Move the WHOLE preview frame towards A/B, without altering its dimensions.
+   Translate is paint-only: the preview's original width, height and aspect
+   ratio stay intact, including the lobby game selection overlay. */
+body.controller-playing #controller #controllerActive .gamepad-preview-column{
+  transform:translateX(clamp(18px,3.15vw,56px));
+  transform-origin:center center;
+}
+@media(max-width:900px){
+  body.controller-playing #controller #controllerActive .gamepad-preview-column{
+    transform:translateX(clamp(4px,1.2vw,12px));
+  }
+}
+/* Button legend sits under its A/B LETTER, within the circular hit target.
+   Never steal touch events or create an external caption between buttons. */
+body.controller-playing #controller #controllerActive .face-button{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+  padding:clamp(3px,.8dvh,7px);
+  line-height:1;
+  overflow:hidden;
+}
+body.controller-playing #controller #controllerActive .face-button .face-button-letter{
+  display:block;
+  font-size:clamp(31px,8.8dvh,56px);
+  font-weight:1000;
+  line-height:1;
+  text-align:center;
+  flex:0 0 auto;
+}
+body.controller-playing #controller #controllerActive .face-button .face-caption{
+  position:static!important;
+  inset:auto!important;
+  right:auto!important;
+  bottom:auto!important;
+  left:auto!important;
+  top:auto!important;
+  transform:none!important;
+  display:block!important;
+  flex:0 0 auto;
+  width:100%;max-width:100%;
+  margin:clamp(1px,.6dvh,4px) 0 0;
+  padding:0;
+  font-size:clamp(10px,1.8dvh,14px);
+  line-height:1.08;
+  letter-spacing:0;
+  white-space:normal;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  text-align:center;
+  color:#f4f8ff;
+  text-shadow:0 1px 3px #13213d;
+  pointer-events:none;
+}
+@media(orientation:landscape) and (max-height:350px){
+  body.controller-playing #controller #controllerActive .face-button .face-button-letter{
+    font-size:clamp(26px,8dvh,39px);
+  }
+  body.controller-playing #controller #controllerActive .face-button .face-caption{
+    font-size:clamp(8px,2dvh,11px);
+  }
+}
+/* No game data area is permitted beneath the live preview. */
+body.controller-playing #controller #controllerActive > .controller-inventory{
+  display:none!important;
 }
