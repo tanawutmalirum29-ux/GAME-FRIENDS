@@ -1028,9 +1028,8 @@ function startRound(forcedMode=null){
   round={mode:'ghost',phase:'countdown',paused:false,countdown:3,remaining:null,autoNextRemaining:0,
     rules:{viewMode:'topdown'}};
   window.GhostAttack.setup(round,players);
-  $('gameMode').textContent='GHOST ATTACK';
-  $('gameBanner').textContent='3';
-  $('timer').textContent='รอผี';
+  // Countdown and player count now live in the solid map-corner HUD.
+  $('gameBanner').textContent='';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').classList.remove('hidden');
@@ -1049,7 +1048,7 @@ function updateRound(dt){
   if(round.phase==='countdown'){
     window.GhostAttack.update(dt,round,players);
     round.countdown=Math.max(0,round.countdown-dt);
-    $('gameBanner').textContent=round.countdown>0?String(Math.ceil(round.countdown)):'ผีมาแล้ว!';
+    $('gameBanner').textContent='';
     if(round.countdown===0){
       round.phase='playing';
       round.ghost.ghostSpawned=true;
@@ -1116,33 +1115,40 @@ function endRound(){
 function renderLeaderboard(){
   const root=$('leaderboard');root.replaceChildren();
   const active=round?players.filter(p=>p.active):[];
-  // The game HUD keeps all 12 players in one compact row above the arena.
-  root.style.setProperty('--leader-count',String(Math.max(1,active.length)));
-  root.style.setProperty('--leader-cols',String(Math.max(1,active.length)));
+  const count=Math.max(1,active.length);
+  root.style.setProperty('--leader-count',String(count));
+  root.style.setProperty('--leader-cols',String(Math.min(12,count)));
+  root.style.setProperty('--leader-cols-compact',String(Math.min(6,count)));
   root.style.setProperty('--leader-rows','1');
   if(!round)return;
   active.sort((a,b)=>Number(a.ghost)-Number(b.ghost)).forEach(p=>{
     const box=document.createElement('div');box.className='leader-chip';
-    const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-    const name=document.createElement('span');name.className='leader-name';
-    name.textContent=p.name;name.title=p.name;
-    const role=document.createElement('small');
+    const color=document.createElement('span');
+    color.className='circle';color.style.background=p.color;
+    const name=document.createElement('span');
+    name.className='leader-name';name.textContent=p.name;name.title=p.name;
+    const role=document.createElement('small');role.className='leader-role';
     role.textContent=p.ghost?'ผี':p.stun>0?'สตั้น':'คน';
-    const itemSvg=round.mode==='ghost'&&!p.ghost&&p.item&&window.GhostAttack.ITEM_SVG[p.item];
+    const itemSlot=document.createElement('span');
+    itemSlot.className='leader-item-slot';
+    const held=round.mode==='ghost'&&!p.ghost?p.item:null;
+    const itemSvg=held&&window.GhostAttack.ITEM_SVG[held];
     if(itemSvg){
-      const itemIcon=document.createElement('span');
-      itemIcon.className='leader-held-icon';
-      const full=window.GhostAttack.ITEM_NAMES[p.item]||p.item;
-      itemIcon.innerHTML=itemSvg; // Only trusted item icons from game constants.
-      itemIcon.title=full;
-      itemIcon.setAttribute('role','img');
-      itemIcon.setAttribute('aria-label',full);
-      box.title=p.name+' · ถือ '+full;
-      box.append(color,name,itemIcon,role);
+      itemSlot.classList.add('leader-held-icon');
+      itemSlot.innerHTML=itemSvg;
+      const full=window.GhostAttack.ITEM_NAMES[held]||held;
+      itemSlot.title=full;
+      itemSlot.setAttribute('role','img');
+      itemSlot.setAttribute('aria-label',full);
+      box.title=p.name+' · '+role.textContent+' · ถือ '+full;
     }else{
+      itemSlot.classList.add('leader-empty-item');
+      itemSlot.textContent='—';
+      itemSlot.setAttribute('aria-hidden','true');
       box.title=p.name+' · '+role.textContent;
-      box.append(color,name,role);
     }
+    // Visual rows: name (top), human/ghost status, then SVG icon only.
+    box.append(color,name,role,itemSlot);
     root.append(box);
   });
 }
@@ -1164,9 +1170,6 @@ function animate(ts){
     }
     hudClock+=dt;
     if(hudClock>.22){
-      const h=window.GhostAttack.hud(players,round);
-      $('timer').textContent=round.phase==='countdown'?
-        Math.max(0,Math.ceil(round.countdown))+' วิ':h.survivors+' คน';
       renderLeaderboard();hudClock=0;
     }
     inventoryClock+=dt;
