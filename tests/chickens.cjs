@@ -43,7 +43,7 @@ for(const n of [1,2,4,8,12]){
   assert.equal(state.world.h,n<=4?540:n<=8?675:810);
   assert.equal(state.remaining,n<=4?20:n<=8?30:40);
   assert.equal(round.countdown,3);
-  assert.deepEqual(state.pens.map(p=>p.ownerId),players.map(p=>p.id));
+  assert.deepEqual(Array.from(state.pens,p=>p.ownerId),players.map(p=>p.id));
   for(const chicken of state.chickens){
     assert.equal(chicken.status,'free');
     assert.ok(dist(chicken,state.center)<=state.radius-25,'spawn inside arena');
