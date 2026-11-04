@@ -77,8 +77,10 @@ function resetPlayer(p,pos){
 }
 function setup(round,players){
   preloadItemIcons();
-  const tier=Math.max(1,Math.ceil(Math.max(4,players.length)/4));
-  const world={w:960+(tier-1)*240,h:540+(tier-1)*135};
+  // The map stays compact for 1-12 humans; only the AI-ghost count scales.
+  const tier=players.length<=6?1:2;
+  const world={w:960,h:540};
+  round.rules={...(round.rules||{}),viewMode:round.rules?.viewMode||'topdown'};
   const obstacles=makeObstacles(world,tier);
   const center={x:world.w/2,y:world.h/2};
   const used=[center];
@@ -96,7 +98,7 @@ function setup(round,players){
       targetId:null,lockUntil:0,stun:0};
   });
   round.ghost={world,obstacles,npcs,boxes:[],traps:[],time:0,
-    boxClock:4.5,maxBoxes:tier===1?1:tier===2?2:3,
+    boxClock:4.5,maxBoxes:tier===1?2:3,
     winnerId:null,converted:[],lastHumanId:null,ghostSpawned:false};
   round.phase='countdown';round.countdown=3;
 }
@@ -234,6 +236,48 @@ function tickPlayers(dt,players,state){
     walk(p,p.vx,p.vy,dt,state.world,state.obstacles,p.ghost);
   }
 }
+// Resolve physical crowding after item pickup and ghost-touch checks.
+// Joystick pressure determines who yields; equal opposing pressure holds position.
+const PLAYER_BODY_RADIUS=16;
+function pushPressure(p,nx,ny){
+  if(p.stun>0)return .12;
+  const approach=(p.vx||0)*nx+(p.vy||0)*ny;
+  return .22+Math.max(0,approach)/C.humanSpeed;
+}
+function movePushedPlayer(p,dx,dy,state){
+  const radius=15,edge=radius+6;
+  const x=clamp(p.x+dx,edge,state.world.w-edge);
+  const y=clamp(p.y+dy,edge,state.world.h-edge);
+  const clear=(xx,yy)=>p.ghost||state.obstacles.every(o=>safeCircle(o,xx,yy,radius));
+  if(clear(x,y)){p.x=x;p.y=y;return;}
+  // Slide along a wall when only one axis is available, never through props.
+  if(clear(x,p.y))p.x=x;
+  if(clear(p.x,y))p.y=y;
+}
+function resolvePlayerCollisions(players,state){
+  const bodies=players.filter(p=>p.active);
+  const minDist=PLAYER_BODY_RADIUS*2;
+  // Repeated shallow projections also work for three or more overlapping people.
+  for(let pass=0;pass<4;pass++){
+    for(let i=0;i<bodies.length;i++){
+      for(let j=i+1;j<bodies.length;j++){
+        const a=bodies[i],b=bodies[j];
+        const dx=b.x-a.x,dy=b.y-a.y;
+        const d=Math.hypot(dx,dy);
+        if(d>=minDist)continue;
+        // Exact co-location uses stable direction, avoiding NaN and oscillation.
+        const nx=d>.0001?dx/d:1,ny=d>.0001?dy/d:0;
+        const aForce=pushPressure(a,nx,ny);
+        const bForce=pushPressure(b,-nx,-ny);
+        const overlap=minDist-d;
+        const sum=aForce+bForce;
+        // High pressure resists being moved and instead pushes the other body.
+        movePushedPlayer(a,-nx*overlap*(bForce/sum),-ny*overlap*(bForce/sum),state);
+        movePushedPlayer(b,nx*overlap*(aForce/sum),ny*overlap*(aForce/sum),state);
+      }
+    }
+  }
+}
 function updateTraps(dt,players,state){
   state.traps=state.traps.filter(t=>{
     t.ttl-=dt;t.armed=Math.max(0,(t.armed||0)-dt);
@@ -262,7 +306,7 @@ function updateBoxes(dt,players,state){
       // Independent of the inventory slot: announce what this player JUST
       // collected above their character, for a brief, readable interval.
       p.pickupNoticeItem=b.item;
-       p.pickupNotice=ITEM_NAMES[b.item]||'ไอเทม';
+      p.pickupNotice=ITEM_NAMES[b.item]||'ไอเทม';
       p.pickupNoticeTime=2.1;
       state.boxes.splice(i,1);
       break;
@@ -281,7 +325,10 @@ function update(dt,round,players){
   state.time+=dt;
   // Players can move and juke DURING the 3-second warning.
   tickPlayers(dt,players,state);
-  if(round.phase==='countdown')return null;
+  if(round.phase==='countdown'){
+    resolvePlayerCollisions(players,state);
+    return null;
+  }
   advanceNpcs(dt,players,state);
   // Player ghosts convert people by touch, and pass obstacles completely.
   for(const spirit of players){
@@ -293,6 +340,7 @@ function update(dt,round,players){
   }
   updateTraps(dt,players,state);
   updateBoxes(dt,players,state);
+  resolvePlayerCollisions(players,state);
   const live=survivors(players);
   if(live.length===1){
     state.winnerId=live[0].id;

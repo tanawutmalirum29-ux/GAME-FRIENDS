@@ -2398,3 +2398,151 @@ body.controller-playing #controller #controllerActive > .controller-inventory{
   flex-basis:13px;width:13px;height:13px;min-width:13px;min-height:13px;max-width:13px;
  }
 }
+
+/* 2026 responsive controller and GHOST ATTACK controls.
+   Picker fills the whole preview; controller buttons remain available as a
+   separate column. One selected card is visibly different from hover. */
+body.controller-playing #controller #controllerActive #phoneGamePicker{
+  inset:0;
+  width:100%;
+  min-width:0;
+  max-width:none;
+  height:100%;
+  margin:0;
+  padding:clamp(9px,2vw,25px);
+}
+body.controller-playing #controller #controllerActive #phoneGameChoices{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:minmax(60px,auto);
+  width:min(100%,min(760px,95%));
+  max-width:100%;
+  justify-content:stretch;
+}
+body.controller-playing #controller #controllerActive #phoneGameChoices .phone-game-choice{
+  position:relative;
+  width:100%;
+  max-height:none;
+  height:clamp(64px,20dvh,136px);
+  border:2px solid #6488a5;
+  background:linear-gradient(160deg,#203c58,#162b45);
+  color:#f0f7ff;
+  box-shadow:0 2px 12px #0007;
+}
+body.controller-playing #controller #controllerActive #phoneGameChoices .phone-game-choice.selected{
+  border:4px solid #95ffcb;
+  background:linear-gradient(145deg,#1e5e5c,#14384d 75%);
+  box-shadow:0 0 0 3px #16e8ac88,0 0 25px #13f0a855,inset 0 0 18px #89ffe326;
+  color:#fff;
+}
+body.controller-playing #controller #controllerActive #phoneGameChoices .phone-game-choice.selected::after{
+  content:'✓ เลือกแล้ว';
+  position:absolute;right:clamp(8px,2vw,20px);bottom:clamp(5px,1.2dvh,12px);
+  color:#adffda;font-size:clamp(10px,1.65dvh,14px);font-weight:900;
+}
+/* Any unused portion of the controller play surface can begin movement.
+   Face buttons have a higher z-index, and the picker disables the stick. */
+body.controller-playing #controller #controllerActive .controller-buttons #joystickZone{
+  grid-column:1 / -1;
+  grid-row:1;
+  z-index:3;
+  width:100%;
+  min-width:0;
+  max-width:none;
+  height:100%;
+  background:transparent;
+  touch-action:none;
+  overscroll-behavior:none;
+}
+body.controller-playing #controller #controllerActive .controller-buttons .gamepad-face-buttons{
+  z-index:7;
+}
+body.controller-playing #controller #controllerActive .controller-buttons.is-picking #joystickZone{
+  pointer-events:none!important;
+}
+body.controller-playing #controller #controllerActive #joystickZone .joystick-base{
+  width:72px;
+  height:72px;
+  border-radius:50%;
+  border:1px solid #c8ebff59;
+  background:#b4e7ff14;
+  box-shadow:none;
+  backdrop-filter:blur(2px);
+}
+body.controller-playing #controller #controllerActive #joystickZone .joystick-base::before{
+  inset:21%;
+  border:1px dashed #ceeaff35;
+}
+body.controller-playing #controller #controllerActive #joystickZone .joystick-knob{
+  width:30px;height:30px;border:1px solid #e1f8ff88;
+  background:#d3f3ff30;
+  box-shadow:none;
+}
+body.controller-playing #controller #controllerActive #joystickZone.is-active .joystick-knob{
+  border-color:#e1f8ff99;
+  box-shadow:none;
+}
+body.controller-playing #controller #controllerActive #joystickZone.is-active .joystick-base{
+  box-shadow:none;
+}
+body.controller-playing #controller #controllerActive #joystickZone .joystick-direction{
+  display:none;
+}
+/* B, then slow-selection buttons BELOW it, away from both action hit targets. */
+body.controller-playing #controller #controllerActive .gamepad-face-buttons{
+  justify-content:center;
+  overflow:visible;
+}
+body.controller-playing #controller #controllerActive .gamepad-face-buttons .target-cycle-controls{
+  position:relative;
+  order:2;
+  inset:auto;
+  width:min(100%,224px);
+  max-width:224px;
+  min-width:0;
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:minmax(31px,1fr) minmax(38px,1.5fr) minmax(31px,1fr);
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  margin:4px 0 0;
+  padding:3px;
+  border:1px solid #72bde5aa;
+  border-radius:10px;
+  background:#142d46d9;
+}
+body.controller-playing #controller #controllerActive .gamepad-face-buttons .target-cycle-controls.hidden{
+  display:none!important;
+}
+body.controller-playing #controller #controllerActive .target-cycle-controls .target-control-label{
+  display:none;
+}
+body.controller-playing #controller #controllerActive .target-cycle-controls .target-cycle-btn{
+  width:100%;height:clamp(31px,9dvh,42px);min-height:30px;
+  font-size:clamp(15px,3.5dvh,20px);border-width:1px;
+  border-radius:8px;
+}
+body.controller-playing #controller #controllerActive .target-cycle-controls .target-name{
+  min-width:0;
+  max-width:100%;
+  font-size:clamp(8px,1.8dvh,11px);
+}
+body.controller-playing #controller #controllerActive .gamepad-face-buttons .face-a{order:0}
+body.controller-playing #controller #controllerActive .gamepad-face-buttons .face-b{order:1}
+body.controller-playing #controller #controllerActive .controller-buttons.has-target .face-button{
+  width:clamp(60px,19dvh,112px);
+  height:clamp(60px,19dvh,112px);
+  border-width:4px;
+}
+body.controller-playing #controller #controllerActive .controller-buttons.has-target .face-b{
+  margin-top:-5px;
+}
+@media(orientation:landscape) and (max-height:360px){
+ body.controller-playing #controller #controllerActive .target-cycle-controls .target-cycle-btn{
+  height:clamp(27px,9dvh,35px);min-height:27px;
+ }
+ body.controller-playing #controller #controllerActive .controller-buttons.has-target .face-button{
+  width:clamp(54px,17dvh,82px);height:clamp(54px,17dvh,82px);
+ }
+}

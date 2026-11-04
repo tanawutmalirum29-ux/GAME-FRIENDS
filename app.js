@@ -404,6 +404,8 @@ function updatePhoneGamePicker(phase,choice){
   // During selection the joystick hit zone is disabled so all seven
   // mini-game buttons stay tappable, including those on the left.
   $('controllerButtons').classList.toggle('is-picking',phoneSelectionOpen);
+  // No joystick movement while selecting a game.
+  if(phoneSelectionOpen)releaseStick();
   for(const button of document.querySelectorAll('[data-pick]')){
     const selected=button.dataset.pick===myChosenMode;
     button.classList.toggle('selected',selected);
@@ -778,7 +780,7 @@ function showControllerMode(mode){
     'ยืนยันสโลว์':ghost?'ใช้ไอเทม':'ปุ่ม B';
   $('controllerModeName').textContent=MODES[mode]||'';
   $('controllerHelp').textContent=ghost?
-    'เลื่อนอนาล็อกเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':'เลื่อนอนาล็อกเพื่อเดิน';
+    'ลากจากที่ว่างตรงไหนก็ได้เพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':'ลากที่ว่างบนจอเพื่อเดิน';
 }
 function renderPhoneInventory(info){
   if(!isLiveGameContext()||!info||info.id!==controllerId||
@@ -860,13 +862,15 @@ function bindAnalogStick(zone,base,knob,target){
     const dx=e.clientX-originX,dy=e.clientY-originY;
     const localX=rotated()?dy:dx,localY=rotated()?-dx:dy;
     const box=base.getBoundingClientRect();
-    const travel=Math.max(1,Math.min(box.width,box.height)*.285);
+    // Input force derives from finger distance, not the visual ring's size.
+    const travel=64;
+    const knobTravel=Math.max(12,Math.min(box.width,box.height)*.28);
     const len=Math.hypot(localX,localY),factor=len>travel?travel/len:1;
     let x=Math.round(localX*factor/travel*100)/100;
     let y=Math.round(localY*factor/travel*100)/100;
     if(Math.hypot(x,y)<.14){x=0;y=0;}
     if(x===0)x=0;if(y===0)y=0;
-    knob.style.transform='translate(calc(-50% + '+Math.round(x*travel)+'px),calc(-50% + '+Math.round(y*travel)+'px))';
+    knob.style.transform='translate(calc(-50% + '+Math.round(x*knobTravel)+'px),calc(-50% + '+Math.round(y*knobTravel)+'px))';
     if(target.axisX!==x||target.axisY!==y){
       target.axisX=x;target.axisY=y;sendInputs();
     }
@@ -930,7 +934,8 @@ function startRound(forcedMode=null){
   if(!players.length)return;
   if(!window.GhostAttack)throw Error('ghost-attack.js failed to load');
   $('results').classList.add('hidden');
-  round={mode:'ghost',phase:'countdown',paused:false,countdown:3,remaining:null,autoNextRemaining:0};
+  round={mode:'ghost',phase:'countdown',paused:false,countdown:3,remaining:null,autoNextRemaining:0,
+    rules:{viewMode:'topdown'}};
   window.GhostAttack.setup(round,players);
   $('gameMode').textContent='GHOST ATTACK';
   $('gameBanner').textContent='3';

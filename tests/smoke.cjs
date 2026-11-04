@@ -53,6 +53,12 @@ assert.match(css,/#controller #controllerActive \.face-button \.face-caption\{[\
 assert.match(html,/id="targetCycleControls"/);
 assert.match(html,/id="targetPrevBtn"/);
 assert.match(html,/id="targetNextBtn"/);
+assert.ok(html.indexOf('class="face-button-wrap face-b"')<html.indexOf('id="targetCycleControls"'),
+  'slow target controls live after B in DOM');
+assert.match(css,/#joystickZone\{[\s\S]*?grid-column:1 \/ -1;/);
+assert.match(css,/#phoneGameChoices \.phone-game-choice\.selected\{/);
+assert.match(css,/\.gamepad-face-buttons \.target-cycle-controls\{[\s\S]*?order:2;/);
+assert.match(source,/const travel=64;/);
 assert.match(css,/#controllerActive \.target-cycle-controls/);
 assert.match(css,/#controller #controllerInventory/);
 assert.match(css,/body\.controller-playing #controllerActive #phoneGameChoices/);
@@ -77,11 +83,12 @@ const mkPlayers=n=>Array.from({length:n},(_,i)=>({
 }));
 const init=n=>{const players=mkPlayers(n),round={mode:'ghost',phase:'countdown'};
  ghost.setup(round,players);return {round,players,state:round.ghost};};
-for(const n of [1,4,8,12]){
- const x=init(n),tier=Math.ceil(Math.max(4,n)/4);
- assert.equal(x.state.npcs.length,tier,'one original white AI ghost per group of 4');
- assert.equal(x.state.world.w,960+240*(tier-1));
- assert.equal(x.state.world.h,540+135*(tier-1));
+for(const n of [1,4,6,7,8,12]){
+ const x=init(n),tier=n<=6?1:2;
+ assert.equal(x.state.npcs.length,tier,'1 ghost for 1-6; 2 ghosts for 7-12');
+ assert.equal(x.state.world.w,960,'12 players fit a compact top-down world');
+ assert.equal(x.state.world.h,540);
+ assert.equal(x.round.rules.viewMode,'topdown');
  assert.ok(x.state.obstacles.length>=5,'map has distributed solid obstacles');
  assert.equal(x.players.filter(p=>p.active&&!p.ghost).length,n);
  for(const p of x.players){
@@ -121,7 +128,21 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
  ghost.update(.1,x.round,x.players);
  assert.ok(p.x>before,'converted player ghosts pass through obstacles');
 }
-// Punch A causes a short stun on a nearby friend.
+// Player bodies resist each other; drag strength pushes a resting player.
+{
+ const x=init(3),[a,b,c]=x.players;
+ x.state.obstacles=[];x.round.phase='countdown';
+ a.x=390;a.y=220;b.x=417;b.y=220;c.x=790;c.y=450;
+ a.input.axisX=1;b.input.axisX=-1;
+ const mid=(a.x+b.x)/2;
+ ghost.update(.04,x.round,x.players);
+ assert.ok(Math.hypot(b.x-a.x,b.y-a.y)>=31.9,'opposing humans cannot overlap');
+ assert.ok(Math.abs((a.x+b.x)/2-mid)<1,'equal force holds the midpoint');
+ a.x=390;b.x=423;a.input.axisX=1;b.input.axisX=0;
+ ghost.update(.04,x.round,x.players);
+ assert.ok(b.x>423,'a moving joystick pushes a resting player');
+}
+ // Punch A causes a short stun on a nearby friend.
 {
  const x=init(3);x.round.phase='playing';
  x.state.npcs.forEach(n=>n.stun=999);
