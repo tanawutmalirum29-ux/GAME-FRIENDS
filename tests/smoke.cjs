@@ -180,6 +180,10 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
  ghost.update(.016,x.round,x.players);
  const hunters=[npc,botA,botB];
  const roles=hunters.map(h=>h.huntRole);
+ const chaseHunter=hunters.find(h=>h.huntRole==='chase');
+ ghost.update(.45,x.round,x.players);
+ assert.equal(chaseHunter.huntRole,'chase',
+   'pack roles stay stable between pursuit plans');
  assert.ok(roles.includes('chase'),'one hunter presses from behind');
  assert.ok(roles.includes('intercept'),'another hunter runs to the exit');
  assert.ok(roles.includes('flank-left'),'the third cuts a side escape route');

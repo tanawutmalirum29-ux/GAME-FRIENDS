@@ -271,8 +271,25 @@ function updateGhostHuntPlans(players,state){
     prey.filter(p=>p!==primary&&dist(p,primary)>190)
       .sort((a,b)=>dist(a,hunters[hunters.length-1])-
         dist(b,hunters[hunters.length-1]))[0]:null;
-  const sorted=[...hunters].sort((a,b)=>dist(a,primary)-dist(b,primary));
+  const roleRank={'chase':0,'intercept':1,'flank-left':2,'flank-right':3};
+  const sorted=[...hunters].sort((a,b)=>{
+    // Keep the same chase/intercept/flank jobs across planning ticks.
+    // Switching roles every half second makes bots twitch and bunch up.
+    if(a.huntTargetId===primary.id&&b.huntTargetId===primary.id&&
+       a.huntRole&&b.huntRole)
+      return roleRank[a.huntRole]-roleRank[b.huntRole];
+    return dist(a,primary)-dist(b,primary);
+  });
   const cut=secondary?Math.ceil(sorted.length/2):sorted.length;
+  if(secondary&&npcs.length){
+    // The initial NPC's locked target is the primary group; otherwise the
+    // pack planner could alternate targets every frame after a split.
+    const npcIndex=sorted.indexOf(npcs[0]);
+    if(npcIndex>=cut){
+      sorted.splice(npcIndex,1);
+      sorted.splice(cut-1,0,npcs[0]);
+    }
+  }
   for(let i=0;i<sorted.length;i++){
     const h=sorted[i];
     const target=secondary&&i>=cut?secondary:primary;
