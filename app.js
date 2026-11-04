@@ -850,17 +850,24 @@ function setControllerGameContext(mode,phase,active){
     $('targetCycleControls').classList.add('hidden');
     $('controllerButtons').classList.remove('has-target');
     $('targetName').textContent='ไม่มีเป้าหมาย';
-    $('buttonBLabel').textContent=mode==='ghost'?'ใช้ไอเทม':'แอ็กชัน';
   }
+  showControllerMode(controllerGameMode);
 }
 function showControllerMode(mode){
-  const ghost=mode==='ghost';
-  $('buttonALabel').textContent=ghost?'ตีสตั้น':'แอ็กชัน';
-  $('buttonBLabel').textContent=ghost&&$('controllerButtons').classList.contains('has-target')?
-    'ยืนยันสโลว์':ghost?'ใช้ไอเทม':'ปุ่ม B';
-  $('controllerModeName').textContent=MODES[mode]||'';
+  // A room selection is NOT an active map. The player does not know yet
+  // which actions this round supports. Hide captions until round context.
+  const live=isLiveGameContext();
+  const ghost=live&&mode==='ghost';
+  const aLabel=ghost?'ตีสตั้น':'';
+  const bLabel=ghost?($('controllerButtons').classList.contains('has-target')?
+    'ยืนยันสโลว์':'ใช้ไอเทม'):'';
+  $('buttonALabel').textContent=aLabel;
+  $('buttonBLabel').textContent=bLabel;
+  $('buttonA').setAttribute('aria-label',aLabel?'ปุ่ม A '+aLabel:'ปุ่ม A');
+  $('buttonB').setAttribute('aria-label',bLabel?'ปุ่ม B '+bLabel:'ปุ่ม B');
+  $('controllerModeName').textContent=live?(MODES[mode]||''):'';
   $('controllerHelp').textContent=ghost?
-    'ลากจากที่ว่างตรงไหนก็ได้เพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':'ลากที่ว่างบนจอเพื่อเดิน';
+    'ลากจากที่ว่างเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
 }
 function renderPhoneInventory(info){
   if(!isLiveGameContext()||!info||info.id!==controllerId||
@@ -878,7 +885,7 @@ function renderPhoneInventory(info){
   $('targetCycleControls').classList.toggle('hidden',!info.selecting);
   $('controllerButtons').classList.toggle('has-target',!!info.selecting);
   $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
-  $('buttonBLabel').textContent=info.selecting?'ยืนยันสโลว์':'ใช้ไอเทม';
+  showControllerMode(info.mode);
 }
 function sendInputs(){if(!controllerReady)return;send(controllerConn,{t:'input',keys:{...controllerKeys}});}
 function isPortraitScreen(){
@@ -936,7 +943,7 @@ function bindAnalogStick(zone,base,knob,target){
     pointerId=null;originX=0;originY=0;
     target.axisX=0;target.axisY=0;
     knob.style.transform='translate(-50%,-50%)';
-    zone.classList.remove('is-active');
+    zone.classList.remove('is-active','is-moving');
     sendInputs();
   };
   const move=e=>{
@@ -952,6 +959,7 @@ function bindAnalogStick(zone,base,knob,target){
     let x=Math.round(localX*factor/travel*100)/100;
     let y=Math.round(localY*factor/travel*100)/100;
     if(Math.hypot(x,y)<.14){x=0;y=0;}
+    zone.classList.toggle('is-moving',Math.hypot(x,y)>=.14);
     if(x===0)x=0;if(y===0)y=0;
     knob.style.transform='translate(calc(-50% + '+Math.round(x*knobTravel)+'px),calc(-50% + '+Math.round(y*knobTravel)+'px))';
     if(target.axisX!==x||target.axisY!==y){

@@ -3032,3 +3032,32 @@ body.controller-playing #controllerActive #phoneGameChoices .phone-game-choice .
     font-size:clamp(8px,1.9vw,11px);
   }
 }
+
+/* Joystick feedback: higher contrast while preserving the small floating
+   72px ring and full-screen touch tracking. No game state is changed here. */
+body.controller-playing #controller #controllerActive #joystickZone .joystick-base{
+  background:radial-gradient(circle at 40% 38%,#315d8fdc,#10283ce8);
+  border:2px solid #a6e4ffdd;
+  box-shadow:0 2px 15px #06192fcc,0 0 0 3px #60c9ef27,inset 0 0 14px #87dcff52;
+  backdrop-filter:blur(2px);
+}
+body.controller-playing #controller #controllerActive #joystickZone .joystick-base::before{
+  border:1px dashed #d8f2ff96;
+}
+body.controller-playing #controller #controllerActive #joystickZone .joystick-knob{
+  background:radial-gradient(circle at 38% 33%,#b4eeffff,#4aaadcef 76%,#1876a5);
+  border:2px solid #e7fbffff;
+  box-shadow:0 2px 8px #001e37b5,0 0 12px #89d7ff96;
+}
+body.controller-playing #controller #controllerActive #joystickZone.is-active .joystick-base{
+  box-shadow:0 3px 17px #06192fd9,0 0 0 3px #60c9ef45,inset 0 0 16px #87dcff55;
+}
+body.controller-playing #controller #controllerActive #joystickZone.is-moving .joystick-base{
+  border-color:#d5f6ff;
+  background:radial-gradient(circle at 40% 38%,#316993f7,#102a43f0);
+  box-shadow:0 4px 16px #06192fcc,0 0 0 5px #5fd5ff4d,inset 0 0 17px #87dcff77;
+}
+body.controller-playing #controller #controllerActive #joystickZone.is-moving .joystick-knob{
+  background:radial-gradient(circle at 35% 30%,#d2fbff,#4ecefff2 76%,#1876a5);
+  box-shadow:0 3px 11px #001c36cc,0 0 17px #8eeeffaa;
+}

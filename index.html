@@ -131,8 +131,8 @@
           <div class="gamepad-user"><span id="controllerAvatar" class="gamepad-avatar"></span><strong id="controllerName">ผู้เล่น</strong></div>
           <div id="controllerInventory" class="controller-inventory hidden" aria-live="polite">
             <span id="controllerRole" class="controller-role">มนุษย์</span>
-            <span id="inventoryItem" class="inventory-item">ไอเทม: ว่าง</span>
-            <small id="inventoryGuide" class="inventory-guide">A ตีสตั้น • B ใช้ไอเทม</small>
+            <span id="inventoryItem" class="inventory-item"></span>
+            <small id="inventoryGuide" class="inventory-guide"></small>
           </div>
           <div class="gamepad-top-actions"><button id="videoQualityBtn" class="gamepad-tool gamepad-quality-btn" type="button" aria-label="คุณภาพภาพ กลาง กดเพื่อเปลี่ยนระดับ" title="คุณภาพภาพ กลาง · กดเพื่อเปลี่ยนระดับ">ก</button><button id="landscapeBtn" class="gamepad-tool" type="button" aria-label="เปิดเต็มจอแนวนอน">⛶ แนวนอน</button><button id="portraitRestoreBtn" class="gamepad-tool portrait-restore hidden" type="button" aria-label="กลับไปโหมดหมุนโทรศัพท์">↺ โหมดปกติ</button><button id="switchRoomBtn" class="gamepad-tool" type="button">เปลี่ยนห้อง</button><button id="leaveBtn" class="gamepad-tool gamepad-leave" type="button">ออก</button></div>
         </div>
@@ -154,22 +154,22 @@
                 <span class="preview-wait-icon" aria-hidden="true">▣</span>
                 <strong>รอภาพจากจอหลัก</strong><small>จะแสดงฉากเกมเมื่อเจ้าของห้องเริ่มเล่น</small>
               </div>
-              <div class="gamepad-preview-top"><span class="preview-live-dot"></span><strong id="controllerModeName" class="gamepad-mode">GHOST ATTACK</strong></div>
+              <div class="gamepad-preview-top"><span class="preview-live-dot"></span><strong id="controllerModeName" class="gamepad-mode"></strong></div>
             </div>
             <small id="controllerState" class="controller-status-sr" aria-live="polite">กำลังรอเจ้าของห้องเริ่มเกม</small>
           </div>
           <div class="gamepad-face-buttons">
-            <div class="face-button-wrap face-b"><button type="button" data-control="alt" class="face-button face-button-b" aria-label="ปุ่ม B ใช้ไอเทม"><span class="face-button-letter">B</span><span id="buttonBLabel" class="face-caption">ใช้ไอเทม</span></button></div>
+            <div class="face-button-wrap face-b"><button id="buttonB" type="button" data-control="alt" class="face-button face-button-b" aria-label="ปุ่ม B"><span class="face-button-letter">B</span><span id="buttonBLabel" class="face-caption"></span></button></div>
             <div id="targetCycleControls" class="target-cycle-controls hidden" aria-label="เลือกเป้าหมายยาสโลว์">
               <span class="target-control-label">เลือกเพื่อน</span>
               <button id="targetPrevBtn" type="button" class="target-cycle-btn" aria-label="เลือกเพื่อนก่อนหน้า">▲</button>
               <span id="targetName" class="target-name">ไม่มีเป้าหมาย</span>
               <button id="targetNextBtn" type="button" class="target-cycle-btn" aria-label="เลือกเพื่อนถัดไป">▼</button>
             </div>
-            <div class="face-button-wrap face-a"><button type="button" data-control="action" class="face-button face-button-a" aria-label="ปุ่ม A ตีสตั้น"><span class="face-button-letter">A</span><span id="buttonALabel" class="face-caption">ตีสตั้น</span></button></div>
+            <div class="face-button-wrap face-a"><button id="buttonA" type="button" data-control="action" class="face-button face-button-a" aria-label="ปุ่ม A"><span class="face-button-letter">A</span><span id="buttonALabel" class="face-caption"></span></button></div>
           </div>
         </div>
-        <p id="controllerHelp" class="controller-help">แตะพื้นที่ว่างตรงไหนก็ได้แล้วลากเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม</p>
+        <p id="controllerHelp" class="controller-help">ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่</p>
         <div id="leaveConfirm" class="controller-leave-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="leaveConfirmTitle">
           <div class="controller-leave-card">
             <h2 id="leaveConfirmTitle">ออกจากห้องเกม?</h2>
