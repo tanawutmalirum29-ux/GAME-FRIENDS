@@ -4,6 +4,18 @@
 const $ = (id) => document.getElementById(id);
 const MAX_PLAYERS = 12;
 const COLORS = ['#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0','#ff9b64','#7fb4ff','#f283e9','#e5ed78','#83e1c8','#f8a9b6','#c4aafa'];
+let lastAssignedColor = null;
+function pickUnusedColor(){
+  // Assign randomly, but never repeat another player's color in this room.
+  const inUse = new Set(players.map(player => player.color));
+  const available = COLORS.filter(color => !inUse.has(color));
+  if (!available.length) return null;
+  const fresh = available.filter(color => color !== lastAssignedColor);
+  const pool = fresh.length ? fresh : available;
+  const color = pool[Math.floor(Math.random() * pool.length)];
+  lastAssignedColor = color;
+  return color;
+}
 const MODES = { stars:'STAR RUSH', brawl:'BRAWL ARENA', lava:'LAVA RUN', tanks:'TANK BLAST',soccer:'FOOTBALL',rally:'MICRO RALLY',paint:'COLOR CLASH' };
 const TOPDOWN = ['tanks','soccer','rally','paint'];
 const TOURNAMENT_GAMES=['tanks','soccer','rally','paint','brawl','stars','lava'];
@@ -74,7 +86,9 @@ function randomCode(){
 }
 function makePlayer(name,type,conn) {
   if(players.length>=MAX_PLAYERS)return null;
-  const p={id:'p'+nextId++,name:cleanName(name),type: type,color:COLORS[players.length%COLORS.length],conn:conn||null,
+  const color=pickUnusedColor();
+  if(!color)return null;
+  const p={id:'p'+nextId++,name:cleanName(name),type:type,color,conn:conn||null,
     input:blankInput(),x:480,y:WORLD.ground,vx:0,vy:0,grounded:true,face:1,
     hp:3,score:0,total:0,alive:true,active:false,invulnerable:0,cooldown:0,dash:0,attack:0,latch:false,respawn:0};
   players.push(p);renderRoster();return p;
