@@ -1241,15 +1241,18 @@ $('stayInRoomBtn').addEventListener('click',()=>{
   $('leaveConfirm').classList.add('hidden');
 });
 $('confirmLeaveBtn').addEventListener('click',()=>{
-  $('leaveConfirm').classList.add('hidden');
-  disconnectRequested=true;void stopRoomScanner();safePeerDestroy();
-  controllerReady=false;controllerId=null;
-  releaseStick();resetPhonePreview();
-  for(const k of INPUT_NAMES)controllerKeys[k]=false;
-  controllerKeys.axisX=0;controllerKeys.axisY=0;
-  clearPortraitFallback();document.body.classList.remove('controller-playing');
-  syncZoomPolicy();exitControllerFullscreen();
-  const u=new URL(window.location.href);u.search='';window.location.assign(u.href);
+  // Leaving a room MUST remain a controller. Never redirect to the host UI.
+  resetControllerForRoomChange('ออกจากห้องแล้ว • กรอกรหัสใหม่หรือสแกน QR เพื่อเข้าร่วม');
+  $('roomCodeInput').value='';
+  $('joinCode').textContent='------';
+  try{
+    const url=new URL(window.location.href);
+    url.searchParams.delete('join');
+    url.searchParams.delete('host');
+    url.searchParams.set('controller','1');
+    window.history.replaceState(null,'',url.href);
+  }catch(_){}
+  setView('controller');
 });
 document.querySelectorAll('#controllerActive [data-control]').forEach(btn=>bindControl(btn,controllerKeys,'remote'));
 bindAnalogStick($('joystickZone'),$('joystickBase'),$('joystickKnob'),controllerKeys);
@@ -1260,13 +1263,20 @@ window.addEventListener('beforeunload',()=>{
   if(hostPeer)hostPeer.destroy();
 });
 
-const joinCode=parseRoomCode(new URLSearchParams(location.search).get('join'));
-if(joinCode){
-  setView('controller');selectRoomCode(joinCode);
-  $('nick').value=getSavedNickname();
-  setStatus('พร้อมเชื่อมจอย • จำชื่อเล่นไว้ในเครื่องนี้');
-}else{
+const entryParams=new URLSearchParams(location.search);
+const joinCode=parseRoomCode(entryParams.get('join'));
+const launchedHost=entryParams.get('host')==='1';
+// This is deliberate UX routing, NOT server authentication.
+// A malicious client can fabricate the host parameter in a static web app.
+// Real host authorization requires a backend-issued identity/token.
+if(launchedHost&&!joinCode){
   setView('home');renderRoster();
+}else{
+  // Root URLs without a room, including after deleting ?join=..., are join-only.
+  setView('controller');
+  if(joinCode)selectRoomCode(joinCode);
+  $('nick').value=getSavedNickname();
+  setStatus('พร้อมเข้าร่วมห้อง • กรอกรหัสหรือสแกน QR');
 }
 requestAnimationFrame(animate);
 })();
