@@ -7,6 +7,15 @@ const source=fs.readFileSync('app.js','utf8');
 const miniSource=fs.readFileSync('minigames.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
+const hostLauncher=fs.readFileSync('host.html','utf8');
+assert.match(hostLauncher,/\?host=1/);
+assert.match(html,/id="controllerPreviewVideo"/);
+assert.match(html,/id="videoQuality"/);
+assert.match(html,/value="low"/);
+assert.match(html,/value="medium"/);
+assert.match(html,/value="high"/);
+assert.match(css,/\.joystick-zone\{[\s\S]*?grid-column:1;grid-row:1/);
+assert.match(css,/\.gamepad-preview-column\{[\s\S]*?grid-column:1;grid-row:1/);
 assert.match(css,/@media\(orientation:portrait\)/);
 assert.match(html,/id="joystickBase"/);
 assert.match(html,/id="joystickZone"/);
@@ -61,7 +70,7 @@ assert.match(css,/body\.controller-playing \.gamepad-face-buttons\{[\s\S]*?justi
 assert.match(css,/#game \.game-pause-btn\{[\s\S]*?min-height:35px/);
 
 const persistedNicknames=new Map();
-function setup(url='https://game.example/',portrait=false) {
+function setup(url='https://game.example/?host=1',portrait=false) {
   const elements=new Map();
   const makeElement=(id='')=>{
     const handlers={},classes=new Set();
@@ -80,6 +89,12 @@ function setup(url='https://game.example/',portrait=false) {
       setAttribute(name,value){this.attributes??={};this.attributes[name]=value;if(name==='content')this.content=value;},
       select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
       getContext(){return context;},
+      captureStream(fps){return {
+        fps,width:this.width,height:this.height,
+        getTracks(){return [{stop(){this.stopped=true;}}];}
+      };},
+      play(){this.played=true;return Promise.resolve();},
+      pause(){this.paused=true;},
       toDataURL(mime){assert.equal(mime,'image/jpeg');return 'data:image/jpeg;base64,QUJDRA==';},
       getBoundingClientRect(){return {left:0,top:0,width:200,height:200};},parentElement:null
     };
@@ -119,8 +134,22 @@ function setup(url='https://game.example/',portrait=false) {
     addEventListener(name,fn){(docHandlers[name]??=[]).push(fn);},execCommand(){return true;}
   };
   const instances=[];
+  class FakeMediaCall{
+    constructor(peer,stream,options={}){
+      this.peer=peer;this.stream=stream;
+      this.metadata=options.metadata||{};
+      this.handlers={};this.open=false;this.closed=false;
+    }
+    on(name,fn){this.handlers[name]=fn;}
+    answer(){this.open=true;this.answered=true;}
+    fire(name,value){this.handlers[name]?.(value);}
+    close(){
+      if(this.closed)return;
+      this.closed=true;this.open=false;this.handlers.close?.();
+    }
+  }
   class FakeConn{
-    constructor(){this.handlers={};this.open=true;this.sent=[];}
+    constructor(){this.handlers={};this.open=true;this.sent=[];this.peer='phone-'+instances.length;}
     on(name,fn){this.handlers[name]=fn;}
     send(value){this.sent.push(value);}
     close(){this.open=false;this.handlers.close?.();}
@@ -130,6 +159,10 @@ function setup(url='https://game.example/',portrait=false) {
     constructor(id){this.id=id;this.handlers={};instances.push(this);}
     on(name,fn){this.handlers[name]=fn;}
     connect(){this.conn=new FakeConn();return this.conn;}
+    call(peer,stream,options){
+      const call=new FakeMediaCall(peer,stream,options);
+      (this.mediaCalls??=[]).push(call);return call;
+    }
     destroy(){}
     fire(name,value){this.handlers[name]?.(value);}
   }
@@ -162,6 +195,7 @@ function setup(url='https://game.example/',portrait=false) {
   vm.runInContext(miniSource,scope,{filename:'minigames.js'});
   vm.runInContext(source,scope,{filename:'app.js'});
   return {elements,pickButtons,padButtons,instances,scope,
+    mediaCall(peer){return new FakeMediaCall(peer);},
     step(ms){assert(raf);raf(ms);},
     click(id){elements.get(id).fire('click');},
     pick(mode){const button=pickButtons.find(x=>x.dataset.pick===mode);assert(button);button.fire('click');}
