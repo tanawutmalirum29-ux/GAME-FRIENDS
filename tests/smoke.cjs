@@ -180,6 +180,23 @@ assert.match(art.actorSVG(false,'#ff628c','walk0'),/<svg/);
 assert.notEqual(art.actorSVG(false,'#ff628c','walk0'),
   art.actorSVG(false,'#ff628c','walk2'),'moving legs use distinct SVG frames');
 assert.match(art.actorSVG(true,'#f5faff','float0'),/<svg/);
+const cemeteryGhost=art.actorSVG(true,'#ff628c','float0','graveyard');
+const pharaohGhost=art.actorSVG(true,'#ff628c','float0','egypt');
+assert.match(pharaohGhost,/data-actor="pharaoh-ghost"/,
+  'Egyptian ghosts wear the pharaoh headdress');
+assert.match(pharaohGhost,/url\(#nemes\)/,
+  'Egyptian ghost crown uses lapis-blue nemes cloth');
+assert.notEqual(cemeteryGhost,pharaohGhost,'themes have unique ghost art');
+assert.notEqual(pharaohGhost,art.actorSVG(true,'#3fe4ef','float0','egypt'),
+  'each converted player retains its character color');
+assert.notEqual(pharaohGhost,art.actorSVG(true,'#ff628c','float1','egypt'),
+  'pharaoh ghosts have independent animation frames');
+assert.equal(art.getActorImage(true,'#ff628c','float0','egypt'),
+  art.getActorImage(true,'#ff628c','float0','egypt'),
+  'pharaoh ghost frame is cached');
+assert.notEqual(art.getActorImage(true,'#ff628c','float0','egypt'),
+  art.getActorImage(true,'#ff628c','float0','graveyard'),
+  'image cache never mixes ghosts between themes');
 assert.notEqual(art.obstacleSVG('coffin',0),art.obstacleSVG('headstone',0));
 assert.match(art.obstacleSVG('sarcophagus',0),/<svg[\s>]/);
 assert.match(art.obstacleSVG('egypt-obelisk',1),/<svg[\s>]/);
@@ -200,6 +217,15 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
  assert.notEqual(second.state.theme,first.state.theme);
  assert.notEqual(third.state.theme,second.state.theme);
  for(const x of [first,second,third]){
+  if(x.state.theme==='egypt'){
+    // Egyptian actor images are preloaded in both the NPC and every user's
+    // converted-ghost colors, preventing blank first frames in gameplay.
+    const testNPC=art.getActorImage(true,'#f5faff','float0','egypt');
+    assert.ok(testNPC.complete&&testNPC.naturalWidth>0);
+    for(const p of x.players)
+      for(const pose of ['float0','float1','float2'])
+        assert.ok(art.getActorImage(true,p.color,pose,'egypt').complete);
+  }
   assert.equal(x.state.npcs.length,1,'both themes start with one ghost');
   assert.equal(x.state.world.w,1280,'crowded arena size unchanged');
   const before=x.state.theme;

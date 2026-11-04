@@ -815,9 +815,9 @@ function hud(players,round){
   return {survivors:survivors(players).length,ghosts:players.filter(p=>p.active&&p.ghost).length+
     (round.ghost?.npcs.length||0),total:players.filter(p=>p.active).length};
 }
-function drawPerson(ctx,p,color,ghost,t,alpha=1){
+function drawPerson(ctx,p,color,ghost,t,alpha=1,theme='graveyard'){
   ctx.save();ctx.globalAlpha=alpha;
-  Art.drawActor(ctx,p,color,ghost,t);
+  Art.drawActor(ctx,p,color,ghost,t,theme);
   // The shared combat and stun timelines also decorate the SVG sprite.
   Combat.drawAttack(ctx,p);
   Combat.drawStun(ctx,p,t);
@@ -999,12 +999,14 @@ function draw(ctx,t,round,players){
   }
   for(const b of state.boxes)Art.drawLootBox(ctx,b,t,state.theme);
   if(state.ghostSpawned){
-    for(const npc of state.npcs)drawPerson(ctx,{...npc,name:'ผี'},'#f5faff',true,t,npc.stun>0?.65:1);
+    for(const npc of state.npcs)
+      drawPerson(ctx,{...npc,name:state.theme==='egypt'?'ฟาโรห์':'ผี'},
+        '#f5faff',true,t,npc.stun>0?.65:1,state.theme);
   }
   for(const p of players){
     if(!p.active)continue;
     const alpha=p.cloak>0?.19:1;
-    drawPerson(ctx,p,p.color,p.ghost,t,alpha);
+    drawPerson(ctx,p,p.color,p.ghost,t,alpha,state.theme);
     // Show the freshly obtained item above THIS player, not globally.
     drawPickupNotice(ctx,p,w,h);
     if(p.boost>0){ctx.save();ctx.strokeStyle=p.color;ctx.lineWidth=2.5;

@@ -29,8 +29,82 @@
   function svg(inner){
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${inner}</svg>`;
   }
-  function actorSVG(ghost,color,pose='idle'){
+  // A distinctly Egyptian flying spirit: nemes crown, gold uraeus cobra,
+  // spectral mummy wraps, lapis/gold collar and animated floating shroud.
+  // Unlike cemetery spirits, the player's individual tint stays visible.
+  function pharaohGhostSVG(color,pose='float0'){
+    const wave=pose==='float1'?5:pose==='float2'?-5:0;
+    const hover=pose==='float1'?-2:pose==='float2'?2:0;
+    return svg(`
+      <defs>
+        <linearGradient id="phantom" x1="0" y1="0" x2=".7" y2="1">
+          <stop offset="0" stop-color="#f9f4cb"/>
+          <stop offset=".52" stop-color="${color}"/>
+          <stop offset="1" stop-color="#2d6677"/>
+        </linearGradient>
+        <linearGradient id="nemes" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#277db7"/>
+          <stop offset=".5" stop-color="#143b77"/>
+          <stop offset="1" stop-color="#08294c"/>
+        </linearGradient>
+        <linearGradient id="gold" x1="0" y1="0" x2=".8" y2="1">
+          <stop offset="0" stop-color="#fff0a8"/>
+          <stop offset=".6" stop-color="#ecc45e"/>
+          <stop offset="1" stop-color="#9c6b29"/>
+        </linearGradient>
+      </defs>
+      <g data-actor="pharaoh-ghost">
+        <ellipse cx="50" cy="94" rx="24" ry="4.5" fill="#122533" opacity=".28"/>
+        <path d="M50 22 C26 19 22 38 23 57 L20 76
+          Q18 ${86+wave} 30 79 Q38 ${91-wave} 44 82
+          Q50 94 56 82 Q64 ${91+wave} 71 79
+          Q82 ${86-wave} 80 75 L77 53 C76 35 67 22 50 22Z"
+          fill="url(#phantom)" stroke="#214555" stroke-width="3.8" stroke-linejoin="round"/>
+        <path d="M28 51 Q${13+wave} 55 21 ${69+wave}
+          M72 51 Q${87-wave} 55 79 ${69-wave}"
+          fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"/>
+        <path d="M30 65 Q45 69 57 65 M38 73Q50 77 64 71
+          M31 81Q42 85 48 83" fill="none" stroke="#f6deb0"
+          stroke-width="3" opacity=".65"/>
+        <path d="M23 43 L24 25 Q26 10 50 9 Q74 10 76 25 L77 44
+          L88 65 L73 61 L64 46 L36 46 L27 61 L12 65Z"
+          fill="url(#nemes)" stroke="#dfba5d" stroke-width="3.6"
+          stroke-linejoin="round"/>
+        <path d="M21 50 L34 47 M16 60L29 56
+          M66 47L79 50 M71 56L84 60" stroke="#ffdb72"
+          stroke-width="5" stroke-linecap="round"/>
+        <path d="M29 25 Q38 16 50 19 Q62 16 71 25
+          L69 41 Q63 54 50 55 Q37 54 31 41Z"
+          fill="#e5dfbd" stroke="#1a405b" stroke-width="3"/>
+        <path d="M31 28 Q37 20 50 23 Q63 20 69 28" fill="none"
+          stroke="#ffe6a3" stroke-width="3.5"/>
+        <path d="M39 34 L45 34 M55 34 L61 34"
+          stroke="#163c54" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="42" cy="${35+hover}" r="2.8" fill="#42ffdb"/>
+        <circle cx="58" cy="${35+hover}" r="2.8" fill="#42ffdb"/>
+        <path d="M47 43 Q50 45 53 43" fill="none"
+          stroke="#615343" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M43 48 L50 59 L57 48Z"
+          fill="url(#gold)" stroke="#163c54" stroke-width="2"/>
+        <path d="M33 54 Q50 67 67 54 M34 60 Q50 72 66 60"
+          fill="none" stroke="#f6cd67" stroke-width="3.5"/>
+        <path d="M48 13 Q42 7 49 4 Q55 3 56 12
+          M50 10 L50 20" fill="none" stroke="#ecca5e"
+          stroke-width="4" stroke-linecap="round"/>
+        <circle cx="50" cy="13" r="3.5" fill="#55d6c0" stroke="#f9dd87" stroke-width="2"/>
+        <path d="M28 73 Q25 68 23 72 M74 72Q76 68 80 73"
+          stroke="#fff6c9" stroke-width="2" fill="none" opacity=".55"/>
+        <g fill="${color}" opacity=".8">
+          <circle cx="12" cy="28" r="2"/>
+          <circle cx="87" cy="34" r="2.5"/>
+          <circle cx="18" cy="14" r="1.5"/>
+        </g>
+      </g>
+    `);
+  }
+  function actorSVG(ghost,color,pose='idle',theme='graveyard'){
     color=accent(color);
+    if(ghost&&theme==='egypt')return pharaohGhostSVG(color,pose);
     if(ghost){
       const drift=pose==='float1'?3:pose==='float2'?-2:0;
       const wave=pose==='float1'?5:pose==='float2'?-4:0;
@@ -308,10 +382,12 @@
     }
     return imageCache.get(key);
   }
-  function getActorImage(ghost,color,pose='idle'){
+  function getActorImage(ghost,color,pose='idle',theme='graveyard'){
     const safe=accent(color);
-    const key=`actor/${ghost?'ghost':'human'}/${safe}/${pose}`;
-    return getImage(key,actorSVG(ghost,safe,pose));
+    // Human art is shared. Ghost caches must be separated by theme.
+    const skin=ghost&&theme==='egypt'?'egypt': 'graveyard';
+    const key=`actor/${ghost?'ghost':'human'}/${skin}/${safe}/${pose}`;
+    return getImage(key,actorSVG(ghost,safe,pose,skin));
   }
   function getObstacleImage(kind,variant=0){
     const type=KINDS.includes(kind)?kind:'headstone';
@@ -323,8 +399,15 @@
     for(const kind of kindsForTheme(theme))
       for(let v=0;v<3;v++)getObstacleImage(kind,v);
     getLootImage(theme);
-    getActorImage(true,'#e6f6ff','float0');
-    for(const p of players)getActorImage(false,p.color,'idle');
+    // Decode all three pharaoh floating frames before countdown ends,
+    // including each participant's colored ghost form.
+    const ghostColors=['#f5faff',...players.map(p=>p.color)];
+    if(theme==='egypt'){
+      for(const color of ghostColors)
+        for(const pose of ['float0','float1','float2'])
+          getActorImage(true,color,pose,theme);
+    }else getActorImage(true,'#f5faff','float0',theme);
+    for(const p of players)getActorImage(false,p.color,'idle',theme);
   }
   function lootSVG(theme='graveyard'){
     if(theme==='egypt')return svg(`
@@ -367,12 +450,12 @@
     }
     ctx.restore();
   }
-  function drawActor(ctx,p,color,isGhost,time){
+  function drawActor(ctx,p,color,isGhost,time,theme='graveyard'){
     const movement=Math.hypot(p.vx||0,p.vy||0);
     const pose=isGhost?`float${Math.floor(time*3.3)%3}`:
       p.attackRemaining>0?'attack':movement>18?
         `walk${Math.floor(time*9)%4}`:'idle';
-    const img=getActorImage(isGhost,color,pose);
+    const img=getActorImage(isGhost,color,pose,theme);
     const bob=isGhost?Math.sin(time*3.9+(p.x||0)*.02)*2.5:
       movement>18?Math.abs(Math.sin(time*9))*1.2:0;
     ctx.save();
@@ -401,7 +484,7 @@
     ctx.restore();
   }
   window.GhostCemeteryArt=Object.freeze({KINDS,THEMES,GRAVEYARD_KINDS,
-    EGYPT_KINDS,kindsForTheme,themeLabel,pickTheme,actorSVG,obstacleSVG,
+    EGYPT_KINDS,kindsForTheme,themeLabel,pickTheme,actorSVG,pharaohGhostSVG,obstacleSVG,
     lootSVG,getLootImage,drawLootBox,getActorImage,getObstacleImage,
     drawActor,drawObstacle,preload});
 })();
