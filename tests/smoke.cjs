@@ -147,14 +147,20 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  c.x=npc.x+280;c.y=npc.y;
  ghost.update(.016,x.round,x.players);
  assert.equal(npc.targetId,a.id);
- b.x=npc.x+10;b.y=npc.y;
+ b.x=npc.x+50;b.y=npc.y;
  ghost.update(.016,x.round,x.players);
  assert.equal(npc.targetId,b.id,'switch when alternative becomes much closer');
- // Force an AI touch then make that person chase another player.
+}
+{
+ const x=init(3),[a,b,c]=x.players;x.round.phase='playing';
+ const npc=x.state.npcs[0];
+ npc.stun=0;
+ b.x=90;b.y=90;c.x=x.state.world.w-80;c.y=x.state.world.h-80;
  a.x=npc.x;a.y=npc.y;
  ghost.update(.016,x.round,x.players);
  assert.equal(a.ghost,true,'AI ghost touch infects a human');
  assert.equal(a.active,true,'infected human remains controllable');
+ npc.stun=999;
  a.x=c.x-4;a.y=c.y;
  ghost.update(.016,x.round,x.players);
  assert.equal(c.ghost,true,'player-ghost touch infects another human');
@@ -340,11 +346,10 @@ let rr=vm.runInContext('round',host.scope);
 assert.equal(rr.phase,'countdown');assert.equal(rr.ghost.npcs.length,1);
 for(let i=0;i<245;i++)host.step(i*16.667);
 assert.equal(rr.ghost.ghostSpawned,true);
-assert.equal(rr.phase,'playing');
+assert.equal(rr.phase,'results','one-player practice has a winner after ghost spawn');
 assert.equal(rr.remaining,null,'there is no per-round time limit');
 assert.ok(/คน/.test(host.elements.get('timer').textContent));
 assert.equal(host.elements.get('leaderboard').children.length,1);
-for(let i=245;i<310;i++)host.step(i*16.667);
 assert.equal(host.elements.get('results').classList.contains('hidden'),false,
  'one player wins after the initial ghost spawn');
 host.click('backBtn');
