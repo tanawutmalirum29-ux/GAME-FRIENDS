@@ -4,6 +4,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const {webcrypto}=require('node:crypto');
 const source=fs.readFileSync('app.js','utf8');
+const miniSource=fs.readFileSync('minigames.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 
 function setup(url='https://game.example/') {
@@ -21,6 +22,7 @@ function setup(url='https://game.example/') {
       fire(name,extra={}){for(const fn of handlers[name]||[])fn({preventDefault(){},pointerId:1,...extra});},
       append(...items){this.children.push(...items);},
       replaceChildren(...items){this.children=items;},
+      prepend(item){this.children.unshift(item);},
       setAttribute(){},select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
       getContext(){return context;},parentElement:null
     };
@@ -33,7 +35,7 @@ function setup(url='https://game.example/') {
     set(){return true;}
   });
   for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,makeElement(id));
-  elements.get('mode').value='stars';elements.get('duration').value='60';
+  elements.get('mode').value='stars';elements.get('duration').value='60';elements.get('sessionMode').value='quick';
   elements.get('localPads').parentElement=makeElement('pad-section');
   const document={
     getElementById(id){assert(elements.has(id),'Missing ID: '+id);return elements.get(id);},
@@ -63,7 +65,9 @@ function setup(url='https://game.example/') {
     navigator:{},Peer:FakePeer,URL,URLSearchParams,
     setInterval(){return 1;},setTimeout(){return 1;},
     requestAnimationFrame(fn){raf=fn;},alert(){},confirm(){return true;}};
-  vm.runInNewContext(source,globals,{filename:'app.js'});
+  const scope=vm.createContext(globals);
+  vm.runInContext(miniSource,scope,{filename:'minigames.js'});
+  vm.runInContext(source,scope,{filename:'app.js'});
   return {elements,instances,step(ms){assert(raf);raf(ms);},click(id){elements.get(id).fire('click');}};
 }
 
@@ -94,4 +98,26 @@ assert.equal(conn.sent[0].t,'join');
 conn.fire('data',{t:'welcome',id:'p1',name:'ทดสอบ',color:'#ff628c'});
 assert.equal(mobile.elements.get('controllerActive').classList.contains('hidden'),false);
 assert.equal(mobile.elements.get('controllerName').textContent,'ทดสอบ');
-console.log('SMOKE PASS: offline game, simulated frames, host room, QR invite, mobile join');
+// Exercise all top-down mini-games through countdown and active simulation.
+for(const mode of ['tanks','soccer','rally','paint']){
+  const test=setup();
+  test.click('addLocalBtn');test.click('addLocalBtn');
+  test.elements.get('mode').value=mode;
+  test.click('startBtn');
+  for(let i=0;i<270;i++)test.step(i*16.667);
+  assert.equal(test.elements.get('gameMode').textContent,{
+    tanks:'TANK BLAST',soccer:'FOOTBALL',rally:'MICRO RALLY',paint:'COLOR CLASH'}[mode]);
+  assert.equal(test.elements.get('game').classList.contains('hidden'),false);
+}
+// Tourney should start a random one of seven games and use round transitions.
+const tour=setup();
+tour.click('addLocalBtn');tour.click('addLocalBtn');
+tour.elements.get('sessionMode').value='tournament';
+tour.click('startBtn');
+assert.match(tour.elements.get('gameMode').textContent,/STAR RUSH|BRAWL ARENA|LAVA RUN|TANK BLAST|FOOTBALL|MICRO RALLY|COLOR CLASH/);
+for(let i=0;i<1660;i++)tour.step(i*45);
+assert.equal(tour.elements.get('results').classList.contains('hidden'),false);
+assert.match(tour.elements.get('replayBtn').textContent,/เกมถัดไป/);
+tour.click('replayBtn');
+assert.equal(tour.elements.get('results').classList.contains('hidden'),true);
+console.log('SMOKE PASS: offline, QR controller, all 4 top-down games and tournament transitions');
