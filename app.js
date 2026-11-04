@@ -221,12 +221,68 @@ function controllerDisconnected(){
 }
 function showControllerMode(mode){
   const topdown=TOPDOWN.includes(mode);
-  const message=topdown?'ใช้ ▲▼◀▶ เคลื่อนที่ • HIT '+(mode==='tanks'?'ยิง':mode==='soccer'?'เตะบอล':mode==='rally'?'บูสต์':'ระบายพื้นที่'):
-    'ใช้ ◀▶ เดิน • ▲ กระโดด • HIT ต่อย/พุ่ง';
-  $('controllerHelp').textContent=message;
-  $('actionLabel').textContent=mode==='tanks'?'ยิง':mode==='soccer'?'เตะ':mode==='rally'?'บูสต์':mode==='paint'?'ระบาย':'โจมตี';
+  const actions={
+    stars:['DASH','JUMP'],brawl:['PUNCH','JUMP'],lava:['DASH','JUMP'],
+    tanks:['FIRE','DODGE'],soccer:['KICK','SPRINT'],
+    rally:['BOOST','BRAKE'],paint:['PAINT','DASH']
+  };
+  const labels=actions[mode]||['ACTION','JUMP'];
+  $('buttonALabel').textContent=labels[0];
+  $('buttonBLabel').textContent=labels[1];
+  $('controllerModeName').textContent=MODES[mode]||'MINI GAME';
+  $('controllerHelp').textContent=topdown?
+    'อนาล็อกเดิน 4 ทิศ • A '+labels[0]+' • B '+labels[1]:
+    'อนาล็อกซ้าย/ขวา • ดันขึ้นหรือกด B เพื่อกระโดด • A '+labels[0];
 }
 function sendInputs(){if(!controllerReady)return;send(controllerConn,{t:'input',keys:{...controllerKeys}});}
+// Request landscape after a user gesture; iOS Safari may deny orientation lock.
+async function requestLandscape(){
+  const panel=$('controller');
+  try{
+    if(panel.requestFullscreen&&!document.fullscreenElement)await panel.requestFullscreen();
+  }catch(_){/* fullscreen unavailable */ }
+  try{
+    if(window.screen&&window.screen.orientation&&window.screen.orientation.lock)
+      await window.screen.orientation.lock('landscape');
+  }catch(_){/* portrait overlay is the fallback */ }
+}
+let releaseStick=()=>{};
+function bindAnalogStick(base,knob,target){
+  let pointerId=null;
+  const reset=()=>{
+    pointerId=null;target.axisX=0;target.axisY=0;
+    knob.style.transform='translate(-50%,-50%)';
+    base.classList.remove('is-active');sendInputs();
+  };
+  const move=(e)=>{
+    const box=base.getBoundingClientRect();
+    const cx=box.left+box.width/2,cy=box.top+box.height/2;
+    const travel=Math.max(1,Math.min(box.width,box.height)*.285);
+    const dx=e.clientX-cx,dy=e.clientY-cy;
+    const distance=Math.hypot(dx,dy),factor=distance>travel?travel/distance:1;
+    let x=dx*factor/travel,y=dy*factor/travel;
+    if(Math.hypot(x,y)<.14){x=0;y=0;}
+    x=Math.round(x*100)/100;y=Math.round(y*100)/100;
+    knob.style.transform='translate(calc(-50% + '+Math.round(x*travel)+'px),calc(-50% + '+Math.round(y*travel)+'px))';
+    if(Math.abs(target.axisX-x)>.01||Math.abs(target.axisY-y)>.01){
+      target.axisX=x;target.axisY=y;sendInputs();
+    }
+  };
+  base.addEventListener('pointerdown',e=>{
+    if(pointerId!==null)return;
+    e.preventDefault();pointerId=e.pointerId;
+    try{base.setPointerCapture(pointerId);}catch(_){}
+    base.classList.add('is-active');move(e);
+  });
+  base.addEventListener('pointermove',e=>{
+    if(e.pointerId!==pointerId)return;e.preventDefault();move(e);
+  });
+  for(const type of ['pointerup','pointercancel','lostpointercapture']){
+    base.addEventListener(type,e=>{if(e.pointerId===pointerId)reset();});
+  }
+  base.addEventListener('contextmenu',e=>e.preventDefault());
+  releaseStick=reset;
+}
 function bindControl(btn, target, id){
   const key=btn.dataset.control;if(!key)return;
   const change=(pressed)=>{if(target[key]===pressed)return;target[key]=pressed;btn.classList.toggle('pressed',pressed);if(id==='remote')sendInputs();};
@@ -554,6 +610,29 @@ $('copyBtn').addEventListener('click',copyInvite);
 $('exitBtn').addEventListener('click',()=>{tournament=null;round=null;resetInputs();setView('home');renderRoster();broadcastRoster();});
 $('backBtn').addEventListener('click',()=>{tournament=null;round=null;resetInputs();setView('home');renderRoster();broadcastRoster();});
 $('replayBtn').addEventListener('click',advanceParty);
+function selectMiniGame(mode){
+  if(!MODES[mode])return;
+  $('mode').value=mode;
+  document.querySelectorAll('[data-game]').forEach(btn=>{
+    const active=btn.dataset.game===mode;
+    btn.classList.toggle('selected',active);
+    btn.setAttribute('aria-pressed',String(active));
+  });
+  const details={stars:'เก็บดาวแข่งกัน',brawl:'ตะลุมบอนแย่งคะแนน',lava:'เอาชีวิตรอดจากลาวา',
+    tanks:'รถถังยิงกันมุมบน',soccer:'สองทีมแข่งยิงประตู',rally:'รถแข่งผ่านจุดตรวจ',paint:'แย่งยึดพื้นที่สี'};
+  $('selectedGameText').textContent=$('sessionMode').value==='tournament'?
+    'TOURNAMENT • ระบบสุ่ม 5 จาก 7 มินิเกมเพื่อสะสมคะแนน':
+    'เลือกแล้ว: '+MODES[mode]+' • '+details[mode];
+  broadcastRoster();
+}
+document.querySelectorAll('[data-game]').forEach(btn=>btn.addEventListener('click',()=>selectMiniGame(btn.dataset.game)));
+$('sessionMode').addEventListener('change',()=>{
+  const isTourney=$('sessionMode').value==='tournament';
+  $('gameCards').parentElement.classList.toggle('tournament-selected',isTourney);
+  selectMiniGame($('mode').value);
+});
+$('landscapeBtn').addEventListener('click',()=>{void requestLandscape();});
+$('rotateRetryBtn').addEventListener('click',()=>{void requestLandscape();});
 $('joinBtn').addEventListener('click',joinRoom);
 $('nick').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
 $('leaveBtn').addEventListener('click',()=>{
@@ -562,6 +641,7 @@ $('leaveBtn').addEventListener('click',()=>{
   const u=new URL(window.location.href);u.search='';window.location.assign(u.href);
 });
 document.querySelectorAll('#controllerActive [data-control]').forEach(btn=>bindControl(btn,controllerKeys,'remote'));
+bindAnalogStick($('joystickBase'),$('joystickKnob'),controllerKeys);
 setInterval(sendInputs,100);
 window.addEventListener('beforeunload',()=>{safePeerDestroy();if(hostPeer)hostPeer.destroy();});
 
@@ -571,7 +651,7 @@ if(joinCode){
   $('nick').value=sessionStorage.getItem('gf-nick')||'';
   setStatus('พร้อมเชื่อมจอย');
 }else{
-  setView('home');renderRoster();renderPads();
+  setView('home');renderRoster();renderPads();selectMiniGame($('mode').value||'stars');
 }
 requestAnimationFrame(animate);
 })();
