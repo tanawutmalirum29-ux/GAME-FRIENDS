@@ -31,7 +31,8 @@ const Combat=window.PartyCombatMotion;
 if(!Combat)throw new Error('combat-motion.js must load before ghost-attack.js');
 const Art=window.GhostCemeteryArt;
 if(!Art)throw new Error('graveyard-art.js must load before ghost-attack.js');
-const C={humanSpeed:172,ghostSpeed:176,ghostTurn:5.3,hitRadius:19,punchRange:67,
+// Modest speed edge; interceptions, not teleporting, make ghosts competitive.
+const C={humanSpeed:172,ghostSpeed:186,ghostTurn:6.1,hitRadius:19,punchRange:67,
   punchStun:.63,punchCooldown:Combat.ATTACK.cooldown,ghostStun:1.45,
   trapRoot:1.1,slowTime:2.5,boostTime:2.6,cloakTime:2};
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -111,12 +112,10 @@ function setup(round,players){
       pos=freeSpot(world,obstacles,used,30,spacing);
     resetPlayer(p,pos);used.push(pos);
   }
-  const npcs=Array.from({length:tier},(_,i)=>{
-    const a=i*TAU/tier;
-    return {id:'ai-ghost-'+i,x:center.x+Math.cos(a)*25,
-      y:center.y+Math.sin(a)*25,dir:{x:Math.cos(a),y:Math.sin(a)},
-      targetId:null,lockUntil:0,stun:0};
-  });
+  // Always one starting ghost. Additional ghost hunters are converted
+  // players, not extra NPCs seeded into large rooms.
+  const npcs=[{id:'ai-ghost-0',x:center.x+25,y:center.y,
+    dir:{x:1,y:0},targetId:null,lockUntil:0,stun:0}];
   round.ghost={world,obstacles,hudBlocker,npcs,boxes:[],traps:[],time:0,
     boxClock:4.5,maxBoxes:tier===1?2:3,
     winnerId:null,converted:[],lastHumanId:null,ghostSpawned:false};
@@ -171,13 +170,123 @@ function convert(p,state){
   p.infectedAt=state.time;p.score=Math.floor(p.survival*10);
   state.converted.push(p.id);
 }
+
+function visiblePrey(players){
+  return players.filter(p=>p.active&&!p.ghost&&p.cloak<=0);
+}
+function ghostForecast(hunter,prey,state,lead=1){
+  // Observe current movement for a short lead; never read future controls.
+  const time=clamp(dist(hunter,prey)/(C.ghostSpeed*2.15),.13,.85)*lead;
+  return {x:clamp(prey.x+(prey.vx||0)*time,24,state.world.w-24),
+    y:clamp(prey.y+(prey.vy||0)*time,24,state.world.h-24)};
+}
+function ghostInterceptGoal(hunter,prey,role,group,state){
+  const predicted=ghostForecast(hunter,prey,state,role==='chase'?1:1.23);
+  if(role==='chase'||dist(hunter,prey)<79)return predicted;
+  const center={x:group.reduce((n,h)=>n+h.x,0)/group.length,
+    y:group.reduce((n,h)=>n+h.y,0)/group.length};
+  const moving=Math.hypot(prey.vx||0,prey.vy||0)>45;
+  const escape=moving?nrm(prey.vx,prey.vy):
+    nrm(prey.x-center.x,prey.y-center.y);
+  const lead=clamp(55+dist(hunter,prey)*.24,68,168);
+  let x=predicted.x,y=predicted.y;
+  if(role==='intercept'){
+    x+=escape.x*lead;y+=escape.y*lead;
+  }else{
+    const side=role==='flank-left'?-1:1;
+    x+=escape.x*lead*.42-escape.y*side*lead*.79;
+    y+=escape.y*lead*.42+escape.x*side*lead*.79;
+  }
+  return {x:clamp(x,24,state.world.w-24),
+    y:clamp(y,24,state.world.h-24)};
+}
+function ghostLineHitsRect(a,b,rect){
+  let enter=0,leave=1;
+  for(const axis of ['x','y']){
+    const d=b[axis]-a[axis];
+    const lo=rect[axis],hi=rect[axis]+(axis==='x'?rect.w:rect.h);
+    if(Math.abs(d)<1e-7){if(a[axis]<lo||a[axis]>hi)return false;continue;}
+    let t0=(lo-a[axis])/d,t1=(hi-a[axis])/d;
+    if(t0>t1){const tmp=t0;t0=t1;t1=tmp;}
+    enter=Math.max(enter,t0);leave=Math.min(leave,t1);
+    if(enter>leave)return false;
+  }
+  return true;
+}
+function ghostSteeringPoint(hunter,goal,state){
+  const block=state.hudBlocker;
+  if(!block)return goal;
+  // Spirits phase through graves but not the solid upper-left HUD monument.
+  const pad=23,rect={x:block.x-pad,y:block.y-pad,
+    w:block.w+2*pad,h:block.h+2*pad};
+  if(!ghostLineHitsRect(hunter,goal,rect))return goal;
+  const options=[
+    {x:rect.x-7,y:rect.y-7},{x:rect.x+rect.w+7,y:rect.y-7},
+    {x:rect.x-7,y:rect.y+rect.h+7},
+    {x:rect.x+rect.w+7,y:rect.y+rect.h+7}
+  ].filter(p=>p.x>=22&&p.y>=22&&
+    p.x<=state.world.w-22&&p.y<=state.world.h-22)
+    .filter(p=>!ghostLineHitsRect(hunter,p,rect)&&
+      !ghostLineHitsRect(p,goal,rect));
+  if(!options.length)return goal;
+  options.sort((a,b)=>dist(hunter,a)+dist(a,goal)-
+    dist(hunter,b)-dist(b,goal));
+  return options[0];
+}
+function updateGhostHuntPlans(players,state){
+  const prey=visiblePrey(players);
+  // Remote player ghosts are not AI-controlled and must stay under the pad.
+  const bots=players.filter(p=>p.active&&p.isBot&&p.ghost&&p.stun<=0);
+  const npcs=state.npcs.filter(g=>g.stun<=0);
+  const hunters=[...npcs,...bots];
+  if(!hunters.length)return;
+  if(!prey.length){
+    for(const h of hunters){
+      h.huntGoal=null;h.huntRole=null;h.huntTargetId=null;
+    }
+    return;
+  }
+  // Re-evaluate nearby threats each frame, but only move tactical goalposts
+  // every ~0.4 seconds unless the best target changes dramatically.
+  const primary=npcs.length?nearestTarget(npcs[0],players,state):
+    botNearest(hunters[0],prey).target;
+  if(!primary)return;
+  const current=hunters.every(h=>h.huntGoal&&
+    prey.some(p=>p.id===h.huntTargetId));
+  const changed=state.huntPrimaryId!==primary.id;
+  if(!changed&&current&&state.time<(state.nextHuntPlan||0))return;
+  state.huntPrimaryId=primary.id;
+  state.nextHuntPlan=state.time+(hunters.length>1?.42:.31);
+  // Two or three hunters surround the same prey. Four or more split into
+  // pairs when two surviving humans are far apart.
+  const secondary=hunters.length>=4?
+    prey.filter(p=>p!==primary&&dist(p,primary)>190)
+      .sort((a,b)=>dist(a,hunters[hunters.length-1])-
+        dist(b,hunters[hunters.length-1]))[0]:null;
+  const sorted=[...hunters].sort((a,b)=>dist(a,primary)-dist(b,primary));
+  const cut=secondary?Math.ceil(sorted.length/2):sorted.length;
+  for(let i=0;i<sorted.length;i++){
+    const h=sorted[i];
+    const target=secondary&&i>=cut?secondary:primary;
+    const group=secondary?
+      (i>=cut?sorted.slice(cut):sorted.slice(0,cut)):sorted;
+    const slot=group.indexOf(h);
+    const role=['chase','intercept','flank-left','flank-right'][slot%4];
+    h.huntRole=role;
+    h.huntTargetId=target.id;
+    h.huntGoal=ghostInterceptGoal(h,target,role,group,state);
+    h.targetId=target.id;
+  }
+}
 function advanceNpcs(dt,players,state){
   for(const npc of state.npcs){
     npc.stun=Math.max(0,npc.stun-dt);
     if(npc.stun>0)continue;
-    const target=nearestTarget(npc,players,state);
+    const target=visiblePrey(players).find(p=>p.id===npc.huntTargetId);
     if(!target)continue;
-    const desired=nrm(target.x-npc.x,target.y-npc.y);
+    const goal=npc.huntGoal||ghostForecast(npc,target,state);
+    const point=ghostSteeringPoint(npc,goal,state);
+    const desired=nrm(point.x-npc.x,point.y-npc.y);
     npc.dir=turnTowards(npc.dir,desired,dt,C.ghostTurn);
     walk(npc,npc.dir.x*C.ghostSpeed,npc.dir.y*C.ghostSpeed,
       dt,state.world,state.obstacles,true);
@@ -514,6 +623,7 @@ function botNextHeading(p,brain){
   return nrm(target.x-p.x,target.y-p.y);
 }
 function updateBots(dt,players,state){
+  updateGhostHuntPlans(players,state);
   const humans=players.filter(q=>q.active&&!q.ghost);
   const humanGhosts=players.filter(q=>q.active&&q.ghost&&q.stun<=0);
   const npcThreats=state.ghostSpawned?state.npcs.filter(g=>g.stun<=0):[];
@@ -528,15 +638,15 @@ function updateBots(dt,players,state){
       unstickGoal:null,lastEscapeGoal:null,roamGoal:null});
     if(p.stun>0||Combat.isAttacking(p))continue;
     if(p.ghost){
-      const victim=botNearest(p,humans).target;
+      const victim=visiblePrey(players).find(q=>q.id===p.huntTargetId);
       if(victim){
-        const goal={x:clamp(victim.x+(victim.vx||0)*.25,21,state.world.w-21),
-          y:clamp(victim.y+(victim.vy||0)*.25,21,state.world.h-21)};
-        const dir=nrm(goal.x-p.x,goal.y-p.y);
+        const goal=p.huntGoal||ghostForecast(p,victim,state);
+        const point=ghostSteeringPoint(p,goal,state);
+        const dir=nrm(point.x-p.x,point.y-p.y);
         input.axisX=dir.x;input.axisY=dir.y;
-        // Touching a survivor infects them; ghosts have no punch control.
-        input.action=false;
       }
+      // Pack-hunting ghosts infect by touch. They can NEVER punch.
+      input.action=false;
       continue;
     }
     // Detect actual lack of progress, not visual directional changes.
