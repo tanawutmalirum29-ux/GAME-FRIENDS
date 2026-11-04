@@ -197,3 +197,77 @@ body.controller-playing .controller-buttons{
   .face-button{width:clamp(75px,27vh,108px);height:clamp(75px,27vh,108px)}
   .gamepad-face-buttons{min-height:118px}
 }
+
+
+
+/* Optional fallback: rotate the landscape gamepad UI, never the physical phone.
+   The normal landscape gamepad remains the default. */
+.rotate-options{display:flex;flex-direction:column;gap:12px;width:min(100%,350px)}
+.rotate-options .btn{width:100%;min-height:54px;font-size:14px}
+.rotate-options .portrait-option{background:#294266;border:2px solid #81c4df;color:#effaff}
+.rotate-notice .rotate-description{max-width:340px;font-size:12px;color:#94bbd5}
+body.controller-playing .portrait-restore{display:none}
+@media(orientation:portrait){
+  body.controller-playing.portrait-fallback .rotate-notice{display:none}
+  body.controller-playing.portrait-fallback .portrait-restore{display:inline-flex;align-items:center;justify-content:center}
+  body.controller-playing.portrait-fallback #controllerActive{
+    display:flex;position:fixed;z-index:30;
+    left:50%;top:50%;
+    width:100dvh;height:100dvw;max-width:none;max-height:none;
+    margin:0;overflow:hidden;box-sizing:border-box;
+    padding:0;
+    background:radial-gradient(ellipse at 50% 60%,#243454,#0c1429 78%);
+    transform:translate(-50%,-50%) rotate(90deg);
+    transform-origin:center center;
+    touch-action:none;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-hud{
+    min-height:clamp(47px,16vw,66px);
+    padding:3px 16px 0;gap:8px;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-avatar{width:30px;height:30px}
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-user strong{font-size:13px}
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-user small{font-size:10px;max-width:220px}
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-tool{font-size:10px;padding:6px 9px}
+  body.controller-playing.portrait-fallback #controllerActive .controller-buttons{
+    display:grid;grid-template-columns:minmax(125px,1fr) minmax(64px,.44fr) minmax(145px,1.1fr);
+    flex:1;min-height:0;gap:clamp(5px,2vw,16px);
+    padding:0 15px;align-items:center;justify-content:space-between;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .joystick-group{gap:5px}
+  body.controller-playing.portrait-fallback #controllerActive .joystick-base{
+    width:clamp(112px,41vw,220px);height:clamp(112px,41vw,220px);
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-brand{font-size:clamp(12px,3vw,22px)}
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-mode{font-size:10px}
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-face-buttons{
+    min-height:115px;max-width:280px;height:100%;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .face-button{
+    width:clamp(78px,28vw,130px);height:clamp(78px,28vw,130px);
+    font-size:clamp(29px,9vw,49px);border-width:5px;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .face-a{top:3%;right:0}
+  body.controller-playing.portrait-fallback #controllerActive .face-b{bottom:4%;left:2%}
+  body.controller-playing.portrait-fallback #controllerActive .face-caption{font-size:10px}
+  body.controller-playing.portrait-fallback #controllerActive .controller-help{
+    padding:0 12px 6px;font-size:10px;
+  }
+}
+@media(orientation:portrait) and (max-width:360px){
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-hud{min-height:43px}
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-label{display:none}
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-connection{display:none}
+  body.controller-playing.portrait-fallback #controllerActive .controller-help{display:none}
+  body.controller-playing.portrait-fallback #controllerActive .controller-buttons{
+    grid-template-columns:minmax(100px,1fr) minmax(48px,.4fr) minmax(115px,1fr);
+    padding:0 12px;gap:4px;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .joystick-base{
+    width:clamp(108px,40vw,145px);height:clamp(108px,40vw,145px);
+  }
+  body.controller-playing.portrait-fallback #controllerActive .face-button{
+    width:clamp(75px,28vw,100px);height:clamp(75px,28vw,100px);
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-brand{font-size:12px}
+}

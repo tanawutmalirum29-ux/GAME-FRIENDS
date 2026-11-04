@@ -10,13 +10,17 @@ const css=fs.readFileSync('style.css','utf8');
 assert.match(css,/@media\(orientation:portrait\)/);
 assert.match(html,/id="joystickBase"/);
 assert.match(html,/data-control="alt"/);
+assert.match(html,/id="portraitFallbackBtn"/);
+assert.match(html,/id="portraitRestoreBtn"/);
+assert.match(css,/portrait-fallback #controllerActive/);
+assert.match(css,/rotate\(90deg\)/);
 assert.match(html,/id="viewportMeta"/);
 assert.match(css,/body\.zoom-locked/);
 assert.match(css,/\.pad-buttons\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 assert.match(css,/\.face-button\{\s*width:clamp\(94px,27vh,152px\)/);
 assert.match(css,/\.joystick-base\{width:clamp\(148px,43vh,270px\)/);
 
-function setup(url='https://game.example/') {
+function setup(url='https://game.example/',portrait=false) {
   const elements=new Map();
   const makeElement=(id='')=>{
     const handlers={},classes=new Set();
@@ -87,7 +91,14 @@ function setup(url='https://game.example/') {
     fire(name,value){this.handlers[name]?.(value);}
   }
   let raf=null;
-  const win={location:new URL(url),crypto:webcrypto,addEventListener(){},scrollTo(){},};
+  const windowHandlers={};
+  const win={
+    location:new URL(url),crypto:webcrypto,portrait,
+    matchMedia(){return {matches:this.portrait};},
+    addEventListener(name,fn){(windowHandlers[name]??=[]).push(fn);},
+    fire(name){for(const fn of windowHandlers[name]||[])fn();},
+    scrollTo(){}
+  };
   const sessionStorage={getItem(){return '';},setItem(){}};
   const globals={window:win,location:win.location,document,crypto:webcrypto,sessionStorage,
     navigator:{},Peer:FakePeer,URL,URLSearchParams,
@@ -152,7 +163,7 @@ assert.equal(host.elements.get('rosterCount').textContent,'2/12');
 host.elements.get('roster').children[1].children[3].fire('click');
 assert.equal(host.elements.get('rosterCount').textContent,'1/12');
 
-const mobile=setup('https://game.example/?join=ABCD23');
+const mobile=setup('https://game.example/?join=ABCD23',true);
 assert.equal(mobile.elements.get('controller').classList.contains('hidden'),false);
 mobile.elements.get('nick').value='ทดสอบ';
 mobile.click('joinBtn');
@@ -166,6 +177,8 @@ assert.equal(mobile.elements.get('controllerActive').classList.contains('hidden'
 assert.equal(mobile.elements.get('controllerName').textContent,'ทดสอบ');
 assert.equal(mobile.elements.get('controllerModeName').textContent,'STAR RUSH');
 assert.equal(mobile.scope.document.body.classList.contains('controller-playing'),true);
+assert.equal(mobile.scope.document.body.classList.contains('portrait-fallback'),false,
+  'normal landscape remains the default even on portrait phones');
 assert.equal(mobile.scope.document.body.classList.contains('zoom-locked'),true);
 assert.match(mobile.elements.get('viewportMeta').content,/user-scalable=no/);
 mobile.padButtons.action.fire('pointerdown');
@@ -182,6 +195,33 @@ assert.ok(conn.sent.at(-1).keys.axisY<-.8,'up analog');
 stick.fire('pointerup',{pointerId:11});
 assert.equal(conn.sent.at(-1).keys.axisX,0);
 assert.equal(conn.sent.at(-1).keys.axisY,0);
+// The user explicitly chooses sideways UI without physically rotating the device.
+mobile.click('portraitFallbackBtn');
+assert.equal(mobile.scope.document.body.classList.contains('portrait-fallback'),true);
+assert.equal(mobile.elements.get('portraitRestoreBtn').classList.contains('hidden'),false);
+// In rotated CSS, physical DOWN corresponds to the local RIGHT arrow.
+stick.fire('pointerdown',{pointerId:12,clientX:100,clientY:200});
+assert.ok(conn.sent.at(-1).keys.axisX>.99,'sideways stick physical down maps right');
+assert.equal(conn.sent.at(-1).keys.axisY,0);
+stick.fire('pointermove',{pointerId:12,clientX:150,clientY:100});
+assert.ok(conn.sent.at(-1).keys.axisY<-.8,'sideways physical right maps local up');
+stick.fire('pointerup',{pointerId:12});
+assert.equal(conn.sent.at(-1).keys.axisX,0);
+assert.equal(conn.sent.at(-1).keys.axisY,0);
+// A/B still sends normal packets in the rotated fallback.
+mobile.padButtons.action.fire('pointerdown');
+assert.equal(conn.sent.at(-1).keys.action,true);
+mobile.padButtons.action.fire('pointerup');
+// Returning to default landscape is always available.
+mobile.click('portraitRestoreBtn');
+assert.equal(mobile.scope.document.body.classList.contains('portrait-fallback'),false);
+assert.equal(mobile.elements.get('portraitRestoreBtn').classList.contains('hidden'),true);
+// If a previously upright phone rotates normally, deactivate the fallback.
+mobile.click('portraitFallbackBtn');
+mobile.scope.window.portrait=false;
+mobile.scope.window.fire('resize');
+assert.equal(mobile.scope.document.body.classList.contains('portrait-fallback'),false);
+mobile.scope.window.portrait=true;
 conn.fire('data',{t:'roster',phase:'lobby',mode:'tanks',players:[]});
 assert.equal(mobile.elements.get('buttonALabel').textContent,'FIRE');
 assert.equal(mobile.elements.get('buttonBLabel').textContent,'DODGE');
@@ -235,4 +275,4 @@ const startX=fighter.x;
 engine.update(.10,miniRound,[fighter]);
 assert.ok(fighter.x>startX,'analog stick moves tank right');
 assert.ok(fighter.altCooldown>0,'B triggered tank dodge');
-console.log('SMOKE PASS: scoped zoom guard, 7 game cards, A/B joystick, mini-games, tournament and QR controller');
+console.log('SMOKE PASS: optional portrait sideways pad, rotated analog mapping, A/B, zoom lock and multiplayer minigames');
