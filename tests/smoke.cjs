@@ -256,7 +256,7 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
 {
  const x=init(3);x.round.phase='playing';
  x.state.npcs.forEach(n=>n.stun=999);
- const obstacle=x.state.obstacles[0],p=x.players[0];
+ const obstacle=x.state.obstacles.find(o=>o.kind!=='hud-blocker'),p=x.players[0];
  p.x=obstacle.x-16;p.y=obstacle.y+obstacle.h/2;
  p.input.axisX=1;
  const before=p.x;
