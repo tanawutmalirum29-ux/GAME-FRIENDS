@@ -2950,3 +2950,85 @@ body.controller-playing #controllerActive #phoneGameChoices .phone-game-choice .
     line-height:1.12;
   }
 }
+
+/* Permanent twelve-slot roster. Empty positions keep their footprint and do
+   not cause occupied cards to stretch or jump between player counts. */
+#hostLobby .lobby-roster{
+  grid-template-columns:repeat(var(--roster-cols,3),minmax(0,1fr));
+  grid-template-rows:repeat(var(--roster-rows,4),minmax(0,1fr));
+}
+#hostLobby .lobby-roster .roster-item.roster-empty{
+  border:1px dashed #436080;
+  background:linear-gradient(155deg,#14253a,#101e31);
+  opacity:.72;
+}
+#hostLobby .lobby-roster .roster-empty .swatch{
+  background:#536f90;
+  opacity:.45;
+}
+#hostLobby .lobby-roster .roster-empty b{
+  color:#a7bbd2;
+}
+#hostLobby .lobby-roster .roster-empty .roster-waiting{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#91aac4;
+  background:#14273b65;
+  border:1px dashed #49617a;
+  font-size:clamp(10px,1vw,14px);
+  font-weight:700;
+}
+/* Portrait only: stack each selected map's FULL title BELOW its SVG.
+   Landscape deliberately retains its existing horizontal layout. */
+@media(orientation:portrait){
+  #hostLobby .lobby-roster .roster-pick.picked{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:clamp(2px,.45dvh,6px);
+    padding:clamp(2px,.5dvh,6px);
+    min-width:0;
+    overflow:hidden;
+  }
+  #hostLobby .lobby-roster .roster-pick.picked .mode-cover{
+    display:inline-flex;
+    flex:0 1 auto;
+    width:clamp(42px,10vw,88px);
+    height:clamp(26px,5dvh,54px);
+    max-width:100%;
+    max-height:60%;
+  }
+  #hostLobby .lobby-roster .roster-pick.picked .mode-choice-title{
+    display:block;
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+    overflow-wrap:normal;
+    word-break:normal;
+    text-align:center;
+    line-height:1.12;
+    font-size:clamp(9px,1.8vw,14px);
+  }
+}
+@media(orientation:portrait) and (max-width:720px){
+  #hostLobby .lobby-roster{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:repeat(6,minmax(0,1fr));
+  }
+  #hostLobby .lobby-roster .roster-pick.picked .mode-cover{
+    width:clamp(34px,9vw,58px);
+    height:clamp(21px,3.8dvh,38px);
+    max-height:55%;
+  }
+  #hostLobby .lobby-roster .roster-pick.picked .mode-choice-title{
+    font-size:clamp(9px,2.2vw,12px);
+  }
+  #hostLobby .lobby-roster .roster-empty .roster-waiting{
+    font-size:clamp(8px,1.9vw,11px);
+  }
+}

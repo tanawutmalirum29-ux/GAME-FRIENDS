@@ -322,15 +322,14 @@ function renderPauseChoiceList(){
 function renderRoster(){
   const el=$('roster');el.replaceChildren();
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
-  // Three full-width columns; rows expand evenly to consume all unused space.
-  // Keep 12 as the room CAP, not a reason to squeeze 12 cards into a corner.
+  // Reserve ALL twelve positions from room creation. Joined players replace
+  // numbered placeholders, never change the number or size of grid rows.
   const columns=window.matchMedia?.('(orientation:portrait) and (max-width:720px)')?.matches?2:3;
   el.style.setProperty('--roster-cols',String(columns));
-  el.style.setProperty('--roster-rows',String(Math.max(1,Math.ceil(players.length/columns))));
+  el.style.setProperty('--roster-rows',String(MAX_PLAYERS/columns));
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
   $('startBtn').disabled=players.length<1||nominatedGames().length!==players.length;
   updateHostQueue();
-  if(!players.length){const p=document.createElement('p');p.className='empty';p.textContent='ยังไม่มีผู้เล่น สแกน QR Code หรือเพิ่มบอท';el.append(p);return;}
   players.forEach(p=>{
     const item=document.createElement('div');item.className='roster-item';
     item.title=p.name+' — '+(MODES[p.choice]||'ยังไม่ได้เลือกเกม');
@@ -347,6 +346,21 @@ function renderRoster(){
     kick.addEventListener('click',()=>removePlayer(p.id));
     item.append(color,name,type,chosen,kick);el.append(item);
   });
+  // All unoccupied positions remain visible, including in a brand-new room.
+  // They use the SAME fixed grid tracks as the real player cards.
+  for(let slot=players.length;slot<MAX_PLAYERS;slot++){
+    const item=document.createElement('div');
+    item.className='roster-item roster-empty';
+    item.title='ช่องผู้เล่น '+(slot+1)+' • รอผู้เล่น';
+    item.setAttribute('aria-label','ช่องผู้เล่น '+(slot+1)+' รอผู้เล่น');
+    const marker=document.createElement('span');marker.className='swatch';
+    const name=document.createElement('b');name.textContent='ช่อง '+(slot+1);
+    const waiting=document.createElement('span');
+    waiting.className='roster-pick roster-waiting';
+    waiting.textContent='รอผู้เล่น';
+    item.append(marker,name,waiting);
+    el.append(item);
+  }
 }
 function addLocal(){
   if(players.length>=MAX_PLAYERS){showToast('ห้องเต็ม '+MAX_PLAYERS+' คน',true);return;}
