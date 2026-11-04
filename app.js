@@ -1027,10 +1027,27 @@ function renderLeaderboard(){
   active.sort((a,b)=>Number(a.ghost)-Number(b.ghost)).forEach(p=>{
     const box=document.createElement('div');box.className='leader-chip';
     const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-    const name=document.createElement('span');name.textContent=p.name;
+    const name=document.createElement('span');name.className='leader-name';
+    name.textContent=p.name;name.title=p.name;
     const role=document.createElement('small');
     role.textContent=p.ghost?'ผี':p.stun>0?'สตั้น':'คน';
-    box.append(color,name,role);root.append(box);
+    if(p.item&&!p.ghost&&round.mode==='ghost'){
+      const item=document.createElement('span');
+      item.className='leader-held-item';
+      const full=window.GhostAttack.ITEM_NAMES[p.item]||p.item;
+      const compact={cloak:'ล่องหน',boost:'สปีด',stun:'สตั้นผี',
+        trap:'กับดัก',slow:'ยาสโลว์'};
+      // Use full item names when there is room, and recognizable short
+      // names for crowded 5–12 player headers. Full labels remain in title.
+      item.textContent=active.length<=4?full:(compact[p.item]||full);
+      item.title=full;
+      box.title=p.name+' · ถือ '+full;
+      box.append(color,name,item,role);
+    }else{
+      box.title=p.name+' · '+role.textContent;
+      box.append(color,name,role);
+    }
+    root.append(box);
   });
 }
 function drawGame(t){

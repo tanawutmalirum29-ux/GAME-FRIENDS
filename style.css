@@ -2371,3 +2371,52 @@ body.controller-playing #controller #controllerActive > .controller-inventory{
   }
   #game .leader-chip{padding:1px 3px;gap:2px}
 }
+
+
+
+/* Ghost Attack: a carried item follows its owner's name in the single-row
+   header. At 12 players names can ellipsize, but item tags remain visible. */
+#game .leaderboard{
+  width:min(calc(100vw - 20px),calc(var(--leader-count,1) * 174px));
+}
+#game .leader-chip span.leader-name{
+  flex:1 1 auto;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#game .leader-chip span.leader-held-item{
+  display:inline-block;
+  flex:0 1 auto;
+  min-width:0;
+  max-width:55%;
+  padding:1px 3px;
+  border-radius:4px;
+  border:1px solid #f7d78374;
+  background:#66502dba;
+  color:#ffe7a1;
+  font-size:clamp(8px,.76vw,10px);
+  font-weight:900;
+  line-height:1.2;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+@media(max-width:760px){
+  #game .leaderboard{
+    width:min(calc(100vw - 12px),calc(var(--leader-count,1) * 145px));
+  }
+  #game .leader-chip .leader-held-item{
+    max-width:52%;
+    padding:1px 2px;
+    font-size:8px;
+  }
+}
+@media(max-height:520px){
+  #game .leader-chip .leader-held-item{
+    font-size:8px;
+    padding:0 2px;
+    line-height:1.05;
+  }
+}
