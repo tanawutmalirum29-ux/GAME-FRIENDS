@@ -95,9 +95,11 @@ function setup(round,players){
   });
   // A finite per-round inventory. Only 20 can be active (running or carried)
   // at once; penned chickens are retired forever and never re-spawn.
-  // Same generous flock budget for every room size (1–12 players).
+  // Use 5 per player plus one deciding chicken. The total is never
+  // divisible by the party size, so equal scores for ALL players are
+  // impossible if every chicken is deposited. Leading ties remain legal.
   // Spawn only 20 at a time; scored birds never return to the reserve.
-  const totalChickens=60;
+  const totalChickens=n*5+1;
   const state={world,center,radius,pens,chickens:[],nextChickenId:0,
     totalChickens,spawnLimit:Math.min(20,totalChickens),
     remainingReserve:totalChickens,spawnedCount:0,scoredCount:0,

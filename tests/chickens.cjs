@@ -38,12 +38,13 @@ const run=(round,players,t)=>{
   while(left>1e-8){const step=Math.min(left,.08);chickens.update(step,round,players);left-=step;}
 };
 // Test all supported match sizes, owner association, distribution and time.
-for(const n of [1,2,4,8,12]){
+for(let n=1;n<=12;n++){
   const {players,round,state}=make(n);
   assert.equal(state.pens.length,n);
   assert.equal(new Set(state.pens.map(p=>p.ownerId)).size,n);
-  const quota=60,initial=20;
-  assert.equal(state.totalChickens,quota,'all party sizes get the same 60-chicken budget');
+  const quota=n*5+1,initial=Math.min(20,quota);
+  assert.equal(state.totalChickens,quota,'five chickens per player plus a deciding bird');
+  assert.equal(state.totalChickens%n,1%n,'full-flock total does not divide evenly between players');
   assert.equal(state.spawnLimit,initial,'at most twenty live chickens');
   assert.equal(state.chickens.length,initial);
   assert.equal(state.spawnedCount,initial);
@@ -187,13 +188,13 @@ for(const n of [1,2,4,8,12]){
 }
 // Finite chicken economy: 20 active chickens maximum, including any in hands.
 // Scoring retires one permanently and releases only one new chicken from the
-// finite reserve; after 60 deposits with 12 players no chicken can respawn.
+// finite reserve; after 61 deposits with 12 players no chicken can respawn.
 {
   const {state,round,players}=make(12),p=players[0],pen=state.pens[0];
   round.phase='playing';
   players.slice(1).forEach(q=>q.active=false);
   assert.equal(state.spawnedCount,20);
-  assert.equal(state.remainingReserve,40);
+  assert.equal(state.remainingReserve,41);
   let originalId=state.chickens[0].id;
   state.chickens[0].status='carried';
   state.chickens[0].carrierId=p.id;
@@ -203,7 +204,7 @@ for(const n of [1,2,4,8,12]){
   chickens.dropChicken(state,p);
   chickens.update(.016,round,players);
   assert.equal(state.spawnedCount,20,'dropping is not a score, so no refill');
-  for(let i=0;i<60;i++){
+  for(let i=0;i<61;i++){
     const c=p.carriedChickenId!=null
       ?state.chickens.find(c=>c.id===p.carriedChickenId)
       :state.chickens.find(c=>c.status==='free');
@@ -213,19 +214,19 @@ for(const n of [1,2,4,8,12]){
     run(round,players,.34);
     assert.equal(state.scoredCount,i+1,'each deposit retires exactly one chicken');
     assert.equal(p.score,i+1,'each retired chicken scores once');
-    assert.equal(state.spawnedCount+state.remainingReserve,60,'cannot mint extra chickens');
-    assert.ok(state.spawnedCount<=60,'lifetime spawn cap');
+    assert.equal(state.spawnedCount+state.remainingReserve,61,'cannot mint extra chickens');
+    assert.ok(state.spawnedCount<=61,'lifetime spawn cap');
     assert.ok(state.chickens.filter(x=>x.status==='free'||x.status==='carried').length<=20,
       'never more than 20 chickens in play');
     assert.equal(state.chickens.filter(x=>x.status==='penned').length,state.scoredCount);
   }
   assert.equal(state.remainingReserve,0);
-  assert.equal(state.spawnedCount,60);
-  assert.equal(state.chickens.length,60);
+  assert.equal(state.spawnedCount,61);
+  assert.equal(state.chickens.length,61);
   assert.equal(state.chickens.filter(x=>x.status==='free'||x.status==='carried').length,0);
   run(round,players,1);
-  assert.equal(state.chickens.length,60,'all 60 are gone for the entire round');
-  assert.equal(state.scoredCount,60);
+  assert.equal(state.chickens.length,61,'all 61 are gone for the entire round');
+  assert.equal(state.scoredCount,61);
 }
 // Last bird deposited triggers results immediately even with time left.
 // An empty field must NOT end the round while someone is still carrying
