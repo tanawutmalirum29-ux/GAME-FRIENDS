@@ -49,21 +49,35 @@ function setView(view) {
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
   syncZoomPolicy();
+  // A joined QR link can open directly on the room-code form; try native
+  // landscape without blocking the form if automatic rotation is disallowed.
+  if(view==='controller'&&!controllerReady)tryLandscapeOrientation();
   window.scrollTo(0,0);
 }
+function tryLandscapeOrientation(){
+  // Browsers may require fullscreen plus a direct user gesture. Failure must
+  // never block the game, the room-code form or other controls.
+  try{
+    const lock=window.screen?.orientation?.lock;
+    if(typeof lock!=='function')return;
+    const result=lock.call(window.screen.orientation,'landscape');
+    if(result&&typeof result.catch==='function')result.catch(()=>{});
+  }catch(_){/* The device/browser controls physical orientation. */}
+}
 function requestHostFullscreen(){
-  // Fullscreen the persistent DOCUMENT root, not the #game view.
-  // Hiding #game when returning to the QR lobby would otherwise force browsers
-  // to leave Fullscreen, even when the user never asked to leave it.
-  // On iOS browsers without Element.requestFullscreen, the fixed-viewport CSS
-  // remains the fallback, and OS-level fullscreen behavior is browser-owned.
+  // Remain fullscreen across the game and host lobby; do not fullscreen #game.
+  // Attempt native landscape AFTER fullscreen is granted. In browsers that
+  // deny orientation locking, CSS paints the host arena landscape instead.
   const root=document.documentElement;
-  if(root&&root.requestFullscreen&&!document.fullscreenElement){
-    try{
-      const result=root.requestFullscreen({navigationUI:'hide'});
-      if(result&&result.catch)result.catch(()=>{});
-    }catch(_){/* CSS full-viewport fallback remains active. */}
-  }
+  let request=null;
+  try{
+    if(root&&root.requestFullscreen&&!document.fullscreenElement){
+      request=root.requestFullscreen({navigationUI:'hide'});
+    }
+  }catch(_){/* Device may reject fullscreen. */}
+  if(request&&typeof request.then==='function')
+    request.then(tryLandscapeOrientation,tryLandscapeOrientation);
+  else tryLandscapeOrientation();
 }
 // Safari may ignore viewport scaling hints for gesture zoom; guard native gestures
 // only in gameplay, without preventing Pointer Events on analog and A/B buttons.
@@ -310,7 +324,7 @@ function renderQr(code){
   $('roomUrl').value=link;
   const box=$('qrBox');box.replaceChildren();
   if(typeof QRCode==='function'){
-    try{new QRCode(box,{text:link,width:230,height:230,correctLevel:QRCode.CorrectLevel.M});return;}catch(e){}
+    try{new QRCode(box,{text:link,width:256,height:256,correctLevel:QRCode.CorrectLevel.M});return;}catch(e){}
   }
   box.textContent='QR ไม่พร้อม กรุณาคัดลอกลิงก์';
 }
@@ -327,8 +341,9 @@ function startHost(retries=0){
     roomCode=code;onlineHost=true;$('roomCode').textContent=code;
     $('roomPanel').classList.remove('hidden');$('offlineRoomHint').classList.add('hidden');
     $('hostBtn').disabled=false;$('hostRoomBadge').textContent='ROOM '+code;
+    setView('hostLobby');
     renderQr(code);setStatus('เปิดห้อง '+code);
-    setView('hostLobby');renderRoster();broadcastRoster();
+    renderRoster();broadcastRoster();
   });
   peer.on('connection',conn=>{
     if(hostPeer!==peer){conn.close();return;}
@@ -824,16 +839,19 @@ function followDeviceOrientation(){
 }
 window.addEventListener('orientationchange',followDeviceOrientation);
 window.addEventListener('resize',followDeviceOrientation);
-// Request landscape after a user gesture; iOS Safari may deny orientation lock.
-async function requestLandscape(){
+// Request landscape from both the join form and the live controller. If a
+// browser rejects the lock, leave the form usable and let the player rotate.
+function requestLandscape(){
   const panel=$('controller');
+  let request=null;
   try{
-    if(panel.requestFullscreen&&!document.fullscreenElement)await panel.requestFullscreen();
-  }catch(_){/* fullscreen unavailable */ }
-  try{
-    if(window.screen&&window.screen.orientation&&window.screen.orientation.lock)
-      await window.screen.orientation.lock('landscape');
-  }catch(_){/* portrait overlay is the fallback */ }
+    if(panel.requestFullscreen&&!document.fullscreenElement)
+      request=panel.requestFullscreen();
+  }catch(_){/* Fullscreen is not available on this device. */}
+  if(request&&typeof request.then==='function')
+    return request.then(tryLandscapeOrientation,tryLandscapeOrientation);
+  tryLandscapeOrientation();
+  return Promise.resolve();
 }
 let releaseStick=()=>{};
 function bindAnalogStick(zone,base,knob,target){
@@ -1190,6 +1208,7 @@ $('sessionMode').addEventListener('change',()=>{
   updateHostQueue();
 });
 $('landscapeBtn').addEventListener('click',()=>{void requestLandscape();});
+$('joinLandscapeBtn').addEventListener('click',()=>{void requestLandscape();});
 $('rotateRetryBtn').addEventListener('click',()=>{void requestLandscape();});
 $('portraitFallbackBtn').addEventListener('click',enablePortraitFallback);
 $('portraitRestoreBtn').addEventListener('click',()=>{

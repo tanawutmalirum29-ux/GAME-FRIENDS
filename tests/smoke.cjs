@@ -67,6 +67,13 @@ assert.match(css,/#controller #controllerInventory/);
 assert.match(css,/body\.controller-playing #controllerActive #phoneGameChoices/);
 assert.match(css,/html,body\{\s*height:100%;width:100%;margin:0;\s*overflow:hidden!important/);
 assert.match(hostLauncher,/\?host=1/);
+assert.match(html,/id="joinLandscapeBtn"/);
+assert.match(source,/function tryLandscapeOrientation\(/);
+assert.match(source,/request\.then\(tryLandscapeOrientation,tryLandscapeOrientation\)/);
+assert.match(source,/width:256,height:256,correctLevel:QRCode\.CorrectLevel\.M/);
+assert.match(css,/#hostLobby \.qr-share-stack \.qr-box\{\s*flex:0 0 auto;\s*aspect-ratio:1 \/ 1;/);
+assert.match(css,/body\.host-playing #game\.game-page\{[\s\S]*?rotate\(90deg\)/);
+assert.match(css,/#controller #joinForm \.join-orientation/);
 assert.doesNotMatch(source,/document\.exitFullscreen\(/);
 assert.match(source,/const root=document\.documentElement;/);
 
