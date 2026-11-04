@@ -6,6 +6,10 @@ const {webcrypto}=require('node:crypto');
 const source=fs.readFileSync('app.js','utf8');
 const miniSource=fs.readFileSync('minigames.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
+const css=fs.readFileSync('style.css','utf8');
+assert.match(css,/@media\(orientation:portrait\)/);
+assert.match(html,/id="joystickBase"/);
+assert.match(html,/data-control="alt"/);
 
 function setup(url='https://game.example/') {
   const elements=new Map();
@@ -24,7 +28,7 @@ function setup(url='https://game.example/') {
       replaceChildren(...items){this.children=items;},
       prepend(item){this.children.unshift(item);},
       setAttribute(){},select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
-      getContext(){return context;},parentElement:null
+      getContext(){return context;},getBoundingClientRect(){return {left:0,top:0,width:200,height:200};},parentElement:null
     };
   };
   const context=new Proxy({},{
@@ -37,10 +41,21 @@ function setup(url='https://game.example/') {
   for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,makeElement(id));
   elements.get('mode').value='stars';elements.get('duration').value='60';elements.get('sessionMode').value='quick';
   elements.get('localPads').parentElement=makeElement('pad-section');
+  const cards=[...html.matchAll(/data-game="([^"]+)"/g)].map(([,game])=>{
+    const card=makeElement('card-'+game);card.dataset.game=game;return card;
+  });
+  const padButtons=Object.fromEntries(['action','alt'].map(key=>{
+    const button=makeElement('pad-'+key);button.dataset.control=key;return [key,button];
+  }));
   const document={
+    body:makeElement('body'),
     getElementById(id){assert(elements.has(id),'Missing ID: '+id);return elements.get(id);},
     createElement(tag){return makeElement(tag);},
-    querySelectorAll(){return [];},
+    querySelectorAll(selector){
+      if(selector==='[data-game]')return cards;
+      if(selector==='#controllerActive [data-control]')return Object.values(padButtons);
+      return [];
+    },
     addEventListener(){},execCommand(){return true;}
   };
   const instances=[];
@@ -68,7 +83,7 @@ function setup(url='https://game.example/') {
   const scope=vm.createContext(globals);
   vm.runInContext(miniSource,scope,{filename:'minigames.js'});
   vm.runInContext(source,scope,{filename:'app.js'});
-  return {elements,instances,step(ms){assert(raf);raf(ms);},click(id){elements.get(id).fire('click');}};
+  return {elements,cards,padButtons,instances,scope,step(ms){assert(raf);raf(ms);},click(id){elements.get(id).fire('click');},clickCard(mode){const card=cards.find(b=>b.dataset.game===mode);assert(card);card.fire('click');}};
 }
 
 const host=setup();
@@ -106,11 +121,32 @@ assert.equal(conn.sent[0].t,'join');
 conn.fire('data',{t:'welcome',id:'p1',name:'ทดสอบ',color:'#ff628c'});
 assert.equal(mobile.elements.get('controllerActive').classList.contains('hidden'),false);
 assert.equal(mobile.elements.get('controllerName').textContent,'ทดสอบ');
+assert.equal(mobile.elements.get('controllerModeName').textContent,'STAR RUSH');
+assert.equal(mobile.scope.document.body.classList.contains('controller-playing'),true);
+mobile.padButtons.action.fire('pointerdown');
+assert.equal(conn.sent.at(-1).keys.action,true);
+mobile.padButtons.action.fire('pointerup');
+mobile.padButtons.alt.fire('pointerdown');
+assert.equal(conn.sent.at(-1).keys.alt,true);
+mobile.padButtons.alt.fire('pointerup');
+const stick=mobile.elements.get('joystickBase');
+stick.fire('pointerdown',{pointerId:11,clientX:200,clientY:100});
+assert.ok(conn.sent.at(-1).keys.axisX>.99,'full right analog');
+stick.fire('pointermove',{pointerId:11,clientX:100,clientY:50});
+assert.ok(conn.sent.at(-1).keys.axisY<-.8,'up analog');
+stick.fire('pointerup',{pointerId:11});
+assert.equal(conn.sent.at(-1).keys.axisX,0);
+assert.equal(conn.sent.at(-1).keys.axisY,0);
+conn.fire('data',{t:'roster',phase:'lobby',mode:'tanks',players:[]});
+assert.equal(mobile.elements.get('buttonALabel').textContent,'FIRE');
+assert.equal(mobile.elements.get('buttonBLabel').textContent,'DODGE');
 // Exercise all top-down mini-games through countdown and active simulation.
 for(const mode of ['tanks','soccer','rally','paint']){
   const test=setup();
   test.click('addLocalBtn');test.click('addLocalBtn');
-  test.elements.get('mode').value=mode;
+  test.clickCard(mode);
+  assert.equal(test.elements.get('mode').value,mode,'card sets game selector');
+  assert.equal(test.cards.find(c=>c.dataset.game===mode).classList.contains('selected'),true);
   test.click('startBtn');
   for(let i=0;i<270;i++)test.step(i*16.667);
   assert.equal(test.elements.get('gameMode').textContent,{
@@ -136,4 +172,20 @@ for(let roundIndex=1;roundIndex<5;roundIndex++){
 }
 assert.match(tour.elements.get('resultList').children[0].textContent,/แชมป์ทัวร์นาเมนต์/);
 assert.equal(tour.elements.get('replayBtn').textContent,'เริ่มทัวร์นาเมนต์ใหม่');
-console.log('SMOKE PASS: offline, QR controller, all 4 top-down games and tournament transitions');
+// Disconnect must exit landscape mode and clear the analog stick.
+conn.fire('close');
+assert.equal(mobile.scope.document.body.classList.contains('controller-playing'),false);
+// The new B secondary action and half-strength analog must alter minigame movement.
+const fighter={
+  id:'p-test',name:'Stick',color:'#fff',active:true,alive:true,
+  input:{axisX:.5,axisY:0,alt:true,action:false},
+  cooldown:0,invulnerable:0,score:0,angle:0
+};
+const miniRound={mode:'tanks'};
+const engine=host.scope.window.PartyMiniGames;
+engine.setup(miniRound,[fighter]);
+const startX=fighter.x;
+engine.update(.10,miniRound,[fighter]);
+assert.ok(fighter.x>startX,'analog stick moves tank right');
+assert.ok(fighter.altCooldown>0,'B triggered tank dodge');
+console.log('SMOKE PASS: 7 game picker cards, simulated A/B joystick, offline minigames, tournament and QR controller');
