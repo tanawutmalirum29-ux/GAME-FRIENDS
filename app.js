@@ -378,18 +378,57 @@ function updatePhoneGamePicker(phase,choice){
     'เลือก '+MODES[myChosenMode]+' แล้ว • รอเจ้าของห้องสุ่มเกม':
     'เลือกหนึ่งเกม • เปลี่ยนใจก่อนเริ่มเล่นได้';
 }
+let controllerMediaCall=null;
+let videoStreamActive=false;
+function savedVideoQuality(){
+  try{
+    const name=window.localStorage.getItem('gf-video-quality-v1');
+    if(Object.hasOwn(VIDEO_QUALITY,name))return name;
+  }catch(_){}
+  return 'medium';
+}
+function stopControllerVideo(){
+  const call=controllerMediaCall;
+  controllerMediaCall=null;
+  videoStreamActive=false;
+  if(call)try{call.close();}catch(_){}
+  const video=$('controllerPreviewVideo');
+  try{video.pause();}catch(_){}
+  video.srcObject=null;
+  video.classList.add('hidden');
+  $('videoStartBtn').classList.add('hidden');
+}
+function showControllerVideo(stream,call){
+  if(controllerMediaCall!==call||!stream)return;
+  const video=$('controllerPreviewVideo');
+  video.srcObject=stream;
+  video.muted=true;
+  video.playsInline=true;
+  video.classList.remove('hidden');
+  $('controllerPreviewImage').classList.add('hidden');
+  $('controllerPreviewPlaceholder').classList.add('hidden');
+  videoStreamActive=true;
+  if(typeof video.play==='function'){
+    try{
+      const p=video.play();
+      if(p&&p.catch)p.catch(()=>{$('videoStartBtn').classList.remove('hidden');});
+    }catch(_){$('videoStartBtn').classList.remove('hidden');}
+  }
+}
 function resetPhonePreview(){
   $('controllerPreviewImage').src='';
   $('controllerPreviewImage').classList.add('hidden');
-  $('controllerPreviewPlaceholder').classList.remove('hidden');
+  if(!videoStreamActive)$('controllerPreviewPlaceholder').classList.remove('hidden');
 }
 function receivePhonePreview(image){
+  if(videoStreamActive)return;
   if(typeof image!=='string'||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>24000)return;
   $('controllerPreviewImage').src=image;
   $('controllerPreviewImage').classList.remove('hidden');
   $('controllerPreviewPlaceholder').classList.add('hidden');
 }
 function safePeerDestroy(){
+  stopControllerVideo();
   const conn=controllerConn,peer=controllerPeer;
   controllerConn=null;controllerPeer=null;
   if(conn){try{conn.close();}catch(e){}}
@@ -557,6 +596,24 @@ function joinRoom(){
     const conn=peer.connect('gf-party-'+code,{reliable:true,serialization:'json'});
     controllerConn=conn;
     conn.on('open',()=>{send(conn,{t:'join',name});controllerState('กำลังรอห้องรับผู้เล่น...');});
+    peer.on('call',call=>{
+      if(controllerPeer!==peer||call.peer!=='gf-party-'+code){
+        try{call.close();}catch(_){}
+        return;
+      }
+      stopControllerVideo();
+      controllerMediaCall=call;
+      call.on('stream',stream=>showControllerVideo(stream,call));
+      call.on('close',()=>{
+        if(controllerMediaCall!==call)return;
+        stopControllerVideo();resetPhonePreview();
+      });
+      call.on('error',()=>{
+        if(controllerMediaCall!==call)return;
+        stopControllerVideo();resetPhonePreview();
+      });
+      try{call.answer();}catch(_){stopControllerVideo();}
+    });
     conn.on('data',data=>{
       if(controllerConn!==conn||!data||typeof data!=='object')return;
       if(data.t==='welcome'){
@@ -570,6 +627,8 @@ function joinRoom(){
         syncZoomPolicy();
         showControllerMode(data.mode);
         updatePhoneGamePicker(data.phase||'lobby',data.choice||null);
+        $('videoQuality').value=savedVideoQuality();
+        send(conn,{t:'video-quality',quality:$('videoQuality').value});
         sendInputs();announceControllerTakeover();
       }else if(data.t==='preview'){
         if(controllerReady)receivePhonePreview(data.image);
@@ -1153,6 +1212,21 @@ document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener
   updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
 }));
+$('videoQuality').addEventListener('change',()=>{
+  const quality=$('videoQuality').value;
+  if(!Object.hasOwn(VIDEO_QUALITY,quality))return;
+  try{window.localStorage.setItem('gf-video-quality-v1',quality);}catch(_){}
+  if(controllerReady)send(controllerConn,{t:'video-quality',quality});
+});
+$('videoStartBtn').addEventListener('click',()=>{
+  const video=$('controllerPreviewVideo');
+  if(typeof video.play==='function'){
+    try{
+      const p=video.play();
+      if(p&&p.then)p.then(()=>$('videoStartBtn').classList.add('hidden')).catch(()=>{});
+    }catch(_){}
+  }
+});
 $('scanRoomBtn').addEventListener('click',()=>{void startRoomScanner();});
 $('cancelScanBtn').addEventListener('click',()=>{void stopRoomScanner();});
 $('leaveBtn').addEventListener('click',()=>{
