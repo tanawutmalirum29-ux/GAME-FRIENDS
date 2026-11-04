@@ -107,6 +107,9 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  x.state.boxes.push({x:p.x,y:p.y,ttl:20,item:'cloak'});
  ghost.update(.016,x.round,x.players);
  assert.equal(p.item,item);
+ // Clear the optional second crate before consuming: after using an item,
+ // collecting another available crate immediately is permitted.
+ x.state.boxes=[];
  p.input.alt=true;
  ghost.update(.016,x.round,x.players);
  if(item==='slow'){
