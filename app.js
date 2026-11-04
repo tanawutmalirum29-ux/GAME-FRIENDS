@@ -4,12 +4,15 @@
 const $ = (id) => document.getElementById(id);
 const MAX_PLAYERS = 12;
 const COLORS = ['#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0','#ff9b64','#7fb4ff','#f283e9','#e5ed78','#83e1c8','#f8a9b6','#c4aafa'];
-const MODES = { stars:'STAR RUSH', brawl:'BRAWL ARENA', lava:'LAVA RUN' };
+const MODES = { stars:'STAR RUSH', brawl:'BRAWL ARENA', lava:'LAVA RUN', tanks:'TANK BLAST',soccer:'FOOTBALL',rally:'MICRO RALLY',paint:'COLOR CLASH' };
+const TOPDOWN = ['tanks','soccer','rally','paint'];
+const TOURNAMENT_GAMES=['tanks','soccer','rally','paint','brawl','stars','lava'];
+let tournament=null;
 const KEYS = [
-  {left:'KeyA',right:'KeyD',jump:'KeyW',action:'Space'},
-  {left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',action:'Enter'}
+  {left:'KeyA',right:'KeyD',jump:'KeyW',down:'KeyS',action:'Space'},
+  {left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',down:'ArrowDown',action:'Enter'}
 ];
-const INPUT_NAMES = ['left','right','jump','action'];
+const INPUT_NAMES = ['left','right','jump','down','action'];
 const WORLD = {w:960,h:540,ground:470,gravity:1050};
 const platforms = [
   {x:90,y:376,w:185,h:14}, {x:393,y:326,w:180,h:14}, {x:684,y:376,w:185,h:14},
@@ -23,7 +26,7 @@ const canvas=$('arena'), g=canvas.getContext('2d');
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const cleanName=(value)=>String(value||'').trim().replace(/[<>]/g,'').slice(0,14)||'เพื่อนใหม่';
-const blankInput=()=>({left:false,right:false,jump:false,action:false});
+const blankInput=()=>({left:false,right:false,jump:false,down:false,action:false});
 function setStatus(text,bad=false){$('netStatus').textContent=text;$('netDot').classList.toggle('bad',bad);}
 function setView(view) {
   currentView=view;
@@ -40,7 +43,7 @@ function makePlayer(name,type,conn) {
   if(players.length>=MAX_PLAYERS)return null;
   const p={id:'p'+nextId++,name:cleanName(name),type: type,color:COLORS[players.length%COLORS.length],conn:conn||null,
     input:blankInput(),x:480,y:WORLD.ground,vx:0,vy:0,grounded:true,face:1,
-    hp:3,score:0,alive:true,active:false,invulnerable:0,cooldown:0,dash:0,attack:0,latch:false,respawn:0};
+    hp:3,score:0,total:0,alive:true,active:false,invulnerable:0,cooldown:0,dash:0,attack:0,latch:false,respawn:0};
   players.push(p);renderRoster();return p;
 }
 function removePlayer(id) {
@@ -181,14 +184,16 @@ function joinRoom(){
         $('controllerName').textContent=data.name;$('controllerAvatar').style.background=data.color;
         $('joinForm').classList.add('hidden');$('controllerActive').classList.remove('hidden');
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
-        sendInputs();
+        showControllerMode(data.mode);sendInputs();
       }else if(data.t==='reject'){
         controllerState(data.reason||'ห้องไม่รับผู้เล่น',true);$('joinBtn').disabled=false;
         safePeerDestroy();
       }else if(data.t==='roster'){
+        showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
         $('controllerState').textContent=data.phase==='playing'?(self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':'กำลังรอเจ้าของห้องเริ่มเกม';
       }else if(data.t==='state'){
+        showControllerMode(data.mode);
         $('controllerState').textContent=data.phase==='playing'?'กำลังเล่น • เหลือ '+Math.ceil(data.remaining)+' วินาที':data.phase==='results'?'จบรอบแล้ว':'รอเริ่มรอบ';
       }else if(data.t==='closed'){
         controllerState('เจ้าของห้องปิดห้องแล้ว',true);
@@ -201,10 +206,17 @@ function joinRoom(){
 }
 function controllerDisconnected(){
   if(disconnectRequested)return;
-  controllerReady=false;controllerId=null;controllerKeys=blankInput();
+  controllerReady=false;controllerId=null;for(const k of INPUT_NAMES)controllerKeys[k]=false;
   $('joinForm').classList.remove('hidden');$('controllerActive').classList.add('hidden');
   $('joinBtn').disabled=false;
   controllerState('ขาดการเชื่อมต่อ กรุณากดเข้าร่วมใหม่',true);
+}
+function showControllerMode(mode){
+  const topdown=TOPDOWN.includes(mode);
+  const message=topdown?'ใช้ ▲▼◀▶ เคลื่อนที่ • HIT '+(mode==='tanks'?'ยิง':mode==='soccer'?'เตะบอล':mode==='rally'?'บูสต์':'ระบายพื้นที่'):
+    'ใช้ ◀▶ เดิน • ▲ กระโดด • HIT ต่อย/พุ่ง';
+  $('controllerHelp').textContent=message;
+  $('actionLabel').textContent=mode==='tanks'?'ยิง':mode==='soccer'?'เตะ':mode==='rally'?'บูสต์':mode==='paint'?'ระบาย':'โจมตี';
 }
 function sendInputs(){if(!controllerReady)return;send(controllerConn,{t:'input',keys:{...controllerKeys}});}
 function bindControl(btn, target, id){
@@ -223,7 +235,7 @@ function renderPads(){
     const heading=document.createElement('h4');heading.style.color=p.color;
     heading.textContent=p.name+(i===0?' • WASD + Space':i===1?' • ลูกศร + Enter':' • แตะปุ่ม');
     const group=document.createElement('div');group.className='pad-buttons';
-    [['left','◀','movement'],['right','▶','movement'],['jump','▲','jump-btn'],['action','✦','attack-btn']].forEach(spec=>{
+    [['left','◀','movement'],['right','▶','movement'],['jump','▲','jump-btn'],['down','▼','jump-btn'],['action','✦','attack-btn']].forEach(spec=>{
       const b=document.createElement('button');b.type='button';b.className='control-btn '+spec[2];b.dataset.control=spec[0];b.textContent=spec[1];b.setAttribute('aria-label',spec[0]+' '+p.name);bindControl(b,p.input,p.id);group.append(b);
     });
     card.append(heading,group);root.append(card);
@@ -239,18 +251,27 @@ document.addEventListener('keyup',e=>{
   const locals=players.filter(p=>p.type==='local');
   KEYS.forEach((mapping,i)=>{const p=locals[i];if(!p)return;for(const k of INPUT_NAMES)if(e.code===mapping[k]){p.input[k]=false;e.preventDefault();}});
 });
-window.addEventListener('blur',()=>{resetInputs();controllerKeys=blankInput();sendInputs();document.querySelectorAll('.pressed').forEach(b=>b.classList.remove('pressed'));});
-function startRound(){
+window.addEventListener('blur',()=>{resetInputs();for(const k of INPUT_NAMES)controllerKeys[k]=false;sendInputs();document.querySelectorAll('.pressed').forEach(b=>b.classList.remove('pressed'));});
+function startRound(forcedMode=null){
   if(!players.length)return;
   $('results').classList.add('hidden');
-  const mode=$('mode').value,duration=Number($('duration').value)||60;
+  const mode=typeof forcedMode==='string'?forcedMode:$('mode').value,duration=Number($('duration').value)||60;
   round={mode,duration,remaining:duration,phase:'countdown',countdown:3.25,stars:[],starClock:0};
   players.forEach((p,i)=>{
     p.active=true;p.alive=true;p.x=55+((i+.5)*850/players.length);p.y=WORLD.ground;
     p.vx=0;p.vy=0;p.score=0;p.hp=3;p.grounded=true;p.face=i%2? -1:1;p.cooldown=0;p.attack=0;p.dash=0;p.latch=false;p.respawn=0;p.invulnerable=0;p.input=blankInput();
   });
   if(mode==='stars'){for(let i=0;i<5;i++)spawnStar();}
-  $('gameMode').textContent=MODES[mode];$('gameTitle').textContent=mode==='stars'?'คว้าดาวให้มากที่สุด':mode==='brawl'?'ตะลุมบอนแย่งคะแนน':'ใครอยู่รอดคนสุดท้าย';
+  if(TOPDOWN.includes(mode)){
+    if(!window.PartyMiniGames)throw Error('minigames.js failed to load');
+    window.PartyMiniGames.setup(round,players);
+  }
+  const subtitles={
+    stars:'คว้าดาวให้มากที่สุด',brawl:'ตะลุมบอนแย่งคะแนน',lava:'ใครอยู่รอดคนสุดท้าย',
+    tanks:'รถถังยิงกันบนสนาม',soccer:'สองทีมแย่งยิงประตู',rally:'ผ่านจุดตรวจให้ครบเพื่อทำรอบ',paint:'ระบายสีแย่งพื้นที่'
+  };
+  $('gameMode').textContent=MODES[mode];$('gameTitle').textContent=subtitles[mode];
+  $('replayBtn').textContent=tournament?'รอบถัดไป':'เล่นอีกครั้ง';
   renderPads();setView('game');renderLeaderboard();broadcastRoster();
 }
 function spawnStar(){
@@ -323,7 +344,8 @@ function updateRound(dt){
   }
   if(round.phase!=='playing')return;
   round.remaining=Math.max(0,round.remaining-dt);
-  updatePlayers(dt);
+  if(TOPDOWN.includes(round.mode))window.PartyMiniGames.update(dt,round,players);
+  else updatePlayers(dt);
   if(round.mode==='stars'){
     for(let i=round.stars.length-1;i>=0;i--){
       const s=round.stars[i];s.spin+=dt*2.8;
@@ -342,13 +364,28 @@ function endRound(){
   if(!round||round.phase==='results')return;
   round.phase='results';resetInputs();broadcastRoster();
   const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score);
+  if(tournament){
+    ranked.forEach((p,i)=>{p.total=(p.total||0)+ranked.length-i;});
+    if(tournament.index===tournament.schedule.length-1){
+      $('replayBtn').textContent='เริ่มทัวร์นาเมนต์ใหม่';
+    }else{
+      $('replayBtn').textContent='เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
+    }
+  }else{$('replayBtn').textContent='เล่นอีกครั้ง';}
   const list=$('resultList');list.replaceChildren();
   ranked.forEach((p,i)=>{
     const r=document.createElement('div');r.className='result-player';
     const n=document.createElement('div');n.textContent=(i===0?'🏆 ':String(i+1)+'. ')+p.name;n.style.color=p.color;
-    const score=document.createElement('span');score.textContent=round.mode==='lava'?p.score.toFixed(1)+' วินาที':Math.floor(p.score)+' คะแนน';
+    const score=document.createElement('span');
+    const roundScore=round.mode==='lava'?p.score.toFixed(1)+' วินาที':Math.floor(p.score)+' คะแนน';
+    score.textContent=tournament?roundScore+' • รวม '+p.total:roundScore;
     r.append(n,score);list.append(r);
   });
+  if(tournament&&tournament.index===tournament.schedule.length-1){
+    const heading=document.createElement('div');heading.className='tournament-header';
+    heading.textContent='แชมป์ทัวร์นาเมนต์: '+[...ranked].sort((a,b)=>b.total-a.total)[0].name;
+    list.prepend(heading);
+  }
   $('results').classList.remove('hidden');$('gameBanner').textContent='';renderLeaderboard();
 }
 function renderLeaderboard(){
@@ -412,6 +449,11 @@ function drawPlayer(p,t){
 }
 function drawGame(t){
   if(!round)return;
+  if(TOPDOWN.includes(round.mode)){
+    g.clearRect(0,0,960,540);
+    window.PartyMiniGames.draw(g,t,round,players);
+    return;
+  }
   g.clearRect(0,0,960,540);
   drawBackdrop(t);
   if(round.mode==='stars'){
@@ -455,21 +497,35 @@ function animate(ts){
 
 $('addLocalBtn').addEventListener('click',addLocal);
 $('hostBtn').addEventListener('click',()=>startHost());
+function beginParty(){
+  if($('sessionMode').value==='tournament'){
+    const shuffled=[...TOURNAMENT_GAMES];
+    for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
+    tournament={schedule:shuffled.slice(0,5),index:0};
+    players.forEach(p=>p.total=0);
+    startRound(tournament.schedule[0]);
+  }else{tournament=null;startRound();}
+}
+function advanceParty(){
+  if(tournament&&tournament.index+1<tournament.schedule.length){
+    tournament.index++;startRound(tournament.schedule[tournament.index]);
+  }else beginParty();
+}
 $('offlineBtn').addEventListener('click',()=>{
   if(onlineHost&&!confirm('ปิดห้องออนไลน์และถอดจอยมือถือทั้งหมดเพื่อเล่นออฟไลน์?'))return;
   if(onlineHost)closeHost();
   if(!players.length){addLocal();addLocal();}
-  startRound();
+  beginParty();
 });
-$('startBtn').addEventListener('click',startRound);
+$('startBtn').addEventListener('click',beginParty);
 $('copyBtn').addEventListener('click',copyInvite);
-$('exitBtn').addEventListener('click',()=>{round=null;resetInputs();setView('home');renderRoster();broadcastRoster();});
-$('backBtn').addEventListener('click',()=>{round=null;resetInputs();setView('home');renderRoster();broadcastRoster();});
-$('replayBtn').addEventListener('click',startRound);
+$('exitBtn').addEventListener('click',()=>{tournament=null;round=null;resetInputs();setView('home');renderRoster();broadcastRoster();});
+$('backBtn').addEventListener('click',()=>{tournament=null;round=null;resetInputs();setView('home');renderRoster();broadcastRoster();});
+$('replayBtn').addEventListener('click',advanceParty);
 $('joinBtn').addEventListener('click',joinRoom);
 $('nick').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
 $('leaveBtn').addEventListener('click',()=>{
-  disconnectRequested=true;safePeerDestroy();controllerReady=false;controllerKeys=blankInput();
+  disconnectRequested=true;safePeerDestroy();controllerReady=false;for(const k of INPUT_NAMES)controllerKeys[k]=false;
   const u=new URL(window.location.href);u.search='';window.location.assign(u.href);
 });
 document.querySelectorAll('#controllerActive [data-control]').forEach(btn=>bindControl(btn,controllerKeys,'remote'));
