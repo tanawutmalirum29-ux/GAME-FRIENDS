@@ -2821,3 +2821,27 @@ body.controller-playing #controllerActive #phoneGameChoices .phone-game-choice .
 .ui-modal-card p{font-size:14px;color:#d9e7f7;margin:0 0 18px}
 .ui-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .ui-modal-actions .btn{min-width:0;min-height:44px}
+
+/* Portrait phones still show each selected game's SVG + name. The list
+   scrolls INSIDE its panel if 24 entries cannot fit at a readable size. */
+@media(orientation:portrait) and (max-width:720px){
+  #hostLobby .lobby-roster{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-auto-rows:clamp(30px,4.4dvh,39px);
+    align-content:start;overflow-y:auto!important;
+  }
+  #hostLobby .lobby-roster .roster-item{
+    grid-template-columns:7px minmax(0,.72fr) minmax(0,1fr) 16px;
+    padding:2px 3px;gap:2px;
+  }
+  #hostLobby .lobby-roster .roster-item .roster-pick.picked{
+    display:inline-flex;min-width:0;padding:2px;gap:2px;
+  }
+  #hostLobby .lobby-roster .roster-item .roster-pick .mode-cover{
+    width:20px;height:16px;flex:0 0 20px;
+  }
+  #hostLobby .lobby-roster .roster-item .roster-pick .mode-choice-title{
+    font-size:clamp(7px,1.9vw,10px);
+  }
+  #hostLobby .lobby-roster .roster-item b{font-size:clamp(9px,2.15vw,12px)}
+}

@@ -30,6 +30,7 @@ assert.match(html,/data-session-mode="quick"/);
 assert.match(html,/id="uiModal"/);
 assert.doesNotMatch(source,/\b(?:alert|confirm)\(/);
 assert.match(css,/#hostLobby #hostQueue\{display:none!important\}/);
+assert.match(css,/#hostLobby \.lobby-roster \.roster-item \.roster-pick\.picked\{[\s\S]*?display:inline-flex;/);
 // No duplicated HUD counters on canvas, no map description beneath the title.
 assert.doesNotMatch(html,/HUMANS LEFT|id="gameTitle"/);
 assert.match(html,/<div class="game-name"><span class="eyebrow" id="gameMode">GHOST ATTACK<\/span><\/div>/);
@@ -580,6 +581,34 @@ assert.equal(online.elements.get('pauseMenu').classList.contains('hidden'),false
 online.click('exitBtn');
 assert.equal(online.elements.get('hostLobby').classList.contains('hidden'),false);
 assert.equal(online.scope.document.fullscreenExits,0);
+
+// Expanded rooms actually accept 24 people and wrap the top HUD to 2 rows.
+const bigRoom=setup();
+bigRoom.click('offlineBtn');
+for(let i=0;i<22;i++)bigRoom.click('addLocalBtn');
+assert.equal(bigRoom.scope.window.__ghostTest.getPlayers().length,24);
+assert.equal(bigRoom.elements.get('rosterCount').textContent,'24/24');
+assert.equal(bigRoom.elements.get('addLocalBtn').disabled,true);
+assert.equal(new Set(bigRoom.scope.window.__ghostTest.getPlayers().map(p=>p.color)).size,24);
+assert.equal(bigRoom.scope.window.__ghostTest.getPlayers().every(p=>p.isBot),true);
+bigRoom.sessionButtons[1].fire('click');
+assert.equal(bigRoom.sessionButtons[1].classList.contains('active'),true);
+bigRoom.sessionButtons[0].fire('click');
+bigRoom.click('startBtn');
+assert.equal(bigRoom.scope.window.__ghostTest.getRound().ghost.npcs.length,4);
+assert.equal(bigRoom.elements.get('leaderboard').style['--leader-rows'],'2');
+assert.equal(bigRoom.elements.get('leaderboard').style['--leader-cols'],'12');
+
+// Closing an online room displays an in-app dialog; cancellation keeps peers.
+const confirmHost=setup();
+confirmHost.click('hostBtn');
+confirmHost.instances[0].fire('open');
+confirmHost.click('closeRoomBtn');
+assert.equal(confirmHost.elements.get('uiModal').classList.contains('hidden'),false);
+assert.equal(confirmHost.elements.get('hostLobby').classList.contains('hidden'),false);
+confirmHost.click('uiCancelBtn');
+assert.equal(confirmHost.elements.get('uiModal').classList.contains('hidden'),true);
+assert.equal(confirmHost.elements.get('hostLobby').classList.contains('hidden'),false);
 
 const phone=setup('https://game.example/?join=ABCDE3');
 phone.elements.get('nick').value='Wut';phone.click('joinBtn');
