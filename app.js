@@ -28,11 +28,44 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const cleanName=(value)=>String(value||'').trim().replace(/[<>]/g,'').slice(0,14)||'เพื่อนใหม่';
 const blankInput=()=>({left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0});
 function setStatus(text,bad=false){$('netStatus').textContent=text;$('netDot').classList.toggle('bad',bad);}
+// Only lock page zoom while playing. Keep the lobby and nickname form accessible.
+const FREE_VIEWPORT='width=device-width,initial-scale=1,viewport-fit=cover';
+const LOCKED_VIEWPORT='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+const gameZoomLocked=()=>currentView==='game'||(currentView==='controller'&&controllerReady);
+function syncZoomPolicy(){
+  const locked=gameZoomLocked();
+  $('viewportMeta').setAttribute('content',locked?LOCKED_VIEWPORT:FREE_VIEWPORT);
+  document.body.classList.toggle('zoom-locked',locked);
+}
 function setView(view) {
   currentView=view;
   ['home','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
+  syncZoomPolicy();
   window.scrollTo(0,0);
 }
+// Safari may ignore viewport scaling hints for gesture zoom; guard native gestures
+// only in gameplay, without preventing Pointer Events on analog and A/B buttons.
+for(const type of ['gesturestart','gesturechange','gestureend']){
+  document.addEventListener(type,e=>{if(gameZoomLocked()&&e.cancelable)e.preventDefault();},{passive:false});
+}
+document.addEventListener('touchmove',e=>{
+  if(gameZoomLocked()&&e.touches&&e.touches.length>1&&e.cancelable)e.preventDefault();
+},{passive:false});
+document.addEventListener('dblclick',e=>{
+  if(gameZoomLocked()&&e.cancelable)e.preventDefault();
+},{passive:false});
+// Ignore the browser's default double-tap zoom for the canvas, local pads and
+// controller buttons. Do not cancel regular taps or button click events.
+let lastGameTapTime=0,lastGameTapTarget=null;
+document.addEventListener('touchend',e=>{
+  if(!gameZoomLocked()||!e.cancelable||!e.target||typeof e.target.closest!=='function')return;
+  if(!e.target.closest('#arena,.game-frame,.pad-buttons,.controller-buttons'))return;
+  const now=Date.now();
+  if(e.changedTouches&&e.changedTouches.length===1&&lastGameTapTarget===e.target&&now-lastGameTapTime<310){
+    e.preventDefault();
+  }
+  lastGameTapTime=now;lastGameTapTarget=e.target;
+},{passive:false});
 function randomCode(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789', data=new Uint8Array(6);
   if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(data);
@@ -190,6 +223,7 @@ function joinRoom(){
         $('joinForm').classList.add('hidden');$('controllerActive').classList.remove('hidden');
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
         document.body.classList.add('controller-playing');
+        syncZoomPolicy();
         showControllerMode(data.mode);sendInputs();
       }else if(data.t==='reject'){
         controllerState(data.reason||'ห้องไม่รับผู้เล่น',true);$('joinBtn').disabled=false;
@@ -215,6 +249,7 @@ function controllerDisconnected(){
   controllerReady=false;controllerId=null;for(const k of INPUT_NAMES)controllerKeys[k]=false;
   controllerKeys.axisX=0;controllerKeys.axisY=0;releaseStick();
   document.body.classList.remove('controller-playing');
+  syncZoomPolicy();
   $('joinForm').classList.remove('hidden');$('controllerActive').classList.add('hidden');
   $('joinBtn').disabled=false;
   controllerState('ขาดการเชื่อมต่อ กรุณากดเข้าร่วมใหม่',true);
@@ -638,6 +673,7 @@ $('nick').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
 $('leaveBtn').addEventListener('click',()=>{
   disconnectRequested=true;safePeerDestroy();controllerReady=false;for(const k of INPUT_NAMES)controllerKeys[k]=false;
   releaseStick();document.body.classList.remove('controller-playing');
+  syncZoomPolicy();
   const u=new URL(window.location.href);u.search='';window.location.assign(u.href);
 });
 document.querySelectorAll('#controllerActive [data-control]').forEach(btn=>bindControl(btn,controllerKeys,'remote'));
