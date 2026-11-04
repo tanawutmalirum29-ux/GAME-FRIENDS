@@ -263,6 +263,7 @@ function controllerDisconnected(){
   controllerReady=false;controllerId=null;for(const k of INPUT_NAMES)controllerKeys[k]=false;
   controllerKeys.axisX=0;controllerKeys.axisY=0;releaseStick();
   document.body.classList.remove('controller-playing');
+  clearPortraitFallback();
   syncZoomPolicy();
   $('joinForm').classList.remove('hidden');$('controllerActive').classList.add('hidden');
   $('joinBtn').disabled=false;
@@ -284,6 +285,29 @@ function showControllerMode(mode){
     'อนาล็อกซ้าย/ขวา • ดันขึ้นหรือกด B เพื่อกระโดด • A '+labels[0];
 }
 function sendInputs(){if(!controllerReady)return;send(controllerConn,{t:'input',keys:{...controllerKeys}});}
+function isPortraitScreen(){
+  if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
+  return Number(window.innerHeight)>Number(window.innerWidth);
+}
+// Opt-in only: by default the existing real-landscape controller remains unchanged.
+function clearPortraitFallback(){
+  releaseStick();
+  document.body.classList.remove('portrait-fallback');
+  $('portraitRestoreBtn').classList.add('hidden');
+}
+function enablePortraitFallback(){
+  if(!controllerReady||!isPortraitScreen())return;
+  releaseStick();
+  document.body.classList.add('portrait-fallback');
+  $('portraitRestoreBtn').classList.remove('hidden');
+}
+// If the phone is eventually rotated, return to the normal landscape gamepad.
+function followDeviceOrientation(){
+  if(!isPortraitScreen()&&document.body.classList.contains('portrait-fallback'))
+    clearPortraitFallback();
+}
+window.addEventListener('orientationchange',followDeviceOrientation);
+window.addEventListener('resize',followDeviceOrientation);
 // Request landscape after a user gesture; iOS Safari may deny orientation lock.
 async function requestLandscape(){
   const panel=$('controller');
@@ -308,8 +332,12 @@ function bindAnalogStick(base,knob,target){
     const cx=box.left+box.width/2,cy=box.top+box.height/2;
     const travel=Math.max(1,Math.min(box.width,box.height)*.285);
     const dx=e.clientX-cx,dy=e.clientY-cy;
-    const distance=Math.hypot(dx,dy),factor=distance>travel?travel/distance:1;
-    let x=dx*factor/travel,y=dy*factor/travel;
+    // CSS rotate(90deg) changes physical pointer axes; undo it before sending
+    // game-space movement so 'right' on the sideways UI still means right.
+    const rotated=document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
+    const localX=rotated?dy:dx,localY=rotated?-dx:dy;
+    const distance=Math.hypot(localX,localY),factor=distance>travel?travel/distance:1;
+    let x=localX*factor/travel,y=localY*factor/travel;
     if(Math.hypot(x,y)<.14){x=0;y=0;}
     x=Math.round(x*100)/100;y=Math.round(y*100)/100;
     knob.style.transform='translate(calc(-50% + '+Math.round(x*travel)+'px),calc(-50% + '+Math.round(y*travel)+'px))';
@@ -682,11 +710,16 @@ $('sessionMode').addEventListener('change',()=>{
 });
 $('landscapeBtn').addEventListener('click',()=>{void requestLandscape();});
 $('rotateRetryBtn').addEventListener('click',()=>{void requestLandscape();});
+$('portraitFallbackBtn').addEventListener('click',enablePortraitFallback);
+$('portraitRestoreBtn').addEventListener('click',()=>{
+  clearPortraitFallback();
+  void requestLandscape();
+});
 $('joinBtn').addEventListener('click',joinRoom);
 $('nick').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
 $('leaveBtn').addEventListener('click',()=>{
   disconnectRequested=true;safePeerDestroy();controllerReady=false;for(const k of INPUT_NAMES)controllerKeys[k]=false;
-  releaseStick();document.body.classList.remove('controller-playing');
+  clearPortraitFallback();document.body.classList.remove('controller-playing');
   syncZoomPolicy();
   const u=new URL(window.location.href);u.search='';window.location.assign(u.href);
 });
