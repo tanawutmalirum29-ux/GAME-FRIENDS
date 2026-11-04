@@ -28,6 +28,13 @@ assert.match(html,/data-pick="stars"/);
 assert.match(html,/data-pick="paint"/);
 assert.doesNotMatch(html,/id="gameCards"/);
 assert.match(css,/#hostLobby\.host-lobby/);
+// Stacked sharing controls all have the same width as the QR card, rather than
+// occupying a separate side column next to the QR.
+assert.match(html,/<div class="qr-share-stack">\s*<div id="qrBox" class="qr-box"><\/div>\s*<div class="share-content">\s*<input id="roomUrl"[\s\S]*?<button[^>]*id="copyBtn"/);
+assert.match(css,/#hostLobby \.qr-share-stack\{[\s\S]*?flex-direction:column/);
+assert.match(css,/#hostLobby \.qr-share-stack \.share-content #roomUrl,[\s\S]*?#hostLobby \.qr-share-stack \.share-content #copyBtn\{[\s\S]*?width:100%/);
+assert.match(css,/#hostLobby \.lobby-roster\{[\s\S]*?grid-template-rows:none;[\s\S]*?grid-auto-rows:clamp\(24px,4\.8dvh,42px\)/);
+assert.match(css,/#hostLobby \.lobby-roster \.roster-item\{[\s\S]*?height:100%/);
 assert.match(css,/\.roster-pick\.picked/);
 assert.match(html,/id="leaveConfirm"/);
 assert.match(html,/id="confirmLeaveBtn"/);
@@ -245,6 +252,11 @@ const colors=setup();
 for(let i=0;i<12;i++)colors.click('addLocalBtn');
 const getColors=()=>colors.elements.get('roster').children.map(row=>row.children[0].style.background);
 assert.equal(getColors().length,12,'all player slots available');
+assert.ok(colors.elements.get('roster').children.every(row=>
+  row.children[3].textContent==='STAR RUSH'),
+  'game is displayed once after each name for all 12 players');
+assert.doesNotMatch(colors.elements.get('hostQueue').textContent,/STAR RUSH/,
+  'bottom readiness status must not repeat per-player map names');
 assert.equal(new Set(getColors()).size,12,'all players have distinct colors');
 assert.equal(colors.elements.get('addLocalBtn').disabled,true);
 // Removing someone must release only their color; a new join must not duplicate
@@ -322,10 +334,12 @@ assert.match(host.elements.get('roster').children[1].children[3].textContent,/�
 guest.fire('data',{t:'pick',mode:'tanks'});
 assert.match(host.elements.get('roster').children[1].children[3].textContent,/TANK BLAST/);
 assert.equal(host.elements.get('startBtn').disabled,false);
-assert.match(host.elements.get('hostQueue').textContent,/TANK BLAST ×1/);
+assert.match(host.elements.get('hostQueue').textContent,/เลือกแล้ว 2\/2 คน/);
+assert.doesNotMatch(host.elements.get('hostQueue').textContent,/TANK BLAST/);
+assert.equal(host.elements.get('roster').children[1].children[3].textContent,'TANK BLAST');
 // Invalid choices do not affect the queue.
 guest.fire('data',{t:'pick',mode:'invalid-injection'});
-assert.match(host.elements.get('hostQueue').textContent,/TANK BLAST ×1/);
+assert.equal(host.elements.get('roster').children[1].children[3].textContent,'TANK BLAST');
 // Host also originates an actual one-way WebRTC video stream for the remote.
 host.elements.get('sessionMode').value='quick';
 host.click('startBtn');
@@ -545,8 +559,13 @@ for(const mode of ['tanks','tanks','soccer']){
   remote.fire('data',{t:'pick',mode});
   votes.push(remote);
 }
-assert.match(tour.elements.get('hostQueue').textContent,/TANK BLAST ×2/);
-assert.match(tour.elements.get('hostQueue').textContent,/FOOTBALL ×1/);
+assert.equal(tour.elements.get('roster').children.filter(row=>
+  row.children[3].textContent==='TANK BLAST').length,2);
+assert.equal(tour.elements.get('roster').children.filter(row=>
+  row.children[3].textContent==='FOOTBALL').length,1);
+assert.match(tour.elements.get('hostQueue').textContent,/เลือกแล้ว 3\/3 คน/);
+assert.doesNotMatch(tour.elements.get('hostQueue').textContent,/TANK BLAST|FOOTBALL/,
+  'duplicate game names only shown alongside each player');
 tour.click('startBtn');
 const modesPlayed=[];
 for(let roundIndex=0;roundIndex<3;roundIndex++){
