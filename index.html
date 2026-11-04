@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0d1122">
+  <meta name="description" content="Stick Squad Party เกมมินิเกมปาร์ตี้บนเว็บ เล่นพร้อมกันมากกว่า 4 คน ใช้มือถือเป็นจอยผ่าน QR Code">
+  <title>STICK SQUAD PARTY | GAME FRIENDS</title>
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="./"><span class="brand-symbol">S<span>★</span></span><span>STICK <b>SQUAD</b><small>PARTY</small></span></a>
+      <div class="top-right"><span class="network-dot" id="netDot"></span><span id="netStatus">พร้อมเล่น</span><span class="tag">GAME FRIENDS</span></div>
+    </header>
+
+    <main id="home" class="layout">
+      <section class="hero">
+        <div class="eyebrow"><span class="sparkle">✦</span> PARTY GAME • PLAY TOGETHER</div>
+        <h1>รวมแก๊งแล้ว<br><em>ลุยให้สุด!</em></h1>
+        <p>เปลี่ยนมือถือให้เป็นจอย เล่นพร้อมกันบนจอเดียว หรือเปิดจอยบนหน้าจอได้ทันที ไม่ต้องลงแอป</p>
+        <div class="feature-tags"><span>2–12 ผู้เล่น</span><span>3 มินิเกม</span><span>มือถือเป็นจอย</span><span>QR เข้าร่วม</span></div>
+        <div class="stick-display" aria-hidden="true"><div class="stick-figure pink"><i></i><b></b></div><div class="stick-figure cyan"><i></i><b></b></div><div class="stick-figure yellow"><i></i><b></b></div><div class="stick-figure purple"><i></i><b></b></div><div class="floor-line"></div></div>
+      </section>
+
+      <section class="panel setup">
+        <div class="section-heading"><span class="section-icon">01</span><div><h2>สร้างปาร์ตี้</h2><p>เลือกสนาม แล้วชวนเพื่อนเข้าห้อง</p></div></div>
+        <label for="mode">โหมดเกม</label>
+        <select id="mode">
+          <option value="stars">⭐ STAR RUSH — วิ่งเก็บดาว</option>
+          <option value="brawl">🥊 BRAWL — ต่อยแย่งคะแนน</option>
+          <option value="lava">🌋 LAVA RUN — หนีลาวา</option>
+        </select>
+        <label for="duration">เวลาต่อรอบ</label>
+        <select id="duration"><option value="60">60 วินาที</option><option value="90">90 วินาที</option><option value="45">45 วินาที</option></select>
+        <div class="button-group">
+          <button id="hostBtn" class="btn btn-primary">สร้างห้อง + QR Code <span>↗</span></button>
+          <button id="offlineBtn" class="btn btn-secondary">เล่นบนจอเดียว</button>
+        </div>
+        <div class="hint">ห้องออนไลน์ใช้ WebRTC • เจ้าของห้องต้องเปิดหน้านี้ไว้ตลอด</div>
+        <div id="roomPanel" class="room-panel hidden">
+          <div class="room-top"><div><small>ROOM CODE</small><strong id="roomCode">------</strong></div><span class="live-pill">● LIVE</span></div>
+          <div class="share-layout"><div id="qrBox" class="qr-box"></div><div class="share-content"><p>ให้เพื่อนสแกนเพื่อเปิดจอยบนมือถือ หรือส่งลิงก์ให้เพื่อน</p><input id="roomUrl" aria-label="ลิงก์เข้าร่วม" readonly><button class="btn btn-outline" id="copyBtn">คัดลอกลิงก์</button></div></div>
+        </div>
+      </section>
+
+      <section class="panel roster-panel">
+        <div class="section-heading"><span class="section-icon">02</span><div><h2>ผู้เล่นในห้อง <span id="rosterCount" class="count">0/12</span></h2><p>คนเข้าห้องแล้วจะปรากฏที่นี่</p></div></div>
+        <div id="roster" class="roster"><p class="empty">ยังไม่มีผู้เล่น เริ่มจากเพิ่มผู้เล่นบนจอ หรือสร้างห้องให้เพื่อนสแกน</p></div>
+        <div class="roster-actions"><button id="addLocalBtn" class="btn btn-outline">+ เพิ่มจอยบนหน้าจอ</button><button id="startBtn" class="btn btn-green" disabled>เริ่มเกม <span>▶</span></button></div>
+        <div class="hint">เล่นอย่างน้อย 1 คนเพื่อทดลอง • 2 คนขึ้นไปสำหรับปาร์ตี้จริง</div>
+      </section>
+    </main>
+
+    <main id="game" class="game-page hidden">
+      <div class="game-toolbar"><div><span class="eyebrow" id="gameMode">STAR RUSH</span><h2 id="gameTitle">เกมเริ่มแล้ว!</h2></div><div class="timer-box"><span>TIME LEFT</span><strong id="timer">01:00</strong></div><button id="exitBtn" class="btn btn-outline">กลับล็อบบี้</button></div>
+      <div class="game-frame"><canvas id="arena" width="960" height="540" aria-label="สนามแข่งขัน"></canvas><div id="gameBanner" class="game-banner">เตรียมพร้อม!</div></div>
+      <div id="leaderboard" class="leaderboard"></div>
+      <div class="pad-section"><div class="pad-heading"><h3>จอยบนหน้าจอ</h3><span>แตะค้างเพื่อบังคับ • คีย์บอร์ด P1: A D W Space, P2: ← → ↑ Enter</span></div><div id="localPads" class="local-pads"></div></div>
+      <div id="results" class="result-overlay hidden"><div class="result-card"><div class="eyebrow">ROUND FINISHED</div><h2>จบเกม!</h2><div id="resultList"></div><button id="replayBtn" class="btn btn-primary">เล่นอีกครั้ง</button><button id="backBtn" class="btn btn-outline">กลับล็อบบี้</button></div></div>
+    </main>
+
+    <main id="controller" class="controller-page hidden">
+      <div class="controller-intro"><div class="eyebrow">STICK SQUAD CONTROLLER</div><h1>มือถือของคุณ<br><em>คือจอยเกม</em></h1><p>เข้าร่วมห้อง <b id="joinCode">------</b> แล้วควบคุมตัวละครบนจอหลัก</p></div>
+      <section id="joinForm" class="panel join-panel"><label for="nick">ชื่อของคุณ</label><input id="nick" maxlength="14" placeholder="กรอกชื่อเล่น" autocomplete="nickname"><button id="joinBtn" class="btn btn-primary">เข้าร่วมห้อง <span>↗</span></button><p class="hint" id="joinMessage">กดเข้าร่วมเพื่อเชื่อมต่อกับจอเกม</p></section>
+      <section id="controllerActive" class="controller-active hidden">
+        <div class="player-card"><div id="controllerAvatar" class="player-avatar"></div><div><small>PLAYER CONNECTED</small><strong id="controllerName">ผู้เล่น</strong><p id="controllerState">กำลังรอเจ้าของห้องเริ่มเกม</p></div></div>
+        <div class="controller-buttons"><div class="direction-pad"><button data-control="left" class="control-btn movement" aria-label="ซ้าย">◀</button><button data-control="right" class="control-btn movement" aria-label="ขวา">▶</button></div><div class="action-pad"><button data-control="jump" class="control-btn jump-btn">JUMP<span>กระโดด</span></button><button data-control="action" class="control-btn attack-btn">HIT<span>โจมตี / พุ่ง</span></button></div></div>
+        <p class="controller-help">กดค้างที่ปุ่มเพื่อควบคุม ปุ่ม HIT ใช้ต่อยในโหมดต่อสู้ หรือพุ่งตัวในโหมดอื่น</p>
+        <button id="leaveBtn" class="leave-link">ออกจากห้อง</button>
+      </section>
+    </main>
+    <footer>STICK SQUAD PARTY <span>•</span> Original browser party game <span>•</span> Built for GAME FRIENDS</footer>
+  </div>
+</body>
+</html>
