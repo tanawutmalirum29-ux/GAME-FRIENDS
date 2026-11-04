@@ -52,8 +52,23 @@ function syncZoomPolicy(){
 function setView(view) {
   currentView=view;
   ['home','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
+  document.body.classList.toggle('host-playing',view==='game');
   syncZoomPolicy();
   window.scrollTo(0,0);
+}
+function requestHostFullscreen(){
+  // Browser chrome may remain on iOS Safari; CSS still uses the full viewport.
+  const game=$('game');
+  if(game.requestFullscreen&&!document.fullscreenElement){
+    try{const result=game.requestFullscreen({navigationUI:'hide'});if(result&&result.catch)result.catch(()=>{});}
+    catch(_){/* Full viewport CSS is the fallback. */}
+  }
+}
+function releaseHostFullscreen(){
+  if(document.fullscreenElement===$('game')&&document.exitFullscreen){
+    try{const result=document.exitFullscreen();if(result&&result.catch)result.catch(()=>{});}
+    catch(_){/* Not supported by this browser. */}
+  }
 }
 // Safari may ignore viewport scaling hints for gesture zoom; guard native gestures
 // only in gameplay, without preventing Pointer Events on analog and A/B buttons.
@@ -100,25 +115,26 @@ function removePlayer(id) {
   players.splice(at,1);
   // Remove from roster BEFORE closing, which can synchronously emit a close event.
   if(p.conn&&p.conn.open){try{p.conn.close();}catch(e){}}
-  renderRoster();renderPads();broadcastRoster();
+  renderRoster();broadcastRoster();
 }
 function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active};}
 function send(conn,msg){if(conn&&conn.open){try{conn.send(msg);}catch(e){/* peer disconnected */}}}
 function broadcast(msg){hostConnections.forEach(c=>send(c,msg));}
+function networkPhase(){return round?(round.paused?'paused':round.phase):'lobby';}
 function broadcastRoster(){
-  broadcast({t:'roster',players:players.map(playerPublic),phase:round?round.phase:'lobby',mode:round?round.mode:$('mode').value});
+  broadcast({t:'roster',players:players.map(playerPublic),phase:networkPhase(),mode:round?round.mode:$('mode').value});
 }
 function renderRoster(){
   const el=$('roster');el.replaceChildren();
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
   $('startBtn').disabled=players.length<1;
-  if(!players.length){const p=document.createElement('p');p.className='empty';p.textContent='ยังไม่มีผู้เล่น เพิ่มจอยบนหน้าจอหรือส่ง QR Code ให้เพื่อน';el.append(p);return;}
+  if(!players.length){const p=document.createElement('p');p.className='empty';p.textContent='ยังไม่มีผู้เล่น ชวนเพื่อนสแกน QR Code หรือเพิ่มผู้เล่นคีย์บอร์ด';el.append(p);return;}
   players.forEach(p=>{
     const item=document.createElement('div');item.className='roster-item';
     const color=document.createElement('span');color.className='swatch';color.style.background=p.color;
     const name=document.createElement('b');name.textContent=p.name;
-    const type=document.createElement('small');type.textContent=p.type==='local'?'จอยบนจอ':'มือถือ';
+    const type=document.createElement('small');type.textContent=p.type==='local'?'คีย์บอร์ด':'มือถือ';
     const kick=document.createElement('button');kick.type='button';kick.textContent='×';kick.title='เอาผู้เล่นออก';kick.setAttribute('aria-label','เอา '+p.name+' ออกจากห้อง');
     kick.addEventListener('click',()=>removePlayer(p.id));
     item.append(color,name,type,kick);el.append(item);
@@ -128,7 +144,7 @@ function addLocal(){
   const localCount=players.filter(p=>p.type==='local').length;
   if(players.length>=MAX_PLAYERS)return;
   makePlayer('หน้าจอ '+(localCount+1),'local');
-  renderPads();broadcastRoster();
+  broadcastRoster();
 }
 function resetInputs(){
   players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
@@ -183,6 +199,7 @@ function startHost(retries=0){
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:$('mode').value});
         broadcastRoster();
       }else if(msg.t==='input'&&conn.playerId){
+        if(round&&round.paused)return;
         const p=players.find(p=>p.id===conn.playerId);
         if(!p)return;
         p.lastInputAt=Date.now();
@@ -245,10 +262,15 @@ function joinRoom(){
       }else if(data.t==='roster'){
         showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
-        $('controllerState').textContent=data.phase==='playing'?(self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':'กำลังรอเจ้าของห้องเริ่มเกม';
+        $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
+          data.phase==='playing'?(self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):
+          data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':
+          'กำลังรอเจ้าของห้องเริ่มเกม';
       }else if(data.t==='state'){
         showControllerMode(data.mode);
-        $('controllerState').textContent=data.phase==='playing'?'กำลังเล่น • เหลือ '+Math.ceil(data.remaining)+' วินาที':data.phase==='results'?'จบรอบแล้ว':'รอเริ่มรอบ';
+        $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
+          data.phase==='playing'?'กำลังเล่น • เหลือ '+Math.ceil(data.remaining)+' วินาที':
+          data.phase==='results'?'จบรอบแล้ว':'รอเริ่มรอบ';
       }else if(data.t==='closed'){
         controllerState('เจ้าของห้องปิดห้องแล้ว',true);
       }
@@ -371,20 +393,6 @@ function bindControl(btn, target, id){
   btn.addEventListener('lostpointercapture',()=>change(false));
   btn.addEventListener('contextmenu',e=>e.preventDefault());
 }
-function renderPads(){
-  const root=$('localPads');root.replaceChildren();
-  players.filter(p=>p.type==='local').forEach((p,i)=>{
-    const card=document.createElement('div');card.className='local-pad';
-    const heading=document.createElement('h4');heading.style.color=p.color;
-    heading.textContent=p.name+(i===0?' • WASD + Space':i===1?' • ลูกศร + Enter':' • แตะปุ่ม');
-    const group=document.createElement('div');group.className='pad-buttons';
-    [['left','◀','movement'],['right','▶','movement'],['jump','▲','jump-btn'],['down','▼','jump-btn'],['alt','B','jump-btn'],['action','A','attack-btn']].forEach(spec=>{
-      const b=document.createElement('button');b.type='button';b.className='control-btn '+spec[2];b.dataset.control=spec[0];b.textContent=spec[1];b.setAttribute('aria-label',spec[0]+' '+p.name);bindControl(b,p.input,p.id);group.append(b);
-    });
-    card.append(heading,group);root.append(card);
-  });
-  $('localPads').parentElement.classList.toggle('hidden',!players.some(p=>p.type==='local'));
-}
 document.addEventListener('keydown',e=>{
   if(currentView!=='game'||e.target.matches('input,select,textarea'))return;
   const locals=players.filter(p=>p.type==='local');
@@ -403,7 +411,7 @@ function startRound(forcedMode=null){
   if(!players.length)return;
   $('results').classList.add('hidden');
   const mode=typeof forcedMode==='string'?forcedMode:$('mode').value,duration=Number($('duration').value)||60;
-  round={mode,duration,remaining:duration,phase:'countdown',countdown:3.25,stars:[],starClock:0};
+  round={mode,duration,remaining:duration,phase:'countdown',paused:false,countdown:3.25,stars:[],starClock:0};
   players.forEach((p,i)=>{
     p.active=true;p.alive=true;p.x=55+((i+.5)*850/players.length);p.y=WORLD.ground;
     p.vx=0;p.vy=0;p.score=0;p.hp=3;p.grounded=true;p.face=i%2? -1:1;p.cooldown=0;p.attack=0;p.dash=0;p.latch=false;p.respawn=0;p.invulnerable=0;p.input=blankInput();
@@ -419,7 +427,12 @@ function startRound(forcedMode=null){
   };
   $('gameMode').textContent=MODES[mode];$('gameTitle').textContent=subtitles[mode];
   $('replayBtn').textContent=tournament?'รอบถัดไป':'เล่นอีกครั้ง';
-  renderPads();setView('game');renderLeaderboard();broadcastRoster();
+  $('pauseMenu').classList.add('hidden');
+  $('pauseBtn').classList.remove('hidden');
+  $('pauseBtn').setAttribute('aria-expanded','false');
+  setView('game');
+  requestHostFullscreen();
+  renderLeaderboard();broadcastRoster();
 }
 function spawnStar(){
   if(!round)return;
@@ -483,7 +496,7 @@ function updatePlayers(dt){
   }
 }
 function updateRound(dt){
-  if(!round)return;
+  if(!round||round.paused)return;
   if(round.phase==='countdown'){
     round.countdown-=dt;
     $('gameBanner').textContent=round.countdown>0?String(Math.ceil(round.countdown)):'GO!';
@@ -517,7 +530,8 @@ function updateRound(dt){
 }
 function endRound(){
   if(!round||round.phase==='results')return;
-  round.phase='results';resetInputs();broadcastRoster();
+  round.phase='results';round.paused=false;resetInputs();broadcastRoster();
+  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
   const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score);
   if(tournament){
     let sharedRank=0;
@@ -644,8 +658,9 @@ function drawGame(t){
   if(round.phase==='results'){g.fillStyle='#1019329c';g.fillRect(0,0,960,540);}
 }
 function animate(ts){
-  const dt=Math.min(.045,Math.max(0,(ts-frameLast)/1000||.016));frameLast=ts;graphicsClock+=dt;
+  const dt=Math.min(.045,Math.max(0,(ts-frameLast)/1000||.016));frameLast=ts;
   if(currentView==='game'&&round){
+    if(!round.paused)graphicsClock+=dt;
     updateRound(dt);drawGame(graphicsClock);
     hudClock+=dt;
     if(hudClock>.22){
@@ -655,13 +670,51 @@ function animate(ts){
     }
     networkClock+=dt;
     if(networkClock>.85){
-      broadcast({t:'state',phase:round.phase,remaining:round.remaining,mode:round.mode});
+      broadcast({t:'state',phase:networkPhase(),remaining:round.remaining,mode:round.mode});
       networkClock=0;
     }
   }
   requestAnimationFrame(animate);
 }
 
+function broadcastGameState(){
+  if(!round)return;
+  broadcast({t:'state',phase:networkPhase(),remaining:round.remaining,mode:round.mode});
+}
+function pauseGame(){
+  if(currentView!=='game'||!round||round.phase==='results'||round.paused)return;
+  round.paused=true;
+  resetInputs();
+  $('pauseMenu').classList.remove('hidden');
+  $('pauseBtn').setAttribute('aria-expanded','true');
+  broadcastRoster();
+  broadcastGameState();
+}
+function resumeGame(){
+  if(!round||!round.paused)return;
+  resetInputs();
+  round.paused=false;
+  $('pauseMenu').classList.add('hidden');
+  $('pauseBtn').setAttribute('aria-expanded','false');
+  broadcastRoster();
+  broadcastGameState();
+}
+function returnToLobby(){
+  tournament=null;round=null;resetInputs();
+  $('pauseMenu').classList.add('hidden');
+  $('pauseBtn').setAttribute('aria-expanded','false');
+  releaseHostFullscreen();
+  setView('home');renderRoster();broadcastRoster();
+}
+$('pauseBtn').addEventListener('click',pauseGame);
+$('resumeBtn').addEventListener('click',resumeGame);
+document.addEventListener('keydown',e=>{
+  if(currentView==='game'&&(e.code==='Escape'||e.code==='KeyP')){
+    e.preventDefault();
+    if(round&&round.paused)resumeGame();
+    else pauseGame();
+  }
+});
 $('addLocalBtn').addEventListener('click',addLocal);
 $('hostBtn').addEventListener('click',()=>startHost());
 function beginParty(){
@@ -686,8 +739,8 @@ $('offlineBtn').addEventListener('click',()=>{
 });
 $('startBtn').addEventListener('click',beginParty);
 $('copyBtn').addEventListener('click',copyInvite);
-$('exitBtn').addEventListener('click',()=>{tournament=null;round=null;resetInputs();setView('home');renderRoster();broadcastRoster();});
-$('backBtn').addEventListener('click',()=>{tournament=null;round=null;resetInputs();setView('home');renderRoster();broadcastRoster();});
+$('exitBtn').addEventListener('click',returnToLobby);
+$('backBtn').addEventListener('click',returnToLobby);
 $('replayBtn').addEventListener('click',advanceParty);
 function selectMiniGame(mode){
   if(!MODES[mode])return;
@@ -736,7 +789,7 @@ if(joinCode){
   $('nick').value=sessionStorage.getItem('gf-nick')||'';
   setStatus('พร้อมเชื่อมจอย');
 }else{
-  setView('home');renderRoster();renderPads();selectMiniGame($('mode').value||'stars');
+  setView('home');renderRoster();selectMiniGame($('mode').value||'stars');
 }
 requestAnimationFrame(animate);
 })();
