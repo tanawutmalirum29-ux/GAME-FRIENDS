@@ -1554,3 +1554,46 @@ body.controller-playing #controller .controller-help{
   body:not(.controller-playing) #joinForm .room-change-actions .btn{min-height:32px}
   body.controller-playing #controller .controller-help{display:none}
 }
+
+
+
+/* Keep the sideways landscape gamepad's own swapped viewport dimensions. */
+@media(orientation:portrait){
+  body.controller-playing.portrait-fallback #controllerActive{
+    width:100dvh;height:100dvw;max-width:none;max-height:none;
+    flex:0 0 auto;overflow:hidden!important;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .controller-buttons{
+    width:100%;height:auto;min-height:0;max-height:100%;
+  }
+}
+/* Reserve rows for 12 players from the start: new joins do not suddenly
+   stretch the existing entries or push the settings below the viewport. */
+#hostLobby .lobby-roster{
+  grid-template-rows:repeat(6,minmax(0,1fr));
+}
+@media(min-width:1080px){
+  #hostLobby .lobby-roster{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:repeat(4,minmax(0,1fr));
+  }
+}
+/* For a large tablet in portrait, keep 3 columns if the panel is wide enough. */
+@media(orientation:portrait) and (min-width:750px){
+  #hostLobby .lobby-roster{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:repeat(4,minmax(0,1fr));
+  }
+}
+@media(orientation:portrait) and (max-width:720px){
+  #hostLobby .lobby-roster{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:repeat(6,minmax(0,1fr));
+  }
+}
+@media(orientation:landscape) and (max-height:520px){
+  #hostLobby .lobby-roster{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:repeat(6,minmax(0,1fr));
+  }
+}
