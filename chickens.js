@@ -2,7 +2,13 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2;
-const C=Object.freeze({playerSpeed:172,chickenSpeed:191,playerRadius:15,chickenRadius:8.3,
+// Scale movement and locomotion animation without changing round timers,
+// punch cooldowns or the 0.30-second deposit rule.
+const SPEED_SCALE=.70;
+const C=Object.freeze({playerSpeed:172*SPEED_SCALE,chickenSpeed:191*SPEED_SCALE,
+  idleChickenSpeed:96*SPEED_SCALE,panicChickenSpeed:217*SPEED_SCALE,
+  chickenTurnRate:8.2*SPEED_SCALE,chickenFlapRate:16*SPEED_SCALE,
+  playerStrideRate:13*SPEED_SCALE,playerRadius:15,chickenRadius:8.3,
   pickupRadius:26,carryOffset:37,headOffset:12,entryDepth:9,depositTime:.30,
   punchRange:57,punchHalfAngle:.86,punchCooldown:1,dropImmunity:.35});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -55,7 +61,8 @@ function makeChicken(state,players){
   const occupied=[...players.filter(p=>p.active),...state.chickens.filter(c=>c.status==='free')];
   const p=freePosition(state,occupied,23);
   const angle=rand(0,TAU),dir=normal(angle);
-  return {id:++state.nextChickenId,x:p.x,y:p.y,dir,vx:dir.x*65,vy:dir.y*65,
+  return {id:++state.nextChickenId,x:p.x,y:p.y,dir,
+    vx:dir.x*65*SPEED_SCALE,vy:dir.y*65*SPEED_SCALE,
     status:'free',carrierId:null,penId:null,depositPenId:null,depositFor:0,
     decision:rand(0,.18),escapeAngle:angle,invulnerable:0,flap:rand(0,TAU),stuckFor:0,
     panicFor:0,panicRecharge:rand(0,.35)};
@@ -248,7 +255,7 @@ function chooseEscape(state,c,players){
 function advanceChicken(state,c,players,dt){
   if(c.status!=='free')return;
   c.invulnerable=Math.max(0,c.invulnerable-dt);
-  c.flap+=dt*16;
+  c.flap+=dt*C.chickenFlapRate;
   c.decision-=dt;
   const wallRoom=state.radius-distance(c,state.center);
   if(c.decision<=0||wallRoom<26){
@@ -257,7 +264,7 @@ function advanceChicken(state,c,players,dt){
   }
   const old=Math.atan2(c.dir.y,c.dir.x);
   const delta=deltaAngle(old,c.escapeAngle);
-  const angle=old+clamp(delta,-8.2*dt,8.2*dt);
+  const angle=old+clamp(delta,-C.chickenTurnRate*dt,C.chickenTurnRate*dt);
   c.dir=normal(angle);
   const danger=players.some(p=>p.active&&distance(c,p)<205);
   const close=players.some(p=>p.active&&distance(c,p)<105);
@@ -270,7 +277,7 @@ function advanceChicken(state,c,players,dt){
   }
   // Short acceleration pulses, frequent smooth evasive turns, and livelier
   // cruising; the burst is brief so humans and bots can still intercept.
-  const speed=c.panicFor>0?217:danger?C.chickenSpeed:96;
+  const speed=c.panicFor>0?C.panicChickenSpeed:danger?C.chickenSpeed:C.idleChickenSpeed;
   c.vx=c.dir.x*speed;c.vy=c.dir.y*speed;
   const oldX=c.x,oldY=c.y;
   moveCircle(state,c,c.vx,c.vy,dt,C.chickenRadius+2);
@@ -362,6 +369,9 @@ function update(dt,round,players){
   // Bounded fixed physics substeps preserve collision and the .30s gate rule.
   let remaining=clamp(dt,0,.1);
   while(remaining>1e-7){
+    // Once every chicken is in a pen, finish before the clock reaches zero.
+    // Empty *free* birds alone are insufficient: carried birds still count.
+    if(state.scoredCount>=state.totalChickens)break;
     const sub=Math.min(1/60,remaining,state.remaining);
     if(sub<=0)break;
     state.time+=sub;step(state,players,sub);
@@ -369,7 +379,7 @@ function update(dt,round,players){
     remaining-=sub;
   }
   round.remaining=state.remaining;
-  return state.remaining<=0?'winner':null;
+  return state.scoredCount>=state.totalChickens||state.remaining<=0?'winner':null;
 }
 function hud(players,round){
   const state=round.chickens;
@@ -400,7 +410,7 @@ function drawPlayer(ctx,p,t){
   const v=p.dir||{x:1,y:0},theta=Math.atan2(v.y,v.x);
   ctx.save();ctx.translate(p.x,p.y);ctx.rotate(theta);
   ctx.strokeStyle='#1b2738';ctx.lineWidth=5;ctx.lineCap='round';
-  const stride=Math.sin(t*13+(Number(p.id?.replace(/\D/g,''))||0))*3;
+  const stride=Math.sin(t*C.playerStrideRate+(Number(p.id?.replace(/\D/g,''))||0))*3;
   ctx.beginPath();ctx.moveTo(-9,-5);ctx.lineTo(-15,-10+stride);
   ctx.moveTo(-9,5);ctx.lineTo(-15,10-stride);ctx.stroke();
   ctx.fillStyle=p.color;ctx.strokeStyle='#24304a';ctx.lineWidth=2;
