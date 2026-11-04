@@ -933,7 +933,6 @@ function startRound(forcedMode=null){
   round={mode:'ghost',phase:'countdown',paused:false,countdown:3,remaining:null,autoNextRemaining:0};
   window.GhostAttack.setup(round,players);
   $('gameMode').textContent='GHOST ATTACK';
-  $('gameTitle').textContent='หนีให้รอด • ผีเกิดกลางแมพใน 3 วินาที';
   $('gameBanner').textContent='3';
   $('timer').textContent='รอผี';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
@@ -1020,8 +1019,12 @@ function endRound(){
 }
 function renderLeaderboard(){
   const root=$('leaderboard');root.replaceChildren();
+  const active=round?players.filter(p=>p.active):[];
+  // One compact top-header row, even with twelve players. The CSS grid uses
+  // the actual count to prevent flex wrapping down across the playfield.
+  root.style.setProperty('--leader-count',String(Math.max(1,active.length)));
   if(!round)return;
-  players.filter(p=>p.active).sort((a,b)=>Number(a.ghost)-Number(b.ghost)).forEach(p=>{
+  active.sort((a,b)=>Number(a.ghost)-Number(b.ghost)).forEach(p=>{
     const box=document.createElement('div');box.className='leader-chip';
     const color=document.createElement('span');color.className='circle';color.style.background=p.color;
     const name=document.createElement('span');name.textContent=p.name;
