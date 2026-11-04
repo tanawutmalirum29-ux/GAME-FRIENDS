@@ -389,6 +389,10 @@ const oround=online.scope.window.__ghostTest.getRound();
 const owut=online.scope.window.__ghostTest.getPlayers()[0];
 owut.item='slow';owut.selecting=true;owut.targetId='not-a-player';
 conn.fire('data',{t:'target-cycle',direction:1});
+assert.equal(owut.targetId,'not-a-player',
+ 'target controls are disabled during the pre-ghost countdown');
+oround.phase='playing';
+conn.fire('data',{t:'target-cycle',direction:1});
 // With only one participant there is no valid target; no fabricated target ID.
 assert.equal(owut.targetId,null);
 online.click('pauseBtn');
