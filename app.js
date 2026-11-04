@@ -289,6 +289,22 @@ function copyInvite(){
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(done).catch(()=>{ $('roomUrl').select();document.execCommand('copy');done();});}
   else{$('roomUrl').select();document.execCommand('copy');done();}
 }
+let phoneSelectionOpen=false;
+let myChosenMode=null;
+function updatePhoneGamePicker(phase,choice){
+  phoneSelectionOpen=phase==='lobby'&&controllerReady;
+  myChosenMode=Object.hasOwn(MODES,choice)?choice:null;
+  $('phoneGamePicker').classList.toggle('hidden',!phoneSelectionOpen);
+  $('controllerPreview').classList.toggle('hidden',phoneSelectionOpen);
+  for(const button of document.querySelectorAll('[data-pick]')){
+    const selected=button.dataset.pick===myChosenMode;
+    button.classList.toggle('selected',selected);
+    button.setAttribute('aria-pressed',String(selected));
+  }
+  $('phoneChoiceStatus').textContent=myChosenMode?
+    'เลือก '+MODES[myChosenMode]+' แล้ว • รอเจ้าของห้องสุ่มเกม':
+    'เลือกหนึ่งเกม • เปลี่ยนใจก่อนเริ่มเล่นได้';
+}
 function resetPhonePreview(){
   $('controllerPreviewImage').src='';
   $('controllerPreviewImage').classList.add('hidden');
@@ -447,6 +463,7 @@ function resetControllerForRoomChange(message){
   $('controllerActive').classList.add('hidden');
   $('joinForm').classList.remove('hidden');
   $('joinBtn').disabled=false;
+  controllerReady=false;updatePhoneGamePicker('closed',null);
   controllerState(message||'เลือกห้องใหม่ได้เลย โดยไม่ต้องเปิดแท็บใหม่');
 }
 function joinRoom(){
@@ -478,8 +495,9 @@ function joinRoom(){
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
         document.body.classList.add('controller-playing');
         syncZoomPolicy();
-        showControllerMode(data.mode);sendInputs();
-        announceControllerTakeover();
+        showControllerMode(data.mode);
+        updatePhoneGamePicker(data.phase||'lobby',data.choice||null);
+        sendInputs();announceControllerTakeover();
       }else if(data.t==='preview'){
         if(controllerReady)receivePhonePreview(data.image);
       }else if(data.t==='preview-reset'){
@@ -490,12 +508,14 @@ function joinRoom(){
       }else if(data.t==='roster'){
         showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
+        updatePhoneGamePicker(data.phase,self&&self.choice);
         $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
           data.phase==='playing'?(self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):
           data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':
           'กำลังรอเจ้าของห้องเริ่มเกม';
       }else if(data.t==='state'){
         showControllerMode(data.mode);
+        if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
           data.phase==='playing'?'กำลังเล่น • เหลือ '+Math.ceil(data.remaining)+' วินาที':
           data.phase==='results'?'จบรอบแล้ว':'รอเริ่มรอบ';
@@ -1040,6 +1060,12 @@ $('roomCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();
 $('switchRoomBtn').addEventListener('click',()=>{
   resetControllerForRoomChange('เปลี่ยนห้องในแท็บเดิมได้เลย สแกน QR หรือกรอกรหัสใหม่');
 });
+document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener('click',()=>{
+  const mode=button.dataset.pick;
+  if(!phoneSelectionOpen||!controllerReady||!Object.hasOwn(MODES,mode))return;
+  updatePhoneGamePicker('lobby',mode);
+  send(controllerConn,{t:'pick',mode});
+}));
 $('scanRoomBtn').addEventListener('click',()=>{void startRoomScanner();});
 $('cancelScanBtn').addEventListener('click',()=>{void stopRoomScanner();});
 $('leaveBtn').addEventListener('click',()=>{
