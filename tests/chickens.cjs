@@ -9,7 +9,8 @@ const chickens=host.window.Chickens;
 assert.ok(chickens,'CHICKENS engine is exported');
 const C=chickens.constants;
 assert.equal(C.playerSpeed,172);
-assert.equal(C.chickenSpeed,183);
+assert.equal(C.chickenSpeed,191);
+assert.equal(C.chickenRadius,8.3);
 assert.equal(C.depositTime,.3);
 assert.equal(C.punchCooldown,1);
 const playersFor=n=>Array.from({length:n},(_,i)=>({
@@ -37,8 +38,13 @@ for(const n of [1,2,4,8,12]){
   const {players,round,state}=make(n);
   assert.equal(state.pens.length,n);
   assert.equal(new Set(state.pens.map(p=>p.ownerId)).size,n);
-  assert.equal(state.targetFree,Math.max(9,Math.round(n*4.5)));
-  assert.equal(state.chickens.length,state.targetFree);
+  const quota=Math.round(n*4.5),initial=Math.min(20,quota);
+  assert.equal(state.totalChickens,quota,'finite quota per player count');
+  assert.equal(state.spawnLimit,initial,'at most twenty live chickens');
+  assert.equal(state.chickens.length,initial);
+  assert.equal(state.spawnedCount,initial);
+  assert.equal(state.remainingReserve,quota-initial);
+  assert.equal(state.scoredCount,0);
   assert.equal(state.world.w,n<=4?960:n<=8?1200:1440);
   assert.equal(state.world.h,n<=4?540:n<=8?675:810);
   assert.equal(state.remaining,n<=4?20:n<=8?30:40);
@@ -66,7 +72,7 @@ for(const n of [1,2,4,8,12]){
 // Catch on physical overlap, never by a threat-sensing radius.
 {
   const x=make(1),{round,players,state}=x,p=players[0],c=state.chickens[0];
-  round.phase='playing';state.chickens=[c];state.targetFree=1;
+  round.phase='playing';state.chickens=[c];
   c.x=p.x+100;c.y=p.y;c.invulnerable=0;
   chickens.update(.016,round,players);
   assert.equal(p.carriedChickenId,null,'no remote pickup');
@@ -84,7 +90,7 @@ for(const n of [1,2,4,8,12]){
   const c=state.chickens[0];
   a.x=state.center.x;b.x=a.x+14;a.y=b.y=state.center.y;
   c.x=a.x+7;c.y=a.y;
-  state.chickens=[c];state.targetFree=1;
+  state.chickens=[c];
   chickens.update(.016,round,players);
   assert.equal([a,b].filter(p=>p.carriedChickenId===c.id).length,1);
   assert.equal(c.status,'carried');
@@ -93,7 +99,7 @@ for(const n of [1,2,4,8,12]){
 {
   const x=make(2),{round,players,state}=x;
   const p=players[0],pen=state.pens[0],c=state.chickens[0];
-  round.phase='playing';state.chickens=[c];state.targetFree=1;
+  round.phase='playing';state.chickens=[c];
   c.status='carried';c.carrierId=p.id;p.carriedChickenId=c.id;
   p.x=state.center.x;p.y=state.center.y;p.dir={...pen.normal};
   run(round,players,.45);
@@ -109,7 +115,7 @@ for(const n of [1,2,4,8,12]){
 {
   const x=make(2),{round,players,state}=x,[carrier,owner]=players;
   const pen=state.pens[1],c=state.chickens[0];
-  round.phase='playing';state.chickens=[c];state.targetFree=1;
+  round.phase='playing';state.chickens=[c];
   c.status='carried';c.carrierId=carrier.id;carrier.carriedChickenId=c.id;
   placeAtGate(state,carrier,pen);
   run(round,players,.15);
@@ -137,7 +143,7 @@ for(const n of [1,2,4,8,12]){
 // Punching drops the carried chicken, never stuns or slows the target.
 {
   const x=make(2),{round,players,state}=x,[attacker,victim]=players;
-  round.phase='playing';state.targetFree=1;
+  round.phase='playing';
   const c=state.chickens[0];state.chickens=[c];
   attacker.x=state.center.x-38;attacker.y=state.center.y;
   victim.x=state.center.x;victim.y=state.center.y;
@@ -158,7 +164,7 @@ for(const n of [1,2,4,8,12]){
 {
   const x=make(2),{round,players,state}=x;
   const c=state.chickens[0],p=players[0],penCount=state.pens.length;
-  round.phase='playing';state.chickens=[c];state.targetFree=1;
+  round.phase='playing';state.chickens=[c];
   c.status='carried';c.carrierId=p.id;p.carriedChickenId=c.id;
   p.active=false;
   chickens.update(.016,round,players);
@@ -168,12 +174,54 @@ for(const n of [1,2,4,8,12]){
 // Bots use the same physics/dwell logic and deposit through the physical gate.
 {
   const x=make(1),{round,players,state}=x,p=players[0];
-  round.phase='playing';p.isBot=true;state.targetFree=1;
+  round.phase='playing';p.isBot=true;
   const c=state.chickens[0];state.chickens=[c];
   c.status='carried';c.carrierId=p.id;p.carriedChickenId=c.id;
   run(round,players,4);
   assert.ok(p.score>=1,'bot must reach the gate and dwell 0.30sec');
   assert.equal(c.status,'penned','the originally carried chicken must enter the pen');
+}
+// Finite chicken economy: 20 active chickens maximum, including any in hands.
+// Scoring retires one permanently and releases only one new chicken from the
+// finite reserve; after 54 deposits with 12 players no chicken can respawn.
+{
+  const {state,round,players}=make(12),p=players[0],pen=state.pens[0];
+  round.phase='playing';
+  players.slice(1).forEach(q=>q.active=false);
+  assert.equal(state.spawnedCount,20);
+  assert.equal(state.remainingReserve,34);
+  let originalId=state.chickens[0].id;
+  state.chickens[0].status='carried';
+  state.chickens[0].carrierId=p.id;
+  p.carriedChickenId=originalId;
+  chickens.update(.016,round,players);
+  assert.equal(state.spawnedCount,20,'carrying is counted in active cap');
+  chickens.dropChicken(state,p);
+  chickens.update(.016,round,players);
+  assert.equal(state.spawnedCount,20,'dropping is not a score, so no refill');
+  for(let i=0;i<54;i++){
+    const c=p.carriedChickenId!=null
+      ?state.chickens.find(c=>c.id===p.carriedChickenId)
+      :state.chickens.find(c=>c.status==='free');
+    assert.ok(c,'a live chicken is available until quota is exhausted');
+    c.status='carried';c.carrierId=p.id;p.carriedChickenId=c.id;
+    placeAtGate(state,p,pen);
+    run(round,players,.34);
+    assert.equal(state.scoredCount,i+1,'each deposit retires exactly one chicken');
+    assert.equal(p.score,i+1,'each retired chicken scores once');
+    assert.equal(state.spawnedCount+state.remainingReserve,54,'cannot mint extra chickens');
+    assert.ok(state.spawnedCount<=54,'lifetime spawn cap');
+    assert.ok(state.chickens.filter(x=>x.status==='free'||x.status==='carried').length<=20,
+      'never more than 20 chickens in play');
+    assert.equal(state.chickens.filter(x=>x.status==='penned').length,state.scoredCount);
+  }
+  assert.equal(state.remainingReserve,0);
+  assert.equal(state.spawnedCount,54);
+  assert.equal(state.chickens.length,54);
+  assert.equal(state.chickens.filter(x=>x.status==='free'||x.status==='carried').length,0);
+  run(round,players,1);
+  assert.equal(state.chickens.length,54,'all 54 are gone for the entire round');
+  assert.equal(state.scoredCount,54);
 }
 // Pauses are enforced by the game dispatcher: engine cannot update in results.
 {
