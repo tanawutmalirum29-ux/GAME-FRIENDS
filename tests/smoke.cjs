@@ -126,8 +126,13 @@ for(const n of [1,4,5,6,7,8,9,12]){
    'HUD obstacle height matches the smaller visual footprint');
  assert.ok(x.state.hudBlocker.w<x.state.world.w*.1);
  assert.ok(x.state.hudBlocker.h<x.state.world.h*.12);
- assert.ok(x.state.obstacles.slice(1).every(o=>art.KINDS.includes(o.kind)));
- assert.ok(x.state.obstacles.some(o=>o.kind==='coffin'));
+ assert.ok(['graveyard','egypt'].includes(x.state.theme));
+ const kinds=art.kindsForTheme(x.state.theme);
+ assert.ok(x.state.obstacles.slice(1).every(o=>kinds.includes(o.kind)),
+   'all visual props match the randomly selected arena theme');
+ const signature=x.state.theme==='egypt'?'sarcophagus':'coffin';
+ assert.equal(x.state.obstacles[1].kind,signature,
+   'the first large monument makes the chosen theme obvious');
  assert.ok(x.state.obstacles.slice(1).every(o=>o.x>0&&o.y>0));
  assert.equal(x.players.filter(p=>p.active&&!p.ghost).length,n);
  for(const p of x.players){
@@ -159,17 +164,51 @@ assert.ok(ghost.constants.ghostSpeed/ghost.constants.humanSpeed<1.10,
 assert.equal(ghost.constants.cloakTime,2);
 assert.equal(ghost.ITEM_NAMES.slow,'ยาสโลว์เพื่อน');
 assert.equal(Object.keys(ghost.ITEM_SVG).length,5);
-assert.equal(art.KINDS.length,8);
+assert.equal(art.KINDS.length,16);
+assert.equal(art.GRAVEYARD_KINDS.length,8);
+assert.equal(art.EGYPT_KINDS.length,8);
 assert.ok(art.KINDS.includes('coffin')&&art.KINDS.includes('plaque'));
+assert.ok(art.EGYPT_KINDS.includes('sarcophagus')&&art.EGYPT_KINDS.includes('pharaoh-bust'));
+assert.equal(art.pickTheme('',()=>0),'graveyard');
+assert.equal(art.pickTheme('',()=>.9999),'egypt');
+assert.equal(art.pickTheme('graveyard',()=>0),'egypt');
+assert.equal(art.pickTheme('egypt',()=>0),'graveyard');
+assert.equal(art.themeLabel('egypt'),'อียิปต์ฟาโรห์');
+assert.notEqual(art.lootSVG('egypt'),art.lootSVG('graveyard'),
+  'loot chests have their own art in each theme');
 assert.match(art.actorSVG(false,'#ff628c','walk0'),/<svg/);
 assert.notEqual(art.actorSVG(false,'#ff628c','walk0'),
   art.actorSVG(false,'#ff628c','walk2'),'moving legs use distinct SVG frames');
 assert.match(art.actorSVG(true,'#f5faff','float0'),/<svg/);
 assert.notEqual(art.obstacleSVG('coffin',0),art.obstacleSVG('headstone',0));
+assert.match(art.obstacleSVG('sarcophagus',0),/<svg[\s>]/);
+assert.match(art.obstacleSVG('egypt-obelisk',1),/<svg[\s>]/);
+assert.notEqual(art.obstacleSVG('pharaoh-bust',1),
+  art.obstacleSVG('sandstone-pillar',1));
 assert.equal(art.getObstacleImage('coffin',0),art.getObstacleImage('coffin',0),
-  'coffin SVG image is cached');
+  'coffin SVG is cached');
+assert.equal(art.getObstacleImage('sarcophagus',1),
+  art.getObstacleImage('sarcophagus',1),'Egypt SVG is cached');
+assert.equal(art.getLootImage('egypt'),art.getLootImage('egypt'),
+  'Egypt-themed crate image stays cached');
 assert.ok(loadedImages.length>=5,'preloaded item and cemetery art SVGs');
 assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
+{
+ // Every new round changes the inner arena theme, but retains the same
+ // fixed game mode, player capacity and unchanged external game cover.
+ const first=init(9),second=init(9),third=init(9);
+ assert.notEqual(second.state.theme,first.state.theme);
+ assert.notEqual(third.state.theme,second.state.theme);
+ for(const x of [first,second,third]){
+  assert.equal(x.state.npcs.length,1,'both themes start with one ghost');
+  assert.equal(x.state.world.w,1280,'crowded arena size unchanged');
+  const before=x.state.theme;
+  x.round.phase='playing';x.state.npcs.forEach(n=>n.stun=999);
+  ghost.update(.016,x.round,x.players);
+  assert.equal(x.state.theme,before,'theme remains fixed during the round');
+ }
+}
+
 
 // Hunting AI predicts paths and assigns distinct pack roles. Ghost bots
 // continue to use the same velocity physics, with NO punch or teleporting.
