@@ -10,6 +10,8 @@ const css=fs.readFileSync('style.css','utf8');
 assert.match(css,/@media\(orientation:portrait\)/);
 assert.match(html,/id="joystickBase"/);
 assert.match(html,/data-control="alt"/);
+assert.match(html,/id="viewportMeta"/);
+assert.match(css,/body\.zoom-locked/);
 
 function setup(url='https://game.example/') {
   const elements=new Map();
@@ -27,7 +29,8 @@ function setup(url='https://game.example/') {
       append(...items){this.children.push(...items);},
       replaceChildren(...items){this.children=items;},
       prepend(item){this.children.unshift(item);},
-      setAttribute(){},select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
+      setAttribute(name,value){this.attributes??={};this.attributes[name]=value;if(name==='content')this.content=value;},
+      select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
       getContext(){return context;},getBoundingClientRect(){return {left:0,top:0,width:200,height:200};},parentElement:null
     };
   };
@@ -47,8 +50,15 @@ function setup(url='https://game.example/') {
   const padButtons=Object.fromEntries(['action','alt'].map(key=>{
     const button=makeElement('pad-'+key);button.dataset.control=key;return [key,button];
   }));
+  const docHandlers={};
   const document={
     body:makeElement('body'),
+    fire(name,props={}){
+      const e={cancelable:true,defaultPrevented:false,
+        preventDefault(){this.defaultPrevented=true;},...props};
+      for(const fn of docHandlers[name]||[])fn(e);
+      return e;
+    },
     getElementById(id){assert(elements.has(id),'Missing ID: '+id);return elements.get(id);},
     createElement(tag){return makeElement(tag);},
     querySelectorAll(selector){
@@ -56,7 +66,7 @@ function setup(url='https://game.example/') {
       if(selector==='#controllerActive [data-control]')return Object.values(padButtons);
       return [];
     },
-    addEventListener(){},execCommand(){return true;}
+    addEventListener(name,fn){(docHandlers[name]??=[]).push(fn);},execCommand(){return true;}
   };
   const instances=[];
   class FakeConn{
@@ -88,13 +98,29 @@ function setup(url='https://game.example/') {
 
 const host=setup();
 assert.equal(host.elements.get('home').classList.contains('hidden'),false);
+assert.equal(host.scope.document.body.classList.contains('zoom-locked'),false);
+assert.doesNotMatch(host.elements.get('viewportMeta').content,/user-scalable=no/);
+assert.equal(host.scope.document.fire('gesturestart').defaultPrevented,false);
 host.click('addLocalBtn');
 assert.equal(host.elements.get('rosterCount').textContent,'1/12');
 host.click('offlineBtn');
 assert.equal(host.elements.get('game').classList.contains('hidden'),false);
+assert.equal(host.scope.document.body.classList.contains('zoom-locked'),true);
+assert.match(host.elements.get('viewportMeta').content,/maximum-scale=1,user-scalable=no/);
+assert.equal(host.scope.document.fire('gesturestart').defaultPrevented,true);
+assert.equal(host.scope.document.fire('gesturechange').defaultPrevented,true);
+assert.equal(host.scope.document.fire('touchmove',{touches:[{},{}]}).defaultPrevented,true);
+assert.equal(host.scope.document.fire('touchmove',{touches:[{}]}).defaultPrevented,false);
+const hitTarget={closest(selector){return selector.includes('#arena')?this:null;}};
+host.scope.document.fire('touchend',{target:hitTarget,changedTouches:[{}]});
+assert.equal(host.scope.document.fire('touchend',{target:hitTarget,changedTouches:[{}]}).defaultPrevented,true);
+assert.equal(host.scope.document.fire('dblclick').defaultPrevented,true);
 for(let i=0;i<120;i++)host.step(i*16.67);
 assert.equal(host.elements.get('gameMode').textContent,'STAR RUSH');
 host.click('exitBtn');
+assert.equal(host.scope.document.body.classList.contains('zoom-locked'),false);
+assert.doesNotMatch(host.elements.get('viewportMeta').content,/user-scalable=no/);
+assert.equal(host.scope.document.fire('touchmove',{touches:[{},{}]}).defaultPrevented,false);
 host.click('hostBtn');
 assert.equal(host.instances.length,1);
 host.instances[0].fire('open');
@@ -123,6 +149,8 @@ assert.equal(mobile.elements.get('controllerActive').classList.contains('hidden'
 assert.equal(mobile.elements.get('controllerName').textContent,'ทดสอบ');
 assert.equal(mobile.elements.get('controllerModeName').textContent,'STAR RUSH');
 assert.equal(mobile.scope.document.body.classList.contains('controller-playing'),true);
+assert.equal(mobile.scope.document.body.classList.contains('zoom-locked'),true);
+assert.match(mobile.elements.get('viewportMeta').content,/user-scalable=no/);
 mobile.padButtons.action.fire('pointerdown');
 assert.equal(conn.sent.at(-1).keys.action,true);
 mobile.padButtons.action.fire('pointerup');
@@ -175,6 +203,8 @@ assert.equal(tour.elements.get('replayBtn').textContent,'เริ่มทั�
 // Disconnect must exit landscape mode and clear the analog stick.
 conn.fire('close');
 assert.equal(mobile.scope.document.body.classList.contains('controller-playing'),false);
+assert.equal(mobile.scope.document.body.classList.contains('zoom-locked'),false);
+assert.doesNotMatch(mobile.elements.get('viewportMeta').content,/user-scalable=no/);
 // The new B secondary action and half-strength analog must alter minigame movement.
 const fighter={
   id:'p-test',name:'Stick',color:'#fff',active:true,alive:true,
@@ -188,4 +218,4 @@ const startX=fighter.x;
 engine.update(.10,miniRound,[fighter]);
 assert.ok(fighter.x>startX,'analog stick moves tank right');
 assert.ok(fighter.altCooldown>0,'B triggered tank dodge');
-console.log('SMOKE PASS: 7 game picker cards, simulated A/B joystick, offline minigames, tournament and QR controller');
+console.log('SMOKE PASS: scoped zoom guard, 7 game cards, A/B joystick, mini-games, tournament and QR controller');
