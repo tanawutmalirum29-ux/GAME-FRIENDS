@@ -373,7 +373,10 @@ function updatePhoneGamePicker(phase,choice){
   phoneSelectionOpen=phase==='lobby'&&controllerReady;
   myChosenMode=Object.hasOwn(MODES,choice)?choice:null;
   $('phoneGamePicker').classList.toggle('hidden',!phoneSelectionOpen);
-  $('controllerPreview').classList.toggle('hidden',phoneSelectionOpen);
+  // Picker and live game use the same permanent preview frame dimensions.
+  // During selection the joystick hit zone is disabled so all seven
+  // mini-game buttons stay tappable, including those on the left.
+  $('controllerButtons').classList.toggle('is-picking',phoneSelectionOpen);
   for(const button of document.querySelectorAll('[data-pick]')){
     const selected=button.dataset.pick===myChosenMode;
     button.classList.toggle('selected',selected);
@@ -385,12 +388,34 @@ function updatePhoneGamePicker(phase,choice){
 }
 let controllerMediaCall=null;
 let videoStreamActive=false;
+const VIDEO_QUALITY_CYCLE=['high','medium','low'];
+const VIDEO_QUALITY_TEXT={
+  high:{short:'ส',long:'สูง · 540p'},
+  medium:{short:'ก',long:'กลาง · 270p'},
+  low:{short:'ต',long:'ต่ำ · 144p'}
+};
+let controllerVideoQuality='medium';
 function savedVideoQuality(){
   try{
     const name=window.localStorage.getItem('gf-video-quality-v1');
     if(Object.hasOwn(VIDEO_QUALITY,name))return name;
   }catch(_){}
   return 'medium';
+}
+function renderVideoQualityButton(){
+  const quality=VIDEO_QUALITY_TEXT[controllerVideoQuality]||VIDEO_QUALITY_TEXT.medium;
+  const button=$('videoQualityBtn');
+  button.textContent=quality.short;
+  button.title='คุณภาพภาพ '+quality.long+' · กดเพื่อเปลี่ยนระดับ';
+  button.setAttribute('aria-label',button.title);
+  button.dataset.quality=controllerVideoQuality;
+}
+function setControllerVideoQuality(quality){
+  if(!Object.hasOwn(VIDEO_QUALITY,quality))return;
+  controllerVideoQuality=quality;
+  renderVideoQualityButton();
+  try{window.localStorage.setItem('gf-video-quality-v1',quality);}catch(_){}
+  if(controllerReady)send(controllerConn,{t:'video-quality',quality});
 }
 function stopControllerVideo(){
   const call=controllerMediaCall;
@@ -635,8 +660,8 @@ function joinRoom(){
         syncZoomPolicy();
         showControllerMode(data.mode);
         updatePhoneGamePicker(data.phase||'lobby',data.choice||null);
-        $('videoQuality').value=savedVideoQuality();
-        send(conn,{t:'video-quality',quality:$('videoQuality').value});
+        // Keep the previously chosen quality between rooms and reloads.
+        setControllerVideoQuality(savedVideoQuality());
         sendInputs();announceControllerTakeover();
       }else if(data.t==='preview'){
         if(controllerReady)receivePhonePreview(data.image);
@@ -1220,12 +1245,12 @@ document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener
   updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
 }));
-$('videoQuality').addEventListener('change',()=>{
-  const quality=$('videoQuality').value;
-  if(!Object.hasOwn(VIDEO_QUALITY,quality))return;
-  try{window.localStorage.setItem('gf-video-quality-v1',quality);}catch(_){}
-  if(controllerReady)send(controllerConn,{t:'video-quality',quality});
+$('videoQualityBtn').addEventListener('click',()=>{
+  const index=VIDEO_QUALITY_CYCLE.indexOf(controllerVideoQuality);
+  setControllerVideoQuality(VIDEO_QUALITY_CYCLE[(index+1)%VIDEO_QUALITY_CYCLE.length]);
 });
+controllerVideoQuality=savedVideoQuality();
+renderVideoQualityButton();
 $('videoStartBtn').addEventListener('click',()=>{
   const video=$('controllerPreviewVideo');
   if(typeof video.play==='function'){
