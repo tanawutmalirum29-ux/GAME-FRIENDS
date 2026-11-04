@@ -404,11 +404,11 @@ assert.equal(mobile.scope.document.body.classList.contains('zoom-locked'),false)
 assert.doesNotMatch(mobile.elements.get('viewportMeta').content,/user-scalable=no/);
 // Confirming exit, unlike cancel, disconnects the phone and returns to the home URL.
 const exitMobile=setup('https://game.example/?join=ABCDE3');
-exitMobile.elements.get('nick').value='ExitTester';exitMobile.click('joinBtn');
+exitMobile.elements.get('nick').value='ทดสอบ';exitMobile.click('joinBtn');
 exitMobile.instances[0].fire('open');
 const exitConn=exitMobile.instances[0].conn;
 exitConn.fire('open');
-exitConn.fire('data',{t:'welcome',id:'p-exit',name:'ExitTester',color:'#ffcf62',mode:'stars'});
+exitConn.fire('data',{t:'welcome',id:'p-exit',name:'ทดสอบ',color:'#ffcf62',mode:'stars'});
 exitMobile.click('leaveBtn');
 assert.equal(exitConn.open,true);
 exitMobile.click('confirmLeaveBtn');
