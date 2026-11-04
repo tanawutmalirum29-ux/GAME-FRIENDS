@@ -208,6 +208,7 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
  assert.ok(Math.abs(Combat.TOTAL-.48)<1e-9);
  const x=init(3);x.round.phase='playing';
  x.state.npcs.forEach(n=>n.stun=999);
+ x.state.obstacles=[]; // Attack test is for timing, not random map geometry.
  const [attacker,victim,far]=x.players;
  attacker.x=120;attacker.y=120;attacker.input.action=true;attacker.input.axisX=1;
  victim.x=157;victim.y=120;far.x=800;far.y=400;
