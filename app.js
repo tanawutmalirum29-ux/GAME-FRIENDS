@@ -345,6 +345,20 @@ function renderRoster(){
       label.textContent=MODES[p.choice];chosen.append(gameCover(p.choice),label);
     }else chosen.textContent='ยังไม่เลือกเกม';
     chosen.title=p.choice?MODES[p.choice]:'ยังไม่ได้เลือกเกม';
+    if(p.isBot){
+      chosen.title='คลิกหรือกด Enter เพื่อสลับเกมของบอท';
+      chosen.tabIndex=0;chosen.setAttribute('role','button');
+      chosen.setAttribute('aria-label','เปลี่ยนเกม '+p.name+' ปัจจุบัน '+(MODES[p.choice]||'ยังไม่เลือก'));
+      const cycle=()=>{
+        if(round)return;
+        p.choice=p.choice==='ghost'?'chickens':'ghost';
+        renderRoster();broadcastRoster();
+      };
+      chosen.addEventListener('click',cycle);
+      chosen.addEventListener('keydown',e=>{
+        if(e.key==='Enter'||e.key===' '){e.preventDefault();cycle();}
+      });
+    }
     const kick=document.createElement('button');kick.type='button';kick.textContent='×';kick.title='เอาผู้เล่นออก';kick.setAttribute('aria-label','เอา '+p.name+' ออกจากห้อง');
     kick.addEventListener('click',()=>removePlayer(p.id));
     item.append(color,name,type,chosen,kick);el.append(item);
