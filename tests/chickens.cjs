@@ -8,8 +8,12 @@ vm.runInContext(engineSource,host,{filename:'chickens.js'});
 const chickens=host.window.Chickens;
 assert.ok(chickens,'CHICKENS engine is exported');
 const C=chickens.constants;
-assert.equal(C.playerSpeed,172);
-assert.equal(C.chickenSpeed,191);
+assert.ok(Math.abs(C.playerSpeed-172*.7)<1e-8,'player movement reduced 30%');
+assert.ok(Math.abs(C.chickenSpeed-191*.7)<1e-8,'chicken escape speed reduced 30%');
+assert.ok(Math.abs(C.panicChickenSpeed-217*.7)<1e-8,'panic speed reduced 30%');
+assert.ok(Math.abs(C.idleChickenSpeed-96*.7)<1e-8,'idle movement reduced 30%');
+assert.ok(Math.abs(C.chickenTurnRate-8.2*.7)<1e-8,'turning reduced 30%');
+assert.ok(Math.abs(C.chickenFlapRate-16*.7)<1e-8,'flapping reduced 30%');
 assert.equal(C.chickenRadius,8.3);
 assert.equal(C.depositTime,.3);
 assert.equal(C.punchCooldown,1);
@@ -222,6 +226,44 @@ for(const n of [1,2,4,8,12]){
   run(round,players,1);
   assert.equal(state.chickens.length,54,'all 54 are gone for the entire round');
   assert.equal(state.scoredCount,54);
+}
+// Last bird deposited triggers results immediately even with time left.
+// An empty field must NOT end the round while someone is still carrying
+// the final bird.
+{
+  const {round,players,state}=make(2),p=players[0],pen=state.pens[0];
+  round.phase='playing';
+  const last=state.chickens[state.chickens.length-1];
+  for(const c of state.chickens){
+    if(c===last)continue;
+    c.status='penned';c.penId=pen.id;
+  }
+  state.scoredCount=state.totalChickens-1;
+  state.remainingReserve=0;
+  last.status='carried';last.carrierId=p.id;p.carriedChickenId=last.id;
+  placeAtGate(state,p,pen);
+  for(let i=0;i<3;i++){
+    assert.equal(chickens.update(.08,round,players),null,
+      'bird in hand is unfinished until the deposit dwell completes');
+  }
+  assert.equal(state.scoredCount,state.totalChickens-1);
+  assert.equal(chickens.update(.08,round,players),'winner',
+    'last deposited bird finishes the round before the time limit');
+  assert.equal(state.scoredCount,state.totalChickens);
+  assert.equal(last.status,'penned');
+  assert.equal(p.carriedChickenId,null);
+  assert.ok(state.remaining>19,'clock still has time when the winner is chosen');
+  assert.equal(chickens.update(.016,round,players),'winner',
+    'completed flock stays finished without changing the score');
+  assert.equal(state.scoredCount,state.totalChickens);
+}
+// The clock is still the fallback ending if there are chickens left.
+{
+  const {round,players,state}=make(2);
+  round.phase='playing';state.remaining=.03;
+  assert.equal(chickens.update(.08,round,players),'winner');
+  assert.equal(state.remaining,0);
+  assert.ok(state.scoredCount<state.totalChickens);
 }
 // Pauses are enforced by the game dispatcher: engine cannot update in results.
 {
