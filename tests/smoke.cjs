@@ -7,7 +7,7 @@ const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
 // production code or relying on internal globals.
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
-  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players};\nrequestAnimationFrame(animate);\n})();');
+  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
@@ -23,7 +23,15 @@ assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
 assert.match(source,/const MODES = \{ghost:'GHOST ATTACK'\}/);
-assert.match(html,/HUMANS LEFT/);
+// No duplicated HUD counters on canvas, no map description beneath the title.
+assert.doesNotMatch(html,/HUMANS LEFT|id="gameTitle"/);
+assert.match(html,/<div class="game-name"><span class="eyebrow" id="gameMode">GHOST ATTACK<\/span><\/div>/);
+assert.doesNotMatch(source,/\$\('gameTitle'\)/);
+assert.doesNotMatch(ghostSource,/มนุษย์เหลือ|ผีจะเกิดกลางแผนที่ใน 3 วินาที/);
+assert.match(css,/#game \.game-center-hud\{\s*position:relative;\s*transform:translateY\(-9px\)/);
+assert.match(css,/#game \.leaderboard\{\s*display:grid;\s*grid-template-columns:repeat\(var\(--leader-count,1\),minmax\(0,1fr\)\)/);
+assert.match(css,/#game \.leaderboard\{[\s\S]*?height:23px;[\s\S]*?overflow:hidden;/);
+assert.match(source,/root\.style\.setProperty\('--leader-count'/);
 assert.match(html,/ไม่จับเวลา/);
 assert.doesNotMatch(html,/id="duration"/);
 assert.match(html,/id="controllerInventory"/);
@@ -196,7 +204,7 @@ function setup(url='https://game.example/?host=1',portrait=false) {
   const makeElement=(id='')=>{
     const handlers={},classes=new Set();
     return {
-      id,style:{},dataset:{},children:[],value:'',textContent:'',disabled:false,
+      id,style:{setProperty(name,value){this[name]=value;}},dataset:{},children:[],value:'',textContent:'',disabled:false,
       classList:{
         add(c){classes.add(c);},remove(c){classes.delete(c);},
         toggle(c,flag){if(flag===undefined? !classes.has(c):flag)classes.add(c);else classes.delete(c);},
@@ -373,6 +381,15 @@ assert.equal(rr.phase,'results','one-player practice has a winner after ghost sp
 assert.equal(rr.remaining,null,'there is no per-round time limit');
 assert.ok(/คน/.test(host.elements.get('timer').textContent));
 assert.equal(host.elements.get('leaderboard').children.length,1);
+assert.equal(host.elements.get('leaderboard').style['--leader-count'],'1');
+const matchPlayers=host.scope.window.__ghostTest.getPlayers();
+const addedPlayers=mkPlayers(11).map((p,i)=>({...p,id:'extra-'+i,ghost:i%2===0}));
+matchPlayers.push(...addedPlayers);
+host.scope.window.__ghostTest.renderLeaderboard();
+assert.equal(host.elements.get('leaderboard').children.length,12);
+assert.equal(host.elements.get('leaderboard').style['--leader-count'],'12',
+  'twelve players use one fixed row instead of extending into the arena');
+matchPlayers.splice(-11);host.scope.window.__ghostTest.renderLeaderboard();
 assert.equal(host.elements.get('results').classList.contains('hidden'),false,
  'one player wins after the initial ghost spawn');
 host.click('backBtn');

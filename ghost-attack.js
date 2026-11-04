@@ -382,13 +382,8 @@ function draw(ctx,t,round,players){
     ctx.shadowBlur=14;ctx.shadowColor=caster.color;ctx.beginPath();
     ctx.arc(target.x,target.y,31+2*Math.sin(t*7),0,TAU);ctx.stroke();ctx.restore();
   }
-  ctx.fillStyle='#ecf7ff';ctx.font='bold 15px system-ui';ctx.textAlign='left';
-  const count=survivors(players).length;
-  ctx.fillText('มนุษย์เหลือ '+count+' คน • ผี '+(state.npcs.length+players.filter(p=>p.ghost).length)+' ตัว',27,35);
-  if(round.phase==='countdown'){
-    ctx.fillStyle='#d2eeff';ctx.font='bold 20px system-ui';ctx.textAlign='center';
-    ctx.fillText('ผีจะเกิดกลางแผนที่ใน 3 วินาที',w/2,55);
-  }
+  // Match HUD belongs exclusively to the toolbar above the field. The arena
+  // canvas intentionally contains no redundant counters or map instructions.
   ctx.restore();
 }
 window.GhostAttack={setup,update,draw,hud,itemStatus,cycleTarget,
