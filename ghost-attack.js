@@ -27,8 +27,11 @@ function getItemIconImage(item){
 }
 function preloadItemIcons(){for(const key of ITEMS)getItemIconImage(key);}
 
+const Combat=window.PartyCombatMotion;
+if(!Combat)throw new Error('combat-motion.js must load before ghost-attack.js');
 const C={humanSpeed:172,ghostSpeed:176,ghostTurn:5.3,hitRadius:19,punchRange:67,
-  punchStun:.63,punchCooldown:1.05,ghostStun:1.45,trapRoot:1.1,slowTime:2.5,boostTime:2.6,cloakTime:2};
+  punchStun:.63,punchCooldown:Combat.ATTACK.cooldown,ghostStun:1.45,
+  trapRoot:1.1,slowTime:2.5,boostTime:2.6,cloakTime:2};
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -72,6 +75,7 @@ function resetPlayer(p,pos){
   p.pickupNotice=null;p.pickupNoticeItem=null;p.pickupNoticeTime=0;
   p.stun=0;p.slow=0;p.cloak=0;p.boost=0;p.punchCooldown=0;
   p.punchFX=0;p.altLatch=false;p.actionLatch=false;
+  Combat.reset(p);
   p.input={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0};
   p.dir={x:1,y:0};p.survival=0;p.infectedAt=null;
   p.botMind=p.isBot?{jukeDir:Math.random()<.5?-1:1,nextJuke:0,
@@ -143,7 +147,7 @@ function nearestTarget(npc,players,state,preferLock=true){
   return next;
 }
 function convert(p,state){
-  if(!p.active||p.ghost)return;
+  if(!p.active||p.ghost||p.cloak>0)return;
   p.ghost=true;p.item=null;p.selecting=false;p.targetId=null;
   p.pickupNotice=null;p.pickupNoticeItem=null;p.pickupNoticeTime=0;
   p.cloak=0;p.boost=0;p.slow=0;p.stun=.17;
@@ -161,7 +165,8 @@ function advanceNpcs(dt,players,state){
     walk(npc,npc.dir.x*C.ghostSpeed,npc.dir.y*C.ghostSpeed,
       dt,state.world,state.obstacles,true);
     for(const p of players){
-      if(p.active&&!p.ghost&&dist(npc,p)<C.hitRadius+7)convert(p,state);
+      if(p.active&&!p.ghost&&p.cloak<=0&&dist(npc,p)<C.hitRadius+7)
+        convert(p,state);
     }
   }
 }
@@ -169,7 +174,7 @@ function useItem(p,state,players){
   if(!p.item||p.ghost)return;
   const item=p.item;
   if(item==='slow'){
-    const choices=players.filter(x=>x.active&&x.id!==p.id);
+    const choices=players.filter(x=>x.active&&!x.ghost&&x.id!==p.id);
     if(!p.selecting){
       if(!choices.length)return;
       p.selecting=true;
@@ -186,10 +191,11 @@ function useItem(p,state,players){
   if(item==='cloak')p.cloak=C.cloakTime;
   if(item==='boost')p.boost=C.boostTime;
   if(item==='stun'){
-    for(const npc of state.npcs)if(dist(npc,p)<=90)npc.stun=Math.max(npc.stun,C.ghostStun);
+    for(const npc of state.npcs)if(dist(npc,p)<=90)
+      Combat.applyStun(npc,C.ghostStun,p.color);
     for(const other of players)
       if(other.active&&other.ghost&&dist(other,p)<=90)
-        other.stun=Math.max(other.stun,C.ghostStun);
+        Combat.applyStun(other,C.ghostStun,p.color);
   }
   if(item==='trap'){
     state.traps.push({x:p.x,y:p.y,r:16,ttl:11,armed:.42,ownerGrace:1.1,owner:p.id,color:p.color});
@@ -197,19 +203,18 @@ function useItem(p,state,players){
 }
 function cycleTarget(state,players,p,direction){
   if(!state||!p||!p.active||!p.selecting||p.item!=='slow'||p.ghost)return false;
-  const choices=players.filter(x=>x.active&&x.id!==p.id);
+  const choices=players.filter(x=>x.active&&!x.ghost&&x.id!==p.id);
   if(!choices.length){p.targetId=null;return false;}
   const idx=choices.findIndex(q=>q.id===p.targetId);
   const delta=direction<0?-1:1;
   p.targetId=choices[(idx+delta+choices.length)%choices.length].id;
   return true;
 }
-function punch(p,players){
-  if(p.punchCooldown>0||p.stun>0)return;
-  p.punchCooldown=C.punchCooldown;p.punchFX=.22;
+function punch(p){Combat.startAttack(p);}
+function strikeImpact(p,players){
   const friends=players.filter(o=>o.active&&o.id!==p.id&&dist(o,p)<C.punchRange);
   const target=friends.sort((a,b)=>dist(a,p)-dist(b,p))[0];
-  if(target)target.stun=Math.max(target.stun,C.punchStun);
+  if(target)Combat.applyStun(target,C.punchStun,p.color);
 }
 function tickPlayers(dt,players,state){
   for(const p of players){
@@ -218,11 +223,15 @@ function tickPlayers(dt,players,state){
     for(const key of ['stun','slow','cloak','boost','punchCooldown','punchFX','pickupNoticeTime'])
       p[key]=Math.max(0,(p[key]||0)-dt);
     const input=p.input||{};
-    // Button presses require release before they can trigger again.
-    if(input.action&&!p.actionLatch)punch(p,players);
+    // Attacks have one shared windup / impact / recovery window.
+    const attackWasActive=Combat.isAttacking(p);
+    if(attackWasActive)Combat.stepAttack(p,dt,()=>strikeImpact(p,players));
+    if(input.action&&!p.actionLatch)punch(p);
     if(input.alt&&!p.altLatch)useItem(p,state,players);
     p.actionLatch=!!input.action;p.altLatch=!!input.alt;
-    if(p.stun>0){p.vx=0;p.vy=0;continue;}
+    if(p.stun>0||attackWasActive||Combat.isAttacking(p)){
+      p.vx=0;p.vy=0;continue;
+    }
     const rawX=clamp((Number(input.axisX)||0)+
       (input.right?1:0)-(input.left?1:0),-1,1);
     const rawY=clamp((Number(input.axisY)||0)+
@@ -289,7 +298,7 @@ function updateTraps(dt,players,state){
     if(t.armed>0)return true;
     for(const p of players){
       if(!p.active||p.ghost||(p.id===t.owner&&t.ownerGrace>0))continue;
-      if(dist(t,p)<25){p.stun=Math.max(p.stun,C.trapRoot);return false;}
+      if(dist(t,p)<25){Combat.applyStun(p,C.trapRoot,t.color);return false;}
     }
     return true;
   });
@@ -452,8 +461,8 @@ function update(dt,round,players){
   for(const spirit of players){
     if(!spirit.active||!spirit.ghost)continue;
     for(const person of players){
-      if(person.active&&!person.ghost&&dist(person,spirit)<C.hitRadius+5)
-        convert(person,state);
+      if(person.active&&!person.ghost&&person.cloak<=0&&
+         dist(person,spirit)<C.hitRadius+5)convert(person,state);
     }
   }
   updateTraps(dt,players,state);
@@ -479,8 +488,8 @@ function itemStatus(players){
   return players.filter(p=>p.active).map(p=>({
     id:p.id,item:p.item||null,ghost:!!p.ghost,selecting:!!p.selecting,
     targetId:p.targetId||null,
-    targetName:players.find(q=>q.id===p.targetId)?.name||'',
-    targets:players.filter(q=>q.active&&q.id!==p.id).map(q=>({id:q.id,name:q.name}))
+    targetName:players.find(q=>q.id===p.targetId&&!q.ghost)?.name||'',
+    targets:players.filter(q=>q.active&&!q.ghost&&q.id!==p.id).map(q=>({id:q.id,name:q.name}))
   }));
 }
 function hud(players,round){
@@ -507,16 +516,14 @@ function drawPerson(ctx,p,color,ghost,t,alpha=1){
     ctx.beginPath();ctx.moveTo(x,y-6);ctx.lineTo(x,y+9);
     ctx.moveTo(x,y);ctx.lineTo(x-8,y+7);ctx.moveTo(x,y);ctx.lineTo(x+8,y+7);ctx.stroke();
   }
-  if(p.stun>0){
-    ctx.strokeStyle='#ffdc75';ctx.lineWidth=3;
-    ctx.beginPath();ctx.arc(x,y-16,23,0,TAU);ctx.stroke();
-  }
-  if(p.punchFX>0){ctx.strokeStyle='#ffe6a0';ctx.lineWidth=4;ctx.beginPath();
-    ctx.arc(x,y,33,-.8,.7);ctx.stroke();}
+  // Attack and stun artwork are shared across all participating minigames.
+  Combat.drawAttack(ctx,p);
+  Combat.drawStun(ctx,p,t);
+  const labelY=y-(p.stun>0?70:39);
   ctx.font='bold 13px system-ui';ctx.textAlign='center';
   ctx.strokeStyle='#081329';ctx.lineWidth=4;
-  ctx.strokeText(p.name||'GHOST',x,y-39);
-  ctx.fillStyle='#fff';ctx.fillText(p.name||'GHOST',x,y-39);
+  ctx.strokeText(p.name||'GHOST',x,labelY);
+  ctx.fillStyle='#fff';ctx.fillText(p.name||'GHOST',x,labelY);
   ctx.restore();
 }
 function drawPickupNotice(ctx,p,w,h){
