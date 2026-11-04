@@ -7,6 +7,11 @@ const source=fs.readFileSync('app.js','utf8');
 const miniSource=fs.readFileSync('minigames.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
+// Do not tear down fullscreen (or device orientation) on leaving a room/round.
+assert.doesNotMatch(source,/document\.exitFullscreen\(/);
+assert.doesNotMatch(source,/screen\.orientation\.unlock\(/);
+assert.match(source,/const root=document\.documentElement;/);
+assert.doesNotMatch(source,/releaseHostFullscreen\(/);
 const hostLauncher=fs.readFileSync('host.html','utf8');
 assert.match(hostLauncher,/\?host=1/);
 assert.match(html,/id="controllerPreviewVideo"/);
@@ -177,6 +182,27 @@ function setup(url='https://game.example/?host=1',portrait=false) {
     },
     addEventListener(name,fn){(docHandlers[name]??=[]).push(fn);},execCommand(){return true;}
   };
+  // Browser Fullscreen belongs to the persistent document root on the host.
+  // A controller can independently fullscreen its persistent #controller view.
+  document.documentElement=makeElement('html');
+  document.fullscreenElement=null;
+  document.fullscreenRequests=0;
+  document.fullscreenExits=0;
+  document.documentElement.requestFullscreen=()=>{
+    document.fullscreenRequests++;
+    document.fullscreenElement=document.documentElement;
+    return Promise.resolve();
+  };
+  document.exitFullscreen=()=>{
+    document.fullscreenExits++;
+    document.fullscreenElement=null;
+    return Promise.resolve();
+  };
+  elements.get('controller').requestFullscreen=()=>{
+    document.fullscreenRequests++;
+    document.fullscreenElement=elements.get('controller');
+    return Promise.resolve();
+  };
   const instances=[];
   class FakeMediaCall{
     constructor(peer,stream,options={}){
@@ -292,6 +318,9 @@ host.click('offlineBtn');
 assert.equal(host.elements.get('hostLobby').classList.contains('hidden'),false);
 assert.equal(host.elements.get('startBtn').disabled,false);
 host.click('startBtn');
+assert.equal(host.scope.document.fullscreenElement,host.scope.document.documentElement,
+  'host fullscreen uses persistent root, never the disappearing game screen');
+assert.equal(host.scope.document.fullscreenRequests,1);
 assert.equal(host.elements.get('game').classList.contains('hidden'),false);
 assert.equal(host.scope.document.body.classList.contains('host-playing'),true);
 assert.equal(host.elements.get('leaderboard').children.length,1,'one player uses one score chip');
@@ -322,6 +351,10 @@ assert.notEqual(host.elements.get('timer').textContent,timerBeforePause,'timer r
 host.click('pauseBtn');
 host.click('exitBtn');
 assert.equal(host.elements.get('hostLobby').classList.contains('hidden'),false);
+assert.equal(host.scope.document.fullscreenElement,host.scope.document.documentElement,
+  'host remains fullscreen after exiting the game to QR lobby');
+assert.equal(host.scope.document.fullscreenExits,0,
+  'host never calls browser fullscreen exit');
 assert.equal(host.scope.document.body.classList.contains('host-playing'),false);
 assert.equal(host.scope.document.body.classList.contains('zoom-locked'),false);
 assert.doesNotMatch(host.elements.get('viewportMeta').content,/user-scalable=no/);
@@ -673,9 +706,20 @@ exitMobile.instances[0].fire('open');
 const exitConn=exitMobile.instances[0].conn;
 exitConn.fire('open');
 exitConn.fire('data',{t:'welcome',id:'p-exit',name:'ทดสอบ',color:'#ffcf62',mode:'stars'});
+// Simulate a landscape-fullscreen phone, as would be entered by the user.
+exitMobile.scope.document.fullscreenElement=exitMobile.elements.get('controller');
+let orientationUnlockCount=0;
+exitMobile.scope.window.screen.orientation={
+  unlock(){orientationUnlockCount++;}
+};
 exitMobile.click('leaveBtn');
 assert.equal(exitConn.open,true);
 exitMobile.click('confirmLeaveBtn');
+assert.equal(exitMobile.scope.document.fullscreenElement,exitMobile.elements.get('controller'),
+  'phone stays fullscreen on its join form after confirmed leave');
+assert.equal(exitMobile.scope.document.fullscreenExits,0);
+assert.equal(orientationUnlockCount,0,
+  'leaving the game does not undo the phone landscape orientation lock');
 assert.equal(exitConn.open,false,'confirmation disconnects PeerJS');
 assert.equal(exitMobile.scope.document.body.classList.contains('controller-playing'),false);
 assert.equal(exitMobile.elements.get('leaveConfirm').classList.contains('hidden'),true);
@@ -710,8 +754,12 @@ const firstConn=newTab.instances[0].conn;
 firstConn.fire('open');
 firstConn.fire('data',{t:'welcome',id:'p77',name:'ทดสอบ',color:'#fff',mode:'stars'});
 assert.equal(newTab.scope.document.body.classList.contains('controller-playing'),true);
+newTab.scope.document.fullscreenElement=newTab.elements.get('controller');
 newTab.click('switchRoomBtn');
 assert.equal(firstConn.open,false,'old controller transport released before switching');
+assert.equal(newTab.scope.document.fullscreenElement,newTab.elements.get('controller'),
+  'switching to another room remains fullscreen');
+assert.equal(newTab.scope.document.fullscreenExits,0);
 assert.equal(newTab.elements.get('joinForm').classList.contains('hidden'),false);
 assert.equal(newTab.scope.document.body.classList.contains('controller-playing'),false);
 newTab.elements.get('roomCodeInput').value='EFGH45';

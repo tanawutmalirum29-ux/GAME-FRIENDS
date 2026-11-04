@@ -57,17 +57,17 @@ function setView(view) {
   window.scrollTo(0,0);
 }
 function requestHostFullscreen(){
-  // Browser chrome may remain on iOS Safari; CSS still uses the full viewport.
-  const game=$('game');
-  if(game.requestFullscreen&&!document.fullscreenElement){
-    try{const result=game.requestFullscreen({navigationUI:'hide'});if(result&&result.catch)result.catch(()=>{});}
-    catch(_){/* Full viewport CSS is the fallback. */}
-  }
-}
-function releaseHostFullscreen(){
-  if(document.fullscreenElement===$('game')&&document.exitFullscreen){
-    try{const result=document.exitFullscreen();if(result&&result.catch)result.catch(()=>{});}
-    catch(_){/* Not supported by this browser. */}
+  // Fullscreen the persistent DOCUMENT root, not the #game view.
+  // Hiding #game when returning to the QR lobby would otherwise force browsers
+  // to leave Fullscreen, even when the user never asked to leave it.
+  // On iOS browsers without Element.requestFullscreen, the fixed-viewport CSS
+  // remains the fallback, and OS-level fullscreen behavior is browser-owned.
+  const root=document.documentElement;
+  if(root&&root.requestFullscreen&&!document.fullscreenElement){
+    try{
+      const result=root.requestFullscreen({navigationUI:'hide'});
+      if(result&&result.catch)result.catch(()=>{});
+    }catch(_){/* CSS full-viewport fallback remains active. */}
   }
 }
 // Safari may ignore viewport scaling hints for gesture zoom; guard native gestures
@@ -557,14 +557,6 @@ function announceControllerTakeover(){
   try{if(controllerChannel)controllerChannel.postMessage({type:'active-controller',token:controllerTabToken});}
   catch(_){}
 }
-function exitControllerFullscreen(){
-  try{
-    if(document.fullscreenElement===$('controller')&&document.exitFullscreen){
-      const result=document.exitFullscreen();
-      if(result&&result.catch)result.catch(()=>{});
-    }
-  }catch(_){}
-}
 const QR_READER_CDN='https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
 let qrLibraryPromise=null,activeQrSession=null;
 function loadQrLibrary(){
@@ -631,9 +623,8 @@ function resetControllerForRoomChange(message){
   $('leaveConfirm').classList.add('hidden');
   resetPhonePreview();
   void stopRoomScanner();
-  exitControllerFullscreen();
-  try{if(window.screen&&window.screen.orientation&&window.screen.orientation.unlock)
-    window.screen.orientation.unlock();}catch(_){} 
+  // Switching/leaving rooms must not cancel the user's fullscreen or
+  // orientation lock. The join form still renders inside #controller.
   safePeerDestroy();
   controllerReady=false;controllerId=null;
   for(const k of INPUT_NAMES)controllerKeys[k]=false;
@@ -1196,7 +1187,7 @@ function returnToLobby(){
   broadcast({t:'preview-reset'});
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
-  releaseHostFullscreen();
+  // Keep document-root fullscreen during lobby/round transitions.
   setView('hostLobby');renderRoster();broadcastRoster();
 }
 $('pauseBtn').addEventListener('click',pauseGame);
