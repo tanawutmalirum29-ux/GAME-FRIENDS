@@ -270,8 +270,99 @@ function selectRoomCode(code){
   }catch(_){}
   return true;
 }
+// One active phone controller per browser profile: new Chrome QR tabs may still
+// open, but an active new tab releases the previous controller cleanly.
+const controllerTabToken=String(Date.now())+'-'+Math.random().toString(36).slice(2);
+let controllerChannel=null;
+try{
+  if(typeof window.BroadcastChannel==='function'){
+    controllerChannel=new window.BroadcastChannel('gf-controller-active-v1');
+    controllerChannel.onmessage=event=>{
+      const msg=event.data;
+      if(msg&&msg.type==='active-controller'&&msg.token!==controllerTabToken&&controllerReady)
+        resetControllerForRoomChange('จอยถูกย้ายไปแท็บใหม่แล้ว สามารถสแกนหรือกรอกรหัสห้องเพื่อกลับมาเล่นได้');
+    };
+  }
+}catch(_){}
+function announceControllerTakeover(){
+  try{if(controllerChannel)controllerChannel.postMessage({type:'active-controller',token:controllerTabToken});}
+  catch(_){}
+}
+function exitControllerFullscreen(){
+  try{
+    if(document.fullscreenElement===$('controller')&&document.exitFullscreen){
+      const result=document.exitFullscreen();
+      if(result&&result.catch)result.catch(()=>{});
+    }
+  }catch(_){}
+}
+const QR_READER_CDN='https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+let qrLibraryPromise=null,activeQrSession=null;
+function loadQrLibrary(){
+  if(typeof window.Html5Qrcode==='function')return Promise.resolve();
+  if(!qrLibraryPromise){
+    qrLibraryPromise=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src=QR_READER_CDN;script.async=true;
+      script.onload=()=>typeof window.Html5Qrcode==='function'?resolve():reject(new Error('QR scanner unavailable'));
+      script.onerror=()=>reject(new Error('QR scanner could not be downloaded'));
+      document.head.appendChild(script);
+    }).catch(error=>{qrLibraryPromise=null;throw error;});
+  }
+  return qrLibraryPromise;
+}
+async function releaseQrSession(session){
+  if(!session)return;
+  if(session.started){try{await session.started;}catch(_){}}
+  if(session.reader){
+    try{await session.reader.stop();}catch(_){}
+    try{session.reader.clear();}catch(_){}
+  }
+}
+async function stopRoomScanner(){
+  const session=activeQrSession;
+  activeQrSession=null;
+  $('roomScannerPanel').classList.add('hidden');
+  await releaseQrSession(session);
+}
+async function startRoomScanner(){
+  await stopRoomScanner();
+  const session={reader:null,started:null,found:false};
+  activeQrSession=session;
+  $('roomScannerPanel').classList.remove('hidden');
+  $('scanRoomStatus').textContent='กำลังเปิดกล้องเพื่อสแกน QR...';
+  try{
+    await loadQrLibrary();
+    if(activeQrSession!==session)return;
+    const config=window.Html5QrcodeSupportedFormats?
+      {formatsToSupport:[window.Html5QrcodeSupportedFormats.QR_CODE]}:{};
+    session.reader=new window.Html5Qrcode('roomQrReader',config);
+    session.started=session.reader.start({facingMode:'environment'},{fps:8,qrbox:220},decoded=>{
+      if(activeQrSession!==session||session.found)return;
+      const code=parseRoomCode(decoded);
+      if(!code){$('scanRoomStatus').textContent='QR ไม่ใช่รหัสห้อง GAME-FRIENDS';return;}
+      session.found=true;
+      void (async()=>{
+        await stopRoomScanner();
+        if(selectRoomCode(code))joinRoom();
+      })();
+    },()=>{});
+    await session.started;
+    if(activeQrSession===session)$('scanRoomStatus').textContent='ส่องกล้องไปยัง QR Code ห้องใหม่';
+  }catch(_){
+    if(activeQrSession===session){
+      $('scanRoomStatus').textContent='เปิดกล้องไม่สำเร็จ ตรวจสอบสิทธิ์กล้องหรือกรอกรหัส 6 ตัวแทน';
+      await releaseQrSession(session);
+      if(activeQrSession===session)activeQrSession=null;
+    }
+  }
+}
 function resetControllerForRoomChange(message){
   disconnectRequested=true;
+  void stopRoomScanner();
+  exitControllerFullscreen();
+  try{if(window.screen&&window.screen.orientation&&window.screen.orientation.unlock)
+    window.screen.orientation.unlock();}catch(_){} 
   safePeerDestroy();
   controllerReady=false;controllerId=null;
   for(const k of INPUT_NAMES)controllerKeys[k]=false;
@@ -862,7 +953,9 @@ document.querySelectorAll('#controllerActive [data-control]').forEach(btn=>bindC
 bindAnalogStick($('joystickZone'),$('joystickBase'),$('joystickKnob'),controllerKeys);
 setInterval(sendInputs,100);
 window.addEventListener('beforeunload',()=>{
-  void stopRoomScanner();safePeerDestroy();if(hostPeer)hostPeer.destroy();
+  void stopRoomScanner();safePeerDestroy();
+  try{if(controllerChannel)controllerChannel.close();}catch(_){}
+  if(hostPeer)hostPeer.destroy();
 });
 
 const joinCode=parseRoomCode(new URLSearchParams(location.search).get('join'));
