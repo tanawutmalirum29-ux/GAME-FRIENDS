@@ -68,6 +68,25 @@ assert.match(css,/#game \.game-name\{[\s\S]*?left:max\(116px/);
 assert.match(css,/body\.controller-playing \.face-b\{margin-top:8px\}/);
 assert.match(css,/body\.controller-playing \.gamepad-face-buttons\{[\s\S]*?justify-self:end/);
 assert.match(css,/#game \.game-pause-btn\{[\s\S]*?min-height:35px/);
+// Every app route fits one physical viewport without nested scrolling.
+// These CSS contract checks supplement (not replace) real device layout tests.
+assert.match(css,/html,body\{\s*height:100%;width:100%;margin:0;\s*overflow:hidden!important/);
+assert.match(css,/body \.app\{[\s\S]*?height:100vh;height:100dvh;min-height:0;\s*overflow:hidden!important/);
+assert.match(css,/#home\.party-entry\{[\s\S]*?overflow:hidden!important/);
+assert.match(css,/#hostLobby\.host-lobby\{[\s\S]*?overflow:hidden!important/);
+assert.match(css,/#hostLobby \.host-lobby-grid\{[\s\S]*?overflow:hidden!important/);
+assert.match(css,/#hostLobby \.lobby-qr-panel,[\s\S]*?overflow:hidden!important/);
+assert.match(css,/#hostLobby \.lobby-roster\{[\s\S]*?overflow:hidden!important/);
+assert.match(css,/#hostLobby \.lobby-roster\{\s*grid-template-rows:repeat\(6,minmax\(0,1fr\)\)/);
+assert.match(css,/#hostLobby \.lobby-controls\{[\s\S]*?overflow:hidden!important/);
+assert.match(css,/#game \.game-pause-overlay,[\s\S]*?overflow:hidden!important/);
+assert.match(css,/#game #resultList\{[\s\S]*?overflow:hidden!important/);
+assert.match(css,/#controller\.controller-page\{[\s\S]*?overflow:hidden!important/);
+assert.match(css,/#roomScannerPanel #roomQrReader\{[\s\S]*?overflow:hidden!important/);
+assert.match(css,/body\.controller-playing #controller \.phone-game-choices\{[\s\S]*?overflow:hidden!important/);
+assert.match(css,/@media\(orientation:landscape\) and \(max-height:520px\)/);
+assert.match(css,/@media\(orientation:portrait\) and \(max-width:720px\)/);
+assert.match(css,/body\.controller-playing\.portrait-fallback #controllerActive\{\s*width:100dvh;height:100dvw/);
 
 const persistedNicknames=new Map();
 function setup(url='https://game.example/?host=1',portrait=false) {
