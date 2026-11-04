@@ -150,6 +150,8 @@ function nearestTarget(npc,players,state,preferLock=true){
 function convert(p,state){
   if(!p.active||p.ghost||p.cloak>0)return;
   p.ghost=true;p.item=null;p.selecting=false;p.targetId=null;
+  // Cancel windups so a newly infected player can never land a ghost punch.
+  p.attackRemaining=0;p.attackHit=false;p.punchFX=0;
   p.pickupNotice=null;p.pickupNoticeItem=null;p.pickupNoticeTime=0;
   p.cloak=0;p.boost=0;p.slow=0;p.stun=.17;
   p.infectedAt=state.time;p.score=Math.floor(p.survival*10);
@@ -211,11 +213,25 @@ function cycleTarget(state,players,p,direction){
   p.targetId=choices[(idx+delta+choices.length)%choices.length].id;
   return true;
 }
-function punch(p){Combat.startAttack(p);}
+// Ghosts infect by touch ONLY. A is for human-vs-human defensive punches,
+// and hits must be in the forward strike arc instead of any nearby bystander.
+function punch(p){
+  if(!p||!p.active||p.ghost)return false;
+  return Combat.startAttack(p);
+}
 function strikeImpact(p,players){
-  const friends=players.filter(o=>o.active&&o.id!==p.id&&dist(o,p)<C.punchRange);
-  const target=friends.sort((a,b)=>dist(a,p)-dist(b,p))[0];
-  if(target)Combat.applyStun(target,C.punchStun,p.color);
+  if(!p.active||p.ghost||p.stun>0)return false;
+  const facing=p.attackFacing||p.dir||{x:1,y:0};
+  const candidates=players.filter(o=>o.active&&!o.ghost&&o.id!==p.id)
+    .map(o=>{
+      const dx=o.x-p.x,dy=o.y-p.y,range=Math.hypot(dx,dy);
+      return {player:o,range,forward:range>0?(dx*facing.x+dy*facing.y)/range:1};
+    })
+    .filter(o=>o.range<C.punchRange&&o.forward>.35)
+    .sort((a,b)=>a.range-b.range);
+  if(!candidates.length)return false;
+  Combat.applyStun(candidates[0].player,C.punchStun,p.color);
+  return true;
 }
 function tickPlayers(dt,players,state){
   for(const p of players){
@@ -227,7 +243,7 @@ function tickPlayers(dt,players,state){
     // Attacks have one shared windup / impact / recovery window.
     const attackWasActive=Combat.isAttacking(p);
     if(attackWasActive)Combat.stepAttack(p,dt,()=>strikeImpact(p,players));
-    if(input.action&&!p.actionLatch)punch(p);
+    if(!p.ghost&&input.action&&!p.actionLatch)punch(p);
     if(input.alt&&!p.altLatch)useItem(p,state,players);
     p.actionLatch=!!input.action;p.altLatch=!!input.alt;
     if(p.stun>0||attackWasActive||Combat.isAttacking(p)){
@@ -503,8 +519,8 @@ function updateBots(dt,players,state){
           y:clamp(victim.y+(victim.vy||0)*.25,21,state.world.h-21)};
         const dir=nrm(goal.x-p.x,goal.y-p.y);
         input.axisX=dir.x;input.axisY=dir.y;
-        if(dist(p,victim)<C.punchRange*.8&&p.punchCooldown<=0&&!p.actionLatch)
-          input.action=true;
+        // Touching a survivor infects them; ghosts have no punch control.
+        input.action=false;
       }
       continue;
     }
@@ -523,7 +539,7 @@ function updateBots(dt,players,state){
     const escaping=!!(threat&&danger<255&&p.cloak<=0);
     let key=escaping?'escape:'+threat.id:
       loot?'loot:'+loot.x.toFixed(0)+':'+loot.y.toFixed(0):
-      rivals.target?'rival:'+rivals.target.id:'roam';
+      'roam';
     const stuck=mind.stuckFor>.55;
     if(stuck){
       mind.stuckFor=0;
@@ -542,7 +558,6 @@ function updateBots(dt,players,state){
         goal=botEscapeGoal(p,state,dangers,mind.lastEscapeGoal);
         mind.lastEscapeGoal=goal;
       }else if(loot)goal={x:loot.x,y:loot.y};
-      else if(rivals.target)goal={x:rivals.target.x,y:rivals.target.y};
       else{
         if(!mind.roamGoal||dist(p,mind.roamGoal)<35)
           mind.roamGoal=freeSpot(state.world,state.obstacles,[p],32,90);
@@ -557,9 +572,21 @@ function updateBots(dt,players,state){
     const speed=escaping?1:.94;
     input.axisX=dir.x*speed;input.axisY=dir.y*speed;
     mind.lastPower=Math.hypot(input.axisX,input.axisY);
-    if(rivals.target&&rivals.distance<C.punchRange-10&&
-      (danger>120||p.cloak>0)&&p.punchCooldown<=0&&!p.actionLatch)
+    // Bots prioritize escape, looting and survival. Only punch when another
+    // HUMAN physically blocks the escape direction during an active chase.
+    const blocker=humans.filter(other=>other!==p)
+      .map(other=>{
+        const dx=other.x-p.x,dy=other.y-p.y;
+        const distance=Math.hypot(dx,dy);
+        const forward=distance>0?(dx*dir.x+dy*dir.y)/distance:0;
+        return {other,distance,forward};
+      }).find(hit=>hit.distance<39&&hit.forward>.53);
+    if(blocker&&escaping&&danger>76&&danger<170&&
+       p.punchCooldown<=0&&!p.actionLatch&&
+       state.time>=(mind.nextDefensivePunch||0)){
       input.action=true;
+      mind.nextDefensivePunch=state.time+2.8;
+    }
     // Defensive items are situational and use the same edge-triggered inputs.
     if(p.item&&!p.altLatch){
       const other=botNearest(p,humans.filter(q=>q!==p)).target;

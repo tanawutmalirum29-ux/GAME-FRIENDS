@@ -230,7 +230,34 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
  ghost.update(.03,x.round,x.players);
  assert.ok(attacker.x>120,'movement resumes after attack finishes');
 }
-// The render test observes exactly what spectators see over the collector.
+// Punch rights: only living humans can initiate and receive a punch.
+// The facing cone ignores ghosts and players behind the attacker.
+{
+ const x=init(4);x.round.phase='playing';x.state.obstacles=[];
+ x.state.npcs.forEach(n=>n.stun=999);
+ const [attacker,friend,spirit,behind]=x.players;
+ attacker.x=140;attacker.y=160;attacker.dir={x:1,y:0};
+ friend.x=185;friend.y=160;
+ spirit.x=172;spirit.y=122;spirit.ghost=true;
+ behind.x=94;behind.y=160;
+ attacker.input.action=true;
+ ghost.update(.02,x.round,x.players);
+ ghost.update(.19,x.round,x.players);
+ assert.ok(friend.stun>0,'human punches another human in front');
+ assert.equal(spirit.stun,0,'human punch does not stun a ghost');
+ assert.equal(behind.stun,0,'punch does not hit behind attacker');
+ attacker.ghost=true;attacker.stun=0;attacker.attackRemaining=0;
+ attacker.punchCooldown=0;attacker.input.action=false;
+ ghost.update(.02,x.round,x.players);
+ attacker.input.action=true;
+ ghost.update(.02,x.round,x.players);
+ assert.equal(attacker.attackRemaining,0,'player ghost cannot punch');
+ const bot=spirit;bot.isBot=true;bot.botMind=null;
+ bot.input.action=false;
+ ghost.update(.02,x.round,x.players);
+ assert.equal(bot.input.action,false,'AI ghost never punches');
+}
+ // The render test observes exactly what spectators see over the collector.
 const drawTexts=[],drawImages=[];
 const drawProbe=new Proxy({},{
   get(_obj,key){
