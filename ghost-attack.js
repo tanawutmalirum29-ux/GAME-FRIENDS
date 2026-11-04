@@ -6,6 +6,27 @@
 const TAU=Math.PI*2;
 const ITEMS=['cloak','boost','stun','trap','slow'];
 const ITEM_NAMES={cloak:'ผ้าคลุมล่องหน',boost:'บูสต์สปีด',stun:'สตั้นผี',trap:'กับดัก',slow:'ยาสโลว์เพื่อน'};
+
+const ITEM_SVG={
+ cloak:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="#8be9fd" d="M16 18c8-8 24-8 32 0v30c-5-3-10-5-16-5s-11 2-16 5V18z"/><path fill="#d9fbff" d="M23 19c4-3 14-3 18 0v6H23z"/></svg>`,
+ boost:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="#ffd54f" d="M36 4 14 35h14l-4 25 26-35H35z"/></svg>`,
+ stun:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="14" fill="#ffb74d"/><path fill="#fff3c4" d="m32 7 5 10 11 1-8 8 2 11-10-5-10 5 2-11-8-8 11-1z"/></svg>`,
+ trap:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="#cfd8dc" d="M10 34c0-8 10-14 22-14s22 6 22 14-10 18-22 18S10 42 10 34z"/><path fill="#ef5350" d="M16 37h32l-4 7H20z"/><path fill="#455a64" d="M18 28h4v7h-4zm8 0h4v7h-4zm8 0h4v7h-4zm8 0h4v7h-4z"/></svg>`,
+ slow:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="#b39ddb" d="M24 8h16v6l8 11c5 7 0 23-16 23S11 32 16 25l8-11z"/><circle cx="32" cy="33" r="7" fill="#ede7f6"/></svg>`
+};
+const ITEM_ICON_IMAGES=Object.create(null);
+function getItemIconImage(item){
+ if(!ITEM_SVG[item]||typeof Image==='undefined')return null;
+ if(!ITEM_ICON_IMAGES[item]){
+  const img=new Image();
+  img.decoding='async';
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(ITEM_SVG[item]);
+  ITEM_ICON_IMAGES[item]=img;
+ }
+ return ITEM_ICON_IMAGES[item];
+}
+function preloadItemIcons(){for(const key of ITEMS)getItemIconImage(key);}
+
 const C={humanSpeed:172,ghostSpeed:176,ghostTurn:5.3,hitRadius:19,punchRange:67,
   punchStun:.63,punchCooldown:1.05,ghostStun:1.45,trapRoot:1.1,slowTime:2.5,boostTime:2.6,cloakTime:2};
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -48,13 +69,14 @@ function resetPlayer(p,pos){
   p.x=pos.x;p.y=pos.y;p.vx=0;p.vy=0;p.face=1;
   p.active=true;p.alive=true;p.ghost=false;p.score=0;
   p.item=null;p.selecting=false;p.targetId=null;
-  p.pickupNotice=null;p.pickupNoticeTime=0;
+  p.pickupNotice=null;p.pickupNoticeItem=null;p.pickupNoticeTime=0;
   p.stun=0;p.slow=0;p.cloak=0;p.boost=0;p.punchCooldown=0;
   p.punchFX=0;p.altLatch=false;p.actionLatch=false;
   p.input={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0};
   p.dir={x:1,y:0};p.survival=0;p.infectedAt=null;
 }
 function setup(round,players){
+  preloadItemIcons();
   const tier=Math.max(1,Math.ceil(Math.max(4,players.length)/4));
   const world={w:960+(tier-1)*240,h:540+(tier-1)*135};
   const obstacles=makeObstacles(world,tier);
@@ -118,7 +140,7 @@ function nearestTarget(npc,players,state,preferLock=true){
 function convert(p,state){
   if(!p.active||p.ghost)return;
   p.ghost=true;p.item=null;p.selecting=false;p.targetId=null;
-  p.pickupNotice=null;p.pickupNoticeTime=0;
+  p.pickupNotice=null;p.pickupNoticeItem=null;p.pickupNoticeTime=0;
   p.cloak=0;p.boost=0;p.slow=0;p.stun=.17;
   p.infectedAt=state.time;p.score=Math.floor(p.survival*10);
   state.converted.push(p.id);
@@ -239,7 +261,8 @@ function updateBoxes(dt,players,state){
       p.item=b.item;
       // Independent of the inventory slot: announce what this player JUST
       // collected above their character, for a brief, readable interval.
-      p.pickupNotice=ITEM_NAMES[b.item]||'ไอเทม';
+      p.pickupNoticeItem=b.item;
+       p.pickupNotice=ITEM_NAMES[b.item]||'ไอเทม';
       p.pickupNoticeTime=2.1;
       state.boxes.splice(i,1);
       break;
@@ -333,19 +356,28 @@ function drawPerson(ctx,p,color,ghost,t,alpha=1){
 function drawPickupNotice(ctx,p,w,h){
   if(!p.pickupNotice||p.pickupNoticeTime<=0)return;
   const elapsed=2.1-p.pickupNoticeTime;
-  const x=clamp(p.x,110,Math.max(110,w-110));
   const y=clamp(p.y-66-elapsed*9,26,Math.max(26,h-48));
+  const msg='ได้รับ: '+p.pickupNotice;
+  const icon=getItemIconImage(p.pickupNoticeItem);
+  const showIcon=!!(icon&&icon.complete&&icon.naturalWidth>0);
   ctx.save();
   ctx.globalAlpha=clamp(p.pickupNoticeTime/.38,0,1);
-  ctx.textAlign='center';
+  ctx.textAlign='left';
   ctx.font='bold 15px system-ui';
   ctx.lineJoin='round';
   ctx.lineWidth=5;
   ctx.strokeStyle='#07192a';
   ctx.fillStyle='#ffe69b';
-  const msg='ได้รับ: '+p.pickupNotice;
-  ctx.strokeText(msg,x,y,220);
-  ctx.fillText(msg,x,y,220);
+  const iconSize=18,gap=6;
+  const textWidth=Math.min(220,ctx.measureText(msg).width);
+  const totalWidth=textWidth+(showIcon?iconSize+gap:0);
+  const half=totalWidth/2+8;
+  const centerX=clamp(p.x,half,Math.max(half,w-half));
+  const x=centerX-totalWidth/2;
+  if(showIcon)ctx.drawImage(icon,x,y-14,iconSize,iconSize);
+  const textX=x+(showIcon?iconSize+gap:0);
+  ctx.strokeText(msg,textX,y,220);
+  ctx.fillText(msg,textX,y,220);
   ctx.restore();
 }
 function draw(ctx,t,round,players){
@@ -413,5 +445,5 @@ function draw(ctx,t,round,players){
   ctx.restore();
 }
 window.GhostAttack={setup,update,draw,hud,itemStatus,cycleTarget,
-  ITEM_NAMES,constants:C};
+  ITEM_NAMES,ITEM_SVG,getItemIconImage,constants:C};
 })();
