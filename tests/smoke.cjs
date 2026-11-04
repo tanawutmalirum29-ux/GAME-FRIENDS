@@ -12,6 +12,9 @@ assert.match(html,/id="joystickBase"/);
 assert.match(html,/data-control="alt"/);
 assert.match(html,/id="viewportMeta"/);
 assert.match(css,/body\.zoom-locked/);
+assert.match(css,/\.pad-buttons\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+assert.match(css,/\.face-button\{\s*width:clamp\(94px,27vh,152px\)/);
+assert.match(css,/\.joystick-base\{width:clamp\(148px,43vh,270px\)/);
 
 function setup(url='https://game.example/') {
   const elements=new Map();
@@ -95,6 +98,20 @@ function setup(url='https://game.example/') {
   vm.runInContext(source,scope,{filename:'app.js'});
   return {elements,cards,padButtons,instances,scope,step(ms){assert(raf);raf(ms);},click(id){elements.get(id).fire('click');},clickCard(mode){const card=cards.find(b=>b.dataset.game===mode);assert(card);card.fire('click');}};
 }
+
+// All 12 active players need unique, easily distinguishable colors.
+const colors=setup();
+for(let i=0;i<12;i++)colors.click('addLocalBtn');
+const getColors=()=>colors.elements.get('roster').children.map(row=>row.children[0].style.background);
+assert.equal(getColors().length,12,'all player slots available');
+assert.equal(new Set(getColors()).size,12,'all players have distinct colors');
+assert.equal(colors.elements.get('addLocalBtn').disabled,true);
+// Removing someone must release only their color; a new join must not duplicate
+// another player's color when the roster length changes.
+colors.elements.get('roster').children[3].children[3].fire('click');
+assert.equal(colors.elements.get('rosterCount').textContent,'11/12');
+colors.click('addLocalBtn');
+assert.equal(new Set(getColors()).size,12,'color uniqueness persists after replacement');
 
 const host=setup();
 assert.equal(host.elements.get('home').classList.contains('hidden'),false);
