@@ -34,6 +34,14 @@ assert.match(html,/id="pauseMenu"/);
 assert.match(html,/id="resumeBtn"/);
 assert.match(css,/#game\.game-page\{[\s\S]*?position:fixed/);
 assert.match(css,/#game \.game-frame canvas\{[\s\S]*?object-fit:contain/);
+// One center column contains both timer and the score chips, no bottom scoreboard.
+assert.match(html,/<div class="game-center-hud">\s*<div class="timer-box">[\s\S]*?<div id="leaderboard" class="leaderboard"/);
+assert.match(css,/#game \.leaderboard\{\s*position:relative/);
+assert.match(css,/#game \.leaderboard\{[\s\S]*?flex-wrap:wrap;justify-content:center/);
+assert.match(css,/#game \.game-name\{[\s\S]*?left:max\(116px/);
+assert.match(css,/body\.controller-playing \.face-b\{margin-top:8px\}/);
+assert.match(css,/body\.controller-playing \.gamepad-face-buttons\{[\s\S]*?justify-self:end/);
+assert.match(css,/#game \.game-pause-btn\{[\s\S]*?min-height:35px/);
 
 const persistedNicknames=new Map();
 function setup(url='https://game.example/',portrait=false) {
@@ -147,7 +155,12 @@ colors.elements.get('roster').children[3].children[3].fire('click');
 assert.equal(colors.elements.get('rosterCount').textContent,'11/12');
 colors.click('addLocalBtn');
 assert.equal(new Set(getColors()).size,12,'color uniqueness persists after replacement');
-
+// Every player gets a separate score chip inside the centered score group.
+// With 12 players the flex-wrap style moves chips to more rows, never below the arena.
+colors.click('startBtn');
+assert.equal(colors.elements.get('leaderboard').children.length,12);
+assert.ok(colors.elements.get('leaderboard').children.every(chip=>
+  chip.children.length===3&&chip.children[1].textContent&&chip.children[2].textContent.includes('pts')));
 const host=setup();
 assert.equal(host.elements.get('home').classList.contains('hidden'),false);
 assert.equal(host.scope.document.body.classList.contains('zoom-locked'),false);
@@ -158,6 +171,7 @@ assert.equal(host.elements.get('rosterCount').textContent,'1/12');
 host.click('offlineBtn');
 assert.equal(host.elements.get('game').classList.contains('hidden'),false);
 assert.equal(host.scope.document.body.classList.contains('host-playing'),true);
+assert.equal(host.elements.get('leaderboard').children.length,1,'one player uses one score chip');
 assert.equal(host.elements.get('pauseMenu').classList.contains('hidden'),true);
 assert.equal(host.scope.document.body.classList.contains('zoom-locked'),true);
 assert.match(host.elements.get('viewportMeta').content,/maximum-scale=1,user-scalable=no/);
@@ -420,5 +434,5 @@ void (async()=>{
   newTab.instances[2].fire('open');
   newTab.instances[2].conn.fire('open');
   assert.equal(newTab.instances[2].conn.sent[0].name,'ทดสอบ');
-  console.log('SMOKE PASS: persistent nickname, in-tab QR scanning, manual room switching, floating joystick, paused network and minigames');
+  console.log('SMOKE PASS: centered 1-12 player top HUD, compact pause, separated right A/B, nickname, QR and minigames');
 })().catch(err=>{console.error(err);process.exitCode=1;});
