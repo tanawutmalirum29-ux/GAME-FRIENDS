@@ -4,6 +4,11 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const {webcrypto}=require('node:crypto');
 const source=fs.readFileSync('app.js','utf8');
+// Expose test-only readers inside the existing private IIFE without changing
+// production code or relying on internal globals.
+const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
+  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players};\nrequestAnimationFrame(animate);\n})();');
+assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
@@ -321,7 +326,7 @@ function setup(url='https://game.example/?host=1',portrait=false) {
     requestAnimationFrame(fn){raf=fn;},alert(){},confirm(){return true;}};
   const scope=vm.createContext(globals);
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
-  vm.runInContext(source,scope,{filename:'app.js'});
+  vm.runInContext(appForTest,scope,{filename:'app.js'});
   return {elements,pickButtons,padButtons,instances,scope,
     mediaCall(peer){return new FakeMediaCall(peer);},
     step(ms){assert(raf);raf(ms);},
@@ -347,7 +352,7 @@ assert.equal(host.elements.get('gameMode').textContent,'GHOST ATTACK');
 assert.equal(host.elements.get('game').classList.contains('hidden'),false);
 assert.equal(host.scope.document.fullscreenElement,host.scope.document.documentElement);
 assert.equal(host.elements.get('timer').textContent,'รอผี');
-let rr=vm.runInContext('round',host.scope);
+let rr=host.scope.window.__ghostTest.getRound();
 assert.equal(rr.phase,'countdown');assert.equal(rr.ghost.npcs.length,1);
 for(let i=0;i<245;i++)host.step(i*16.667);
 assert.equal(rr.ghost.ghostSpawned,true);
@@ -377,11 +382,11 @@ assert.equal(online.instances[0].mediaCalls[0].stream.height,540);
 const pair=online.instances[0].mediaCalls[0];
 assert.ok(pair.stream.width===960);
 assert.equal(pair.stream.fps,undefined);
-assert.equal(vm.runInContext('round.ghost.npcs.length',online.scope),1);
+assert.equal(online.scope.window.__ghostTest.getRound().ghost.npcs.length,1);
 assert.equal(conn.sent.some(x=>x.t==='inventory'),true);
 // A slow medicine target selection is always host authoritative.
-const oround=vm.runInContext('round',online.scope);
-const owut=vm.runInContext('players',online.scope)[0];
+const oround=online.scope.window.__ghostTest.getRound();
+const owut=online.scope.window.__ghostTest.getPlayers()[0];
 owut.item='slow';owut.selecting=true;owut.targetId='not-a-player';
 conn.fire('data',{t:'target-cycle',direction:1});
 // With only one participant there is no valid target; no fabricated target ID.
