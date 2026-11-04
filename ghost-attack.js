@@ -220,6 +220,14 @@ function ghostSteeringPoint(hunter,goal,state){
   const pad=23,rect={x:block.x-pad,y:block.y-pad,
     w:block.w+2*pad,h:block.h+2*pad};
   if(!ghostLineHitsRect(hunter,goal,rect))return goal;
+  // When a hunter is already inside the safety margin (but outside the
+  // physical HUD), route it to the free southeast corner first. Otherwise
+  // every segment starts inside the inflated rectangle and looks blocked.
+  if(hunter.x>=rect.x&&hunter.x<=rect.x+rect.w&&
+     hunter.y>=rect.y&&hunter.y<=rect.y+rect.h){
+    return {x:Math.min(state.world.w-22,rect.x+rect.w+12),
+      y:Math.min(state.world.h-22,rect.y+rect.h+12)};
+  }
   const options=[
     {x:rect.x-7,y:rect.y-7},{x:rect.x+rect.w+7,y:rect.y-7},
     {x:rect.x-7,y:rect.y+rect.h+7},
