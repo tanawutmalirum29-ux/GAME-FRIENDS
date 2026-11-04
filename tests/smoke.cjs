@@ -12,6 +12,14 @@ assert.match(html,/id="joystickBase"/);
 assert.match(html,/id="joystickZone"/);
 assert.match(html,/id="controllerPreviewImage"/);
 assert.match(html,/id="controllerPreviewPlaceholder"/);
+assert.match(html,/id="hostLobby"/);
+assert.match(html,/id="hostQueue"/);
+assert.match(html,/id="phoneGamePicker"/);
+assert.match(html,/data-pick="stars"/);
+assert.match(html,/data-pick="paint"/);
+assert.doesNotMatch(html,/id="gameCards"/);
+assert.match(css,/#hostLobby\.host-lobby/);
+assert.match(css,/\.roster-pick\.picked/);
 assert.match(html,/id="leaveConfirm"/);
 assert.match(html,/id="confirmLeaveBtn"/);
 assert.match(html,/id="stayInRoomBtn"/);
@@ -84,9 +92,10 @@ function setup(url='https://game.example/',portrait=false) {
     set(){return true;}
   });
   for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,makeElement(id));
-  elements.get('mode').value='stars';elements.get('duration').value='60';elements.get('sessionMode').value='quick';
-  const cards=[...html.matchAll(/data-game="([^"]+)"/g)].map(([,game])=>{
-    const card=makeElement('card-'+game);card.dataset.game=game;return card;
+  elements.get('duration').value='60';elements.get('sessionMode').value='queue';
+  elements.get('autoNext').checked=true;
+  const pickButtons=[...html.matchAll(/data-pick="([^"]+)"/g)].map(([,game])=>{
+    const button=makeElement('pick-'+game);button.dataset.pick=game;return button;
   });
   const padButtons=Object.fromEntries(['action','alt'].map(key=>{
     const button=makeElement('pad-'+key);button.dataset.control=key;return [key,button];
@@ -103,7 +112,7 @@ function setup(url='https://game.example/',portrait=false) {
     getElementById(id){assert(elements.has(id),'Missing ID: '+id);return elements.get(id);},
     createElement(tag){return makeElement(tag);},
     querySelectorAll(selector){
-      if(selector==='[data-game]')return cards;
+      if(selector==='[data-pick]')return pickButtons;
       if(selector==='#controllerActive [data-control]')return Object.values(padButtons);
       return [];
     },
@@ -152,7 +161,11 @@ function setup(url='https://game.example/',portrait=false) {
   const scope=vm.createContext(globals);
   vm.runInContext(miniSource,scope,{filename:'minigames.js'});
   vm.runInContext(source,scope,{filename:'app.js'});
-  return {elements,cards,padButtons,instances,scope,step(ms){assert(raf);raf(ms);},click(id){elements.get(id).fire('click');},clickCard(mode){const card=cards.find(b=>b.dataset.game===mode);assert(card);card.fire('click');}};
+  return {elements,pickButtons,padButtons,instances,scope,
+    step(ms){assert(raf);raf(ms);},
+    click(id){elements.get(id).fire('click');},
+    pick(mode){const button=pickButtons.find(x=>x.dataset.pick===mode);assert(button);button.fire('click');}
+  };
 }
 
 // All 12 active players need unique, easily distinguishable colors.
@@ -164,7 +177,7 @@ assert.equal(new Set(getColors()).size,12,'all players have distinct colors');
 assert.equal(colors.elements.get('addLocalBtn').disabled,true);
 // Removing someone must release only their color; a new join must not duplicate
 // another player's color when the roster length changes.
-colors.elements.get('roster').children[3].children[3].fire('click');
+colors.elements.get('roster').children[3].children[4].fire('click');
 assert.equal(colors.elements.get('rosterCount').textContent,'11/12');
 colors.click('addLocalBtn');
 assert.equal(new Set(getColors()).size,12,'color uniqueness persists after replacement');
@@ -182,6 +195,9 @@ assert.equal(host.scope.document.fire('gesturestart').defaultPrevented,false);
 host.click('addLocalBtn');
 assert.equal(host.elements.get('rosterCount').textContent,'1/12');
 host.click('offlineBtn');
+assert.equal(host.elements.get('hostLobby').classList.contains('hidden'),false);
+assert.equal(host.elements.get('startBtn').disabled,false);
+host.click('startBtn');
 assert.equal(host.elements.get('game').classList.contains('hidden'),false);
 assert.equal(host.scope.document.body.classList.contains('host-playing'),true);
 assert.equal(host.elements.get('leaderboard').children.length,1,'one player uses one score chip');
@@ -211,7 +227,7 @@ for(let i=480;i<560;i++)host.step(i*16.67);
 assert.notEqual(host.elements.get('timer').textContent,timerBeforePause,'timer resumes after pause');
 host.click('pauseBtn');
 host.click('exitBtn');
-assert.equal(host.elements.get('home').classList.contains('hidden'),false);
+assert.equal(host.elements.get('hostLobby').classList.contains('hidden'),false);
 assert.equal(host.scope.document.body.classList.contains('host-playing'),false);
 assert.equal(host.scope.document.body.classList.contains('zoom-locked'),false);
 assert.doesNotMatch(host.elements.get('viewportMeta').content,/user-scalable=no/);
@@ -221,27 +237,44 @@ assert.equal(host.instances.length,1);
 host.instances[0].fire('open');
 assert.equal(host.elements.get('roomCode').textContent.length,6);
 assert.match(host.elements.get('roomUrl').value,/join=[A-Z2-9]{6}/);
+assert.equal(host.elements.get('hostLobby').classList.contains('hidden'),false);
 
 // Remote player can be kicked without a recursive connection-close loop.
 const guest=host.instances[0].connect();
 host.instances[0].fire('connection',guest);
 guest.fire('data',{t:'join',name:'Friend'});
 assert.equal(host.elements.get('rosterCount').textContent,'2/12');
+// All active players must nominate a game. The host does not choose it.
+assert.equal(host.elements.get('startBtn').disabled,true);
+assert.match(host.elements.get('roster').children[1].children[3].textContent,/ยังไม่เลือกเกม/);
+guest.fire('data',{t:'pick',mode:'tanks'});
+assert.match(host.elements.get('roster').children[1].children[3].textContent,/TANK BLAST/);
+assert.equal(host.elements.get('startBtn').disabled,false);
+assert.match(host.elements.get('hostQueue').textContent,/TANK BLAST ×1/);
+// Invalid choices do not affect the queue.
+guest.fire('data',{t:'pick',mode:'invalid-injection'});
+assert.match(host.elements.get('hostQueue').textContent,/TANK BLAST ×1/);
 // A game frame is compressed on the host then sent only to joined controllers.
+host.elements.get('sessionMode').value='quick';
 host.click('startBtn');
 host.step(10000);
 const snapshot=guest.sent.find(packet=>packet.t==='preview');
 assert.ok(snapshot,'a remote joined controller receives a real game-frame packet');
 assert.match(snapshot.image,/^data:image\/jpeg;base64,/);
-assert.equal(snapshot.mode,'stars');
+assert.ok(['stars','tanks'].includes(snapshot.mode));
 host.click('pauseBtn');
+assert.equal(host.elements.get('gameChoiceList').children.length,2);
+assert.match(host.elements.get('gameChoiceList').children[1].textContent,/TANK BLAST/);
+// Picks cannot be changed while any round is in progress.
+guest.fire('data',{t:'pick',mode:'soccer'});
+assert.match(host.elements.get('gameChoiceList').children[1].textContent,/TANK BLAST/);
 assert.equal(guest.sent.at(-1).t,'state');
 assert.equal(guest.sent.at(-1).phase,'paused');
 host.click('resumeBtn');
 assert.equal(guest.sent.at(-1).phase,'countdown');
 host.click('pauseBtn');
 host.click('exitBtn');
-host.elements.get('roster').children[1].children[3].fire('click');
+host.elements.get('roster').children[1].children[4].fire('click');
 assert.equal(host.elements.get('rosterCount').textContent,'1/12');
 
 const mobile=setup('https://game.example/?join=ABCD23',true);
