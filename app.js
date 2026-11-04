@@ -762,6 +762,7 @@ function renderPhoneInventory(info){
     info.item==='slow'?'B เริ่มเลือกเพื่อนที่จะโดนสโลว์':
     info.item?'กด B เพื่อใช้งาน':'เดินเก็บกล่องสุ่ม • A ตีสตั้น';
   $('targetCycleControls').classList.toggle('hidden',!info.selecting);
+  $('controllerButtons').classList.toggle('has-target',!!info.selecting);
   $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
   $('buttonBLabel').textContent=info.selecting?'ยืนยันสโลว์':'ใช้ไอเทม';
 }
@@ -919,6 +920,7 @@ function startRound(forcedMode=null){
 function updateRound(dt){
   if(!round||round.paused)return;
   if(round.phase==='countdown'){
+    window.GhostAttack.update(dt,round,players);
     round.countdown=Math.max(0,round.countdown-dt);
     $('gameBanner').textContent=round.countdown>0?String(Math.ceil(round.countdown)):'ผีมาแล้ว!';
     if(round.countdown===0){
