@@ -586,3 +586,163 @@ body.controller-playing.portrait-fallback #controllerActive .face-b{margin-top:8
 @media(orientation:portrait) and (max-width:360px){
   body.controller-playing.portrait-fallback #controllerActive .face-b{margin-top:6px}
 }
+
+
+
+/* Compact top rail, leaving more room for the controller preview. */
+body.controller-playing .gamepad-hud{
+  min-height:43px;max-height:48px;
+  padding: max(2px,env(safe-area-inset-top,0px)) max(7px,env(safe-area-inset-right,0px)) 1px max(7px,env(safe-area-inset-left,0px));
+  gap:6px;flex-shrink:0;
+}
+body.controller-playing .gamepad-user{gap:6px}
+body.controller-playing .gamepad-avatar{
+  width:27px;height:27px;flex:0 0 27px;border-radius:8px;
+}
+body.controller-playing .gamepad-user strong{
+  font-size:clamp(11px,1.4vw,16px);line-height:1.1;
+}
+body.controller-playing .gamepad-top-actions{gap:5px;margin-left:auto;justify-content:flex-end}
+body.controller-playing .gamepad-tool{
+  min-height:30px;font-size:clamp(9px,1vw,11px);
+  padding:4px clamp(6px,.9vw,11px);line-height:1.1;
+  border-radius:8px;white-space:nowrap;
+}
+body.controller-playing .gamepad-top-actions #switchRoomBtn{
+  padding:4px clamp(6px,.9vw,11px);
+}
+/* Use the full central region for an actual compressed view of host gameplay. */
+body.controller-playing .controller-buttons{
+  display:grid;
+  grid-template-columns:minmax(102px,.95fr) minmax(175px,1.7fr) minmax(98px,.75fr);
+  gap:clamp(4px,.85vw,12px);
+  padding:0 max(8px,env(safe-area-inset-right,0px)) 0 max(8px,env(safe-area-inset-left,0px));
+  align-items:stretch;
+}
+body.controller-playing .gamepad-preview-column{
+  display:flex;flex-direction:column;gap:5px;
+  height:100%;width:100%;min-width:0;min-height:0;
+  align-items:stretch;justify-content:center;text-align:center;
+}
+body.controller-playing .gamepad-preview{
+  position:relative;width:100%;height:auto;min-width:0;min-height:0;
+  aspect-ratio:16/9;
+  flex:0 1 auto;overflow:hidden;border-radius:12px;
+  background:#080f22;
+  border:1px solid #657d9c8c;
+  box-shadow:0 8px 28px #0008,inset 0 0 30px #070e20;
+  touch-action:none;pointer-events:none;
+}
+body.controller-playing .gamepad-preview-image{
+  width:100%;height:100%;object-fit:contain;
+  display:block;image-rendering:auto;pointer-events:none;
+  user-select:none;-webkit-user-select:none;
+}
+body.controller-playing .gamepad-preview-placeholder{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:6px;text-align:center;padding:12px;
+  background:radial-gradient(ellipse at center,#1b2f4e 0%,#091426 90%);
+  pointer-events:none;
+}
+body.controller-playing .gamepad-preview-placeholder .preview-wait-icon{
+  font-size:clamp(21px,5vh,42px);color:#7bbfdc;line-height:1;
+}
+body.controller-playing .gamepad-preview-placeholder strong{
+  font-size:clamp(11px,1.65vw,17px);color:#edf6ff;
+}
+body.controller-playing .gamepad-preview-placeholder small{
+  font-size:clamp(9px,1vw,12px);color:#acbbd5;
+}
+body.controller-playing .gamepad-preview-top{
+  position:absolute;left:0;right:0;top:0;display:flex;align-items:center;justify-content:flex-start;
+  padding:5px 8px;gap:5px;background:linear-gradient(#080f20b9,transparent);
+  color:#e2f4ff;font-size:clamp(8px,.75vw,10px);letter-spacing:.8px;font-weight:900;
+  pointer-events:none;
+}
+body.controller-playing .preview-live-dot{
+  display:inline-block;width:6px;height:6px;border-radius:50%;background:#65e5a4;
+}
+body.controller-playing .preview-info{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;min-height:29px;max-width:100%;min-width:0;
+}
+body.controller-playing .preview-info .gamepad-mode{
+  font-size:clamp(10px,1.35vw,14px);font-weight:900;line-height:1.1;
+  letter-spacing:.7px;
+}
+body.controller-playing .preview-info #controllerState{
+  color:#acd6ee;font-size:clamp(9px,1.15vw,12px);
+  max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  line-height:1.2;
+}
+/* Confirm before leaving; do not make accidental taps destroy a session. */
+body.controller-playing #controllerActive{position:relative}
+.controller-leave-overlay{
+  position:absolute;inset:0;z-index:42;
+  display:flex;align-items:center;justify-content:center;
+  padding:14px;background:#030915db;backdrop-filter:blur(11px);
+  touch-action:none;
+}
+.controller-leave-card{
+  width:min(100%,380px);
+  max-height:100%;overflow:auto;
+  padding:clamp(17px,3vw,28px);border-radius:18px;
+  border:1px solid #6784ac;
+  background:linear-gradient(145deg,#253656,#151d34);
+  text-align:center;box-shadow:0 14px 44px #000a;
+}
+.controller-leave-card h2{font-size:clamp(19px,2.4vw,26px);margin:0 0 7px}
+.controller-leave-card p{font-size:clamp(11px,1.4vw,13px);color:#bed1e7;margin:0 0 16px}
+.controller-leave-card .leave-confirm-actions{
+  display:grid;grid-template-columns:1fr 1fr;gap:9px;
+}
+.controller-leave-card .btn{
+  min-height:45px;padding:8px;font-size:13px;line-height:1.25;
+  touch-action:manipulation;
+}
+.controller-leave-card #confirmLeaveBtn{background:#623b4d;border-color:#b26c83}
+/* The entire landscape-style controller is CSS-rotated in portrait fallback.
+   Keep center preview and top rail compact under that transform too. */
+@media(orientation:portrait){
+  body.controller-playing.portrait-fallback #controllerActive .controller-buttons{
+    grid-template-columns:minmax(94px,.9fr) minmax(150px,1.65fr) minmax(95px,.82fr);
+    padding:0 10px;gap:5px;align-items:stretch;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-hud{
+    min-height:39px;max-height:46px;padding:2px 7px;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-preview-column{
+    display:flex;align-items:stretch;justify-content:center;gap:3px;min-height:0;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-preview{
+    width:100%;aspect-ratio:16/9;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .preview-info{
+    gap:2px;min-height:24px;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-tool{
+    font-size:9px;min-height:28px;padding:4px 6px;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-face-buttons{
+    width:max-content;max-width:100%;justify-self:end;
+  }
+}
+@media(orientation:landscape) and (max-height:370px){
+  body.controller-playing .gamepad-hud{min-height:34px;max-height:39px}
+  body.controller-playing .gamepad-tool{min-height:27px;padding:3px 6px}
+  body.controller-playing .gamepad-preview-placeholder small{display:none}
+  body.controller-playing .preview-info{min-height:22px;gap:1px}
+  body.controller-playing .controller-help{display:none}
+  body.controller-playing .gamepad-preview{border-radius:8px}
+}
+@media(orientation:portrait) and (max-width:360px){
+  body.controller-playing.portrait-fallback #controllerActive .controller-buttons{
+    grid-template-columns:minmax(85px,.83fr) minmax(130px,1.5fr) minmax(90px,.8fr);
+    padding:0 8px;gap:3px;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-preview-placeholder small{display:none}
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-preview-placeholder strong{font-size:10px}
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-preview{border-radius:7px}
+}
