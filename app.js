@@ -226,13 +226,18 @@ function nominatedGames(){
 }
 function updateHostQueue(){
   const picks=nominatedGames();
-  if(!picks.length){$('hostQueue').textContent='รอผู้เล่นเลือกมินิเกมบนมือถือ';return;}
+  if(!picks.length){
+    $('hostQueue').textContent='รอผู้เล่นเลือกมินิเกมบนมือถือ';
+    $('hostQueue').title=$('hostQueue').textContent;
+    return;
+  }
   const totals=new Map();
   for(const mode of picks)totals.set(mode,(totals.get(mode)||0)+1);
   const counts=[...totals].map(([mode,count])=>MODES[mode]+' ×'+count);
   const waiting=players.length-picks.length;
   $('hostQueue').textContent='เลือกแล้ว '+picks.length+'/'+players.length+' คน • '+counts.join(' • ')+
     (waiting?' • รออีก '+waiting+' คน':' • พร้อมสุ่มลำดับ');
+  $('hostQueue').title=$('hostQueue').textContent;
 }
 function renderPauseChoiceList(){
   const box=$('gameChoiceList');box.replaceChildren();
@@ -251,6 +256,7 @@ function renderRoster(){
   if(!players.length){const p=document.createElement('p');p.className='empty';p.textContent='ยังไม่มีผู้เล่น ชวนเพื่อนสแกน QR Code หรือเพิ่มผู้เล่นคีย์บอร์ด';el.append(p);return;}
   players.forEach(p=>{
     const item=document.createElement('div');item.className='roster-item';
+    item.title=p.name+' — '+(MODES[p.choice]||'ยังไม่ได้เลือกเกม');
     const color=document.createElement('span');color.className='swatch';color.style.background=p.color;
     const name=document.createElement('b');name.textContent=p.name;
     const type=document.createElement('small');type.textContent=p.type==='local'?'คีย์บอร์ด':'มือถือ';
