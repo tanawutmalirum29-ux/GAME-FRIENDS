@@ -96,10 +96,10 @@ function setup(round,players){
   const world=players.length>=9?{w:1280,h:720}:
     players.length>=5?{w:1080,h:608}:{w:960,h:540};
   round.rules={...(round.rules||{}),viewMode:round.rules?.viewMode||'topdown'};
-  // Corner UI is physical scenery: no player OR ghost can cross it.
-  // All tiers display it at roughly the same apparent canvas size.
+  // Compact physical HUD: its visible SVG-sized panel AND hitbox shrink
+  // together, using proportional dimensions at every arena size.
   const hudBlocker={x:12*world.w/960,y:12*world.h/540,
-    w:120*world.w/960,h:82*world.h/540,
+    w:88*world.w/960,h:58*world.h/540,
     kind:'hud-blocker',fixed:true,solid:true};
   const obstacles=[hudBlocker,...makeObstacles(world,tier,[hudBlocker])];
   const center={x:world.w/2,y:world.h/2};
@@ -847,31 +847,31 @@ function drawPickupNotice(ctx,p,w,h){
 }
 function drawCornerHud(ctx,round,players,state){
   const o=state.hudBlocker;if(!o)return;
-  const unit=o.w/120;
-  ctx.save();
-  ctx.shadowColor='#001827';ctx.shadowBlur=8*unit;
-  ctx.shadowOffsetY=3*unit;
-  ctx.beginPath();ctx.roundRect(o.x,o.y,o.w,o.h,11*unit);
-  ctx.fillStyle='#102237';ctx.fill();
-  ctx.strokeStyle='#8bd5d9';ctx.lineWidth=2.5*unit;ctx.stroke();
-  ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-  ctx.beginPath();ctx.roundRect(o.x+5*unit,o.y+5*unit,
-    o.w-10*unit,o.h-10*unit,7*unit);
-  ctx.fillStyle='#193d49';ctx.fill();
-  ctx.strokeStyle='#3e8490';ctx.lineWidth=unit;ctx.stroke();
+  const unit=o.w/88;
+  const cx=o.x+o.w/2;
+  const countdown=round.phase==='countdown';
   const count=players.filter(p=>p.active).length;
+  ctx.save();
+  ctx.shadowColor='#001827';ctx.shadowBlur=5*unit;
+  ctx.shadowOffsetY=2*unit;
+  ctx.beginPath();ctx.roundRect(o.x,o.y,o.w,o.h,8*unit);
+  ctx.fillStyle='#102237';ctx.fill();
+  ctx.strokeStyle='#8bd5d9';ctx.lineWidth=1.8*unit;ctx.stroke();
+  ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+  ctx.beginPath();ctx.roundRect(o.x+3*unit,o.y+3*unit,
+    o.w-6*unit,o.h-6*unit,5*unit);
+  ctx.fillStyle='#193d49';ctx.fill();
+  ctx.strokeStyle='#3e8490';ctx.lineWidth=.75*unit;ctx.stroke();
   ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillStyle='#c4e7e5';ctx.font='bold '+(10*unit)+'px system-ui';
-  ctx.fillText(round.phase==='countdown'?'เริ่มใน':'ผู้เล่น',
-    o.x+o.w/2,o.y+17*unit);
-  ctx.font='900 '+(round.phase==='countdown'?27*unit:22*unit)+'px system-ui';
-  ctx.fillStyle='#fff2b6';
-  ctx.fillText(round.phase==='countdown'?
+  ctx.fillStyle='#c4e7e5';ctx.font='bold '+(9*unit)+'px system-ui';
+  ctx.fillText(countdown?'เริ่มใน':'ผู้เล่น',cx,o.y+13*unit,o.w-9*unit);
+  ctx.fillStyle='#fff2b6';ctx.font='900 '+(19*unit)+'px system-ui';
+  ctx.fillText(countdown?
     String(Math.max(1,Math.ceil(round.countdown||0)))+' วิ':
-    String(count)+' คน',o.x+o.w/2,o.y+43*unit);
-  ctx.fillStyle='#aee4e7';ctx.font='bold '+(11*unit)+'px system-ui';
-  ctx.fillText(round.phase==='countdown'?count+' คน':'กำลังแข่งขัน',
-    o.x+o.w/2,o.y+66*unit);
+    String(count)+' คน',cx,o.y+32*unit,o.w-8*unit);
+  ctx.fillStyle='#aee4e7';ctx.font='bold '+(9*unit)+'px system-ui';
+  ctx.fillText(countdown?count+' คน':'กำลังแข่ง',
+    cx,o.y+49*unit,o.w-9*unit);
   ctx.restore();
 }
 function draw(ctx,t,round,players){
