@@ -110,6 +110,7 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  // Clear the optional second crate before consuming: after using an item,
  // collecting another available crate immediately is permitted.
  x.state.boxes=[];
+ if(item==='stun')x.state.npcs[0].stun=0;
  p.input.alt=true;
  ghost.update(.016,x.round,x.players);
  if(item==='slow'){
@@ -129,7 +130,8 @@ for(const item of ['cloak','boost','stun','trap','slow']){
   assert.equal(p.item,null,'B consumes '+item);
   if(item==='cloak')assert.ok(p.cloak>1.8);
   if(item==='boost')assert.ok(p.boost>2.3);
-  if(item==='stun')assert.ok(x.state.npcs[0].stun>=999);
+  if(item==='stun')assert.ok(x.state.npcs[0].stun>1.3,
+    'ghost is temporarily stunned by the item');
   if(item==='trap'){
    assert.equal(x.state.traps.length,1);
    assert.equal(p.stun,0,'trap does not instantly bite its owner');
