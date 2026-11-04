@@ -1052,3 +1052,6 @@ phone.click('leaveBtn');phone.click('confirmLeaveBtn');
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
 assert.equal(phone.scope.window.location.search,'?controller=1');
 console.log('SMOKE PASS: 12-player cap and spacious roster, tactical bots, SVG covers, async confirmations, QR, WebRTC');
+
+// All chicken gameplay rules run alongside the existing GHOST ATTACK regression suite.
+require('./chickens.cjs');
