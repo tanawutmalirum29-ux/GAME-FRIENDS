@@ -128,10 +128,75 @@ remotePreviewCanvas.width=256;
 remotePreviewCanvas.height=144;
 const remotePreviewContext=remotePreviewCanvas.getContext('2d',{alpha:false});
 let remotePreviewClock=0;
+// Native WebRTC MediaStreams are sent at the user's selected resolution.
+// 12 parallel streams may exceed consumer uplink bandwidth; still-picture
+// fallback remains available when media negotiation or capture is unsupported.
+const VIDEO_QUALITY={
+  low:{width:256,height:144,fps:12},
+  medium:{width:480,height:270,fps:18},
+  high:{width:960,height:540,fps:24}
+};
+const hostVideoSources=new Map();
+const hostVideoCalls=new Map();
+function getHostVideoSource(quality){
+  const key=Object.hasOwn(VIDEO_QUALITY,quality)?quality:'medium';
+  if(hostVideoSources.has(key))return hostVideoSources.get(key);
+  const spec=VIDEO_QUALITY[key];
+  const sourceCanvas=document.createElement('canvas');
+  sourceCanvas.width=spec.width;sourceCanvas.height=spec.height;
+  const context=sourceCanvas.getContext('2d',{alpha:false});
+  if(!context||typeof sourceCanvas.captureStream!=='function')return null;
+  let stream;
+  try{
+    context.drawImage(canvas,0,0,spec.width,spec.height);
+    stream=sourceCanvas.captureStream(spec.fps);
+  }catch(_){return null;}
+  const source={canvas:sourceCanvas,context,stream,interval:1/spec.fps,elapsed:0};
+  hostVideoSources.set(key,source);
+  return source;
+}
+function renderHostVideoFrames(dt){
+  if(!round||hostVideoCalls.size===0)return;
+  for(const source of hostVideoSources.values()){
+    source.elapsed+=dt;
+    if(source.elapsed<source.interval)continue;
+    source.elapsed=0;
+    try{source.context.drawImage(canvas,0,0,source.canvas.width,source.canvas.height);}
+    catch(_){}
+  }
+}
+function stopHostVideoCall(conn){
+  const call=hostVideoCalls.get(conn);
+  hostVideoCalls.delete(conn);
+  if(call)try{call.close();}catch(_){}
+}
+function stopAllHostVideoCalls(){
+  for(const conn of [...hostVideoCalls.keys()])stopHostVideoCall(conn);
+  for(const source of hostVideoSources.values()){
+    if(source.stream&&source.stream.getTracks)
+      source.stream.getTracks().forEach(track=>{try{track.stop();}catch(_){}});
+  }
+  hostVideoSources.clear();
+}
+function startHostVideoCall(conn){
+  if(!round||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId)return;
+  stopHostVideoCall(conn);
+  const quality=Object.hasOwn(VIDEO_QUALITY,conn.videoQuality)?conn.videoQuality:'medium';
+  const source=getHostVideoSource(quality);
+  if(!source||typeof hostPeer.call!=='function')return;
+  try{
+    const call=hostPeer.call(conn.peer,source.stream,{metadata:{type:'game-video',quality}});
+    if(!call)return;
+    hostVideoCalls.set(conn,call);
+    call.on('close',()=>{if(hostVideoCalls.get(conn)===call)hostVideoCalls.delete(conn);});
+    call.on('error',()=>{if(hostVideoCalls.get(conn)===call)hostVideoCalls.delete(conn);});
+  }catch(_){/* Fall back to the low-rate JPEG preview. */}
+}
 function broadcastGamePreview(){
   if(!round||!onlineHost||!remotePreviewContext||hostConnections.size===0)return;
   const active=[...hostConnections].filter(c=>
-    c.open&&c.playerId&&(!c.dataChannel||c.dataChannel.bufferedAmount<65536));
+    c.open&&c.playerId&&!hostVideoCalls.get(c)?.open&&
+    (!c.dataChannel||c.dataChannel.bufferedAmount<65536));
   if(!active.length||typeof remotePreviewCanvas.toDataURL!=='function')return;
   try{
     remotePreviewContext.drawImage(canvas,0,0,256,144);
