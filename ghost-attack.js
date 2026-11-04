@@ -78,8 +78,9 @@ function resetPlayer(p,pos){
   Combat.reset(p);
   p.input={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0};
   p.dir={x:1,y:0};p.survival=0;p.infectedAt=null;
-  p.botMind=p.isBot?{jukeDir:Math.random()<.5?-1:1,nextJuke:0,
-    waypoint:null,waypointUntil:0}:null;
+  p.botMind=p.isBot?{nextPlan:0,planKey:'',path:[],goal:null,
+    lastX:null,lastY:null,stuckFor:0,unstickUntil:0,unstickGoal:null,
+    lastEscapeGoal:null,roamGoal:null}:null;
 }
 function setup(round,players){
   preloadItemIcons();
@@ -341,30 +342,145 @@ function botNearest(p,list){
   }
   return {target:best,distance:range};
 }
-function botSteer(p,goal,state,threats){
-  const desired=nrm(goal.x-p.x,goal.y-p.y);
-  let best=desired,score=-Infinity;
-  // Sample short arcs to avoid walls and slide past boxes. Favor a direction
-  // that increases clearance from a chasing ghost without oscillating.
-  for(const angle of [0,-.3,.3,-.68,.68,-1.12,1.12,-1.55,1.55,Math.PI]){
-    const sn=Math.sin(angle),cs=Math.cos(angle);
-    const dir={x:desired.x*cs-desired.y*sn,y:desired.x*sn+desired.y*cs};
-    const next={x:p.x+dir.x*48,y:p.y+dir.y*48};
-    if(Math.min(next.x,next.y,state.world.w-next.x,state.world.h-next.y)<21)continue;
-    if(!p.ghost&&state.obstacles.some(o=>!safeCircle(o,next.x,next.y,20)))continue;
-    let rank=3*(dir.x*desired.x+dir.y*desired.y);
-    for(const ghost of threats){
-      const before=dist(p,ghost),after=dist(next,ghost);
-      rank+=(after-before)*.045;
-      if(after<100)rank-=(100-after)*.035;
-    }
-    if(!p.ghost){
-      const farther={x:p.x+dir.x*78,y:p.y+dir.y*78};
-      if(state.obstacles.some(o=>!safeCircle(o,farther.x,farther.y,18)))rank-=1.8;
-    }
-    if(rank>score){score=rank;best=dir;}
+/* Grid routing is recalculated only on a new committed plan, never per
+ * frame. A* resolves walls/corners; escape goals come from reachable cells.
+ * This avoids the left-right/up-down oscillation from greedy angle sampling. */
+const BOT_CELL=32;
+const BOT_DIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+function botNavGrid(state){
+  if(state.botGrid)return state.botGrid;
+  const cols=Math.ceil(state.world.w/BOT_CELL);
+  const rows=Math.ceil(state.world.h/BOT_CELL);
+  const clear=new Uint8Array(cols*rows);
+  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+    const px=(x+.5)*BOT_CELL,py=(y+.5)*BOT_CELL;
+    const boundary=Math.min(px,py,state.world.w-px,state.world.h-py);
+    if(boundary>=23&&state.obstacles.every(o=>safeCircle(o,px,py,19)))
+      clear[y*cols+x]=1;
+  }
+  state.botGrid={cols,rows,clear};
+  return state.botGrid;
+}
+function botCellPoint(nav,index){
+  return {x:(index%nav.cols+.5)*BOT_CELL,
+    y:(Math.floor(index/nav.cols)+.5)*BOT_CELL};
+}
+function botClosestCell(nav,point){
+  let best=-1,bestD=Infinity;
+  for(let i=0;i<nav.clear.length;i++){
+    if(!nav.clear[i])continue;
+    const p=botCellPoint(nav,i),d=(point.x-p.x)**2+(point.y-p.y)**2;
+    if(d<bestD){bestD=d;best=i;}
   }
   return best;
+}
+function botNeighbors(nav,id){
+  const x=id%nav.cols,y=Math.floor(id/nav.cols);
+  const out=[];
+  for(const [dx,dy] of BOT_DIRS){
+    const xx=x+dx,yy=y+dy;
+    if(xx<0||yy<0||xx>=nav.cols||yy>=nav.rows)continue;
+    const next=yy*nav.cols+xx;
+    if(!nav.clear[next])continue;
+    if(dx&&dy&&(!nav.clear[y*nav.cols+xx]||!nav.clear[yy*nav.cols+x]))continue;
+    out.push([next,dx&&dy?Math.SQRT2:1]);
+  }
+  return out;
+}
+function botNavRoute(state,p,goal,threats=[],others=[]){
+  const nav=botNavGrid(state);
+  const source=botClosestCell(nav,p),destination=botClosestCell(nav,goal);
+  if(source<0||destination<0)return [];
+  if(source===destination)return [{x:goal.x,y:goal.y}];
+  const length=nav.clear.length;
+  const cost=new Float64Array(length).fill(Infinity);
+  const estimate=new Float64Array(length).fill(Infinity);
+  const parent=new Int32Array(length).fill(-1);
+  const closed=new Uint8Array(length);
+  cost[source]=0;
+  const last=botCellPoint(nav,destination);
+  estimate[source]=dist(botCellPoint(nav,source),last)/BOT_CELL;
+  const open=[source];
+  while(open.length){
+    let min=0;
+    for(let i=1;i<open.length;i++)
+      if(estimate[open[i]]<estimate[open[min]])min=i;
+    const current=open.splice(min,1)[0];
+    if(closed[current])continue;
+    if(current===destination)break;
+    closed[current]=1;
+    for(const [next,step] of botNeighbors(nav,current)){
+      if(closed[next])continue;
+      const pos=botCellPoint(nav,next);
+      let penalty=0;
+      for(const g of threats){
+        const d=dist(pos,g);
+        if(d<180)penalty+=Math.max(0,(180-d)/105)*1.45;
+      }
+      for(const other of others){
+        const d=dist(pos,other);
+        if(d<37)penalty+=1.4;
+      }
+      const maybe=cost[current]+step*(1+penalty);
+      if(maybe>=cost[next])continue;
+      cost[next]=maybe;parent[next]=current;
+      estimate[next]=maybe+dist(pos,last)/BOT_CELL;
+      open.push(next);
+    }
+  }
+  if(parent[destination]<0)return [];
+  const path=[];
+  for(let node=destination;node!==source&&node>=0;node=parent[node]){
+    path.push(botCellPoint(nav,node));
+    if(path.length>length)break;
+  }
+  path.reverse();
+  // Align with the actual crate/player, rather than just its grid cell.
+  if(state.obstacles.every(o=>safeCircle(o,goal.x,goal.y,18)))
+    path.push({x:goal.x,y:goal.y});
+  return path;
+}
+function botEscapeGoal(p,state,threats,previous=null){
+  const nav=botNavGrid(state);
+  const start=botClosestCell(nav,p);
+  if(start<0)return {x:state.world.w/2,y:state.world.h/2};
+  const queue=[start],visited=new Uint8Array(nav.clear.length);
+  const steps=new Int16Array(nav.clear.length);
+  visited[start]=1;
+  let selected=botCellPoint(nav,start),bestScore=-Infinity;
+  const baseThreat=Math.min(...threats.map(g=>dist(p,g)),400);
+  // Flood only connected navigable cells. The chosen exit is guaranteed
+  // reachable, even when the direct escape direction hits a closed corner.
+  for(let at=0;at<queue.length;at++){
+    const id=queue[at],point=botCellPoint(nav,id);
+    const dSelf=dist(point,p);
+    const dThreat=Math.min(...threats.map(g=>dist(point,g)),400);
+    if(dSelf>=64&&dSelf<=245){
+      const edge=Math.min(point.x,point.y,state.world.w-point.x,state.world.h-point.y);
+      const motion=(p.vx||0)*(point.x-p.x)+(p.vy||0)*(point.y-p.y);
+      const continuity=previous?Math.max(0,1-dist(point,previous)/260)*22:0;
+      const score=dThreat*1.2+Math.min(dSelf,170)*.27-
+        steps[id]*2.8+Math.min(edge,68)*.13+
+        Math.max(-18,Math.min(18,motion/135))+continuity+
+        (dThreat>baseThreat?12:0);
+      if(score>bestScore){bestScore=score;selected=point;}
+    }
+    if(steps[id]>=10)continue;
+    for(const [next] of botNeighbors(nav,id)){
+      if(visited[next])continue;
+      visited[next]=1;steps[next]=steps[id]+1;queue.push(next);
+    }
+  }
+  return selected;
+}
+function botNextHeading(p,brain){
+  const path=brain.path||[];
+  // Consume close waypoints without switching routes each frame.
+  while(path.length>1&&dist(p,path[0])<19)path.shift();
+  const target=path[0]||brain.goal;
+  if(!target)return {x:0,y:0};
+  if(dist(target,p)<12){path.shift();return {x:0,y:0};}
+  return nrm(target.x-p.x,target.y-p.y);
 }
 function updateBots(dt,players,state){
   const humans=players.filter(q=>q.active&&!q.ghost);
@@ -376,61 +492,77 @@ function updateBots(dt,players,state){
     const input=p.input||(p.input={});
     input.left=input.right=input.jump=input.down=false;
     input.action=false;input.alt=false;input.axisX=0;input.axisY=0;
-    const mind=p.botMind||(p.botMind={jukeDir:1,nextJuke:0,waypoint:null,waypointUntil:0});
-    if(p.stun>0)continue;
+    const mind=p.botMind||(p.botMind={nextPlan:0,planKey:'',path:[],
+      goal:null,lastX:null,lastY:null,stuckFor:0,unstickUntil:0,
+      unstickGoal:null,lastEscapeGoal:null,roamGoal:null});
+    if(p.stun>0||Combat.isAttacking(p))continue;
     if(p.ghost){
-      // After infection, bots chase where the surviving human will be.
       const victim=botNearest(p,humans).target;
       if(victim){
-        const target={x:clamp(victim.x+(victim.vx||0)*.25,21,state.world.w-21),
+        const goal={x:clamp(victim.x+(victim.vx||0)*.25,21,state.world.w-21),
           y:clamp(victim.y+(victim.vy||0)*.25,21,state.world.h-21)};
-        const dir=nrm(target.x-p.x,target.y-p.y);
+        const dir=nrm(goal.x-p.x,goal.y-p.y);
         input.axisX=dir.x;input.axisY=dir.y;
-        if(dist(p,victim)<C.punchRange*.85&&p.punchCooldown<=0&&!p.actionLatch)
+        if(dist(p,victim)<C.punchRange*.8&&p.punchCooldown<=0&&!p.actionLatch)
           input.action=true;
       }
       continue;
     }
-    const closest=botNearest(p,dangers);
-    const threat=closest.target, danger=closest.distance;
+    // Detect actual lack of progress, not visual directional changes.
+    if(mind.lastX!==null){
+      const moved=Math.hypot(p.x-mind.lastX,p.y-mind.lastY);
+      if(mind.lastPower>.55&&moved<Math.max(.28,C.humanSpeed*dt*.10))
+        mind.stuckFor+=dt;
+      else mind.stuckFor=Math.max(0,mind.stuckFor-dt*2);
+    }
+    mind.lastX=p.x;mind.lastY=p.y;
+    const near=botNearest(p,dangers);
+    const threat=near.target,danger=near.distance;
     const loot=p.item?null:botNearest(p,state.boxes).target;
     const rivals=botNearest(p,humans.filter(q=>q!==p));
-    if(state.time>=mind.nextJuke){
-      mind.jukeDir*=-1;
-      mind.nextJuke=state.time+rand(.38,.82);
+    const escaping=!!(threat&&danger<255&&p.cloak<=0);
+    let key=escaping?'escape:'+threat.id:
+      loot?'loot:'+loot.x.toFixed(0)+':'+loot.y.toFixed(0):
+      rivals.target?'rival:'+rivals.target.id:'roam';
+    const stuck=mind.stuckFor>.55;
+    if(stuck){
+      mind.stuckFor=0;
+      mind.unstickGoal=botEscapeGoal(p,state,
+        dangers.length?dangers:players.filter(q=>q.active&&q!==p),mind.goal);
+      mind.unstickUntil=state.time+1.2;
+      mind.nextPlan=0;
     }
-    let goal;
-    if(threat&&danger<255&&p.cloak<=0){
-      const predicted={x:threat.x+(threat.dir?.x||0)*27,
-        y:threat.y+(threat.dir?.y||0)*27};
-      const away=nrm(p.x-predicted.x,p.y-predicted.y);
-      const juke=danger<130?.83:.48;
-      goal={x:p.x+(away.x-away.y*juke*mind.jukeDir)*130,
-        y:p.y+(away.y+away.x*juke*mind.jukeDir)*130};
-    }else if(loot){
-      goal={x:loot.x,y:loot.y};
-    }else if(rivals.target&&danger>150){
-      // Attack nearby survivors when it won't sacrifice our escape route.
-      goal={x:rivals.target.x,y:rivals.target.y};
-    }else{
-      if(!mind.waypoint||state.time>mind.waypointUntil||
-         dist(p,mind.waypoint)<35){
-        mind.waypoint=freeSpot(state.world,state.obstacles,[p],32,90);
-        mind.waypointUntil=state.time+rand(2.8,5);
+    if(state.time<mind.unstickUntil&&mind.unstickGoal)
+      key='unstick';
+    if(!mind.goal||mind.planKey!==key||state.time>=mind.nextPlan||
+      !(mind.path||[]).length){
+      let goal;
+      if(key==='unstick')goal=mind.unstickGoal;
+      else if(escaping){
+        goal=botEscapeGoal(p,state,dangers,mind.lastEscapeGoal);
+        mind.lastEscapeGoal=goal;
+      }else if(loot)goal={x:loot.x,y:loot.y};
+      else if(rivals.target)goal={x:rivals.target.x,y:rivals.target.y};
+      else{
+        if(!mind.roamGoal||dist(p,mind.roamGoal)<35)
+          mind.roamGoal=freeSpot(state.world,state.obstacles,[p],32,90);
+        goal=mind.roamGoal;
       }
-      goal=mind.waypoint;
+      mind.goal=goal;mind.planKey=key;
+      mind.path=botNavRoute(state,p,goal,escaping?dangers:[],
+        players.filter(q=>q.active&&q.id!==p.id));
+      mind.nextPlan=state.time+(escaping?.72:1.05);
     }
-    const heading=botSteer(p,goal,state,dangers);
-    const speed=threat&&danger<260?1:.92;
-    input.axisX=heading.x*speed;input.axisY=heading.y*speed;
+    const dir=botNextHeading(p,mind);
+    const speed=escaping?1:.94;
+    input.axisX=dir.x*speed;input.axisY=dir.y*speed;
+    mind.lastPower=Math.hypot(input.axisX,input.axisY);
     if(rivals.target&&rivals.distance<C.punchRange-10&&
-       (danger>120||p.cloak>0)&&p.punchCooldown<=0&&!p.actionLatch)
+      (danger>120||p.cloak>0)&&p.punchCooldown<=0&&!p.actionLatch)
       input.action=true;
-    // Defensive items trigger at tactical distances, never all at spawn.
-    // For slow medicine, selecting and confirming happen on two presses;
-    // the intervening release is handled by the input-latch engine.
+    // Defensive items are situational and use the same edge-triggered inputs.
     if(p.item&&!p.altLatch){
-      const other=botNearest(p,players.filter(q=>q.active&&q!==p)).target;
+      const other=botNearest(p,humans.filter(q=>q!==p)).target;
       let use=false;
       if(p.item==='stun')use=!!(threat&&danger<86);
       if(p.item==='cloak')use=!!(threat&&danger<175);
@@ -459,7 +591,7 @@ function update(dt,round,players){
   advanceNpcs(dt,players,state);
   // Player ghosts convert people by touch, and pass obstacles completely.
   for(const spirit of players){
-    if(!spirit.active||!spirit.ghost)continue;
+    if(!spirit.active||!spirit.ghost||spirit.stun>0)continue;
     for(const person of players){
       if(person.active&&!person.ghost&&person.cloak<=0&&
          dist(person,spirit)<C.hitRadius+5)convert(person,state);
