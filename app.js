@@ -340,6 +340,8 @@ function bindAnalogStick(base,knob,target){
     let x=localX*factor/travel,y=localY*factor/travel;
     if(Math.hypot(x,y)<.14){x=0;y=0;}
     x=Math.round(x*100)/100;y=Math.round(y*100)/100;
+    // Canonicalize negative zero after inverse 90-degree rotation.
+    if(x===0)x=0;if(y===0)y=0;
     knob.style.transform='translate(calc(-50% + '+Math.round(x*travel)+'px),calc(-50% + '+Math.round(y*travel)+'px))';
     if(Math.abs(target.axisX-x)>.01||Math.abs(target.axisY-y)>.01){
       target.axisX=x;target.axisY=y;sendInputs();
