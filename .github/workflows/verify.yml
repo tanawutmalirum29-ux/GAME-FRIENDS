@@ -13,6 +13,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: JavaScript syntax
         run: node --check app.js
+      - name: Runtime smoke test
+        run: node tests/smoke.cjs
       - name: HTML-to-JavaScript references
         run: |
           node <<'NODE'
