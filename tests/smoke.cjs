@@ -10,10 +10,16 @@ const css=fs.readFileSync('style.css','utf8');
 const hostLauncher=fs.readFileSync('host.html','utf8');
 assert.match(hostLauncher,/\?host=1/);
 assert.match(html,/id="controllerPreviewVideo"/);
-assert.match(html,/id="videoQuality"/);
-assert.match(html,/value="low"/);
-assert.match(html,/value="medium"/);
-assert.match(html,/value="high"/);
+assert.match(html,/id="videoQualityBtn"/);
+assert.doesNotMatch(html,/id="videoQuality"/,'no visible footer dropdown remains');
+assert.match(html,/<div class="gamepad-top-actions"><button id="videoQualityBtn"[\s\S]*?<button id="landscapeBtn"/);
+assert.match(html,/<div id="controllerPreview"[^>]*>\s*<div id="phoneGamePicker"/,
+  'lobby picker and live video share one outer preview frame');
+assert.doesNotMatch(html,/class="preview-info"/,'bottom map and quality bar removed');
+assert.match(html,/id="controllerState" class="controller-status-sr"/);
+assert.match(css,/#controllerActive \.controller-status-sr\{/);
+assert.match(css,/#controllerActive #controllerButtons\.is-picking #joystickZone\{[\s\S]*?pointer-events:none!important/);
+assert.match(css,/#controllerActive #phoneGamePicker\{[\s\S]*?position:absolute;[\s\S]*?inset:0;[\s\S]*?width:100%/);
 assert.match(css,/\.joystick-zone\{[\s\S]*?grid-column:1;grid-row:1/);
 assert.match(css,/\.gamepad-preview-column\{[\s\S]*?grid-column:1;grid-row:1/);
 assert.match(css,/@media\(orientation:portrait\)/);
@@ -392,7 +398,12 @@ conn.fire('data',{t:'welcome',id:'p1',name:'ทดสอบ',color:'#ff628c',mod
 assert.equal(mobile.elements.get('controllerActive').classList.contains('hidden'),false);
 assert.equal(mobile.elements.get('controllerName').textContent,'ทดสอบ');
 assert.equal(mobile.elements.get('controllerModeName').textContent,'STAR RUSH');
+assert.equal(mobile.elements.get('videoQualityBtn').textContent,'ก',
+  'default video quality is medium');
 assert.equal(mobile.elements.get('phoneGamePicker').classList.contains('hidden'),false);
+assert.equal(mobile.elements.get('controllerPreview').classList.contains('hidden'),false,
+  'preview frame stays visible while choosing a game');
+assert.equal(mobile.elements.get('controllerButtons').classList.contains('is-picking'),true);
 mobile.pick('soccer');
 assert.equal(conn.sent.at(-1).t,'pick');
 assert.equal(conn.sent.at(-1).mode,'soccer');
@@ -402,6 +413,10 @@ assert.equal(mobile.pickButtons.find(x=>x.dataset.pick==='soccer').classList.con
 assert.match(mobile.elements.get('phoneChoiceStatus').textContent,/FOOTBALL/);
 conn.fire('data',{t:'state',phase:'playing',mode:'soccer',remaining:45});
 assert.equal(mobile.elements.get('phoneGamePicker').classList.contains('hidden'),true);
+assert.equal(mobile.elements.get('controllerPreview').classList.contains('hidden'),false,
+  'preview frame is exactly the same node and size during play');
+assert.equal(mobile.elements.get('controllerButtons').classList.contains('is-picking'),false,
+  'left joystick becomes active when the lobby ends');
 const lockedVoteCount=conn.sent.length;
 mobile.pick('tanks');
 assert.equal(conn.sent.length,lockedVoteCount,'cannot send another vote after start');
@@ -426,12 +441,25 @@ liveCall.fire('stream',videoStream);
 assert.equal(mobile.elements.get('controllerPreviewVideo').srcObject,videoStream);
 assert.equal(mobile.elements.get('controllerPreviewVideo').classList.contains('hidden'),false);
 assert.equal(mobile.elements.get('controllerPreviewImage').classList.contains('hidden'),true);
-// Quality selector triggers a live host renegotiation request.
-mobile.elements.get('videoQuality').value='high';
-mobile.elements.get('videoQuality').fire('change');
+// Small top-right button cycles ส(สูง) -> ก(กลาง) -> ต(ต่ำ), no select dropdown.
+mobile.click('videoQualityBtn');
+assert.equal(mobile.elements.get('videoQualityBtn').textContent,'ต',
+  'medium cycles to low');
 assert.equal(conn.sent.at(-1).t,'video-quality');
+assert.equal(conn.sent.at(-1).quality,'low');
+mobile.click('videoQualityBtn');
+assert.equal(mobile.elements.get('videoQualityBtn').textContent,'ส',
+  'low cycles to high');
 assert.equal(conn.sent.at(-1).quality,'high');
 assert.equal(persistedNicknames.get('gf-video-quality-v1'),'high');
+assert.match(mobile.elements.get('videoQualityBtn').attributes['aria-label'],/สูง/);
+mobile.click('videoQualityBtn');
+assert.equal(mobile.elements.get('videoQualityBtn').textContent,'ก',
+  'high wraps back to medium');
+assert.equal(conn.sent.at(-1).quality,'medium');
+mobile.click('videoQualityBtn');
+mobile.click('videoQualityBtn');
+assert.equal(conn.sent.at(-1).quality,'high');
 const updatedCall=mobile.mediaCall('gf-party-ABCD23');
 updatedCall.metadata={type:'game-video',quality:'high'};
 mobile.instances[0].fire('call',updatedCall);
