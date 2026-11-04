@@ -144,6 +144,7 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  assert.equal(p.pickupNotice,ghost.ITEM_NAMES[item],'popup shows the actual item name');
  assert.ok(p.pickupNoticeTime>2,'popup starts immediately after a real pickup');
  drawTexts.length=0;
+ const originalX=p.x,originalY=p.y;
  p.x=400;p.y=240;
  ghost.draw(drawProbe,0,x.round,x.players);
  const itemText=drawTexts.find(args=>args[0]==='ได้รับ: '+ghost.ITEM_NAMES[item]);
@@ -151,6 +152,7 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  assert.ok(itemText,'collector sees obtained item above the character: '+item);
  assert.ok(nameText&&itemText[2]<nameText[2],
    'item notification is vertically above the collector name');
+ p.x=originalX;p.y=originalY; // Do not move the item-stun test out of range.
  // A second box is not collectible while already carrying something.
  x.state.boxes.push({x:p.x,y:p.y,ttl:20,item:'cloak'});
  ghost.update(.016,x.round,x.players);
