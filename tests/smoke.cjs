@@ -421,6 +421,30 @@ const drawProbe=new Proxy({},{
   },
   set(){return true;}
 });
+// Renderer integration: BOTH the initial AI ghost and a converted
+// participant must use Pharaoh sprites on Egyptian rounds, without changing
+// player-specific color or leaking Pharaoh art into cemetery rounds.
+{
+ for(const theme of ['egypt','graveyard']){
+  const x=init(3),player=x.players[0];
+  x.state.theme=theme;x.state.ghostSpawned=true;
+  player.ghost=true;player.stun=0;
+  art.preload(x.players,theme);
+  const pose='float0';
+  const ai=art.getActorImage(true,'#f5faff',pose,theme);
+  const converted=art.getActorImage(true,player.color,pose,theme);
+  drawImages.length=0;
+  ghost.draw(drawProbe,0,x.round,x.players);
+  assert.ok(drawImages.some(args=>args[0]===ai),
+    'AI ghost uses the '+theme+' themed sprite in the actual canvas draw');
+  assert.ok(drawImages.some(args=>args[0]===converted),
+    'converted player uses the '+theme+' themed sprite in the actual canvas draw');
+  const wrong=theme==='egypt'?'graveyard':'egypt';
+  assert.ok(!drawImages.some(args=>args[0]===
+    art.getActorImage(true,'#f5faff',pose,wrong)),
+    'ghost sprite from another map theme must not be drawn');
+ }
+}
 // Thai text placement regression: Canvas implementations that ignore
 // textAlign='center' must not push "12 คน" or the footer beyond the compact HUD.
 {
