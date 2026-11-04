@@ -2546,3 +2546,31 @@ body.controller-playing #controller #controllerActive .controller-buttons.has-ta
   width:clamp(54px,17dvh,82px);height:clamp(54px,17dvh,82px);
  }
 }
+
+/* Make the entire non-button surface reachable by the floating joystick.
+   A/B and slow-target controls retain their own pointer targets. The preview
+   is click-through except for video-start and game selection actions. */
+body.controller-playing #controller #controllerActive .gamepad-face-buttons{
+  pointer-events:none;
+}
+body.controller-playing #controller #controllerActive .gamepad-face-buttons .face-button-wrap,
+body.controller-playing #controller #controllerActive .gamepad-face-buttons .face-button,
+body.controller-playing #controller #controllerActive .gamepad-face-buttons .target-cycle-controls,
+body.controller-playing #controller #controllerActive .gamepad-face-buttons .target-cycle-btn{
+  pointer-events:auto;
+}
+body.controller-playing #controller #controllerActive .gamepad-preview-column{
+  z-index:6;
+  pointer-events:none;
+}
+body.controller-playing #controller #controllerActive .gamepad-preview-column #controllerPreview{
+  pointer-events:none;
+}
+body.controller-playing #controller #controllerActive .gamepad-preview-column #videoStartBtn{
+  pointer-events:auto;
+}
+body.controller-playing #controller #controllerActive .controller-buttons.is-picking .gamepad-preview-column,
+body.controller-playing #controller #controllerActive .controller-buttons.is-picking #controllerPreview,
+body.controller-playing #controller #controllerActive .controller-buttons.is-picking #phoneGamePicker{
+  pointer-events:auto;
+}
