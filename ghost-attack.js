@@ -31,6 +31,8 @@ const Combat=window.PartyCombatMotion;
 if(!Combat)throw new Error('combat-motion.js must load before ghost-attack.js');
 const Art=window.GhostCemeteryArt;
 if(!Art)throw new Error('graveyard-art.js must load before ghost-attack.js');
+// Keep the last theme between rounds without changing game selection artwork.
+let previousGhostTheme='';
 // Modest speed edge; interceptions, not teleporting, make ghosts competitive.
 const C={humanSpeed:172,ghostSpeed:186,ghostTurn:6.1,hitRadius:19,punchRange:67,
   punchStun:.63,punchCooldown:Combat.ATTACK.cooldown,ghostStun:1.45,
@@ -54,7 +56,8 @@ function freeSpot(world,obstacles,others,margin=22,minDistance=52){
     {x:world.w-50,y:world.h-50}];
   return corner.find(q=>obstacles.every(o=>safeCircle(o,q.x,q.y,20)))||corner[0];
 }
-function makeObstacles(world,tier,reserved=[]){
+function makeObstacles(world,tier,reserved=[],theme='graveyard'){
+  const themeKinds=Art.kindsForTheme(theme);
   const out=[];
   const count=7+tier*5+(world.w>=1200?5:0);
   const candidateW=world.w-130,candidateH=world.h-110;
@@ -62,8 +65,11 @@ function makeObstacles(world,tier,reserved=[]){
     const w=rand(29,62),h=rand(23,52);
     const q={x:65+Math.random()*Math.max(1,candidateW-w),
       y:55+Math.random()*Math.max(1,candidateH-h),w,h,style:k%3,
-      kind:Art.KINDS[k%Art.KINDS.length],
-      variant:Math.floor(k/Art.KINDS.length)%3};
+      // The first monument establishes the theme immediately; every
+      // subsequent kind cycles through its own matching prop set.
+      kind:k===0?(theme==='egypt'?'sarcophagus':'coffin'):
+        themeKinds[(k-1)%themeKinds.length],
+      variant:Math.floor(k/themeKinds.length)%3};
     const center={x:q.x+w/2,y:q.y+h/2};
     // Keep a generous center spawn plaza clear for the starting AI ghost(s).
     if(Math.hypot(center.x-world.w/2,center.y-world.h/2)<115)continue;
@@ -88,8 +94,12 @@ function resetPlayer(p,pos){
     lastEscapeGoal:null,roamGoal:null}:null;
 }
 function setup(round,players){
+  // Random on the first round, then exclude the previous theme when there
+  // are alternatives; the artwork is selected INSIDE the match only.
+  const theme=Art.pickTheme(previousGhostTheme);
+  previousGhostTheme=theme;
   preloadItemIcons();
-  Art.preload(players);
+  Art.preload(players,theme);
   // A maximum of 12 people, with a larger world for crowded rounds.
   // The canvas/video output remains 960x540, with the world scaled into it.
   const tier=players.length<=6?1:2;
@@ -101,7 +111,7 @@ function setup(round,players){
   const hudBlocker={x:12*world.w/960,y:12*world.h/540,
     w:88*world.w/960,h:58*world.h/540,
     kind:'hud-blocker',fixed:true,solid:true};
-  const obstacles=[hudBlocker,...makeObstacles(world,tier,[hudBlocker])];
+  const obstacles=[hudBlocker,...makeObstacles(world,tier,[hudBlocker],theme)];
   const center={x:world.w/2,y:world.h/2};
   const used=[center];
   for(const p of players){
@@ -116,7 +126,7 @@ function setup(round,players){
   // players, not extra NPCs seeded into large rooms.
   const npcs=[{id:'ai-ghost-0',x:center.x+25,y:center.y,
     dir:{x:1,y:0},targetId:null,lockUntil:0,stun:0}];
-  round.ghost={world,obstacles,hudBlocker,npcs,boxes:[],traps:[],time:0,
+  round.ghost={world,obstacles,hudBlocker,theme,npcs,boxes:[],traps:[],time:0,
     boxClock:4.5,maxBoxes:tier===1?2:3,
     winnerId:null,converted:[],lastHumanId:null,ghostSpawned:false};
   round.phase='countdown';round.countdown=3;
@@ -898,38 +908,88 @@ function drawCornerHud(ctx,round,players,state){
     cx,o.y+45.5*unit,maxWidth,8.2*unit,'bold','#aee4e7');
   ctx.restore();
 }
+function drawThemeBackdrop(ctx,state,t,w,h){
+  const egypt=state.theme==='egypt';
+  const gradient=ctx.createLinearGradient(0,0,w,h);
+  if(egypt){
+    // Twilight over a buried pharaoh's chamber: warm sandstone, teal
+    // lapis accents, a quiet dune texture, and gold-trimmed walls.
+    gradient.addColorStop(0,'#40382d');
+    gradient.addColorStop(.52,'#685138');
+    gradient.addColorStop(1,'#38372f');
+  }else{
+    gradient.addColorStop(0,'#132b39');
+    gradient.addColorStop(.55,'#193349');
+    gradient.addColorStop(1,'#0c1e35');
+  }
+  ctx.fillStyle=gradient;ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle=egypt?'#d9b27025':'#39616f32';
+  ctx.lineWidth=1;
+  for(let x=0;x<w;x+=54){
+    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();
+  }
+  for(let y=0;y<h;y+=54){
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
+  }
+  ctx.fillStyle=egypt?'#b88b51':'#124358';
+  ctx.strokeStyle=egypt?'#f3cb79b0':'#5fcad183';ctx.lineWidth=6;
+  ctx.fillRect(7,7,w-14,h-14);ctx.strokeRect(7,7,w-14,h-14);
+  ctx.fillStyle=gradient;ctx.fillRect(16,16,w-32,h-32);
+  if(egypt){
+    // Engraved pyramid outlines stay behind the active playfield.
+    for(let i=0;i<3;i++){
+      const cx=w*(.17+i*.32),baseY=h*(.23+(i%2)*.045);
+      const size=50+i*12;
+      ctx.save();ctx.globalAlpha=.16;
+      ctx.fillStyle='#e2b770';
+      ctx.beginPath();
+      ctx.moveTo(cx-size,baseY+size*.65);
+      ctx.lineTo(cx,baseY-size*.52);
+      ctx.lineTo(cx+size,baseY+size*.65);
+      ctx.closePath();ctx.fill();
+      ctx.fillStyle='#6c492c';ctx.beginPath();
+      ctx.moveTo(cx,baseY-size*.52);ctx.lineTo(cx+size,baseY+size*.65);
+      ctx.lineTo(cx,baseY+size*.65);ctx.closePath();ctx.fill();
+      ctx.restore();
+    }
+    for(let i=0;i<46;i++){
+      const x=(39+i*191)%w,y=(41+i*83)%h;
+      ctx.fillStyle=i%3===0?'#f7d79722':'#f4d49c12';
+      ctx.beginPath();ctx.ellipse(x,y,8+i%9,2.5+i%4,(i%4)*.12,0,TAU);ctx.fill();
+      if(i%5===0){
+        ctx.strokeStyle='#ffe4aa22';ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(x-11,y+6);ctx.lineTo(x+13,y+7);
+        ctx.stroke();
+      }
+    }
+  }else{
+    // Original cemetery moss, mist and ground chips are unchanged.
+    for(let i=0;i<30;i++){
+      const px=(37+i*173)%w,py=(29+i*97)%h;
+      ctx.fillStyle=i%2?'#87b59c19':'#b3d4d011';
+      ctx.beginPath();ctx.ellipse(px,py,9+i%5,3+i%3,(i%3)*.3,0,TAU);ctx.fill();
+      if(i%3===0){
+        ctx.strokeStyle='#b9d6ce26';ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.moveTo(px-5,py+4);ctx.lineTo(px-3,py-2);
+        ctx.moveTo(px+5,py+3);ctx.lineTo(px+2,py-1);ctx.stroke();
+      }
+    }
+  }
+}
 function draw(ctx,t,round,players){
   const state=round.ghost;if(!state)return;
   const w=state.world.w,h=state.world.h;
   ctx.save();ctx.clearRect(0,0,960,540);
   ctx.scale(960/w,540/h);
-  const gradient=ctx.createLinearGradient(0,0,w,h);
-  gradient.addColorStop(0,'#132b39');gradient.addColorStop(.55,'#193349');gradient.addColorStop(1,'#0c1e35');
-  ctx.fillStyle=gradient;ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle='#39616f32';ctx.lineWidth=1;
-  for(let x=0;x<w;x+=54){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
-  for(let y=0;y<h;y+=54){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
-  ctx.fillStyle='#124358';ctx.strokeStyle='#5fcad183';ctx.lineWidth=6;
-  ctx.fillRect(7,7,w-14,h-14);ctx.strokeRect(7,7,w-14,h-14);
-  ctx.fillStyle=gradient;ctx.fillRect(16,16,w-32,h-32);
-  // Cemetery moss, ground chips and moonlit mist are non-solid decorations.
-  for(let i=0;i<30;i++){
-    const px=(37+i*173)%w,py=(29+i*97)%h;
-    ctx.fillStyle=i%2?'#87b59c19':'#b3d4d011';
-    ctx.beginPath();ctx.ellipse(px,py,9+i%5,3+i%3,(i%3)*.3,0,TAU);ctx.fill();
-    if(i%3===0){
-      ctx.strokeStyle='#b9d6ce26';ctx.lineWidth=1.2;
-      ctx.beginPath();ctx.moveTo(px-5,py+4);ctx.lineTo(px-3,py-2);
-      ctx.moveTo(px+5,py+3);ctx.lineTo(px+2,py-1);ctx.stroke();
-    }
-  }
+  drawThemeBackdrop(ctx,state,t,w,h);
   // SVG visuals sit on the SAME collision rectangles and nav grid blockers.
   for(const o of state.obstacles)
     if(o.kind!=='hud-blocker')Art.drawObstacle(ctx,o);
   const center={x:w/2,y:h/2};
-  ctx.save();ctx.strokeStyle='#c6eaff2c';ctx.lineWidth=3;
+  ctx.save();ctx.strokeStyle=state.theme==='egypt'?'#ffdc873b':'#c6eaff2c';ctx.lineWidth=3;
   ctx.beginPath();ctx.arc(center.x,center.y,70+5*Math.sin(t*2),0,TAU);ctx.stroke();
-  ctx.fillStyle='#ceeaff19';ctx.beginPath();ctx.arc(center.x,center.y,62,0,TAU);ctx.fill();
+  ctx.fillStyle=state.theme==='egypt'?'#f0c87e21':'#ceeaff19';
+  ctx.beginPath();ctx.arc(center.x,center.y,62,0,TAU);ctx.fill();
   ctx.restore();
   for(const trap of state.traps){
     ctx.fillStyle='#2b1e29';ctx.strokeStyle='#f2a052';ctx.lineWidth=3;
@@ -937,12 +997,7 @@ function draw(ctx,t,round,players){
     ctx.beginPath();ctx.moveTo(trap.x-9,trap.y-8);ctx.lineTo(trap.x+7,trap.y+8);
     ctx.moveTo(trap.x+9,trap.y-8);ctx.lineTo(trap.x-7,trap.y+8);ctx.stroke();
   }
-  for(const b of state.boxes){
-    ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.sin(t*2+b.x)*.08);
-    ctx.shadowColor='#f8cf75';ctx.shadowBlur=14;ctx.fillStyle='#d59f51';ctx.strokeStyle='#fff0be';
-    ctx.lineWidth=3;ctx.fillRect(-13,-13,26,26);ctx.strokeRect(-13,-13,26,26);
-    ctx.shadowBlur=0;ctx.fillStyle='#4b3223';ctx.font='bold 18px system-ui';ctx.textAlign='center';ctx.fillText('?',0,7);ctx.restore();
-  }
+  for(const b of state.boxes)Art.drawLootBox(ctx,b,t,state.theme);
   if(state.ghostSpawned){
     for(const npc of state.npcs)drawPerson(ctx,{...npc,name:'ผี'},'#f5faff',true,t,npc.stun>0?.65:1);
   }
