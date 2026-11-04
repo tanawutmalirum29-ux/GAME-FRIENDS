@@ -182,6 +182,7 @@ function stopAllHostVideoCalls(){
 function startHostVideoCall(conn){
   if(!round||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId)return;
   stopHostVideoCall(conn);
+  conn.videoReady=false;
   const quality=Object.hasOwn(VIDEO_QUALITY,conn.videoQuality)?conn.videoQuality:'medium';
   const source=getHostVideoSource(quality);
   if(!source||typeof hostPeer.call!=='function')return;
@@ -196,7 +197,7 @@ function startHostVideoCall(conn){
 function broadcastGamePreview(){
   if(!round||!onlineHost||!remotePreviewContext||hostConnections.size===0)return;
   const active=[...hostConnections].filter(c=>
-    c.open&&c.playerId&&!hostVideoCalls.get(c)?.open&&
+    c.open&&c.playerId&&!c.videoReady&&
     (!c.dataChannel||c.dataChannel.bufferedAmount<65536));
   if(!active.length||typeof remotePreviewCanvas.toDataURL!=='function')return;
   try{
@@ -321,6 +322,8 @@ function startHost(retries=0){
         if(round&&round.phase!=='results')p.active=false;
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'stars',phase:networkPhase(),choice:p.choice});
         broadcastRoster();
+      }else if(msg.t==='video-ready'&&conn.playerId){
+        if(msg.quality===conn.videoQuality)conn.videoReady=true;
       }else if(msg.t==='video-quality'&&conn.playerId){
         if(!Object.hasOwn(VIDEO_QUALITY,msg.quality))return;
         if(conn.videoQuality!==msg.quality){
@@ -411,7 +414,10 @@ function showControllerVideo(stream,call){
   if(typeof video.play==='function'){
     try{
       const p=video.play();
-      if(p&&p.catch)p.catch(()=>{$('videoStartBtn').classList.remove('hidden');});
+      if(p&&p.then)p.then(()=>{
+        if(controllerMediaCall!==call)return;
+        send(controllerConn,{t:'video-ready',quality:call.metadata?.quality||'medium'});
+      }).catch(()=>{$('videoStartBtn').classList.remove('hidden');});
     }catch(_){$('videoStartBtn').classList.remove('hidden');}
   }
 }
@@ -1223,7 +1229,11 @@ $('videoStartBtn').addEventListener('click',()=>{
   if(typeof video.play==='function'){
     try{
       const p=video.play();
-      if(p&&p.then)p.then(()=>$('videoStartBtn').classList.add('hidden')).catch(()=>{});
+      if(p&&p.then)p.then(()=>{
+        $('videoStartBtn').classList.add('hidden');
+        if(controllerMediaCall)send(controllerConn,
+          {t:'video-ready',quality:controllerMediaCall.metadata?.quality||'medium'});
+      }).catch(()=>{});
     }catch(_){}
   }
 });
