@@ -448,8 +448,9 @@ matchPlayers.push(...addedPlayers);
 addedPlayers[1].item='boost';
 host.scope.window.__ghostTest.renderLeaderboard();
 assert.equal(host.elements.get('leaderboard').children.length,12);
-const busyItemChip=host.elements.get('leaderboard').children[2];
-assert.equal(busyItemChip.children[1].textContent,addedPlayers[1].name);
+const busyItemChip=host.elements.get('leaderboard').children.find(chip=>
+ chip.children[1].textContent===addedPlayers[1].name);
+assert.ok(busyItemChip,'held-item player remains visible after survivor/ghost sorting');
 assert.equal(busyItemChip.children[2].textContent,'สปีด',
  '5-12 player HUD uses a short recognizable item label');
 assert.equal(busyItemChip.children[2].title,'บูสต์สปีด',
