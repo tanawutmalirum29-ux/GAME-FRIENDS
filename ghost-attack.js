@@ -74,12 +74,17 @@ function resetPlayer(p,pos){
   p.punchFX=0;p.altLatch=false;p.actionLatch=false;
   p.input={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0};
   p.dir={x:1,y:0};p.survival=0;p.infectedAt=null;
+  p.botMind=p.isBot?{jukeDir:Math.random()<.5?-1:1,nextJuke:0,
+    waypoint:null,waypointUntil:0}:null;
 }
 function setup(round,players){
   preloadItemIcons();
   // The map stays compact for 1-12 humans; only the AI-ghost count scales.
-  const tier=players.length<=6?1:2;
-  const world={w:960,h:540};
+  // A maximum of 24 players; one AI ghost per 6. Keep the first 12
+  // inside the original 960x540 arena and scale moderately above that.
+  const tier=Math.max(1,Math.ceil(players.length/6));
+  const world={w:960+Math.max(0,tier-2)*192,
+    h:540+Math.max(0,tier-2)*108};
   round.rules={...(round.rules||{}),viewMode:round.rules?.viewMode||'topdown'};
   const obstacles=makeObstacles(world,tier);
   const center={x:world.w/2,y:world.h/2};
@@ -98,7 +103,7 @@ function setup(round,players){
       targetId:null,lockUntil:0,stun:0};
   });
   round.ghost={world,obstacles,npcs,boxes:[],traps:[],time:0,
-    boxClock:4.5,maxBoxes:tier===1?2:3,
+    boxClock:4.5,maxBoxes:Math.min(6,tier+1),
     winnerId:null,converted:[],lastHumanId:null,ghostSpawned:false};
   round.phase='countdown';round.countdown=3;
 }
@@ -319,11 +324,126 @@ function updateBoxes(dt,players,state){
     state.boxClock=rand(6.5,11);
   }
 }
+// Local bots use exactly the same authoritative movement/punch/item system
+// as controllers. No remote model, network call or scripted teleportation.
+function botNearest(p,list){
+  let best=null,range=Infinity;
+  for(const q of list){
+    const d=dist(p,q);
+    if(d<range){best=q;range=d;}
+  }
+  return {target:best,distance:range};
+}
+function botSteer(p,goal,state,threats){
+  const desired=nrm(goal.x-p.x,goal.y-p.y);
+  let best=desired,score=-Infinity;
+  // Sample short arcs to avoid walls and slide past boxes. Favor a direction
+  // that increases clearance from a chasing ghost without oscillating.
+  for(const angle of [0,-.3,.3,-.68,.68,-1.12,1.12,-1.55,1.55,Math.PI]){
+    const sn=Math.sin(angle),cs=Math.cos(angle);
+    const dir={x:desired.x*cs-desired.y*sn,y:desired.x*sn+desired.y*cs};
+    const next={x:p.x+dir.x*48,y:p.y+dir.y*48};
+    if(Math.min(next.x,next.y,state.world.w-next.x,state.world.h-next.y)<21)continue;
+    if(!p.ghost&&state.obstacles.some(o=>!safeCircle(o,next.x,next.y,20)))continue;
+    let rank=3*(dir.x*desired.x+dir.y*desired.y);
+    for(const ghost of threats){
+      const before=dist(p,ghost),after=dist(next,ghost);
+      rank+=(after-before)*.045;
+      if(after<100)rank-=(100-after)*.035;
+    }
+    if(!p.ghost){
+      const farther={x:p.x+dir.x*78,y:p.y+dir.y*78};
+      if(state.obstacles.some(o=>!safeCircle(o,farther.x,farther.y,18)))rank-=1.8;
+    }
+    if(rank>score){score=rank;best=dir;}
+  }
+  return best;
+}
+function updateBots(dt,players,state){
+  const humans=players.filter(q=>q.active&&!q.ghost);
+  const humanGhosts=players.filter(q=>q.active&&q.ghost&&q.stun<=0);
+  const npcThreats=state.ghostSpawned?state.npcs.filter(g=>g.stun<=0):[];
+  const dangers=state.ghostSpawned?[...npcThreats,...humanGhosts]:humanGhosts;
+  for(const p of players){
+    if(!p.active||!p.isBot)continue;
+    const input=p.input||(p.input={});
+    input.left=input.right=input.jump=input.down=false;
+    input.action=false;input.alt=false;input.axisX=0;input.axisY=0;
+    const mind=p.botMind||(p.botMind={jukeDir:1,nextJuke:0,waypoint:null,waypointUntil:0});
+    if(p.stun>0)continue;
+    if(p.ghost){
+      // After infection, bots chase where the surviving human will be.
+      const victim=botNearest(p,humans).target;
+      if(victim){
+        const target={x:clamp(victim.x+(victim.vx||0)*.25,21,state.world.w-21),
+          y:clamp(victim.y+(victim.vy||0)*.25,21,state.world.h-21)};
+        const dir=nrm(target.x-p.x,target.y-p.y);
+        input.axisX=dir.x;input.axisY=dir.y;
+        if(dist(p,victim)<C.punchRange*.85&&p.punchCooldown<=0&&!p.actionLatch)
+          input.action=true;
+      }
+      continue;
+    }
+    const closest=botNearest(p,dangers);
+    const threat=closest.target, danger=closest.distance;
+    const loot=p.item?null:botNearest(p,state.boxes).target;
+    const rivals=botNearest(p,humans.filter(q=>q!==p));
+    if(state.time>=mind.nextJuke){
+      mind.jukeDir*=-1;
+      mind.nextJuke=state.time+rand(.38,.82);
+    }
+    let goal;
+    if(threat&&danger<255&&p.cloak<=0){
+      const predicted={x:threat.x+(threat.dir?.x||0)*27,
+        y:threat.y+(threat.dir?.y||0)*27};
+      const away=nrm(p.x-predicted.x,p.y-predicted.y);
+      const juke=danger<130?.83:.48;
+      goal={x:p.x+(away.x-away.y*juke*mind.jukeDir)*130,
+        y:p.y+(away.y+away.x*juke*mind.jukeDir)*130};
+    }else if(loot){
+      goal={x:loot.x,y:loot.y};
+    }else if(rivals.target&&danger>150){
+      // Attack nearby survivors when it won't sacrifice our escape route.
+      goal={x:rivals.target.x,y:rivals.target.y};
+    }else{
+      if(!mind.waypoint||state.time>mind.waypointUntil||
+         dist(p,mind.waypoint)<35){
+        mind.waypoint=freeSpot(state.world,state.obstacles,[p],32,90);
+        mind.waypointUntil=state.time+rand(2.8,5);
+      }
+      goal=mind.waypoint;
+    }
+    const heading=botSteer(p,goal,state,dangers);
+    const speed=threat&&danger<260?1:.92;
+    input.axisX=heading.x*speed;input.axisY=heading.y*speed;
+    if(rivals.target&&rivals.distance<C.punchRange-10&&
+       (danger>120||p.cloak>0)&&p.punchCooldown<=0&&!p.actionLatch)
+      input.action=true;
+    // Defensive items trigger at tactical distances, never all at spawn.
+    // For slow medicine, selecting and confirming happen on two presses;
+    // the intervening release is handled by the input-latch engine.
+    if(p.item&&!p.altLatch){
+      const other=botNearest(p,players.filter(q=>q.active&&q!==p)).target;
+      let use=false;
+      if(p.item==='stun')use=!!(threat&&danger<86);
+      if(p.item==='cloak')use=!!(threat&&danger<175);
+      if(p.item==='boost')use=!!(threat&&danger<230);
+      if(p.item==='trap')use=!!(threat&&danger<95);
+      if(p.item==='slow'&&other){
+        p.targetId=other.id;
+        use=p.selecting||rivals.distance<180||danger<170;
+      }
+      if(use)input.alt=true;
+    }
+  }
+}
 function update(dt,round,players){
   const state=round.ghost;
   if(!state||!['countdown','playing'].includes(round.phase))return;
   state.time+=dt;
-  // Players can move and juke DURING the 3-second warning.
+  // Plan bot moves first. Players and bots then share the same physics,
+  // hit detection, obstacle collisions and cooldowns.
+  updateBots(dt,players,state);
   tickPlayers(dt,players,state);
   if(round.phase==='countdown'){
     resolvePlayerCollisions(players,state);
