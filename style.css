@@ -1687,3 +1687,192 @@ body.controller-playing #controller #controllerActive .gamepad-face-buttons{
     transform-origin:center center;
   }
 }
+
+
+
+/* Host lobby: compact twelve-person roster with one game label per player.
+   Never stretch a single roster card to fill one-sixth of a tall panel. */
+#hostLobby .lobby-roster{
+  grid-template-rows:none;
+  grid-auto-flow:row;
+  grid-auto-rows:clamp(24px,4.8dvh,42px);
+  align-content:start;
+  align-items:start;
+  justify-content:stretch;
+  gap:clamp(3px,.5dvh,7px);
+  min-height:0;
+  max-height:100%;
+  overflow:hidden!important;
+}
+#hostLobby .lobby-roster .roster-item{
+  display:grid;
+  grid-template-columns:11px minmax(0,.85fr) minmax(0,1fr) 22px;
+  align-items:center;
+  gap:clamp(3px,.45vw,8px);
+  width:100%;
+  height:100%;
+  min-height:0;
+  padding:2px clamp(4px,.6vw,8px);
+  border-radius:7px;
+  overflow:hidden;
+}
+#hostLobby .lobby-roster .roster-item .swatch{
+  width:10px;height:10px;min-width:10px;border-radius:50%;
+}
+#hostLobby .lobby-roster .roster-item b{
+  flex:initial;
+  font-size:clamp(10px,1.05vw,13px);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  min-width:0;
+}
+#hostLobby .lobby-roster .roster-item small{display:none}
+#hostLobby .lobby-roster .roster-pick{
+  display:block;
+  min-width:0;
+  width:100%;
+  padding:3px 5px;
+  font-size:clamp(9px,.9vw,12px);
+  line-height:1.2;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#hostLobby .lobby-roster .roster-item button{
+  min-width:20px;min-height:20px;width:20px;height:20px;
+  justify-self:end;padding:0;font-size:17px;
+}
+
+/* QR, full-width invite URL and copy action form one vertical stack.
+   The input and button match the white QR card's width; no parallel text column. */
+#hostLobby .share-layout{
+  display:flex;
+  flex:1 1 0;
+  min-height:0;
+  width:100%;
+  max-width:100%;
+  margin:0;
+  padding:0;
+  flex-wrap:nowrap;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden!important;
+}
+#hostLobby .qr-share-stack{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:center;
+  flex:0 1 auto;
+  gap:clamp(4px,.7dvh,8px);
+  width:min(100%,clamp(108px,29dvh,280px));
+  max-width:100%;
+  max-height:100%;
+  min-height:0;
+  min-width:0;
+}
+#hostLobby .qr-share-stack .qr-box{
+  flex:0 1 auto;
+  display:grid;
+  place-items:center;
+  width:100%;
+  height:auto;
+  aspect-ratio:1;
+  min-width:0;
+  min-height:0;
+  max-height:calc(100dvh - 190px);
+  padding:clamp(3px,.55vw,9px);
+  overflow:hidden!important;
+}
+#hostLobby .qr-share-stack .qr-box canvas,
+#hostLobby .qr-share-stack .qr-box img{
+  width:100%!important;
+  max-width:100%!important;
+  height:auto!important;
+  max-height:100%!important;
+  object-fit:contain;
+}
+#hostLobby .qr-share-stack .share-content{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:clamp(3px,.55dvh,7px);
+  flex:0 0 auto;
+  width:100%;
+  max-width:none;
+  min-width:0;
+  margin:0;
+  padding:0;
+  overflow:hidden!important;
+}
+#hostLobby .qr-share-stack .share-content #roomUrl,
+#hostLobby .qr-share-stack .share-content #copyBtn{
+  box-sizing:border-box;
+  display:block;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  margin:0;
+  border-radius:8px;
+  height:clamp(27px,4.6dvh,38px);
+  min-height:0;
+  padding:5px 8px;
+  font-size:clamp(9px,1vw,12px);
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#hostLobby .qr-share-stack .share-content #roomUrl{
+  white-space:nowrap;
+  text-align:left;
+}
+
+/* Short landscape: shrink QR slightly to reserve room for URL/copy below. */
+@media(orientation:landscape) and (max-height:520px){
+  #hostLobby .qr-share-stack{
+    width:min(100%,clamp(95px,24dvh,185px));
+    gap:3px;
+  }
+  #hostLobby .qr-share-stack .qr-box{
+    max-height:calc(100dvh - 165px);
+    padding:3px;
+  }
+  #hostLobby .qr-share-stack .share-content{gap:3px}
+  #hostLobby .qr-share-stack .share-content #roomUrl,
+  #hostLobby .qr-share-stack .share-content #copyBtn{
+    height:clamp(23px,4.5dvh,30px);
+    font-size:10px;
+    padding:3px 5px;
+  }
+  #hostLobby .lobby-roster{
+    grid-auto-rows:clamp(21px,5.2dvh,30px);
+    gap:2px;
+  }
+  #hostLobby .lobby-roster .roster-item{
+    padding:1px 4px;
+  }
+  #hostLobby .lobby-roster .roster-pick{font-size:9px;padding:1px 3px}
+}
+/* Portrait host uses a shorter QR block above the 12-player list. */
+@media(orientation:portrait) and (max-width:720px){
+  #hostLobby .qr-share-stack{
+    width:min(100%,clamp(85px,13dvh,165px));
+    gap:3px;
+  }
+  #hostLobby .qr-share-stack .qr-box{
+    max-height:calc(100dvh - 295px);
+    min-width:0;
+  }
+  #hostLobby .qr-share-stack .share-content #roomUrl,
+  #hostLobby .qr-share-stack .share-content #copyBtn{
+    height:clamp(22px,3.7dvh,29px);
+    padding:3px 6px;
+  }
+  #hostLobby .lobby-roster{
+    grid-auto-rows:clamp(23px,4.2dvh,36px);
+    gap:2px;
+  }
+  #hostLobby .lobby-roster .roster-item{
+    grid-template-columns:9px minmax(0,.8fr) minmax(0,1fr) 20px;
+  }
+}
