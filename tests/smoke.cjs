@@ -23,6 +23,13 @@ assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
 assert.match(source,/const MODES = \{ghost:'GHOST ATTACK'\}/);
+assert.match(source,/const MAX_PLAYERS = 24;/);
+assert.match(source,/MODE_COVER_SVG/);
+assert.match(html,/data-session-mode="queue"/);
+assert.match(html,/data-session-mode="quick"/);
+assert.match(html,/id="uiModal"/);
+assert.doesNotMatch(source,/\b(?:alert|confirm)\(/);
+assert.match(css,/#hostLobby #hostQueue\{display:none!important\}/);
 // No duplicated HUD counters on canvas, no map description beneath the title.
 assert.doesNotMatch(html,/HUMANS LEFT|id="gameTitle"/);
 assert.match(html,/<div class="game-name"><span class="eyebrow" id="gameMode">GHOST ATTACK<\/span><\/div>/);
@@ -93,11 +100,11 @@ const mkPlayers=n=>Array.from({length:n},(_,i)=>({
 }));
 const init=n=>{const players=mkPlayers(n),round={mode:'ghost',phase:'countdown'};
  ghost.setup(round,players);return {round,players,state:round.ghost};};
-for(const n of [1,4,6,7,8,12]){
- const x=init(n),tier=n<=6?1:2;
- assert.equal(x.state.npcs.length,tier,'1 ghost for 1-6; 2 ghosts for 7-12');
- assert.equal(x.state.world.w,960,'12 players fit a compact top-down world');
- assert.equal(x.state.world.h,540);
+for(const n of [1,4,6,7,8,12,13,18,19,24]){
+ const x=init(n),tier=Math.ceil(n/6);
+ assert.equal(x.state.npcs.length,tier,'1 AI ghost per 6 players');
+ assert.equal(x.state.world.w,960+Math.max(0,tier-2)*192);
+ assert.equal(x.state.world.h,540+Math.max(0,tier-2)*108);
  assert.equal(x.round.rules.viewMode,'topdown');
  assert.ok(x.state.obstacles.length>=5,'map has distributed solid obstacles');
  assert.equal(x.players.filter(p=>p.active&&!p.ghost).length,n);
@@ -116,7 +123,25 @@ assert.equal(Object.keys(ghost.ITEM_SVG).length,5);
 assert.equal(loadedImages.length,5,'five cached SVG images');
 assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
 
-// Movement starts while the three-second warning counts down.
+// Bots use threat-aware movement, activate speed items and seek loot.
+{
+ const x=init(3);x.round.phase='playing';x.state.ghostSpawned=true;
+ const p=x.players[0];p.isBot=true;p.botMind=null;
+ x.players[1].x=800;x.players[1].y=430;
+ x.players[2].x=700;x.players[2].y=400;
+ p.x=300;p.y=250;
+ const npc=x.state.npcs[0];
+ npc.x=385;npc.y=250;npc.stun=0;x.state.obstacles=[];
+ p.item='boost';
+ ghost.update(.016,x.round,x.players);
+ assert.ok(p.input.axisX<0,'bot runs away from ghost');
+ assert.equal(p.input.alt,true,'bot activates speed boost to flee');
+ assert.equal(p.item,null,'used item is consumed');
+ npc.stun=999;x.state.boxes=[{x:p.x+100,y:p.y,ttl:8,item:'cloak'}];
+ ghost.update(.016,x.round,x.players);
+ assert.ok(p.input.axisX>.4,'bot seeks loot when the ghost is stunned');
+}
+ // Movement starts while the three-second warning counts down.
 {
  const x=init(2),p=x.players[0],prev=p.x;
  p.input.axisX=1;
@@ -336,8 +361,10 @@ function setup(url='https://game.example/?host=1',portrait=false) {
     set(){return true;}
   });
   for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,makeElement(id));
-  elements.get('sessionMode').value='queue';
   elements.get('autoNext').checked=true;
+  const sessionButtons=['queue','quick'].map(mode=>{
+    const btn=makeElement('session-'+mode);btn.dataset.sessionMode=mode;return btn;
+  });
   const pickButtons=[...html.matchAll(/data-pick="([^"]+)"/g)].map(([,game])=>{
     const button=makeElement('pick-'+game);button.dataset.pick=game;return button;
   });
@@ -357,6 +384,7 @@ function setup(url='https://game.example/?host=1',portrait=false) {
     createElement(tag){return makeElement(tag);},
     querySelectorAll(selector){
       if(selector==='[data-pick]')return pickButtons;
+      if(selector==='[data-session-mode]')return sessionButtons;
       if(selector==='#controllerActive [data-control]')return Object.values(padButtons);
       return [];
     },
@@ -446,7 +474,7 @@ function setup(url='https://game.example/?host=1',portrait=false) {
   const scope=vm.createContext(globals);
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
-  return {elements,pickButtons,padButtons,instances,scope,
+  return {elements,pickButtons,sessionButtons,padButtons,instances,scope,
     mediaCall(peer){return new FakeMediaCall(peer);},
     step(ms){assert(raf);raf(ms);},
     click(id){elements.get(id).fire('click');},
@@ -465,7 +493,9 @@ host.click('addLocalBtn');
 host.click('offlineBtn');
 assert.equal(host.elements.get('hostLobby').classList.contains('hidden'),false);
 assert.equal(host.elements.get('roster').children.length,1);
-assert.equal(host.elements.get('roster').children[0].children[3].textContent,'GHOST ATTACK');
+assert.equal(host.elements.get('roster').children[0].children[1].textContent,'บอท 1');
+assert.equal(host.elements.get('roster').children[0].children[3].children[1].textContent,'GHOST ATTACK');
+assert.match(host.elements.get('roster').children[0].children[3].children[0].innerHTML,/<svg[\s>]/);
 host.click('startBtn');
 assert.equal(host.elements.get('gameMode').textContent,'GHOST ATTACK');
 assert.equal(host.elements.get('game').classList.contains('hidden'),false);
@@ -525,7 +555,7 @@ assert.equal(online.elements.get('startBtn').disabled,true);
 conn.fire('data',{t:'pick',mode:'ghost'});
 assert.equal(online.elements.get('startBtn').disabled,false);
 conn.fire('data',{t:'pick',mode:'stars'});
-assert.equal(online.elements.get('roster').children[0].children[3].textContent,'GHOST ATTACK');
+assert.equal(online.elements.get('roster').children[0].children[3].children[1].textContent,'GHOST ATTACK');
 online.click('startBtn');
 assert.equal(online.instances[0].mediaCalls.length,1,'WebRTC game stream still starts');
 assert.equal(online.instances[0].mediaCalls[0].stream.height,540);
@@ -568,6 +598,8 @@ assert.equal(phone.elements.get('controllerInventory').classList.contains('hidde
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
 assert.equal(phone.pickButtons.length,1);
+assert.match(phone.pickButtons[0].children[0].innerHTML,/<svg[\s>]/);
+assert.equal(phone.pickButtons[0].children[1].textContent,'GHOST ATTACK');
 phone.pick('ghost');
 assert.equal(phoneConn.sent.at(-1).mode,'ghost');
 phoneConn.fire('data',{t:'roster',phase:'playing',mode:'ghost',
@@ -608,4 +640,4 @@ assert.equal(phone.elements.get('controllerInventory').classList.contains('hidde
 phone.click('leaveBtn');phone.click('confirmLeaveBtn');
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
 assert.equal(phone.scope.window.location.search,'?controller=1');
-console.log('SMOKE PASS: GHOST ATTACK engine, AI conversion/lock, obstacles, 5 items, 12-person maps, controller target arrows, QR and WebRTC');
+console.log('SMOKE PASS: 24-player rooms, tactical bots, SVG covers, async confirmations, QR, WebRTC');
