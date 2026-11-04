@@ -331,7 +331,13 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
 {
  const x=init(3);x.round.phase='playing';
  x.state.npcs.forEach(n=>n.stun=999);
- const obstacle=x.state.obstacles.find(o=>o.kind!=='hud-blocker'),p=x.players[0];
+ // Make this collision assertion independent from random obstacle placement
+ // and from another player's random initial position.
+ const obstacle={x:450,y:230,w:70,h:100,kind:'tombstone',solid:true};
+ x.state.obstacles=[obstacle];
+ const p=x.players[0];
+ x.players[1].x=100;x.players[1].y=450;
+ x.players[2].x=840;x.players[2].y=450;
  p.x=obstacle.x-16;p.y=obstacle.y+obstacle.h/2;
  p.input.axisX=1;
  const before=p.x;
