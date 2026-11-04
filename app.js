@@ -304,10 +304,17 @@ function nominatedGames(){
 function updateHostQueue(){$('hostQueue').textContent='';}
 function sendPlayerInventory(conn){
   // Game-specific metadata must never leak into the lobby or another game's UI.
-  if(!conn||!conn.playerId||!round||round.mode!=='ghost'||
+  if(!conn||!conn.playerId||!round||
      !['countdown','playing','paused'].includes(networkPhase()))return;
   const p=players.find(q=>q.id===conn.playerId);
   if(!p)return;
+  if(round.mode==='chickens'){
+    send(conn,{t:'chicken-status',mode:round.mode,phase:networkPhase(),
+      cooldown:Math.max(0,p.chickenAttackCooldown||0),
+      carrying:p.carriedChickenId!=null});
+    return;
+  }
+  if(round.mode!=='ghost')return;
   const info=window.GhostAttack.itemStatus(players).find(q=>q.id===p.id);
   if(info)send(conn,{t:'inventory',mode:round.mode,phase:networkPhase(),...info});
 }
@@ -824,6 +831,14 @@ function joinRoom(){
           'กำลังรอเจ้าของห้องเริ่มเกม';
       }else if(data.t==='inventory'){
         renderPhoneInventory(data);
+      }else if(data.t==='chicken-status'){
+        if(controllerReady&&controllerPlayerActive&&controllerGameMode==='chickens'&&
+          data.mode==='chickens'){
+          const seconds=Math.max(0,Math.min(1,Number(data.cooldown)||0));
+          $('buttonA').classList.toggle('cooldown-active',seconds>.03);
+          $('buttonA').style.setProperty('--cooldown-sweep',Math.round(seconds*360)+'deg');
+          $('buttonA').title=seconds>.03?'รอตีอีก '+seconds.toFixed(1)+' วิ':'พร้อมตี';
+        }
       }else if(data.t==='state'){
         showControllerMode(data.mode);
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
@@ -879,6 +894,11 @@ function showControllerMode(mode){
   const bLabel=ghost?($('controllerButtons').classList.contains('has-target')?
     'ยืนยันสโลว์':'ใช้ไอเทม'):'';
   $('controllerButtons').classList.toggle('chickens-mode',chickens);
+  if(!chickens){
+    $('buttonA').classList.remove('cooldown-active');
+    $('buttonA').style.removeProperty('--cooldown-sweep');
+    $('buttonA').title='';
+  }
   $('buttonALabel').textContent=aLabel;
   $('buttonBLabel').textContent=bLabel;
   $('buttonA').setAttribute('aria-label',aLabel?'ปุ่ม A '+aLabel:'ปุ่ม A');
