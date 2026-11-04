@@ -293,6 +293,18 @@ conn.fire('data',{t:'welcome',id:'p1',name:'ทดสอบ',color:'#ff628c',mod
 assert.equal(mobile.elements.get('controllerActive').classList.contains('hidden'),false);
 assert.equal(mobile.elements.get('controllerName').textContent,'ทดสอบ');
 assert.equal(mobile.elements.get('controllerModeName').textContent,'STAR RUSH');
+assert.equal(mobile.elements.get('phoneGamePicker').classList.contains('hidden'),false);
+mobile.pick('soccer');
+assert.equal(conn.sent.at(-1).t,'pick');
+assert.equal(conn.sent.at(-1).mode,'soccer');
+conn.fire('data',{t:'roster',phase:'lobby',mode:'stars',
+  players:[{id:'p1',name:'ทดสอบ',active:false,choice:'soccer'}]});
+assert.equal(mobile.pickButtons.find(x=>x.dataset.pick==='soccer').classList.contains('selected'),true);
+assert.match(mobile.elements.get('phoneChoiceStatus').textContent,/FOOTBALL/);
+conn.fire('data',{t:'state',phase:'playing',mode:'soccer',remaining:45});
+assert.equal(mobile.elements.get('phoneGamePicker').classList.contains('hidden'),true);
+mobile.pick('tanks');
+assert.equal(conn.sent.at(-1).t,'input','cannot change vote after start');
 assert.equal(mobile.elements.get('controllerPreviewImage').classList.contains('hidden'),true);
 conn.fire('data',snapshot);
 assert.equal(mobile.elements.get('controllerPreviewImage').src,snapshot.image,
@@ -398,38 +410,62 @@ assert.match(mobile.elements.get('controllerState').textContent,/หยุดเ
 conn.fire('data',{t:'roster',phase:'lobby',mode:'tanks',players:[]});
 assert.equal(mobile.elements.get('buttonALabel').textContent,'FIRE');
 assert.equal(mobile.elements.get('buttonBLabel').textContent,'DODGE');
-// Exercise all top-down mini-games through countdown and active simulation.
-for(const mode of ['tanks','soccer','rally','paint']){
+// Each of the seven minigames can be nominated on a phone and launched by the host.
+for(const mode of ['stars','brawl','lava','tanks','soccer','rally','paint']){
   const test=setup();
-  test.click('addLocalBtn');test.click('addLocalBtn');
-  test.clickCard(mode);
-  assert.equal(test.elements.get('mode').value,mode,'card sets game selector');
-  assert.equal(test.cards.find(c=>c.dataset.game===mode).classList.contains('selected'),true);
+  test.click('hostBtn');test.instances[0].fire('open');
+  const remote=test.instances[0].connect();test.instances[0].fire('connection',remote);
+  remote.fire('data',{t:'join',name:'Picker'});
+  remote.fire('data',{t:'pick',mode});
+  assert.equal(test.elements.get('startBtn').disabled,false);
   test.click('startBtn');
   for(let i=0;i<270;i++)test.step(i*16.667);
   assert.equal(test.elements.get('gameMode').textContent,{
+    stars:'STAR RUSH',brawl:'BRAWL ARENA',lava:'LAVA RUN',
     tanks:'TANK BLAST',soccer:'FOOTBALL',rally:'MICRO RALLY',paint:'COLOR CLASH'}[mode]);
   assert.equal(test.elements.get('game').classList.contains('hidden'),false);
 }
-// Tourney should start a random one of seven games and use round transitions.
+// Duplicate picks are preserved: two people choosing TANK BLAST means two rounds.
 const tour=setup();
-tour.click('addLocalBtn');tour.click('addLocalBtn');
-tour.elements.get('sessionMode').value='tournament';
-tour.click('startBtn');
-assert.match(tour.elements.get('gameMode').textContent,/STAR RUSH|BRAWL ARENA|LAVA RUN|TANK BLAST|FOOTBALL|MICRO RALLY|COLOR CLASH/);
-for(let i=0;i<1660;i++)tour.step(i*45);
-assert.equal(tour.elements.get('results').classList.contains('hidden'),false);
-assert.match(tour.elements.get('replayBtn').textContent,/เกมถัดไป/);
-tour.click('replayBtn');
-assert.equal(tour.elements.get('results').classList.contains('hidden'),true);
-// Finish tournament and verify the overall podium exists.
-for(let roundIndex=1;roundIndex<5;roundIndex++){
-  for(let i=0;i<1660;i++)tour.step(i*45);
-  assert.equal(tour.elements.get('results').classList.contains('hidden'),false);
-  if(roundIndex<4)tour.click('replayBtn');
+tour.click('hostBtn');tour.instances[0].fire('open');
+tour.elements.get('sessionMode').value='queue';
+tour.elements.get('autoNext').checked=false;
+const votes=[];
+for(const mode of ['tanks','tanks','soccer']){
+  const remote=tour.instances[0].connect();tour.instances[0].fire('connection',remote);
+  remote.fire('data',{t:'join',name:'Picker '+votes.length});
+  remote.fire('data',{t:'pick',mode});
+  votes.push(remote);
 }
+assert.match(tour.elements.get('hostQueue').textContent,/TANK BLAST ×2/);
+assert.match(tour.elements.get('hostQueue').textContent,/FOOTBALL ×1/);
+tour.click('startBtn');
+const modesPlayed=[];
+for(let roundIndex=0;roundIndex<3;roundIndex++){
+  modesPlayed.push(tour.elements.get('gameMode').textContent);
+  for(let i=0;i<1660;i++)tour.step(i*45+roundIndex*80000);
+  assert.equal(tour.elements.get('results').classList.contains('hidden'),false);
+  if(roundIndex<2){
+    assert.match(tour.elements.get('replayBtn').textContent,/เกมถัดไป/);
+    tour.click('replayBtn');
+    assert.equal(tour.elements.get('results').classList.contains('hidden'),true);
+  }
+}
+assert.equal(modesPlayed.filter(x=>x==='TANK BLAST').length,2);
+assert.equal(modesPlayed.filter(x=>x==='FOOTBALL').length,1);
 assert.match(tour.elements.get('resultList').children[0].textContent,/แชมป์ทัวร์นาเมนต์/);
-assert.equal(tour.elements.get('replayBtn').textContent,'เริ่มทัวร์นาเมนต์ใหม่');
+assert.equal(tour.elements.get('replayBtn').textContent,'สุ่มชุดใหม่จากตัวเลือกเดิม');
+// Auto-next is optional and should advance the round without another host click.
+const auto=setup();
+auto.click('offlineBtn');
+auto.elements.get('autoNext').checked=true;
+auto.elements.get('sessionMode').value='queue';
+auto.click('startBtn');
+for(let i=0;i<1660;i++)auto.step(i*45);
+assert.equal(auto.elements.get('results').classList.contains('hidden'),false);
+for(let i=1660;i<1830;i++)auto.step(i*45);
+assert.equal(auto.elements.get('results').classList.contains('hidden'),true,
+  'queue proceeds automatically after results countdown');
 // Disconnect must exit landscape mode and clear the analog stick.
 conn.fire('close');
 assert.equal(mobile.scope.document.body.classList.contains('controller-playing'),false);
