@@ -80,7 +80,7 @@ function addLocal(){
   renderPads();broadcastRoster();
 }
 function resetInputs(){
-  players.forEach(p=>{p.input=blankInput();p.latch=false;});
+  players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.latch=false;});
 }
 function closeHost(){
   onlineHost=false;roomCode='';$('roomPanel').classList.add('hidden');$('hostBtn').disabled=false;
@@ -255,8 +255,9 @@ function startRound(){
 }
 function spawnStar(){
   if(!round)return;
-  const choices=[WORLD.ground-32,350,300,220,390];
-  round.stars.push({x:rand(55,900),y:choices[Math.floor(Math.random()*choices.length)],spin:rand(0,6.28)});
+  const surfaces=[{x:38,y:WORLD.ground,w:884},...platforms];
+  const s=surfaces[Math.floor(Math.random()*surfaces.length)];
+  round.stars.push({x:rand(s.x+23,s.x+s.w-23),y:s.y-35,spin:rand(0,6.28)});
 }
 function updatePlayers(dt){
   for(const p of players){
