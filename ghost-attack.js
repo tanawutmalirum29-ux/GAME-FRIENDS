@@ -53,9 +53,9 @@ function freeSpot(world,obstacles,others,margin=22,minDistance=52){
     {x:world.w-50,y:world.h-50}];
   return corner.find(q=>obstacles.every(o=>safeCircle(o,q.x,q.y,20)))||corner[0];
 }
-function makeObstacles(world,tier){
+function makeObstacles(world,tier,reserved=[]){
   const out=[];
-  const count=7+tier*5;
+  const count=7+tier*5+(world.w>=1200?5:0);
   const candidateW=world.w-130,candidateH=world.h-110;
   for(let k=0,tries=0;k<count&&tries<260;tries++){
     const w=rand(29,62),h=rand(23,52);
@@ -66,7 +66,7 @@ function makeObstacles(world,tier){
     const center={x:q.x+w/2,y:q.y+h/2};
     // Keep a generous center spawn plaza clear for the starting AI ghost(s).
     if(Math.hypot(center.x-world.w/2,center.y-world.h/2)<115)continue;
-    if(out.some(o=>!(q.x>o.x+o.w+32||q.x+q.w+32<o.x||
+    if([...reserved,...out].some(o=>!(q.x>o.x+o.w+32||q.x+q.w+32<o.x||
       q.y>o.y+o.h+32||q.y+q.h+32<o.y)))continue;
     out.push(q);k++;
   }
@@ -89,19 +89,26 @@ function resetPlayer(p,pos){
 function setup(round,players){
   preloadItemIcons();
   Art.preload(players);
-  // The map stays compact for 1-12 humans; only the AI-ghost count scales.
-  // Exactly 12 player slots maximum, one ghost for 1-6 and two for 7-12.
+  // A maximum of 12 people, with a larger world for crowded rounds.
+  // The canvas/video output remains 960x540, with the world scaled into it.
   const tier=players.length<=6?1:2;
-  const world={w:960,h:540};
+  const world=players.length>=9?{w:1280,h:720}:
+    players.length>=5?{w:1080,h:608}:{w:960,h:540};
   round.rules={...(round.rules||{}),viewMode:round.rules?.viewMode||'topdown'};
-  const obstacles=makeObstacles(world,tier);
+  // Corner UI is physical scenery: no player OR ghost can cross it.
+  // All tiers display it at roughly the same apparent canvas size.
+  const hudBlocker={x:12*world.w/960,y:12*world.h/540,
+    w:120*world.w/960,h:82*world.h/540,
+    kind:'hud-blocker',fixed:true,solid:true};
+  const obstacles=[hudBlocker,...makeObstacles(world,tier,[hudBlocker])];
   const center={x:world.w/2,y:world.h/2};
   const used=[center];
   for(const p of players){
     // Humans spawn at random, dispersed locations away from the AI ghost plaza.
-    let pos=freeSpot(world,obstacles,used,30,Math.max(80,world.w/13));
+    const spacing=players.length>=9?110:Math.max(80,world.w/13);
+    let pos=freeSpot(world,obstacles,used,30,spacing);
     for(let tries=0;tries<35&&dist(pos,center)<Math.min(world.w,world.h)*.32;tries++)
-      pos=freeSpot(world,obstacles,used,30,Math.max(80,world.w/13));
+      pos=freeSpot(world,obstacles,used,30,spacing);
     resetPlayer(p,pos);used.push(pos);
   }
   const npcs=Array.from({length:tier},(_,i)=>{
@@ -110,7 +117,7 @@ function setup(round,players){
       y:center.y+Math.sin(a)*25,dir:{x:Math.cos(a),y:Math.sin(a)},
       targetId:null,lockUntil:0,stun:0};
   });
-  round.ghost={world,obstacles,npcs,boxes:[],traps:[],time:0,
+  round.ghost={world,obstacles,hudBlocker,npcs,boxes:[],traps:[],time:0,
     boxClock:4.5,maxBoxes:tier===1?2:3,
     winnerId:null,converted:[],lastHumanId:null,ghostSpawned:false};
   round.phase='countdown';round.countdown=3;
@@ -119,9 +126,11 @@ function walk(entity,vx,vy,dt,world,obstacles,ignoreObstacles=false){
   const radius=15;
   const x=clamp(entity.x+vx*dt,radius+6,world.w-radius-6);
   const y=clamp(entity.y+vy*dt,radius+6,world.h-radius-6);
-  if(ignoreObstacles){entity.x=x;entity.y=y;return;}
-  if(obstacles.every(o=>safeCircle(o,x,entity.y,radius)))entity.x=x;
-  if(obstacles.every(o=>safeCircle(o,entity.x,y,radius)))entity.y=y;
+  // Ghosts pass regular tombstones, but NOT the solid upper-left HUD.
+  const clear=(xx,yy)=>obstacles.every(o=>
+    (ignoreObstacles&&o.kind!=='hud-blocker')||safeCircle(o,xx,yy,radius));
+  if(clear(x,entity.y))entity.x=x;
+  if(clear(entity.x,y))entity.y=y;
 }
 function turnTowards(current,wanted,seconds,turnSpeed){
   const len=Math.hypot(wanted.x,wanted.y);
@@ -282,7 +291,8 @@ function movePushedPlayer(p,dx,dy,state){
   const radius=15,edge=radius+6;
   const x=clamp(p.x+dx,edge,state.world.w-edge);
   const y=clamp(p.y+dy,edge,state.world.h-edge);
-  const clear=(xx,yy)=>p.ghost||state.obstacles.every(o=>safeCircle(o,xx,yy,radius));
+  const clear=(xx,yy)=>state.obstacles.every(o=>
+    (p.ghost&&o.kind!=='hud-blocker')||safeCircle(o,xx,yy,radius));
   if(clear(x,y)){p.x=x;p.y=y;return;}
   // Slide along a wall when only one axis is available, never through props.
   if(clear(x,p.y))p.x=x;
@@ -700,6 +710,35 @@ function drawPickupNotice(ctx,p,w,h){
   ctx.fillText(msg,textX,y,220);
   ctx.restore();
 }
+function drawCornerHud(ctx,round,players,state){
+  const o=state.hudBlocker;if(!o)return;
+  const unit=o.w/120;
+  ctx.save();
+  ctx.shadowColor='#001827';ctx.shadowBlur=8*unit;
+  ctx.shadowOffsetY=3*unit;
+  ctx.beginPath();ctx.roundRect(o.x,o.y,o.w,o.h,11*unit);
+  ctx.fillStyle='#102237';ctx.fill();
+  ctx.strokeStyle='#8bd5d9';ctx.lineWidth=2.5*unit;ctx.stroke();
+  ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+  ctx.beginPath();ctx.roundRect(o.x+5*unit,o.y+5*unit,
+    o.w-10*unit,o.h-10*unit,7*unit);
+  ctx.fillStyle='#193d49';ctx.fill();
+  ctx.strokeStyle='#3e8490';ctx.lineWidth=unit;ctx.stroke();
+  const count=players.filter(p=>p.active).length;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#c4e7e5';ctx.font='bold '+(10*unit)+'px system-ui';
+  ctx.fillText(round.phase==='countdown'?'เริ่มใน':'ผู้เล่น',
+    o.x+o.w/2,o.y+17*unit);
+  ctx.font='900 '+(round.phase==='countdown'?27*unit:22*unit)+'px system-ui';
+  ctx.fillStyle='#fff2b6';
+  ctx.fillText(round.phase==='countdown'?
+    String(Math.max(1,Math.ceil(round.countdown||0)))+' วิ':
+    String(count)+' คน',o.x+o.w/2,o.y+43*unit);
+  ctx.fillStyle='#aee4e7';ctx.font='bold '+(11*unit)+'px system-ui';
+  ctx.fillText(round.phase==='countdown'?count+' คน':'กำลังแข่งขัน',
+    o.x+o.w/2,o.y+66*unit);
+  ctx.restore();
+}
 function draw(ctx,t,round,players){
   const state=round.ghost;if(!state)return;
   const w=state.world.w,h=state.world.h;
@@ -726,7 +765,8 @@ function draw(ctx,t,round,players){
     }
   }
   // SVG visuals sit on the SAME collision rectangles and nav grid blockers.
-  for(const o of state.obstacles)Art.drawObstacle(ctx,o);
+  for(const o of state.obstacles)
+    if(o.kind!=='hud-blocker')Art.drawObstacle(ctx,o);
   const center={x:w/2,y:h/2};
   ctx.save();ctx.strokeStyle='#c6eaff2c';ctx.lineWidth=3;
   ctx.beginPath();ctx.arc(center.x,center.y,70+5*Math.sin(t*2),0,TAU);ctx.stroke();
@@ -765,8 +805,9 @@ function draw(ctx,t,round,players){
     ctx.shadowBlur=14;ctx.shadowColor=caster.color;ctx.beginPath();
     ctx.arc(target.x,target.y,31+2*Math.sin(t*7),0,TAU);ctx.stroke();ctx.restore();
   }
-  // Match HUD belongs exclusively to the toolbar above the field. The arena
-  // canvas intentionally contains no redundant counters or map instructions.
+  // The solid upper-left monument displays the only countdown and player
+  // count, painted last so characters and FX cannot cover its information.
+  drawCornerHud(ctx,round,players,state);
   ctx.restore();
 }
 window.GhostAttack={setup,update,draw,hud,itemStatus,cycleTarget,
