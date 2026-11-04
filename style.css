@@ -147,3 +147,53 @@ body.zoom-locked .face-button{
 }
 body.zoom-locked .pad-section{touch-action:pan-y}
 body.zoom-locked .game-frame canvas{display:block;max-width:100%}
+
+
+
+/* Larger hit targets for small-screen party play. Local pads use two rows. */
+.pad-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.pad-buttons .control-btn{width:100%;height:68px;min-height:68px;min-width:0;padding:0;font-size:23px;border-radius:16px}
+.local-pad{padding:15px}
+.roster-actions .btn,.button-group .btn{min-height:56px}
+.controller-page .join-panel .btn{min-height:59px}
+
+/* Landscape gamepad: larger A/B face buttons and a larger left analog. */
+body.controller-playing .controller-buttons{
+  grid-template-columns:minmax(160px,1fr) minmax(76px,.58fr) minmax(185px,1.1fr);
+  gap:clamp(6px,2vw,26px);
+}
+.joystick-base{width:clamp(148px,43vh,270px);height:clamp(148px,43vh,270px)}
+.gamepad-face-buttons{max-width:350px;min-height:165px}
+.face-button{
+  width:clamp(94px,27vh,152px);
+  height:clamp(94px,27vh,152px);
+  border-width:7px;
+  font-size:clamp(34px,8vh,60px);
+}
+.face-a{right:0;top:7%}
+.face-b{left:1%;bottom:6%}
+.face-caption{font-size:12px}
+@media(orientation:landscape) and (max-height:470px){
+  .joystick-base{width:clamp(132px,45vh,212px);height:clamp(132px,45vh,212px)}
+  .face-button{width:clamp(86px,29vh,132px);height:clamp(86px,29vh,132px)}
+  .gamepad-face-buttons{min-height:132px}
+  .face-a{top:2%}
+  .face-b{bottom:2%}
+}
+@media(orientation:landscape) and (max-width:750px){
+  body.controller-playing .controller-buttons{
+    grid-template-columns:minmax(132px,1fr) minmax(62px,.42fr) minmax(146px,1.1fr);
+    gap:5px;padding:0 10px;
+  }
+  .joystick-base{width:clamp(128px,43vh,190px);height:clamp(128px,43vh,190px)}
+  .gamepad-face-buttons{max-width:230px;min-height:135px}
+  .face-button{width:clamp(83px,28vh,126px);height:clamp(83px,28vh,126px)}
+}
+@media(orientation:landscape) and (max-height:350px){
+  .joystick-group{gap:3px}
+  .gamepad-label{display:none}
+  .gamepad-middle .gamepad-connection{display:none}
+  .joystick-base{width:clamp(118px,44vh,160px);height:clamp(118px,44vh,160px)}
+  .face-button{width:clamp(75px,27vh,108px);height:clamp(75px,27vh,108px)}
+  .gamepad-face-buttons{min-height:118px}
+}
