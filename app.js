@@ -774,7 +774,8 @@ function setControllerGameContext(mode,phase,active){
 function showControllerMode(mode){
   const ghost=mode==='ghost';
   $('buttonALabel').textContent=ghost?'ตีสตั้น':'แอ็กชัน';
-  $('buttonBLabel').textContent=ghost?'ใช้ไอเทม':'ปุ่ม B';
+  $('buttonBLabel').textContent=ghost&&$('controllerButtons').classList.contains('has-target')?
+    'ยืนยันสโลว์':ghost?'ใช้ไอเทม':'ปุ่ม B';
   $('controllerModeName').textContent=MODES[mode]||'';
   $('controllerHelp').textContent=ghost?
     'เลื่อนอนาล็อกเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':'เลื่อนอนาล็อกเพื่อเดิน';
