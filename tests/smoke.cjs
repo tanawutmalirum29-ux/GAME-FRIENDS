@@ -118,7 +118,7 @@ mobile.instances[0].fire('open');
 const conn=mobile.instances[0].conn;
 conn.fire('open');
 assert.equal(conn.sent[0].t,'join');
-conn.fire('data',{t:'welcome',id:'p1',name:'ทดสอบ',color:'#ff628c'});
+conn.fire('data',{t:'welcome',id:'p1',name:'ทดสอบ',color:'#ff628c',mode:'stars'});
 assert.equal(mobile.elements.get('controllerActive').classList.contains('hidden'),false);
 assert.equal(mobile.elements.get('controllerName').textContent,'ทดสอบ');
 assert.equal(mobile.elements.get('controllerModeName').textContent,'STAR RUSH');
