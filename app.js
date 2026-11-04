@@ -682,7 +682,7 @@ window.addEventListener('blur',()=>{
 function startRound(forcedMode=null){
   if(!players.length)return;
   $('results').classList.add('hidden');
-  const mode=typeof forcedMode==='string'?forcedMode:$('mode').value,duration=Number($('duration').value)||60;
+  const mode=Object.hasOwn(MODES,forcedMode)?forcedMode:'stars',duration=Number($('duration').value)||60;
   round={mode,duration,remaining:duration,phase:'countdown',paused:false,countdown:3.25,stars:[],starClock:0};
   players.forEach((p,i)=>{
     p.active=true;p.alive=true;p.x=55+((i+.5)*850/players.length);p.y=WORLD.ground;
@@ -698,7 +698,7 @@ function startRound(forcedMode=null){
     tanks:'รถถังยิงกันบนสนาม',soccer:'สองทีมแย่งยิงประตู',rally:'ผ่านจุดตรวจให้ครบเพื่อทำรอบ',paint:'ระบายสีแย่งพื้นที่'
   };
   $('gameMode').textContent=MODES[mode];$('gameTitle').textContent=subtitles[mode];
-  $('replayBtn').textContent=tournament?'รอบถัดไป':'เล่นอีกครั้ง';
+  $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').classList.remove('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
@@ -814,11 +814,12 @@ function endRound(){
       p.total=(p.total||0)+Math.max(1,ranked.length-sharedRank);
     });
     if(tournament.index===tournament.schedule.length-1){
-      $('replayBtn').textContent='เริ่มทัวร์นาเมนต์ใหม่';
+      $('replayBtn').textContent='สุ่มชุดใหม่จากตัวเลือกเดิม';
     }else{
       $('replayBtn').textContent='เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
     }
-  }else{$('replayBtn').textContent='เล่นอีกครั้ง';}
+  }else{$('replayBtn').textContent='สุ่มเล่นใหม่';}
+  round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
   const list=$('resultList');list.replaceChildren();
   ranked.forEach((p,i)=>{
     const r=document.createElement('div');r.className='result-player';
@@ -936,6 +937,12 @@ function animate(ts){
   if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
     updateRound(dt);drawGame(graphicsClock);
+    if(round&&round.phase==='results'&&round.autoNextRemaining>0){
+      round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
+      if(round.autoNextRemaining===0)advanceParty();
+      else $('replayBtn').textContent='เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+
+        ') • อีก '+Math.ceil(round.autoNextRemaining)+' วิ';
+    }
     hudClock+=dt;
     if(hudClock>.22){
       const seconds=Math.max(0,Math.ceil(round.remaining));
@@ -962,6 +969,7 @@ function broadcastGameState(){
 }
 function pauseGame(){
   if(currentView!=='game'||!round||round.phase==='results'||round.paused)return;
+  renderPauseChoiceList();
   round.paused=true;
   resetInputs();
   $('pauseMenu').classList.remove('hidden');
@@ -984,7 +992,7 @@ function returnToLobby(){
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
   releaseHostFullscreen();
-  setView('home');renderRoster();broadcastRoster();
+  setView('hostLobby');renderRoster();broadcastRoster();
 }
 $('pauseBtn').addEventListener('click',pauseGame);
 $('resumeBtn').addEventListener('click',resumeGame);
@@ -997,14 +1005,26 @@ document.addEventListener('keydown',e=>{
 });
 $('addLocalBtn').addEventListener('click',addLocal);
 $('hostBtn').addEventListener('click',()=>startHost());
+function shuffleGames(items){
+  const result=[...items];
+  for(let i=result.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [result[i],result[j]]=[result[j],result[i]];
+  }
+  return result;
+}
 function beginParty(){
-  if($('sessionMode').value==='tournament'){
-    const shuffled=[...TOURNAMENT_GAMES];
-    for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]];}
-    tournament={schedule:shuffled.slice(0,5),index:0};
+  const picks=nominatedGames();
+  if(!picks.length||picks.length!==players.length)return;
+  const shuffled=shuffleGames(picks);
+  if($('sessionMode').value==='queue'){
+    tournament={schedule:shuffled,index:0};
     players.forEach(p=>p.total=0);
     startRound(tournament.schedule[0]);
-  }else{tournament=null;startRound();}
+  }else{
+    tournament=null;
+    startRound(shuffled[0]);
+  }
 }
 function advanceParty(){
   if(tournament&&tournament.index+1<tournament.schedule.length){
@@ -1015,33 +1035,23 @@ $('offlineBtn').addEventListener('click',()=>{
   if(onlineHost&&!confirm('ปิดห้องออนไลน์และถอดจอยมือถือทั้งหมดเพื่อเล่นออฟไลน์?'))return;
   if(onlineHost)closeHost();
   if(!players.length){addLocal();addLocal();}
-  beginParty();
+  $('hostRoomBadge').textContent='OFFLINE';
+  $('roomPanel').classList.add('hidden');
+  $('offlineRoomHint').classList.remove('hidden');
+  setView('hostLobby');renderRoster();
 });
 $('startBtn').addEventListener('click',beginParty);
+$('closeRoomBtn').addEventListener('click',()=>{
+  if(onlineHost&&!confirm('ปิดห้องนี้และตัดการเชื่อมต่อจอยมือถือทุกเครื่อง?'))return;
+  if(onlineHost)closeHost();
+  tournament=null;round=null;setView('home');
+});
 $('copyBtn').addEventListener('click',copyInvite);
 $('exitBtn').addEventListener('click',returnToLobby);
 $('backBtn').addEventListener('click',returnToLobby);
 $('replayBtn').addEventListener('click',advanceParty);
-function selectMiniGame(mode){
-  if(!MODES[mode])return;
-  $('mode').value=mode;
-  document.querySelectorAll('[data-game]').forEach(btn=>{
-    const active=btn.dataset.game===mode;
-    btn.classList.toggle('selected',active);
-    btn.setAttribute('aria-pressed',String(active));
-  });
-  const details={stars:'เก็บดาวแข่งกัน',brawl:'ตะลุมบอนแย่งคะแนน',lava:'เอาชีวิตรอดจากลาวา',
-    tanks:'รถถังยิงกันมุมบน',soccer:'สองทีมแข่งยิงประตู',rally:'รถแข่งผ่านจุดตรวจ',paint:'แย่งยึดพื้นที่สี'};
-  $('selectedGameText').textContent=$('sessionMode').value==='tournament'?
-    'TOURNAMENT • ระบบสุ่ม 5 จาก 7 มินิเกมเพื่อสะสมคะแนน':
-    'เลือกแล้ว: '+MODES[mode]+' • '+details[mode];
-  broadcastRoster();
-}
-document.querySelectorAll('[data-game]').forEach(btn=>btn.addEventListener('click',()=>selectMiniGame(btn.dataset.game)));
 $('sessionMode').addEventListener('change',()=>{
-  const isTourney=$('sessionMode').value==='tournament';
-  $('gameCards').parentElement.classList.toggle('tournament-selected',isTourney);
-  selectMiniGame($('mode').value);
+  updateHostQueue();
 });
 $('landscapeBtn').addEventListener('click',()=>{void requestLandscape();});
 $('rotateRetryBtn').addEventListener('click',()=>{void requestLandscape();});
@@ -1105,7 +1115,7 @@ if(joinCode){
   $('nick').value=getSavedNickname();
   setStatus('พร้อมเชื่อมจอย • จำชื่อเล่นไว้ในเครื่องนี้');
 }else{
-  setView('home');renderRoster();selectMiniGame($('mode').value||'stars');
+  setView('home');renderRoster();
 }
 requestAnimationFrame(animate);
 })();
