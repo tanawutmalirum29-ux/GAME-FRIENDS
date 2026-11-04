@@ -303,8 +303,8 @@ function showControllerMode(mode){
   $('buttonBLabel').textContent=labels[1];
   $('controllerModeName').textContent=MODES[mode]||'MINI GAME';
   $('controllerHelp').textContent=topdown?
-    'อนาล็อกเดิน 4 ทิศ • A '+labels[0]+' • B '+labels[1]:
-    'อนาล็อกซ้าย/ขวา • ดันขึ้นหรือกด B เพื่อกระโดด • A '+labels[0];
+    'แตะพื้นที่ซ้ายจุดไหนก็ได้แล้วลาก • A '+labels[0]+' • B '+labels[1]:
+    'แตะพื้นที่ซ้ายตรงไหนก็ได้แล้วลาก • ดันขึ้นหรือกด B เพื่อกระโดด • A '+labels[0];
 }
 function sendInputs(){if(!controllerReady)return;send(controllerConn,{t:'input',keys:{...controllerKeys}});}
 function isPortraitScreen(){
@@ -342,46 +342,62 @@ async function requestLandscape(){
   }catch(_){/* portrait overlay is the fallback */ }
 }
 let releaseStick=()=>{};
-function bindAnalogStick(base,knob,target){
-  let pointerId=null;
+function bindAnalogStick(zone,base,knob,target){
+  let pointerId=null,originX=0,originY=0;
+  const rotated=()=>document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
   const reset=()=>{
-    pointerId=null;target.axisX=0;target.axisY=0;
+    pointerId=null;originX=0;originY=0;
+    target.axisX=0;target.axisY=0;
     knob.style.transform='translate(-50%,-50%)';
-    base.classList.remove('is-active');sendInputs();
+    zone.classList.remove('is-active');
+    sendInputs();
   };
-  const move=(e)=>{
+  const move=e=>{
+    // Movement is measured from the first touch, not a fixed screen position.
+    // CSS rotated portrait mode needs inverse rotation of the finger delta.
+    const dx=e.clientX-originX,dy=e.clientY-originY;
+    const localX=rotated()?dy:dx,localY=rotated()?-dx:dy;
     const box=base.getBoundingClientRect();
-    const cx=box.left+box.width/2,cy=box.top+box.height/2;
     const travel=Math.max(1,Math.min(box.width,box.height)*.285);
-    const dx=e.clientX-cx,dy=e.clientY-cy;
-    // CSS rotate(90deg) changes physical pointer axes; undo it before sending
-    // game-space movement so 'right' on the sideways UI still means right.
-    const rotated=document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
-    const localX=rotated?dy:dx,localY=rotated?-dx:dy;
-    const distance=Math.hypot(localX,localY),factor=distance>travel?travel/distance:1;
-    let x=localX*factor/travel,y=localY*factor/travel;
+    const len=Math.hypot(localX,localY),factor=len>travel?travel/len:1;
+    let x=Math.round(localX*factor/travel*100)/100;
+    let y=Math.round(localY*factor/travel*100)/100;
     if(Math.hypot(x,y)<.14){x=0;y=0;}
-    x=Math.round(x*100)/100;y=Math.round(y*100)/100;
-    // Canonicalize negative zero after inverse 90-degree rotation.
     if(x===0)x=0;if(y===0)y=0;
     knob.style.transform='translate(calc(-50% + '+Math.round(x*travel)+'px),calc(-50% + '+Math.round(y*travel)+'px))';
-    if(Math.abs(target.axisX-x)>.01||Math.abs(target.axisY-y)>.01){
+    if(target.axisX!==x||target.axisY!==y){
       target.axisX=x;target.axisY=y;sendInputs();
     }
   };
-  base.addEventListener('pointerdown',e=>{
-    if(pointerId!==null)return;
-    e.preventDefault();pointerId=e.pointerId;
-    try{base.setPointerCapture(pointerId);}catch(_){}
-    base.classList.add('is-active');move(e);
+  zone.addEventListener('pointerdown',e=>{
+    if(pointerId!==null||!controllerReady)return;
+    e.preventDefault();
+    pointerId=e.pointerId;
+    originX=e.clientX;originY=e.clientY;
+    // Place the visual ring exactly under the finger in LOCAL UI coordinates,
+    // including when the entire gamepad is CSS-rotated 90 degrees.
+    const box=zone.getBoundingClientRect();
+    const halfX=box.left+box.width/2,halfY=box.top+box.height/2;
+    const localWidth=rotated()?box.height:box.width;
+    const localHeight=rotated()?box.width:box.height;
+    const offsetX=rotated()?e.clientY-halfY:e.clientX-halfX;
+    const offsetY=rotated()?-(e.clientX-halfX):e.clientY-halfY;
+    base.style.left=(localWidth/2+offsetX)+'px';
+    base.style.top=(localHeight/2+offsetY)+'px';
+    knob.style.transform='translate(-50%,-50%)';
+    zone.classList.add('is-active');
+    target.axisX=0;target.axisY=0;
+    try{zone.setPointerCapture(pointerId);}catch(_){}
+    sendInputs();
   });
-  base.addEventListener('pointermove',e=>{
-    if(e.pointerId!==pointerId)return;e.preventDefault();move(e);
+  zone.addEventListener('pointermove',e=>{
+    if(e.pointerId!==pointerId)return;
+    e.preventDefault();move(e);
   });
   for(const type of ['pointerup','pointercancel','lostpointercapture']){
-    base.addEventListener(type,e=>{if(e.pointerId===pointerId)reset();});
+    zone.addEventListener(type,e=>{if(e.pointerId===pointerId)reset();});
   }
-  base.addEventListener('contextmenu',e=>e.preventDefault());
+  zone.addEventListener('contextmenu',e=>e.preventDefault());
   releaseStick=reset;
 }
 function bindControl(btn, target, id){
@@ -779,7 +795,7 @@ $('leaveBtn').addEventListener('click',()=>{
   const u=new URL(window.location.href);u.search='';window.location.assign(u.href);
 });
 document.querySelectorAll('#controllerActive [data-control]').forEach(btn=>bindControl(btn,controllerKeys,'remote'));
-bindAnalogStick($('joystickBase'),$('joystickKnob'),controllerKeys);
+bindAnalogStick($('joystickZone'),$('joystickBase'),$('joystickKnob'),controllerKeys);
 setInterval(sendInputs,100);
 window.addEventListener('beforeunload',()=>{safePeerDestroy();if(hostPeer)hostPeer.destroy();});
 
