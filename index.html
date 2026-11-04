@@ -87,10 +87,12 @@
       </div>
       <div class="game-toolbar">
         <div class="game-name"><span class="eyebrow" id="gameMode">STAR RUSH</span><h2 id="gameTitle">เกมเริ่มแล้ว!</h2></div>
-        <div class="timer-box"><span>TIME LEFT</span><strong id="timer">01:00</strong></div>
+        <div class="game-center-hud">
+          <div class="timer-box"><span>TIME LEFT</span><strong id="timer">01:00</strong></div>
+          <div id="leaderboard" class="leaderboard" aria-label="คะแนนผู้เล่น"></div>
+        </div>
         <button id="pauseBtn" class="game-pause-btn" type="button" aria-label="หยุดเกม" aria-haspopup="dialog" aria-expanded="false">Ⅱ <span>หยุดเกม</span></button>
       </div>
-      <div id="leaderboard" class="leaderboard" aria-label="คะแนนผู้เล่น"></div>
       <div id="pauseMenu" class="game-pause-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pauseHeading">
         <div class="game-pause-card">
           <div class="pause-icon" aria-hidden="true">Ⅱ</div>
