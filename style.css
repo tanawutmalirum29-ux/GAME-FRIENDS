@@ -887,3 +887,143 @@ body.controller-playing .phone-choice-status{
   }
   body.controller-playing.portrait-fallback #controllerActive .phone-game-choice{min-height:28px;padding:3px;font-size:9px}
 }
+
+
+
+/* Full-width playable live preview:
+   render the game behind the floating-left-stick hit zone, never on top of A/B.
+   The left thumb still controls ONLY joystick motion; game picture cannot be tapped. */
+body.controller-playing .controller-buttons{
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(106px,.23fr);
+  grid-template-rows:minmax(0,1fr);
+  gap:clamp(3px,.7vw,10px);
+  align-items:stretch;
+  min-height:0;flex:1 1 auto;
+  padding:0 max(5px,env(safe-area-inset-right,0px)) 0 max(5px,env(safe-area-inset-left,0px));
+}
+body.controller-playing .gamepad-preview-column{
+  grid-column:1;grid-row:1;z-index:1;
+  width:100%;height:100%;min-width:0;min-height:0;
+  display:flex;flex-direction:column;align-items:stretch;justify-content:center;
+  gap:3px;pointer-events:none;
+}
+body.controller-playing .gamepad-preview{
+  position:relative;flex:1 1 auto;min-height:0;height:100%;width:100%;
+  aspect-ratio:auto;background:#07101f;
+  pointer-events:none;
+}
+body.controller-playing .gamepad-preview-video,
+body.controller-playing .gamepad-preview-image{
+  width:100%;height:100%;display:block;
+  object-fit:contain;background:#061020;pointer-events:none;
+  user-select:none;-webkit-user-select:none;
+}
+body.controller-playing .gamepad-preview-video{
+  -webkit-user-select:none;will-change:transform;
+}
+body.controller-playing .gamepad-preview-placeholder{pointer-events:none}
+body.controller-playing .joystick-zone{
+  grid-column:1;grid-row:1;z-index:3;
+  justify-self:start;align-self:stretch;
+  width:42%;height:100%;min-height:0;
+  background:transparent;border:0;touch-action:none;
+}
+body.controller-playing .joystick-zone .joystick-base{pointer-events:none}
+body.controller-playing .gamepad-face-buttons{
+  grid-column:2;grid-row:1;z-index:4;
+  justify-self:end;align-self:center;
+  width:100%;max-width:100%;height:100%;
+  display:flex;align-items:flex-end;justify-content:center;
+}
+body.controller-playing .preview-info{
+  flex:0 0 auto;min-height:26px;max-height:36px;
+  display:flex;flex-direction:column;gap:1px;justify-content:center;
+}
+body.controller-playing .preview-status-row{
+  width:100%;display:flex;align-items:center;justify-content:center;
+  gap:clamp(5px,1vw,12px);min-width:0;pointer-events:auto;
+}
+body.controller-playing .preview-status-row #controllerState{
+  font-size:clamp(9px,1.1vw,12px);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;min-width:0;
+}
+body.controller-playing .preview-status-row label{
+  font-size:10px;color:#a1cbe4;white-space:nowrap;
+}
+body.controller-playing #videoQuality{
+  appearance:auto;width:auto;min-width:88px;max-width:135px;
+  background:#1b3252;color:#e9f7ff;border:1px solid #7294bd;
+  padding:3px 5px;border-radius:7px;
+  font-size:11px;line-height:1.15;min-height:25px;
+  touch-action:manipulation;pointer-events:auto;
+}
+body.controller-playing .video-start-btn{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  z-index:7;min-height:42px;padding:8px 14px;
+  border-radius:11px;color:white;font-weight:900;font-size:12px;
+  background:#214773e8;border:1px solid #b7def6;
+  pointer-events:auto;touch-action:manipulation;
+}
+body.controller-playing .gamepad-preview-top{
+  justify-content:flex-end;left:48%;right:0;
+  padding:4px 9px;z-index:2;font-size:9px;
+  background:linear-gradient(180deg,#061326a6,transparent);
+}
+/* Joystick visual remains legible over gameplay, despite no fixed activation point. */
+body.controller-playing .joystick-zone.is-active .joystick-base{
+  backdrop-filter:blur(2px);
+  box-shadow:0 0 12px #050b16aa,0 5px 30px #0008;
+}
+body.controller-playing .phone-game-picker{
+  pointer-events:auto;width:58%;max-width:640px;
+  margin:0 0 0 auto;min-height:0;z-index:2;
+  background:#111f38e8;box-shadow:0 8px 30px #0008;
+}
+@media(orientation:landscape) and (max-height:400px){
+  body.controller-playing .controller-buttons{
+    grid-template-columns:minmax(0,1fr) minmax(88px,.22fr);gap:3px;
+  }
+  body.controller-playing .preview-info{min-height:22px;max-height:28px}
+  body.controller-playing .preview-status-row label{font-size:9px}
+  body.controller-playing #videoQuality{font-size:10px;min-height:21px;padding:2px 4px}
+  body.controller-playing .joystick-zone{width:43%}
+}
+@media(orientation:portrait){
+  body.controller-playing.portrait-fallback #controllerActive .controller-buttons{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(90px,.23fr);
+    grid-template-rows:minmax(0,1fr);
+    gap:4px;padding:0 6px;align-items:stretch;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-preview-column{
+    grid-column:1;grid-row:1;
+    width:100%;height:100%;min-height:0;align-items:stretch;justify-content:center;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-preview{
+    width:100%;height:100%;min-height:0;aspect-ratio:auto;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .joystick-zone{
+    grid-column:1;grid-row:1;z-index:3;
+    justify-self:start;align-self:stretch;
+    width:42%;height:100%;min-height:0;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .gamepad-face-buttons{
+    grid-column:2;grid-row:1;
+    justify-self:end;max-width:100%;
+    height:100%;align-self:center;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .phone-game-picker{
+    width:58%;margin-left:auto;z-index:2;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .preview-info{
+    min-height:24px;max-height:33px;
+  }
+}
+@media(orientation:portrait) and (max-width:360px){
+  body.controller-playing.portrait-fallback #controllerActive .controller-buttons{
+    grid-template-columns:minmax(0,1fr) minmax(78px,.24fr);gap:2px;
+  }
+  body.controller-playing.portrait-fallback #controllerActive .phone-game-picker{width:59%}
+}
