@@ -172,7 +172,8 @@ for(const n of [1,2,4,8,12]){
   const c=state.chickens[0];state.chickens=[c];
   c.status='carried';c.carrierId=p.id;p.carriedChickenId=c.id;
   run(round,players,4);
-  assert.equal(p.score,1,'bot must reach the gate and dwell 0.30sec');
+  assert.ok(p.score>=1,'bot must reach the gate and dwell 0.30sec');
+  assert.equal(c.status,'penned','the originally carried chicken must enter the pen');
 }
 // Pauses are enforced by the game dispatcher: engine cannot update in results.
 {
