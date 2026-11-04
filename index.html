@@ -129,6 +129,11 @@
       <section id="controllerActive" class="controller-active hidden">
         <div class="gamepad-hud">
           <div class="gamepad-user"><span id="controllerAvatar" class="gamepad-avatar"></span><strong id="controllerName">ผู้เล่น</strong></div>
+          <div id="controllerInventory" class="controller-inventory hidden" aria-live="polite">
+            <span id="controllerRole" class="controller-role">มนุษย์</span>
+            <span id="inventoryItem" class="inventory-item">ไอเทม: ว่าง</span>
+            <small id="inventoryGuide" class="inventory-guide">A ตีสตั้น • B ใช้ไอเทม</small>
+          </div>
           <div class="gamepad-top-actions"><button id="videoQualityBtn" class="gamepad-tool gamepad-quality-btn" type="button" aria-label="คุณภาพภาพ กลาง กดเพื่อเปลี่ยนระดับ" title="คุณภาพภาพ กลาง · กดเพื่อเปลี่ยนระดับ">ก</button><button id="landscapeBtn" class="gamepad-tool" type="button" aria-label="เปิดเต็มจอแนวนอน">⛶ แนวนอน</button><button id="portraitRestoreBtn" class="gamepad-tool portrait-restore hidden" type="button" aria-label="กลับไปโหมดหมุนโทรศัพท์">↺ โหมดปกติ</button><button id="switchRoomBtn" class="gamepad-tool" type="button">เปลี่ยนห้อง</button><button id="leaveBtn" class="gamepad-tool gamepad-leave" type="button">ออก</button></div>
         </div>
         <div id="controllerButtons" class="controller-buttons" aria-label="จอยเกมแบบอนาล็อกและปุ่ม A B">
@@ -160,14 +165,9 @@
               <span id="targetName" class="target-name">ไม่มีเป้าหมาย</span>
               <button id="targetNextBtn" type="button" class="target-cycle-btn" aria-label="เลือกเพื่อนถัดไป">▼</button>
             </div>
-            <div class="face-button-wrap face-b"><button type="button" data-control="alt" class="face-button face-button-b" aria-label="ปุ่ม B">B</button><span id="buttonBLabel" class="face-caption">ไอเทม</span></div>
-            <div class="face-button-wrap face-a"><button type="button" data-control="action" class="face-button face-button-a" aria-label="ปุ่ม A">A</button><span id="buttonALabel" class="face-caption">ตี</span></div>
+            <div class="face-button-wrap face-b"><button type="button" data-control="alt" class="face-button face-button-b" aria-label="ปุ่ม B ใช้ไอเทม"><span class="face-button-letter">B</span><span id="buttonBLabel" class="face-caption">ใช้ไอเทม</span></button></div>
+            <div class="face-button-wrap face-a"><button type="button" data-control="action" class="face-button face-button-a" aria-label="ปุ่ม A ตีสตั้น"><span class="face-button-letter">A</span><span id="buttonALabel" class="face-caption">ตีสตั้น</span></button></div>
           </div>
-        </div>
-        <div id="controllerInventory" class="controller-inventory" aria-live="polite">
-          <span id="controllerRole" class="controller-role">มนุษย์</span>
-          <span id="inventoryItem" class="inventory-item">ไอเทม: ว่าง</span>
-          <small id="inventoryGuide" class="inventory-guide">A ตีเพื่อสตั้น • B ใช้ไอเทม</small>
         </div>
         <p id="controllerHelp" class="controller-help">แตะพื้นที่ฝั่งซ้ายเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม</p>
         <div id="leaveConfirm" class="controller-leave-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="leaveConfirmTitle">

@@ -27,6 +27,15 @@ assert.match(html,/HUMANS LEFT/);
 assert.match(html,/ไม่จับเวลา/);
 assert.doesNotMatch(html,/id="duration"/);
 assert.match(html,/id="controllerInventory"/);
+assert.match(html,/<div class="gamepad-hud">[\s\S]*?<div id="controllerInventory" class="controller-inventory hidden"[\s\S]*?<div class="gamepad-top-actions">/,
+  'game-specific inventory starts hidden and lives in the top header');
+assert.equal([...html.matchAll(/id="controllerInventory"/g)].length,1);
+assert.match(html,/<button[^>]*data-control="alt"[^>]*>[\s\S]*?<span class="face-button-letter">B<\/span><span id="buttonBLabel" class="face-caption">/);
+assert.match(html,/<button[^>]*data-control="action"[^>]*>[\s\S]*?<span class="face-button-letter">A<\/span><span id="buttonALabel" class="face-caption">/);
+assert.match(css,/#controller #controllerActive #controllerInventory\.hidden\{\s*display:none!important/);
+assert.match(css,/#controller #controllerActive \.gamepad-preview-column\{\s*transform:translateX\(clamp\(18px,3\.15vw,56px\)\)/,
+  'preview is translated to the right without changing width or height');
+assert.match(css,/#controller #controllerActive \.face-button \.face-caption\{[\s\S]*?position:static!important/);
 assert.match(html,/id="targetCycleControls"/);
 assert.match(html,/id="targetPrevBtn"/);
 assert.match(html,/id="targetNextBtn"/);
@@ -60,8 +69,10 @@ for(const n of [1,4,8,12]){
   assert.equal(p.item,null);
  }
 }
-assert.equal(ghost.constants.ghostSpeed>ghost.constants.humanSpeed,true);
-assert.ok(ghost.constants.ghostSpeed/ghost.constants.humanSpeed<1.12);
+assert.equal(ghost.constants.humanSpeed,172);
+assert.equal(ghost.constants.ghostSpeed,176,'ghosts were slowed from 184');
+assert.ok(ghost.constants.ghostSpeed>ghost.constants.humanSpeed);
+assert.ok(ghost.constants.ghostSpeed/ghost.constants.humanSpeed<1.04);
 assert.equal(ghost.constants.cloakTime,2);
 assert.equal(ghost.ITEM_NAMES.slow,'ยาสโลว์เพื่อน');
 
@@ -412,14 +423,27 @@ phoneConn.fire('data',{t:'welcome',id:'p1',name:'Wut',color:'#ff628c',
  mode:'ghost',phase:'lobby'});
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
 assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),false);
+assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
+  'joining room must not reveal role or items before gameplay');
+phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'slow',
+ ghost:false,selecting:true,targetId:'p2',targetName:'Friend'});
+assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
+  'premature inventory messages must not render in lobby');
+assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
 assert.equal(phone.pickButtons.length,1);
 phone.pick('ghost');
 assert.equal(phoneConn.sent.at(-1).mode,'ghost');
 phoneConn.fire('data',{t:'roster',phase:'playing',mode:'ghost',
  players:[{id:'p1',active:true,choice:'ghost'}]});
 assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),true);
-phoneConn.fire('data',{t:'inventory',id:'p1',item:'slow',ghost:false,
- selecting:true,targetId:'p2',targetName:'Friend'});
+assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),false,
+  'active Ghost Attack displays HUD in top rail');
+phoneConn.fire('data',{t:'inventory',id:'p1',mode:'rally',phase:'playing',
+ item:'cloak',ghost:false,selecting:false});
+assert.equal(phone.elements.get('inventoryItem').textContent,'',
+  'inventory for the wrong minigame is ignored');
+phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',
+ item:'slow',ghost:false,selecting:true,targetId:'p2',targetName:'Friend'});
 assert.equal(phone.elements.get('inventoryItem').textContent,'ไอเทม: ยาสโลว์เพื่อน');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),false);
 assert.equal(phone.elements.get('targetName').textContent,'Friend');
@@ -427,9 +451,23 @@ phone.click('targetPrevBtn');
 assert.equal(phoneConn.sent.at(-1).direction,-1);
 phone.click('targetNextBtn');
 assert.equal(phoneConn.sent.at(-1).direction,1);
-phoneConn.fire('data',{t:'inventory',id:'p1',ghost:true,selecting:false,item:null});
+phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',
+ ghost:true,selecting:false,item:null});
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.match(phone.elements.get('controllerRole').textContent,/ผี/);
+assert.equal(phone.elements.get('controllerRole').textContent,'ผี');
+phoneConn.fire('data',{t:'roster',phase:'results',mode:'ghost',
+ players:[{id:'p1',active:true,choice:'ghost'}]});
+assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
+ 'role and item must disappear as soon as a round ends');
+assert.equal(phone.elements.get('inventoryItem').textContent,'');
+phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'slow',
+ ghost:false,selecting:true,targetId:'p2',targetName:'Friend'});
+assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
+ 'late packet from a finished game cannot bring the HUD back');
+phoneConn.fire('data',{t:'roster',phase:'playing',mode:'new_future_game',
+ players:[{id:'p1',active:true,choice:null}]});
+assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
+ 'future minigames will never inherit Ghost Attack status');
 phone.click('leaveBtn');phone.click('confirmLeaveBtn');
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
 assert.equal(phone.scope.window.location.search,'?controller=1');
