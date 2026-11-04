@@ -40,7 +40,7 @@
       <section class="hero">
         <div class="eyebrow"><span class="sparkle">✦</span> PARTY GAME • PLAY TOGETHER</div>
         <h1>รวมแก๊งแล้ว<br><em>ลุยให้สุด!</em></h1>
-        <p>เปลี่ยนมือถือให้เป็นจอย เล่นพร้อมกันบนจอเดียว หรือเปิดจอยบนหน้าจอได้ทันที ไม่ต้องลงแอป</p>
+        <p>เปลี่ยนมือถือให้เป็นจอย เล่นเกมเต็มจอบนเครื่องหลัก แล้วให้เพื่อนใช้มือถือควบคุม ไม่ต้องลงแอป</p>
         <div class="feature-tags"><span>2–12 ผู้เล่น</span><span>7 มินิเกม</span><span>มือถือเป็นจอย</span><span>QR เข้าร่วม</span></div>
         <div class="stick-display" aria-hidden="true"><div class="stick-figure pink"><i></i><b></b></div><div class="stick-figure cyan"><i></i><b></b></div><div class="stick-figure yellow"><i></i><b></b></div><div class="stick-figure purple"><i></i><b></b></div><div class="floor-line"></div></div>
       </section>
@@ -63,7 +63,7 @@
         <select id="duration"><option value="60">60 วินาที</option><option value="90">90 วินาที</option><option value="45">45 วินาที</option></select>
         <div class="button-group">
           <button id="hostBtn" class="btn btn-primary">สร้างห้อง + QR Code <span>↗</span></button>
-          <button id="offlineBtn" class="btn btn-secondary">เล่นบนจอเดียว</button>
+          <button id="offlineBtn" class="btn btn-secondary">ทดลองเล่นด้วยคีย์บอร์ด</button>
         </div>
         <div class="hint">ห้องออนไลน์ใช้ WebRTC • เจ้าของห้องต้องเปิดหน้านี้ไว้ตลอด</div>
         <div id="roomPanel" class="room-panel hidden">
@@ -75,16 +75,31 @@
       <section class="panel roster-panel">
         <div class="section-heading"><span class="section-icon">03</span><div><h2>ผู้เล่นในห้อง <span id="rosterCount" class="count">0/12</span></h2><p>คนเข้าห้องแล้วจะปรากฏที่นี่</p></div></div>
         <div id="roster" class="roster"><p class="empty">ยังไม่มีผู้เล่น เริ่มจากเพิ่มผู้เล่นบนจอ หรือสร้างห้องให้เพื่อนสแกน</p></div>
-        <div class="roster-actions"><button id="addLocalBtn" class="btn btn-outline">+ เพิ่มจอยบนหน้าจอ</button><button id="startBtn" class="btn btn-green" disabled>เริ่มเกม <span>▶</span></button></div>
-        <div class="hint">เล่นอย่างน้อย 1 คนเพื่อทดลอง • 2 คนขึ้นไปสำหรับปาร์ตี้จริง</div>
+        <div class="roster-actions"><button id="addLocalBtn" class="btn btn-outline">+ เพิ่มผู้เล่นคีย์บอร์ด</button><button id="startBtn" class="btn btn-green" disabled>เริ่มเกม <span>▶</span></button></div>
+        <div class="hint">จอหลักแสดงเกมเต็มจอ • ใช้มือถือสแกน QR เพื่อควบคุม หรือเล่นด้วยคีย์บอร์ด</div>
       </section>
     </main>
 
-    <main id="game" class="game-page hidden">
-      <div class="game-toolbar"><div><span class="eyebrow" id="gameMode">STAR RUSH</span><h2 id="gameTitle">เกมเริ่มแล้ว!</h2></div><div class="timer-box"><span>TIME LEFT</span><strong id="timer">01:00</strong></div><button id="exitBtn" class="btn btn-outline">กลับล็อบบี้</button></div>
-      <div class="game-frame"><canvas id="arena" width="960" height="540" aria-label="สนามแข่งขัน"></canvas><div id="gameBanner" class="game-banner">เตรียมพร้อม!</div></div>
-      <div id="leaderboard" class="leaderboard"></div>
-      <div class="pad-section"><div class="pad-heading"><h3>จอยบนหน้าจอ</h3><span>กดค้างได้ • P1: WASD + Space • P2: ลูกศร + Enter</span></div><div id="localPads" class="local-pads"></div></div>
+    <main id="game" class="game-page hidden" aria-label="จอเกมเต็มหน้าจอ">
+      <div class="game-frame">
+        <canvas id="arena" width="960" height="540" aria-label="สนามแข่งขันเต็มหน้าจอ"></canvas>
+        <div id="gameBanner" class="game-banner" aria-live="polite">เตรียมพร้อม!</div>
+      </div>
+      <div class="game-toolbar">
+        <div class="game-name"><span class="eyebrow" id="gameMode">STAR RUSH</span><h2 id="gameTitle">เกมเริ่มแล้ว!</h2></div>
+        <div class="timer-box"><span>TIME LEFT</span><strong id="timer">01:00</strong></div>
+        <button id="pauseBtn" class="game-pause-btn" type="button" aria-label="หยุดเกม" aria-haspopup="dialog" aria-expanded="false">Ⅱ <span>หยุดเกม</span></button>
+      </div>
+      <div id="leaderboard" class="leaderboard" aria-label="คะแนนผู้เล่น"></div>
+      <div id="pauseMenu" class="game-pause-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pauseHeading">
+        <div class="game-pause-card">
+          <div class="pause-icon" aria-hidden="true">Ⅱ</div>
+          <h2 id="pauseHeading">หยุดเกมชั่วคราว</h2>
+          <p>เกมและเวลาจะหยุดจนกว่าจะกดเล่นต่อ</p>
+          <button id="resumeBtn" class="btn btn-green" type="button">▶ เล่นต่อ</button>
+          <button id="exitBtn" class="btn btn-outline pause-exit" type="button">ออกจากเกม / กลับล็อบบี้</button>
+        </div>
+      </div>
       <div id="results" class="result-overlay hidden"><div class="result-card"><div class="eyebrow">ROUND FINISHED</div><h2>จบเกม!</h2><div id="resultList"></div><button id="replayBtn" class="btn btn-primary">เล่นอีกครั้ง</button><button id="backBtn" class="btn btn-outline">กลับล็อบบี้</button></div></div>
     </main>
 
