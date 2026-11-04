@@ -26,35 +26,7 @@
 
 
 
-/* Game catalog: choose a mini-game before entering the room. */
-.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-.game-picker{grid-column:1/-1;grid-row:auto;background:linear-gradient(130deg,#182440,#11182d)}
-.picker-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:16px}
-.picker-heading h2{font-size:clamp(22px,3vw,31px);margin:5px 0 3px}
-.picker-heading p{font-size:13px;margin:0;color:var(--muted)}
-.picker-counter{font-size:11px;color:var(--cyan);border:1px solid #415778;padding:9px 13px;border-radius:99px;white-space:nowrap;font-weight:900}
-.mini-game-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.mini-game-card{min-width:0;position:relative;display:flex;flex-direction:column;align-items:stretch;gap:9px;text-align:left;border:2px solid #34425e;border-radius:17px;background:#101b32;color:#f5f7ff;padding:9px;transition:border-color .14s,transform .14s,box-shadow .14s}
-.mini-game-card:hover{border-color:#7b96b9;transform:translateY(-2px)}
-.mini-game-card.selected{border-color:var(--cyan);box-shadow:0 0 0 2px #39d7e430,inset 0 0 28px #3be0f009}
-.mini-game-card.selected:after{content:'✓';position:absolute;right:12px;top:13px;background:var(--cyan);color:#10172a;font-weight:900;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%}
-.mini-art{height:103px;display:grid;place-items:center;overflow:hidden;position:relative;border-radius:11px;background:#263d60}
-.mini-art:before,.mini-art:after{content:'';position:absolute;border-radius:99px;opacity:.53}
-.mini-art:before{width:84px;height:84px;left:-25px;bottom:-44px;background:#fff5}
-.mini-art:after{width:72px;height:72px;right:-20px;top:-36px;background:#fff4}
-.mini-art>span{font-size:55px;font-weight:1000;filter:drop-shadow(0 7px 2px #0004);z-index:1;line-height:1;color:#fff}
-.art-stars{background:linear-gradient(125deg,#edb242,#9061aa)}.art-brawl{background:linear-gradient(125deg,#f96986,#8e395f)}
-.art-lava{background:linear-gradient(125deg,#f16a39,#9f214c)}.art-tanks{background:linear-gradient(125deg,#6e9278,#263f54)}
-.art-soccer{background:linear-gradient(125deg,#2ea76c,#256a7c)}.art-rally{background:linear-gradient(125deg,#eaa94c,#906280)}
-.art-paint{background:linear-gradient(125deg,#6e7deb,#be57ad)}.art-paint>span{color:#ffe97c}
-.mini-card-text{display:flex;flex-direction:column;gap:1px}
-.mini-card-text strong{font-size:13px;font-weight:1000}
-.mini-card-text small{font-size:11px;color:#b4bfd7}
-.mini-tag{font-size:9px;color:#79cddd;letter-spacing:1px;font-weight:900;margin-top:auto}
-.picked-summary{margin:14px 0 0;font-size:12px;color:#d5e6f4}
-.game-picker.tournament-selected .mini-game-card{opacity:.65}
-.game-picker.tournament-selected .mini-game-card.selected{opacity:1}
-
+/* Only GHOST ATTACK remains; legacy seven-game catalog styles removed. */
 /* Landscape handheld gamepad: large floating analog + original A/B buttons. */
 body.controller-playing{overscroll-behavior:none;overflow:hidden;touch-action:none}
 body.controller-playing .app{max-width:none;height:100dvh;min-height:0;overflow:hidden;padding:0 clamp(10px,2.8vw,32px);background:radial-gradient(ellipse at 50% 60%,#253656 0%,#0d1428 74%)}
@@ -2063,5 +2035,138 @@ body.controller-playing #controllerActive #controllerButtons.is-picking .gamepad
     height:clamp(29px,8dvw,46px);
     padding:3px;
     font-size:clamp(8px,1.3dvw,11px);
+  }
+}
+
+
+
+/* GHOST ATTACK — ghost survival replaces the previous seven mini-games. */
+#hostLobby .ghost-no-timer{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;height:clamp(35px,5.3dvh,42px);
+  color:#ddf9ff;background:#13283d;border:1px solid #507c90;
+  border-radius:10px;font-size:clamp(10px,1vw,13px);font-weight:900;
+  white-space:nowrap;min-width:0;
+}
+#game .timer-box strong{font-size:clamp(16px,2vw,24px);white-space:nowrap}
+#game .leader-chip small{color:#a1f0d3}
+#game .game-name .eyebrow{color:#d8ecff}
+/* The controller holds at most one item; never create a scroll panel. */
+body.controller-playing #controller #controllerActive{
+  position:relative;
+}
+body.controller-playing #controller #controllerInventory{
+  position:absolute;z-index:12;
+  left:max(8px,env(safe-area-inset-left,0px));
+  bottom:max(5px,env(safe-area-inset-bottom,0px));
+  width:min(55%,420px);max-width:60%;
+  display:flex;flex-direction:column;align-items:flex-start;
+  gap:2px;box-sizing:border-box;
+  padding:5px 10px;border-radius:10px;
+  background:#08192edb;border:1px solid #7291ac80;
+  text-align:left;pointer-events:none;overflow:hidden;
+  box-shadow:0 4px 15px #0006;
+}
+body.controller-playing #controller #controllerInventory .controller-role{
+  font-size:clamp(9px,1.3dvh,11px);line-height:1.1;color:#abf0df;
+  font-weight:1000;
+}
+body.controller-playing #controller #controllerInventory .inventory-item{
+  font-size:clamp(11px,1.85dvh,15px);line-height:1.15;
+  color:#ffe6a0;font-weight:1000;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:100%;
+}
+body.controller-playing #controller #controllerInventory .inventory-guide{
+  font-size:clamp(8px,1.2dvh,10px);line-height:1.1;
+  color:#c9daee;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;
+}
+body.controller-playing #controller #controllerInventory.is-ghost .controller-role{
+  color:#ffb2d0;
+}
+/* Target-cycle arrows sit BESIDE B, never on top of A or B.
+   They appear only while slow medicine is armed after B's first press. */
+body.controller-playing #controller #controllerActive .gamepad-face-buttons{
+  position:relative;overflow:visible;
+}
+body.controller-playing #controller #controllerActive .target-cycle-controls{
+  position:absolute;
+  right:calc(100% + 9px);
+  bottom:clamp(7px,9%,45px);
+  z-index:14;
+  width:clamp(57px,10dvh,82px);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  gap:clamp(3px,.7dvh,6px);
+  padding:5px;border-radius:12px;
+  background:#142d46e9;border:1px solid #72bde5aa;
+  box-shadow:0 4px 18px #000a;
+}
+body.controller-playing #controller #controllerActive .target-cycle-btn{
+  width:100%;height:clamp(37px,9dvh,61px);
+  min-height:37px;border-radius:9px;
+  background:linear-gradient(#376384,#203f64);
+  color:#f1fbff;font-size:clamp(19px,4dvh,29px);font-weight:1000;
+  border:2px solid #9ccce6;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+body.controller-playing #controller #controllerActive .target-cycle-btn:active{
+  background:#56a6c6;
+}
+body.controller-playing #controller #controllerActive .target-control-label{
+  color:#b9eeff;font-size:clamp(8px,1.15dvh,10px);font-weight:900;
+}
+body.controller-playing #controller #controllerActive .target-name{
+  color:#ffe4a2;font-size:clamp(9px,1.4dvh,12px);
+  font-weight:900;line-height:1.15;text-align:center;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+body.controller-playing #controller #controllerActive .controller-buttons.has-target .face-b .face-caption{
+  display:none;
+}
+/* Only one game is available: make its selection card large and legible
+   instead of leaving it in one tiny cell of an old 4×2 game grid. */
+body.controller-playing #controllerActive #phoneGameChoices{
+  display:grid;
+  grid-template-columns:minmax(170px,min(100%,390px));
+  grid-template-rows:minmax(95px,auto);
+  justify-content:center;align-items:center;
+  width:100%;max-width:100%;
+  gap:0;
+}
+body.controller-playing #controllerActive #phoneGameChoices .phone-game-choice{
+  min-width:0;width:100%;
+  height:clamp(85px,24dvh,158px);
+  max-height:55%;
+  border:2px solid #76cce2;
+  border-radius:18px;
+  background:radial-gradient(circle at 50% 20%,#40658a,#152d49 85%);
+  color:#f1f7ff;
+  font-size:clamp(18px,3.4dvh,29px);
+  line-height:1.15;font-weight:1000;
+  text-shadow:0 2px 8px #0008;
+}
+@media(orientation:landscape) and (max-height:370px){
+  body.controller-playing #controller #controllerInventory{
+    width:min(50%,350px);padding:3px 7px;bottom:2px;
+  }
+  body.controller-playing #controller #controllerInventory .inventory-guide{display:none}
+  body.controller-playing #controller #controllerActive .target-cycle-controls{
+    width:clamp(47px,11dvh,63px);gap:2px;padding:3px;bottom:5px;
+  }
+  body.controller-playing #controller #controllerActive .target-cycle-btn{
+    height:clamp(32px,10dvh,45px);min-height:32px;
+  }
+  body.controller-playing #controllerActive #phoneGameChoices .phone-game-choice{
+    height:clamp(56px,22dvh,95px);font-size:clamp(13px,3dvh,20px);
+  }
+}
+@media(orientation:portrait){
+  body.controller-playing.portrait-fallback #controller #controllerActive .target-cycle-controls{
+    right:calc(100% + 6px);bottom:7px;
+  }
+  body.controller-playing.portrait-fallback #controllerActive #phoneGameChoices{
+    grid-template-columns:minmax(165px,min(100%,390px));
+    grid-template-rows:minmax(70px,auto);
   }
 }

@@ -16,8 +16,7 @@ function pickUnusedColor(){
   lastAssignedColor = color;
   return color;
 }
-const MODES = { stars:'STAR RUSH', brawl:'BRAWL ARENA', lava:'LAVA RUN', tanks:'TANK BLAST',soccer:'FOOTBALL',rally:'MICRO RALLY',paint:'COLOR CLASH' };
-const TOPDOWN = ['tanks','soccer','rally','paint'];
+const MODES = {ghost:'GHOST ATTACK'};
 // The match list is nominated by phone players rather than a fixed tournament deck.
 let tournament=null;
 const KEYS = [
@@ -25,13 +24,8 @@ const KEYS = [
   {left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',down:'ArrowDown',action:'Enter',alt:'ShiftRight'}
 ];
 const INPUT_NAMES = ['left','right','jump','down','action','alt'];
-const WORLD = {w:960,h:540,ground:470,gravity:1050};
-const platforms = [
-  {x:90,y:376,w:185,h:14}, {x:393,y:326,w:180,h:14}, {x:684,y:376,w:185,h:14},
-  {x:255,y:245,w:155,h:14}, {x:555,y:245,w:155,h:14}
-];
 let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPeer=null, controllerConn=null;
-let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0;
+let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0, inventoryClock=0;
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let disconnectRequested=false;
 const canvas=$('arena'), g=canvas.getContext('2d');
@@ -103,10 +97,10 @@ function makePlayer(name,type,conn) {
   if(players.length>=MAX_PLAYERS)return null;
   const color=pickUnusedColor();
   if(!color)return null;
-  const p={id:'p'+nextId++,name:cleanName(name),type:type,color,conn:conn||null,
-    input:blankInput(),x:480,y:WORLD.ground,vx:0,vy:0,grounded:true,face:1,
-    hp:3,score:0,total:0,choice:type==='local'?'stars':null,
-    alive:true,active:false,invulnerable:0,cooldown:0,dash:0,attack:0,latch:false,respawn:0};
+  const p={id:'p'+nextId++,name:cleanName(name),type,color,conn:conn||null,
+    input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,score:0,total:0,
+    choice:type==='local'?'ghost':null,
+    ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false};
   players.push(p);renderRoster();return p;
 }
 function removePlayer(id) {
@@ -231,7 +225,7 @@ function broadcastGamePreview(){
 function networkPhase(){return round?(round.paused?'paused':round.phase):'lobby';}
 function broadcastRoster(){
   broadcast({t:'roster',players:players.map(playerPublic),phase:networkPhase(),
-    mode:round?round.mode:'stars',selectionOpen:!round});
+    mode:round?round.mode:'ghost',selectionOpen:!round});
 }
 function nominatedGames(){
   return players.map(p=>p.choice).filter(mode=>Object.hasOwn(MODES,mode));
@@ -245,6 +239,16 @@ function updateHostQueue(){
     'เลือกแล้ว '+picks.length+'/'+players.length+' คน • '+
       (waiting?'รออีก '+waiting+' คน':'พร้อมสุ่มเล่น '+picks.length+' รอบ (รวมเกมซ้ำ)');
   $('hostQueue').title=$('hostQueue').textContent;
+}
+function sendPlayerInventory(conn){
+  if(!conn||!conn.playerId||!round)return;
+  const p=players.find(q=>q.id===conn.playerId);
+  if(!p)return;
+  const info=window.GhostAttack.itemStatus(players).find(q=>q.id===p.id);
+  if(info)send(conn,{t:'inventory',...info});
+}
+function broadcastPlayerInventories(){
+  for(const conn of hostConnections)sendPlayerInventory(conn);
 }
 function renderPauseChoiceList(){
   const box=$('gameChoiceList');box.replaceChildren();
@@ -334,7 +338,7 @@ function startHost(retries=0){
         if(!p)return;
         conn.playerId=p.id;p.lastInputAt=Date.now();
         if(round&&round.phase!=='results')p.active=false;
-        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'stars',phase:networkPhase(),choice:p.choice});
+        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice});
         broadcastRoster();
       }else if(msg.t==='video-ready'&&conn.playerId){
         if(msg.quality===conn.videoQuality)conn.videoReady=true;
@@ -351,6 +355,12 @@ function startHost(retries=0){
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!p||p.choice===msg.mode)return;
         p.choice=msg.mode;renderRoster();broadcastRoster();
+      }else if(msg.t==='target-cycle'&&conn.playerId){
+        if(!round||round.phase!=='playing'||round.paused)return;
+        if(msg.direction!==1&&msg.direction!==-1)return;
+        const p=players.find(q=>q.id===conn.playerId&&q.conn===conn);
+        if(p&&window.GhostAttack.cycleTarget(round.ghost,players,p,msg.direction))
+          sendPlayerInventory(conn);
       }else if(msg.t==='input'&&conn.playerId){
         if(round&&round.paused)return;
         const p=players.find(p=>p.id===conn.playerId);
@@ -683,6 +693,9 @@ function joinRoom(){
         $('controllerName').textContent=data.name;$('controllerAvatar').style.background=data.color;
         $('joinForm').classList.add('hidden');$('controllerActive').classList.remove('hidden');
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
+        $('controllerInventory').classList.remove('is-ghost');
+        $('inventoryItem').textContent='ไอเทม: ว่าง';
+        $('targetCycleControls').classList.add('hidden');
         document.body.classList.add('controller-playing');
         syncZoomPolicy();
         showControllerMode(data.mode);
@@ -702,15 +715,17 @@ function joinRoom(){
         const self=(data.players||[]).find(p=>p.id===controllerId);
         updatePhoneGamePicker(data.phase,self&&self.choice);
         $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
-          data.phase==='playing'?(self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):
+          data.phase==='playing'?(self&&self.active?'กำลังเล่น • GHOST ATTACK':'รอรอบถัดไป'):
           data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':
           'กำลังรอเจ้าของห้องเริ่มเกม';
+      }else if(data.t==='inventory'){
+        renderPhoneInventory(data);
       }else if(data.t==='state'){
         showControllerMode(data.mode);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?'กำลังเล่น • เหลือ '+Math.ceil(data.remaining)+' วินาที':
-          data.phase==='results'?'จบรอบแล้ว':'รอเริ่มรอบ';
+          data.phase==='playing'?'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน':
+          data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
       }else if(data.t==='closed'){
         controllerState('เจ้าของห้องปิดห้องแล้ว',true);
       }
@@ -729,19 +744,27 @@ function controllerDisconnected(){
   resetControllerForRoomChange('ขาดการเชื่อมต่อ กดเข้าร่วมห้องเดิมหรือเปลี่ยนห้องได้');
 }
 function showControllerMode(mode){
-  const topdown=TOPDOWN.includes(mode);
-  const actions={
-    stars:['DASH','JUMP'],brawl:['PUNCH','JUMP'],lava:['DASH','JUMP'],
-    tanks:['FIRE','DODGE'],soccer:['KICK','SPRINT'],
-    rally:['BOOST','BRAKE'],paint:['PAINT','DASH']
-  };
-  const labels=actions[mode]||['ACTION','JUMP'];
-  $('buttonALabel').textContent=labels[0];
-  $('buttonBLabel').textContent=labels[1];
-  $('controllerModeName').textContent=MODES[mode]||'MINI GAME';
-  $('controllerHelp').textContent=topdown?
-    'แตะพื้นที่ซ้ายจุดไหนก็ได้แล้วลาก • A '+labels[0]+' • B '+labels[1]:
-    'แตะพื้นที่ซ้ายตรงไหนก็ได้แล้วลาก • ดันขึ้นหรือกด B เพื่อกระโดด • A '+labels[0];
+  $('buttonALabel').textContent='ตีสตั้น';
+  $('buttonBLabel').textContent='ใช้ไอเทม';
+  $('controllerModeName').textContent='GHOST ATTACK';
+  $('controllerHelp').textContent='เลื่อนอนาล็อกเพื่อเดิน • A ตีเพื่อนเพื่อสตั้น • B ใช้ไอเทม';
+}
+function renderPhoneInventory(info){
+  if(!controllerReady||!info||info.id!==controllerId)return;
+  const names=window.GhostAttack.ITEM_NAMES;
+  const isGhost=!!info.ghost;
+  $('controllerRole').textContent=isGhost?'ผี • ไล่จับมนุษย์':'มนุษย์ • หลบผี';
+  $('controllerInventory').classList.toggle('is-ghost',isGhost);
+  $('inventoryItem').textContent=isGhost?'กลายเป็นผีแล้ว':
+    'ไอเทม: '+(names[info.item]||'ว่าง');
+  $('inventoryGuide').textContent=isGhost?'แตะมนุษย์เพื่อเปลี่ยนเป็นผี':
+    info.selecting?'เลือกเพื่อนด้วย ▲ ▼ แล้วกด B อีกครั้ง':
+    info.item==='slow'?'B เริ่มเลือกเพื่อนที่จะโดนสโลว์':
+    info.item?'กด B เพื่อใช้งาน':'เดินเก็บกล่องสุ่ม • A ตีสตั้น';
+  $('targetCycleControls').classList.toggle('hidden',!info.selecting);
+  $('controllerButtons').classList.toggle('has-target',!!info.selecting);
+  $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
+  $('buttonBLabel').textContent=info.selecting?'ยืนยันสโลว์':'ใช้ไอเทม';
 }
 function sendInputs(){if(!controllerReady)return;send(controllerConn,{t:'input',keys:{...controllerKeys}});}
 function isPortraitScreen(){
@@ -873,23 +896,14 @@ window.addEventListener('blur',()=>{
 });
 function startRound(forcedMode=null){
   if(!players.length)return;
+  if(!window.GhostAttack)throw Error('ghost-attack.js failed to load');
   $('results').classList.add('hidden');
-  const mode=Object.hasOwn(MODES,forcedMode)?forcedMode:'stars',duration=Number($('duration').value)||60;
-  round={mode,duration,remaining:duration,phase:'countdown',paused:false,countdown:3.25,stars:[],starClock:0};
-  players.forEach((p,i)=>{
-    p.active=true;p.alive=true;p.x=55+((i+.5)*850/players.length);p.y=WORLD.ground;
-    p.vx=0;p.vy=0;p.score=0;p.hp=3;p.grounded=true;p.face=i%2? -1:1;p.cooldown=0;p.attack=0;p.dash=0;p.latch=false;p.respawn=0;p.invulnerable=0;p.input=blankInput();
-  });
-  if(mode==='stars'){for(let i=0;i<5;i++)spawnStar();}
-  if(TOPDOWN.includes(mode)){
-    if(!window.PartyMiniGames)throw Error('minigames.js failed to load');
-    window.PartyMiniGames.setup(round,players);
-  }
-  const subtitles={
-    stars:'คว้าดาวให้มากที่สุด',brawl:'ตะลุมบอนแย่งคะแนน',lava:'ใครอยู่รอดคนสุดท้าย',
-    tanks:'รถถังยิงกันบนสนาม',soccer:'สองทีมแย่งยิงประตู',rally:'ผ่านจุดตรวจให้ครบเพื่อทำรอบ',paint:'ระบายสีแย่งพื้นที่'
-  };
-  $('gameMode').textContent=MODES[mode];$('gameTitle').textContent=subtitles[mode];
+  round={mode:'ghost',phase:'countdown',paused:false,countdown:3,remaining:null,autoNextRemaining:0};
+  window.GhostAttack.setup(round,players);
+  $('gameMode').textContent='GHOST ATTACK';
+  $('gameTitle').textContent='หนีให้รอด • ผีเกิดกลางแมพใน 3 วินาที';
+  $('gameBanner').textContent='3';
+  $('timer').textContent='รอผี';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').classList.remove('hidden');
@@ -900,231 +914,93 @@ function startRound(forcedMode=null){
   stopAllHostVideoCalls();
   broadcast({t:'preview-reset'});
   renderLeaderboard();broadcastRoster();
+  broadcastPlayerInventories();
   for(const conn of hostConnections)startHostVideoCall(conn);
-}
-function spawnStar(){
-  if(!round)return;
-  const surfaces=[{x:38,y:WORLD.ground,w:884},...platforms];
-  const s=surfaces[Math.floor(Math.random()*surfaces.length)];
-  round.stars.push({x:rand(s.x+23,s.x+s.w-23),y:s.y-35,spin:rand(0,6.28)});
-}
-function updatePlayers(dt){
-  for(const p of players){
-    if(!p.active)continue;
-    p.cooldown=Math.max(0,p.cooldown-dt);p.attack=Math.max(0,p.attack-dt);
-    p.dash=Math.max(0,p.dash-dt);p.invulnerable=Math.max(0,p.invulnerable-dt);
-    if(!p.alive){
-      if(round.mode==='brawl'){
-        p.respawn-=dt;
-        if(p.respawn<=0){p.alive=true;p.hp=3;p.x=rand(110,850);p.y=140;p.vx=0;p.vy=0;p.invulnerable=1.4;}
-      }
-      continue;
-    }
-    const input=p.input||blankInput();
-    const analog=Number.isFinite(input.axisX)?input.axisX:0;
-    const move=Math.abs(analog)>.05?analog:Number(input.right)-Number(input.left);
-    if(move)p.face=Math.sign(move);
-    if((input.jump||input.alt||input.axisY<-.55)&&p.grounded){p.vy=-510;p.grounded=false;}
-    if(input.action&&!p.latch&&p.cooldown<=0){
-      if(round.mode==='brawl'){
-        p.cooldown=.47;p.attack=.20;
-        for(const enemy of players){
-          if(enemy===p||!enemy.active||!enemy.alive||enemy.invulnerable>0)continue;
-          const dx=enemy.x-p.x,dy=Math.abs(enemy.y-p.y);
-          if(Math.abs(dx)<67&&dy<68&&dx*p.face>-13){
-            enemy.hp--;enemy.invulnerable=.62;enemy.vx=p.face*360;enemy.vy=-270;enemy.grounded=false;
-            p.score+=1;
-            if(enemy.hp<=0){enemy.alive=false;enemy.respawn=1.45;p.score+=2;}
-          }
-        }
-      }else{
-        p.cooldown=1.1;p.dash=.24;
-      }
-    }
-    p.latch=input.action;
-    p.vx=move*245+(p.dash>0?p.face*330:0);
-    const prevY=p.y;
-    p.vy+=WORLD.gravity*dt;
-    p.x=clamp(p.x+p.vx*dt,21,WORLD.w-21);
-    p.y+=p.vy*dt;
-    p.grounded=false;
-    if(p.vy>=0){
-      for(const s of platforms){
-        if(p.x>s.x-13&&p.x<s.x+s.w+13&&prevY<=s.y+4&&p.y>=s.y&&p.y<s.y+50){
-          p.y=s.y;p.vy=0;p.grounded=true;break;
-        }
-      }
-      if(p.y>=WORLD.ground){p.y=WORLD.ground;p.vy=0;p.grounded=true;}
-    }
-    if(round.mode==='lava'){
-      const lavaY=520-(1-round.remaining/round.duration)*305;
-      if(p.y>=lavaY-5){p.alive=false;p.active=true;p.input=blankInput();}
-      else p.score+=dt;
-    }
-  }
 }
 function updateRound(dt){
   if(!round||round.paused)return;
   if(round.phase==='countdown'){
-    round.countdown-=dt;
-    $('gameBanner').textContent=round.countdown>0?String(Math.ceil(round.countdown)):'GO!';
-    if(round.countdown<=0){round.phase='playing';$('gameBanner').textContent='';broadcastRoster();}
+    window.GhostAttack.update(dt,round,players);
+    round.countdown=Math.max(0,round.countdown-dt);
+    $('gameBanner').textContent=round.countdown>0?String(Math.ceil(round.countdown)):'ผีมาแล้ว!';
+    if(round.countdown===0){
+      round.phase='playing';
+      round.ghost.ghostSpawned=true;
+      $('gameBanner').textContent='';
+      broadcastRoster();
+    }
     return;
   }
   if(round.phase!=='playing')return;
-  // A controller losing connectivity must not continue moving forever.
+  // A controller dropping packets does not drift forever.
   for(const p of players){
     if(p.type==='remote'&&Date.now()-(p.lastInputAt||0)>900){
-      for(const key of INPUT_NAMES)p.input[key]=false;
+      for(const k of INPUT_NAMES)p.input[k]=false;
       p.input.axisX=0;p.input.axisY=0;
     }
   }
-  round.remaining=Math.max(0,round.remaining-dt);
-  if(TOPDOWN.includes(round.mode))window.PartyMiniGames.update(dt,round,players);
-  else updatePlayers(dt);
-  if(round.mode==='stars'){
-    for(let i=round.stars.length-1;i>=0;i--){
-      const s=round.stars[i];s.spin+=dt*2.8;
-      for(const p of players){
-        if(!p.active||!p.alive)continue;
-        if(Math.hypot(p.x-s.x,p.y-27-s.y)<34){p.score+=1;round.stars.splice(i,1);break;}
-      }
-    }
-    round.starClock-=dt;
-    if(round.stars.length<5&&round.starClock<=0){spawnStar();round.starClock=.85;}
-  }
-  if(round.mode==='lava'&&players.filter(p=>p.active&&p.alive).length<=1){endRound();return;}
-  if(round.remaining<=0)endRound();
+  const result=window.GhostAttack.update(dt,round,players);
+  if(result==='winner')endRound();
 }
 function endRound(){
   if(!round||round.phase==='results')return;
   round.phase='results';round.paused=false;resetInputs();broadcastRoster();
   $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
-  const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score);
+  const ranked=players.filter(p=>p.active).sort((a,b)=>{
+    if(a.id===round.ghost.winnerId)return -1;
+    if(b.id===round.ghost.winnerId)return 1;
+    return b.score-a.score;
+  });
   if(tournament){
-    let sharedRank=0;
-    ranked.forEach((p,i)=>{
-      if(i>0&&p.score!==ranked[i-1].score)sharedRank=i;
-      p.total=(p.total||0)+Math.max(1,ranked.length-sharedRank);
-    });
-    if(tournament.index===tournament.schedule.length-1){
-      $('replayBtn').textContent='สุ่มชุดใหม่จากตัวเลือกเดิม';
-    }else{
-      $('replayBtn').textContent='เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
-    }
-  }else{$('replayBtn').textContent='สุ่มเล่นใหม่';}
+    ranked.forEach((p,i)=>p.total=(p.total||0)+Math.max(1,ranked.length-i));
+    $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
+      'สุ่มชุดใหม่จากตัวเลือกเดิม':
+      'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
+  }else $('replayBtn').textContent='เล่นอีกครั้ง';
   round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
   const list=$('resultList');list.replaceChildren();
   ranked.forEach((p,i)=>{
-    const r=document.createElement('div');r.className='result-player';
-    const n=document.createElement('div');n.textContent=(i===0?'🏆 ':String(i+1)+'. ')+p.name;n.style.color=p.color;
-    const score=document.createElement('span');
-    const roundScore=round.mode==='lava'?p.score.toFixed(1)+' วินาที':Math.floor(p.score)+' คะแนน';
-    score.textContent=tournament?roundScore+' • รวม '+p.total:roundScore;
-    r.append(n,score);list.append(r);
+    const row=document.createElement('div');row.className='result-player';
+    const label=document.createElement('div');
+    const winner=p.id===round.ghost.winnerId;
+    label.textContent=(winner?'🏆 ':'')+(i+1)+'. '+p.name;
+    label.style.color=p.color;
+    const detail=document.createElement('span');
+    detail.textContent=(winner?'ผู้รอดคนสุดท้าย':p.ghost?'กลายเป็นผี':'รอด')+
+      (tournament?' • รวม '+p.total+' คะแนน':'');
+    row.append(label,detail);list.append(row);
   });
   if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
     const overall=[...ranked].sort((a,b)=>b.total-a.total);
     list.replaceChildren();
     overall.forEach((p,i)=>{
-      const item=document.createElement('div');item.className='result-player';
-      const name=document.createElement('div');name.textContent=(i+1)+'. '+p.name;name.style.color=p.color;
+      const row=document.createElement('div');row.className='result-player';
+      const name=document.createElement('div');name.textContent=(i+1)+'. '+p.name;
+      name.style.color=p.color;
       const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
-      item.append(name,score);list.append(item);
+      row.append(name,score);list.append(row);
     });
     const heading=document.createElement('div');heading.className='tournament-header';
-    heading.textContent='แชมป์ทัวร์นาเมนต์: '+overall[0].name;
-    list.prepend(heading);
+    heading.textContent='ผู้ชนะรวม: '+overall[0].name;list.prepend(heading);
   }
-  $('results').classList.remove('hidden');$('gameBanner').textContent='';renderLeaderboard();
+  $('results').classList.remove('hidden');$('gameBanner').textContent='';
+  renderLeaderboard();
 }
 function renderLeaderboard(){
-  const root=$('leaderboard');root.replaceChildren();if(!round)return;
-  players.filter(p=>p.active).sort((a,b)=>b.score-a.score).forEach(p=>{
+  const root=$('leaderboard');root.replaceChildren();
+  if(!round)return;
+  players.filter(p=>p.active).sort((a,b)=>Number(a.ghost)-Number(b.ghost)).forEach(p=>{
     const box=document.createElement('div');box.className='leader-chip';
-    const c=document.createElement('span');c.className='circle';c.style.background=p.color;
-    const name=document.createElement('span');name.textContent=p.name+(p.alive?'':' (OUT)');
-    const score=document.createElement('small');score.textContent=round.mode==='lava'?p.score.toFixed(0)+'s':Math.floor(p.score)+' pts';
-    box.append(c,name,score);root.append(box);
+    const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+    const name=document.createElement('span');name.textContent=p.name;
+    const role=document.createElement('small');
+    role.textContent=p.ghost?'ผี':p.stun>0?'สตั้น':'คน';
+    box.append(color,name,role);root.append(box);
   });
-}
-function drawBackdrop(t){
-  const bg=g.createLinearGradient(0,0,0,WORLD.h);bg.addColorStop(0,'#18234d');bg.addColorStop(.8,'#29315b');bg.addColorStop(1,'#151b37');
-  g.fillStyle=bg;g.fillRect(0,0,960,540);
-  for(let i=0;i<42;i++){
-    const x=(i*137+41)%960,y=(i*59+31)%260;
-    g.fillStyle='rgba(199,229,255,'+(.24+.22*Math.sin(t*.7+i))+')';g.fillRect(x,y,2,2);
-  }
-  g.fillStyle='#293764';g.beginPath();g.moveTo(0,440);
-  for(let x=0;x<=960;x+=20)g.lineTo(x,405+Math.sin(x*.012+t*.08)*24);
-  g.lineTo(960,540);g.lineTo(0,540);g.fill();
-  g.fillStyle='#263351';g.fillRect(0,WORLD.ground,960,70);
-  for(let x=0;x<960;x+=40){g.strokeStyle='#344468';g.strokeRect(x,WORLD.ground,40,70);}
-  g.fillStyle='#59dce8';g.fillRect(0,WORLD.ground,960,7);
-  for(const s of platforms){
-    g.shadowColor='#42cde0';g.shadowBlur=13;g.fillStyle='#3a4d79';g.fillRect(s.x,s.y,s.w,s.h);
-    g.fillStyle='#83edff';g.fillRect(s.x,s.y,s.w,4);g.shadowBlur=0;
-    g.fillStyle='#17203e';g.fillRect(s.x+7,s.y+s.h,s.w-14,7);
-  }
-}
-function starPath(x,y,r,spin){
-  g.beginPath();for(let i=0;i<10;i++){const a=i*Math.PI/5-Math.PI/2+spin,rr=i%2?r*.48:r;const px=x+Math.cos(a)*rr,py=y+Math.sin(a)*rr;if(i===0)g.moveTo(px,py);else g.lineTo(px,py);}g.closePath();
-}
-function drawPlayer(p,t){
-  if(!p.active)return;
-  if(!p.alive){
-    g.save();g.globalAlpha=.6;g.fillStyle=p.color;g.font='bold 13px system-ui';g.textAlign='center';g.fillText(p.name+' OUT',p.x,Math.min(p.y,450)-40);g.restore();return;
-  }
-  g.save();
-  if(p.invulnerable>0&&Math.sin(t*28)>0)g.globalAlpha=.55;
-  const x=p.x,y=p.y,wave=p.grounded?Math.sin(t*12+p.x/35)*Math.min(9,Math.abs(p.vx)/24):6;
-  g.fillStyle='#0006';g.beginPath();g.ellipse(x,WORLD.ground+9,26,7,0,0,Math.PI*2);g.fill();
-  g.strokeStyle='#10182c';g.lineCap='round';g.lineJoin='round';g.lineWidth=11;
-  g.beginPath();g.moveTo(x,y-35);g.lineTo(x-11-wave,y);g.moveTo(x,y-35);g.lineTo(x+13+wave,y);g.stroke();
-  g.strokeStyle=p.color;g.lineWidth=7;g.stroke();
-  g.strokeStyle='#10182c';g.lineWidth=12;
-  g.beginPath();g.moveTo(x,y-59);g.lineTo(x-20,y-40-wave*.3);g.moveTo(x,y-59);g.lineTo(x+21*p.face,y-41+(p.attack>0?-16:0));g.stroke();
-  g.strokeStyle=p.color;g.lineWidth=8;g.stroke();
-  g.strokeStyle='#0c122b';g.lineWidth=14;g.beginPath();g.moveTo(x,y-68);g.lineTo(x,y-32);g.stroke();
-  g.strokeStyle=p.color;g.lineWidth=9;g.stroke();
-  g.shadowColor=p.color;g.shadowBlur=16;g.fillStyle=p.color;g.strokeStyle='#12162c';g.lineWidth=5;
-  g.beginPath();g.arc(x,y-84,15,0,Math.PI*2);g.fill();g.stroke();g.shadowBlur=0;
-  g.fillStyle='#11162d';g.beginPath();g.arc(x+p.face*6,y-86,2.6,0,Math.PI*2);g.fill();
-  if(p.attack>0){g.strokeStyle='#ffe48c';g.lineWidth=6;g.beginPath();g.arc(x+p.face*22,y-52,30,p.face===1?-.9:2.2,p.face===1?.9:4.1);g.stroke();}
-  g.font='bold 14px system-ui';g.textAlign='center';g.strokeStyle='#10172a';g.lineWidth=4;g.strokeText(p.name,x,y-114);g.fillStyle='white';g.fillText(p.name,x,y-114);
-  if(round&&round.mode==='brawl'){
-    for(let i=0;i<3;i++){g.fillStyle=i<p.hp?'#ff617c':'#4a526e';g.fillRect(x-20+i*14,y-107,11,5);}
-  }
-  g.restore();
 }
 function drawGame(t){
   if(!round)return;
-  if(TOPDOWN.includes(round.mode)){
-    g.clearRect(0,0,960,540);
-    window.PartyMiniGames.draw(g,t,round,players);
-    return;
-  }
-  g.clearRect(0,0,960,540);
-  drawBackdrop(t);
-  if(round.mode==='stars'){
-    for(const s of round.stars){
-      g.save();g.shadowColor='#ffdb66';g.shadowBlur=23;g.fillStyle='#ffe07d';starPath(s.x,s.y,19,s.spin);g.fill();g.restore();
-    }
-  }
-  if(round.mode==='lava'){
-    const height=(1-round.remaining/round.duration)*305;
-    const y=520-height;
-    const lava=g.createLinearGradient(0,y,0,540);lava.addColorStop(0,'#ffd26b');lava.addColorStop(.12,'#ff704c');lava.addColorStop(1,'#bf244f');
-    g.fillStyle=lava;g.beginPath();g.moveTo(0,y);
-    for(let x=0;x<=960;x+=15)g.lineTo(x,y+Math.sin(x*.03+t*4)*7);
-    g.lineTo(960,540);g.lineTo(0,540);g.closePath();g.fill();
-    g.fillStyle='#ffd97b';
-    for(let i=0;i<22;i++){const x=(i*121+17)%960,yy=y+15+(i*34)%180;if(yy<540){g.beginPath();g.arc(x,yy+Math.sin(t*3+i)*4,3+(i%3),0,Math.PI*2);g.fill();}}
-  }
-  players.forEach(p=>drawPlayer(p,t));
-  g.fillStyle='#dce9ff';g.font='bold 14px system-ui';g.textAlign='left';
-  g.fillText(round.mode==='stars'?'วิ่งเก็บดาว!':round.mode==='brawl'?'HIT เพื่อทำคะแนน!':'อย่าแตะลาวา!',22,30);
-  if(round.phase==='results'){g.fillStyle='#1019329c';g.fillRect(0,0,960,540);}
+  window.GhostAttack.draw(g,t,round,players);
 }
 function animate(ts){
   const dt=Math.min(.045,Math.max(0,(ts-frameLast)/1000||.016));frameLast=ts;
@@ -1140,9 +1016,15 @@ function animate(ts){
     }
     hudClock+=dt;
     if(hudClock>.22){
-      const seconds=Math.max(0,Math.ceil(round.remaining));
-      $('timer').textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+      const h=window.GhostAttack.hud(players,round);
+      $('timer').textContent=round.phase==='countdown'?
+        Math.max(0,Math.ceil(round.countdown))+' วิ':h.survivors+' คน';
       renderLeaderboard();hudClock=0;
+    }
+    inventoryClock+=dt;
+    if(inventoryClock>=.28){
+      inventoryClock=0;
+      broadcastPlayerInventories();
     }
     remotePreviewClock+=dt;
     if(remotePreviewClock>=1.1&&!round.paused){
@@ -1151,7 +1033,8 @@ function animate(ts){
     }
     networkClock+=dt;
     if(networkClock>.85){
-      broadcast({t:'state',phase:networkPhase(),remaining:round.remaining,mode:round.mode});
+      broadcast({t:'state',phase:networkPhase(),
+        survivors:window.GhostAttack.hud(players,round).survivors,mode:round.mode});
       networkClock=0;
     }
   }
@@ -1160,7 +1043,8 @@ function animate(ts){
 
 function broadcastGameState(){
   if(!round)return;
-  broadcast({t:'state',phase:networkPhase(),remaining:round.remaining,mode:round.mode});
+  broadcast({t:'state',phase:networkPhase(),
+    survivors:window.GhostAttack.hud(players,round).survivors,mode:round.mode});
 }
 function pauseGame(){
   if(currentView!=='game'||!round||round.phase==='results'||round.paused)return;
@@ -1297,6 +1181,23 @@ $('videoStartBtn').addEventListener('click',()=>{
       }).catch(()=>{});
     }catch(_){}
   }
+});
+const cyclePhoneTarget=(direction)=>{
+  if(!controllerReady||!controllerConn||!controllerConn.open)return;
+  send(controllerConn,{t:'target-cycle',direction});
+};
+$('targetPrevBtn').addEventListener('click',()=>cyclePhoneTarget(-1));
+$('targetNextBtn').addEventListener('click',()=>cyclePhoneTarget(1));
+document.addEventListener('keydown',e=>{
+  if(currentView!=='game'||!round||round.phase!=='playing'||e.repeat)return;
+  const locals=players.filter(p=>p.type==='local');
+  const controls=[['KeyQ','KeyE'],['Numpad8','Numpad2']];
+  controls.forEach((keys,i)=>{
+    const direction=e.code===keys[0]?-1:e.code===keys[1]?1:0;
+    if(direction&&locals[i]){
+      if(window.GhostAttack.cycleTarget(round.ghost,players,locals[i],direction))e.preventDefault();
+    }
+  });
 });
 $('scanRoomBtn').addEventListener('click',()=>{void startRoomScanner();});
 $('cancelScanBtn').addEventListener('click',()=>{void stopRoomScanner();});

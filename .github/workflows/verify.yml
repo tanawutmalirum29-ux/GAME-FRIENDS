@@ -1,7 +1,7 @@
 name: Verify static game
 on:
   push:
-    branches: [main, feat/stick-squad-party, feat/party-minigames-topdown, feat/landscape-analog-ab-minigame-picker, feat/portrait-virtual-landscape-pad, feat/saved-controller-name-switch-room, fix/dismiss-joystick-hint-on-first-touch, feat/phone-game-preview-compact-hud-confirm-exit, feat/player-picked-shuffled-party-queue, feat/large-live-webrtc-video-controller-only, fix/single-viewport-no-scroll-all-screens, fix/controller-fill-landscape-viewport, fix/compact-host-roster-stacked-qr-link, fix/controller-quality-cycle-unified-preview, feat/resolution-only-video-quality-auto, fix/persist-fullscreen-across-exits]
+    branches: [main, feat/stick-squad-party, feat/party-minigames-topdown, feat/landscape-analog-ab-minigame-picker, feat/portrait-virtual-landscape-pad, feat/saved-controller-name-switch-room, fix/dismiss-joystick-hint-on-first-touch, feat/phone-game-preview-compact-hud-confirm-exit, feat/player-picked-shuffled-party-queue, feat/large-live-webrtc-video-controller-only, fix/single-viewport-no-scroll-all-screens, fix/controller-fill-landscape-viewport, fix/compact-host-roster-stacked-qr-link, fix/controller-quality-cycle-unified-preview, feat/resolution-only-video-quality-auto, fix/persist-fullscreen-across-exits, feat/ghost-attack-first-game]
   pull_request:
     branches: [main]
 permissions:
@@ -14,7 +14,7 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check app.js
-          node --check minigames.js
+          node --check ghost-attack.js
       - name: Runtime smoke test
         run: node tests/smoke.cjs
       - name: HTML-to-JavaScript references
@@ -27,6 +27,6 @@ jobs:
           const used=[...js.matchAll(/\$\('([^']+)'\)/g)].map(x=>x[1]);
           const missing=[...new Set(used.filter(id=>!ids.has(id)))];
           if(missing.length){console.error('Missing HTML IDs:',missing.join(', '));process.exit(1);}
-          for(const file of ['style.css','amplify.yml','README.md','minigames.js','host.html'])if(!fs.existsSync(file))throw Error('Missing '+file);
+          for(const file of ['style.css','amplify.yml','README.md','ghost-attack.js','host.html'])if(!fs.existsSync(file))throw Error('Missing '+file);
           console.log('Checked '+used.length+' ID references and static game assets');
           NODE

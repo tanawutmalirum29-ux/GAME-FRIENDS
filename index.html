@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta id="viewportMeta" name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d1122">
-  <meta name="description" content="Stick Squad Party เกมมินิเกมปาร์ตี้บนเว็บ เล่นพร้อมกันมากกว่า 4 คน ใช้มือถือเป็นจอยผ่าน QR Code">
+  <meta name="description" content="Ghost Attack เกมเอาตัวรอดจากผี เล่นกับเพื่อนสูงสุด 12 คน ใช้มือถือเป็นจอยผ่าน QR Code">
   <title>STICK SQUAD PARTY | GAME FRIENDS</title>
   <link rel="stylesheet" href="./style.css">
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script defer src="./minigames.js"></script>
+  <script defer src="./ghost-attack.js"></script>
   <script defer src="./app.js"></script>
 </head>
 <body>
@@ -24,8 +24,8 @@
       <section class="hero">
         <div class="eyebrow">STICK SQUAD • PARTY ROOM</div>
         <h1>สร้างห้อง<br><em>แล้วให้เพื่อนเลือกเกม</em></h1>
-        <p>จอหลักสร้าง QR Code กำหนดเวลาและรูปแบบการแข่งขัน ส่วนผู้เล่นเลือกมินิเกมจากจอยมือถือคนละหนึ่งเกม เกมที่เลือกซ้ำจะถูกเล่นซ้ำตามจำนวนคนที่เลือก</p>
-        <div class="feature-tags"><span>สูงสุด 12 ผู้เล่น</span><span>7 มินิเกม</span><span>สุ่มลำดับทุกตัวเลือก</span></div>
+        <p>จอหลักสร้าง QR Code กำหนดเวลาและรูปแบบการแข่งขัน ส่วนผู้เล่นเลือกGHOST ATTACK จากจอยมือถือ ผู้ถูกผีจับจะเปลี่ยนเป็นผี ชนะด้วยการเป็นคนรอดคนสุดท้าย</p>
+        <div class="feature-tags"><span>สูงสุด 12 ผู้เล่น</span><span>GHOST ATTACK</span><span>สุ่มลำดับทุกตัวเลือก</span></div>
         <div class="button-group">
           <button id="hostBtn" class="btn btn-primary" type="button">สร้างห้อง + เปิดจอหลัก <span>↗</span></button>
           <button id="offlineBtn" class="btn btn-secondary" type="button">ทดลองเล่นด้วยคีย์บอร์ด</button>
@@ -54,11 +54,11 @@
               </div>
             </div>
           </div>
-          <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ ผู้เล่นคีย์บอร์ดจะเลือก STAR RUSH เป็นค่าเริ่มต้น</p>
+          <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ ผู้เล่นคีย์บอร์ดจะเลือก GHOST ATTACK เป็นค่าเริ่มต้น</p>
         </section>
         <section class="lobby-player-panel">
           <div class="lobby-section-title"><h2>รายชื่อผู้เล่นและเกมที่เลือก</h2><span id="rosterCount" class="count">0/12</span></div>
-          <p class="lobby-hint">หนึ่งคนเลือกหนึ่งเกม • เลือกซ้ำกันได้ และจะอยู่ในคิวเกมหลายรอบ</p>
+          <p class="lobby-hint">เกมแรก GHOST ATTACK • ทุกคนต้องเลือกก่อนเริ่ม • เลือกซ้ำเพื่อเล่นหลายรอบได้</p>
           <div id="roster" class="roster lobby-roster"><p class="empty">ยังไม่มีผู้เล่น • ให้เพื่อนสแกน QR เพื่อเข้าห้อง</p></div>
           <h3>สถานะการเลือกเกม</h3>
           <div id="hostQueue" class="host-queue" aria-live="polite">รอผู้เล่นเลือกมินิเกม</div>
@@ -67,13 +67,11 @@
       <div class="lobby-controls">
         <div class="lobby-control"><label for="sessionMode">รูปแบบการแข่งขัน</label>
           <select id="sessionMode">
-            <option value="queue" selected>เล่นครบทุกเกมที่เพื่อนเลือก (รวมเกมซ้ำ)</option>
+            <option value="queue" selected>เล่นครบทุกตัวเลือก (เกมซ้ำเล่นหลายรอบ)</option>
             <option value="quick">สุ่มเล่น 1 เกมจากทุกตัวเลือก</option>
           </select>
         </div>
-        <div class="lobby-control"><label for="duration">เวลาต่อรอบ</label>
-          <select id="duration"><option value="60">60 วินาที</option><option value="90">90 วินาที</option><option value="45">45 วินาที</option></select>
-        </div>
+        <div class="lobby-control"><label>กฎการจบเกม</label><div class="ghost-no-timer">ไม่จับเวลา · รอดคนสุดท้าย</div></div>
         <div class="lobby-control auto-next-control"><label for="autoNext">เล่นเกมต่อเนื่อง</label>
           <label class="lobby-toggle"><input id="autoNext" type="checkbox" checked> เริ่มรอบถัดไปอัตโนมัติหลังดูผล 7 วินาที</label>
         </div>
@@ -90,9 +88,9 @@
         <div id="gameBanner" class="game-banner" aria-live="polite">เตรียมพร้อม!</div>
       </div>
       <div class="game-toolbar">
-        <div class="game-name"><span class="eyebrow" id="gameMode">STAR RUSH</span><h2 id="gameTitle">เกมเริ่มแล้ว!</h2></div>
+        <div class="game-name"><span class="eyebrow" id="gameMode">GHOST ATTACK</span><h2 id="gameTitle">หนีผีให้รอด!</h2></div>
         <div class="game-center-hud">
-          <div class="timer-box"><span>TIME LEFT</span><strong id="timer">01:00</strong></div>
+          <div class="timer-box"><span>HUMANS LEFT</span><strong id="timer">รอเริ่ม</strong></div>
           <div id="leaderboard" class="leaderboard" aria-label="คะแนนผู้เล่น"></div>
         </div>
         <button id="pauseBtn" class="game-pause-btn" type="button" aria-label="หยุดเกม" aria-haspopup="dialog" aria-expanded="false">Ⅱ <span>หยุดเกม</span></button>
@@ -101,12 +99,12 @@
         <div class="game-pause-card">
           <div class="pause-icon" aria-hidden="true">Ⅱ</div>
           <h2 id="pauseHeading">หยุดเกมชั่วคราว</h2>
-          <p>เกมและเวลาจะหยุดจนกว่าจะกดเล่นต่อ</p><div id="gameChoiceList" class="game-choice-list" aria-label="ผู้เล่นและเกมที่เลือก"></div>
+          <p>การเคลื่อนที่และผีจะหยุดจนกว่าจะกดเล่นต่อ</p><div id="gameChoiceList" class="game-choice-list" aria-label="ผู้เล่นและเกมที่เลือก"></div>
           <button id="resumeBtn" class="btn btn-green" type="button">▶ เล่นต่อ</button>
           <button id="exitBtn" class="btn btn-outline pause-exit" type="button">ออกจากเกม / กลับล็อบบี้</button>
         </div>
       </div>
-      <div id="results" class="result-overlay hidden"><div class="result-card"><div class="eyebrow">ROUND FINISHED</div><h2>จบเกม!</h2><div id="resultList"></div><button id="replayBtn" class="btn btn-primary">เล่นอีกครั้ง</button><button id="backBtn" class="btn btn-outline">กลับล็อบบี้</button></div></div>
+      <div id="results" class="result-overlay hidden"><div class="result-card"><div class="eyebrow">GHOST ATTACK</div><h2>ผู้รอดคนสุดท้าย!</h2><div id="resultList"></div><button id="replayBtn" class="btn btn-primary">เล่นอีกครั้ง</button><button id="backBtn" class="btn btn-outline">กลับล็อบบี้</button></div></div>
     </main>
 
     <main id="controller" class="controller-page hidden">
@@ -139,14 +137,8 @@
             <div id="controllerPreview" class="gamepad-preview" aria-label="จอพรีวิวเกมจากเจ้าของห้อง">
             <div id="phoneGamePicker" class="phone-game-picker hidden" aria-label="เลือกมินิเกมที่จะเล่น">
               <span class="phone-picker-title">เลือกมินิเกมของคุณ</span>
-              <div id="phoneGameChoices" class="phone-game-choices" role="group" aria-label="เลือกได้คนละหนึ่งเกม">
-                <button type="button" data-pick="stars" class="phone-game-choice" aria-pressed="false">★ STAR RUSH</button>
-                <button type="button" data-pick="brawl" class="phone-game-choice" aria-pressed="false">✹ BRAWL</button>
-                <button type="button" data-pick="lava" class="phone-game-choice" aria-pressed="false">♨ LAVA RUN</button>
-                <button type="button" data-pick="tanks" class="phone-game-choice" aria-pressed="false">▰ TANKS</button>
-                <button type="button" data-pick="soccer" class="phone-game-choice" aria-pressed="false">⚽ FOOTBALL</button>
-                <button type="button" data-pick="rally" class="phone-game-choice" aria-pressed="false">🏎 RALLY</button>
-                <button type="button" data-pick="paint" class="phone-game-choice" aria-pressed="false">▦ COLOR CLASH</button>
+              <div id="phoneGameChoices" class="phone-game-choices" role="group" aria-label="เลือก GHOST ATTACK">
+                <button type="button" data-pick="ghost" class="phone-game-choice" aria-pressed="false">👻 GHOST ATTACK</button>
               </div>
               <small id="phoneChoiceStatus" class="phone-choice-status">เลือกเกมหนึ่งเกมเพื่อให้เจ้าของห้องเริ่มการแข่งขัน</small>
             </div>
@@ -157,16 +149,27 @@
                 <span class="preview-wait-icon" aria-hidden="true">▣</span>
                 <strong>รอภาพจากจอหลัก</strong><small>จะแสดงฉากเกมเมื่อเจ้าของห้องเริ่มเล่น</small>
               </div>
-              <div class="gamepad-preview-top"><span class="preview-live-dot"></span><strong id="controllerModeName" class="gamepad-mode">STAR RUSH</strong></div>
+              <div class="gamepad-preview-top"><span class="preview-live-dot"></span><strong id="controllerModeName" class="gamepad-mode">GHOST ATTACK</strong></div>
             </div>
             <small id="controllerState" class="controller-status-sr" aria-live="polite">กำลังรอเจ้าของห้องเริ่มเกม</small>
           </div>
           <div class="gamepad-face-buttons">
-            <div class="face-button-wrap face-b"><button type="button" data-control="alt" class="face-button face-button-b" aria-label="ปุ่ม B">B</button><span id="buttonBLabel" class="face-caption">JUMP</span></div>
-            <div class="face-button-wrap face-a"><button type="button" data-control="action" class="face-button face-button-a" aria-label="ปุ่ม A">A</button><span id="buttonALabel" class="face-caption">ACTION</span></div>
+            <div id="targetCycleControls" class="target-cycle-controls hidden" aria-label="เลือกเป้าหมายยาสโลว์">
+              <span class="target-control-label">เลือกเพื่อน</span>
+              <button id="targetPrevBtn" type="button" class="target-cycle-btn" aria-label="เลือกเพื่อนก่อนหน้า">▲</button>
+              <span id="targetName" class="target-name">ไม่มีเป้าหมาย</span>
+              <button id="targetNextBtn" type="button" class="target-cycle-btn" aria-label="เลือกเพื่อนถัดไป">▼</button>
+            </div>
+            <div class="face-button-wrap face-b"><button type="button" data-control="alt" class="face-button face-button-b" aria-label="ปุ่ม B">B</button><span id="buttonBLabel" class="face-caption">ไอเทม</span></div>
+            <div class="face-button-wrap face-a"><button type="button" data-control="action" class="face-button face-button-a" aria-label="ปุ่ม A">A</button><span id="buttonALabel" class="face-caption">ตี</span></div>
           </div>
         </div>
-        <p id="controllerHelp" class="controller-help">แตะพื้นที่ฝั่งซ้ายตรงไหนก็ได้แล้วลาก • A ทำแอ็กชัน • B กระโดด/หลบ</p>
+        <div id="controllerInventory" class="controller-inventory" aria-live="polite">
+          <span id="controllerRole" class="controller-role">มนุษย์</span>
+          <span id="inventoryItem" class="inventory-item">ไอเทม: ว่าง</span>
+          <small id="inventoryGuide" class="inventory-guide">A ตีเพื่อสตั้น • B ใช้ไอเทม</small>
+        </div>
+        <p id="controllerHelp" class="controller-help">แตะพื้นที่ฝั่งซ้ายเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม</p>
         <div id="leaveConfirm" class="controller-leave-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="leaveConfirmTitle">
           <div class="controller-leave-card">
             <h2 id="leaveConfirmTitle">ออกจากห้องเกม?</h2>
