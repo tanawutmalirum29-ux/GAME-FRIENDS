@@ -373,7 +373,11 @@ function endRound(){
   round.phase='results';resetInputs();broadcastRoster();
   const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score);
   if(tournament){
-    ranked.forEach((p,i)=>{p.total=(p.total||0)+ranked.length-i;});
+    let sharedRank=0;
+    ranked.forEach((p,i)=>{
+      if(i>0&&p.score!==ranked[i-1].score)sharedRank=i;
+      p.total=(p.total||0)+Math.max(1,ranked.length-sharedRank);
+    });
     if(tournament.index===tournament.schedule.length-1){
       $('replayBtn').textContent='เริ่มทัวร์นาเมนต์ใหม่';
     }else{
@@ -389,7 +393,7 @@ function endRound(){
     score.textContent=tournament?roundScore+' • รวม '+p.total:roundScore;
     r.append(n,score);list.append(r);
   });
-  if(tournament&&tournament.index===tournament.schedule.length-1){
+  if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
     const overall=[...ranked].sort((a,b)=>b.total-a.total);
     list.replaceChildren();
     overall.forEach((p,i)=>{
