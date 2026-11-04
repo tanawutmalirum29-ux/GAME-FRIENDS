@@ -146,7 +146,7 @@ function normalizeAutoHeight(value){
   const n=Number(value);
   if(!Number.isFinite(n)||n<=0)return 540;
   // Bound allocations from untrusted controller metadata. Choose even pixels.
-  return Math.round(Math.max(144,Math.min(1080,n))/2)*2;
+  return Math.round(Math.max(144,Math.min(2160,n))/2)*2;
 }
 const hostVideoSources=new Map();
 const hostVideoCalls=new Map();
@@ -402,13 +402,35 @@ function updatePhoneGamePicker(phase,choice){
 }
 let controllerMediaCall=null;
 let videoStreamActive=false;
-const VIDEO_QUALITY_CYCLE=['high','medium','low'];
+const VIDEO_QUALITY_CYCLE=['high','medium','low','auto'];
 const VIDEO_QUALITY_TEXT={
-  high:{short:'ส',long:'สูง · 540p'},
-  medium:{short:'ก',long:'กลาง · 270p'},
-  low:{short:'ต',long:'ต่ำ · 144p'}
+  high:{short:'ส',long:'สูง · 720p'},
+  medium:{short:'ก',long:'กลาง · 540p'},
+  low:{short:'ต',long:'ต่ำ · 144p'},
+  auto:{short:'A',long:'อัตโนมัติตามหน้าจอ'}
 };
 let controllerVideoQuality='medium';
+let lastControllerAutoHeight=null;
+function controllerAutoHeight(){
+  // CSS screen pixels × device pixel ratio estimate the display's native pixels.
+  // Never mistake browser support/actual network throughput for a guaranteed FPS.
+  const screen=window.screen||{};
+  const dims=[Number(screen.width),Number(screen.height)];
+  const viewport=[Number(window.innerWidth),Number(window.innerHeight)];
+  const usable=dims.every(n=>Number.isFinite(n)&&n>0)?dims:viewport;
+  const shortSide=usable.every(n=>Number.isFinite(n)&&n>0)?Math.min(...usable):540;
+  const dpr=Number(window.devicePixelRatio);
+  return normalizeAutoHeight(shortSide*(Number.isFinite(dpr)&&dpr>0?dpr:1));
+}
+function videoQualityPacket(quality){
+  if(quality==='auto'){
+    const height=controllerAutoHeight();
+    lastControllerAutoHeight=height;
+    return {t:'video-quality',quality,autoHeight:height};
+  }
+  lastControllerAutoHeight=null;
+  return {t:'video-quality',quality};
+}
 function savedVideoQuality(){
   try{
     const name=window.localStorage.getItem('gf-video-quality-v1');
@@ -429,7 +451,7 @@ function setControllerVideoQuality(quality){
   controllerVideoQuality=quality;
   renderVideoQualityButton();
   try{window.localStorage.setItem('gf-video-quality-v1',quality);}catch(_){}
-  if(controllerReady)send(controllerConn,{t:'video-quality',quality});
+  if(controllerReady)send(controllerConn,videoQualityPacket(quality));
 }
 function stopControllerVideo(){
   const call=controllerMediaCall;
@@ -1262,6 +1284,13 @@ document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener
 $('videoQualityBtn').addEventListener('click',()=>{
   const index=VIDEO_QUALITY_CYCLE.indexOf(controllerVideoQuality);
   setControllerVideoQuality(VIDEO_QUALITY_CYCLE[(index+1)%VIDEO_QUALITY_CYCLE.length]);
+});
+// Auto resolution updates when the device's available display pixels change.
+// Sending an identical size on ordinary resize events would renegotiate needlessly.
+window.addEventListener('resize',()=>{
+  if(!controllerReady||controllerVideoQuality!=='auto')return;
+  const next=controllerAutoHeight();
+  if(next!==lastControllerAutoHeight)send(controllerConn,videoQualityPacket('auto'));
 });
 controllerVideoQuality=savedVideoQuality();
 renderVideoQualityButton();
