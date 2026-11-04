@@ -611,6 +611,8 @@ function setup(url='https://game.example/?host=1',portrait=false) {
   const context=new Proxy({},{
     get(_,key){
       if(key==='createLinearGradient')return ()=>({addColorStop(){}});
+      // Used by the bounded Thai HUD label renderer.
+      if(key==='measureText')return text=>({width:String(text).length*8});
       return ()=>{};
     },
     set(){return true;}
