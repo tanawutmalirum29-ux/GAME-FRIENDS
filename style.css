@@ -295,49 +295,70 @@ body.host-playing{overflow:hidden;overscroll-behavior:none;touch-action:none}
 #game .game-banner{z-index:3;top:35%;font-size:clamp(34px,6vw,80px)}
 #game .game-toolbar{
   position:absolute;inset:0 0 auto 0;z-index:4;
-  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
-  align-items:start;gap:12px;margin:0;
-  padding:max(12px,env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) 32px max(14px,env(safe-area-inset-left,0px));
-  background:linear-gradient(180deg,#081222bd 0%,#08122277 67%,transparent 100%);
+  display:flex;justify-content:center;align-items:flex-start;gap:0;margin:0;
+  padding:max(0px,env(safe-area-inset-top,0px)) max(8px,env(safe-area-inset-right,0px)) 0 max(8px,env(safe-area-inset-left,0px));
+  background:linear-gradient(180deg,#081222a6 0%,#08122240 55%,transparent 100%);
   pointer-events:none;
 }
-#game .game-name{min-width:0;text-shadow:0 2px 9px #000b}
-#game .game-name .eyebrow{font-size:clamp(10px,1.35vw,14px);letter-spacing:1px;color:#8dedf4}
-#game .game-name h2{font-size:clamp(11px,1.5vw,17px);margin:2px 0 0;line-height:1.2;font-weight:800}
+#game .game-name{
+  position:absolute;
+  top:max(0px,env(safe-area-inset-top,0px));
+  left:max(116px,calc(env(safe-area-inset-left,0px) + 96px));
+  max-width:190px;min-width:0;line-height:1.15;
+  text-shadow:0 2px 8px #000d;
+}
+#game .game-name .eyebrow{
+  font-size:clamp(10px,1.1vw,13px);
+  letter-spacing:.7px;color:#8dedf4;line-height:1.12;
+}
+#game .game-name h2{
+  margin:2px 0 0;font-size:clamp(10px,1.05vw,13px);
+  line-height:1.12;font-weight:800;
+}
+#game .game-center-hud{
+  display:flex;flex-direction:column;align-items:center;
+  gap:5px;min-width:0;width:min(calc(100vw - 24px),1020px);
+  max-width:100%;
+}
 #game .timer-box{
-  background:#101f38ca;color:#fff;
-  border:1px solid #90acd47a;border-radius:13px;
-  padding:7px 18px;min-width:100px;line-height:1.12;
-  backdrop-filter:blur(8px);box-shadow:0 4px 18px #0006;
+  flex:0 0 auto;min-width:82px;
+  text-align:center;background:#101f38c4;color:#fff;
+  padding:3px 11px;border:1px solid #90acd47a;border-radius:10px;
+  line-height:1.06;backdrop-filter:blur(7px);box-shadow:0 3px 12px #0005;
 }
-#game .timer-box strong{font-size:clamp(19px,3.3vw,32px)}
-#game .timer-box span{font-size:9px;letter-spacing:1.2px}
+#game .timer-box span{display:block;font-size:8px;letter-spacing:1px;color:#acbcd7}
+#game .timer-box strong{font-size:clamp(18px,2.2vw,24px);letter-spacing:1px;line-height:1.05}
 #game .game-pause-btn{
-  pointer-events:auto;justify-self:end;display:flex;gap:9px;align-items:center;
-  min-height:51px;padding:10px 17px;border:1px solid #b0c3e18c;
-  color:#fff;background:#182d48d9;border-radius:13px;
-  font-size:18px;font-weight:1000;box-shadow:0 5px 18px #0008;
+  position:absolute;right:max(8px,env(safe-area-inset-right,0px));
+  top:max(0px,env(safe-area-inset-top,0px));
+  pointer-events:auto;display:flex;align-items:center;gap:5px;
+  min-height:35px;padding:5px 10px;
+  border:1px solid #b0c3e17a;border-radius:10px;
+  color:#fff;background:#182d48d9;font-size:14px;font-weight:900;
+  box-shadow:0 3px 10px #0006;
   -webkit-tap-highlight-color:transparent;touch-action:manipulation;
-  backdrop-filter:blur(9px);
+  backdrop-filter:blur(8px);
 }
-#game .game-pause-btn span{font-size:13px;letter-spacing:.2px}
+#game .game-pause-btn span{font-size:11px;letter-spacing:0}
 #game .game-pause-btn:active{background:#3b5c83}
 #game .leaderboard{
-  position:absolute;bottom:0;left:0;right:0;z-index:3;
-  display:flex;flex-wrap:nowrap;gap:7px;
-  margin:0;padding:26px max(13px,env(safe-area-inset-right,0px)) max(11px,env(safe-area-inset-bottom,0px)) max(13px,env(safe-area-inset-left,0px));
-  overflow-x:auto;overflow-y:hidden;min-height:48px;
-  scrollbar-width:thin;scrollbar-color:#516581 transparent;
-  background:linear-gradient(0deg,#091327de 0%,#0913276d 54%,transparent 100%);
-  touch-action:pan-x;
+  position:relative;top:auto;bottom:auto;left:auto;right:auto;z-index:auto;
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
+  gap:4px 6px;
+  width:max-content;max-width:100%;min-height:0;box-sizing:border-box;
+  margin:0;padding:0;border:0;background:none;
+  overflow:visible;box-shadow:none;transform:none;touch-action:none;
 }
 #game .leader-chip{
-  flex:0 0 auto;min-height:34px;padding:6px 10px;
-  border-radius:9px;background:#1a2946cf;
-  border:1px solid #6d86a663;font-size:11px;
-  box-shadow:0 3px 12px #0005;backdrop-filter:blur(5px);
+  flex:0 0 auto;min-height:26px;padding:4px 8px;
+  border-radius:8px;background:#15253edb;
+  border:1px solid #6983a46d;
+  display:flex;align-items:center;gap:5px;
+  font-weight:800;font-size:11px;white-space:nowrap;
+  box-shadow:0 2px 9px #0006;backdrop-filter:blur(6px);
 }
-#game .leader-chip small{font-size:11px}
+#game .leader-chip .circle{width:10px;height:10px;flex:0 0 10px}
+#game .leader-chip small{font-size:11px;font-weight:900;color:var(--yellow)}
 #game .game-pause-overlay{
   position:absolute;inset:0;z-index:12;display:grid;place-items:center;
   padding:20px;background:#06101fca;backdrop-filter:blur(13px);
@@ -498,4 +519,68 @@ body.controller-playing .gamepad-top-actions #switchRoomBtn{background:#244e67;b
 @media(orientation:landscape) and (max-height:400px){
   .gamepad-top-actions #switchRoomBtn{padding:5px 7px;font-size:10px}
   .room-scanner-panel .room-qr-reader video{max-height:38dvh}
+}
+
+
+
+/* HUD safe areas: avoid the browser's top-left X close control in iPad/Chrome.
+   The title occupies the unused left edge of the existing overlay, not game layout. */
+@media(max-width:760px){
+  #game .game-toolbar{
+    gap:0;
+    padding-top:max(0px,env(safe-area-inset-top,0px));
+    padding-left:8px;padding-right:8px;
+  }
+  #game .game-name{
+    left:max(84px,calc(env(safe-area-inset-left,0px) + 65px));
+    max-width:70px;
+  }
+  #game .game-name .eyebrow{font-size:10px;letter-spacing:0}
+  #game .game-name h2{display:none}
+  #game .timer-box{min-width:74px;padding:3px 8px}
+  #game .timer-box strong{font-size:18px}
+  #game .game-pause-btn{
+    min-height:32px;padding:5px 7px;gap:4px;
+    top:max(0px,env(safe-area-inset-top,0px));
+  }
+  #game .game-pause-btn span{font-size:10px}
+  #game .game-center-hud{width:calc(100vw - 18px);gap:4px}
+  #game .leader-chip{padding:3px 6px;min-height:22px;font-size:10px}
+  #game .leader-chip small{font-size:10px}
+}
+@media(max-height:400px){
+  #game .game-toolbar{padding-top:max(0px,env(safe-area-inset-top,0px))}
+  #game .game-name h2{display:none}
+  #game .timer-box{padding:2px 8px}
+  #game .game-pause-btn{min-height:31px;padding:4px 8px}
+}
+/* Right hand: A over B, right aligned to the safe edge, visibly separated. */
+body.controller-playing .controller-buttons{
+  grid-template-columns:minmax(0,1fr) minmax(0,.55fr) minmax(125px,.82fr);
+  gap:clamp(4px,1.4vw,15px);
+  padding-right:max(7px,env(safe-area-inset-right,7px));
+}
+body.controller-playing .gamepad-face-buttons{
+  justify-self:end;align-items:center;justify-content:center;
+  width:max-content;max-width:none;margin:0;
+  padding:0;box-sizing:border-box;
+}
+body.controller-playing .face-b{margin-top:8px}
+body.controller-playing .face-button{
+  width:clamp(88px,26vh,154px);
+  height:clamp(88px,26vh,154px);
+}
+body.controller-playing.portrait-fallback #controllerActive .gamepad-face-buttons{
+  justify-self:end;align-items:center;justify-content:center;
+  width:max-content;max-width:none;margin:0;padding:0;
+}
+body.controller-playing.portrait-fallback #controllerActive .face-b{margin-top:8px}
+@media(orientation:landscape) and (max-height:350px){
+  body.controller-playing .face-button{
+    width:clamp(72px,24vh,94px);height:clamp(72px,24vh,94px);
+  }
+  body.controller-playing .face-b{margin-top:6px}
+}
+@media(orientation:portrait) and (max-width:360px){
+  body.controller-playing.portrait-fallback #controllerActive .face-b{margin-top:6px}
 }
