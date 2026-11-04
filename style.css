@@ -470,3 +470,32 @@ body.controller-playing .face-caption{
   body.controller-playing.portrait-fallback #controllerActive .face-b{margin-top:-8px}
   body.controller-playing.portrait-fallback #controllerActive .joystick-hint{font-size:9px}
 }
+
+
+
+/* Reusable phone controller: saved nickname, switch room in the same tab. */
+.join-panel .nickname-hint{font-size:11px;line-height:1.5;color:#97e4c8;margin:5px 0 16px}
+.join-panel #roomCodeInput{
+  width:100%;text-align:center;letter-spacing:clamp(4px,1.5vw,9px);
+  font:900 24px/1.5 system-ui,sans-serif;
+  border-radius:12px;text-transform:uppercase;
+}
+.room-change-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+.room-change-actions .btn{width:100%;min-height:58px;margin:0!important;padding:10px 12px;font-size:13px;line-height:1.4}
+.room-scanner-panel{margin-top:16px;padding:12px;border-radius:15px;background:#0d1930;border:1px solid #455979}
+.room-scanner-panel .room-qr-reader{
+  overflow:hidden;max-width:430px;margin:auto;
+  min-height:120px;border-radius:12px;background:#080e20;
+}
+.room-scanner-panel .room-qr-reader video{width:100%;max-height:42dvh;object-fit:contain;border-radius:10px}
+.room-scanner-panel .hint{text-align:center;margin:12px 0 6px;color:#e7edf9}
+.room-scanner-panel #cancelScanBtn{min-height:44px;margin:8px 0 0;width:100%}
+body.controller-playing .gamepad-top-actions #switchRoomBtn{background:#244e67;border-color:#71aaca}
+@media(max-width:450px){
+  .room-change-actions{grid-template-columns:1fr;gap:8px}
+  .room-change-actions .btn{min-height:52px}
+}
+@media(orientation:landscape) and (max-height:400px){
+  .gamepad-top-actions #switchRoomBtn{padding:5px 7px;font-size:10px}
+  .room-scanner-panel .room-qr-reader video{max-height:38dvh}
+}

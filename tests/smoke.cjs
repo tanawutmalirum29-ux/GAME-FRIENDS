@@ -10,6 +10,11 @@ const css=fs.readFileSync('style.css','utf8');
 assert.match(css,/@media\(orientation:portrait\)/);
 assert.match(html,/id="joystickBase"/);
 assert.match(html,/id="joystickZone"/);
+assert.match(html,/id="switchRoomBtn"/);
+assert.match(html,/id="roomCodeInput"/);
+assert.match(html,/id="scanRoomBtn"/);
+assert.match(html,/id="roomQrReader"/);
+assert.match(css,/\.room-scanner-panel/);
 assert.match(css,/\.joystick-zone\.is-active \.joystick-base/);
 assert.match(css,/\.face-a\{order:0/);
 assert.match(css,/\.face-b\{order:1;margin:-10px/);
@@ -30,6 +35,7 @@ assert.match(html,/id="resumeBtn"/);
 assert.match(css,/#game\.game-page\{[\s\S]*?position:fixed/);
 assert.match(css,/#game \.game-frame canvas\{[\s\S]*?object-fit:contain/);
 
+const persistedNicknames=new Map();
 function setup(url='https://game.example/',portrait=false) {
   const elements=new Map();
   const makeElement=(id='')=>{
@@ -68,7 +74,7 @@ function setup(url='https://game.example/',portrait=false) {
   }));
   const docHandlers={};
   const document={
-    body:makeElement('body'),
+    head:makeElement('head'),body:makeElement('body'),
     fire(name,props={}){
       const e={cancelable:true,defaultPrevented:false,
         preventDefault(){this.defaultPrevented=true;},...props};
@@ -101,14 +107,23 @@ function setup(url='https://game.example/',portrait=false) {
   }
   let raf=null;
   const windowHandlers={};
+  const sessionData=new Map();
   const win={
     location:new URL(url),crypto:webcrypto,portrait,
+    localStorage:{
+      getItem(key){return persistedNicknames.get(key)||null;},
+      setItem(key,value){persistedNicknames.set(key,String(value));}
+    },
     matchMedia(){return {matches:this.portrait};},
     addEventListener(name,fn){(windowHandlers[name]??=[]).push(fn);},
     fire(name){for(const fn of windowHandlers[name]||[])fn();},
     scrollTo(){}
   };
-  const sessionStorage={getItem(){return '';},setItem(){}};
+  win.history={replaceState(_state,_title,next){win.location=new URL(next);}};
+  const sessionStorage={
+    getItem(key){return sessionData.get(key)||null;},
+    setItem(key,value){sessionData.set(key,String(value));}
+  };
   const globals={window:win,location:win.location,document,crypto:webcrypto,sessionStorage,
     navigator:{},Peer:FakePeer,URL,URLSearchParams,
     setInterval(){return 1;},setTimeout(){return 1;},
@@ -200,6 +215,9 @@ assert.equal(host.elements.get('rosterCount').textContent,'1/12');
 const mobile=setup('https://game.example/?join=ABCD23',true);
 assert.equal(mobile.elements.get('controller').classList.contains('hidden'),false);
 mobile.elements.get('nick').value='ทดสอบ';
+mobile.elements.get('nick').fire('input');
+assert.equal(persistedNicknames.get('gf-nick'),'ทดสอบ');
+assert.equal(mobile.elements.get('roomCodeInput').value,'ABCD23');
 mobile.click('joinBtn');
 assert.equal(mobile.instances.length,1);
 mobile.instances[0].fire('open');
@@ -341,4 +359,66 @@ const startX=fighter.x;
 engine.update(.10,miniRound,[fighter]);
 assert.ok(fighter.x>startX,'analog stick moves tank right');
 assert.ok(fighter.altCooldown>0,'B triggered tank dodge');
-console.log('SMOKE PASS: floating touch-anywhere joystick, aligned A/B, simultaneous multi-touch, portrait axes, pause and minigames');
+// A new Chrome tab under the SAME origin retains the nickname but has a fresh session.
+const newTab=setup('https://game.example/?join=WXYZ56');
+assert.equal(newTab.elements.get('nick').value,'ทดสอบ','nickname persists across QR-opened tabs');
+assert.equal(newTab.elements.get('roomCodeInput').value,'WXYZ56');
+assert.equal(newTab.elements.get('joinCode').textContent,'WXYZ56');
+// Room changes should reuse THIS tab and close the prior data connection.
+newTab.click('joinBtn');
+newTab.instances[0].fire('open');
+const firstConn=newTab.instances[0].conn;
+firstConn.fire('open');
+firstConn.fire('data',{t:'welcome',id:'p77',name:'ทดสอบ',color:'#fff',mode:'stars'});
+assert.equal(newTab.scope.document.body.classList.contains('controller-playing'),true);
+newTab.click('switchRoomBtn');
+assert.equal(firstConn.open,false,'old controller transport released before switching');
+assert.equal(newTab.elements.get('joinForm').classList.contains('hidden'),false);
+assert.equal(newTab.scope.document.body.classList.contains('controller-playing'),false);
+newTab.elements.get('roomCodeInput').value='EFGH45';
+newTab.click('joinBtn');
+assert.equal(newTab.instances.length,2,'new Peer is created in the same page');
+assert.match(newTab.scope.window.location.href,/join=EFGH45/);
+assert.equal(newTab.elements.get('nick').value,'ทดสอบ');
+newTab.instances[1].fire('open');
+const secondConn=newTab.instances[1].conn;
+secondConn.fire('open');
+assert.equal(secondConn.sent[0].name,'ทดสอบ');
+secondConn.fire('data',{t:'welcome',id:'p88',name:'ทดสอบ',color:'#fff',mode:'tanks'});
+assert.equal(newTab.scope.document.body.classList.contains('controller-playing'),true);
+newTab.click('switchRoomBtn');
+assert.equal(secondConn.open,false);
+assert.equal(newTab.elements.get('roomCodeInput').value,'EFGH45');
+// Test direct manual input sanitization and invalid room rejection.
+newTab.elements.get('roomCodeInput').value='???';
+newTab.click('joinBtn');
+assert.equal(newTab.instances.length,2,'invalid room cannot create a Peer');
+assert.match(newTab.elements.get('joinMessage').textContent,/รหัสห้องไม่ถูกต้อง/);
+// In-app scan path: fake camera, no page navigation, and automatic join.
+void (async()=>{
+  const fake={started:0,stopped:0,cleared:0};
+  class FakeQrScanner{
+    constructor(){fake.reader=this;}
+    start(_camera,_config,onSuccess){fake.started++;this.onSuccess=onSuccess;return Promise.resolve();}
+    stop(){fake.stopped++;return Promise.resolve();}
+    clear(){fake.cleared++;}
+  }
+  newTab.scope.window.Html5Qrcode=FakeQrScanner;
+  newTab.elements.get('roomCodeInput').value='';
+  newTab.click('scanRoomBtn');
+  for(let i=0;i<8;i++)await Promise.resolve();
+  assert.equal(fake.started,1,'in-page camera scanner starts');
+  assert.equal(newTab.elements.get('roomScannerPanel').classList.contains('hidden'),false);
+  fake.reader.onSuccess('https://game.example/?join=KLMN45');
+  for(let i=0;i<16;i++)await Promise.resolve();
+  assert.ok(fake.stopped>=1,'scanner camera stopped after successful read');
+  assert.ok(fake.cleared>=1,'scanner cleared after read');
+  assert.equal(newTab.elements.get('roomCodeInput').value,'KLMN45');
+  assert.match(newTab.scope.window.location.href,/join=KLMN45/);
+  assert.equal(newTab.instances.length,3,'QR joins a new room in the existing tab');
+  assert.equal(newTab.elements.get('roomScannerPanel').classList.contains('hidden'),true);
+  newTab.instances[2].fire('open');
+  newTab.instances[2].conn.fire('open');
+  assert.equal(newTab.instances[2].conn.sent[0].name,'ทดสอบ');
+  console.log('SMOKE PASS: persistent nickname, in-tab QR scanning, manual room switching, floating joystick, paused network and minigames');
+})().catch(err=>{console.error(err);process.exitCode=1;});
