@@ -29,8 +29,8 @@
       <section class="hero">
         <div class="eyebrow">STICK SQUAD • PARTY ROOM</div>
         <h1>สร้างห้อง<br><em>แล้วให้เพื่อนเลือกเกม</em></h1>
-        <p>จอหลักสร้าง QR Code กำหนดเวลาและรูปแบบการแข่งขัน ส่วนผู้เล่นเลือกGHOST ATTACK จากจอยมือถือ ผู้ถูกผีจับจะเปลี่ยนเป็นผี ชนะด้วยการเป็นคนรอดคนสุดท้าย</p>
-        <div class="feature-tags"><span>สูงสุด 12 ผู้เล่น</span><span>GHOST ATTACK</span><span>สุ่มลำดับทุกตัวเลือก</span></div>
+        <p>จอหลักสร้าง QR Code และจัดการแข่งขัน ผู้เล่นเลือก GHOST ATTACK หรือ CHICKENS ด้วยจอยมือถือ เกมผีเน้นเอาตัวรอด ส่วนเกมไก่เน้นไล่ต้อน จับ อุ้ม และฝากไก่เข้าคอกเพื่อทำคะแนน</p>
+        <div class="feature-tags"><span>สูงสุด 12 ผู้เล่น</span><span>GHOST ATTACK + CHICKENS</span><span>สุ่มลำดับทุกตัวเลือก</span></div>
         <div class="button-group">
           <button id="hostBtn" class="btn btn-primary" type="button">สร้างห้อง + เปิดจอหลัก <span>↗</span></button>
           <button id="offlineBtn" class="btn btn-secondary" type="button">ทดลองเล่นด้วยคีย์บอร์ด</button>
@@ -59,7 +59,7 @@
               </div>
             </div>
           </div>
-          <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ บอทจะเลือก GHOST ATTACK เป็นค่าเริ่มต้น</p>
+          <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ บอทเริ่มที่ GHOST ATTACK • แตะชื่อเกมบนการ์ดบอทเพื่อสลับเป็น CHICKENS</p>
         </section>
         <section class="lobby-player-panel">
           <div class="lobby-section-title"><h2>รายชื่อผู้เล่นและเกมที่เลือก</h2><span id="rosterCount" class="count">0/12</span></div>
@@ -75,7 +75,7 @@
             <button type="button" class="seg-option" data-session-mode="quick" aria-pressed="false">สุ่มเล่น 1 เกม</button>
           </div>
         </div>
-        <div class="lobby-control"><label>กฎการจบเกม</label><div class="ghost-no-timer">ไม่จับเวลา · รอดคนสุดท้าย</div></div>
+        <div class="lobby-control"><label>กฎการจบเกม</label><div class="ghost-no-timer">GHOST ไม่จับเวลา · CHICKENS 20–40 วิ ตามจำนวนคน</div></div>
         <div class="lobby-control auto-next-control"><label for="autoNext">เล่นเกมต่อเนื่อง</label>
           <label class="lobby-toggle"><input id="autoNext" type="checkbox" checked> เริ่มรอบถัดไปอัตโนมัติหลังดูผล 7 วินาที</label>
         </div>
