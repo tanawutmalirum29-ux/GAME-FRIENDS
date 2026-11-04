@@ -440,7 +440,8 @@ function animate(ts){
     updateRound(dt);drawGame(graphicsClock);
     hudClock+=dt;
     if(hudClock>.22){
-      $('timer').textContent=String(Math.floor(round.remaining/60)).padStart(2,'0')+':'+String(Math.ceil(round.remaining%60)).padStart(2,'0');
+      const seconds=Math.max(0,Math.ceil(round.remaining));
+      $('timer').textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
       renderLeaderboard();hudClock=0;
     }
     networkClock+=dt;
