@@ -10,6 +10,7 @@ const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
   'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
+const combatSource=fs.readFileSync('combat-motion.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
 const hostLauncher=fs.readFileSync('host.html','utf8');
@@ -19,6 +20,8 @@ assert.match(html,/data-pick="ghost"/);
 assert.equal([...html.matchAll(/data-pick="/g)].length,1);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
 assert.match(html,/src="\.\/ghost-attack\.js"/);
+assert.match(html,/<script defer src="\.\/combat-motion\.js"><\/script>[\s\S]*?<script defer src="\.\/ghost-attack\.js"><\/script>/);
+assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
@@ -93,6 +96,7 @@ class FakeSvgImage{
  get src(){return this._src;}
 }
 const ghostSandbox=vm.createContext({window:{},Image:FakeSvgImage});
+vm.runInContext(combatSource,ghostSandbox,{filename:'combat-motion.js'});
 vm.runInContext(ghostSource,ghostSandbox,{filename:'ghost-attack.js'});
 const ghost=ghostSandbox.window.GhostAttack;
 const mkPlayers=n=>Array.from({length:n},(_,i)=>({
@@ -178,17 +182,33 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
  ghost.update(.04,x.round,x.players);
  assert.ok(b.x>423,'a moving joystick pushes a resting player');
 }
- // Punch A causes a short stun on a nearby friend.
+// Shared punch has windup, a locked movement animation and tinted impact.
 {
+ const Combat=ghostSandbox.window.PartyCombatMotion;
+ assert.equal(Combat.ATTACK.windup,.18);
+ assert.ok(Math.abs(Combat.TOTAL-.48)<1e-9);
  const x=init(3);x.round.phase='playing';
  x.state.npcs.forEach(n=>n.stun=999);
- x.players[0].x=120;x.players[0].y=120;
- x.players[1].x=151;x.players[1].y=120;
- x.players[2].x=800;x.players[2].y=400;
- x.players[0].input.action=true;
+ const [attacker,victim,far]=x.players;
+ attacker.x=120;attacker.y=120;attacker.input.action=true;attacker.input.axisX=1;
+ victim.x=151;victim.y=120;far.x=800;far.y=400;
  ghost.update(.016,x.round,x.players);
- assert.ok(x.players[1].stun>.35&&x.players[1].stun<1);
- assert.ok(x.players[0].punchCooldown>.9);
+ assert.equal(victim.stun,0,'no instant punch');
+ assert.equal(attacker.x,120,'start of strike freezes movement');
+ assert.ok(attacker.punchCooldown>.9);
+ ghost.update(.16,x.round,x.players);
+ assert.equal(victim.stun,0,'windup is not done');
+ assert.equal(attacker.x,120);
+ ghost.update(.025,x.round,x.players);
+ assert.ok(victim.stun>.35&&victim.stun<1,'punch impact after windup');
+ assert.equal(victim.stunColor,attacker.color,'stun uses attacker color');
+ assert.equal(attacker.x,120);
+ ghost.update(.27,x.round,x.players);
+ assert.equal(attacker.x,120,'recovery animation roots attacker');
+ attacker.input.action=false;
+ ghost.update(.03,x.round,x.players);
+ ghost.update(.03,x.round,x.players);
+ assert.ok(attacker.x>120,'movement resumes after attack finishes');
 }
 // The render test observes exactly what spectators see over the collector.
 const drawTexts=[],drawImages=[];
@@ -473,6 +493,7 @@ function setup(url='https://game.example/?host=1',portrait=false) {
     setInterval(){return 1;},setTimeout(){return 1;},
     requestAnimationFrame(fn){raf=fn;},alert(){},confirm(){return true;}};
   const scope=vm.createContext(globals);
+  vm.runInContext(combatSource,scope,{filename:'combat-motion.js'});
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
   return {elements,pickButtons,sessionButtons,padButtons,instances,scope,
@@ -645,6 +666,9 @@ assert.equal(phone.elements.get('controller').classList.contains('hidden'),false
 assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),false);
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'joining room must not reveal role or items before gameplay');
+assert.equal(phone.elements.get('buttonALabel').textContent,'');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'');
+assert.equal(phone.elements.get('controllerModeName').textContent,'');
 phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'slow',
  ghost:false,selecting:true,targetId:'p2',targetName:'Friend'});
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
@@ -660,6 +684,8 @@ phoneConn.fire('data',{t:'roster',phase:'playing',mode:'ghost',
 assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),true);
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),false,
   'active Ghost Attack displays HUD in top rail');
+assert.equal(phone.elements.get('buttonALabel').textContent,'ตีสตั้น');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'ใช้ไอเทม');
 phoneConn.fire('data',{t:'inventory',id:'p1',mode:'rally',phase:'playing',
  item:'cloak',ghost:false,selecting:false});
 assert.equal(phone.elements.get('inventoryItem').textContent,'',
@@ -682,6 +708,8 @@ phoneConn.fire('data',{t:'roster',phase:'results',mode:'ghost',
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
  'role and item must disappear as soon as a round ends');
 assert.equal(phone.elements.get('inventoryItem').textContent,'');
+assert.equal(phone.elements.get('buttonALabel').textContent,'');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'');
 phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'slow',
  ghost:false,selecting:true,targetId:'p2',targetName:'Friend'});
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
