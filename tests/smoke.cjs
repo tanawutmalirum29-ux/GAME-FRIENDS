@@ -303,8 +303,9 @@ assert.equal(mobile.pickButtons.find(x=>x.dataset.pick==='soccer').classList.con
 assert.match(mobile.elements.get('phoneChoiceStatus').textContent,/FOOTBALL/);
 conn.fire('data',{t:'state',phase:'playing',mode:'soccer',remaining:45});
 assert.equal(mobile.elements.get('phoneGamePicker').classList.contains('hidden'),true);
+const lockedVoteCount=conn.sent.length;
 mobile.pick('tanks');
-assert.equal(conn.sent.at(-1).t,'input','cannot change vote after start');
+assert.equal(conn.sent.length,lockedVoteCount,'cannot send another vote after start');
 assert.equal(mobile.elements.get('controllerPreviewImage').classList.contains('hidden'),true);
 conn.fire('data',snapshot);
 assert.equal(mobile.elements.get('controllerPreviewImage').src,snapshot.image,
