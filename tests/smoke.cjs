@@ -16,11 +16,13 @@ const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
 const hostLauncher=fs.readFileSync('host.html','utf8');
 
-// Game catalog must contain ONLY the new original Ghost Attack.
+// Game catalog retains Ghost Attack and now adds CHICKENS as game two.
 assert.match(html,/data-pick="ghost"/);
-assert.equal([...html.matchAll(/data-pick="/g)].length,1);
+assert.equal([...html.matchAll(/data-pick="/g)].length,2);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
-assert.match(html,/src="\.\/ghost-attack\.js"/);
+assert.match(html,/src=".\/ghost-attack\.js"/);
+assert.match(html,/src=".\/chickens\.js"/);
+assert.match(html,/data-pick="chickens"/);
 assert.match(html,/src="\.\/graveyard-art\.js"/);
 assert.match(artSource,/window\.GhostCemeteryArt=Object\.freeze/);
 assert.match(html,/<script defer src="\.\/combat-motion\.js"><\/script>[\s\S]*?<script defer src="\.\/ghost-attack\.js"><\/script>/);
@@ -28,7 +30,7 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK'\}/);
+assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
