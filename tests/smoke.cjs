@@ -319,6 +319,7 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  ghost.update(.016,x.round,x.players);
  assert.equal(human.ghost,false,'cloak prevents NPC infection');
  human.cloak=0;npc.stun=999;spirit.stun=0;
+ spirit.x=human.x+2;spirit.y=human.y; // Contact must be re-established after body push.
  ghost.update(.016,x.round,x.players);
  assert.equal(human.ghost,true,'infection resumes when cloak expires');
 }
