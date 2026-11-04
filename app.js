@@ -221,7 +221,7 @@ function renderQr(code){
   $('roomUrl').value=link;
   const box=$('qrBox');box.replaceChildren();
   if(typeof QRCode==='function'){
-    try{new QRCode(box,{text:link,width:126,height:126,correctLevel:QRCode.CorrectLevel.M});return;}catch(e){}
+    try{new QRCode(box,{text:link,width:230,height:230,correctLevel:QRCode.CorrectLevel.M});return;}catch(e){}
   }
   box.textContent='QR ไม่พร้อม กรุณาคัดลอกลิงก์';
 }
