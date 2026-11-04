@@ -16,6 +16,7 @@ assert.match(html,/id="scanRoomBtn"/);
 assert.match(html,/id="roomQrReader"/);
 assert.match(css,/\.room-scanner-panel/);
 assert.match(css,/\.joystick-zone\.is-active \.joystick-base/);
+assert.match(css,/\.joystick-zone\.hint-dismissed \.joystick-hint\{display:none!important\}/);
 assert.match(css,/\.face-a\{order:0/);
 assert.match(css,/\.face-b\{order:1;margin:-10px/);
 assert.match(html,/data-control="alt"/);
@@ -256,8 +257,12 @@ mobile.padButtons.alt.fire('pointerup');
 const stick=mobile.elements.get('joystickZone');
 const ring=mobile.elements.get('joystickBase');
 // The visual ring starts hidden and centers exactly on ANY first touch.
+// The on-screen help disappears on the first valid touch and stays gone.
 assert.equal(stick.classList.contains('is-active'),false);
+assert.equal(stick.classList.contains('hint-dismissed'),false);
 stick.fire('pointerdown',{pointerId:11,clientX:160,clientY:70});
+assert.equal(stick.classList.contains('hint-dismissed'),true);
+assert.equal(persistedNicknames.get('gf-joystick-hint-seen-v1'),'1');
 assert.equal(stick.classList.contains('is-active'),true);
 assert.equal(ring.style.left,'160px','ring anchors at first touch X');
 assert.equal(ring.style.top,'70px','ring anchors at first touch Y');
@@ -270,6 +275,8 @@ stick.fire('pointerup',{pointerId:11});
 assert.equal(conn.sent.at(-1).keys.axisX,0);
 assert.equal(conn.sent.at(-1).keys.axisY,0);
 assert.equal(stick.classList.contains('is-active'),false);
+assert.equal(stick.classList.contains('hint-dismissed'),true,
+  'hint stays hidden when finger is lifted');
 // Re-touching far away must create a NEW center, not reuse a fixed joystick.
 stick.fire('pointerdown',{pointerId:14,clientX:35,clientY:145});
 assert.equal(ring.style.left,'35px');
@@ -373,8 +380,10 @@ const startX=fighter.x;
 engine.update(.10,miniRound,[fighter]);
 assert.ok(fighter.x>startX,'analog stick moves tank right');
 assert.ok(fighter.altCooldown>0,'B triggered tank dodge');
-// A new Chrome tab under the SAME origin retains the nickname but has a fresh session.
+// A new Chrome tab under the SAME origin retains the nickname and stick education.
 const newTab=setup('https://game.example/?join=WXYZ56');
+assert.equal(newTab.elements.get('joystickZone').classList.contains('hint-dismissed'),true,
+  'joystick hint stays gone in newly opened Chrome tabs');
 assert.equal(newTab.elements.get('nick').value,'ทดสอบ','nickname persists across QR-opened tabs');
 assert.equal(newTab.elements.get('roomCodeInput').value,'WXYZ56');
 assert.equal(newTab.elements.get('joinCode').textContent,'WXYZ56');
