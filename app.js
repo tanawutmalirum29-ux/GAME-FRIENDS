@@ -27,6 +27,7 @@ const INPUT_NAMES = ['left','right','jump','down','action','alt'];
 let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPeer=null, controllerConn=null;
 let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0, inventoryClock=0;
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
+let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false;
 let disconnectRequested=false;
 const canvas=$('arena'), g=canvas.getContext('2d');
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -241,11 +242,13 @@ function updateHostQueue(){
   $('hostQueue').title=$('hostQueue').textContent;
 }
 function sendPlayerInventory(conn){
-  if(!conn||!conn.playerId||!round)return;
+  // Game-specific metadata must never leak into the lobby or another game's UI.
+  if(!conn||!conn.playerId||!round||round.mode!=='ghost'||
+     !['countdown','playing','paused'].includes(networkPhase()))return;
   const p=players.find(q=>q.id===conn.playerId);
   if(!p)return;
   const info=window.GhostAttack.itemStatus(players).find(q=>q.id===p.id);
-  if(info)send(conn,{t:'inventory',...info});
+  if(info)send(conn,{t:'inventory',mode:round.mode,phase:networkPhase(),...info});
 }
 function broadcastPlayerInventories(){
   for(const conn of hostConnections)sendPlayerInventory(conn);
@@ -338,7 +341,7 @@ function startHost(retries=0){
         if(!p)return;
         conn.playerId=p.id;p.lastInputAt=Date.now();
         if(round&&round.phase!=='results')p.active=false;
-        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice});
+        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active});
         broadcastRoster();
       }else if(msg.t==='video-ready'&&conn.playerId){
         if(msg.quality===conn.videoQuality)conn.videoReady=true;
@@ -637,6 +640,7 @@ function resetControllerForRoomChange(message){
   // orientation lock. The join form still renders inside #controller.
   safePeerDestroy();
   controllerReady=false;controllerId=null;
+  setControllerGameContext(null,'lobby',false);
   for(const k of INPUT_NAMES)controllerKeys[k]=false;
   controllerKeys.axisX=0;controllerKeys.axisY=0;
   clearPortraitFallback();
@@ -694,8 +698,7 @@ function joinRoom(){
         $('joinForm').classList.add('hidden');$('controllerActive').classList.remove('hidden');
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
         $('controllerInventory').classList.remove('is-ghost');
-        $('inventoryItem').textContent='ไอเทม: ว่าง';
-        $('targetCycleControls').classList.add('hidden');
+        setControllerGameContext(data.mode,data.phase||'lobby',!!data.active);
         document.body.classList.add('controller-playing');
         syncZoomPolicy();
         showControllerMode(data.mode);
@@ -713,6 +716,7 @@ function joinRoom(){
       }else if(data.t==='roster'){
         showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
+        setControllerGameContext(data.mode,data.phase,!!(self&&self.active));
         updatePhoneGamePicker(data.phase,self&&self.choice);
         $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
           data.phase==='playing'?(self&&self.active?'กำลังเล่น • GHOST ATTACK':'รอรอบถัดไป'):
@@ -722,11 +726,13 @@ function joinRoom(){
         renderPhoneInventory(data);
       }else if(data.t==='state'){
         showControllerMode(data.mode);
+        setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
           data.phase==='playing'?'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน':
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
       }else if(data.t==='closed'){
+        setControllerGameContext(null,'lobby',false);
         controllerState('เจ้าของห้องปิดห้องแล้ว',true);
       }
     });
@@ -743,24 +749,49 @@ function controllerDisconnected(){
   if(disconnectRequested)return;
   resetControllerForRoomChange('ขาดการเชื่อมต่อ กดเข้าร่วมห้องเดิมหรือเปลี่ยนห้องได้');
 }
+function isLiveGameContext(){
+  return controllerReady&&controllerPlayerActive&&controllerGameMode==='ghost'&&
+    ['countdown','playing','paused'].includes(controllerGamePhase);
+}
+function setControllerGameContext(mode,phase,active){
+  controllerGameMode=mode||null;
+  controllerGamePhase=phase||'lobby';
+  controllerPlayerActive=!!active;
+  const visible=isLiveGameContext();
+  $('controllerInventory').classList.toggle('hidden',!visible);
+  if(!visible){
+    // Clear stale items on results, lobby, switching rooms or future game modes.
+    $('controllerInventory').classList.remove('is-ghost');
+    $('controllerRole').textContent='';
+    $('inventoryItem').textContent='';
+    $('inventoryGuide').textContent='';
+    $('targetCycleControls').classList.add('hidden');
+    $('controllerButtons').classList.remove('has-target');
+    $('targetName').textContent='ไม่มีเป้าหมาย';
+    $('buttonBLabel').textContent=mode==='ghost'?'ใช้ไอเทม':'แอ็กชัน';
+  }
+}
 function showControllerMode(mode){
-  $('buttonALabel').textContent='ตีสตั้น';
-  $('buttonBLabel').textContent='ใช้ไอเทม';
-  $('controllerModeName').textContent='GHOST ATTACK';
-  $('controllerHelp').textContent='เลื่อนอนาล็อกเพื่อเดิน • A ตีเพื่อนเพื่อสตั้น • B ใช้ไอเทม';
+  const ghost=mode==='ghost';
+  $('buttonALabel').textContent=ghost?'ตีสตั้น':'แอ็กชัน';
+  $('buttonBLabel').textContent=ghost?'ใช้ไอเทม':'ปุ่ม B';
+  $('controllerModeName').textContent=MODES[mode]||'';
+  $('controllerHelp').textContent=ghost?
+    'เลื่อนอนาล็อกเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':'เลื่อนอนาล็อกเพื่อเดิน';
 }
 function renderPhoneInventory(info){
-  if(!controllerReady||!info||info.id!==controllerId)return;
+  if(!isLiveGameContext()||!info||info.id!==controllerId||
+     info.mode!==controllerGameMode||info.phase!==controllerGamePhase)return;
   const names=window.GhostAttack.ITEM_NAMES;
   const isGhost=!!info.ghost;
-  $('controllerRole').textContent=isGhost?'ผี • ไล่จับมนุษย์':'มนุษย์ • หลบผี';
+  $('controllerRole').textContent=isGhost?'ผี':'มนุษย์';
   $('controllerInventory').classList.toggle('is-ghost',isGhost);
-  $('inventoryItem').textContent=isGhost?'กลายเป็นผีแล้ว':
+  $('inventoryItem').textContent=isGhost?'เป้าหมาย: ไล่จับมนุษย์':
     'ไอเทม: '+(names[info.item]||'ว่าง');
   $('inventoryGuide').textContent=isGhost?'แตะมนุษย์เพื่อเปลี่ยนเป็นผี':
-    info.selecting?'เลือกเพื่อนด้วย ▲ ▼ แล้วกด B อีกครั้ง':
-    info.item==='slow'?'B เริ่มเลือกเพื่อนที่จะโดนสโลว์':
-    info.item?'กด B เพื่อใช้งาน':'เดินเก็บกล่องสุ่ม • A ตีสตั้น';
+    info.selecting?'ใช้ ▲ ▼ เลือกเพื่อน · B ยืนยัน':
+    info.item==='slow'?'B เพื่อเลือกเพื่อน':
+    info.item?'B เพื่อใช้':'';
   $('targetCycleControls').classList.toggle('hidden',!info.selecting);
   $('controllerButtons').classList.toggle('has-target',!!info.selecting);
   $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
