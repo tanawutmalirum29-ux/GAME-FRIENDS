@@ -29,6 +29,8 @@ function preloadItemIcons(){for(const key of ITEMS)getItemIconImage(key);}
 
 const Combat=window.PartyCombatMotion;
 if(!Combat)throw new Error('combat-motion.js must load before ghost-attack.js');
+const Art=window.GhostCemeteryArt;
+if(!Art)throw new Error('graveyard-art.js must load before ghost-attack.js');
 const C={humanSpeed:172,ghostSpeed:176,ghostTurn:5.3,hitRadius:19,punchRange:67,
   punchStun:.63,punchCooldown:Combat.ATTACK.cooldown,ghostStun:1.45,
   trapRoot:1.1,slowTime:2.5,boostTime:2.6,cloakTime:2};
@@ -58,7 +60,9 @@ function makeObstacles(world,tier){
   for(let k=0,tries=0;k<count&&tries<260;tries++){
     const w=rand(29,62),h=rand(23,52);
     const q={x:65+Math.random()*Math.max(1,candidateW-w),
-      y:55+Math.random()*Math.max(1,candidateH-h),w,h,style:k%3};
+      y:55+Math.random()*Math.max(1,candidateH-h),w,h,style:k%3,
+      kind:Art.KINDS[k%Art.KINDS.length],
+      variant:Math.floor(k/Art.KINDS.length)%3};
     const center={x:q.x+w/2,y:q.y+h/2};
     // Keep a generous center spawn plaza clear for the starting AI ghost(s).
     if(Math.hypot(center.x-world.w/2,center.y-world.h/2)<115)continue;
@@ -84,6 +88,7 @@ function resetPlayer(p,pos){
 }
 function setup(round,players){
   preloadItemIcons();
+  Art.preload(players);
   // The map stays compact for 1-12 humans; only the AI-ghost count scales.
   // Exactly 12 player slots maximum, one ghost for 1-6 and two for 7-12.
   const tier=players.length<=6?1:2;
@@ -657,32 +662,15 @@ function hud(players,round){
 }
 function drawPerson(ctx,p,color,ghost,t,alpha=1){
   ctx.save();ctx.globalAlpha=alpha;
-  const x=p.x,y=p.y;
-  ctx.fillStyle='#0008';ctx.beginPath();ctx.ellipse(x,y+14,15,5,0,0,TAU);ctx.fill();
-  if(ghost){
-    ctx.shadowColor=color;ctx.shadowBlur=12;
-    ctx.fillStyle=color;ctx.strokeStyle='#101729';ctx.lineWidth=3.5;
-    ctx.beginPath();ctx.moveTo(x-15,y-8);ctx.arc(x,y-8,15,Math.PI,0);
-    ctx.lineTo(x+15,y+13);
-    for(let i=3;i>=0;i--){ctx.lineTo(x-15+i*10,y+12+(i%2?5:0));}
-    ctx.closePath();ctx.fill();ctx.stroke();ctx.shadowBlur=0;
-    ctx.fillStyle='#172039';ctx.beginPath();ctx.arc(x-5,y-9,2.8,0,TAU);
-    ctx.arc(x+5,y-9,2.8,0,TAU);ctx.fill();
-  }else{
-    ctx.fillStyle=color;ctx.strokeStyle='#151b30';ctx.lineWidth=3;
-    ctx.beginPath();ctx.arc(x,y-17,10,0,TAU);ctx.fill();ctx.stroke();
-    ctx.strokeStyle=color;ctx.lineWidth=7;ctx.lineCap='round';
-    ctx.beginPath();ctx.moveTo(x,y-6);ctx.lineTo(x,y+9);
-    ctx.moveTo(x,y);ctx.lineTo(x-8,y+7);ctx.moveTo(x,y);ctx.lineTo(x+8,y+7);ctx.stroke();
-  }
-  // Attack and stun artwork are shared across all participating minigames.
+  Art.drawActor(ctx,p,color,ghost,t);
+  // The shared combat and stun timelines also decorate the SVG sprite.
   Combat.drawAttack(ctx,p);
   Combat.drawStun(ctx,p,t);
-  const labelY=y-(p.stun>0?70:39);
+  const labelY=p.y-(p.stun>0?81:61);
   ctx.font='bold 13px system-ui';ctx.textAlign='center';
   ctx.strokeStyle='#081329';ctx.lineWidth=4;
-  ctx.strokeText(p.name||'GHOST',x,labelY);
-  ctx.fillStyle='#fff';ctx.fillText(p.name||'GHOST',x,labelY);
+  ctx.strokeText(p.name||'GHOST',p.x,labelY);
+  ctx.fillStyle='#fff';ctx.fillText(p.name||'GHOST',p.x,labelY);
   ctx.restore();
 }
 function drawPickupNotice(ctx,p,w,h){
@@ -726,14 +714,19 @@ function draw(ctx,t,round,players){
   ctx.fillStyle='#124358';ctx.strokeStyle='#5fcad183';ctx.lineWidth=6;
   ctx.fillRect(7,7,w-14,h-14);ctx.strokeRect(7,7,w-14,h-14);
   ctx.fillStyle=gradient;ctx.fillRect(16,16,w-32,h-32);
-  for(const o of state.obstacles){
-    ctx.fillStyle='#081d2d88';ctx.fillRect(o.x+6,o.y+7,o.w,o.h);
-    ctx.fillStyle=o.style===0?'#768778':o.style===1?'#6d8396':'#576c88';
-    ctx.strokeStyle='#182c37';ctx.lineWidth=3;
-    ctx.beginPath();ctx.roundRect(o.x,o.y,o.w,o.h,7);ctx.fill();ctx.stroke();
-    ctx.strokeStyle='#ddf0ee4d';ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(o.x+7,o.y+7);ctx.lineTo(o.x+o.w-7,o.y+7);ctx.stroke();
+  // Cemetery moss, ground chips and moonlit mist are non-solid decorations.
+  for(let i=0;i<30;i++){
+    const px=(37+i*173)%w,py=(29+i*97)%h;
+    ctx.fillStyle=i%2?'#87b59c19':'#b3d4d011';
+    ctx.beginPath();ctx.ellipse(px,py,9+i%5,3+i%3,(i%3)*.3,0,TAU);ctx.fill();
+    if(i%3===0){
+      ctx.strokeStyle='#b9d6ce26';ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.moveTo(px-5,py+4);ctx.lineTo(px-3,py-2);
+      ctx.moveTo(px+5,py+3);ctx.lineTo(px+2,py-1);ctx.stroke();
+    }
   }
+  // SVG visuals sit on the SAME collision rectangles and nav grid blockers.
+  for(const o of state.obstacles)Art.drawObstacle(ctx,o);
   const center={x:w/2,y:h/2};
   ctx.save();ctx.strokeStyle='#c6eaff2c';ctx.lineWidth=3;
   ctx.beginPath();ctx.arc(center.x,center.y,70+5*Math.sin(t*2),0,TAU);ctx.stroke();

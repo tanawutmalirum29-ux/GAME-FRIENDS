@@ -10,6 +10,7 @@ const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
   'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
+const artSource=fs.readFileSync('graveyard-art.js','utf8');
 const combatSource=fs.readFileSync('combat-motion.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
@@ -20,6 +21,8 @@ assert.match(html,/data-pick="ghost"/);
 assert.equal([...html.matchAll(/data-pick="/g)].length,1);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
 assert.match(html,/src="\.\/ghost-attack\.js"/);
+assert.match(html,/src="\.\/graveyard-art\.js"/);
+assert.match(artSource,/window\.GhostCemeteryArt=Object\.freeze/);
 assert.match(html,/<script defer src="\.\/combat-motion\.js"><\/script>[\s\S]*?<script defer src="\.\/ghost-attack\.js"><\/script>/);
 assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
@@ -97,6 +100,7 @@ class FakeSvgImage{
 }
 const ghostSandbox=vm.createContext({window:{},Image:FakeSvgImage});
 vm.runInContext(combatSource,ghostSandbox,{filename:'combat-motion.js'});
+vm.runInContext(artSource,ghostSandbox,{filename:'graveyard-art.js'});
 vm.runInContext(ghostSource,ghostSandbox,{filename:'ghost-attack.js'});
 const ghost=ghostSandbox.window.GhostAttack;
 const mkPlayers=n=>Array.from({length:n},(_,i)=>({
@@ -112,6 +116,8 @@ for(const n of [1,4,6,7,8,12]){
  assert.equal(x.state.world.h,540);
  assert.equal(x.round.rules.viewMode,'topdown');
  assert.ok(x.state.obstacles.length>=5,'map has distributed solid obstacles');
+ assert.ok(x.state.obstacles.every(o=>art.KINDS.includes(o.kind)));
+ assert.ok(x.state.obstacles.some(o=>o.kind==='coffin'),'cemetery map includes a coffin');
  assert.equal(x.players.filter(p=>p.active&&!p.ghost).length,n);
  for(const p of x.players){
   assert.ok(p.x>0&&p.x<x.state.world.w&&p.y>0&&p.y<x.state.world.h);
@@ -125,7 +131,17 @@ assert.ok(ghost.constants.ghostSpeed/ghost.constants.humanSpeed<1.04);
 assert.equal(ghost.constants.cloakTime,2);
 assert.equal(ghost.ITEM_NAMES.slow,'ยาสโลว์เพื่อน');
 assert.equal(Object.keys(ghost.ITEM_SVG).length,5);
-assert.equal(loadedImages.length,5,'five cached SVG images');
+const art=ghostSandbox.window.GhostCemeteryArt;
+assert.equal(art.KINDS.length,8);
+assert.ok(art.KINDS.includes('coffin')&&art.KINDS.includes('plaque'));
+assert.match(art.actorSVG(false,'#ff628c','walk0'),/<svg/);
+assert.notEqual(art.actorSVG(false,'#ff628c','walk0'),
+  art.actorSVG(false,'#ff628c','walk2'),'moving legs use distinct SVG frames');
+assert.match(art.actorSVG(true,'#f5faff','float0'),/<svg/);
+assert.notEqual(art.obstacleSVG('coffin',0),art.obstacleSVG('headstone',0));
+assert.equal(art.getObstacleImage('coffin',0),art.getObstacleImage('coffin',0),
+  'coffin SVG image is cached');
+assert.ok(loadedImages.length>=5,'preloaded item and cemetery art SVGs');
 assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
 
 // Bots use threat-aware movement, activate speed items and seek loot.
@@ -288,9 +304,9 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  const itemText=drawTexts.find(args=>args[0]==='ได้รับ: '+ghost.ITEM_NAMES[item]);
  const nameText=drawTexts.find(args=>args[0]===p.name);
  assert.ok(itemText,'collector sees obtained item above the character: '+item);
- assert.equal(drawImages.length,1,'canvas paints SVG popup');
- assert.equal(drawImages[0][0],ghost.getItemIconImage(item));
- assert.ok(drawImages[0][1]<itemText[1]);
+ const iconDraw=drawImages.find(args=>args[0]===ghost.getItemIconImage(item));
+ assert.ok(iconDraw,'loot icon rendered even with extra actor and prop SVGs');
+ assert.ok(iconDraw[1]<itemText[1]);
  assert.ok(nameText&&itemText[2]<nameText[2],
    'item notification is vertically above the collector name');
  p.x=originalX;p.y=originalY; // Do not move the item-stun test out of range.
@@ -595,6 +611,7 @@ function setup(url='https://game.example/?host=1',portrait=false) {
     requestAnimationFrame(fn){raf=fn;},alert(){},confirm(){return true;}};
   const scope=vm.createContext(globals);
   vm.runInContext(combatSource,scope,{filename:'combat-motion.js'});
+  vm.runInContext(artSource,scope,{filename:'graveyard-art.js'});
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
   return {elements,pickButtons,sessionButtons,padButtons,instances,scope,
