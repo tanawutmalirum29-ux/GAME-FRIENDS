@@ -94,7 +94,7 @@
       <section id="controllerActive" class="controller-active hidden">
         <div class="gamepad-hud">
           <div class="gamepad-user"><span id="controllerAvatar" class="gamepad-avatar"></span><span><strong id="controllerName">ผู้เล่น</strong><small id="controllerState">กำลังรอเจ้าของห้องเริ่มเกม</small></span></div>
-          <div class="gamepad-top-actions"><button id="landscapeBtn" class="gamepad-tool" type="button">⛶ เต็มจอแนวนอน</button><button id="leaveBtn" class="gamepad-tool gamepad-leave" type="button">ออก</button></div>
+          <div class="gamepad-top-actions"><button id="landscapeBtn" class="gamepad-tool" type="button">⛶ เต็มจอแนวนอน</button><button id="portraitRestoreBtn" class="gamepad-tool portrait-restore hidden" type="button" aria-label="กลับไปโหมดหมุนโทรศัพท์">↺ โหมดแนวนอนปกติ</button><button id="leaveBtn" class="gamepad-tool gamepad-leave" type="button">ออก</button></div>
         </div>
         <div class="controller-buttons" aria-label="จอยเกมแบบอนาล็อกและปุ่ม A B">
           <div class="joystick-group"><span class="gamepad-label">LEFT STICK</span><div id="joystickBase" class="joystick-base" role="group" aria-label="อนาล็อกซ้ายสำหรับเคลื่อนที่"><span class="joystick-direction direction-up">▲</span><span class="joystick-direction direction-left">◀</span><span class="joystick-direction direction-right">▶</span><span class="joystick-direction direction-down">▼</span><div id="joystickKnob" class="joystick-knob"></div></div></div>
@@ -106,7 +106,16 @@
         </div>
         <p id="controllerHelp" class="controller-help">ดันอนาล็อกเพื่อเดินหรือขับรถ • A ทำแอ็กชัน • B กระโดด/หลบ</p>
       </section>
-      <div id="rotateNotice" class="rotate-notice" role="status"><span class="rotate-symbol">▣</span><h2>หมุนมือถือเป็นแนวนอน</h2><p>จอยเกมออกแบบสำหรับการเล่นแบบ Landscape<br>หมุนเครื่องเพื่อเปิดอนาล็อกและปุ่ม A / B</p><button id="rotateRetryBtn" class="btn btn-primary" type="button">ลองเปิดแนวนอนเต็มจอ</button></div>
+      <div id="rotateNotice" class="rotate-notice" role="status">
+        <span class="rotate-symbol" aria-hidden="true">▣</span>
+        <h2>เลือกวิธีใช้จอย</h2>
+        <p>แนะนำให้หมุนมือถือเป็นแนวนอนเพื่อเล่นตามปกติ<br>ถ้าหมุนเครื่องไม่ได้ สามารถหมุน <strong>หน้าจอยเกม</strong> แทนได้</p>
+        <div class="rotate-options">
+          <button id="rotateRetryBtn" class="btn btn-primary" type="button">ลองเปิดแนวนอนเต็มจอ</button>
+          <button id="portraitFallbackBtn" class="btn btn-outline portrait-option" type="button">ใช้จอยทั้งที่ถือมือถือแนวตั้ง</button>
+        </div>
+        <p class="rotate-description">ตัวจอยและตัวอักษรจะหันข้าง 90° โดยไม่ต้องหมุนโทรศัพท์</p>
+      </div>
     </main>
     <footer>STICK SQUAD PARTY <span>•</span> Original browser party game <span>•</span> Built for GAME FRIENDS</footer>
   </div>
