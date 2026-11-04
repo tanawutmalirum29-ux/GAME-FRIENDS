@@ -140,7 +140,7 @@ function broadcastGamePreview(){
       remotePreviewCanvas.width=192;remotePreviewCanvas.height=108;
       remotePreviewContext.drawImage(canvas,0,0,192,108);
       image=remotePreviewCanvas.toDataURL('image/jpeg',.2);
-    }else if(remotePreviewCanvas.width!==256){
+      // Resize back immediately so no subsequent frames are cropped.
       remotePreviewCanvas.width=256;remotePreviewCanvas.height=144;
     }
     if(!image.startsWith('data:image/jpeg;base64,')||image.length>24000)return;
