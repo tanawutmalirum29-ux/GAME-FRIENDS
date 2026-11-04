@@ -6,7 +6,7 @@
 const TAU=Math.PI*2;
 const ITEMS=['cloak','boost','stun','trap','slow'];
 const ITEM_NAMES={cloak:'ผ้าคลุมล่องหน',boost:'บูสต์สปีด',stun:'สตั้นผี',trap:'กับดัก',slow:'ยาสโลว์เพื่อน'};
-const C={humanSpeed:172,ghostSpeed:184,ghostTurn:5.3,hitRadius:19,punchRange:67,
+const C={humanSpeed:172,ghostSpeed:176,ghostTurn:5.3,hitRadius:19,punchRange:67,
   punchStun:.63,punchCooldown:1.05,ghostStun:1.45,trapRoot:1.1,slowTime:2.5,boostTime:2.6,cloakTime:2};
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
