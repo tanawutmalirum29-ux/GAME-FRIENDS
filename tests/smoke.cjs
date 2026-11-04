@@ -110,8 +110,8 @@ const mkPlayers=n=>Array.from({length:n},(_,i)=>({
 const init=n=>{const players=mkPlayers(n),round={mode:'ghost',phase:'countdown'};
  ghost.setup(round,players);return {round,players,state:round.ghost};};
 for(const n of [1,4,5,6,7,8,9,12]){
- const x=init(n),tier=n<=6?1:2;
- assert.equal(x.state.npcs.length,tier,'one ghost for 1-6, two for 7-12');
+ const x=init(n);
+ assert.equal(x.state.npcs.length,1,'one starting ghost at every player count');
  assert.equal(x.state.world.w,n>=9?1280:n>=5?1080:960);
  assert.equal(x.state.world.h,n>=9?720:n>=5?608:540);
  assert.equal(x.round.rules.viewMode,'topdown');
@@ -144,9 +144,10 @@ for(const n of [1,4,5,6,7,8,9,12]){
  assert.ok(p.x>=o.x+o.w+14,'ghost cannot cross solid HUD');
 }
 assert.equal(ghost.constants.humanSpeed,172);
-assert.equal(ghost.constants.ghostSpeed,176,'ghosts were slowed from 184');
+assert.equal(ghost.constants.ghostSpeed,186,'modest ghost speed advantage');
 assert.ok(ghost.constants.ghostSpeed>ghost.constants.humanSpeed);
-assert.ok(ghost.constants.ghostSpeed/ghost.constants.humanSpeed<1.04);
+assert.ok(ghost.constants.ghostSpeed/ghost.constants.humanSpeed<1.10,
+  'ghosts must not become unfairly fast');
 assert.equal(ghost.constants.cloakTime,2);
 assert.equal(ghost.ITEM_NAMES.slow,'ยาสโลว์เพื่อน');
 assert.equal(Object.keys(ghost.ITEM_SVG).length,5);
@@ -162,6 +163,46 @@ assert.equal(art.getObstacleImage('coffin',0),art.getObstacleImage('coffin',0),
 assert.ok(loadedImages.length>=5,'preloaded item and cemetery art SVGs');
 assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
 
+// Hunting AI predicts paths and assigns distinct pack roles. Ghost bots
+// continue to use the same velocity physics, with NO punch or teleporting.
+{
+ const x=init(4);x.round.phase='countdown';
+ const [runner,botA,botB,remote]=x.players;
+ x.state.obstacles=[];
+ runner.x=500;runner.y=295;runner.vx=160;runner.vy=0;
+ remote.x=900;remote.y=490;
+ botA.isBot=true;botA.ghost=true;botA.stun=0;botA.botMind=null;
+ botA.x=340;botA.y=300;
+ botB.isBot=true;botB.ghost=true;botB.stun=0;botB.botMind=null;
+ botB.x=285;botB.y=355;
+ const npc=x.state.npcs[0];
+ npc.x=295;npc.y=245;npc.stun=0;
+ ghost.update(.016,x.round,x.players);
+ const hunters=[npc,botA,botB];
+ const roles=hunters.map(h=>h.huntRole);
+ assert.ok(roles.includes('chase'),'one hunter presses from behind');
+ assert.ok(roles.includes('intercept'),'another hunter runs to the exit');
+ assert.ok(roles.includes('flank-left'),'the third cuts a side escape route');
+ const cutOff=hunters.find(h=>h.huntRole==='intercept');
+ assert.ok(cutOff.huntGoal.x>runner.x,
+   'interceptor goes AHEAD of the moving survivor, not behind');
+ assert.equal(botA.input.action,false,'converted bot ghost never punches');
+ assert.equal(botB.input.action,false,'other converted ghost never punches');
+}
+{
+ // Larger packs split into groups rather than piling all ghosts on one prey.
+ const x=init(5);x.round.phase='countdown';x.state.obstacles=[];
+ const [runnerA,runnerB,...bots]=x.players;
+ runnerA.x=340;runnerA.y=240;runnerB.x=860;runnerB.y=475;
+ const npc=x.state.npcs[0];npc.x=180;npc.y=220;npc.stun=0;
+ bots.forEach((p,i)=>{
+  p.isBot=true;p.ghost=true;p.stun=0;p.botMind=null;
+  p.x=270+i*70;p.y=300+i*20;
+ });
+ ghost.update(.016,x.round,x.players);
+ const targets=[npc,...bots].map(p=>p.huntTargetId);
+ assert.equal(new Set(targets).size,2,'four ghosts split to intercept two survivors');
+}
 // Bots use threat-aware movement, activate speed items and seek loot.
 {
  const x=init(3);x.round.phase='playing';x.state.ghostSpawned=true;
@@ -772,7 +813,7 @@ bigRoom.sessionButtons[1].fire('click');
 assert.equal(bigRoom.sessionButtons[1].classList.contains('active'),true);
 bigRoom.sessionButtons[0].fire('click');
 bigRoom.click('startBtn');
-assert.equal(bigRoom.scope.window.__ghostTest.getRound().ghost.npcs.length,2);
+assert.equal(bigRoom.scope.window.__ghostTest.getRound().ghost.npcs.length,1);
 assert.equal(bigRoom.elements.get('leaderboard').style['--leader-rows'],'1');
 assert.equal(bigRoom.elements.get('leaderboard').style['--leader-cols'],'12');
 assert.match(css,/#hostLobby \.lobby-roster\{[\s\S]*?grid-template-rows:repeat\(var\(--roster-rows,4\),minmax\(0,1fr\)\)/);
