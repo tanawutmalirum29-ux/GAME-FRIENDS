@@ -163,7 +163,7 @@ function useItem(p,state,players){
         other.stun=Math.max(other.stun,C.ghostStun);
   }
   if(item==='trap'){
-    state.traps.push({x:p.x,y:p.y,r:16,ttl:11,owner:p.id,color:p.color});
+    state.traps.push({x:p.x,y:p.y,r:16,ttl:11,armed:.42,ownerGrace:1.1,owner:p.id,color:p.color});
   }
 }
 function cycleTarget(state,players,p,direction){
@@ -212,9 +212,12 @@ function tickPlayers(dt,players,state){
 }
 function updateTraps(dt,players,state){
   state.traps=state.traps.filter(t=>{
-    t.ttl-=dt;if(t.ttl<=0)return false;
+    t.ttl-=dt;t.armed=Math.max(0,(t.armed||0)-dt);
+    t.ownerGrace=Math.max(0,(t.ownerGrace||0)-dt);
+    if(t.ttl<=0)return false;
+    if(t.armed>0)return true;
     for(const p of players){
-      if(!p.active||p.ghost)continue;
+      if(!p.active||p.ghost||(p.id===t.owner&&t.ownerGrace>0))continue;
       if(dist(t,p)<25){p.stun=Math.max(p.stun,C.trapRoot);return false;}
     }
     return true;
