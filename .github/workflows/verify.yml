@@ -1,7 +1,7 @@
 name: Verify static game
 on:
   push:
-    branches: [main, feat/stick-squad-party, feat/party-minigames-topdown]
+    branches: [main, feat/stick-squad-party, feat/party-minigames-topdown, feat/landscape-analog-ab-minigame-picker]
   pull_request:
     branches: [main]
 permissions:

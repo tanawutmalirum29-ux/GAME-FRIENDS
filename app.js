@@ -9,10 +9,10 @@ const TOPDOWN = ['tanks','soccer','rally','paint'];
 const TOURNAMENT_GAMES=['tanks','soccer','rally','paint','brawl','stars','lava'];
 let tournament=null;
 const KEYS = [
-  {left:'KeyA',right:'KeyD',jump:'KeyW',down:'KeyS',action:'Space'},
-  {left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',down:'ArrowDown',action:'Enter'}
+  {left:'KeyA',right:'KeyD',jump:'KeyW',down:'KeyS',action:'Space',alt:'ShiftLeft'},
+  {left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',down:'ArrowDown',action:'Enter',alt:'ShiftRight'}
 ];
-const INPUT_NAMES = ['left','right','jump','down','action'];
+const INPUT_NAMES = ['left','right','jump','down','action','alt'];
 const WORLD = {w:960,h:540,ground:470,gravity:1050};
 const platforms = [
   {x:90,y:376,w:185,h:14}, {x:393,y:326,w:180,h:14}, {x:684,y:376,w:185,h:14},
@@ -20,13 +20,13 @@ const platforms = [
 ];
 let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPeer=null, controllerConn=null;
 let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0;
-let controllerKeys={left:false,right:false,jump:false,action:false}, controllerId=null, controllerReady=false;
+let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let disconnectRequested=false;
 const canvas=$('arena'), g=canvas.getContext('2d');
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const cleanName=(value)=>String(value||'').trim().replace(/[<>]/g,'').slice(0,14)||'เพื่อนใหม่';
-const blankInput=()=>({left:false,right:false,jump:false,down:false,action:false});
+const blankInput=()=>({left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0});
 function setStatus(text,bad=false){$('netStatus').textContent=text;$('netDot').classList.toggle('bad',bad);}
 function setView(view) {
   currentView=view;
@@ -84,7 +84,7 @@ function addLocal(){
   renderPads();broadcastRoster();
 }
 function resetInputs(){
-  players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.latch=false;});
+  players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
 }
 function closeHost(){
   onlineHost=false;roomCode='';$('roomPanel').classList.add('hidden');$('hostBtn').disabled=false;
@@ -140,6 +140,8 @@ function startHost(retries=0){
         if(!p)return;
         p.lastInputAt=Date.now();
         for(const k of INPUT_NAMES)p.input[k]=msg.keys&&msg.keys[k]===true;
+        p.input.axisX=Number.isFinite(msg.keys&&msg.keys.axisX)?clamp(msg.keys.axisX,-1,1):0;
+        p.input.axisY=Number.isFinite(msg.keys&&msg.keys.axisY)?clamp(msg.keys.axisY,-1,1):0;
       }
     });
     conn.on('close',()=>{hostConnections.delete(conn);if(conn.playerId)removePlayer(conn.playerId);});
@@ -170,6 +172,7 @@ function joinRoom(){
   const code=new URLSearchParams(location.search).get('join');
   if(!code||!/^[A-Z2-9]{6}$/.test(code)){controllerState('รหัสห้องไม่ถูกต้อง',true);return;}
   const name=cleanName($('nick').value);$('nick').value=name;sessionStorage.setItem('gf-nick',name);
+  void requestLandscape();
   $('joinBtn').disabled=true;controllerState('กำลังเชื่อมต่อห้อง '+code+'...');
   disconnectRequested=false;safePeerDestroy();
   const peer=new Peer(undefined,{debug:0});
@@ -186,6 +189,7 @@ function joinRoom(){
         $('controllerName').textContent=data.name;$('controllerAvatar').style.background=data.color;
         $('joinForm').classList.add('hidden');$('controllerActive').classList.remove('hidden');
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
+        document.body.classList.add('controller-playing');
         showControllerMode(data.mode);sendInputs();
       }else if(data.t==='reject'){
         controllerState(data.reason||'ห้องไม่รับผู้เล่น',true);$('joinBtn').disabled=false;
@@ -209,18 +213,76 @@ function joinRoom(){
 function controllerDisconnected(){
   if(disconnectRequested)return;
   controllerReady=false;controllerId=null;for(const k of INPUT_NAMES)controllerKeys[k]=false;
+  controllerKeys.axisX=0;controllerKeys.axisY=0;releaseStick();
+  document.body.classList.remove('controller-playing');
   $('joinForm').classList.remove('hidden');$('controllerActive').classList.add('hidden');
   $('joinBtn').disabled=false;
   controllerState('ขาดการเชื่อมต่อ กรุณากดเข้าร่วมใหม่',true);
 }
 function showControllerMode(mode){
   const topdown=TOPDOWN.includes(mode);
-  const message=topdown?'ใช้ ▲▼◀▶ เคลื่อนที่ • HIT '+(mode==='tanks'?'ยิง':mode==='soccer'?'เตะบอล':mode==='rally'?'บูสต์':'ระบายพื้นที่'):
-    'ใช้ ◀▶ เดิน • ▲ กระโดด • HIT ต่อย/พุ่ง';
-  $('controllerHelp').textContent=message;
-  $('actionLabel').textContent=mode==='tanks'?'ยิง':mode==='soccer'?'เตะ':mode==='rally'?'บูสต์':mode==='paint'?'ระบาย':'โจมตี';
+  const actions={
+    stars:['DASH','JUMP'],brawl:['PUNCH','JUMP'],lava:['DASH','JUMP'],
+    tanks:['FIRE','DODGE'],soccer:['KICK','SPRINT'],
+    rally:['BOOST','BRAKE'],paint:['PAINT','DASH']
+  };
+  const labels=actions[mode]||['ACTION','JUMP'];
+  $('buttonALabel').textContent=labels[0];
+  $('buttonBLabel').textContent=labels[1];
+  $('controllerModeName').textContent=MODES[mode]||'MINI GAME';
+  $('controllerHelp').textContent=topdown?
+    'อนาล็อกเดิน 4 ทิศ • A '+labels[0]+' • B '+labels[1]:
+    'อนาล็อกซ้าย/ขวา • ดันขึ้นหรือกด B เพื่อกระโดด • A '+labels[0];
 }
 function sendInputs(){if(!controllerReady)return;send(controllerConn,{t:'input',keys:{...controllerKeys}});}
+// Request landscape after a user gesture; iOS Safari may deny orientation lock.
+async function requestLandscape(){
+  const panel=$('controller');
+  try{
+    if(panel.requestFullscreen&&!document.fullscreenElement)await panel.requestFullscreen();
+  }catch(_){/* fullscreen unavailable */ }
+  try{
+    if(window.screen&&window.screen.orientation&&window.screen.orientation.lock)
+      await window.screen.orientation.lock('landscape');
+  }catch(_){/* portrait overlay is the fallback */ }
+}
+let releaseStick=()=>{};
+function bindAnalogStick(base,knob,target){
+  let pointerId=null;
+  const reset=()=>{
+    pointerId=null;target.axisX=0;target.axisY=0;
+    knob.style.transform='translate(-50%,-50%)';
+    base.classList.remove('is-active');sendInputs();
+  };
+  const move=(e)=>{
+    const box=base.getBoundingClientRect();
+    const cx=box.left+box.width/2,cy=box.top+box.height/2;
+    const travel=Math.max(1,Math.min(box.width,box.height)*.285);
+    const dx=e.clientX-cx,dy=e.clientY-cy;
+    const distance=Math.hypot(dx,dy),factor=distance>travel?travel/distance:1;
+    let x=dx*factor/travel,y=dy*factor/travel;
+    if(Math.hypot(x,y)<.14){x=0;y=0;}
+    x=Math.round(x*100)/100;y=Math.round(y*100)/100;
+    knob.style.transform='translate(calc(-50% + '+Math.round(x*travel)+'px),calc(-50% + '+Math.round(y*travel)+'px))';
+    if(Math.abs(target.axisX-x)>.01||Math.abs(target.axisY-y)>.01){
+      target.axisX=x;target.axisY=y;sendInputs();
+    }
+  };
+  base.addEventListener('pointerdown',e=>{
+    if(pointerId!==null)return;
+    e.preventDefault();pointerId=e.pointerId;
+    try{base.setPointerCapture(pointerId);}catch(_){}
+    base.classList.add('is-active');move(e);
+  });
+  base.addEventListener('pointermove',e=>{
+    if(e.pointerId!==pointerId)return;e.preventDefault();move(e);
+  });
+  for(const type of ['pointerup','pointercancel','lostpointercapture']){
+    base.addEventListener(type,e=>{if(e.pointerId===pointerId)reset();});
+  }
+  base.addEventListener('contextmenu',e=>e.preventDefault());
+  releaseStick=reset;
+}
 function bindControl(btn, target, id){
   const key=btn.dataset.control;if(!key)return;
   const change=(pressed)=>{if(target[key]===pressed)return;target[key]=pressed;btn.classList.toggle('pressed',pressed);if(id==='remote')sendInputs();};
@@ -237,7 +299,7 @@ function renderPads(){
     const heading=document.createElement('h4');heading.style.color=p.color;
     heading.textContent=p.name+(i===0?' • WASD + Space':i===1?' • ลูกศร + Enter':' • แตะปุ่ม');
     const group=document.createElement('div');group.className='pad-buttons';
-    [['left','◀','movement'],['right','▶','movement'],['jump','▲','jump-btn'],['down','▼','jump-btn'],['action','✦','attack-btn']].forEach(spec=>{
+    [['left','◀','movement'],['right','▶','movement'],['jump','▲','jump-btn'],['down','▼','jump-btn'],['alt','B','jump-btn'],['action','A','attack-btn']].forEach(spec=>{
       const b=document.createElement('button');b.type='button';b.className='control-btn '+spec[2];b.dataset.control=spec[0];b.textContent=spec[1];b.setAttribute('aria-label',spec[0]+' '+p.name);bindControl(b,p.input,p.id);group.append(b);
     });
     card.append(heading,group);root.append(card);
@@ -253,7 +315,11 @@ document.addEventListener('keyup',e=>{
   const locals=players.filter(p=>p.type==='local');
   KEYS.forEach((mapping,i)=>{const p=locals[i];if(!p)return;for(const k of INPUT_NAMES)if(e.code===mapping[k]){p.input[k]=false;e.preventDefault();}});
 });
-window.addEventListener('blur',()=>{resetInputs();for(const k of INPUT_NAMES)controllerKeys[k]=false;sendInputs();document.querySelectorAll('.pressed').forEach(b=>b.classList.remove('pressed'));});
+window.addEventListener('blur',()=>{
+  resetInputs();for(const k of INPUT_NAMES)controllerKeys[k]=false;
+  releaseStick();sendInputs();
+  document.querySelectorAll('.pressed').forEach(b=>b.classList.remove('pressed'));
+});
 function startRound(forcedMode=null){
   if(!players.length)return;
   $('results').classList.add('hidden');
@@ -295,9 +361,10 @@ function updatePlayers(dt){
       continue;
     }
     const input=p.input||blankInput();
-    const move=Number(input.right)-Number(input.left);
+    const analog=Number.isFinite(input.axisX)?input.axisX:0;
+    const move=Math.abs(analog)>.05?analog:Number(input.right)-Number(input.left);
     if(move)p.face=Math.sign(move);
-    if(input.jump&&p.grounded){p.vy=-510;p.grounded=false;}
+    if((input.jump||input.alt||input.axisY<-.55)&&p.grounded){p.vy=-510;p.grounded=false;}
     if(input.action&&!p.latch&&p.cooldown<=0){
       if(round.mode==='brawl'){
         p.cooldown=.47;p.attack=.20;
@@ -349,6 +416,7 @@ function updateRound(dt){
   for(const p of players){
     if(p.type==='remote'&&Date.now()-(p.lastInputAt||0)>900){
       for(const key of INPUT_NAMES)p.input[key]=false;
+      p.input.axisX=0;p.input.axisY=0;
     }
   }
   round.remaining=Math.max(0,round.remaining-dt);
@@ -542,13 +610,38 @@ $('copyBtn').addEventListener('click',copyInvite);
 $('exitBtn').addEventListener('click',()=>{tournament=null;round=null;resetInputs();setView('home');renderRoster();broadcastRoster();});
 $('backBtn').addEventListener('click',()=>{tournament=null;round=null;resetInputs();setView('home');renderRoster();broadcastRoster();});
 $('replayBtn').addEventListener('click',advanceParty);
+function selectMiniGame(mode){
+  if(!MODES[mode])return;
+  $('mode').value=mode;
+  document.querySelectorAll('[data-game]').forEach(btn=>{
+    const active=btn.dataset.game===mode;
+    btn.classList.toggle('selected',active);
+    btn.setAttribute('aria-pressed',String(active));
+  });
+  const details={stars:'เก็บดาวแข่งกัน',brawl:'ตะลุมบอนแย่งคะแนน',lava:'เอาชีวิตรอดจากลาวา',
+    tanks:'รถถังยิงกันมุมบน',soccer:'สองทีมแข่งยิงประตู',rally:'รถแข่งผ่านจุดตรวจ',paint:'แย่งยึดพื้นที่สี'};
+  $('selectedGameText').textContent=$('sessionMode').value==='tournament'?
+    'TOURNAMENT • ระบบสุ่ม 5 จาก 7 มินิเกมเพื่อสะสมคะแนน':
+    'เลือกแล้ว: '+MODES[mode]+' • '+details[mode];
+  broadcastRoster();
+}
+document.querySelectorAll('[data-game]').forEach(btn=>btn.addEventListener('click',()=>selectMiniGame(btn.dataset.game)));
+$('sessionMode').addEventListener('change',()=>{
+  const isTourney=$('sessionMode').value==='tournament';
+  $('gameCards').parentElement.classList.toggle('tournament-selected',isTourney);
+  selectMiniGame($('mode').value);
+});
+$('landscapeBtn').addEventListener('click',()=>{void requestLandscape();});
+$('rotateRetryBtn').addEventListener('click',()=>{void requestLandscape();});
 $('joinBtn').addEventListener('click',joinRoom);
 $('nick').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
 $('leaveBtn').addEventListener('click',()=>{
   disconnectRequested=true;safePeerDestroy();controllerReady=false;for(const k of INPUT_NAMES)controllerKeys[k]=false;
+  releaseStick();document.body.classList.remove('controller-playing');
   const u=new URL(window.location.href);u.search='';window.location.assign(u.href);
 });
 document.querySelectorAll('#controllerActive [data-control]').forEach(btn=>bindControl(btn,controllerKeys,'remote'));
+bindAnalogStick($('joystickBase'),$('joystickKnob'),controllerKeys);
 setInterval(sendInputs,100);
 window.addEventListener('beforeunload',()=>{safePeerDestroy();if(hostPeer)hostPeer.destroy();});
 
@@ -558,7 +651,7 @@ if(joinCode){
   $('nick').value=sessionStorage.getItem('gf-nick')||'';
   setStatus('พร้อมเชื่อมจอย');
 }else{
-  setView('home');renderRoster();renderPads();
+  setView('home');renderRoster();renderPads();selectMiniGame($('mode').value||'stars');
 }
 requestAnimationFrame(animate);
 })();

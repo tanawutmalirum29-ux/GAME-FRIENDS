@@ -21,6 +21,22 @@
     </header>
 
     <main id="home" class="layout">
+      <section class="game-picker panel" aria-labelledby="pickTitle">
+        <div class="picker-heading">
+          <div><div class="eyebrow">01 / PICK YOUR GAME</div><h2 id="pickTitle">เลือกมินิเกมก่อนเล่น</h2><p>เลือกสนามที่อยากเล่น แล้วสร้างห้องชวนเพื่อน • เปลี่ยนเกมได้ทุกครั้งที่กลับล็อบบี้</p></div>
+          <span class="picker-counter">7 MINI GAMES</span>
+        </div>
+        <div id="gameCards" class="mini-game-grid" role="group" aria-label="เลือกมินิเกม">
+          <button type="button" class="mini-game-card selected" data-game="stars" aria-pressed="true"><span class="mini-art art-stars"><span>★</span></span><span class="mini-card-text"><strong>STAR RUSH</strong><small>เก็บดาวแข่งกัน</small></span><span class="mini-tag">PLATFORM</span></button>
+          <button type="button" class="mini-game-card" data-game="brawl" aria-pressed="false"><span class="mini-art art-brawl"><span>✹</span></span><span class="mini-card-text"><strong>BRAWL ARENA</strong><small>ตะลุมบอนแย่งคะแนน</small></span><span class="mini-tag">FIGHT</span></button>
+          <button type="button" class="mini-game-card" data-game="lava" aria-pressed="false"><span class="mini-art art-lava"><span>♨</span></span><span class="mini-card-text"><strong>LAVA RUN</strong><small>เอาชีวิตรอดจากลาวา</small></span><span class="mini-tag">SURVIVAL</span></button>
+          <button type="button" class="mini-game-card" data-game="tanks" aria-pressed="false"><span class="mini-art art-tanks"><span>▰</span></span><span class="mini-card-text"><strong>TANK BLAST</strong><small>รถถังยิงกันมุมบน</small></span><span class="mini-tag">SHOOTER</span></button>
+          <button type="button" class="mini-game-card" data-game="soccer" aria-pressed="false"><span class="mini-art art-soccer"><span>⚽</span></span><span class="mini-card-text"><strong>FOOTBALL</strong><small>สองทีมแข่งยิงประตู</small></span><span class="mini-tag">SPORT</span></button>
+          <button type="button" class="mini-game-card" data-game="rally" aria-pressed="false"><span class="mini-art art-rally"><span>🏎</span></span><span class="mini-card-text"><strong>MICRO RALLY</strong><small>รถแข่งผ่านจุดตรวจ</small></span><span class="mini-tag">RACING</span></button>
+          <button type="button" class="mini-game-card" data-game="paint" aria-pressed="false"><span class="mini-art art-paint"><span>▦</span></span><span class="mini-card-text"><strong>COLOR CLASH</strong><small>แย่งยึดพื้นที่สี</small></span><span class="mini-tag">PARTY</span></button>
+        </div>
+        <p id="selectedGameText" class="picked-summary" aria-live="polite">เลือกแล้ว: STAR RUSH • เก็บดาวแข่งกัน</p>
+      </section>
       <section class="hero">
         <div class="eyebrow"><span class="sparkle">✦</span> PARTY GAME • PLAY TOGETHER</div>
         <h1>รวมแก๊งแล้ว<br><em>ลุยให้สุด!</em></h1>
@@ -30,9 +46,9 @@
       </section>
 
       <section class="panel setup">
-        <div class="section-heading"><span class="section-icon">01</span><div><h2>สร้างปาร์ตี้</h2><p>เลือกสนาม แล้วชวนเพื่อนเข้าห้อง</p></div></div>
-        <label for="mode">โหมดเกม</label>
-        <select id="mode">
+        <div class="section-heading"><span class="section-icon">02</span><div><h2>สร้างปาร์ตี้</h2><p>เลือกมินิเกมจากการ์ดด้านบน แล้วชวนเพื่อนเข้าห้อง</p></div></div>
+        <label class="visually-hidden" for="mode">โหมดเกม</label>
+        <select id="mode" class="visually-hidden">
           <option value="stars">⭐ STAR RUSH — วิ่งเก็บดาว</option>
           <option value="brawl">🥊 BRAWL — ต่อยแย่งคะแนน</option>
           <option value="lava">🌋 LAVA RUN — หนีลาวา</option>
@@ -57,7 +73,7 @@
       </section>
 
       <section class="panel roster-panel">
-        <div class="section-heading"><span class="section-icon">02</span><div><h2>ผู้เล่นในห้อง <span id="rosterCount" class="count">0/12</span></h2><p>คนเข้าห้องแล้วจะปรากฏที่นี่</p></div></div>
+        <div class="section-heading"><span class="section-icon">03</span><div><h2>ผู้เล่นในห้อง <span id="rosterCount" class="count">0/12</span></h2><p>คนเข้าห้องแล้วจะปรากฏที่นี่</p></div></div>
         <div id="roster" class="roster"><p class="empty">ยังไม่มีผู้เล่น เริ่มจากเพิ่มผู้เล่นบนจอ หรือสร้างห้องให้เพื่อนสแกน</p></div>
         <div class="roster-actions"><button id="addLocalBtn" class="btn btn-outline">+ เพิ่มจอยบนหน้าจอ</button><button id="startBtn" class="btn btn-green" disabled>เริ่มเกม <span>▶</span></button></div>
         <div class="hint">เล่นอย่างน้อย 1 คนเพื่อทดลอง • 2 คนขึ้นไปสำหรับปาร์ตี้จริง</div>
@@ -76,11 +92,21 @@
       <div class="controller-intro"><div class="eyebrow">STICK SQUAD CONTROLLER</div><h1>มือถือของคุณ<br><em>คือจอยเกม</em></h1><p>เข้าร่วมห้อง <b id="joinCode">------</b> แล้วควบคุมตัวละครบนจอหลัก</p></div>
       <section id="joinForm" class="panel join-panel"><label for="nick">ชื่อของคุณ</label><input id="nick" maxlength="14" placeholder="กรอกชื่อเล่น" autocomplete="nickname"><button id="joinBtn" class="btn btn-primary">เข้าร่วมห้อง <span>↗</span></button><p class="hint" id="joinMessage">กดเข้าร่วมเพื่อเชื่อมต่อกับจอเกม</p></section>
       <section id="controllerActive" class="controller-active hidden">
-        <div class="player-card"><div id="controllerAvatar" class="player-avatar"></div><div><small>PLAYER CONNECTED</small><strong id="controllerName">ผู้เล่น</strong><p id="controllerState">กำลังรอเจ้าของห้องเริ่มเกม</p></div></div>
-        <div class="controller-buttons"><div class="direction-pad"><button data-control="left" class="control-btn movement" aria-label="ซ้าย">◀</button><button data-control="right" class="control-btn movement" aria-label="ขวา">▶</button><button data-control="jump" class="control-btn jump-btn" aria-label="ขึ้น">▲</button><button data-control="down" class="control-btn jump-btn" aria-label="ลง">▼</button></div><div class="action-pad"><button data-control="action" class="control-btn attack-btn">HIT<span id="actionLabel">ยิง / เตะ / บูสต์</span></button></div></div>
-        <p id="controllerHelp" class="controller-help">ปุ่ม ▲ คือกระโดดในเกมด้านข้าง และเคลื่อนที่ขึ้นในเกมมุมบน • HIT ใช้ตามประเภทเกม</p>
-        <button id="leaveBtn" class="leave-link">ออกจากห้อง</button>
+        <div class="gamepad-hud">
+          <div class="gamepad-user"><span id="controllerAvatar" class="gamepad-avatar"></span><span><strong id="controllerName">ผู้เล่น</strong><small id="controllerState">กำลังรอเจ้าของห้องเริ่มเกม</small></span></div>
+          <div class="gamepad-top-actions"><button id="landscapeBtn" class="gamepad-tool" type="button">⛶ เต็มจอแนวนอน</button><button id="leaveBtn" class="gamepad-tool gamepad-leave" type="button">ออก</button></div>
+        </div>
+        <div class="controller-buttons" aria-label="จอยเกมแบบอนาล็อกและปุ่ม A B">
+          <div class="joystick-group"><span class="gamepad-label">LEFT STICK</span><div id="joystickBase" class="joystick-base" role="group" aria-label="อนาล็อกซ้ายสำหรับเคลื่อนที่"><span class="joystick-direction direction-up">▲</span><span class="joystick-direction direction-left">◀</span><span class="joystick-direction direction-right">▶</span><span class="joystick-direction direction-down">▼</span><div id="joystickKnob" class="joystick-knob"></div></div></div>
+          <div class="gamepad-middle"><span class="gamepad-brand">SQUAD<span>★</span>PAD</span><span id="controllerModeName" class="gamepad-mode">STAR RUSH</span><span class="gamepad-connection"><span class="gamepad-live-dot"></span> CONNECTED</span></div>
+          <div class="gamepad-face-buttons">
+            <div class="face-button-wrap face-b"><button type="button" data-control="alt" class="face-button face-button-b" aria-label="ปุ่ม B">B</button><span id="buttonBLabel" class="face-caption">JUMP</span></div>
+            <div class="face-button-wrap face-a"><button type="button" data-control="action" class="face-button face-button-a" aria-label="ปุ่ม A">A</button><span id="buttonALabel" class="face-caption">ACTION</span></div>
+          </div>
+        </div>
+        <p id="controllerHelp" class="controller-help">ดันอนาล็อกเพื่อเดินหรือขับรถ • A ทำแอ็กชัน • B กระโดด/หลบ</p>
       </section>
+      <div id="rotateNotice" class="rotate-notice" role="status"><span class="rotate-symbol">▣</span><h2>หมุนมือถือเป็นแนวนอน</h2><p>จอยเกมออกแบบสำหรับการเล่นแบบ Landscape<br>หมุนเครื่องเพื่อเปิดอนาล็อกและปุ่ม A / B</p><button id="rotateRetryBtn" class="btn btn-primary" type="button">ลองเปิดแนวนอนเต็มจอ</button></div>
     </main>
     <footer>STICK SQUAD PARTY <span>•</span> Original browser party game <span>•</span> Built for GAME FRIENDS</footer>
   </div>

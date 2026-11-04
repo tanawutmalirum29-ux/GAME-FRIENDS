@@ -8,10 +8,26 @@
   const hit=(a,b,r)=>Math.hypot(a.x-b.x,a.y-b.y)<r;
   const pressed=(p,k)=>!!(p.input&&p.input[k]);
   const v2=(p)=>{
-    let dx=Number(pressed(p,'right'))-Number(pressed(p,'left'));
-    let dy=Number(pressed(p,'down'))-Number(pressed(p,'jump'));
+    const input=p.input||{};
+    // Read analog strength without normalizing away slow/precise movements.
+    const ax=Number.isFinite(input.axisX)?input.axisX:0;
+    const ay=Number.isFinite(input.axisY)?input.axisY:0;
+    if(Math.abs(ax)>.04||Math.abs(ay)>.04){
+      const length=Math.hypot(ax,ay);
+      return length>1?{x:ax/length,y:ay/length}:{x:ax,y:ay};
+    }
+    const dx=Number(pressed(p,'right'))-Number(pressed(p,'left'));
+    const dy=Number(pressed(p,'down'))-Number(pressed(p,'jump'));
     const length=Math.hypot(dx,dy)||1;return {x:dx/length,y:dy/length};
   };
+  function dodgeMultiplier(p,dt){
+    p.altCooldown=Math.max(0,(p.altCooldown||0)-dt);
+    p.altDash=Math.max(0,(p.altDash||0)-dt);
+    if(pressed(p,'alt')&&p.altCooldown<=0){
+      p.altCooldown=1.8;p.altDash=.23;
+    }
+    return p.altDash>0?1.85:1;
+  }
   const active=(players)=>players.filter(p=>p.active);
   const inside=(x,y,rect)=>x>=rect.x&&x<=rect.x+rect.w&&y>=rect.y&&y<=rect.y+rect.h;
   const arena={x:48,y:65,w:864,h:425};
@@ -59,7 +75,7 @@
       p.cooldown=Math.max(0,p.cooldown-dt);
       p.invulnerable=Math.max(0,p.invulnerable-dt);
       if(!p.alive){p.respawn-=dt;if(p.respawn<=0){const index=ps.indexOf(p);spawn(p,index,ps.length);}continue;}
-      const prev=movePlayer(p,dt,195);
+      const prev=movePlayer(p,dt,195*dodgeMultiplier(p,dt));
       if(tankBlocks.some(b=>p.x>b.x-19&&p.x<b.x+b.w+19&&p.y>b.y-19&&p.y<b.y+b.h+19)){p.x=prev.x;p.y=prev.y;}
       if(pressed(p,'action')&&p.cooldown<=0){
         p.cooldown=.48;
@@ -98,7 +114,7 @@
     const field={x:62,y:86,w:836,h:380};
     for(const p of ps){
       p.cooldown=Math.max(0,p.cooldown-dt);
-      movePlayer(p,dt,215,field);
+      movePlayer(p,dt,215*dodgeMultiplier(p,dt),field);
       const delta=Math.hypot(b.x-p.x,b.y-p.y);
       if(delta<37&&delta>0.001){
         const ux=(b.x-p.x)/delta,uy=(b.y-p.y)/delta;
@@ -138,7 +154,7 @@
       p.raceBoost=Math.max(0,p.raceBoost-dt);
       if(pressed(p,'action')&&p.cooldown<=0){p.raceBoost=.55;p.cooldown=2.2;}
       const dir=v2(p),oldX=p.x,oldY=p.y;
-      const speed=(p.raceBoost>0?330:220);
+      const speed=(p.raceBoost>0?330:220)*(pressed(p,'alt')?.48:1);
       p.x=clamp(p.x+dir.x*speed*dt,140,820);
       p.y=clamp(p.y+dir.y*speed*dt,84,475);
       if(dir.x||dir.y)p.angle=Math.atan2(dir.y,dir.x);
@@ -164,7 +180,7 @@
     const field={x:60,y:76,w:840,h:420};
     for(const p of active(players)){
       p.cooldown=Math.max(0,p.cooldown-dt);
-      movePlayer(p,dt,235,field);
+      movePlayer(p,dt,235*dodgeMultiplier(p,dt),field);
       p.paintClock-=dt;
       if(p.paintClock<=0){
         const c=clamp(Math.floor((p.x-field.x)/42),0,19),r=clamp(Math.floor((p.y-field.y)/42),0,9);
