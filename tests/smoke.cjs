@@ -31,8 +31,10 @@ assert.doesNotMatch(ghostSource,/มนุษย์เหลือ|ผีจะ�
 assert.match(css,/#game \.game-center-hud\{\s*position:relative;\s*transform:translateY\(-9px\)/);
 assert.match(css,/#game \.leaderboard\{\s*display:grid;\s*grid-template-columns:repeat\(var\(--leader-count,1\),minmax\(0,1fr\)\)/);
 assert.match(css,/#game \.leaderboard\{[\s\S]*?height:23px;[\s\S]*?overflow:hidden;/);
-assert.match(css,/#game \.leader-chip span\.leader-held-item\{[\s\S]*?max-width:55%/);
-assert.match(source,/item\.className='leader-held-item'/);
+assert.match(css,/#game \.leader-chip span\.leader-held-icon\{[\s\S]*?width:16px/);
+assert.match(source,/itemIcon\.className='leader-held-icon'/);
+assert.doesNotMatch(source,/leader-held-item/);
+assert.doesNotMatch(css,/leader-held-item/);
 assert.match(ghostSource,/function drawPickupNotice\(ctx,p,w,h\)/);
 assert.match(ghostSource,/p\.pickupNoticeTime=2\.1/);
 assert.match(source,/root\.style\.setProperty\('--leader-count'/);
@@ -60,7 +62,13 @@ assert.doesNotMatch(source,/document\.exitFullscreen\(/);
 assert.match(source,/const root=document\.documentElement;/);
 
 // Engine unit tests: deterministic rules are exercised without any browser.
-const ghostSandbox=vm.createContext({window:{}});
+const loadedImages=[];
+class FakeSvgImage{
+ constructor(){this.complete=false;this.naturalWidth=0;loadedImages.push(this);}
+ set src(v){this._src=v;this.complete=true;this.naturalWidth=v.startsWith('data:image/svg+xml')?64:0;}
+ get src(){return this._src;}
+}
+const ghostSandbox=vm.createContext({window:{},Image:FakeSvgImage});
 vm.runInContext(ghostSource,ghostSandbox,{filename:'ghost-attack.js'});
 const ghost=ghostSandbox.window.GhostAttack;
 const mkPlayers=n=>Array.from({length:n},(_,i)=>({
@@ -87,6 +95,9 @@ assert.ok(ghost.constants.ghostSpeed>ghost.constants.humanSpeed);
 assert.ok(ghost.constants.ghostSpeed/ghost.constants.humanSpeed<1.04);
 assert.equal(ghost.constants.cloakTime,2);
 assert.equal(ghost.ITEM_NAMES.slow,'ยาสโลว์เพื่อน');
+assert.equal(Object.keys(ghost.ITEM_SVG).length,5);
+assert.equal(loadedImages.length,5,'five cached SVG images');
+assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
 
 // Movement starts while the three-second warning counts down.
 {
@@ -123,10 +134,12 @@ assert.equal(ghost.ITEM_NAMES.slow,'ยาสโลว์เพื่อน');
  assert.ok(x.players[0].punchCooldown>.9);
 }
 // The render test observes exactly what spectators see over the collector.
-const drawTexts=[];
+const drawTexts=[],drawImages=[];
 const drawProbe=new Proxy({},{
   get(_obj,key){
     if(key==='createLinearGradient')return ()=>({addColorStop(){}});
+    if(key==='measureText')return v=>({width:String(v).length*8});
+    if(key==='drawImage')return (...args)=>drawImages.push(args);
     if(key==='fillText')return (...args)=>drawTexts.push(args);
     return ()=>{};
   },
@@ -142,14 +155,18 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  ghost.update(.016,x.round,x.players);
  assert.equal(p.item,item,'pickup '+item);
  assert.equal(p.pickupNotice,ghost.ITEM_NAMES[item],'popup shows the actual item name');
+ assert.equal(p.pickupNoticeItem,item);
  assert.ok(p.pickupNoticeTime>2,'popup starts immediately after a real pickup');
- drawTexts.length=0;
+ drawTexts.length=0;drawImages.length=0;
  const originalX=p.x,originalY=p.y;
  p.x=400;p.y=240;
  ghost.draw(drawProbe,0,x.round,x.players);
  const itemText=drawTexts.find(args=>args[0]==='ได้รับ: '+ghost.ITEM_NAMES[item]);
  const nameText=drawTexts.find(args=>args[0]===p.name);
  assert.ok(itemText,'collector sees obtained item above the character: '+item);
+ assert.equal(drawImages.length,1,'canvas paints SVG popup');
+ assert.equal(drawImages[0][0],ghost.getItemIconImage(item));
+ assert.ok(drawImages[0][1]<itemText[1]);
  assert.ok(nameText&&itemText[2]<nameText[2],
    'item notification is vertically above the collector name');
  p.x=originalX;p.y=originalY; // Do not move the item-stun test out of range.
@@ -208,6 +225,7 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  const nextRound={mode:'ghost',phase:'countdown'};
  ghost.setup(nextRound,x.players);
  assert.equal(p.pickupNotice,null,'no stale item popup in a fresh round');
+ assert.equal(p.pickupNoticeItem,null);
  assert.equal(p.pickupNoticeTime,0);
 }
 // AI target lock only changes for very close alternatives; conversion retains
@@ -238,6 +256,7 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  assert.equal(a.ghost,true,'AI ghost touch infects a human');
  assert.equal(a.item,null,'infected player no longer holds an item');
  assert.equal(a.pickupNotice,null,'infection clears an outdated pickup notification');
+ assert.equal(a.pickupNoticeItem,null);
  assert.equal(a.active,true,'infected human remains controllable');
  npc.stun=999;
  a.x=c.x-4;a.y=c.y;
@@ -435,9 +454,11 @@ matchPlayers[0].item='cloak';
 host.scope.window.__ghostTest.renderLeaderboard();
 let firstChip=host.elements.get('leaderboard').children[0];
 assert.equal(firstChip.children[1].textContent,matchPlayers[0].name);
-assert.equal(firstChip.children[2].textContent,'ผ้าคลุมล่องหน',
- 'full held-item name is shown directly after player name');
+assert.equal(firstChip.children[2].className,'leader-held-icon');
+assert.equal(firstChip.children[2].textContent,'');
+assert.match(firstChip.children[2].innerHTML,/<svg[\s>]/);
 assert.equal(firstChip.children[2].title,'ผ้าคลุมล่องหน');
+assert.equal(firstChip.children[2].attributes['aria-label'],'ผ้าคลุมล่องหน');
 matchPlayers[0].item=null;
 host.scope.window.__ghostTest.renderLeaderboard();
 firstChip=host.elements.get('leaderboard').children[0];
@@ -451,8 +472,8 @@ assert.equal(host.elements.get('leaderboard').children.length,12);
 const busyItemChip=host.elements.get('leaderboard').children.find(chip=>
  chip.children[1].textContent===addedPlayers[1].name);
 assert.ok(busyItemChip,'held-item player remains visible after survivor/ghost sorting');
-assert.equal(busyItemChip.children[2].textContent,'สปีด',
- '5-12 player HUD uses a short recognizable item label');
+assert.equal(busyItemChip.children[2].textContent,'');
+assert.match(busyItemChip.children[2].innerHTML,/<svg[\s>]/);
 assert.equal(busyItemChip.children[2].title,'บูสต์สปีด',
  'full item label remains accessible in a tooltip');
 assert.equal(host.elements.get('leaderboard').style['--leader-count'],'12',
