@@ -139,7 +139,8 @@ function setup(url='https://game.example/',portrait=false) {
     scrollTo(){}
   };
   win.location.assign=function(url){this.href=url;};
-  win.history={replaceState(_state,_title,next){win.location=new URL(next);}};
+  // History API mutates the current browser Location, preserving its methods.
+  win.history={replaceState(_state,_title,next){win.location.href=next;}};
   const sessionStorage={
     getItem(key){return sessionData.get(key)||null;},
     setItem(key,value){sessionData.set(key,String(value));}
