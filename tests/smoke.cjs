@@ -118,6 +118,14 @@ for(const n of [1,4,5,6,7,8,9,12]){
  assert.ok(x.state.obstacles.length>=6,'solid corner plus cemetery obstacles');
  assert.equal(x.state.obstacles[0].kind,'hud-blocker');
  assert.equal(x.state.hudBlocker,x.state.obstacles[0]);
+ // The corner panel is deliberately compact for all room sizes. Its actual
+ // collision box must shrink with the art rather than remaining invisible.
+ assert.ok(Math.abs(x.state.hudBlocker.w-88*x.state.world.w/960)<1e-7,
+   'HUD obstacle width matches the smaller visual footprint');
+ assert.ok(Math.abs(x.state.hudBlocker.h-58*x.state.world.h/540)<1e-7,
+   'HUD obstacle height matches the smaller visual footprint');
+ assert.ok(x.state.hudBlocker.w<x.state.world.w*.1);
+ assert.ok(x.state.hudBlocker.h<x.state.world.h*.12);
  assert.ok(x.state.obstacles.slice(1).every(o=>art.KINDS.includes(o.kind)));
  assert.ok(x.state.obstacles.some(o=>o.kind==='coffin'));
  assert.ok(x.state.obstacles.slice(1).every(o=>o.x>0&&o.y>0));
