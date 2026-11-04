@@ -228,17 +228,73 @@ function copyInvite(){
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(done).catch(()=>{ $('roomUrl').select();document.execCommand('copy');done();});}
   else{$('roomUrl').select();document.execCommand('copy');done();}
 }
-function safePeerDestroy(){if(controllerConn){try{controllerConn.close();}catch(e){}controllerConn=null;}
-  if(controllerPeer){try{controllerPeer.destroy();}catch(e){}controllerPeer=null;}}
+function safePeerDestroy(){
+  const conn=controllerConn,peer=controllerPeer;
+  controllerConn=null;controllerPeer=null;
+  if(conn){try{conn.close();}catch(e){}}
+  if(peer){try{peer.destroy();}catch(e){}}
+}
 function controllerState(msg,bad=false){$('joinMessage').textContent=msg;$('controllerState').textContent=msg;setStatus(msg,bad);}
+function getSavedNickname(){
+  try{return window.localStorage.getItem('gf-nick')||sessionStorage.getItem('gf-nick')||'';}
+  catch(_){try{return sessionStorage.getItem('gf-nick')||'';}catch(__){return '';}}
+}
+function rememberNickname(){
+  const value=$('nick').value.trim().slice(0,14);
+  if(!value)return;
+  try{window.localStorage.setItem('gf-nick',value);}catch(_){}
+  try{sessionStorage.setItem('gf-nick',value);}catch(_){}
+}
+function parseRoomCode(value){
+  const raw=String(value||'').trim();
+  let code=raw.toUpperCase();
+  if(!/^[A-Z2-9]{6}$/.test(code)){
+    try{
+      const parsed=new URL(raw);
+      if(!['https:','http:'].includes(parsed.protocol))return null;
+      code=String(parsed.searchParams.get('join')||'').toUpperCase();
+    }catch(_){return null;}
+  }
+  return /^[A-Z2-9]{6}$/.test(code)?code:null;
+}
+function selectRoomCode(code){
+  const parsed=parseRoomCode(code);
+  if(!parsed)return false;
+  $('roomCodeInput').value=parsed;
+  $('joinCode').textContent=parsed;
+  // Change URL without opening a new tab or reloading the current controller.
+  try{
+    const url=new URL(window.location.href);
+    url.searchParams.set('join',parsed);
+    window.history.replaceState(null,'',url.href);
+  }catch(_){}
+  return true;
+}
+function resetControllerForRoomChange(message){
+  disconnectRequested=true;
+  safePeerDestroy();
+  controllerReady=false;controllerId=null;
+  for(const k of INPUT_NAMES)controllerKeys[k]=false;
+  controllerKeys.axisX=0;controllerKeys.axisY=0;
+  clearPortraitFallback();
+  document.body.classList.remove('controller-playing');
+  syncZoomPolicy();
+  $('controllerActive').classList.add('hidden');
+  $('joinForm').classList.remove('hidden');
+  $('joinBtn').disabled=false;
+  controllerState(message||'เลือกห้องใหม่ได้เลย โดยไม่ต้องเปิดแท็บใหม่');
+}
 function joinRoom(){
   if(typeof Peer!=='function'){controllerState('ไม่สามารถโหลดระบบจอยออนไลน์ได้',true);return;}
-  const code=new URLSearchParams(location.search).get('join');
-  if(!code||!/^[A-Z2-9]{6}$/.test(code)){controllerState('รหัสห้องไม่ถูกต้อง',true);return;}
-  const name=cleanName($('nick').value);$('nick').value=name;sessionStorage.setItem('gf-nick',name);
+  const code=parseRoomCode($('roomCodeInput').value);
+  if(!code){controllerState('รหัสห้องไม่ถูกต้อง กรุณากรอก 6 ตัวหรือสแกน QR',true);return;}
+  selectRoomCode(code);
+  const name=cleanName($('nick').value);$('nick').value=name;rememberNickname();
+  void stopRoomScanner();
   void requestLandscape();
   $('joinBtn').disabled=true;controllerState('กำลังเชื่อมต่อห้อง '+code+'...');
-  disconnectRequested=false;safePeerDestroy();
+  disconnectRequested=true;safePeerDestroy();
+  disconnectRequested=false;
   const peer=new Peer(undefined,{debug:0});
   controllerPeer=peer;
   peer.on('open',()=>{
@@ -247,7 +303,7 @@ function joinRoom(){
     controllerConn=conn;
     conn.on('open',()=>{send(conn,{t:'join',name});controllerState('กำลังรอห้องรับผู้เล่น...');});
     conn.on('data',data=>{
-      if(!data||typeof data!=='object')return;
+      if(controllerConn!==conn||!data||typeof data!=='object')return;
       if(data.t==='welcome'){
         controllerId=data.id;controllerReady=true;
         $('controllerName').textContent=data.name;$('controllerAvatar').style.background=data.color;
@@ -256,6 +312,7 @@ function joinRoom(){
         document.body.classList.add('controller-playing');
         syncZoomPolicy();
         showControllerMode(data.mode);sendInputs();
+        announceControllerTakeover();
       }else if(data.t==='reject'){
         controllerState(data.reason||'ห้องไม่รับผู้เล่น',true);$('joinBtn').disabled=false;
         safePeerDestroy();
@@ -275,21 +332,18 @@ function joinRoom(){
         controllerState('เจ้าของห้องปิดห้องแล้ว',true);
       }
     });
-    conn.on('close',()=>controllerDisconnected());
-    conn.on('error',()=>controllerDisconnected());
+    conn.on('close',()=>{if(controllerConn===conn)controllerDisconnected();});
+    conn.on('error',()=>{if(controllerConn===conn)controllerDisconnected();});
   });
-  peer.on('error',err=>{controllerState('เชื่อมต่อไม่ได้ ('+(err.type||'network')+') ตรวจสอบรหัส/อินเทอร์เน็ต',true);$('joinBtn').disabled=false;});
+  peer.on('error',err=>{
+    if(controllerPeer!==peer)return;
+    controllerState('เชื่อมต่อไม่ได้ ('+(err.type||'network')+') ตรวจสอบรหัส/อินเทอร์เน็ต',true);
+    $('joinBtn').disabled=false;
+  });
 }
 function controllerDisconnected(){
   if(disconnectRequested)return;
-  controllerReady=false;controllerId=null;for(const k of INPUT_NAMES)controllerKeys[k]=false;
-  controllerKeys.axisX=0;controllerKeys.axisY=0;releaseStick();
-  document.body.classList.remove('controller-playing');
-  clearPortraitFallback();
-  syncZoomPolicy();
-  $('joinForm').classList.remove('hidden');$('controllerActive').classList.add('hidden');
-  $('joinBtn').disabled=false;
-  controllerState('ขาดการเชื่อมต่อ กรุณากดเข้าร่วมใหม่',true);
+  resetControllerForRoomChange('ขาดการเชื่อมต่อ กดเข้าร่วมห้องเดิมหรือเปลี่ยนห้องได้');
 }
 function showControllerMode(mode){
   const topdown=TOPDOWN.includes(mode);
@@ -787,9 +841,19 @@ $('portraitRestoreBtn').addEventListener('click',()=>{
   void requestLandscape();
 });
 $('joinBtn').addEventListener('click',joinRoom);
+$('nick').addEventListener('input',rememberNickname);
 $('nick').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
+$('roomCodeInput').addEventListener('input',()=>{
+  $('roomCodeInput').value=$('roomCodeInput').value.toUpperCase().replace(/[^A-Z2-9]/g,'').slice(0,6);
+});
+$('roomCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
+$('switchRoomBtn').addEventListener('click',()=>{
+  resetControllerForRoomChange('เปลี่ยนห้องในแท็บเดิมได้เลย สแกน QR หรือกรอกรหัสใหม่');
+});
+$('scanRoomBtn').addEventListener('click',()=>{void startRoomScanner();});
+$('cancelScanBtn').addEventListener('click',()=>{void stopRoomScanner();});
 $('leaveBtn').addEventListener('click',()=>{
-  disconnectRequested=true;safePeerDestroy();controllerReady=false;for(const k of INPUT_NAMES)controllerKeys[k]=false;
+  disconnectRequested=true;void stopRoomScanner();safePeerDestroy();controllerReady=false;for(const k of INPUT_NAMES)controllerKeys[k]=false;
   clearPortraitFallback();document.body.classList.remove('controller-playing');
   syncZoomPolicy();
   const u=new URL(window.location.href);u.search='';window.location.assign(u.href);
@@ -797,13 +861,15 @@ $('leaveBtn').addEventListener('click',()=>{
 document.querySelectorAll('#controllerActive [data-control]').forEach(btn=>bindControl(btn,controllerKeys,'remote'));
 bindAnalogStick($('joystickZone'),$('joystickBase'),$('joystickKnob'),controllerKeys);
 setInterval(sendInputs,100);
-window.addEventListener('beforeunload',()=>{safePeerDestroy();if(hostPeer)hostPeer.destroy();});
+window.addEventListener('beforeunload',()=>{
+  void stopRoomScanner();safePeerDestroy();if(hostPeer)hostPeer.destroy();
+});
 
-const joinCode=new URLSearchParams(location.search).get('join');
+const joinCode=parseRoomCode(new URLSearchParams(location.search).get('join'));
 if(joinCode){
-  setView('controller');$('joinCode').textContent=joinCode.toUpperCase();
-  $('nick').value=sessionStorage.getItem('gf-nick')||'';
-  setStatus('พร้อมเชื่อมจอย');
+  setView('controller');selectRoomCode(joinCode);
+  $('nick').value=getSavedNickname();
+  setStatus('พร้อมเชื่อมจอย • จำชื่อเล่นไว้ในเครื่องนี้');
 }else{
   setView('home');renderRoster();selectMiniGame($('mode').value||'stars');
 }
