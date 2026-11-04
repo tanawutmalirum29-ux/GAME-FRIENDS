@@ -3178,3 +3178,40 @@ body.host-playing #game .leader-chip span.leader-empty-item{
     right:clamp(75px,8dvh,100px);
   }
 }
+
+/* CHICKENS: phone buttons adapt only while the chicken round is live. */
+#controller #controllerActive .controller-buttons.chickens-mode .face-b,
+#controller #controllerActive .controller-buttons.chickens-mode .target-cycle-controls{
+  display:none!important;
+}
+#controller #controllerActive .controller-buttons.chickens-mode .gamepad-face-buttons{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+}
+#controller #controllerActive .controller-buttons.chickens-mode .face-a{
+  order:0!important;margin:0!important;position:relative!important;top:auto!important;right:auto!important;left:auto!important;bottom:auto!important;
+}
+#controller #controllerActive .controller-buttons.chickens-mode .face-a .face-button{
+  box-shadow:0 0 0 3px #ffc86244;
+}
+body.host-playing #game .leader-chip.chicken-leader .leader-role{
+  color:#ffdf79;font-weight:800;text-align:center;
+}
+body.host-playing #game .leader-chip.chicken-leader .leader-item-slot{
+  font-size:clamp(8px,.8vw,11px);color:#e3f9e7;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#phoneGameChoices .phone-game-choice[data-pick="chickens"] .mode-cover-svg{display:block;}
+
+/* Host-sourced cooldown overlay for the single CHICKENS A action. */
+#controller #controllerActive .controller-buttons.chickens-mode #buttonA{
+  position:relative;isolation:isolate;overflow:hidden;
+}
+#controller #controllerActive .controller-buttons.chickens-mode #buttonA.cooldown-active::after{
+  content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from -90deg,rgba(4,13,32,.58) 0deg,
+    rgba(4,13,32,.58) var(--cooldown-sweep,0deg),
+    transparent var(--cooldown-sweep,0deg),transparent 360deg);
+}
+#controller #controllerActive .controller-buttons.chickens-mode #buttonA .face-button-letter,
+#controller #controllerActive .controller-buttons.chickens-mode #buttonA .face-caption{
+  position:relative;z-index:1;
+}

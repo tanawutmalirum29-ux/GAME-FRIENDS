@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta id="viewportMeta" name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d1122">
-  <meta name="description" content="Ghost Attack เกมเอาตัวรอดจากผี เล่นกับเพื่อนสูงสุด 12 คน ใช้มือถือเป็นจอยผ่าน QR Code">
+  <meta name="description" content="Stick Squad Party เกมปาร์ตี้ GHOST ATTACK และ CHICKENS เล่นได้ 12 คน ผ่านมือถือเป็นจอย">
   <title>STICK SQUAD PARTY | GAME FRIENDS</title>
   <link rel="stylesheet" href="./style.css">
   <script defer src="./build-version.js"></script>
@@ -13,6 +13,7 @@
   <script defer src="./graveyard-art.js"></script>
   <script defer src="./combat-motion.js"></script>
   <script defer src="./ghost-attack.js"></script>
+  <script defer src="./chickens.js"></script>
   <script defer src="./app.js"></script>
   <script defer src="./auto-update.js"></script>
 </head>
@@ -28,8 +29,8 @@
       <section class="hero">
         <div class="eyebrow">STICK SQUAD • PARTY ROOM</div>
         <h1>สร้างห้อง<br><em>แล้วให้เพื่อนเลือกเกม</em></h1>
-        <p>จอหลักสร้าง QR Code กำหนดเวลาและรูปแบบการแข่งขัน ส่วนผู้เล่นเลือกGHOST ATTACK จากจอยมือถือ ผู้ถูกผีจับจะเปลี่ยนเป็นผี ชนะด้วยการเป็นคนรอดคนสุดท้าย</p>
-        <div class="feature-tags"><span>สูงสุด 12 ผู้เล่น</span><span>GHOST ATTACK</span><span>สุ่มลำดับทุกตัวเลือก</span></div>
+        <p>จอหลักสร้าง QR Code และจัดการแข่งขัน ผู้เล่นเลือก GHOST ATTACK หรือ CHICKENS ด้วยจอยมือถือ เกมผีเน้นเอาตัวรอด ส่วนเกมไก่เน้นไล่ต้อน จับ อุ้ม และฝากไก่เข้าคอกเพื่อทำคะแนน</p>
+        <div class="feature-tags"><span>สูงสุด 12 ผู้เล่น</span><span>GHOST ATTACK + CHICKENS</span><span>สุ่มลำดับทุกตัวเลือก</span></div>
         <div class="button-group">
           <button id="hostBtn" class="btn btn-primary" type="button">สร้างห้อง + เปิดจอหลัก <span>↗</span></button>
           <button id="offlineBtn" class="btn btn-secondary" type="button">ทดลองเล่นด้วยคีย์บอร์ด</button>
@@ -58,11 +59,11 @@
               </div>
             </div>
           </div>
-          <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ บอทจะเลือก GHOST ATTACK เป็นค่าเริ่มต้น</p>
+          <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ บอทเริ่มที่ GHOST ATTACK • แตะชื่อเกมบนการ์ดบอทเพื่อสลับเป็น CHICKENS</p>
         </section>
         <section class="lobby-player-panel">
           <div class="lobby-section-title"><h2>รายชื่อผู้เล่นและเกมที่เลือก</h2><span id="rosterCount" class="count">0/12</span></div>
-          <p class="lobby-hint">เกมแรก GHOST ATTACK • ทุกคนต้องเลือกก่อนเริ่ม • เลือกซ้ำเพื่อเล่นหลายรอบได้</p>
+          <p class="lobby-hint">เกม GHOST ATTACK และ CHICKENS • ทุกคนต้องเลือกก่อนเริ่ม • เลือกซ้ำเพื่อเล่นหลายรอบได้</p>
           <div id="roster" class="roster lobby-roster"><p class="empty">ยังไม่มีผู้เล่น • สแกน QR หรือเพิ่มบอท</p></div>
           <div id="hostQueue" class="host-queue hidden" aria-hidden="true"></div>
         </section>
@@ -74,7 +75,7 @@
             <button type="button" class="seg-option" data-session-mode="quick" aria-pressed="false">สุ่มเล่น 1 เกม</button>
           </div>
         </div>
-        <div class="lobby-control"><label>กฎการจบเกม</label><div class="ghost-no-timer">ไม่จับเวลา · รอดคนสุดท้าย</div></div>
+        <div class="lobby-control"><label>กฎการจบเกม</label><div class="ghost-no-timer">GHOST ไม่จับเวลา · CHICKENS 20–40 วิ ตามจำนวนคน</div></div>
         <div class="lobby-control auto-next-control"><label for="autoNext">เล่นเกมต่อเนื่อง</label>
           <label class="lobby-toggle"><input id="autoNext" type="checkbox" checked> เริ่มรอบถัดไปอัตโนมัติหลังดูผล 7 วินาที</label>
         </div>
@@ -92,7 +93,7 @@
       </div>
       <div class="game-toolbar">
         <div class="game-center-hud">
-          <div id="leaderboard" class="leaderboard" aria-label="ชื่อ สถานะ และ SVG ไอเทมของผู้เล่น"></div>
+          <div id="leaderboard" class="leaderboard" aria-label="ชื่อผู้เล่นและข้อมูลตามโหมดเกม"></div>
         </div>
         <button id="pauseBtn" class="game-pause-btn" type="button" aria-label="หยุดเกม" aria-haspopup="dialog" aria-expanded="false">Ⅱ <span>หยุดเกม</span></button>
       </div>
@@ -100,7 +101,7 @@
         <div class="game-pause-card">
           <div class="pause-icon" aria-hidden="true">Ⅱ</div>
           <h2 id="pauseHeading">หยุดเกมชั่วคราว</h2>
-          <p>การเคลื่อนที่และผีจะหยุดจนกว่าจะกดเล่นต่อ</p><div id="gameChoiceList" class="game-choice-list" aria-label="ผู้เล่นและเกมที่เลือก"></div>
+          <p>ทุกเกมและตัวจับเวลาจะหยุดจนกว่าจะกดเล่นต่อ</p><div id="gameChoiceList" class="game-choice-list" aria-label="ผู้เล่นและเกมที่เลือก"></div>
           <button id="resumeBtn" class="btn btn-green" type="button">▶ เล่นต่อ</button>
           <button id="exitBtn" class="btn btn-outline pause-exit" type="button">ออกจากเกม / กลับล็อบบี้</button>
         </div>
@@ -144,8 +145,9 @@
             <div id="controllerPreview" class="gamepad-preview" aria-label="จอพรีวิวเกมจากเจ้าของห้อง">
             <div id="phoneGamePicker" class="phone-game-picker hidden" aria-label="เลือกมินิเกมที่จะเล่น">
               <span class="phone-picker-title">เลือกมินิเกมของคุณ</span>
-              <div id="phoneGameChoices" class="phone-game-choices" role="group" aria-label="เลือก GHOST ATTACK">
-                <button type="button" data-pick="ghost" class="phone-game-choice" aria-pressed="false">👻 GHOST ATTACK</button>
+              <div id="phoneGameChoices" class="phone-game-choices" role="group" aria-label="เลือกมินิเกม">
+                <button type="button" data-pick="ghost" class="phone-game-choice" aria-pressed="false">GHOST ATTACK</button>
+                <button type="button" data-pick="chickens" class="phone-game-choice" aria-pressed="false">CHICKENS</button>
               </div>
               <small id="phoneChoiceStatus" class="phone-choice-status">มุมมองบน • ผู้เล่นเดินชนและดันกันได้ • เลือกเกมก่อนเริ่ม</small>
             </div>

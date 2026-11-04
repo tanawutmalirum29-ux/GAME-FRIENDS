@@ -16,11 +16,13 @@ const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
 const hostLauncher=fs.readFileSync('host.html','utf8');
 
-// Game catalog must contain ONLY the new original Ghost Attack.
+// Game catalog retains Ghost Attack and now adds CHICKENS as game two.
 assert.match(html,/data-pick="ghost"/);
-assert.equal([...html.matchAll(/data-pick="/g)].length,1);
+assert.equal([...html.matchAll(/data-pick="/g)].length,2);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
-assert.match(html,/src="\.\/ghost-attack\.js"/);
+assert.match(html,/src=".\/ghost-attack\.js"/);
+assert.match(html,/src=".\/chickens\.js"/);
+assert.match(html,/data-pick="chickens"/);
 assert.match(html,/src="\.\/graveyard-art\.js"/);
 assert.match(artSource,/window\.GhostCemeteryArt=Object\.freeze/);
 assert.match(html,/<script defer src="\.\/combat-motion\.js"><\/script>[\s\S]*?<script defer src="\.\/ghost-attack\.js"><\/script>/);
@@ -28,7 +30,7 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK'\}/);
+assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
@@ -671,7 +673,7 @@ function setup(url='https://game.example/?host=1',portrait=false) {
   const makeElement=(id='')=>{
     const handlers={},classes=new Set();
     return {
-      id,style:{setProperty(name,value){this[name]=value;}},dataset:{},children:[],value:'',textContent:'',disabled:false,
+      id,style:{setProperty(name,value){this[name]=value;},removeProperty(name){delete this[name];}},dataset:{},children:[],value:'',textContent:'',disabled:false,
       classList:{
         add(c){classes.add(c);},remove(c){classes.delete(c);},
         toggle(c,flag){if(flag===undefined? !classes.has(c):flag)classes.add(c);else classes.delete(c);},
@@ -684,7 +686,12 @@ function setup(url='https://game.example/?host=1',portrait=false) {
       prepend(item){this.children.unshift(item);},
       setAttribute(name,value){this.attributes??={};this.attributes[name]=value;if(name==='content')this.content=value;},
       select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
-      getContext(){return context;},
+      querySelector(selector){
+         const key=id+'|'+selector;
+         if(!elements.has(key))elements.set(key,makeElement(key));
+         return elements.get(key);
+       },
+       getContext(){return context;},
       captureStream(...args){
         assert.equal(args.length,0,'quality must not set captureStream frameRate');
         return {
@@ -1002,7 +1009,10 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,1);
+assert.equal(phone.pickButtons.length,2);
+assert.equal(phone.pickButtons[1].dataset.pick,'chickens');
+assert.match(phone.pickButtons[1].children[0].innerHTML,/<svg[\s>]/);
+assert.equal(phone.pickButtons[1].children[1].textContent,'CHICKENS');
 assert.match(phone.pickButtons[0].children[0].innerHTML,/<svg[\s>]/);
 assert.equal(phone.pickButtons[0].children[1].textContent,'GHOST ATTACK');
 phone.pick('ghost');
@@ -1050,3 +1060,6 @@ phone.click('leaveBtn');phone.click('confirmLeaveBtn');
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
 assert.equal(phone.scope.window.location.search,'?controller=1');
 console.log('SMOKE PASS: 12-player cap and spacious roster, tactical bots, SVG covers, async confirmations, QR, WebRTC');
+
+// All chicken gameplay rules run alongside the existing GHOST ATTACK regression suite.
+require('./chickens.cjs');
