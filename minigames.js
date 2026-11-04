@@ -43,6 +43,7 @@
       }
     });
     if(mode==='paint')round.mini.grid=Array(20*10).fill(null);
+    if(mode==='soccer')resetSoccer(round,players);
   }
   function movePlayer(p,dt,speed,rect=arena){
     const v=v2(p);const x=p.x,y=p.y;
@@ -223,9 +224,8 @@
       g.strokeStyle='#f8f6a2';g.lineWidth=3;g.beginPath();g.arc(0,0,32,0,Math.PI*2);g.stroke();
     }
     g.restore();
-    label(g,p.name,p.x,p.y-32,colorize('#fff'),13);
+    label(g,p.name,p.x,p.y-32,'#fff',13);
   }
-  function colorize(c){return c;}
   function drawTanks(g,t,round,players){
     background(g,'#17444f','#102433');
     g.fillStyle='#375953';g.fillRect(arena.x,arena.y,arena.w,arena.h);
