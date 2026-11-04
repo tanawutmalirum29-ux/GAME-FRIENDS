@@ -153,7 +153,9 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  x.state.npcs.forEach(n=>n.stun=0);
  const npc=x.state.npcs[0];
  a.x=npc.x+120;a.y=npc.y;
- b.x=npc.x+150;b.y=npc.y;
+ // Keep B far enough that the AI's intentionally rare nearby-target
+ // variation cannot select it before the switching test.
+ b.x=npc.x+200;b.y=npc.y;
  c.x=npc.x+280;c.y=npc.y;
  ghost.update(.016,x.round,x.players);
  assert.equal(npc.targetId,a.id);
