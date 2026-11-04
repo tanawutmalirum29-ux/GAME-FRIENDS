@@ -7,6 +7,15 @@ const source=fs.readFileSync('app.js','utf8');
 const miniSource=fs.readFileSync('minigames.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
+const hostLauncher=fs.readFileSync('host.html','utf8');
+assert.match(hostLauncher,/\?host=1/);
+assert.match(html,/id="controllerPreviewVideo"/);
+assert.match(html,/id="videoQuality"/);
+assert.match(html,/value="low"/);
+assert.match(html,/value="medium"/);
+assert.match(html,/value="high"/);
+assert.match(css,/\.joystick-zone\{[\s\S]*?grid-column:1;grid-row:1/);
+assert.match(css,/\.gamepad-preview-column\{[\s\S]*?grid-column:1;grid-row:1/);
 assert.match(css,/@media\(orientation:portrait\)/);
 assert.match(html,/id="joystickBase"/);
 assert.match(html,/id="joystickZone"/);
@@ -61,7 +70,7 @@ assert.match(css,/body\.controller-playing \.gamepad-face-buttons\{[\s\S]*?justi
 assert.match(css,/#game \.game-pause-btn\{[\s\S]*?min-height:35px/);
 
 const persistedNicknames=new Map();
-function setup(url='https://game.example/',portrait=false) {
+function setup(url='https://game.example/?host=1',portrait=false) {
   const elements=new Map();
   const makeElement=(id='')=>{
     const handlers={},classes=new Set();
@@ -80,6 +89,12 @@ function setup(url='https://game.example/',portrait=false) {
       setAttribute(name,value){this.attributes??={};this.attributes[name]=value;if(name==='content')this.content=value;},
       select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
       getContext(){return context;},
+      captureStream(fps){return {
+        fps,width:this.width,height:this.height,
+        getTracks(){return [{stop(){this.stopped=true;}}];}
+      };},
+      play(){this.played=true;return Promise.resolve();},
+      pause(){this.paused=true;},
       toDataURL(mime){assert.equal(mime,'image/jpeg');return 'data:image/jpeg;base64,QUJDRA==';},
       getBoundingClientRect(){return {left:0,top:0,width:200,height:200};},parentElement:null
     };
@@ -119,8 +134,22 @@ function setup(url='https://game.example/',portrait=false) {
     addEventListener(name,fn){(docHandlers[name]??=[]).push(fn);},execCommand(){return true;}
   };
   const instances=[];
+  class FakeMediaCall{
+    constructor(peer,stream,options={}){
+      this.peer=peer;this.stream=stream;
+      this.metadata=options.metadata||{};
+      this.handlers={};this.open=false;this.closed=false;
+    }
+    on(name,fn){this.handlers[name]=fn;}
+    answer(){this.open=true;this.answered=true;}
+    fire(name,value){this.handlers[name]?.(value);}
+    close(){
+      if(this.closed)return;
+      this.closed=true;this.open=false;this.handlers.close?.();
+    }
+  }
   class FakeConn{
-    constructor(){this.handlers={};this.open=true;this.sent=[];}
+    constructor(){this.handlers={};this.open=true;this.sent=[];this.peer='phone-'+instances.length;}
     on(name,fn){this.handlers[name]=fn;}
     send(value){this.sent.push(value);}
     close(){this.open=false;this.handlers.close?.();}
@@ -130,6 +159,10 @@ function setup(url='https://game.example/',portrait=false) {
     constructor(id){this.id=id;this.handlers={};instances.push(this);}
     on(name,fn){this.handlers[name]=fn;}
     connect(){this.conn=new FakeConn();return this.conn;}
+    call(peer,stream,options){
+      const call=new FakeMediaCall(peer,stream,options);
+      (this.mediaCalls??=[]).push(call);return call;
+    }
     destroy(){}
     fire(name,value){this.handlers[name]?.(value);}
   }
@@ -162,12 +195,22 @@ function setup(url='https://game.example/',portrait=false) {
   vm.runInContext(miniSource,scope,{filename:'minigames.js'});
   vm.runInContext(source,scope,{filename:'app.js'});
   return {elements,pickButtons,padButtons,instances,scope,
+    mediaCall(peer){return new FakeMediaCall(peer);},
     step(ms){assert(raf);raf(ms);},
     click(id){elements.get(id).fire('click');},
     pick(mode){const button=pickButtons.find(x=>x.dataset.pick===mode);assert(button);button.fire('click');}
   };
 }
 
+// Bare site always goes to controller join: only the explicit host launcher
+// should show the create-room screen (UX boundary, not secret authentication).
+const plainRoot=setup('https://game.example/');
+assert.equal(plainRoot.elements.get('controller').classList.contains('hidden'),false);
+assert.equal(plainRoot.elements.get('home').classList.contains('hidden'),true);
+const strippedJoin=setup('https://game.example/?controller=1');
+assert.equal(strippedJoin.elements.get('controller').classList.contains('hidden'),false);
+const explicitHost=setup('https://game.example/?host=1');
+assert.equal(explicitHost.elements.get('home').classList.contains('hidden'),false);
 // All 12 active players need unique, easily distinguishable colors.
 const colors=setup();
 for(let i=0;i<12;i++)colors.click('addLocalBtn');
@@ -254,9 +297,22 @@ assert.match(host.elements.get('hostQueue').textContent,/TANK BLAST ×1/);
 // Invalid choices do not affect the queue.
 guest.fire('data',{t:'pick',mode:'invalid-injection'});
 assert.match(host.elements.get('hostQueue').textContent,/TANK BLAST ×1/);
-// A game frame is compressed on the host then sent only to joined controllers.
+// Host also originates an actual one-way WebRTC video stream for the remote.
 host.elements.get('sessionMode').value='quick';
 host.click('startBtn');
+assert.equal(host.instances[0].mediaCalls.length,1);
+assert.equal(host.instances[0].mediaCalls[0].metadata.quality,'medium');
+assert.equal(host.instances[0].mediaCalls[0].stream.width,480);
+assert.equal(host.instances[0].mediaCalls[0].stream.height,270);
+guest.fire('data',{t:'video-quality',quality:'low'});
+assert.equal(host.instances[0].mediaCalls.at(-1).metadata.quality,'low');
+assert.equal(host.instances[0].mediaCalls.at(-1).stream.width,256);
+assert.equal(host.instances[0].mediaCalls[0].closed,true,'old stream closed before quality switch');
+guest.fire('data',{t:'video-quality',quality:'high'});
+assert.equal(host.instances[0].mediaCalls.at(-1).metadata.quality,'high');
+assert.equal(host.instances[0].mediaCalls.at(-1).stream.height,540);
+guest.fire('data',{t:'video-quality',quality:'invalid'});
+assert.equal(host.instances[0].mediaCalls.at(-1).metadata.quality,'high','reject invalid quality');
 host.step(10000);
 const snapshot=guest.sent.find(packet=>packet.t==='preview');
 assert.ok(snapshot,'a remote joined controller receives a real game-frame packet');
@@ -317,6 +373,28 @@ assert.equal(mobile.elements.get('controllerPreviewImage').src,snapshot.image,'u
 conn.fire('data',{t:'preview-reset'});
 assert.equal(mobile.elements.get('controllerPreviewImage').classList.contains('hidden'),true);
 assert.equal(mobile.elements.get('controllerPreviewPlaceholder').classList.contains('hidden'),false);
+// The remote browser answers a one-way video call without camera/microphone.
+const liveCall=mobile.mediaCall('gf-party-ABCD23');
+liveCall.metadata={type:'game-video',quality:'medium'};
+mobile.instances[0].fire('call',liveCall);
+assert.equal(liveCall.answered,true);
+const videoStream={id:'host-canvas-live-stream'};
+liveCall.fire('stream',videoStream);
+assert.equal(mobile.elements.get('controllerPreviewVideo').srcObject,videoStream);
+assert.equal(mobile.elements.get('controllerPreviewVideo').classList.contains('hidden'),false);
+assert.equal(mobile.elements.get('controllerPreviewImage').classList.contains('hidden'),true);
+// Quality selector triggers a live host renegotiation request.
+mobile.elements.get('videoQuality').value='high';
+mobile.elements.get('videoQuality').fire('change');
+assert.equal(conn.sent.at(-1).t,'video-quality');
+assert.equal(conn.sent.at(-1).quality,'high');
+assert.equal(persistedNicknames.get('gf-video-quality-v1'),'high');
+const updatedCall=mobile.mediaCall('gf-party-ABCD23');
+updatedCall.metadata={type:'game-video',quality:'high'};
+mobile.instances[0].fire('call',updatedCall);
+assert.equal(liveCall.closed,true,'old call released on resolution switch');
+updatedCall.fire('stream',{id:'host-hd-stream'});
+assert.equal(mobile.elements.get('controllerPreviewVideo').srcObject.id,'host-hd-stream');
 // The first press of Exit opens confirmation, not a disconnect.
 mobile.click('leaveBtn');
 assert.equal(conn.open,true,'still connected before confirmation');
@@ -485,7 +563,10 @@ exitMobile.click('confirmLeaveBtn');
 assert.equal(exitConn.open,false,'confirmation disconnects PeerJS');
 assert.equal(exitMobile.scope.document.body.classList.contains('controller-playing'),false);
 assert.equal(exitMobile.elements.get('leaveConfirm').classList.contains('hidden'),true);
-assert.equal(exitMobile.scope.window.location.search,'','exiting removes join code');
+assert.equal(exitMobile.scope.window.location.search,'?controller=1',
+  'exit keeps the user on a controller-only link');
+assert.equal(exitMobile.elements.get('controller').classList.contains('hidden'),false,
+  'exit returns to join screen without navigation');
 // The new B secondary action and half-strength analog must alter minigame movement.
 const fighter={
   id:'p-test',name:'Stick',color:'#fff',active:true,alive:true,

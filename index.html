@@ -145,7 +145,9 @@
               <small id="phoneChoiceStatus" class="phone-choice-status">เลือกเกมหนึ่งเกมเพื่อให้เจ้าของห้องเริ่มการแข่งขัน</small>
             </div>
             <div id="controllerPreview" class="gamepad-preview" aria-label="จอพรีวิวเกมจากเจ้าของห้อง">
-              <img id="controllerPreviewImage" class="gamepad-preview-image hidden" alt="ภาพพรีวิวเกมที่ส่งมาจากจอหลัก" draggable="false">
+              <video id="controllerPreviewVideo" class="gamepad-preview-video hidden" autoplay muted playsinline webkit-playsinline preload="none" aria-label="วิดีโอเกมสดจากจอหลัก"></video>
+              <img id="controllerPreviewImage" class="gamepad-preview-image hidden" alt="ภาพสำรองเมื่อไม่สามารถสตรีมวิดีโอได้" draggable="false">
+              <button id="videoStartBtn" class="video-start-btn hidden" type="button">▶ แตะเพื่อดูวิดีโอ</button>
               <div id="controllerPreviewPlaceholder" class="gamepad-preview-placeholder">
                 <span class="preview-wait-icon" aria-hidden="true">▣</span>
                 <strong>รอภาพจากจอหลัก</strong><small>จะแสดงฉากเกมเมื่อเจ้าของห้องเริ่มเล่น</small>
@@ -154,7 +156,13 @@
             </div>
             <div class="preview-info">
               <strong id="controllerModeName" class="gamepad-mode">STAR RUSH</strong>
-              <small id="controllerState" aria-live="polite">กำลังรอเจ้าของห้องเริ่มเกม</small>
+              <div class="preview-status-row"><small id="controllerState" aria-live="polite">กำลังรอเจ้าของห้องเริ่มเกม</small>
+                <label for="videoQuality">คุณภาพภาพ</label>
+                <select id="videoQuality" aria-label="ความละเอียดวิดีโอเกม">
+                  <option value="low">ต่ำ · 144p</option>
+                  <option value="medium" selected>กลาง · 270p</option>
+                  <option value="high">สูง · 540p</option>
+                </select></div>
             </div>
           </div>
           <div class="gamepad-face-buttons">
