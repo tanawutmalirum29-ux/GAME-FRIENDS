@@ -18,7 +18,7 @@ function pickUnusedColor(){
 }
 const MODES = { stars:'STAR RUSH', brawl:'BRAWL ARENA', lava:'LAVA RUN', tanks:'TANK BLAST',soccer:'FOOTBALL',rally:'MICRO RALLY',paint:'COLOR CLASH' };
 const TOPDOWN = ['tanks','soccer','rally','paint'];
-const TOURNAMENT_GAMES=['tanks','soccer','rally','paint','brawl','stars','lava'];
+// The match list is nominated by phone players rather than a fixed tournament deck.
 let tournament=null;
 const KEYS = [
   {left:'KeyA',right:'KeyD',jump:'KeyW',down:'KeyS',action:'Space',alt:'ShiftLeft'},
@@ -51,7 +51,7 @@ function syncZoomPolicy(){
 }
 function setView(view) {
   currentView=view;
-  ['home','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
+  ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
   syncZoomPolicy();
   window.scrollTo(0,0);
@@ -105,7 +105,8 @@ function makePlayer(name,type,conn) {
   if(!color)return null;
   const p={id:'p'+nextId++,name:cleanName(name),type:type,color,conn:conn||null,
     input:blankInput(),x:480,y:WORLD.ground,vx:0,vy:0,grounded:true,face:1,
-    hp:3,score:0,total:0,alive:true,active:false,invulnerable:0,cooldown:0,dash:0,attack:0,latch:false,respawn:0};
+    hp:3,score:0,total:0,choice:type==='local'?'stars':null,
+    alive:true,active:false,invulnerable:0,cooldown:0,dash:0,attack:0,latch:false,respawn:0};
   players.push(p);renderRoster();return p;
 }
 function removePlayer(id) {
@@ -117,7 +118,7 @@ function removePlayer(id) {
   if(p.conn&&p.conn.open){try{p.conn.close();}catch(e){}}
   renderRoster();broadcastRoster();
 }
-function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active};}
+function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active,choice:p.choice};}
 function send(conn,msg){if(conn&&conn.open){try{conn.send(msg);}catch(e){/* peer disconnected */}}}
 function broadcast(msg){hostConnections.forEach(c=>send(c,msg));}
 // Low-bandwidth game view for phone controllers (no microphone, no screen capture).
@@ -150,22 +151,47 @@ function broadcastGamePreview(){
 }
 function networkPhase(){return round?(round.paused?'paused':round.phase):'lobby';}
 function broadcastRoster(){
-  broadcast({t:'roster',players:players.map(playerPublic),phase:networkPhase(),mode:round?round.mode:$('mode').value});
+  broadcast({t:'roster',players:players.map(playerPublic),phase:networkPhase(),
+    mode:round?round.mode:'stars',selectionOpen:!round});
+}
+function nominatedGames(){
+  return players.map(p=>p.choice).filter(mode=>Object.hasOwn(MODES,mode));
+}
+function updateHostQueue(){
+  const picks=nominatedGames();
+  if(!picks.length){$('hostQueue').textContent='รอผู้เล่นเลือกมินิเกมบนมือถือ';return;}
+  const totals=new Map();
+  for(const mode of picks)totals.set(mode,(totals.get(mode)||0)+1);
+  const counts=[...totals].map(([mode,count])=>MODES[mode]+' ×'+count);
+  const waiting=players.length-picks.length;
+  $('hostQueue').textContent='เลือกแล้ว '+picks.length+'/'+players.length+' คน • '+counts.join(' • ')+
+    (waiting?' • รออีก '+waiting+' คน':' • พร้อมสุ่มลำดับ');
+}
+function renderPauseChoiceList(){
+  const box=$('gameChoiceList');box.replaceChildren();
+  for(const p of players){
+    const row=document.createElement('div');row.className='game-choice-row';
+    row.textContent=p.name+' — '+(MODES[p.choice]||'ยังไม่ได้เลือก');
+    row.style.borderLeftColor=p.color;box.append(row);
+  }
 }
 function renderRoster(){
   const el=$('roster');el.replaceChildren();
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
-  $('startBtn').disabled=players.length<1;
+  $('startBtn').disabled=players.length<1||nominatedGames().length!==players.length;
+  updateHostQueue();
   if(!players.length){const p=document.createElement('p');p.className='empty';p.textContent='ยังไม่มีผู้เล่น ชวนเพื่อนสแกน QR Code หรือเพิ่มผู้เล่นคีย์บอร์ด';el.append(p);return;}
   players.forEach(p=>{
     const item=document.createElement('div');item.className='roster-item';
     const color=document.createElement('span');color.className='swatch';color.style.background=p.color;
     const name=document.createElement('b');name.textContent=p.name;
     const type=document.createElement('small');type.textContent=p.type==='local'?'คีย์บอร์ด':'มือถือ';
+    const chosen=document.createElement('span');chosen.className='roster-pick'+(p.choice?' picked':'');
+    chosen.textContent=p.choice?'เลือก '+MODES[p.choice]:'ยังไม่เลือกเกม';
     const kick=document.createElement('button');kick.type='button';kick.textContent='×';kick.title='เอาผู้เล่นออก';kick.setAttribute('aria-label','เอา '+p.name+' ออกจากห้อง');
     kick.addEventListener('click',()=>removePlayer(p.id));
-    item.append(color,name,type,kick);el.append(item);
+    item.append(color,name,type,chosen,kick);el.append(item);
   });
 }
 function addLocal(){
@@ -179,11 +205,12 @@ function resetInputs(){
 }
 function closeHost(){
   onlineHost=false;roomCode='';$('roomPanel').classList.add('hidden');$('hostBtn').disabled=false;
+  $('hostRoomBadge').textContent='ห้องปิดแล้ว';
   hostConnections.forEach(c=>{send(c,{t:'closed'});try{c.close();}catch(e){}});
   hostConnections.clear();
   if(hostPeer){try{hostPeer.destroy();}catch(e){}hostPeer=null;}
   for(const p of players.filter(p=>p.type==='remote')){players.splice(players.indexOf(p),1);}
-  renderRoster();setStatus('พร้อมเล่น');
+  tournament=null;round=null;renderRoster();setStatus('พร้อมเล่น');
 }
 function shareUrl(code){
   const u=new URL(window.location.href);
@@ -199,7 +226,7 @@ function renderQr(code){
   box.textContent='QR ไม่พร้อม กรุณาคัดลอกลิงก์';
 }
 function startHost(retries=0){
-  if(onlineHost){$('roomPanel').scrollIntoView({behavior:'smooth'});return;}
+  if(onlineHost){setView('hostLobby');return;}
   if(typeof Peer!=='function'){setStatus('โหลดระบบเชื่อมต่อไม่สำเร็จ',true);alert('ยังโหลด PeerJS ไม่ได้ ตรวจสอบอินเทอร์เน็ต แล้วโหลดหน้าใหม่ (โหมดเล่นบนจอยังใช้ได้)');return;}
   if(location.protocol==='file:'){alert('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย');return;}
   const code=randomCode();
@@ -209,9 +236,10 @@ function startHost(retries=0){
   peer.on('open',()=>{
     if(hostPeer!==peer)return;
     roomCode=code;onlineHost=true;$('roomCode').textContent=code;
-    $('roomPanel').classList.remove('hidden');$('hostBtn').disabled=false;
+    $('roomPanel').classList.remove('hidden');$('offlineRoomHint').classList.add('hidden');
+    $('hostBtn').disabled=false;$('hostRoomBadge').textContent='ROOM '+code;
     renderQr(code);setStatus('เปิดห้อง '+code);
-    $('roomPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+    setView('hostLobby');renderRoster();broadcastRoster();
   });
   peer.on('connection',conn=>{
     if(hostPeer!==peer){conn.close();return;}
@@ -224,8 +252,13 @@ function startHost(retries=0){
         if(!p)return;
         conn.playerId=p.id;p.lastInputAt=Date.now();
         if(round&&round.phase!=='results')p.active=false;
-        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:$('mode').value});
+        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'stars',phase:networkPhase(),choice:p.choice});
         broadcastRoster();
+      }else if(msg.t==='pick'&&conn.playerId){
+        if(round||currentView!=='hostLobby'||!Object.hasOwn(MODES,msg.mode))return;
+        const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
+        if(!p||p.choice===msg.mode)return;
+        p.choice=msg.mode;renderRoster();broadcastRoster();
       }else if(msg.t==='input'&&conn.playerId){
         if(round&&round.paused)return;
         const p=players.find(p=>p.id===conn.playerId);
