@@ -131,11 +131,12 @@
       <section id="controllerActive" class="controller-active hidden">
         <div class="gamepad-hud">
           <div class="gamepad-user"><span id="controllerAvatar" class="gamepad-avatar"></span><strong id="controllerName">ผู้เล่น</strong></div>
-          <div class="gamepad-top-actions"><button id="landscapeBtn" class="gamepad-tool" type="button" aria-label="เปิดเต็มจอแนวนอน">⛶ แนวนอน</button><button id="portraitRestoreBtn" class="gamepad-tool portrait-restore hidden" type="button" aria-label="กลับไปโหมดหมุนโทรศัพท์">↺ โหมดปกติ</button><button id="switchRoomBtn" class="gamepad-tool" type="button">เปลี่ยนห้อง</button><button id="leaveBtn" class="gamepad-tool gamepad-leave" type="button">ออก</button></div>
+          <div class="gamepad-top-actions"><button id="videoQualityBtn" class="gamepad-tool gamepad-quality-btn" type="button" aria-label="คุณภาพภาพ กลาง กดเพื่อเปลี่ยนระดับ" title="คุณภาพภาพ กลาง · กดเพื่อเปลี่ยนระดับ">ก</button><button id="landscapeBtn" class="gamepad-tool" type="button" aria-label="เปิดเต็มจอแนวนอน">⛶ แนวนอน</button><button id="portraitRestoreBtn" class="gamepad-tool portrait-restore hidden" type="button" aria-label="กลับไปโหมดหมุนโทรศัพท์">↺ โหมดปกติ</button><button id="switchRoomBtn" class="gamepad-tool" type="button">เปลี่ยนห้อง</button><button id="leaveBtn" class="gamepad-tool gamepad-leave" type="button">ออก</button></div>
         </div>
-        <div class="controller-buttons" aria-label="จอยเกมแบบอนาล็อกและปุ่ม A B">
+        <div id="controllerButtons" class="controller-buttons" aria-label="จอยเกมแบบอนาล็อกและปุ่ม A B">
           <div id="joystickZone" class="joystick-group joystick-zone" role="group" aria-label="พื้นที่อนาล็อกอิสระ แตะจุดใดก็ได้แล้วลากเพื่อเดิน"><span class="gamepad-label joystick-hint">LEFT STICK • แตะตรงไหนก็เดินได้</span><div id="joystickBase" class="joystick-base" aria-hidden="true"><span class="joystick-direction direction-up">▲</span><span class="joystick-direction direction-left">◀</span><span class="joystick-direction direction-right">▶</span><span class="joystick-direction direction-down">▼</span><div id="joystickKnob" class="joystick-knob"></div></div></div>
           <div class="gamepad-middle gamepad-preview-column">
+            <div id="controllerPreview" class="gamepad-preview" aria-label="จอพรีวิวเกมจากเจ้าของห้อง">
             <div id="phoneGamePicker" class="phone-game-picker hidden" aria-label="เลือกมินิเกมที่จะเล่น">
               <span class="phone-picker-title">เลือกมินิเกมของคุณ</span>
               <div id="phoneGameChoices" class="phone-game-choices" role="group" aria-label="เลือกได้คนละหนึ่งเกม">
@@ -149,7 +150,6 @@
               </div>
               <small id="phoneChoiceStatus" class="phone-choice-status">เลือกเกมหนึ่งเกมเพื่อให้เจ้าของห้องเริ่มการแข่งขัน</small>
             </div>
-            <div id="controllerPreview" class="gamepad-preview" aria-label="จอพรีวิวเกมจากเจ้าของห้อง">
               <video id="controllerPreviewVideo" class="gamepad-preview-video hidden" autoplay muted playsinline webkit-playsinline preload="none" aria-label="วิดีโอเกมสดจากจอหลัก"></video>
               <img id="controllerPreviewImage" class="gamepad-preview-image hidden" alt="ภาพสำรองเมื่อไม่สามารถสตรีมวิดีโอได้" draggable="false">
               <button id="videoStartBtn" class="video-start-btn hidden" type="button">▶ แตะเพื่อดูวิดีโอ</button>
@@ -157,18 +157,9 @@
                 <span class="preview-wait-icon" aria-hidden="true">▣</span>
                 <strong>รอภาพจากจอหลัก</strong><small>จะแสดงฉากเกมเมื่อเจ้าของห้องเริ่มเล่น</small>
               </div>
-              <div class="gamepad-preview-top"><span class="preview-live-dot"></span><span>SQUAD★PAD · PREVIEW</span></div>
+              <div class="gamepad-preview-top"><span class="preview-live-dot"></span><strong id="controllerModeName" class="gamepad-mode">STAR RUSH</strong></div>
             </div>
-            <div class="preview-info">
-              <strong id="controllerModeName" class="gamepad-mode">STAR RUSH</strong>
-              <div class="preview-status-row"><small id="controllerState" aria-live="polite">กำลังรอเจ้าของห้องเริ่มเกม</small>
-                <label for="videoQuality">คุณภาพภาพ</label>
-                <select id="videoQuality" aria-label="ความละเอียดวิดีโอเกม">
-                  <option value="low">ต่ำ · 144p</option>
-                  <option value="medium" selected>กลาง · 270p</option>
-                  <option value="high">สูง · 540p</option>
-                </select></div>
-            </div>
+            <small id="controllerState" class="controller-status-sr" aria-live="polite">กำลังรอเจ้าของห้องเริ่มเกม</small>
           </div>
           <div class="gamepad-face-buttons">
             <div class="face-button-wrap face-b"><button type="button" data-control="alt" class="face-button face-button-b" aria-label="ปุ่ม B">B</button><span id="buttonBLabel" class="face-caption">JUMP</span></div>
