@@ -131,8 +131,10 @@ function setup(url='https://game.example/?host=1',portrait=false) {
       setAttribute(name,value){this.attributes??={};this.attributes[name]=value;if(name==='content')this.content=value;},
       select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
       getContext(){return context;},
-      captureStream(fps){return {
-        fps,width:this.width,height:this.height,
+      captureStream(...args){
+        assert.equal(args.length,0,'quality must not set captureStream frameRate');
+        return {
+        width:this.width,height:this.height,
         getTracks(){return [{stop(){this.stopped=true;}}];}
       };},
       play(){this.played=true;return Promise.resolve();},
@@ -213,6 +215,8 @@ function setup(url='https://game.example/?host=1',portrait=false) {
   const sessionData=new Map();
   const win={
     location:new URL(url),crypto:webcrypto,portrait,
+    screen:{width:360,height:800},devicePixelRatio:2,
+    innerWidth:800,innerHeight:360,
     localStorage:{
       getItem(key){return persistedNicknames.get(key)||null;},
       setItem(key,value){persistedNicknames.set(key,String(value));}
@@ -351,17 +355,35 @@ host.elements.get('sessionMode').value='quick';
 host.click('startBtn');
 assert.equal(host.instances[0].mediaCalls.length,1);
 assert.equal(host.instances[0].mediaCalls[0].metadata.quality,'medium');
-assert.equal(host.instances[0].mediaCalls[0].stream.width,480);
-assert.equal(host.instances[0].mediaCalls[0].stream.height,270);
+assert.equal(host.instances[0].mediaCalls[0].stream.width,960);
+assert.equal(host.instances[0].mediaCalls[0].stream.height,540);
+assert.equal(host.instances[0].mediaCalls[0].stream.fps,undefined,
+  'FPS is not constrained by selecting video resolution');
 guest.fire('data',{t:'video-quality',quality:'low'});
 assert.equal(host.instances[0].mediaCalls.at(-1).metadata.quality,'low');
 assert.equal(host.instances[0].mediaCalls.at(-1).stream.width,256);
 assert.equal(host.instances[0].mediaCalls[0].closed,true,'old stream closed before quality switch');
 guest.fire('data',{t:'video-quality',quality:'high'});
 assert.equal(host.instances[0].mediaCalls.at(-1).metadata.quality,'high');
-assert.equal(host.instances[0].mediaCalls.at(-1).stream.height,540);
+assert.equal(host.instances[0].mediaCalls.at(-1).stream.height,720);
+assert.equal(host.instances[0].mediaCalls.at(-1).stream.width,1280);
 guest.fire('data',{t:'video-quality',quality:'invalid'});
 assert.equal(host.instances[0].mediaCalls.at(-1).metadata.quality,'high','reject invalid quality');
+// Auto resolution uses the phone's reported physical screen pixel height,
+// limited to a safe even-pixel allocation (no frame rate changes).
+guest.fire('data',{t:'video-quality',quality:'auto',autoHeight:900});
+assert.equal(host.instances[0].mediaCalls.at(-1).metadata.quality,'auto');
+assert.equal(host.instances[0].mediaCalls.at(-1).stream.height,900);
+assert.equal(host.instances[0].mediaCalls.at(-1).stream.width,1600);
+assert.equal(host.instances[0].mediaCalls.at(-1).stream.fps,undefined);
+const autoCallCount=host.instances[0].mediaCalls.length;
+guest.fire('data',{t:'video-quality',quality:'auto',autoHeight:900});
+assert.equal(host.instances[0].mediaCalls.length,autoCallCount,
+  'identical auto resolution does not renegotiate unnecessarily');
+guest.fire('data',{t:'video-quality',quality:'auto',autoHeight:99999});
+assert.equal(host.instances[0].mediaCalls.at(-1).stream.height,2160,
+  'untrusted resolution metadata is bounded');
+guest.fire('data',{t:'video-quality',quality:'auto',autoHeight:900});
 host.step(10000);
 const snapshot=guest.sent.find(packet=>packet.t==='preview');
 assert.ok(snapshot,'a remote joined controller receives a real game-frame packet');
@@ -441,24 +463,42 @@ liveCall.fire('stream',videoStream);
 assert.equal(mobile.elements.get('controllerPreviewVideo').srcObject,videoStream);
 assert.equal(mobile.elements.get('controllerPreviewVideo').classList.contains('hidden'),false);
 assert.equal(mobile.elements.get('controllerPreviewImage').classList.contains('hidden'),true);
-// Small top-right button cycles ส(สูง) -> ก(กลาง) -> ต(ต่ำ), no select dropdown.
+// Top-right resolution button cycles ส -> ก -> ต -> A -> ส.
+// It changes only output pixel dimensions, NEVER requests a target FPS.
 mobile.click('videoQualityBtn');
 assert.equal(mobile.elements.get('videoQualityBtn').textContent,'ต',
-  'medium cycles to low');
+  'medium cycles to low 144p');
 assert.equal(conn.sent.at(-1).t,'video-quality');
 assert.equal(conn.sent.at(-1).quality,'low');
 mobile.click('videoQualityBtn');
+assert.equal(mobile.elements.get('videoQualityBtn').textContent,'A',
+  'low cycles to automatic quality');
+assert.equal(conn.sent.at(-1).quality,'auto');
+assert.equal(conn.sent.at(-1).autoHeight,720,
+  'Auto determines native display pixels from 360px × 2 DPR');
+assert.equal(persistedNicknames.get('gf-video-quality-v1'),'auto');
+assert.match(mobile.elements.get('videoQualityBtn').attributes['aria-label'],/อัตโนมัติ/);
+const sentBeforeResize=conn.sent.length;
+mobile.scope.window.fire('resize');
+assert.equal(conn.sent.length,sentBeforeResize,'unchanged display should not renegotiate');
+mobile.scope.window.screen.height=600;
+mobile.scope.window.screen.width=300;
+mobile.scope.window.fire('resize');
+assert.equal(conn.sent.at(-1).autoHeight,600,
+  'Auto recalculates on device display-size changes');
+mobile.click('videoQualityBtn');
 assert.equal(mobile.elements.get('videoQualityBtn').textContent,'ส',
-  'low cycles to high');
+  'Auto cycles to high 720p');
 assert.equal(conn.sent.at(-1).quality,'high');
 assert.equal(persistedNicknames.get('gf-video-quality-v1'),'high');
-assert.match(mobile.elements.get('videoQualityBtn').attributes['aria-label'],/สูง/);
+assert.match(mobile.elements.get('videoQualityBtn').attributes['aria-label'],/720p/);
 mobile.click('videoQualityBtn');
 assert.equal(mobile.elements.get('videoQualityBtn').textContent,'ก',
-  'high wraps back to medium');
+  'high wraps to medium 540p');
 assert.equal(conn.sent.at(-1).quality,'medium');
-mobile.click('videoQualityBtn');
-mobile.click('videoQualityBtn');
+mobile.click('videoQualityBtn'); // low
+mobile.click('videoQualityBtn'); // auto
+mobile.click('videoQualityBtn'); // high
 assert.equal(conn.sent.at(-1).quality,'high');
 const updatedCall=mobile.mediaCall('gf-party-ABCD23');
 updatedCall.metadata={type:'game-video',quality:'high'};

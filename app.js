@@ -132,17 +132,32 @@ let remotePreviewClock=0;
 // Native WebRTC MediaStreams are sent at the user's selected resolution.
 // 12 parallel streams may exceed consumer uplink bandwidth; still-picture
 // fallback remains available when media negotiation or capture is unsupported.
+// Video quality controls ONLY the number of output pixels, never frame rate.
+// captureStream() without a frameRate tracks canvas changes at the browser's
+// natural rate; the game loop never throttles frames according to this setting.
+// Browsers/encoders/networks may still adapt delivered FPS independently.
 const VIDEO_QUALITY={
-  low:{width:256,height:144,fps:12},
-  medium:{width:480,height:270,fps:18},
-  high:{width:960,height:540,fps:24}
+  low:{width:256,height:144},
+  medium:{width:960,height:540},
+  high:{width:1280,height:720},
+  auto:null
 };
+function normalizeAutoHeight(value){
+  const n=Number(value);
+  if(!Number.isFinite(n)||n<=0)return 540;
+  // Bound allocations from untrusted controller metadata. Choose even pixels.
+  return Math.round(Math.max(144,Math.min(2160,n))/2)*2;
+}
 const hostVideoSources=new Map();
 const hostVideoCalls=new Map();
-function getHostVideoSource(quality){
-  const key=Object.hasOwn(VIDEO_QUALITY,quality)?quality:'medium';
+function getHostVideoSource(quality,autoHeight){
+  const selected=Object.hasOwn(VIDEO_QUALITY,quality)?quality:'medium';
+  const h=selected==='auto'?normalizeAutoHeight(autoHeight):VIDEO_QUALITY[selected].height;
+  const spec=selected==='auto'?{width:Math.round(h*16/9/2)*2,height:h}:VIDEO_QUALITY[selected];
+  // Sharing sources by pixel dimensions avoids extra encoding work when users
+  // choose equal effective resolution through different quality settings.
+  const key=spec.width+'x'+spec.height;
   if(hostVideoSources.has(key))return hostVideoSources.get(key);
-  const spec=VIDEO_QUALITY[key];
   const sourceCanvas=document.createElement('canvas');
   sourceCanvas.width=spec.width;sourceCanvas.height=spec.height;
   const context=sourceCanvas.getContext('2d',{alpha:false});
@@ -150,18 +165,15 @@ function getHostVideoSource(quality){
   let stream;
   try{
     context.drawImage(canvas,0,0,spec.width,spec.height);
-    stream=sourceCanvas.captureStream(spec.fps);
+    stream=sourceCanvas.captureStream();
   }catch(_){return null;}
-  const source={canvas:sourceCanvas,context,stream,interval:1/spec.fps,elapsed:0};
+  const source={canvas:sourceCanvas,context,stream};
   hostVideoSources.set(key,source);
   return source;
 }
-function renderHostVideoFrames(dt){
+function renderHostVideoFrames(){
   if(!round||hostVideoCalls.size===0)return;
   for(const source of hostVideoSources.values()){
-    source.elapsed+=dt;
-    if(source.elapsed<source.interval)continue;
-    source.elapsed=0;
     try{source.context.drawImage(canvas,0,0,source.canvas.width,source.canvas.height);}
     catch(_){}
   }
@@ -184,7 +196,7 @@ function startHostVideoCall(conn){
   stopHostVideoCall(conn);
   conn.videoReady=false;
   const quality=Object.hasOwn(VIDEO_QUALITY,conn.videoQuality)?conn.videoQuality:'medium';
-  const source=getHostVideoSource(quality);
+  const source=getHostVideoSource(quality,conn.videoAutoHeight);
   if(!source||typeof hostPeer.call!=='function')return;
   try{
     const call=hostPeer.call(conn.peer,source.stream,{metadata:{type:'game-video',quality}});
@@ -328,10 +340,12 @@ function startHost(retries=0){
         if(msg.quality===conn.videoQuality)conn.videoReady=true;
       }else if(msg.t==='video-quality'&&conn.playerId){
         if(!Object.hasOwn(VIDEO_QUALITY,msg.quality))return;
-        if(conn.videoQuality!==msg.quality){
-          conn.videoQuality=msg.quality;
-          if(round)startHostVideoCall(conn);
-        }else if(round&&!hostVideoCalls.has(conn))startHostVideoCall(conn);
+        const autoHeight=msg.quality==='auto'?normalizeAutoHeight(msg.autoHeight):null;
+        const changed=conn.videoQuality!==msg.quality||
+          (msg.quality==='auto'&&conn.videoAutoHeight!==autoHeight);
+        conn.videoQuality=msg.quality;
+        conn.videoAutoHeight=autoHeight;
+        if(round&&(changed||!hostVideoCalls.has(conn)))startHostVideoCall(conn);
       }else if(msg.t==='pick'&&conn.playerId){
         if(round||currentView!=='hostLobby'||!Object.hasOwn(MODES,msg.mode))return;
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
@@ -388,13 +402,35 @@ function updatePhoneGamePicker(phase,choice){
 }
 let controllerMediaCall=null;
 let videoStreamActive=false;
-const VIDEO_QUALITY_CYCLE=['high','medium','low'];
+const VIDEO_QUALITY_CYCLE=['high','medium','low','auto'];
 const VIDEO_QUALITY_TEXT={
-  high:{short:'ส',long:'สูง · 540p'},
-  medium:{short:'ก',long:'กลาง · 270p'},
-  low:{short:'ต',long:'ต่ำ · 144p'}
+  high:{short:'ส',long:'สูง · 720p'},
+  medium:{short:'ก',long:'กลาง · 540p'},
+  low:{short:'ต',long:'ต่ำ · 144p'},
+  auto:{short:'A',long:'อัตโนมัติตามหน้าจอ'}
 };
 let controllerVideoQuality='medium';
+let lastControllerAutoHeight=null;
+function controllerAutoHeight(){
+  // CSS screen pixels × device pixel ratio estimate the display's native pixels.
+  // Never mistake browser support/actual network throughput for a guaranteed FPS.
+  const screen=window.screen||{};
+  const dims=[Number(screen.width),Number(screen.height)];
+  const viewport=[Number(window.innerWidth),Number(window.innerHeight)];
+  const usable=dims.every(n=>Number.isFinite(n)&&n>0)?dims:viewport;
+  const shortSide=usable.every(n=>Number.isFinite(n)&&n>0)?Math.min(...usable):540;
+  const dpr=Number(window.devicePixelRatio);
+  return normalizeAutoHeight(shortSide*(Number.isFinite(dpr)&&dpr>0?dpr:1));
+}
+function videoQualityPacket(quality){
+  if(quality==='auto'){
+    const height=controllerAutoHeight();
+    lastControllerAutoHeight=height;
+    return {t:'video-quality',quality,autoHeight:height};
+  }
+  lastControllerAutoHeight=null;
+  return {t:'video-quality',quality};
+}
 function savedVideoQuality(){
   try{
     const name=window.localStorage.getItem('gf-video-quality-v1');
@@ -415,7 +451,7 @@ function setControllerVideoQuality(quality){
   controllerVideoQuality=quality;
   renderVideoQualityButton();
   try{window.localStorage.setItem('gf-video-quality-v1',quality);}catch(_){}
-  if(controllerReady)send(controllerConn,{t:'video-quality',quality});
+  if(controllerReady)send(controllerConn,videoQualityPacket(quality));
 }
 function stopControllerVideo(){
   const call=controllerMediaCall;
@@ -1104,7 +1140,7 @@ function animate(ts){
   if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
     updateRound(dt);drawGame(graphicsClock);
-    renderHostVideoFrames(dt);
+    renderHostVideoFrames();
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
       if(round.autoNextRemaining===0)advanceParty();
@@ -1248,6 +1284,13 @@ document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener
 $('videoQualityBtn').addEventListener('click',()=>{
   const index=VIDEO_QUALITY_CYCLE.indexOf(controllerVideoQuality);
   setControllerVideoQuality(VIDEO_QUALITY_CYCLE[(index+1)%VIDEO_QUALITY_CYCLE.length]);
+});
+// Auto resolution updates when the device's available display pixels change.
+// Sending an identical size on ordinary resize events would renegotiate needlessly.
+window.addEventListener('resize',()=>{
+  if(!controllerReady||controllerVideoQuality!=='auto')return;
+  const next=controllerAutoHeight();
+  if(next!==lastControllerAutoHeight)send(controllerConn,videoQualityPacket('auto'));
 });
 controllerVideoQuality=savedVideoQuality();
 renderVideoQualityButton();
