@@ -1,7 +1,7 @@
 name: Verify static game
 on:
   push:
-    branches: [main, feat/stick-squad-party, feat/party-minigames-topdown, feat/landscape-analog-ab-minigame-picker, feat/portrait-virtual-landscape-pad, feat/saved-controller-name-switch-room, fix/dismiss-joystick-hint-on-first-touch, feat/phone-game-preview-compact-hud-confirm-exit, feat/player-picked-shuffled-party-queue, feat/large-live-webrtc-video-controller-only, fix/single-viewport-no-scroll-all-screens]
+    branches: [main, feat/stick-squad-party, feat/party-minigames-topdown, feat/landscape-analog-ab-minigame-picker, feat/portrait-virtual-landscape-pad, feat/saved-controller-name-switch-room, fix/dismiss-joystick-hint-on-first-touch, feat/phone-game-preview-compact-hud-confirm-exit, feat/player-picked-shuffled-party-queue, feat/large-live-webrtc-video-controller-only, fix/single-viewport-no-scroll-all-screens, fix/controller-fill-landscape-viewport]
   pull_request:
     branches: [main]
 permissions:

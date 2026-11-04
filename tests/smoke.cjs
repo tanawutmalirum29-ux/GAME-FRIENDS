@@ -88,6 +88,16 @@ assert.match(css,/@media\(orientation:landscape\) and \(max-height:520px\)/);
 assert.match(css,/@media\(orientation:portrait\) and \(max-width:720px\)/);
 assert.match(css,/body\.controller-playing\.portrait-fallback #controllerActive\{\s*width:100dvh;height:100dvw/);
 
+// Regression: connected controllers must NOT shrink-wrap in the centered
+// controller-page parent; the full left thumb area and A/B fill the viewport.
+assert.match(css,/body\.controller-playing #controller\.controller-page\{[\s\S]*?width:100vw;[\s\S]*?width:100dvw;/);
+assert.match(css,/body\.controller-playing #controller\.controller-page\{[\s\S]*?align-items:stretch;/);
+assert.match(css,/body\.controller-playing #controller #controllerActive\{[\s\S]*?align-self:stretch;[\s\S]*?width:100%;/);
+assert.match(css,/body\.controller-playing #controller #controllerActive \.controller-buttons\{[\s\S]*?width:100%;[\s\S]*?grid-template-columns:minmax\(0,1fr\)/);
+assert.match(css,/body\.controller-playing #controller #controllerActive \.phone-game-picker\{[\s\S]*?max-width:none;/);
+assert.match(css,/@media\(orientation:portrait\)\{\s*body\.controller-playing\.portrait-fallback #controller #controllerActive\{[\s\S]*?width:100dvh;\s*height:100dvw;/);
+
+
 const persistedNicknames=new Map();
 function setup(url='https://game.example/?host=1',portrait=false) {
   const elements=new Map();

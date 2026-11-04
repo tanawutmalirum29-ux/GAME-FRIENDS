@@ -1597,3 +1597,93 @@ body.controller-playing #controller .controller-help{
     grid-template-rows:repeat(6,minmax(0,1fr));
   }
 }
+
+
+
+/* Full-bleed phone controller: the parent is a column flexbox. Its former
+   align-items:center caused #controllerActive (width:auto) to shrink-wrap the
+   gamepad content, leaving broad black bars at both sides on landscape phones.
+   Join form remains centered; ONLY the connected controller fills the viewport. */
+body.controller-playing #controller.controller-page{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  width:100dvw;
+  height:100vh;
+  height:100dvh;
+  max-width:none;
+  max-height:none;
+  min-width:0;
+  min-height:0;
+  margin:0;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:stretch;
+  overflow:hidden!important;
+  background:radial-gradient(ellipse at 50% 60%,#172b47 0%,#070d1c 75%);
+}
+body.controller-playing #controller #controllerActive{
+  display:flex;
+  flex-direction:column;
+  align-self:stretch;
+  justify-self:stretch;
+  flex:1 1 0;
+  width:100%;
+  max-width:none;
+  min-width:0;
+  height:100%;
+  max-height:100%;
+  min-height:0;
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  overflow:hidden!important;
+}
+body.controller-playing #controller #controllerActive .gamepad-hud{
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+body.controller-playing #controller #controllerActive .controller-buttons{
+  width:100%;
+  max-width:none;
+  min-width:0;
+  flex:1 1 0;
+  box-sizing:border-box;
+  align-self:stretch;
+  grid-template-columns:minmax(0,1fr) minmax(106px,.23fr);
+}
+body.controller-playing #controller #controllerActive .gamepad-preview-column{
+  width:100%;
+  max-width:none;
+  min-width:0;
+}
+body.controller-playing #controller #controllerActive .phone-game-picker{
+  width:58%;
+  max-width:none;
+  min-width:0;
+}
+body.controller-playing #controller #controllerActive .gamepad-face-buttons{
+  min-width:0;
+  max-width:100%;
+  justify-self:end;
+}
+/* Portrait fallback rotates the visual pad itself by 90 degrees. Do not
+   overwrite its swapped width/height with landscape full-bleed dimensions. */
+@media(orientation:portrait){
+  body.controller-playing.portrait-fallback #controller #controllerActive{
+    position:fixed;
+    left:50%;
+    top:50%;
+    width:100dvh;
+    height:100dvw;
+    max-width:none;
+    max-height:none;
+    flex:0 0 auto;
+    align-self:auto;
+    transform:translate(-50%,-50%) rotate(90deg);
+    transform-origin:center center;
+  }
+}
