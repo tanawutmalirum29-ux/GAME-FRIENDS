@@ -103,6 +103,7 @@ vm.runInContext(combatSource,ghostSandbox,{filename:'combat-motion.js'});
 vm.runInContext(artSource,ghostSandbox,{filename:'graveyard-art.js'});
 vm.runInContext(ghostSource,ghostSandbox,{filename:'ghost-attack.js'});
 const ghost=ghostSandbox.window.GhostAttack;
+const art=ghostSandbox.window.GhostCemeteryArt;
 const mkPlayers=n=>Array.from({length:n},(_,i)=>({
  id:'p'+i,name:'Tester '+i,color:['#ff628c','#3fe4ef','#ffcf62','#ae94ff'][i%4],
  type:'remote',active:true,input:{},alive:true,score:0
@@ -131,7 +132,6 @@ assert.ok(ghost.constants.ghostSpeed/ghost.constants.humanSpeed<1.04);
 assert.equal(ghost.constants.cloakTime,2);
 assert.equal(ghost.ITEM_NAMES.slow,'ยาสโลว์เพื่อน');
 assert.equal(Object.keys(ghost.ITEM_SVG).length,5);
-const art=ghostSandbox.window.GhostCemeteryArt;
 assert.equal(art.KINDS.length,8);
 assert.ok(art.KINDS.includes('coffin')&&art.KINDS.includes('plaque'));
 assert.match(art.actorSVG(false,'#ff628c','walk0'),/<svg/);
