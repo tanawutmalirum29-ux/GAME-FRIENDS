@@ -37,16 +37,15 @@ assert.match(html,/id="uiModal"/);
 assert.doesNotMatch(source,/\b(?:alert|confirm)\(/);
 assert.match(css,/#hostLobby #hostQueue\{display:none!important\}/);
 assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?display:flex;/);
-// No duplicated HUD counters on canvas, no map description beneath the title.
-assert.doesNotMatch(html,/HUMANS LEFT|id="gameTitle"/);
-assert.match(html,/<div class="game-name"><span class="eyebrow" id="gameMode">GHOST ATTACK<\/span><\/div>/);
-assert.doesNotMatch(source,/\$\('gameTitle'\)/);
-assert.doesNotMatch(ghostSource,/มนุษย์เหลือ|ผีจะเกิดกลางแผนที่ใน 3 วินาที/);
-assert.match(css,/#game \.game-center-hud\{\s*position:relative;\s*transform:translateY\(-9px\)/);
-assert.match(css,/#game \.leaderboard\{\s*display:grid;\s*grid-template-columns:repeat\(var\(--leader-count,1\),minmax\(0,1fr\)\)/);
-assert.match(css,/#game \.leaderboard\{[\s\S]*?height:23px;[\s\S]*?overflow:hidden;/);
-assert.match(css,/#game \.leader-chip span\.leader-held-icon\{[\s\S]*?width:16px/);
-assert.match(source,/itemIcon\.className='leader-held-icon'/);
+// Only the corner world obstacle displays the start countdown/player total.
+assert.doesNotMatch(html,/id="gameMode"|id="timer"|class="game-name"/);
+assert.doesNotMatch(source,/\$\('gameMode'\)|\$\('timer'\)/);
+assert.match(ghostSource,/function drawCornerHud\(ctx,round,players,state\)/);
+assert.match(ghostSource,/kind:'hud-blocker'/);
+assert.match(css,/body\.host-playing #game \.leader-chip\{[\s\S]*?grid-template-rows:17px 16px 18px/);
+assert.match(css,/body\.host-playing #game \.leaderboard\{[\s\S]*?height:58px!important/);
+assert.match(css,/body\.host-playing #game \.leader-chip span\.leader-held-icon\{/);
+assert.match(source,/itemSlot\.classList\.add\('leader-held-icon'\)/);
 assert.doesNotMatch(source,/leader-held-item/);
 assert.doesNotMatch(css,/leader-held-item/);
 assert.match(ghostSource,/function drawPickupNotice\(ctx,p,w,h\)/);
@@ -110,20 +109,39 @@ const mkPlayers=n=>Array.from({length:n},(_,i)=>({
 }));
 const init=n=>{const players=mkPlayers(n),round={mode:'ghost',phase:'countdown'};
  ghost.setup(round,players);return {round,players,state:round.ghost};};
-for(const n of [1,4,6,7,8,12]){
+for(const n of [1,4,5,6,7,8,9,12]){
  const x=init(n),tier=n<=6?1:2;
  assert.equal(x.state.npcs.length,tier,'one ghost for 1-6, two for 7-12');
- assert.equal(x.state.world.w,960);
- assert.equal(x.state.world.h,540);
+ assert.equal(x.state.world.w,n>=9?1280:n>=5?1080:960);
+ assert.equal(x.state.world.h,n>=9?720:n>=5?608:540);
  assert.equal(x.round.rules.viewMode,'topdown');
- assert.ok(x.state.obstacles.length>=5,'map has distributed solid obstacles');
- assert.ok(x.state.obstacles.every(o=>art.KINDS.includes(o.kind)));
- assert.ok(x.state.obstacles.some(o=>o.kind==='coffin'),'cemetery map includes a coffin');
+ assert.ok(x.state.obstacles.length>=6,'solid corner plus cemetery obstacles');
+ assert.equal(x.state.obstacles[0].kind,'hud-blocker');
+ assert.equal(x.state.hudBlocker,x.state.obstacles[0]);
+ assert.ok(x.state.obstacles.slice(1).every(o=>art.KINDS.includes(o.kind)));
+ assert.ok(x.state.obstacles.some(o=>o.kind==='coffin'));
+ assert.ok(x.state.obstacles.slice(1).every(o=>o.x>0&&o.y>0));
  assert.equal(x.players.filter(p=>p.active&&!p.ghost).length,n);
  for(const p of x.players){
   assert.ok(p.x>0&&p.x<x.state.world.w&&p.y>0&&p.y<x.state.world.h);
   assert.equal(p.item,null);
+  const o=x.state.hudBlocker;
+  assert.ok(p.x>o.x+o.w||p.y>o.y+o.h,'no player spawns inside the HUD');
  }
+}
+{
+ // Even ghost movement cannot cross the physical corner HUD barrier.
+ const x=init(9),[p]=x.players,o=x.state.hudBlocker;
+ x.round.phase='playing';
+ x.state.npcs.forEach(n=>n.stun=999);
+ x.players.slice(1).forEach((q,i)=>{q.x=500+i*35;q.y=450;});
+ p.x=o.x+o.w+45;p.y=o.y+o.h/2;
+ p.input.axisX=-1;p.input.axisY=0;
+ for(let i=0;i<22;i++)ghost.update(.045,x.round,x.players);
+ assert.ok(p.x>=o.x+o.w+14,'human cannot cross solid HUD');
+ p.ghost=true;p.stun=0;p.x=o.x+o.w+45;
+ for(let i=0;i<22;i++)ghost.update(.045,x.round,x.players);
+ assert.ok(p.x>=o.x+o.w+14,'ghost cannot cross solid HUD');
 }
 assert.equal(ghost.constants.humanSpeed,172);
 assert.equal(ghost.constants.ghostSpeed,176,'ghosts were slowed from 184');
@@ -652,17 +670,14 @@ assert.equal(host.elements.get('roster').children[0].children[1].textContent,'�
 assert.equal(host.elements.get('roster').children[0].children[3].children[1].textContent,'GHOST ATTACK');
 assert.match(host.elements.get('roster').children[0].children[3].children[0].innerHTML,/<svg[\s>]/);
 host.click('startBtn');
-assert.equal(host.elements.get('gameMode').textContent,'GHOST ATTACK');
 assert.equal(host.elements.get('game').classList.contains('hidden'),false);
 assert.equal(host.scope.document.fullscreenElement,host.scope.document.documentElement);
-assert.equal(host.elements.get('timer').textContent,'รอผี');
 let rr=host.scope.window.__ghostTest.getRound();
 assert.equal(rr.phase,'countdown');assert.equal(rr.ghost.npcs.length,1);
 for(let i=0;i<245;i++)host.step(i*16.667);
 assert.equal(rr.ghost.ghostSpawned,true);
 assert.equal(rr.phase,'results','one-player practice has a winner after ghost spawn');
 assert.equal(rr.remaining,null,'there is no per-round time limit');
-assert.ok(/คน/.test(host.elements.get('timer').textContent));
 assert.equal(host.elements.get('leaderboard').children.length,1);
 assert.equal(host.elements.get('leaderboard').style['--leader-count'],'1');
 const matchPlayers=host.scope.window.__ghostTest.getPlayers();
@@ -670,15 +685,17 @@ matchPlayers[0].item='cloak';
 host.scope.window.__ghostTest.renderLeaderboard();
 let firstChip=host.elements.get('leaderboard').children[0];
 assert.equal(firstChip.children[1].textContent,matchPlayers[0].name);
-assert.equal(firstChip.children[2].className,'leader-held-icon');
-assert.equal(firstChip.children[2].textContent,'');
-assert.match(firstChip.children[2].innerHTML,/<svg[\s>]/);
-assert.equal(firstChip.children[2].title,'ผ้าคลุมล่องหน');
-assert.equal(firstChip.children[2].attributes['aria-label'],'ผ้าคลุมล่องหน');
+assert.equal(firstChip.children[2].textContent,'คน');
+assert.equal(firstChip.children[3].className,'leader-item-slot');
+assert.equal(firstChip.children[3].textContent,'');
+assert.match(firstChip.children[3].innerHTML,/<svg[\s>]/);
+assert.equal(firstChip.children[3].title,'ผ้าคลุมล่องหน');
+assert.equal(firstChip.children[3].attributes['aria-label'],'ผ้าคลุมล่องหน');
 matchPlayers[0].item=null;
 host.scope.window.__ghostTest.renderLeaderboard();
 firstChip=host.elements.get('leaderboard').children[0];
-assert.equal(firstChip.children.length,3,'item tag disappears after use');
+assert.equal(firstChip.children.length,4,'empty item keeps a stable visual row');
+assert.equal(firstChip.children[3].textContent,'—');
 
 const addedPlayers=mkPlayers(11).map((p,i)=>({...p,id:'extra-'+i,ghost:i%2===0}));
 matchPlayers.push(...addedPlayers);
@@ -688,10 +705,10 @@ assert.equal(host.elements.get('leaderboard').children.length,12);
 const busyItemChip=host.elements.get('leaderboard').children.find(chip=>
  chip.children[1].textContent===addedPlayers[1].name);
 assert.ok(busyItemChip,'held-item player remains visible after survivor/ghost sorting');
-assert.equal(busyItemChip.children[2].textContent,'');
-assert.match(busyItemChip.children[2].innerHTML,/<svg[\s>]/);
-assert.equal(busyItemChip.children[2].title,'บูสต์สปีด',
- 'full item label remains accessible in a tooltip');
+assert.equal(busyItemChip.children[2].textContent,'คน');
+assert.equal(busyItemChip.children[3].textContent,'');
+assert.match(busyItemChip.children[3].innerHTML,/<svg[\s>]/);
+assert.equal(busyItemChip.children[3].title,'บูสต์สปีด');
 assert.equal(host.elements.get('leaderboard').style['--leader-count'],'12',
   'twelve players use one fixed row instead of extending into the arena');
 matchPlayers.splice(-11);host.scope.window.__ghostTest.renderLeaderboard();
