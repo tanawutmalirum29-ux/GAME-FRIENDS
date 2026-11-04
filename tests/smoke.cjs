@@ -30,7 +30,7 @@ assert.match(html,/data-session-mode="quick"/);
 assert.match(html,/id="uiModal"/);
 assert.doesNotMatch(source,/\b(?:alert|confirm)\(/);
 assert.match(css,/#hostLobby #hostQueue\{display:none!important\}/);
-assert.match(css,/#hostLobby \.lobby-roster \.roster-item \.roster-pick\.picked\{[\s\S]*?display:inline-flex;/);
+assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?display:flex;/);
 // No duplicated HUD counters on canvas, no map description beneath the title.
 assert.doesNotMatch(html,/HUMANS LEFT|id="gameTitle"/);
 assert.match(html,/<div class="game-name"><span class="eyebrow" id="gameMode">GHOST ATTACK<\/span><\/div>/);
