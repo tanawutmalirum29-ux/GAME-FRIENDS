@@ -1,7 +1,29 @@
 (function graveyardArt(){
   'use strict';
   // Canvas scenes consume cached SVG images; sprites are not rebuilt per frame.
-  const KINDS=['headstone','broken','cross','obelisk','coffin','plaque','slab','grave'];
+  // Graveyard retains its established SVG sprites. Egyptian props are entirely
+  // separate so gameplay and the game's selection cover never change.
+  const GRAVEYARD_KINDS=['headstone','broken','cross','obelisk','coffin','plaque','slab','grave'];
+  const EGYPT_KINDS=['sarcophagus','egypt-obelisk','ankh-stele','sandstone-pillar',
+    'canopic-jar','pharaoh-bust','scarab-marker','broken-column'];
+  const THEMES=Object.freeze({
+    graveyard:Object.freeze({label:'สุสานผี',kinds:GRAVEYARD_KINDS}),
+    egypt:Object.freeze({label:'อียิปต์ฟาโรห์',kinds:EGYPT_KINDS})
+  });
+  const KINDS=[...GRAVEYARD_KINDS,...EGYPT_KINDS];
+  function kindsForTheme(theme){
+    return THEMES[theme]?.kinds||GRAVEYARD_KINDS;
+  }
+  function themeLabel(theme){
+    return THEMES[theme]?.label||THEMES.graveyard.label;
+  }
+  function pickTheme(previous='',rng=Math.random){
+    const pool=Object.keys(THEMES).filter(theme=>theme!==previous);
+    const choices=pool.length?pool:Object.keys(THEMES);
+    const n=Number(rng());
+    return choices[Math.min(choices.length-1,
+      Math.max(0,Math.floor((Number.isFinite(n)?n:0)*choices.length)))];
+  }
   const imageCache=new Map();
   const accent=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value):'#80dff2';
   function svg(inner){
@@ -75,6 +97,7 @@
   }
   function obstacleSVG(kind,variant=0){
     variant=Math.abs(Number(variant)||0)%3;
+    if(EGYPT_KINDS.includes(kind))return egyptObstacleSVG(kind,variant);
     const stone=['#889cab','#9ca9a9','#7e93a5'][variant];
     const dark=['#465a6b','#566b70','#475669'][variant];
     const edging='#172c3d';
@@ -176,6 +199,105 @@
       <path d="M24 37 Q28 29 39 28" fill="none" stroke="${moss}" stroke-width="5"/>
     `);
   }
+  function egyptObstacleSVG(kind,variant=0){
+    const sandstone=['#d6b477','#e5c98c','#bda06f'][variant];
+    const highlight=['#ffe5ab','#fff0be','#ecd39b'][variant];
+    const shade=['#936d40','#a67e47','#80623e'][variant];
+    const ink='#213f4b',gold='#f5cc6a',turquoise='#43bfb6';
+    const base='<ellipse cx="50" cy="93" rx="42" ry="5" fill="#281c19" opacity=".38"/>';
+    const defs=`<defs><linearGradient id="sand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="${highlight}"/>
+      <stop offset=".55" stop-color="${sandstone}"/>
+      <stop offset="1" stop-color="${shade}"/></linearGradient>
+      <linearGradient id="lapis" x1="0" y1="0" x2=".8" y2="1">
+      <stop offset="0" stop-color="#57c9bd"/>
+      <stop offset=".55" stop-color="#176f92"/>
+      <stop offset="1" stop-color="#132f61"/></linearGradient></defs>`;
+    const lines=`<path d="M37 60h26m-21 8h16m-22 7h28" stroke="${shade}"
+      stroke-width="3" stroke-linecap="round" opacity=".7"/>`;
+    if(kind==='sarcophagus')return svg(defs+base+`
+      <path d="M34 6 Q50 1 66 6 L79 24 L76 77 L66 91 H34 L24 77 L21 24Z"
+       fill="#583a29" stroke="#132d39" stroke-width="4"/>
+      <path d="M36 10 Q50 6 64 10 L73 27 L70 75 L63 85 H37 L30 75 L27 27Z"
+       fill="url(#sand)" stroke="${gold}" stroke-width="3"/>
+      <path d="M33 31 L40 16 L60 16 L67 31 L59 41 H41Z"
+       fill="url(#lapis)" stroke="${gold}" stroke-width="2.5"/>
+      <ellipse cx="50" cy="31" rx="10" ry="11" fill="#e2bd7b" stroke="#704f33" stroke-width="2"/>
+      <path d="M43 30h4m7 0h4m-12 8q4 3 8 0" stroke="${ink}" stroke-width="2"
+       fill="none" stroke-linecap="round"/>
+      <path d="M37 46l13 7 13-7m-25 15h24m-25 8h24m-18 8h16"
+       stroke="${turquoise}" stroke-width="3" fill="none"/>
+      <path d="M28 43l7 5m37-5l-7 5" stroke="${gold}" stroke-width="4"/>
+      `);
+    if(kind==='egypt-obelisk')return svg(defs+base+`
+      <path d="M50 5 L70 29 L67 83 H33 L30 29Z"
+        fill="url(#sand)" stroke="${ink}" stroke-width="4"/>
+      <path d="M50 5 V83 H67 L70 29Z" fill="${shade}" opacity=".27"/>
+      <path d="M41 37h18M41 48h18M41 59h18M45 69h10"
+        stroke="${ink}" stroke-width="2.5" opacity=".65"/>
+      <circle cx="50" cy="24" r="4" fill="${turquoise}" stroke="${gold}" stroke-width="2"/>
+      <path d="M25 83h50v10H25z" fill="${shade}" stroke="${ink}" stroke-width="3"/>
+      `);
+    if(kind==='ankh-stele')return svg(defs+base+`
+      <path d="M21 85 V31 Q22 11 50 9 Q78 11 79 31 V85Z"
+        fill="url(#sand)" stroke="${ink}" stroke-width="4"/>
+      <path d="M29 78 V32Q30 21 50 19Q70 21 71 32V78" fill="none"
+        stroke="${highlight}" stroke-width="3"/>
+      <ellipse cx="50" cy="39" rx="10" ry="13" fill="none" stroke="${ink}" stroke-width="4"/>
+      <path d="M50 51V73M35 59h30" stroke="${ink}" stroke-width="5"
+        stroke-linecap="round"/>
+      <path d="M26 79h48v10H26z" fill="${shade}" stroke="${ink}" stroke-width="2.5"/>
+      `);
+    if(kind==='sandstone-pillar')return svg(defs+base+`
+      <path d="M25 11h50l8 10H17Z" fill="${shade}" stroke="${ink}" stroke-width="3"/>
+      <path d="M31 21h38v61H31Z" fill="url(#sand)" stroke="${ink}" stroke-width="3"/>
+      <path d="M39 25v53m11-53v53m11-53v53" stroke="${shade}"
+        stroke-width="3" opacity=".55"/>
+      <path d="M22 82h56v11H22z" fill="${sandstone}" stroke="${ink}" stroke-width="3"/>
+      <path d="M21 12h58v8H21z" fill="${highlight}" stroke="${ink}" stroke-width="3"/>
+      <path d="M35 46h30m-30 9h30" stroke="${turquoise}" stroke-width="2.5"/>
+      `);
+    if(kind==='canopic-jar')return svg(defs+base+`
+      <path d="M29 34L26 68Q28 86 50 87Q72 86 74 68L71 34Z"
+        fill="url(#sand)" stroke="${ink}" stroke-width="4"/>
+      <path d="M29 37h42v9H29Z" fill="url(#lapis)" stroke="${gold}" stroke-width="2"/>
+      <path d="M34 25Q34 10 50 11Q66 10 66 25L75 35Q50 40 25 35Z"
+        fill="url(#sand)" stroke="${ink}" stroke-width="3"/>
+      <path d="M43 25h5m7 0h5" stroke="${ink}" stroke-width="3"/>
+      <path d="M34 56h32m-27 10h22" stroke="${turquoise}" stroke-width="3"/>
+      `);
+    if(kind==='pharaoh-bust')return svg(defs+base+`
+      <path d="M20 86l7-35 23-13 23 13 7 35Z" fill="url(#sand)"
+        stroke="${ink}" stroke-width="3.5"/>
+      <path d="M27 27l12-15 22 0 12 15 8 31-18-5-13-12-13 12-18 5Z"
+        fill="url(#lapis)" stroke="${gold}" stroke-width="3"/>
+      <path d="M40 25Q50 19 60 25L61 48L50 59L39 48Z"
+        fill="#e1b66e" stroke="${ink}" stroke-width="2"/>
+      <path d="M42 39h5m7 0h5m-12 9h7" stroke="${ink}" stroke-width="2.5"/>
+      <path d="M50 10v13" stroke="${gold}" stroke-width="5"/>
+      <path d="M26 65h48M27 76h46" stroke="${turquoise}" stroke-width="3"/>
+      <path d="M15 85h70v9H15Z" fill="${shade}" stroke="${ink}" stroke-width="3"/>
+      `);
+    if(kind==='scarab-marker')return svg(defs+base+`
+      <path d="M22 20L78 20L83 82H17Z" fill="url(#sand)"
+        stroke="${ink}" stroke-width="4" stroke-linejoin="round"/>
+      <ellipse cx="50" cy="51" rx="13" ry="18" fill="url(#lapis)"
+        stroke="${gold}" stroke-width="3"/>
+      <path d="M50 34v35M37 49l-13-10m13 19l-14 8m40-17l13-10m-13 19l14 8"
+        stroke="${ink}" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="50" cy="33" r="7" fill="${turquoise}" stroke="${gold}" stroke-width="2"/>
+      <path d="M18 82h64v11H18z" fill="${shade}" stroke="${ink}" stroke-width="3"/>
+      `);
+    return svg(defs+base+`
+      <path d="M30 36l10-23 35 4-5 67H30Z" fill="url(#sand)"
+        stroke="${ink}" stroke-width="4"/>
+      <path d="M23 65l20-14 20 9-10 24H25Z" fill="${sandstone}"
+        stroke="${ink}" stroke-width="3"/>
+      <path d="M45 26l11 12-8 14m13 16l-9 9" fill="none"
+        stroke="${shade}" stroke-width="3"/>
+      ${lines}
+      `);
+  }
   function getImage(key,content){
     if(typeof Image==='undefined')return null;
     if(!imageCache.has(key)){
@@ -197,10 +319,53 @@
     return getImage(`grave/${type}/${n}`,obstacleSVG(type,n));
   }
   function ready(img){return !!(img&&img.complete&&img.naturalWidth>0);}
-  function preload(players=[]){
-    for(const kind of KINDS)for(let v=0;v<3;v++)getObstacleImage(kind,v);
+  function preload(players=[],theme='graveyard'){
+    for(const kind of kindsForTheme(theme))
+      for(let v=0;v<3;v++)getObstacleImage(kind,v);
+    getLootImage(theme);
     getActorImage(true,'#e6f6ff','float0');
     for(const p of players)getActorImage(false,p.color,'idle');
+  }
+  function lootSVG(theme='graveyard'){
+    if(theme==='egypt')return svg(`
+      <defs><linearGradient id="chest" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffdc86"/><stop offset="1" stop-color="#9d6d30"/>
+      </linearGradient></defs>
+      <path d="M18 23L82 23L89 85L11 85Z" fill="#382c29" stroke="#102b39" stroke-width="7"/>
+      <path d="M20 24L80 24L85 80L15 80Z" fill="url(#chest)" stroke="#ffe39a" stroke-width="4"/>
+      <path d="M24 37H77M25 64H76" stroke="#13566f" stroke-width="7"/>
+      <path d="M50 30V73" stroke="#f7e6b4" stroke-width="4"/>
+      <ellipse cx="50" cy="53" rx="10" ry="12" fill="#176f8a" stroke="#ffe6a8" stroke-width="3"/>
+      <path d="M43 51L50 59L57 51" stroke="#fff4c9" stroke-width="3" fill="none"/>
+      <circle cx="50" cy="49" r="2" fill="#fff4c9"/>
+      `);
+    return svg(`
+      <path d="M18 20H82L88 83H12Z" fill="#5b3d24" stroke="#222a30" stroke-width="6"/>
+      <path d="M20 22H80L84 80H16Z" fill="#ad7c44" stroke="#f4d59a" stroke-width="4"/>
+      <path d="M22 41H78M46 24V79M24 68H78" stroke="#774c29" stroke-width="6"/>
+      <path d="M44 53Q41 45 50 44Q59 45 56 53L51 60V64"
+        stroke="#fff1bd" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <circle cx="51" cy="73" r="3" fill="#fff1bd"/>
+      `);
+  }
+  function getLootImage(theme='graveyard'){
+    const safe=THEMES[theme]?theme:'graveyard';
+    return getImage('loot/'+safe,lootSVG(safe));
+  }
+  function drawLootBox(ctx,box,t,theme='graveyard'){
+    const img=getLootImage(theme);
+    ctx.save();ctx.translate(box.x,box.y);ctx.rotate(Math.sin(t*2+box.x)*.06);
+    ctx.shadowColor=theme==='egypt'?'#f5c86a':'#e9cf84';
+    ctx.shadowBlur=12;
+    if(ready(img))ctx.drawImage(img,-17,-17,34,34);
+    else{
+      ctx.fillStyle=theme==='egypt'?'#e1bb6f':'#ae824c';
+      ctx.strokeStyle='#fff0bd';ctx.lineWidth=2;
+      ctx.fillRect(-14,-14,28,28);ctx.strokeRect(-14,-14,28,28);
+      ctx.fillStyle='#173c50';ctx.font='bold 18px system-ui';
+      ctx.textAlign='center';ctx.fillText('?',0,6);
+    }
+    ctx.restore();
   }
   function drawActor(ctx,p,color,isGhost,time){
     const movement=Math.hypot(p.vx||0,p.vy||0);
@@ -235,6 +400,8 @@
     }
     ctx.restore();
   }
-  window.GhostCemeteryArt=Object.freeze({KINDS,actorSVG,obstacleSVG,
-    getActorImage,getObstacleImage,drawActor,drawObstacle,preload});
+  window.GhostCemeteryArt=Object.freeze({KINDS,THEMES,GRAVEYARD_KINDS,
+    EGYPT_KINDS,kindsForTheme,themeLabel,pickTheme,actorSVG,obstacleSVG,
+    lootSVG,getLootImage,drawLootBox,getActorImage,getObstacleImage,
+    drawActor,drawObstacle,preload});
 })();
