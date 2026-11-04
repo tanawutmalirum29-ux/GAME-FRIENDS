@@ -782,6 +782,9 @@ assert.equal(rr.remaining,null,'there is no per-round time limit');
 assert.equal(host.elements.get('leaderboard').children.length,1);
 assert.equal(host.elements.get('leaderboard').style['--leader-count'],'1');
 const matchPlayers=host.scope.window.__ghostTest.getPlayers();
+// This UI assertion tests a human carrying an item, independent of the
+// single-player AI round outcome (which may have converted the player).
+matchPlayers[0].ghost=false;matchPlayers[0].stun=0;
 matchPlayers[0].item='cloak';
 host.scope.window.__ghostTest.renderLeaderboard();
 let firstChip=host.elements.get('leaderboard').children[0];
