@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="./style.css">
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script defer src="./minigames.js"></script>
   <script defer src="./app.js"></script>
 </head>
 <body>
@@ -24,7 +25,7 @@
         <div class="eyebrow"><span class="sparkle">✦</span> PARTY GAME • PLAY TOGETHER</div>
         <h1>รวมแก๊งแล้ว<br><em>ลุยให้สุด!</em></h1>
         <p>เปลี่ยนมือถือให้เป็นจอย เล่นพร้อมกันบนจอเดียว หรือเปิดจอยบนหน้าจอได้ทันที ไม่ต้องลงแอป</p>
-        <div class="feature-tags"><span>2–12 ผู้เล่น</span><span>3 มินิเกม</span><span>มือถือเป็นจอย</span><span>QR เข้าร่วม</span></div>
+        <div class="feature-tags"><span>2–12 ผู้เล่น</span><span>7 มินิเกม</span><span>มือถือเป็นจอย</span><span>QR เข้าร่วม</span></div>
         <div class="stick-display" aria-hidden="true"><div class="stick-figure pink"><i></i><b></b></div><div class="stick-figure cyan"><i></i><b></b></div><div class="stick-figure yellow"><i></i><b></b></div><div class="stick-figure purple"><i></i><b></b></div><div class="floor-line"></div></div>
       </section>
 
@@ -35,7 +36,13 @@
           <option value="stars">⭐ STAR RUSH — วิ่งเก็บดาว</option>
           <option value="brawl">🥊 BRAWL — ต่อยแย่งคะแนน</option>
           <option value="lava">🌋 LAVA RUN — หนีลาวา</option>
+          <option value="tanks">TANK BLAST — รถถังยิงกัน (มุมบน)</option>
+          <option value="soccer">FOOTBALL — ฟุตบอลแบ่งทีม (มุมบน)</option>
+          <option value="rally">MICRO RALLY — รถแข่งผ่านจุดตรวจ (มุมบน)</option>
+          <option value="paint">COLOR CLASH — ยึดพื้นที่ (มุมบน)</option>
         </select>
+        <label for="sessionMode">รูปแบบการแข่งขัน</label>
+        <select id="sessionMode"><option value="quick">QUICK GAME — เล่นทีละเกม</option><option value="tournament">TOURNAMENT — แข่ง 5 เกม สะสมคะแนน</option></select>
         <label for="duration">เวลาต่อรอบ</label>
         <select id="duration"><option value="60">60 วินาที</option><option value="90">90 วินาที</option><option value="45">45 วินาที</option></select>
         <div class="button-group">
@@ -61,7 +68,7 @@
       <div class="game-toolbar"><div><span class="eyebrow" id="gameMode">STAR RUSH</span><h2 id="gameTitle">เกมเริ่มแล้ว!</h2></div><div class="timer-box"><span>TIME LEFT</span><strong id="timer">01:00</strong></div><button id="exitBtn" class="btn btn-outline">กลับล็อบบี้</button></div>
       <div class="game-frame"><canvas id="arena" width="960" height="540" aria-label="สนามแข่งขัน"></canvas><div id="gameBanner" class="game-banner">เตรียมพร้อม!</div></div>
       <div id="leaderboard" class="leaderboard"></div>
-      <div class="pad-section"><div class="pad-heading"><h3>จอยบนหน้าจอ</h3><span>แตะค้างเพื่อบังคับ • คีย์บอร์ด P1: A D W Space, P2: ← → ↑ Enter</span></div><div id="localPads" class="local-pads"></div></div>
+      <div class="pad-section"><div class="pad-heading"><h3>จอยบนหน้าจอ</h3><span>กดค้างได้ • P1: WASD + Space • P2: ลูกศร + Enter</span></div><div id="localPads" class="local-pads"></div></div>
       <div id="results" class="result-overlay hidden"><div class="result-card"><div class="eyebrow">ROUND FINISHED</div><h2>จบเกม!</h2><div id="resultList"></div><button id="replayBtn" class="btn btn-primary">เล่นอีกครั้ง</button><button id="backBtn" class="btn btn-outline">กลับล็อบบี้</button></div></div>
     </main>
 
@@ -70,8 +77,8 @@
       <section id="joinForm" class="panel join-panel"><label for="nick">ชื่อของคุณ</label><input id="nick" maxlength="14" placeholder="กรอกชื่อเล่น" autocomplete="nickname"><button id="joinBtn" class="btn btn-primary">เข้าร่วมห้อง <span>↗</span></button><p class="hint" id="joinMessage">กดเข้าร่วมเพื่อเชื่อมต่อกับจอเกม</p></section>
       <section id="controllerActive" class="controller-active hidden">
         <div class="player-card"><div id="controllerAvatar" class="player-avatar"></div><div><small>PLAYER CONNECTED</small><strong id="controllerName">ผู้เล่น</strong><p id="controllerState">กำลังรอเจ้าของห้องเริ่มเกม</p></div></div>
-        <div class="controller-buttons"><div class="direction-pad"><button data-control="left" class="control-btn movement" aria-label="ซ้าย">◀</button><button data-control="right" class="control-btn movement" aria-label="ขวา">▶</button></div><div class="action-pad"><button data-control="jump" class="control-btn jump-btn">JUMP<span>กระโดด</span></button><button data-control="action" class="control-btn attack-btn">HIT<span>โจมตี / พุ่ง</span></button></div></div>
-        <p class="controller-help">กดค้างที่ปุ่มเพื่อควบคุม ปุ่ม HIT ใช้ต่อยในโหมดต่อสู้ หรือพุ่งตัวในโหมดอื่น</p>
+        <div class="controller-buttons"><div class="direction-pad"><button data-control="left" class="control-btn movement" aria-label="ซ้าย">◀</button><button data-control="right" class="control-btn movement" aria-label="ขวา">▶</button><button data-control="jump" class="control-btn jump-btn" aria-label="ขึ้น">▲</button><button data-control="down" class="control-btn jump-btn" aria-label="ลง">▼</button></div><div class="action-pad"><button data-control="action" class="control-btn attack-btn">HIT<span id="actionLabel">ยิง / เตะ / บูสต์</span></button></div></div>
+        <p id="controllerHelp" class="controller-help">ปุ่ม ▲ คือกระโดดในเกมด้านข้าง และเคลื่อนที่ขึ้นในเกมมุมบน • HIT ใช้ตามประเภทเกม</p>
         <button id="leaveBtn" class="leave-link">ออกจากห้อง</button>
       </section>
     </main>
