@@ -3178,3 +3178,25 @@ body.host-playing #game .leader-chip span.leader-empty-item{
     right:clamp(75px,8dvh,100px);
   }
 }
+
+/* CHICKENS: phone buttons adapt only while the chicken round is live. */
+#controller #controllerActive .controller-buttons.chickens-mode .face-b,
+#controller #controllerActive .controller-buttons.chickens-mode .target-cycle-controls{
+  display:none!important;
+}
+#controller #controllerActive .controller-buttons.chickens-mode .gamepad-face-buttons{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+}
+#controller #controllerActive .controller-buttons.chickens-mode .face-a{
+  order:0!important;margin:0!important;position:relative!important;top:auto!important;right:auto!important;left:auto!important;bottom:auto!important;
+}
+#controller #controllerActive .controller-buttons.chickens-mode .face-a .face-button{
+  box-shadow:0 0 0 3px #ffc86244;
+}
+body.host-playing #game .leader-chip.chicken-leader .leader-role{
+  color:#ffdf79;font-weight:800;text-align:center;
+}
+body.host-playing #game .leader-chip.chicken-leader .leader-item-slot{
+  font-size:clamp(8px,.8vw,11px);color:#e3f9e7;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#phoneGameChoices .phone-game-choice[data-pick="chickens"] .mode-cover-svg{display:block;}
