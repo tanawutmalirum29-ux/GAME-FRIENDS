@@ -16,8 +16,7 @@ function pickUnusedColor(){
   lastAssignedColor = color;
   return color;
 }
-const MODES = { stars:'STAR RUSH', brawl:'BRAWL ARENA', lava:'LAVA RUN', tanks:'TANK BLAST',soccer:'FOOTBALL',rally:'MICRO RALLY',paint:'COLOR CLASH' };
-const TOPDOWN = ['tanks','soccer','rally','paint'];
+const MODES = {ghost:'GHOST ATTACK'};
 // The match list is nominated by phone players rather than a fixed tournament deck.
 let tournament=null;
 const KEYS = [
@@ -25,13 +24,8 @@ const KEYS = [
   {left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',down:'ArrowDown',action:'Enter',alt:'ShiftRight'}
 ];
 const INPUT_NAMES = ['left','right','jump','down','action','alt'];
-const WORLD = {w:960,h:540,ground:470,gravity:1050};
-const platforms = [
-  {x:90,y:376,w:185,h:14}, {x:393,y:326,w:180,h:14}, {x:684,y:376,w:185,h:14},
-  {x:255,y:245,w:155,h:14}, {x:555,y:245,w:155,h:14}
-];
 let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPeer=null, controllerConn=null;
-let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0;
+let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0, inventoryClock=0;
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let disconnectRequested=false;
 const canvas=$('arena'), g=canvas.getContext('2d');
@@ -103,10 +97,10 @@ function makePlayer(name,type,conn) {
   if(players.length>=MAX_PLAYERS)return null;
   const color=pickUnusedColor();
   if(!color)return null;
-  const p={id:'p'+nextId++,name:cleanName(name),type:type,color,conn:conn||null,
-    input:blankInput(),x:480,y:WORLD.ground,vx:0,vy:0,grounded:true,face:1,
-    hp:3,score:0,total:0,choice:type==='local'?'stars':null,
-    alive:true,active:false,invulnerable:0,cooldown:0,dash:0,attack:0,latch:false,respawn:0};
+  const p={id:'p'+nextId++,name:cleanName(name),type,color,conn:conn||null,
+    input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,score:0,total:0,
+    choice:type==='local'?'ghost':null,
+    ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false};
   players.push(p);renderRoster();return p;
 }
 function removePlayer(id) {
@@ -231,7 +225,7 @@ function broadcastGamePreview(){
 function networkPhase(){return round?(round.paused?'paused':round.phase):'lobby';}
 function broadcastRoster(){
   broadcast({t:'roster',players:players.map(playerPublic),phase:networkPhase(),
-    mode:round?round.mode:'stars',selectionOpen:!round});
+    mode:round?round.mode:'ghost',selectionOpen:!round});
 }
 function nominatedGames(){
   return players.map(p=>p.choice).filter(mode=>Object.hasOwn(MODES,mode));
@@ -245,6 +239,16 @@ function updateHostQueue(){
     'เลือกแล้ว '+picks.length+'/'+players.length+' คน • '+
       (waiting?'รออีก '+waiting+' คน':'พร้อมสุ่มเล่น '+picks.length+' รอบ (รวมเกมซ้ำ)');
   $('hostQueue').title=$('hostQueue').textContent;
+}
+function sendPlayerInventory(conn){
+  if(!conn||!conn.playerId||!round)return;
+  const p=players.find(q=>q.id===conn.playerId);
+  if(!p)return;
+  const info=window.GhostAttack.itemStatus(players).find(q=>q.id===p.id);
+  if(info)send(conn,{t:'inventory',...info});
+}
+function broadcastPlayerInventories(){
+  for(const conn of hostConnections)sendPlayerInventory(conn);
 }
 function renderPauseChoiceList(){
   const box=$('gameChoiceList');box.replaceChildren();
@@ -334,7 +338,7 @@ function startHost(retries=0){
         if(!p)return;
         conn.playerId=p.id;p.lastInputAt=Date.now();
         if(round&&round.phase!=='results')p.active=false;
-        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'stars',phase:networkPhase(),choice:p.choice});
+        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice});
         broadcastRoster();
       }else if(msg.t==='video-ready'&&conn.playerId){
         if(msg.quality===conn.videoQuality)conn.videoReady=true;
@@ -351,6 +355,12 @@ function startHost(retries=0){
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!p||p.choice===msg.mode)return;
         p.choice=msg.mode;renderRoster();broadcastRoster();
+      }else if(msg.t==='target-cycle'&&conn.playerId){
+        if(!round||round.phase!=='playing'||round.paused)return;
+        if(msg.direction!==1&&msg.direction!==-1)return;
+        const p=players.find(q=>q.id===conn.playerId&&q.conn===conn);
+        if(p&&window.GhostAttack.cycleTarget(round.ghost,players,p,msg.direction))
+          sendPlayerInventory(conn);
       }else if(msg.t==='input'&&conn.playerId){
         if(round&&round.paused)return;
         const p=players.find(p=>p.id===conn.playerId);
