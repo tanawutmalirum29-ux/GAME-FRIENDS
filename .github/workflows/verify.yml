@@ -1,0 +1,28 @@
+name: Verify static game
+on:
+  push:
+    branches: [main, feat/stick-squad-party]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: node --check app.js
+      - name: HTML-to-JavaScript references
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const html=fs.readFileSync('index.html','utf8');
+          const js=fs.readFileSync('app.js','utf8');
+          const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]));
+          const used=[...js.matchAll(/\$\('([^']+)'\)/g)].map(x=>x[1]);
+          const missing=[...new Set(used.filter(id=>!ids.has(id)))];
+          if(missing.length){console.error('Missing HTML IDs:',missing.join(', '));process.exit(1);}
+          for(const file of ['style.css','amplify.yml','README.md'])if(!fs.existsSync(file))throw Error('Missing '+file);
+          console.log('Checked '+used.length+' ID references and static game assets');
+          NODE
