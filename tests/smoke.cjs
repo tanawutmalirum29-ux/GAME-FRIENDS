@@ -673,7 +673,7 @@ function setup(url='https://game.example/?host=1',portrait=false) {
   const makeElement=(id='')=>{
     const handlers={},classes=new Set();
     return {
-      id,style:{setProperty(name,value){this[name]=value;}},dataset:{},children:[],value:'',textContent:'',disabled:false,
+      id,style:{setProperty(name,value){this[name]=value;},removeProperty(name){delete this[name];}},dataset:{},children:[],value:'',textContent:'',disabled:false,
       classList:{
         add(c){classes.add(c);},remove(c){classes.delete(c);},
         toggle(c,flag){if(flag===undefined? !classes.has(c):flag)classes.add(c);else classes.delete(c);},
@@ -686,7 +686,12 @@ function setup(url='https://game.example/?host=1',portrait=false) {
       prepend(item){this.children.unshift(item);},
       setAttribute(name,value){this.attributes??={};this.attributes[name]=value;if(name==='content')this.content=value;},
       select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
-      getContext(){return context;},
+      querySelector(selector){
+         const key=id+'|'+selector;
+         if(!elements.has(key))elements.set(key,makeElement(key));
+         return elements.get(key);
+       },
+       getContext(){return context;},
       captureStream(...args){
         assert.equal(args.length,0,'quality must not set captureStream frameRate');
         return {
