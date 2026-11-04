@@ -489,6 +489,16 @@ async function requestLandscape(){
 let releaseStick=()=>{};
 function bindAnalogStick(zone,base,knob,target){
   let pointerId=null,originX=0,originY=0;
+  const hintStorageKey='gf-joystick-hint-seen-v1';
+  let hintDismissed=false;
+  try{hintDismissed=window.localStorage.getItem(hintStorageKey)==='1';}catch(_){}
+  if(hintDismissed)zone.classList.add('hint-dismissed');
+  const dismissHint=()=>{
+    if(hintDismissed)return;
+    hintDismissed=true;
+    zone.classList.add('hint-dismissed');
+    try{window.localStorage.setItem(hintStorageKey,'1');}catch(_){}
+  };
   const rotated=()=>document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
   const reset=()=>{
     pointerId=null;originX=0;originY=0;
@@ -517,6 +527,7 @@ function bindAnalogStick(zone,base,knob,target){
   zone.addEventListener('pointerdown',e=>{
     if(pointerId!==null||!controllerReady)return;
     e.preventDefault();
+    dismissHint();
     pointerId=e.pointerId;
     originX=e.clientX;originY=e.clientY;
     // Place the visual ring exactly under the finger in LOCAL UI coordinates,
