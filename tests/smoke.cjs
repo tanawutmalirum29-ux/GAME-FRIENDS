@@ -23,7 +23,7 @@ assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
 assert.match(source,/const MODES = \{ghost:'GHOST ATTACK'\}/);
-assert.match(source,/const MAX_PLAYERS = 24;/);
+assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
 assert.match(html,/data-session-mode="quick"/);
@@ -101,11 +101,11 @@ const mkPlayers=n=>Array.from({length:n},(_,i)=>({
 }));
 const init=n=>{const players=mkPlayers(n),round={mode:'ghost',phase:'countdown'};
  ghost.setup(round,players);return {round,players,state:round.ghost};};
-for(const n of [1,4,6,7,8,12,13,18,19,24]){
- const x=init(n),tier=Math.ceil(n/6);
- assert.equal(x.state.npcs.length,tier,'1 AI ghost per 6 players');
- assert.equal(x.state.world.w,960+Math.max(0,tier-2)*192);
- assert.equal(x.state.world.h,540+Math.max(0,tier-2)*108);
+for(const n of [1,4,6,7,8,12]){
+ const x=init(n),tier=n<=6?1:2;
+ assert.equal(x.state.npcs.length,tier,'one ghost for 1-6, two for 7-12');
+ assert.equal(x.state.world.w,960);
+ assert.equal(x.state.world.h,540);
  assert.equal(x.round.rules.viewMode,'topdown');
  assert.ok(x.state.obstacles.length>=5,'map has distributed solid obstacles');
  assert.equal(x.players.filter(p=>p.active&&!p.ghost).length,n);
@@ -582,22 +582,29 @@ online.click('exitBtn');
 assert.equal(online.elements.get('hostLobby').classList.contains('hidden'),false);
 assert.equal(online.scope.document.fullscreenExits,0);
 
-// Expanded rooms actually accept 24 people and wrap the top HUD to 2 rows.
+// Twelve is the HARD CAP. The large empty lobby panel is filled by its cards,
+// without adding extra players and without changing Ghost Attack's ghost tiers.
 const bigRoom=setup();
 bigRoom.click('offlineBtn');
-for(let i=0;i<22;i++)bigRoom.click('addLocalBtn');
-assert.equal(bigRoom.scope.window.__ghostTest.getPlayers().length,24);
-assert.equal(bigRoom.elements.get('rosterCount').textContent,'24/24');
+for(let i=0;i<10;i++)bigRoom.click('addLocalBtn');
+assert.equal(bigRoom.scope.window.__ghostTest.getPlayers().length,12);
+assert.equal(bigRoom.elements.get('rosterCount').textContent,'12/12');
 assert.equal(bigRoom.elements.get('addLocalBtn').disabled,true);
-assert.equal(new Set(bigRoom.scope.window.__ghostTest.getPlayers().map(p=>p.color)).size,24);
+bigRoom.click('addLocalBtn');
+assert.equal(bigRoom.scope.window.__ghostTest.getPlayers().length,12,'cannot add player thirteen');
+assert.equal(new Set(bigRoom.scope.window.__ghostTest.getPlayers().map(p=>p.color)).size,12);
 assert.equal(bigRoom.scope.window.__ghostTest.getPlayers().every(p=>p.isBot),true);
+assert.equal(bigRoom.elements.get('roster').style['--roster-rows'],'4');
 bigRoom.sessionButtons[1].fire('click');
 assert.equal(bigRoom.sessionButtons[1].classList.contains('active'),true);
 bigRoom.sessionButtons[0].fire('click');
 bigRoom.click('startBtn');
-assert.equal(bigRoom.scope.window.__ghostTest.getRound().ghost.npcs.length,4);
-assert.equal(bigRoom.elements.get('leaderboard').style['--leader-rows'],'2');
+assert.equal(bigRoom.scope.window.__ghostTest.getRound().ghost.npcs.length,2);
+assert.equal(bigRoom.elements.get('leaderboard').style['--leader-rows'],'1');
 assert.equal(bigRoom.elements.get('leaderboard').style['--leader-cols'],'12');
+assert.match(css,/#hostLobby \.lobby-roster\{[\s\S]*?grid-template-rows:repeat\(var\(--roster-rows,4\),minmax\(0,1fr\)\)/);
+assert.match(css,/#hostLobby \.lobby-roster \.roster-item\{[\s\S]*?grid-template-rows:auto minmax\(0,1fr\)/);
+assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?height:100%/);
 
 // Closing an online room displays an in-app dialog; cancellation keeps peers.
 const confirmHost=setup();
@@ -669,4 +676,4 @@ assert.equal(phone.elements.get('controllerInventory').classList.contains('hidde
 phone.click('leaveBtn');phone.click('confirmLeaveBtn');
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
 assert.equal(phone.scope.window.location.search,'?controller=1');
-console.log('SMOKE PASS: 24-player rooms, tactical bots, SVG covers, async confirmations, QR, WebRTC');
+console.log('SMOKE PASS: 12-player cap and spacious roster, tactical bots, SVG covers, async confirmations, QR, WebRTC');

@@ -80,11 +80,9 @@ function resetPlayer(p,pos){
 function setup(round,players){
   preloadItemIcons();
   // The map stays compact for 1-12 humans; only the AI-ghost count scales.
-  // A maximum of 24 players; one AI ghost per 6. Keep the first 12
-  // inside the original 960x540 arena and scale moderately above that.
-  const tier=Math.max(1,Math.ceil(players.length/6));
-  const world={w:960+Math.max(0,tier-2)*192,
-    h:540+Math.max(0,tier-2)*108};
+  // Exactly 12 player slots maximum, one ghost for 1-6 and two for 7-12.
+  const tier=players.length<=6?1:2;
+  const world={w:960,h:540};
   round.rules={...(round.rules||{}),viewMode:round.rules?.viewMode||'topdown'};
   const obstacles=makeObstacles(world,tier);
   const center={x:world.w/2,y:world.h/2};
@@ -103,7 +101,7 @@ function setup(round,players){
       targetId:null,lockUntil:0,stun:0};
   });
   round.ghost={world,obstacles,npcs,boxes:[],traps:[],time:0,
-    boxClock:4.5,maxBoxes:Math.min(6,tier+1),
+    boxClock:4.5,maxBoxes:tier===1?2:3,
     winnerId:null,converted:[],lastHumanId:null,ghostSpawned:false};
   round.phase='countdown';round.countdown=3;
 }

@@ -2,8 +2,8 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const MAX_PLAYERS = 24;
-const COLORS = ['#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0','#ff9b64','#7fb4ff','#f283e9','#e5ed78','#83e1c8','#f8a9b6','#c4aafa','#f36f6c','#39caa4','#ffdd40','#826bff','#57baee','#e777d5','#b2d858','#ffae84','#7d9bff','#58ddc7','#e79c5c','#d5a1f7'];
+const MAX_PLAYERS = 12;
+const COLORS = ['#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0','#ff9b64','#7fb4ff','#f283e9','#e5ed78','#83e1c8','#f8a9b6','#c4aafa'];
 let lastAssignedColor = null;
 function pickUnusedColor(){
   // Assign randomly, but never repeat another player's color in this room.
@@ -322,7 +322,11 @@ function renderPauseChoiceList(){
 function renderRoster(){
   const el=$('roster');el.replaceChildren();
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
-  el.style.setProperty('--roster-count',String(Math.max(1,players.length)));
+  // Three full-width columns; rows expand evenly to consume all unused space.
+  // Keep 12 as the room CAP, not a reason to squeeze 12 cards into a corner.
+  const columns=window.matchMedia?.('(orientation:portrait) and (max-width:720px)')?.matches?2:3;
+  el.style.setProperty('--roster-cols',String(columns));
+  el.style.setProperty('--roster-rows',String(Math.max(1,Math.ceil(players.length/columns))));
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
   $('startBtn').disabled=players.length<1||nominatedGames().length!==players.length;
   updateHostQueue();
@@ -1090,11 +1094,10 @@ function endRound(){
 function renderLeaderboard(){
   const root=$('leaderboard');root.replaceChildren();
   const active=round?players.filter(p=>p.active):[];
-  // One compact top-header row, even with twelve players. The CSS grid uses
-  // the actual count to prevent flex wrapping down across the playfield.
+  // The game HUD keeps all 12 players in one compact row above the arena.
   root.style.setProperty('--leader-count',String(Math.max(1,active.length)));
-  root.style.setProperty('--leader-cols',String(Math.min(12,Math.max(1,active.length))));
-  root.style.setProperty('--leader-rows',String(active.length>12?2:1));
+  root.style.setProperty('--leader-cols',String(Math.max(1,active.length)));
+  root.style.setProperty('--leader-rows','1');
   if(!round)return;
   active.sort((a,b)=>Number(a.ghost)-Number(b.ghost)).forEach(p=>{
     const box=document.createElement('div');box.className='leader-chip';

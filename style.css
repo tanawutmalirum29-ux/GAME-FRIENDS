@@ -2704,46 +2704,146 @@ body.controller-playing #controller #controllerActive .controller-buttons.is-pic
   }
 }
 
-/* Expanded 24-person roster: spread cards across the otherwise empty lobby. */
+/* Twelve players only: each card grows to fill the full roster panel.
+   3 columns x 4 rows on wide displays; 2 x 6 on narrow portrait phones.
+   Do not cap card height or align all entries at the top of the panel. */
+#hostLobby .lobby-player-panel{
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
 #hostLobby .lobby-roster{
- display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
- grid-template-rows:none;grid-auto-flow:row;
- grid-auto-rows:clamp(33px,6.4dvh,60px);
- align-content:space-evenly;align-items:stretch;
- gap:clamp(3px,.6dvh,7px);min-height:0;
- overflow:auto!important;scrollbar-width:thin;
+  display:grid;
+  flex:1 1 0;
+  min-height:0;
+  height:auto;
+  max-height:none;
+  width:100%;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:repeat(var(--roster-rows,4),minmax(0,1fr));
+  grid-auto-rows:minmax(0,1fr);
+  grid-auto-flow:row;
+  align-content:stretch;
+  align-items:stretch;
+  justify-content:stretch;
+  gap:clamp(5px,.85dvh,12px);
+  overflow:hidden!important;
 }
 #hostLobby .lobby-roster .roster-item{
- grid-template-columns:10px minmax(0,1fr) minmax(0,1.1fr) 21px;
- gap:3px;min-height:0;padding:3px 5px;
+  display:grid;
+  grid-template-columns:clamp(9px,1vw,14px) minmax(0,1fr) clamp(21px,2vw,27px);
+  grid-template-rows:auto minmax(0,1fr);
+  align-items:center;
+  gap:clamp(5px,.75dvh,10px) clamp(5px,.7vw,10px);
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+  padding:clamp(7px,1.15vw,16px);
+  border-radius:clamp(9px,1vw,14px);
+  border:1px solid #42617f;
+  background:linear-gradient(155deg,#162943,#0f1e34);
+  box-sizing:border-box;
+  overflow:hidden;
 }
-#hostLobby .lobby-roster .roster-item b{font-size:clamp(10px,.95vw,14px)}
+#hostLobby .lobby-roster .roster-item .swatch{
+  grid-column:1;grid-row:1;
+  align-self:center;
+  width:clamp(9px,1vw,14px);
+  height:clamp(9px,1vw,14px);
+  min-width:0;
+  border-radius:50%;
+}
+#hostLobby .lobby-roster .roster-item b{
+  grid-column:2;grid-row:1;
+  display:block;
+  min-width:0;
+  width:100%;
+  font-size:clamp(12px,1.2vw,18px);
+  line-height:1.25;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#hostLobby .lobby-roster .roster-item small{display:none}
+#hostLobby .lobby-roster .roster-item button{
+  grid-column:3;grid-row:1;
+  width:clamp(21px,2vw,27px);
+  height:clamp(21px,2vw,27px);
+  min-width:0;min-height:0;
+  justify-self:end;
+  padding:0;
+  font-size:clamp(15px,1.35vw,19px);
+}
+#hostLobby .lobby-roster .roster-pick{
+  grid-column:1/-1;grid-row:2;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  min-width:0;
+  width:100%;
+  height:100%;
+  max-height:none;
+  padding:clamp(5px,.65vw,10px);
+  gap:clamp(6px,.8vw,12px);
+  border-radius:8px;
+  white-space:normal;
+  overflow:hidden;
+}
 #hostLobby .lobby-roster .roster-pick.picked{
- display:inline-flex;align-items:center;gap:5px;
- min-width:0;width:100%;max-width:100%;padding:3px 4px;
+  display:flex;
+  align-items:center;
+  gap:clamp(6px,.8vw,12px);
+  min-width:0;
+  width:100%;
+  height:100%;
 }
 #hostLobby .lobby-roster .mode-cover{
- width:clamp(22px,2.8vw,43px);height:clamp(18px,2.2vw,28px);
- flex:0 0 clamp(22px,2.8vw,43px);
+  display:inline-flex;
+  flex:0 0 clamp(52px,6vw,96px);
+  width:clamp(52px,6vw,96px);
+  height:clamp(34px,4.1vw,62px);
 }
 .mode-cover{
- display:inline-flex;align-items:center;justify-content:center;
- flex:0 0 auto;overflow:hidden;border:1px solid #78d8edaa;
- border-radius:6px;background:#0b2638;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+  overflow:hidden;
+  border:1px solid #78d8edaa;
+  border-radius:6px;
+  background:#0b2638;
 }
 .mode-cover .mode-cover-svg{display:block;width:100%;height:100%;object-fit:contain}
-.mode-choice-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:900}
-@media(max-width:950px){
- #hostLobby .lobby-roster{grid-template-columns:repeat(3,minmax(0,1fr))}
+.mode-choice-title{
+  min-width:0;
+  font-weight:900;
+  white-space:normal;
+  overflow-wrap:normal;
+  overflow:hidden;
+  text-overflow:clip;
+  line-height:1.25;
 }
-@media(orientation:portrait) and (max-width:720px){
- #hostLobby .lobby-roster{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:clamp(25px,4dvh,39px)}
- #hostLobby .lobby-roster .roster-item{grid-template-columns:8px minmax(0,1fr) 17px;gap:2px}
- #hostLobby .lobby-roster .roster-item .roster-pick{display:none}
- #hostLobby .lobby-roster .roster-item b{font-size:clamp(9px,2vw,12px)}
+#hostLobby .lobby-roster .mode-choice-title{
+  font-size:clamp(11px,1.05vw,16px);
 }
 @media(orientation:landscape) and (max-height:520px){
- #hostLobby .lobby-roster{grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:clamp(26px,5.2dvh,39px)}
+  #hostLobby .lobby-roster{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:4px;
+  }
+  #hostLobby .lobby-roster .roster-item{
+    padding:4px 7px;
+    row-gap:3px;
+  }
+  #hostLobby .lobby-roster .mode-cover{
+    width:clamp(34px,4vw,54px);
+    height:clamp(24px,3vw,38px);
+    flex-basis:clamp(34px,4vw,54px);
+  }
+  #hostLobby .lobby-roster .roster-item b{font-size:clamp(10px,1.05vw,13px)}
+  #hostLobby .lobby-roster .mode-choice-title{font-size:clamp(9px,.9vw,12px)}
 }
 body.host-playing #game .game-name{
  left:max(9px,env(safe-area-inset-left,0px));
@@ -2822,26 +2922,31 @@ body.controller-playing #controllerActive #phoneGameChoices .phone-game-choice .
 .ui-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .ui-modal-actions .btn{min-width:0;min-height:44px}
 
-/* Portrait phones still show each selected game's SVG + name. The list
-   scrolls INSIDE its panel if 24 entries cannot fit at a readable size. */
+/* Keep the complete SVG and game name on a portrait phone as well.
+   Two columns use six equally tall rows for twelve players. */
 @media(orientation:portrait) and (max-width:720px){
   #hostLobby .lobby-roster{
     grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-auto-rows:clamp(30px,4.4dvh,39px);
-    align-content:start;overflow-y:auto!important;
+    grid-template-rows:repeat(var(--roster-rows,6),minmax(0,1fr));
+    gap:clamp(3px,.65dvh,7px);
   }
   #hostLobby .lobby-roster .roster-item{
-    grid-template-columns:7px minmax(0,.72fr) minmax(0,1fr) 16px;
-    padding:2px 3px;gap:2px;
+    padding:clamp(3px,.75vw,7px);
+    gap:2px 4px;
   }
-  #hostLobby .lobby-roster .roster-item .roster-pick.picked{
-    display:inline-flex;min-width:0;padding:2px;gap:2px;
+  #hostLobby .lobby-roster .roster-item b{font-size:clamp(9px,2.2vw,13px)}
+  #hostLobby .lobby-roster .roster-pick{
+    display:flex!important;
+    padding:2px 3px;
+    gap:4px;
   }
-  #hostLobby .lobby-roster .roster-item .roster-pick .mode-cover{
-    width:20px;height:16px;flex:0 0 20px;
+  #hostLobby .lobby-roster .mode-cover{
+    width:clamp(26px,8vw,42px);
+    height:clamp(19px,5vw,28px);
+    flex-basis:clamp(26px,8vw,42px);
   }
-  #hostLobby .lobby-roster .roster-item .roster-pick .mode-choice-title{
-    font-size:clamp(7px,1.9vw,10px);
+  #hostLobby .lobby-roster .mode-choice-title{
+    font-size:clamp(8px,1.9vw,11px);
+    line-height:1.12;
   }
-  #hostLobby .lobby-roster .roster-item b{font-size:clamp(9px,2.15vw,12px)}
 }
