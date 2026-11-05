@@ -6,6 +6,7 @@ const engine=fs.readFileSync('shockwave.js','utf8');
 const env=vm.createContext({window:{},Date,Math});
 vm.runInContext(fs.readFileSync('arena-art.js','utf8'),env,{filename:'arena-art.js'});
 vm.runInContext(avatars,env,{filename:'player-avatar.js'});
+vm.runInContext(fs.readFileSync('party-ui-art.js','utf8'),env,{filename:'party-ui-art.js'});
 vm.runInContext(fs.readFileSync('character-system.js','utf8'),env,{filename:'character-system.js'});
 vm.runInContext(engine,env,{filename:'shockwave.js'});
 const E=env.window.Shockwave;
