@@ -7,7 +7,7 @@ const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
 // production code or relying on internal globals.
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
-  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard};\nrequestAnimationFrame(animate);\n})();');
+  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endFruitMemoryRound,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
@@ -1104,6 +1104,37 @@ assert.equal(bigRoom.elements.get('leaderboard').style['--leader-cols'],'12');
 assert.match(css,/#hostLobby \.lobby-roster\{[\s\S]*?grid-template-rows:repeat\(var\(--roster-rows,4\),minmax\(0,1fr\)\)/);
 assert.match(css,/#hostLobby \.lobby-roster \.roster-item\{[\s\S]*?grid-template-rows:auto minmax\(0,1fr\)/);
 assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?height:100%/);
+
+// Regression: when everyone remaining falls at once, show a real draw with
+// competition ranks (1, 1, 3) rather than inventing a single winner.
+{
+ const ui=setup();
+ ui.click('offlineBtn');
+ ui.click('addLocalBtn');
+ const three=ui.scope.window.__ghostTest.getPlayers();
+ assert.equal(three.length,3);
+ for(let i=0;i<3;i++){
+  three[i].active=true;three[i].fruitAlive=false;
+  three[i].fruitEliminatedRound=i===2?1:2;
+  three[i].fruitRounds=i===2?0:1;
+ }
+ ui.scope.window.__ghostTest.setRound({
+  mode:'fruit_memory',phase:'playing',paused:false,
+  fruitMemory:{winnerId:null,tieIds:[three[0].id,three[1].id],rounds:2}
+ });
+ ui.scope.window.__ghostTest.endFruitMemoryRound();
+ const heading=ui.elements.get('results').querySelector('h2');
+ assert.match(heading.textContent,/เสมอ/);
+ const rows=ui.elements.get('resultList').children;
+ assert.equal(rows.length,3);
+ assert.ok(rows[0].children[0].textContent.startsWith('1.'));
+ assert.ok(rows[1].children[0].textContent.startsWith('1.'));
+ assert.ok(rows[2].children[0].textContent.startsWith('3.'));
+ assert.match(rows[0].children[1].textContent,/อันดับร่วม/);
+ assert.match(rows[1].children[1].textContent,/อันดับร่วม/);
+ assert.match(rows[2].children[1].textContent,/ตกรอบ รอบ 1/);
+ assert.equal(ui.scope.window.__ghostTest.getRound().phase,'results');
+}
 
 // Closing an online room displays an in-app dialog; cancellation keeps peers.
 const confirmHost=setup();

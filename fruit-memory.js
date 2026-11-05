@@ -104,6 +104,7 @@ function newMemorize(state,players,entrants){
  state.revealDuration=state.revealTimeline.at(-1).end;
  state.target=null;state.rounds++;
  state.fallEntries=[];state.pendingWinner=null;state.botTargets={};
+ state.pendingTie=false;state.tieIds=[];
  for(const p of players){
    p.fruitAlive=entrants.includes(p.id)&&p.active;
    p.fruitFall=0;p.fruitStun=0;p.fruitAttack=null;p.fruitCooldown=0;p.fruitPunchPressed=false;
@@ -131,10 +132,10 @@ function setup(round,players){
  const state={startCount,big:large,cols:large?6:5,rows:large?6:5,
    moveSeconds:large?7:5,collapseSeconds:large?1.8:1.5,
    tiles:[],elapsed:0,accumulator:0,rounds:0,phase:'memorize',previousTarget:null,
-   winnerId:null,finished:false,totalElapsed:0};
+   winnerId:null,finished:false,totalElapsed:0,pendingTie:false,tieIds:[]};
  configureBoard(state);
  round.fruitMemory=state;
- for(const p of players){p.active=true;p.score=0;p.fruitRounds=0;}
+ for(const p of players){p.active=true;p.score=0;p.fruitRounds=0;p.fruitEliminatedRound=0;}
  newMemorize(state,players,players.map(p=>p.id));
  return state;
 }
@@ -259,24 +260,27 @@ function evaluateSurvivors(state,players){
  const survivors=new Set(snapshots.filter(s=>s.result.survive).map(s=>s.id));
  state.snapshots=snapshots;
  state.fallEntries=entrants.map(p=>({id:p.id,x:p.x,y:p.y,survive:survivors.has(p.id)}));
- if(!survivors.size){
-   // True simultaneous wipe: replay the tie-break only among this round's entrants.
-   state.replayEntrants=entrants.map(p=>p.id);state.pendingWinner=null;
- }else{
-   state.replayEntrants=null;
-   for(const p of entrants){
-     p.fruitAlive=survivors.has(p.id);
-     if(p.fruitAlive){p.fruitRounds++;p.score=p.fruitRounds;}
-   }
-   const remaining=living(players);
-   state.pendingWinner=remaining.length===1?remaining[0].id:null;
+ // All entrants are assessed from the same movement snapshot.
+ // Nobody resurrects after simultaneous elimination; previous-round losers
+ // remain permanently eliminated and cannot appear in future rounds.
+ for(const p of entrants){
+   p.fruitAlive=survivors.has(p.id);
+   if(p.fruitAlive){p.fruitRounds++;p.score=p.fruitRounds;}
+   else p.fruitEliminatedRound=state.rounds;
  }
+ state.pendingTie=survivors.size===0;
+ state.tieIds=state.pendingTie?entrants.map(p=>p.id):[];
+ state.replayEntrants=null;
+ const remaining=living(players);
+ state.pendingWinner=remaining.length===1?remaining[0].id:null;
  for(const t of state.tiles)t.collapseState=t.fruitType===state.target?'safe':'falling';
  setPhase(state,'collapse');
 }
 function step(state,players,dt){
  state.totalElapsed+=dt;
- if(!living(players).length){state.winnerId=null;state.finished=true;return;}
+ if(!living(players).length&&state.phase!=='collapse'){
+  state.winnerId=null;state.finished=true;return;
+ }
  if(state.pendingWinner&&!players.some(p=>p.id===state.pendingWinner&&p.active)){
    state.pendingWinner=null;state.replayEntrants=living(players).map(p=>p.id);
  }
@@ -305,7 +309,8 @@ function step(state,players,dt){
    state.elapsed+=dt;
    if(state.elapsed>=state.collapseSeconds){
      if(state.pendingWinner){state.winnerId=state.pendingWinner;state.finished=true;return;}
-     const entrants=state.replayEntrants||living(players).map(p=>p.id);
+     if(state.pendingTie){state.winnerId=null;state.finished=true;return;}
+     const entrants=living(players).map(p=>p.id);
      state.nextEntrants=entrants;setPhase(state,'rebuild');
    }
  }else if(state.phase==='rebuild'){
@@ -392,18 +397,18 @@ function drawTile(ctx,state,t,time){
  ctx.restore();
 }
 function drawPlayer(ctx,p,state,time){
- if(!p.active||(!p.fruitAlive&&state.phase!=='collapse'))return;
+ if(!p.active)return;
  const entry=state.fallEntries.find(e=>e.id===p.id);
  const falling=state.phase==='collapse'&&entry&&!entry.survive;
- const rising=state.phase==='rebuild'&&state.replayEntrants?.includes(p.id)&&entry&&!entry.survive;
- const progress=falling?clamp((state.elapsed-.15)/(state.collapseSeconds-.15),0,1):
-   rising?1-clamp(state.elapsed/.85,0,1):0;
- if((falling||rising)&&progress>=1)return;
+ // Only losses from the CURRENT wave fall; earlier losses stay invisible.
+ if(!p.fruitAlive&&!falling)return;
+ const progress=falling?clamp((state.elapsed-.15)/(state.collapseSeconds-.15),0,1):0;
+ if(falling&&progress>=1)return;
  ctx.save();ctx.translate(p.x,p.y+progress*180);
  ctx.globalAlpha=1-progress*.85;ctx.scale(1-progress*.65,1-progress*.65);
  window.PartyPlayerAvatar.draw(ctx,p,{local:true,time,
    color:p.fruitHitFlash>0?'#ffe86b':p.color,attacking:!!p.fruitAttack});
- if(p.fruitStun>0){
+ if(p.fruitStun>0&&p.fruitAlive){
    ctx.fillStyle='#ffe477';
    for(let a=0;a<3;a++){
      const x=Math.cos(time*9+a*TAU/3)*17,y=-35+Math.sin(time*9+a*TAU/3)*6;
@@ -419,43 +424,62 @@ function drawSideDisplays(ctx,state,round,players){
  const showTarget=!!target&&['target','move','collapse'].includes(state.phase)&&round.phase!=='countdown';
  let opened=state.revealedTileIds.size;
  const batch=state.revealTimeline[state.revealCursor];
- if(state.phase==='memorize'&&batch&&state.elapsed-batch.start>.12){
+ if(state.phase==='memorize'&&batch&&state.elapsed-batch.start>.12)
    opened=new Set([...state.revealedTileIds,...batch.ids]).size;
- }
  const seconds=state.phase==='move'?Math.ceil(Math.max(0,state.moveSeconds-state.elapsed)):state.moveSeconds;
  for(const x of [b.x-38-w,b.x+b.w+38]){
-  ctx.save();ctx.translate(x,y);
-  ctx.fillStyle='#342c50';ctx.beginPath();ctx.roundRect(0,6,w,h,12);ctx.fill();
-  ctx.fillStyle='#8662af';ctx.strokeStyle='#d7b9ee';ctx.lineWidth=3;
-  ctx.beginPath();ctx.roundRect(0,0,w,h,12);ctx.fill();ctx.stroke();
-  ctx.fillStyle='#f5b64f';ctx.beginPath();ctx.roundRect(8,9,w-16,h-18,7);ctx.fill();
-  ctx.fillStyle='#ffe09a';ctx.fillRect(15,17,w-30,4);
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  const text=(label,yy,size,color='#493153')=>{
-   ctx.fillStyle=color;ctx.font='900 '+size+'px system-ui,sans-serif';ctx.fillText(label,w/2,yy,w-24);
-  };
-  text('FRUIT MEMORY',38,12);
-  if(round.phase==='countdown'){
-   text('เตรียมจำผลไม้',h*.29,17);text(String(Math.max(0,Math.ceil(round.countdown||0))),h*.52,64);text('เริ่มใน • วินาที',h*.76,16);
-  }else if(showTarget){
-   text(state.phase==='collapse'?'ผลไม้ที่รอด':'ไปที่ผลไม้นี้',h*.23,17);
-   const img=fruitImage(state.target),size=82;
-   ctx.fillStyle='#fff2c9';ctx.beginPath();ctx.arc(w/2,h*.43,48,0,TAU);ctx.fill();
-   if(img?.complete&&img.naturalWidth)ctx.drawImage(img,(w-size)/2,h*.43-size/2,size,size);
-   text(target.name,h*.62,18);
-   if(state.phase==='collapse')text('รอด '+living(players).length+' คน',h*.79,22);
-   else{ text(String(seconds),h*.79,48,seconds<=3?'#a62b3c':'#493153');text('วินาที',h*.92,14); }
-  }else if(state.phase==='memorize'||state.phase==='hide'){
-   text('เปิดแล้ว',h*.28,20);text(String(opened),h*.49,64);
-   text('/ '+state.tiles.length+' ช่อง',h*.68,22);
-   text(state.phase==='hide'?'เตรียมดูเป้าหมาย':'จำตำแหน่งให้ดี',h*.85,15);
-   ctx.fillStyle='#ad743c';ctx.fillRect(20,h*.75,w-40,5);
-   ctx.fillStyle='#fff4c7';ctx.fillRect(20,h*.75,(w-40)*opened/state.tiles.length,5);
-  }else{
-   text('รอบถัดไป',h*.34,23);text('เตรียมจำใหม่',h*.57,18);
-   text('ผู้รอด '+living(players).length+' คน',h*.78,17);
-  }
-  ctx.restore();
+   ctx.save();ctx.translate(x,y);
+   ctx.fillStyle='#342c50';ctx.beginPath();ctx.roundRect(0,6,w,h,12);ctx.fill();
+   ctx.fillStyle='#8662af';ctx.strokeStyle='#d7b9ee';ctx.lineWidth=3;
+   ctx.beginPath();ctx.roundRect(0,0,w,h,12);ctx.fill();ctx.stroke();
+   ctx.fillStyle='#f5b64f';ctx.beginPath();ctx.roundRect(8,9,w-16,h-18,7);ctx.fill();
+   ctx.fillStyle='#ffe09a';ctx.fillRect(15,17,w-30,4);
+   // Clip all labels to the panel's inner rectangle. Some iPad browsers
+   // misposition Thai glyphs when centered with maxWidth; anchor Thai left.
+   ctx.beginPath();ctx.roundRect(9,10,w-18,h-20,6);ctx.clip();
+   ctx.textBaseline='middle';
+   const label=(value,yy,size=16,color='#493153')=>{
+     ctx.textAlign='left';ctx.fillStyle=color;
+     ctx.font='800 '+size+'px Tahoma, sans-serif';
+     ctx.fillText(value,17,yy,w-34);
+   };
+   const number=(value,yy,size=58,color='#493153')=>{
+     ctx.textAlign='center';ctx.fillStyle=color;
+     ctx.font='900 '+size+'px system-ui,sans-serif';
+     ctx.fillText(String(value),w/2,yy,w-34);
+   };
+   const progress=value=>{
+     const ratio=clamp(value/state.tiles.length,0,1);
+     ctx.fillStyle='#ad743c';ctx.fillRect(17,262,w-34,6);
+     ctx.fillStyle='#fff4c7';ctx.fillRect(17,262,(w-34)*ratio,6);
+   };
+   label('FRUIT MEMORY',42,12);
+   if(round.phase==='countdown'){
+     label('เตรียมจำผลไม้',95,15);
+     number(Math.max(0,Math.ceil(round.countdown||0)),169,60);
+     label('เริ่มใน',240,16);label('วินาที',263,16);
+   }else if(showTarget){
+     label(state.phase==='collapse'?'ผลไม้ที่รอด':'วิ่งไปที่',90,17);
+     if(state.phase!=='collapse')label('ผลไม้นี้',112,16);
+     const img=fruitImage(state.target),size=76;
+     ctx.fillStyle='#fff2c9';ctx.beginPath();ctx.arc(w/2,178,43,0,TAU);ctx.fill();
+     if(img?.complete&&img.naturalWidth)ctx.drawImage(img,(w-size)/2,140,size,size);
+     label(target.name,239,16);
+     if(state.phase==='collapse')label('รอด '+living(players).length+' คน',287,16);
+     else{number(seconds,290,44,seconds<=3?'#a62b3c':'#493153');label('วินาที',326,14);}
+   }else if(state.phase==='memorize'||state.phase==='hide'){
+     label('เปิดแล้ว',92,19);
+     number(opened,165,62);
+     label('/ '+state.tiles.length+' ช่อง',225,18);
+     progress(opened);
+     label(state.phase==='hide'?'เตรียมดู':'จำตำแหน่ง',302,16);
+     label(state.phase==='hide'?'ผลไม้':'ให้ดี',326,16);
+   }else{
+     label('รอบถัดไป',99,19);
+     label('เตรียมจำใหม่',175,17);
+     label('ผู้รอด '+living(players).length+' คน',273,16);
+   }
+   ctx.restore();
  }
 }
 function draw(ctx,time,round,players){
@@ -468,5 +492,5 @@ function draw(ctx,time,round,players){
  ctx.restore();
 }
 window.FruitMemory=Object.freeze({setup,update,draw,hud,generateGrid,buildRevealSchedule,
- calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
+ calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawSideDisplays,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();
