@@ -33,10 +33,27 @@ function generateGrid(count,selected){
  return distributed.map((fruitType,i)=>({tileId:i,row:Math.floor(i/cols),column:i%cols,fruitType,
    revealState:'closed',collapseState:'solid',fall:0}));
 }
-function buildRevealSchedule(tiles,groupSize){
- const order=shuffle(tiles.map(t=>t.tileId));
- const groups=[];for(let i=0;i<order.length;i+=groupSize)groups.push(order.slice(i,i+groupSize));
+function buildRevealSchedule(tiles){
+ // Random groups of 2-4; never leave one lone card for the final flip.
+ const pending=shuffle(tiles.map(t=>t.tileId)),groups=[];
+ while(pending.length){
+   const possible=[2,3,4].filter(n=>n<=pending.length&&pending.length-n!==1);
+   const count=possible[Math.floor(Math.random()*possible.length)];
+   if(!count)throw Error('Cannot schedule remaining Fruit Memory cards');
+   groups.push(pending.splice(0,count));
+ }
  return groups;
+}
+function buildRevealTimeline(groups){
+ let start=0;
+ return groups.map(ids=>{
+   // The full memorization phase has NO fixed countdown. Each batch gets
+   // time to turn over, be seen, and close before the next batch starts.
+   const duration=1.15+ids.length*.13+Math.random()*.33;
+   const item={ids,start,end:start+duration,duration};
+   start=item.end;
+   return item;
+ });
 }
 function configureBoard(state){
  const large=state.big;
@@ -52,23 +69,42 @@ function tileAt(state,x,y){
 function tileRect(state,t){return {x:state.board.x+t.column*state.tileW,y:state.board.y+t.row*state.tileH,w:state.tileW,h:state.tileH};}
 function setPhase(state,phase){state.phase=phase;state.elapsed=0;}
 function newMemorize(state,players,entrants){
- state.memorizeSeconds=state.big?28:20;
- state.tiles=generateGrid(state.startCount);
- state.revealedTileIds=new Set();state.revealGroups=buildRevealSchedule(state.tiles,state.big?3:2);
- state.groupSeconds=state.big?2.3:1.8;
+ const firstRound=state.rounds===0;
+ if(firstRound)state.tiles=generateGrid(state.startCount);
+ else{
+   // Reuse THE SAME board, tile objects and tile coordinates. Only change
+   // the hidden fruit assignment after the dropped tiles have risen back.
+   const shuffled=generateGrid(state.startCount);
+   for(let i=0;i<state.tiles.length;i++){
+     const tile=state.tiles[i];
+     tile.fruitType=shuffled[i].fruitType;
+     tile.revealState='closed';tile.collapseState='solid';tile.fall=0;
+   }
+ }
+ state.revealedTileIds=new Set();
+ state.revealGroups=buildRevealSchedule(state.tiles);
+ state.revealTimeline=buildRevealTimeline(state.revealGroups);
+ state.revealCursor=0;
+ state.revealDuration=state.revealTimeline.at(-1).end;
  state.target=null;state.rounds++;
  state.fallEntries=[];state.pendingWinner=null;state.botTargets={};
  for(const p of players){
    p.fruitAlive=entrants.includes(p.id)&&p.active;
    p.fruitFall=0;p.fruitStun=0;p.fruitAttack=null;p.fruitCooldown=0;p.fruitPunchPressed=false;
  }
- const active=living(players),spawns=shuffle(state.tiles);
- for(let i=0;i<active.length;i++){
-   const p=active[i],tile=spawns[i];
-   // Unique spawn tile per entrant prevents initial overlaps even with 12 players.
-   p.x=state.board.x+(tile.column+.5)*state.tileW;
-   p.y=state.board.y+(tile.row+.5)*state.tileH;
-   p.dir={x:1,y:0};p.vx=0;p.vy=0;
+ const active=living(players);
+ if(firstRound){
+   // Place players only ONCE, when the full match begins. Never teleport
+   // surviving players or bots at the start of each memory round.
+   const spawns=shuffle(state.tiles);
+   for(let i=0;i<active.length;i++){
+     const p=active[i],tile=spawns[i];
+     p.x=state.board.x+(tile.column+.5)*state.tileW;
+     p.y=state.board.y+(tile.row+.5)*state.tileH;
+     p.dir={x:1,y:0};p.vx=0;p.vy=0;
+   }
+ }else{
+   for(const p of active){p.vx=0;p.vy=0;}
  }
  state.previousEntrants=[...entrants];
  setPhase(state,'memorize');
@@ -77,7 +113,7 @@ function setup(round,players){
  const startCount=clamp(players.length,1,12);
  const large=startCount>6;
  const state={startCount,big:large,cols:large?6:4,rows:large?5:4,
-   memorizeSeconds:large?28:20,moveSeconds:large?7:5,collapseSeconds:large?1.8:1.5,
+   moveSeconds:large?7:5,collapseSeconds:large?1.8:1.5,
    tiles:[],elapsed:0,accumulator:0,rounds:0,phase:'memorize',previousTarget:null,
    winnerId:null,finished:false,totalElapsed:0};
  configureBoard(state);
@@ -230,15 +266,15 @@ function step(state,players,dt){
  }
  if(state.phase==='memorize'){
    state.elapsed+=dt;
-   const g=state.revealGroups.length,groupIndex=Math.floor(state.elapsed/state.groupSeconds);
-   for(let i=0;i<Math.min(g,groupIndex);i++)
-     for(const id of state.revealGroups[i])state.revealedTileIds.add(id);
-   if(state.elapsed>=state.memorizeSeconds){
-     if(state.revealedTileIds.size!==state.tiles.length){
-       // Extend instead of silently skipping any unshown tile after a slow frame.
-       state.memorizeSeconds=Math.max(state.memorizeSeconds+dt,g*state.groupSeconds+.5);
-     }else setPhase(state,'hide');
+   // Complete each reveal AFTER its visibility interval. The last batch is
+   // shown in full and then we immediately flip everything face-down.
+   while(state.revealCursor<state.revealTimeline.length&&
+     state.elapsed+1e-8>=state.revealTimeline[state.revealCursor].end){
+     const batch=state.revealTimeline[state.revealCursor++];
+     for(const id of batch.ids)state.revealedTileIds.add(id);
    }
+   if(state.revealCursor===state.revealTimeline.length&&
+      state.revealedTileIds.size===state.tiles.length)setPhase(state,'hide');
  }else if(state.phase==='hide'){
    state.elapsed+=dt;if(state.elapsed>=.65){chooseTargetFruit(state);setPhase(state,'target');}
  }else if(state.phase==='target'){
@@ -282,8 +318,7 @@ function update(dt,round,players){
  while(state.accumulator>=FIXED&&!state.finished){
    step(state,players,FIXED);state.accumulator-=FIXED;
  }
- round.remaining=(state.phase==='memorize'?Math.max(0,state.memorizeSeconds-state.elapsed):
-   state.phase==='move'?Math.max(0,state.moveSeconds-state.elapsed):0);
+ round.remaining=state.phase==='move'?Math.max(0,state.moveSeconds-state.elapsed):null;
  return state.finished?'winner':null;
 }
 function hud(players,round){
@@ -294,23 +329,25 @@ function hud(players,round){
 function drawTile(ctx,state,t,time){
  const r=tileRect(state,t),pad=3,correct=t.fruitType===state.target;
  const collapsing=state.phase==='collapse',falling=collapsing&&!correct;
- const fallProgress=falling?clamp((state.elapsed-.12)/(state.collapseSeconds-.2),0,1):0;
- if(falling&&fallProgress>0.98)return;
+ const rebuilding=state.phase==='rebuild'&&t.collapseState==='falling';
+ const fallProgress=falling?clamp((state.elapsed-.12)/(state.collapseSeconds-.2),0,1):
+   rebuilding?1-clamp(state.elapsed/.85,0,1):0;
+ if((falling||rebuilding)&&fallProgress>0.98)return;
  let revealed=false,flipping=1;
  if(state.phase==='memorize'){
-   const pos=Math.floor(state.elapsed/state.groupSeconds);
-   let showing=state.revealGroups[pos];
-   if(pos>=state.revealGroups.length){
-     showing=state.revealGroups[(pos-state.revealGroups.length)%state.revealGroups.length];
+   const batch=state.revealTimeline[state.revealCursor];
+   if(batch){
+     const within=state.elapsed-batch.start;
+     revealed=batch.ids.includes(t.tileId)&&within>.12&&within<batch.duration-.17;
+     if(revealed){
+       const edge=Math.min(within-.12,batch.duration-.17-within);
+       flipping=clamp(edge/.17,0,1);
+     }
    }
-   const within=state.elapsed%state.groupSeconds;
-   revealed=!!showing?.includes(t.tileId)&&within>.12&&within<state.groupSeconds-.24;
-   const duration=Math.min(.18,within-.12,state.groupSeconds-.24-within);
-   if(revealed)flipping=clamp(duration/.18,0,1);
  }else if(collapsing)revealed=true;
- const yOffset=fallProgress*220,alpha=falling?1-fallProgress*.85:1;
+ const yOffset=fallProgress*220,alpha=(falling||rebuilding)?1-fallProgress*.85:1;
  ctx.save();ctx.globalAlpha=alpha;ctx.translate(r.x+r.w/2,r.y+r.h/2+yOffset);
- if(falling){ctx.rotate(fallProgress*.12*(t.column%2?1:-1));ctx.scale(1-fallProgress*.19,1-fallProgress*.19);}
+ if(falling||rebuilding){ctx.rotate(fallProgress*.12*(t.column%2?1:-1));ctx.scale(1-fallProgress*.19,1-fallProgress*.19);}
  const w=(r.w-pad*2)*(revealed?Math.max(.06,flipping):1),h=r.h-pad*2;
  ctx.shadowColor='#000a';ctx.shadowBlur=8;ctx.shadowOffsetY=7;
  ctx.fillStyle=revealed?'#fff2d6':'#244563';
@@ -339,8 +376,13 @@ function drawPlayer(ctx,p,state,time){
  if(!p.active||(!p.fruitAlive&&state.phase!=='collapse'))return;
  const entry=state.fallEntries.find(e=>e.id===p.id);
  const falling=state.phase==='collapse'&&entry&&!entry.survive;
- const progress=falling?clamp((state.elapsed-.15)/(state.collapseSeconds-.15),0,1):0;
- if(falling&&progress>=1)return;
+ // A simultaneous wipe replays on the SAME positions: rise back with the
+ // floor instead of abruptly disappearing and respawning elsewhere.
+ const rising=state.phase==='rebuild'&&state.replayEntrants?.includes(p.id)&&
+   entry&&!entry.survive;
+ const progress=falling?clamp((state.elapsed-.15)/(state.collapseSeconds-.15),0,1):
+   rising?1-clamp(state.elapsed/.85,0,1):0;
+ if((falling||rising)&&progress>=1)return;
  ctx.save();ctx.translate(p.x,p.y+progress*180);
  ctx.globalAlpha=1-progress*.85;ctx.scale(1-progress*.65,1-progress*.65);
  const direction=p.dir||{x:1,y:0};
@@ -385,7 +427,7 @@ function draw(ctx,time,round,players){
  ctx.fillText('FRUIT MEMORY',27,97);
  ctx.font='bold 17px system-ui,sans-serif';
  const phase=round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown)+' วิ':
-   state.phase==='memorize'?'จำผลไม้ • '+Math.ceil(Math.max(0,state.memorizeSeconds-state.elapsed))+' วิ':
+   state.phase==='memorize'?'จำผลไม้ • '+state.revealedTileIds.size+'/'+state.tiles.length+' ช่อง':
    state.phase==='hide'?'คว่ำบล็อกทั้งหมด':
    state.phase==='target'||state.phase==='move'?'ไปที่ '+FRUIT_BY_ID[state.target].name+' • '+(state.phase==='move'?Math.ceil(Math.max(0,state.moveSeconds-state.elapsed)):'เตรียมตัว')+' วิ':
    state.phase==='collapse'?'รอด '+(state.replayEntrants?'0':living(players).length)+' คน':

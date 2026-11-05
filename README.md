@@ -81,9 +81,10 @@
 
 ## FRUIT MEMORY (third mini-game)
 
-- 1–6 entrants: 4×4 tiles, four fruits × four tiles, 20-second reveal and 5-second move.
-- 7–12 entrants: 6×5 tiles, five fruits × six tiles, 28-second reveal and 7-second move.
-- Host chooses fruits and advances a precomputed non-repeating reveal queue; all tiles must be revealed before target selection.
+- 1–6 entrants: 4×4 tiles, four fruits × four tiles, 5-second move.
+- 7–12 entrants: 6×5 tiles, five fruits × six tiles, 7-second move.
+- Memorization is **completion-driven**, with no fixed 20/28-second limit: shuffled batches contain randomly 2–4 unique cards (never a single leftover card). The last batch must finish displaying before all cards close and the target appears.
+- New rounds retain the exact board geometry, tile object identity, and survivor/bot coordinates. Only hidden fruit assignments change after fallen tiles rise back up, so the new round does not teleport characters.
 - Each elimination uses the host's fixed-step snapshot and a circle/rectangle foot-contact area check. At least 50% safe support is needed; an exact tie follows the foot-center tile.
 - Free 360-degree movement, physical pushing, and a front-facing A punch with 0.15/0.10/0.15-second phases, 1.2-second cooldown, and 0.55-second stun. B is hidden only for FRUIT MEMORY.
 - If everyone falls simultaneously, only the entrants of that elimination replay. No overall time limit; the match ends with one survivor. Single-player games run a full trial before the win screen.
