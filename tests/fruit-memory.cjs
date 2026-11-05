@@ -23,11 +23,15 @@ for(let n=1;n<=12;n++){
  assert.equal(tiles.length,small?25:36);
  assert.deepEqual(
    {x:x.state.board.x,y:x.state.board.y,w:x.state.board.w,h:x.state.board.h},
-   small?{x:250,y:170,w:500,h:300}:{x:140,y:150,w:660,h:330},
-   'board is smaller, with the HUD fully above it'
+   small?{x:70,y:110,w:820,h:390}:{x:60,y:110,w:840,h:390},
+   'the same grid now stretches across the screen, below the compact HUD'
  );
- assert.equal(x.state.tileW,small?100:110,'smaller tile width');
- assert.equal(x.state.tileH,small?60:55,'smaller tile height');
+ assert.equal(x.state.tileW,small?164:140,'wider spacing/surfaces without zoom');
+ assert.ok(Math.abs(x.state.tileH-(small?78:65))<1,
+   'tiles use the longer vertical play area');
+ assert.equal(game.constants.speed,207,'walking speed is unchanged');
+ assert.equal(game.constants.footRadius,10,'collision footprint unchanged');
+ assert.equal(game.constants.punchRange,53,'punch reach unchanged');
  const counts={};for(const t of tiles)counts[t.fruitType]=(counts[t.fruitType]||0)+1;
  assert.equal(Object.keys(counts).length,small?5:6);
  for(const count of Object.values(counts))assert.equal(count,small?5:6);

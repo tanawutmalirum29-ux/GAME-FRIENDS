@@ -57,8 +57,10 @@ function buildRevealTimeline(groups){
  });
 }
 function configureBoard(state){
- const large=state.big;
- state.board={x:large?140:250,y:large?150:170,w:large?660:500,h:large?330:300};
+ // Stretch the playfield across the available 960x540 arena instead of
+ // zooming the canvas. Keep the existing 5x5/6x6 tile counts and all
+ // actor sizes, movement speeds, timers and foot-contact thresholds.
+ state.board={x:state.big?60:70,y:110,w:state.big?840:820,h:390};
  state.tileW=state.board.w/state.cols;state.tileH=state.board.h/state.rows;
 }
 function tileAt(state,x,y){
@@ -358,7 +360,8 @@ function drawTile(ctx,state,t,time){
  ctx.strokeRect(-w/2,-h/2,w,h);
  if(revealed&&flipping>.56){
    const icon=fruitImage(t.fruitType);
-   const size=Math.min(w*.55,h*.70,70);
+   // Keep fruit artwork at its original size; stretch tile surfaces only.
+   const size=Math.min(w*.55,h*.70,state.big?34.3:37.8);
    if(icon?.complete&&icon.naturalWidth>0)ctx.drawImage(icon,-size/2,-size/2,size,size);
    else{
      ctx.fillStyle=FRUIT_BY_ID[t.fruitType].color;
@@ -366,7 +369,8 @@ function drawTile(ctx,state,t,time){
    }
  }else if(!revealed){
    ctx.fillStyle='#46718e';ctx.globalAlpha*=.8;
-   ctx.beginPath();ctx.arc(0,0,Math.min(w,h)*.12,0,TAU);ctx.fill();
+   // Original closed-card marker size, independent of the wider grid.
+   ctx.beginPath();ctx.arc(0,0,Math.min(w,h,state.big?49:54)*.12,0,TAU);ctx.fill();
  }
  if(collapsing&&correct){
    ctx.strokeStyle='#83ffba';ctx.lineWidth=3;ctx.strokeRect(-w/2+2,-h/2+2,w-4,h-4);
