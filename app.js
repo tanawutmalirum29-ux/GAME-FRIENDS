@@ -690,7 +690,7 @@ function startHost(retries=0,resumeCode=null){
 }
 function copyInvite(){
   const value=$('roomUrl').value;if(!value)return;
-  const done=()=>{const b=$('copyBtn');b.textContent='คัดลอกแล้ว ✓';setTimeout(()=>b.textContent='คัดลอกลิงก์',1600);};
+  const done=()=>{const b=$('copyBtn');b.textContent='คัดลอกแล้ว';setTimeout(()=>b.textContent='คัดลอกลิงก์',1600);};
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(done).catch(()=>{ $('roomUrl').select();document.execCommand('copy');done();});}
   else{$('roomUrl').select();document.execCommand('copy');done();}
 }
@@ -1115,7 +1115,7 @@ function joinRoom(recovery=false){
              button.classList.toggle('cooldown-active',seconds>.03);
              button.style.setProperty('--cooldown-sweep',Math.round(seconds/max*360)+'deg');
            }
-           $('buttonBLabel').textContent=data.boost?'ระเบิด 4×4 ★':'ระเบิดสี';
+           $('buttonBLabel').textContent=data.boost?'ระเบิดสี 4×4':'ระเบิดสี';
            $('buttonB').classList.toggle('color-boost-ready',!!data.boost);
            $('buttonB').title=cb>.03?'รอ '+cb.toFixed(1)+' วิ':data.boost?'พร้อมระเบิด 4×4':'พร้อมระเบิด 3×3';
            $('controllerState').textContent=data.stun>0?'สตั้น '+Number(data.stun).toFixed(1)+' วิ':
@@ -1185,8 +1185,9 @@ function setControllerGameContext(mode,phase,active){
     // Clear stale items on results, lobby, switching rooms or future game modes.
     $('controllerInventory').classList.remove('is-ghost');
     $('controllerRole').textContent='';
-    $('inventoryItem').textContent='';
-    $('inventoryGuide').textContent='';
+    $('inventoryItem').replaceChildren();
+    $('inventoryItem').classList.remove('pizza-order-icons');
+    $('inventoryGuide').replaceChildren();
     $('targetCycleControls').classList.add('hidden');
     $('controllerButtons').classList.remove('has-target');
     $('targetName').textContent='ไม่มีเป้าหมาย';
@@ -1238,14 +1239,23 @@ function showControllerMode(mode){
 function renderPhonePizzaStatus(info){
  if(!isLiveGameContext()||controllerGameMode!=='pizza_time'||!info||
     info.id!==controllerId||info.phase!==controllerGamePhase)return;
- const names=Object.fromEntries(window.PizzaTime.ingredients.map(x=>[x.id,x.name]));
- const icons=Object.fromEntries(window.PizzaTime.ingredients.map(x=>[x.id,x.icon]));
- const order=(info.order||[]).map(id=>
-   (icons[id]||'')+(names[id]||id)+(info.delivered?.includes(id)?' ✓':'')).join(' + ');
+ const art=window.PizzaIngredientArt,names=art.names;
  $('controllerInventory').classList.remove('is-ghost');
  $('controllerRole').textContent='ออร์เดอร์ '+(info.delivered?.length||0)+'/2 • '+(info.score||0)+' คะแนน';
- $('inventoryItem').textContent=order;
- $('inventoryGuide').textContent=info.held?'ถือ '+(icons[info.held]||'')+' '+(names[info.held]||info.held)+' → ส่งเชฟ (เปลี่ยนได้เมื่อแตะโต๊ะอื่น)':'มือว่าง • เดินไปรับวัตถุดิบ';
+ const items=$('inventoryItem');
+ items.classList.add('pizza-order-icons');
+ art.appendRow(items,info.order||[],info.delivered||[],{size:17,showName:true});
+ const guide=$('inventoryGuide');
+ guide.replaceChildren();
+ if(info.held){
+   const item=art.item(document,info.held,{size:15});
+   if(item)guide.append(item);
+   const text=document.createElement('span');
+   text.textContent='ถือ '+(names[info.held]||'วัตถุดิบ')+' • ส่งเชฟหรือสลับที่โต๊ะอื่น';
+   guide.append(text);
+ }else{
+   guide.textContent='มือว่าง • เดินไปรับวัตถุดิบ';
+ }
  $('targetCycleControls').classList.add('hidden');
  $('controllerButtons').classList.remove('has-target');
 }
@@ -1257,6 +1267,7 @@ function renderPhoneInventory(info){
   const isGhost=!!info.ghost;
   $('controllerRole').textContent=isGhost?'ผี':'มนุษย์';
   $('controllerInventory').classList.toggle('is-ghost',isGhost);
+  $('inventoryItem').classList.remove('pizza-order-icons');
   $('inventoryItem').textContent=isGhost?'เป้าหมาย: ไล่จับมนุษย์':
     'ไอเทม: '+(names[info.item]||'ว่าง');
   $('inventoryGuide').textContent=isGhost?'แตะมนุษย์เพื่อเปลี่ยนเป็นผี':
@@ -1568,7 +1579,7 @@ function endRound(){
     const rank=rankOf(p),tied=ranked.filter(q=>rankOf(q)===rank).length>1;
     const row=document.createElement('div');row.className='result-player';
     const label=document.createElement('div');
-    label.textContent=(rank===1?'★ ':'')+'อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
+    label.textContent=(rank===1?'ผู้ชนะ ':'')+'อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
     label.style.color=p.color;
     const detail=document.createElement('span');
     detail.textContent=(p.ghost?'ตกรอบ':'ผู้รอดคนสุดท้าย')+
@@ -1617,7 +1628,7 @@ function endShockwaveRound(){
  ranked.forEach(p=>{
    const row=document.createElement('div');row.className='result-player';
    const name=document.createElement('div');name.style.color=p.color;
-   name.textContent=(p.id===s.winnerId?'★ ':'')+rankOf(p)+'. '+p.name;
+   name.textContent=(p.id===s.winnerId?'ผู้ชนะ ':'')+rankOf(p)+'. '+p.name;
    const detail=document.createElement('span');
    detail.textContent=(p.id===s.winnerId?'ผู้รอดคนสุดท้าย':'ตกรอบ Wave '+(p.shockEliminatedWave||s.wave))+
      (tournament?' • รวม '+p.total+' คะแนน':'');
@@ -1662,7 +1673,7 @@ function endColorSwitchRound(){
  ranked.forEach(p=>{
    const row=document.createElement('div');row.className='result-player';
    const name=document.createElement('div');name.style.color=p.color;
-   name.textContent=(s.winnerIds.includes(p.id)?'★ ':'')+(byId.get(p.id)?.rank||1)+'. '+p.name;
+   name.textContent=(s.winnerIds.includes(p.id)?'ผู้ชนะ ':'')+(byId.get(p.id)?.rank||1)+'. '+p.name;
    const score=document.createElement('span');
    score.textContent=p.score+' ช่อง'+(tournament?' • รวม '+p.total+' คะแนน':'');
    row.append(name,score);list.append(row);
@@ -1743,7 +1754,7 @@ function endChickensRound(){
   ranked.forEach((p,i)=>{
     const row=document.createElement('div');row.className='result-player';
     const name=document.createElement('div');name.style.color=p.color;
-    name.textContent=(p.score===best?'★ ':'')+(1+ranked.filter(q=>q.score>p.score).length)+'. '+p.name;
+    name.textContent=(p.score===best?'ผู้ชนะ ':'')+(1+ranked.filter(q=>q.score>p.score).length)+'. '+p.name;
     const score=document.createElement('span');
     score.textContent=p.score+' ไก่'+(tournament?' • รวม '+p.total+' คะแนน':'');
     row.append(name,score);list.append(row);
@@ -1793,7 +1804,7 @@ function endFruitMemoryRound(){
   ranked.forEach(p=>{
     const row=document.createElement('div');row.className='result-player';
     const name=document.createElement('div');name.style.color=p.color;
-    name.textContent=(p.id===winnerId?'★ ':'')+rankOf(p)+'. '+p.name;
+    name.textContent=(p.id===winnerId?'ผู้ชนะ ':'')+rankOf(p)+'. '+p.name;
     const detail=document.createElement('span');
     const tied=!winnerId&&s.tieIds?.includes(p.id);
     detail.textContent=(p.id===winnerId?'ผู้รอดคนสุดท้าย':
@@ -1840,8 +1851,9 @@ function renderLeaderboard(){
       const score=document.createElement('small');score.className='leader-role';score.textContent=(p.score||0)+' คะแนน';
       const status=document.createElement('span');status.className='leader-item-slot';
       const order=p.pizza?.order||[],sent=p.pizza?.delivered||[];
-      status.textContent=order.map(id=>(window.PizzaTime.ingredients.find(x=>x.id===id)?.icon||'')+(sent.includes(id)?'✓':'')).join(' ');
-      status.title=p.pizza?.held?'ถือ '+p.pizza.held:'ยังไม่ได้ถือ';
+      status.classList.add('pizza-order-icons');
+      window.PizzaIngredientArt.appendRow(status,order,sent,{size:18});
+      status.title=p.pizza?.held?'ถือ '+(window.PizzaIngredientArt.names[p.pizza.held]||'วัตถุดิบ'):'ยังไม่ได้ถือ';
       box.append(color,name,score,status);root.append(box);
     });return;
   }
@@ -1876,7 +1888,7 @@ function renderLeaderboard(){
        const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
        const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' ช่อง';
        const status=document.createElement('span');status.className='leader-item-slot';
-       status.textContent=p.cs?.powerBoostReady?'★':p.cs?.stunRemaining>0?'สตั้น':'';
+       status.textContent=p.cs?.powerBoostReady?'บูสต์':p.cs?.stunRemaining>0?'สตั้น':'';
        box.append(color,name,score,status);root.append(box);
      });return;
    }
