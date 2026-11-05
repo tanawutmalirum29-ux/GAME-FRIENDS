@@ -102,6 +102,7 @@ function touchedByBlast(s,p,tileIds){
 }
 function applyStun(p,seconds){
  const c=p.cs;if(!c||c.stunImmunity>0)return false;
+ c.punchState=null; // Interrupt any pending punch when stunned.
  c.stunRemaining=Math.max(c.stunRemaining,seconds);return true;
 }
 function activateColorBlast(s,p,ps){
