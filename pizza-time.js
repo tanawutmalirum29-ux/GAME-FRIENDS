@@ -16,12 +16,14 @@ const byId=Object.fromEntries(INGREDIENTS.map(x=>[x.id,x]));
 const bound=(x,a,b)=>Math.max(a,Math.min(b,x));
 const hyp=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const active=ps=>ps.filter(p=>p.active);
+function random(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
 const worldSize=n=>n<=3?{w:960,h:540}:n<=6?{w:1200,h:675}:n<=9?{w:1440,h:810}:{w:1600,h:900};
 const tableCount=n=>n<=3?4:n<=6?6:n<=9?8:10;
 const dims=s=>({w:s.world.w,h:s.world.h});
 function tableLayout(s){
  const count=tableCount(s.players);
  const ids=INGREDIENTS.slice(0,s.players<=3?4:s.players<=6?5:s.players<=9?6:8).map(x=>x.id);
+ for(let i=ids.length-1;i>0;i--){const j=Math.floor(random(s)*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
  s.tables=Array.from({length:count},(_,i)=>{
    const theta=-Math.PI/2+TAU*i/count;
    const x=s.center.x+Math.cos(theta)*s.world.w*.365;
@@ -173,7 +175,8 @@ function nextOrder(s,p){
 function setup(round,ps){
  const people=active(ps),count=Math.max(1,people.length);
  const world=worldSize(count),s={world,center:{x:world.w/2,y:world.h/2},players:count,
-   roster:ps,elapsed:0,duration:60,remaining:60,accumulator:0,clock:0,finished:false,
+   roster:ps,seed:(Number(round.pizzaSeed)||Date.now()^0x4b1a8d7)>>>0||1,
+   elapsed:0,duration:60,remaining:60,accumulator:0,clock:0,finished:false,
    tables:[],pairs:[],toChef:new Map(),pathCostCache:new Map(),lastIngredient:new Map(),targetDistance:0,
    firstSpread:0,ranking:[],winnerIds:[],effects:[]};
  round.pizzaTime=s;round.remaining=60;
