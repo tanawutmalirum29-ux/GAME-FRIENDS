@@ -7,6 +7,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'..','pizza-time.js'),'utf8');
 const sandbox={window:{},Date,Math,Uint8Array,Float64Array,Int32Array};
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','character-system.js'),'utf8'),sandbox,{filename:'character-system.js'});
 vm.runInNewContext(source,sandbox,{filename:'pizza-time.js'});
 const G=sandbox.window.PizzaTime;
 assert.ok(G&&G.setup&&G.update&&G.draw&&G.hud);
