@@ -16,11 +16,15 @@ jobs:
           node --check app.js
           node --check ghost-attack.js
           node --check chickens.js
+          node --check fruit-memory.js
+          node --check tests/fruit-memory.cjs
           node --check tests/chickens.cjs
           node --check auto-update.js
           node --check scripts/build-static.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
+      - name: Fruit memory rules
+        run: node tests/fruit-memory.cjs
       - name: Auto-update and build tests
         run: node tests/auto-update.cjs
       - name: HTML-to-JavaScript references
@@ -33,6 +37,6 @@ jobs:
           const used=[...js.matchAll(/\$\('([^']+)'\)/g)].map(x=>x[1]);
           const missing=[...new Set(used.filter(id=>!ids.has(id)))];
           if(missing.length){console.error('Missing HTML IDs:',missing.join(', '));process.exit(1);}
-          for(const file of ['style.css','amplify.yml','README.md','ghost-attack.js','chickens.js','host.html'])if(!fs.existsSync(file))throw Error('Missing '+file);
+          for(const file of ['style.css','amplify.yml','README.md','ghost-attack.js','chickens.js','fruit-memory.js','host.html'])if(!fs.existsSync(file))throw Error('Missing '+file);
           console.log('Checked '+used.length+' ID references and static game assets');
           NODE

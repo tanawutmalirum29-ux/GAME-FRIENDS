@@ -3329,3 +3329,21 @@ body.host-playing #game .leader-chip.chicken-leader .leader-item-slot{
   #hostLobby .lobby-controls>.auto-next-control,
   #hostLobby .lobby-controls>.lobby-room-actions{grid-column:1/-1}
 }
+
+/* FRUIT MEMORY: hide B only during the actual match; keep other modes intact. */
+#controller #controllerActive .controller-buttons.fruit-memory-mode .face-b,
+#controller #controllerActive .controller-buttons.fruit-memory-mode .target-cycle-controls{display:none!important}
+#controller #controllerActive .controller-buttons.fruit-memory-mode .gamepad-face-buttons{display:flex!important;align-items:center!important;justify-content:center!important}
+#controller #controllerActive .controller-buttons.fruit-memory-mode .face-a{order:0!important;margin:0!important;position:relative!important;inset:auto!important}
+#controller #controllerActive .controller-buttons.fruit-memory-mode #buttonA{position:relative;isolation:isolate;overflow:hidden}
+#controller #controllerActive .controller-buttons.fruit-memory-mode #buttonA.cooldown-active::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;background:conic-gradient(from -90deg,#081a2a9c 0deg,#081a2a9c var(--cooldown-sweep,0deg),transparent var(--cooldown-sweep,0deg),transparent 360deg)}
+#controller #controllerActive .controller-buttons.fruit-memory-mode #buttonA .face-button-letter,
+#controller #controllerActive .controller-buttons.fruit-memory-mode #buttonA .face-caption{position:relative;z-index:1}
+#controller #controllerActive .controller-buttons.fruit-memory-mode #buttonA:disabled{filter:grayscale(.9);opacity:.48}
+body.host-playing #game .leader-chip.fruit-eliminated{opacity:.45}
+body.host-playing #game .leader-chip.fruit-leader .leader-role{color:#a0f3c2}
+body.controller-playing #controller #controllerActive #phoneGameChoices{grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-template-rows:minmax(0,1fr)!important;gap:clamp(4px,.7vw,12px)}
+body.controller-playing #controller #controllerActive #phoneGameChoices .phone-game-choice{height:clamp(60px,20dvh,130px);min-width:0;gap:clamp(3px,.6vw,9px);padding:5px}
+body.controller-playing #controller #controllerActive #phoneGameChoices .mode-cover{width:clamp(34px,6vw,75px);height:clamp(30px,9dvh,60px)}
+body.controller-playing #controller #controllerActive #phoneGameChoices .mode-choice-title{font-size:clamp(10px,1.65dvh,18px);overflow:hidden;text-overflow:ellipsis}
+@media(orientation:portrait){body.controller-playing.portrait-fallback #controller #controllerActive #phoneGameChoices{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}}
