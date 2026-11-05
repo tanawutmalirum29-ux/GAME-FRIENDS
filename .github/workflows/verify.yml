@@ -33,6 +33,8 @@ jobs:
         run: node tests/smoke.cjs
       - name: COLOR SWITCH rules and 12-player stress
         run: node tests/color-switch.test.js
+      - name: Mayan skull theme and 15 percent bot nerf
+        run: node tests/color-switch-mayan.test.js
       - name: Shared overhead avatar checks
         run: node tests/avatar-topdown.cjs
       - name: Scenery cache and physics isolation
