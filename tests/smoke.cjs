@@ -765,7 +765,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
       addEventListener(name,fn){(handlers[name]??=[]).push(fn);},
       fire(name,extra={}){for(const fn of handlers[name]||[])fn({preventDefault(){},pointerId:1,...extra});},
       append(...items){this.children.push(...items);},
-      replaceChildren(...items){this.children=items;},
+      replaceChildren(...items){this.children=items;this.textContent='';this.innerHTML='';},
       prepend(item){this.children.unshift(item);},
       setAttribute(name,value){this.attributes??={};this.attributes[name]=value;if(name==='content')this.content=value;},
       select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
