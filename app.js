@@ -449,6 +449,16 @@ function renderPauseChoiceList(){
 }
 function renderRoster(){
   const el=$('roster');el.replaceChildren();
+  const bots=players.filter(p=>p.isBot);
+  const changeAll=$('cycleAllBotsBtn');
+  const choices=Object.keys(MODES);
+  const firstBotChoice=bots[0]?.choice;
+  const nextChoice=choices[(choices.indexOf(firstBotChoice)+1)%choices.length];
+  changeAll.classList.toggle('hidden',bots.length===0);
+  changeAll.disabled=bots.length===0||!!round;
+  changeAll.textContent='เปลี่ยนบอท '+bots.length+' ตัว → '+MODES[nextChoice];
+  changeAll.setAttribute('aria-label','ตั้งเกมบอททุกตัวเป็น '+MODES[nextChoice]);
+  changeAll.title='กดครั้งเดียวเพื่อเปลี่ยนเกมของบอททั้งหมดเป็น '+MODES[nextChoice]+' โดยไม่เปลี่ยนเกมของผู้เล่นมือถือ';
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
   // Reserve ALL twelve positions from room creation. Joined players replace
   // numbered placeholders, never change the number or size of grid rows.
@@ -1641,6 +1651,18 @@ document.addEventListener('keydown',e=>{
   }
 });
 $('addLocalBtn').addEventListener('click',addLocal);
+$('cycleAllBotsBtn').addEventListener('click',()=>{
+  // In the lobby, apply the next choice of the first bot to ALL local bots
+  // in one action. Real/remote players retain their independently chosen game.
+  if(round||currentView!=='hostLobby')return;
+  const bots=players.filter(p=>p.isBot);
+  if(!bots.length)return;
+  const choices=Object.keys(MODES);
+  const mode=choices[(choices.indexOf(bots[0].choice)+1)%choices.length];
+  bots.forEach(p=>{p.choice=mode;});
+  renderRoster();
+  broadcastRoster();
+});
 $('hostBtn').addEventListener('click',()=>startHost());
 function shuffleGames(items){
   const result=[...items];

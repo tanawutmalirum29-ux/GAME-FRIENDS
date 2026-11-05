@@ -43,6 +43,8 @@ assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
 assert.match(html,/data-session-mode="quick"/);
+assert.match(html,/id="cycleAllBotsBtn"/);
+assert.match(css,/#hostLobby \.lobby-section-title \.bulk-bot-switch\{/);
 assert.match(html,/id="uiModal"/);
 assert.doesNotMatch(source,/\b(?:alert|confirm)\(/);
 assert.match(css,/#hostLobby #hostQueue\{display:none!important\}/);
@@ -1014,6 +1016,64 @@ assert.equal(online.elements.get('pauseMenu').classList.contains('hidden'),false
 online.click('exitBtn');
 assert.equal(online.elements.get('hostLobby').classList.contains('hidden'),false);
 assert.equal(online.scope.document.fullscreenExits,0);
+
+// One tap must switch every BOT, never remote players, and keep 12 fixed
+// slots with the same start-button validation.
+{
+ const bulk=setup();
+ assert.equal(bulk.elements.get('cycleAllBotsBtn').disabled,true,
+   'bulk switch is disabled in an empty room');
+ bulk.click('offlineBtn');
+ for(let i=0;i<7;i++)bulk.click('addLocalBtn');
+ const local=bulk.scope.window.__ghostTest.getPlayers();
+ assert.equal(local.length,9);
+ assert.ok(local.every(p=>p.choice==='ghost'));
+ assert.equal(bulk.elements.get('cycleAllBotsBtn').disabled,false);
+ assert.equal(bulk.elements.get('roster').children.length,12);
+ bulk.click('cycleAllBotsBtn');
+ assert.ok(local.every(p=>p.choice==='chickens'),'all bots change together');
+ assert.equal(bulk.elements.get('startBtn').disabled,false);
+ bulk.click('cycleAllBotsBtn');
+ assert.ok(local.every(p=>p.choice==='fruit_memory'));
+ bulk.click('cycleAllBotsBtn');
+ assert.ok(local.every(p=>p.choice==='shockwave'));
+ bulk.click('cycleAllBotsBtn');
+ assert.ok(local.every(p=>p.choice==='ghost'),'cycles through all four games');
+ // Individual selection remains independent; bulk applies the NEXT
+ // game of the first bot, synchronizing any mixed bot choices.
+ const choice=bulk.elements.get('roster').children[0].children[3];
+ choice.fire('click');
+ assert.equal(local[0].choice,'chickens');
+ assert.ok(local.slice(1).every(p=>p.choice==='ghost'));
+ bulk.click('cycleAllBotsBtn');
+ assert.ok(local.every(p=>p.choice==='fruit_memory'),
+   'single-click bulk selection synchronizes a mixed bot roster');
+ bulk.click('startBtn');
+ assert.equal(bulk.elements.get('game').classList.contains('hidden'),false);
+ const before=local.map(p=>p.choice);
+ bulk.click('cycleAllBotsBtn');
+ assert.deepEqual(local.map(p=>p.choice),before,
+   'bulk selection cannot mutate choices during a running round');
+}
+{
+ const mixed=setup('https://game.example/?host=1');
+ mixed.click('hostBtn');mixed.instances[0].fire('open');
+ const remote=mixed.instances[0].connect();
+ mixed.instances[0].fire('connection',remote);
+ remote.fire('data',{t:'join',name:'Human'});
+ remote.fire('data',{t:'pick',mode:'shockwave'});
+ mixed.click('addLocalBtn');mixed.click('addLocalBtn');
+ const players=mixed.scope.window.__ghostTest.getPlayers();
+ assert.equal(players.filter(p=>!p.isBot).length,1);
+ const remotePlayer=players.find(p=>!p.isBot);
+ assert.equal(remotePlayer.choice,'shockwave');
+ mixed.click('cycleAllBotsBtn');
+ assert.ok(players.filter(p=>p.isBot).every(p=>p.choice==='chickens'));
+ assert.equal(remotePlayer.choice,'shockwave',
+   'bulk changes do not override a real player using a controller');
+ assert.equal(mixed.elements.get('startBtn').disabled,false,
+   'all nominations remain valid after bulk bot switch');
+}
 
 // Twelve is the HARD CAP. The large empty lobby panel is filled by its cards,
 // without adding extra players and without changing Ghost Attack's ghost tiers.
