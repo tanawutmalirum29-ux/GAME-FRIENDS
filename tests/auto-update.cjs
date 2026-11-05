@@ -86,6 +86,17 @@ async function main(){
   assert.equal(redirected.searchParams.get('_gf_build'),newVersion);
   assert.equal(idle.notices,0);
 
+  // Refuse to reload when application state could not be safely persisted.
+  const veto=session(old,newVersion,true);
+  let preparations=0;
+  veto.win.GAME_PREPARE_AUTO_RELOAD=()=>{preparations++;return false;};
+  assert.equal(await veto.win.GameAutoUpdate.check(),true);
+  assert.equal(preparations,1);
+  assert.equal(veto.win.location.redirected,undefined,
+    'a room must not reload if its recovery handoff cannot be saved');
+  veto.win.GAME_PREPARE_AUTO_RELOAD=()=>true;
+  assert.equal(veto.win.GameAutoUpdate.onSafePoint(),true);
+
   // Live PeerJS rooms never reload automatically or discard room IDs.
   const busy=session(old,newVersion,false);
   assert.equal(await busy.win.GameAutoUpdate.check(),true);

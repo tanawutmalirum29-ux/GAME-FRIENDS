@@ -676,7 +676,7 @@ for(const item of ['cloak','boost','stun','trap','slow']){
 }
 
 const persistedNicknames=new Map();
-function setup(url='https://game.example/?host=1',portrait=false) {
+function setup(url='https://game.example/?host=1',portrait=false,savedSession=null) {
   const elements=new Map();
   const makeElement=(id='')=>{
     const handlers={},classes=new Set();
@@ -807,7 +807,8 @@ function setup(url='https://game.example/?host=1',portrait=false) {
   }
   let raf=null;
   const windowHandlers={};
-  const sessionData=new Map();
+  const sessionData=savedSession||new Map();
+  const timers=[];
   const win={
     location:new URL(url),crypto:webcrypto,portrait,
     screen:{width:360,height:800},devicePixelRatio:2,
@@ -826,18 +827,21 @@ function setup(url='https://game.example/?host=1',portrait=false) {
   win.history={replaceState(_state,_title,next){win.location.href=next;}};
   const sessionStorage={
     getItem(key){return sessionData.get(key)||null;},
-    setItem(key,value){sessionData.set(key,String(value));}
+    setItem(key,value){sessionData.set(key,String(value));},
+    removeItem(key){sessionData.delete(key);}
   };
   const globals={window:win,location:win.location,document,crypto:webcrypto,sessionStorage,
     navigator:{},Peer:FakePeer,URL,URLSearchParams,
-    setInterval(){return 1;},setTimeout(){return 1;},
+    setInterval(){return 1;},
+    setTimeout(fn,ms){timers.push({fn,ms,cancelled:false});return timers.length;},
+    clearTimeout(id){if(timers[id-1])timers[id-1].cancelled=true;},
     requestAnimationFrame(fn){raf=fn;},alert(){},confirm(){return true;}};
   const scope=vm.createContext(globals);
   vm.runInContext(combatSource,scope,{filename:'combat-motion.js'});
   vm.runInContext(artSource,scope,{filename:'graveyard-art.js'});
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
-  return {elements,pickButtons,sessionButtons,padButtons,instances,scope,
+  return {elements,pickButtons,sessionButtons,padButtons,instances,scope,sessionData,timers,
     mediaCall(peer){return new FakeMediaCall(peer);},
     step(ms){assert(raf);raf(ms);},
     click(id){elements.get(id).fire('click');},
@@ -1070,7 +1074,95 @@ assert.equal(phone.elements.get('controllerInventory').classList.contains('hidde
 phone.click('leaveBtn');phone.click('confirmLeaveBtn');
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
 assert.equal(phone.scope.window.location.search,'?controller=1');
-console.log('SMOKE PASS: 12-player cap and spacious roster, tactical bots, SVG covers, async confirmations, QR, WebRTC');
+// Full room-preserving page refresh: same room, seat token, choice and color.
+{
+ const hostA=setup();
+ hostA.click('hostBtn');hostA.instances[0].fire('open');
+ const code=hostA.elements.get('roomCode').textContent;
+ const token='controller-test-token-123456789';
+ const peerA=hostA.instances[0],connA=peerA.connect();
+ peerA.fire('connection',connA);
+ connA.fire('data',{t:'join',name:'Resume Test',clientToken:token});
+ const welcomeA=connA.sent.find(m=>m.t==='welcome');
+ connA.fire('data',{t:'pick',mode:'fruit_memory'});
+ const hostState=JSON.parse(hostA.sessionData.get('gf-host-room-v2'));
+ assert.equal(hostState.code,code);
+ assert.equal(hostState.players[0].choice,'fruit_memory');
+ assert.equal(hostA.scope.window.GAME_CAN_AUTO_RELOAD(),true,
+   'a joined, idle host lobby must apply patches automatically');
+ const hostB=setup('https://game.example/?host=1',false,hostA.sessionData);
+ assert.equal(hostB.elements.get('hostLobby').classList.contains('hidden'),false);
+ assert.equal(hostB.instances[0].id,'gf-party-'+code,'host restores the exact invite code');
+ hostB.instances[0].fire('open');
+ assert.equal(hostB.scope.window.__ghostTest.getPlayers().length,1);
+ const peerB=hostB.instances[0],connB=peerB.connect();
+ peerB.fire('connection',connB);
+ connB.fire('data',{t:'join',name:'Resume Test',clientToken:token});
+ assert.equal(connB.sent.find(m=>m.t==='welcome').id,welcomeA.id);
+ assert.equal(connB.sent.find(m=>m.t==='welcome').color,welcomeA.color);
+ assert.equal(connB.sent.find(m=>m.t==='welcome').choice,'fruit_memory');
+ assert.equal(hostB.scope.window.__ghostTest.getPlayers().length,1,
+   'reconnected controller reclaims its seat instead of duplicating');
+ connB.close();
+ assert.equal(hostB.scope.window.__ghostTest.getPlayers().length,1,
+   'brief lost connection does not immediately kick the player');
+ const connC=peerB.connect();peerB.fire('connection',connC);
+ connC.fire('data',{t:'join',name:'Resume Test',clientToken:token});
+ assert.equal(connC.sent.find(m=>m.t==='welcome').id,welcomeA.id);
+ assert.equal(hostB.scope.window.__ghostTest.getPlayers().length,1);
+ hostB.click('startBtn');
+ assert.equal(hostB.scope.window.GAME_CAN_AUTO_RELOAD(),false,
+   'a running match must NEVER be automatically refreshed');
+ hostB.click('exitBtn');
+ assert.equal(hostB.scope.window.GAME_CAN_AUTO_RELOAD(),true,
+   'auto updates resume once host returns to lobby');
+ connC.fire('data',{t:'leave'});
+ assert.equal(hostB.scope.window.__ghostTest.getPlayers().length,0,
+   'intentional exit frees a player slot immediately');
+}
+{
+ const oldPhone=setup('https://game.example/?join=ABCD23');
+ oldPhone.elements.get('nick').value='Phone Resume';
+ oldPhone.click('joinBtn');oldPhone.instances[0].fire('open');
+ const first=oldPhone.instances[0].conn;first.fire('open');
+ const firstJoin=first.sent.find(m=>m.t==='join');
+ first.fire('data',{t:'welcome',id:'p3',name:'Phone Resume',color:'#ff628c',
+   mode:'ghost',phase:'lobby',choice:'ghost',active:false});
+ assert.equal(oldPhone.scope.window.GAME_CAN_AUTO_RELOAD(),true,
+   'joined controller lobby may apply a patch');
+ assert.equal(JSON.parse(oldPhone.sessionData.get('gf-phone-room-v2')).code,'ABCD23');
+ const newPhone=setup('https://game.example/?join=ABCD23',false,oldPhone.sessionData);
+ assert.equal(newPhone.elements.get('controller').classList.contains('hidden'),false);
+ const resume=newPhone.timers.find(t=>t.ms===250&&!t.cancelled);
+ assert.ok(resume,'phone should retry the stored room after page refresh');
+ resume.fn();
+ assert.equal(newPhone.instances.length,1);
+ newPhone.instances[0].fire('open');
+ const next=newPhone.instances[0].conn;next.fire('open');
+ const nextJoin=next.sent.find(m=>m.t==='join');
+ assert.equal(nextJoin.clientToken,firstJoin.clientToken,'stable identity across reload');
+ assert.equal(nextJoin.name,'Phone Resume');
+ next.fire('data',{t:'welcome',id:'p3',name:'Phone Resume',color:'#ff628c',
+   mode:'ghost',phase:'lobby',choice:'ghost',active:false});
+ assert.equal(newPhone.elements.get('controllerActive').classList.contains('hidden'),false,
+   'joined gamepad view restored automatically');
+ next.fire('data',{t:'roster',phase:'playing',mode:'ghost',
+   players:[{id:'p3',active:true,choice:'ghost'}]});
+ assert.equal(newPhone.scope.window.GAME_CAN_AUTO_RELOAD(),false,
+   'controller must not hot-reload while actually playing');
+ next.fire('data',{t:'roster',phase:'lobby',mode:'ghost',
+   players:[{id:'p3',active:false,choice:'ghost'}]});
+ assert.equal(newPhone.scope.window.GAME_CAN_AUTO_RELOAD(),true);
+}
+{
+ const offlineA=setup();offlineA.click('offlineBtn');
+ const oldBotCount=offlineA.scope.window.__ghostTest.getPlayers().length;
+ const offlineB=setup('https://game.example/?host=1',false,offlineA.sessionData);
+ assert.equal(offlineB.elements.get('hostLobby').classList.contains('hidden'),false);
+ assert.equal(offlineB.scope.window.__ghostTest.getPlayers().length,oldBotCount);
+ assert.equal(offlineB.scope.window.GAME_CAN_AUTO_RELOAD(),true);
+}
+console.log('SMOKE PASS: 12-player cap, game controls, host/player reload recovery, tokens, session continuity, automatic patch safety');
 
 // All chicken gameplay rules run alongside the existing GHOST ATTACK regression suite.
 require('./chickens.cjs');

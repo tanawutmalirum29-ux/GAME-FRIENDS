@@ -79,6 +79,13 @@
 วิดีโอจอยเลือกระดับ 144p / 540p / 720p / Auto โดยไม่ล็อก FPS ตามคุณภาพ (เบราว์เซอร์/เครือข่ายอาจปรับ FPS เอง) โหมดเต็มจอยังขึ้นกับข้อจำกัด iOS/Safari
 
 
+## Room continuity and web patching
+
+- A host lobby refresh reopens its original PeerJS room ID from tab-scoped session storage, preserving player seats, local bots, selected games and settings. Joined controllers store a stable per-tab token and automatically reconnect to the saved room after an update or refresh.
+- Unexpected disconnects hold a remote player's slot for up to 60 seconds. Explicit departure removes the slot immediately.
+- The auto-update checker runs periodically and on visibility/focus, and may refresh idle host lobbies, controller join forms, joined controllers in the lobby, offline lobbies and home, restoring each page after the new version loads. It defers updates during active matches.
+- **Limit:** A manual browser reload of the host in the middle of a match returns to the same room lobby but cannot resume the in-memory live game; uninterrupted match state would need server-side persistence. Reconnecting to a PeerJS room still requires network access.
+
 ## FRUIT MEMORY (third mini-game)
 
 - 1–6 entrants: compact 5×5 board (25 tiles), five fruits × five tiles, 5-second move.
