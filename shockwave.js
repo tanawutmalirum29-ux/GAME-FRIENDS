@@ -12,7 +12,7 @@ function createGrid(state,count){
  state.tileSize=state.big?84:100;
  state.board={x:(960-state.cols*state.tileSize)/2,y:state.big?99:103,w:state.cols*state.tileSize,h:state.rows*state.tileSize};
  state.tiles=Array.from({length:state.cols*state.rows},(_,id)=>({id,col:id%state.cols,row:Math.floor(id/state.cols),state:'safe',wave:0,flash:0}));
- state.remainingTiles=state.tiles.length;
+ state.remainingTiles=state.tiles.length;state.initialTiles=state.tiles.length;
  return state.tiles;
 }
 function center(s,t){return {x:s.board.x+(t.col+.5)*s.tileSize,y:s.board.y+(t.row+.5)*s.tileSize};}
@@ -40,7 +40,7 @@ function setup(round,players){
    seed:((Number(round.shockSeed)||((Date.now()^0x6a53)|0))>>>0)||1,
    warningDuration:0,warningStarted:false,winnerId:null,finished:false,
    eliminationEvent:0,events:[],effects:[],tiebreakers:0,finalArena:false,
-   startCount:players.length,roundId:0,fastPhase:false};
+   startCount:players.length,roundId:0,fastPhase:false,suddenDeath:false};
  round.shockwave=state;round.remaining=null;
  for(const p of players){p.active=true;p.score=0;}
  createGrid(state,players.length);spawnPlayers(state,players);
@@ -163,7 +163,7 @@ function intervalSeconds(wave,big){
 }
 function dangerCount(s){
  const total=s.tiles.filter(t=>t.state==='safe').length;
- const ratio=s.wave<=2?.125:s.wave<=4?.18:s.wave<=6?.23:s.wave<=9?.30:s.wave<=12?.35:.40;
+ const ratio=s.suddenDeath?.55:s.wave<=2?.125:s.wave<=4?.18:s.wave<=6?.23:s.wave<=9?.30:s.wave<=12?.35:.40;
  return clamp(Math.round(total*ratio),1,Math.max(1,total-1));
 }
 function validateSafeRoutes(s,players,danger,duration){
@@ -218,7 +218,7 @@ function startTiebreaker(s,players,ids,reason='tie'){
  const contestants=players.filter(p=>p.active&&eligible.has(p.id));
  if(contestants.length===1){s.winnerId=contestants[0].id;s.finished=true;return;}
  if(!contestants.length){s.finished=true;return;}
- s.tiebreakers++;s.finalArena=reason==='final-arena';
+ s.tiebreakers++;s.finalArena=reason==='final-arena';s.suddenDeath=false;
  s.roundId++;s.wave=0;s.phase='NEXT_WAVE';s.timer=.7;s.danger=[];
  createGrid(s,contestants.length);
  const original=players.filter(p=>p.active);
@@ -264,11 +264,19 @@ function startWarning(s,players){
  for(const id of selected){const t=s.tiles[id];t.state='warning';t.wave=s.wave;}
  s.phase='WARNING';s.timer=s.warningDuration;
 }
+function checkSuddenDeath(s){
+ const remaining=s.tiles.filter(t=>t.state!=='destroyed').length;
+ s.remainingTiles=remaining;
+ if(remaining<=Math.floor(s.initialTiles*.25)||
+   (s.wave>=10&&remaining<=Math.floor(s.initialTiles*.5)))s.suddenDeath=true;
+ return s.suddenDeath;
+}
 function startWave(s,players){
  if(checkWinner(s,players))return;
  if(s.phase==='NEXT_WAVE'&&s.timer>0)return;
  s.wave++;
  s.fastPhase=s.wave>=7;
+ checkSuddenDeath(s);
  s.phase='PREPARE';s.timer=.08;
  s.danger=[];s.warningStarted=false;
 }
@@ -292,6 +300,7 @@ function triggerExplosion(s,players){
 function collapseTiles(s){
  for(const id of s.danger){const t=s.tiles[id];if(t.state==='exploding')t.state='destroyed';}
  s.remainingTiles=s.tiles.filter(t=>t.state!=='destroyed').length;
+ checkSuddenDeath(s);
  s.danger=[];
 }
 function step(dt,round,players){
@@ -423,6 +432,10 @@ function draw(ctx,time,round,players){
    ctx.fillStyle='#e66f45';ctx.fillRect(790,18,150,31);
    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 15px sans-serif';ctx.fillText('FAST PHASE',865,39);
  }
+ if(s.suddenDeath&&!s.finished){
+   ctx.fillStyle='#ffd1a2';ctx.textAlign='center';ctx.font='bold 14px sans-serif';
+   ctx.fillText('SUDDEN DEATH',480,87);
+ }
  if(s.finalArena&&s.tiebreakers){
    ctx.fillStyle='#ffdb8e';ctx.textAlign='center';ctx.font='bold 14px sans-serif';
    ctx.fillText('FINAL ARENA • TIEBREAKER '+s.tiebreakers,480,86);
@@ -432,5 +445,5 @@ function draw(ctx,time,round,players){
 window.Shockwave=Object.freeze({setup,update,draw,hud,createGrid,spawnPlayers,calculateDangerWeights,
  selectDangerTiles,validateSafeRoutes,startWave,startWarning,triggerExplosion,collapseTiles,
  calculateFootSupport,resolvePlayerCollision,evaluateEliminations,checkWinner,startTiebreaker,
- warningSeconds,intervalSeconds,distanceBias,constants:C});
+ warningSeconds,intervalSeconds,distanceBias,checkSuddenDeath,constants:C});
 })();
