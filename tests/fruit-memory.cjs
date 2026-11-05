@@ -139,15 +139,20 @@ function seam(x){
 {
  const x=init(2),s=x.state;
  s.phase='move';s.target='apple';for(const t of s.tiles)t.fruitType='banana';
- const origBoard=s.board,tiles=[...s.tiles],positions=x.players.map(p=>[p.x,p.y]);
+ const board=s.board,tiles=[...s.tiles],positions=x.players.map(p=>[p.x,p.y]);
  game.evaluateSurvivors(s,x.players);
- assert.deepEqual([...s.replayEntrants],['p1','p2'],'all-fall replay is fair');
- advance(x,2.7);
- assert.equal(s.rounds,2);assert.equal(s.finished,false);
- assert.equal(s.board,origBoard,'map never rebuilds at a new coordinate');
- for(let i=0;i<tiles.length;i++)assert.equal(s.tiles[i],tiles[i],'tile geometry is not recreated');
- assert.deepEqual(x.players.map(p=>[p.x,p.y]),positions,'no teleport after simultaneous wipe');
- assert.equal(x.players.filter(p=>p.fruitAlive).length,2);
+ assert.equal(s.pendingTie,true,'all-player wipe is an immediate draw after collapse');
+ assert.deepEqual([...s.tieIds],['p1','p2']);
+ assert.equal(x.players.filter(p=>p.fruitAlive).length,0);
+ advance(x,1.6);
+ assert.equal(s.rounds,1,'no replay on a complete wipe');
+ assert.equal(s.finished,true);
+ assert.equal(s.winnerId,null);
+ assert.equal(game.update(.016,x.round,x.players),'winner',
+   'the host must receive a results signal for the draw');
+ assert.equal(s.board,board);
+ assert.deepEqual(x.players.map(p=>[p.x,p.y]),positions);
+ for(let i=0;i<tiles.length;i++)assert.equal(s.tiles[i],tiles[i]);
 }
 {
  const x=init(3),s=x.state,[p,q,r]=x.players;
@@ -210,5 +215,65 @@ for(const side of ['behind','far']){
  q.x=p.x+(side==='behind'?-44:90);q.y=p.y;
  p.input.action=true;advance(x,.22);
  assert.equal(q.fruitStun,0,'punch cannot hit '+side);
+}
+{
+ // People eliminated in previous waves never reappear during the new collapse.
+ const x=init(3),s=x.state,[a,b,c]=x.players;
+ s.phase='move';s.target='apple';
+ for(const t of s.tiles)t.fruitType='banana';
+ s.tiles[0].fruitType='apple';s.tiles[1].fruitType='apple';
+ a.x=s.board.x+s.tileW*.5;a.y=s.board.y+s.tileH*.5;
+ b.x=s.board.x+s.tileW*1.5;b.y=a.y;
+ c.x=s.board.x+s.tileW*2.5;c.y=a.y;
+ game.evaluateSurvivors(s,x.players);
+ assert.equal(c.fruitAlive,false);assert.equal(c.fruitEliminatedRound,1);
+ advance(x,2.7);
+ assert.equal(s.rounds,2);assert.equal(c.fruitAlive,false);
+ s.target='apple';s.phase='move';
+ for(const t of s.tiles)t.fruitType='banana';
+ game.evaluateSurvivors(s,x.players);
+ assert.equal(s.pendingTie,true);
+ assert.deepEqual([...s.tieIds],['p1','p2']);
+ assert.equal(c.fruitEliminatedRound,1);
+ assert.equal(a.fruitEliminatedRound,2);assert.equal(b.fruitEliminatedRound,2);
+ const names=[],saved=context.window.PartyPlayerAvatar;
+ context.window.PartyPlayerAvatar={draw(_ctx,p){names.push(p.id);}};
+ const ctx=new Proxy({},{get(_o,key){if(key==='globalAlpha')return 1;return ()=>{};},set(){return true;}});
+ for(const p of x.players)game.drawPlayer(ctx,p,s,0);
+ context.window.PartyPlayerAvatar=saved;
+ assert.deepEqual(names,['p1','p2'],
+   'players eliminated in a previous round must not be rendered again');
+ advance(x,1.9);
+ assert.equal(s.finished,true);assert.equal(s.rounds,2);
+ assert.equal(x.players.filter(p=>p.fruitAlive).length,0);
+}
+{
+ // Both amber side panels clip text and use bounded, left-aligned Thai lines.
+ for(const n of [4,12]){
+  const x=init(n),s=x.state;
+  const textCalls=[],origins=[],clipCount={value:0};
+  const ctx=new Proxy({},{
+   get(_obj,key){
+    if(key==='translate')return (...args)=>origins.push(args);
+    if(key==='clip')return ()=>{clipCount.value++;};
+    if(key==='fillText')return (...args)=>textCalls.push(args);
+    return ()=>{};
+   },set(){return true;}
+  });
+  for(const phase of ['memorize','hide','move','collapse','rebuild']){
+   s.phase=phase;s.target='apple';
+   game.drawSideDisplays(ctx,s,{phase:'playing'},x.players);
+  }
+  assert.equal(clipCount.value,10,'clip each side panel in each game phase');
+  assert.equal(origins.length,10);assert.ok(textCalls.length>20);
+  for(const [label,xPos,yPos,maxWidth] of textCalls){
+   assert.ok(xPos>=17&&xPos<=73,'label is anchored in the panel');
+   assert.ok(yPos>=0&&yPos<=350,'vertical text location stays in bounds');
+   assert.ok(maxWidth<=112,'text width never extends beyond panel');
+  }
+  assert.ok(textCalls.some(t=>t[0]==='จำตำแหน่ง'));
+  assert.ok(textCalls.some(t=>t[0]==='ให้ดี'));
+  assert.ok(textCalls.some(t=>t[0]==='/ '+s.tiles.length+' ช่อง'));
+ }
 }
 console.log('FRUIT MEMORY PASS: variable 4–6/6–8 card reveal, completion-only transition, preserved map and bot positions, existing physics and gameplay');
