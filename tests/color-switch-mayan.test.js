@@ -33,15 +33,20 @@ function game(count=2,theme='mayan'){
  eq(m.nextSide,'left','start left');
  ok(M.beginWarning(s,()=>0),'left warning begins');
  ok(!M.beginWarning(s,()=>0),'no stacked warning');
- eq(m.warning.side,'left','warn left');eq(m.warning.rows.length,2,'warn two lanes');
+ eq(m.warning.side,'left','warn left');eq(m.warning.rows.length,3,'warn three lanes');
+ eq(new Set(m.warning.rows).size,3,'three distinct left skulls');
  ok(m.warning.rows.every(r=>r%2===0),'even rows on left');
  eq(m.warning.remaining,M.constants.warning,'warning time');
- ok(M.fireWarning(s,()=>0),'left fires');eq(m.bullets.length,2,'two bullets');
+ ok(M.fireWarning(s,()=>0),'left fires');eq(m.bullets.length,3,'three bullets on left');
  eq(m.nextSide,'right','next side is right');
  ok(M.beginWarning(s,()=>0),'right warning begins');
  ok(m.warning.rows.every(r=>r%2===1),'odd rows on right');
+ eq(m.warning.rows.length,3,'warn three right-side lanes');
+ eq(new Set(m.warning.rows).size,3,'three distinct right skulls');
  ok(M.fireWarning(s,()=>0),'right fires');
- eq(m.bullets.length,4,'four bullets launched');
+ eq(m.bullets.length,6,'six bullets after two volleys');
+ eq(m.shots,6,'shot counter grows three per volley');
+ eq(new Set(m.bullets.map(b=>b.side+':'+b.row)).size,6,'all three lanes per side unique');
  eq(m.volleyHistory.join(','),'left,right','alternating history');
  eq(m.nextSide,'left','third side left again');
 }
@@ -68,15 +73,16 @@ function game(count=2,theme='mayan'){
  p.y=test.y;ok(M.bulletHitsPlayer(test,test.x-5,p),'same lane hits');
 }
 {
- eq(E.constants.botPunchRate,.85,'15 percent less bot punches');
+ ok(Math.abs(E.constants.botPunchRate-.85*.85)<1e-12,'two sequential 15 percent punch reductions');
+ eq(E.constants.botPunchRate,.7225,'new punch frequency 72.25 percent of original');
  const {s,players,round}=game(2,'classic');
  const bot=players[0],enemy=players[1];bot.isBot=true;
  bot.x=s.board.x+s.size*4;bot.y=s.board.y+s.size*4;
  enemy.x=bot.x+32;enemy.y=bot.y;bot.dir={x:1,y:0};
  E.update(1/60,round,players);
  const delay=bot.cs.botNextPunch-s.clock;
- ok(delay>=1.15/.85-1e-6,'minimum delay nerfed');
- ok(delay<=1.6/.85+1e-6,'maximum delay nerfed');
+ ok(delay>=1.15/.7225-1e-6,'minimum delay after another 15 percent punch reduction');
+ ok(delay<=1.6/.7225+1e-6,'maximum delay after another 15 percent punch reduction');
 }
 {
  const {s,players,round}=game(12);
