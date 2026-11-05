@@ -31,7 +31,7 @@ function setup(round,ps){
   warningStarted:false,seed:((Number(round.shockSeed)||Date.now()^0x6a53)>>>0)||1,
   winnerId:null,finished:false,fastPhase:false,suddenDeath:false,finalArena:false,
   events:[],effects:[],eliminationEvent:0,tiebreakers:0,pendingTiebreaker:null,roundId:0,
-  startCount:ps.length};
+  startCount:ps.length,plannedWarningDuration:0,plannedDangerCount:0};
  round.shockwave=s;round.remaining=null;
  for(const p of ps){p.active=true;p.score=0;}
  createGrid(s);spawnPlayers(s,ps);return s;
@@ -110,37 +110,49 @@ function movePlayers(dt,s,ps){
  }
  resolvePlayerCollision(s,ps);
 }
-function distanceBias(w){return w<=3?.10:w<=6?.25:w<=9?.45:w<=12?.60:.75;}
+function distanceBias(w){
+ // Late waves increase distance influence without making nearby tiles immune.
+ return w<=3?.10:w<=6?.25:w<=9?.45:w<=10?.60:
+   Math.min(.94,.65+(w-10)*.06);
+}
 function calculateDangerWeights(s,ps){
  const alive=living(ps),tiles=s.tiles.filter(t=>t.state==='safe'),bias=distanceBias(s.wave);
  const distances=tiles.map(t=>{const c=tileCenter(s,t);
    return alive.length?Math.min(...alive.map(p=>Math.hypot(c.x-p.x,c.y-p.y))):0;});
  const maximum=Math.max(1,...distances);
- return tiles.map((t,i)=>({id:t.id,distance:distances[i],weight:1+3*bias*distances[i]/maximum}));
+ return tiles.map((t,i)=>({id:t.id,distance:distances[i],
+   weight:1+8*bias*Math.pow(distances[i]/maximum,1.5)}));
 }
 function warningSeconds(w){return w<=3?2.5:w<=6?2.1:w<=9?1.6:w<=12?1.3:1.1;}
 function intervalSeconds(w){return w<=3?1:w<=6?.85:w<=9?.65:w<=12?.5:.4;}
+// Growing danger coverage. Wave 15+ leaves exactly one safe tile.
+// Floor tiles stay solid; dangerous tiles revert after exploding.
 function dangerCount(s){
- const w=s.wave,ratio=w<=2?.12:w<=4?.18:w<=6?.24:w<=9?.3:w<=12?.42:
-   w<=17?.55:Math.min(.92,.58+(w-17)*.025);
- return clamp(Math.round(25*(s.suddenDeath?Math.max(.62,ratio):ratio)),2,24);
+ const targets=[0,3,4,5,6,8,10,12,14,16,18,20,21,22,23,24];
+ return targets[Math.min(Math.max(1,s.wave),15)];
 }
-function validateSafeRoutes(s,ps,danger,duration){
- const selected=new Set(danger),safes=s.tiles.filter(t=>!selected.has(t.id));
- if(!safes.length)return false;
- // There are no holes. Travel may cross a warning tile before it explodes.
+function requiredEscapeSeconds(s,ps,danger){
+ const selected=danger instanceof Set?danger:new Set(danger);
+ const safe=s.tiles.filter(t=>t.state==='safe'&&!selected.has(t.id));
+ if(!safe.length)return Infinity;
+ let longest=0;
  for(const p of living(ps)){
    if(calculateDangerContact(s,p,selected)<C.blastThreshold)continue;
-   const hasEscape=safes.some(t=>{
+   // Warning has continuous walkable floor. Check the nearest fully safe
+   // interior square, accounting for the real footprint diameter.
+   const distance=Math.min(...safe.map(t=>{
      const x=s.board.x+t.col*s.tileSize,y=s.board.y+t.row*s.tileSize;
-     const targetX=clamp(p.x,x+C.footRadius,x+s.tileSize-C.footRadius);
-     const targetY=clamp(p.y,y+C.footRadius,y+s.tileSize-C.footRadius);
-     return Math.hypot(targetX-p.x,targetY-p.y)<=
-       C.speed*duration*.88+C.footRadius;
-   });
-   if(!hasEscape)return false;
+     const inset=C.footRadius;
+     return Math.hypot(
+       clamp(p.x,x+inset,x+s.tileSize-inset)-p.x,
+       clamp(p.y,y+inset,y+s.tileSize-inset)-p.y);
+   }));
+   longest=Math.max(longest,distance/(C.speed*.80)+.18);
  }
- return true;
+ return longest;
+}
+function validateSafeRoutes(s,ps,danger,duration){
+ return requiredEscapeSeconds(s,ps,danger)<=duration+1e-8;
 }
 function weightedDraw(s,bag){
  let roll=random(s)*bag.reduce((n,x)=>n+x.weight,0);
@@ -148,16 +160,27 @@ function weightedDraw(s,bag){
  return bag[bag.length-1];
 }
 function selectDangerTiles(s,ps){
- const count=dangerCount(s),warning=warningSeconds(s.wave);
- for(let size=count;size>=1;size--)for(let attempt=0;attempt<85;attempt++){
+ const target=dangerCount(s),base=warningSeconds(s.wave);
+ let best=null;
+ // Exact hazard count: extend the warning for distant escapes instead of
+ // quietly reverting to a handful of red tiles during Sudden Death.
+ for(let attempt=0;attempt<100;attempt++){
    const bag=calculateDangerWeights(s,ps),selected=[];
-   while(selected.length<size&&bag.length){
-     const pick=weightedDraw(s,bag);selected.push(pick.id);
-     bag.splice(bag.findIndex(x=>x.id===pick.id),1);
+   while(selected.length<target&&bag.length){
+     const picked=weightedDraw(s,bag);
+     selected.push(picked.id);
+     bag.splice(bag.findIndex(t=>t.id===picked.id),1);
    }
-   if(validateSafeRoutes(s,ps,selected,warning))return selected;
+   const required=requiredEscapeSeconds(s,ps,selected);
+   if(!Number.isFinite(required))continue;
+   const duration=Math.max(base,required);
+   if(!best||duration<best.duration)best={tiles:selected,duration};
+   if(required<=base)break;
  }
- return [];
+ if(!best)return [];
+ s.plannedWarningDuration=best.duration;
+ s.plannedDangerCount=best.tiles.length;
+ return best.tiles;
 }
 function startTiebreaker(s,ps,ids){
  const eligible=new Set(ids);
@@ -166,7 +189,7 @@ function startTiebreaker(s,ps,ids){
  if(!contenders.length){s.finished=true;return;}
  s.tiebreakers++;s.roundId++;s.wave=0;s.fastPhase=false;s.suddenDeath=false;
  s.finalArena=true;s.pendingTiebreaker=null;s.danger=[];s.warningStarted=false;
- s.phase='NEXT_WAVE';s.timer=.65;
+ s.phase='NEXT_WAVE';s.timer=.65;s.plannedWarningDuration=0;s.plannedDangerCount=0;
  // Never resurrect anyone eliminated before the last simultaneous wipe.
  ps.forEach(p=>{p.shockAlive=eligible.has(p.id)&&p.active;});
  createGrid(s);spawnPlayers(s,contenders);
@@ -196,7 +219,8 @@ function evaluateEliminations(s,ps,hit){
 function startWarning(s,ps){
  const chosen=selectDangerTiles(s,ps);
  if(!chosen.length){startTiebreaker(s,ps,living(ps).map(p=>p.id));return;}
- s.danger=chosen;s.warningDuration=warningSeconds(s.wave);
+ s.danger=chosen;
+ s.warningDuration=Math.max(warningSeconds(s.wave),s.plannedWarningDuration||0);
  for(const id of chosen){const t=s.tiles[id];t.state='warning';t.wave=s.wave;}
  s.warningStarted=true;s.phase='WARNING';s.timer=s.warningDuration;
 }
@@ -205,6 +229,7 @@ function startWave(s,ps){
  if(checkWinner(s,ps))return;
  s.wave++;s.fastPhase=s.wave>=7;checkSuddenDeath(s);
  s.phase='PREPARE';s.timer=.08;s.danger=[];s.warningStarted=false;
+ s.plannedWarningDuration=0;s.plannedDangerCount=0;
 }
 function triggerExplosion(s,ps){
  if(s.phase!=='WARNING'||!s.warningStarted)return;
@@ -343,7 +368,10 @@ function draw(ctx,time,round,ps){
    s.phase==='EXPLOSION'?'WAVE '+s.wave+' • ระเบิด!':
    'WAVE '+s.wave+(s.fastPhase?' • FAST':'');
  ctx.font='bold 13px sans-serif';ctx.fillStyle='#ffdda0';ctx.fillText(description,27,59);
- ctx.fillStyle='#b1f1ca';ctx.fillText('ผู้รอด '+living(ps).length+' คน • สนาม 5×5',27,79);
+ const safeCount=s.wave===0?25:
+   s.phase==='WARNING'||s.phase==='EXPLOSION'?25-s.danger.length:25-dangerCount(s);
+ ctx.fillStyle='#b1f1ca';
+ ctx.fillText('ผู้รอด '+living(ps).length+' • ปลอดภัย '+safeCount+'/25 ช่อง',27,79);
  if(s.fastPhase&&!s.finished){
    ctx.fillStyle='#d86842';ctx.fillRect(796,16,141,29);
    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 14px sans-serif';
@@ -357,6 +385,7 @@ function draw(ctx,time,round,ps){
 }
 window.Shockwave=Object.freeze({setup,update,draw,hud,createGrid,spawnPlayers,
  calculateDangerContact,calculateFootSupport,resolvePlayerCollision,calculateDangerWeights,
+  dangerCount,requiredEscapeSeconds,
  selectDangerTiles,validateSafeRoutes,warningSeconds,intervalSeconds,distanceBias,
  startWarning,startWave,triggerExplosion,collapseTiles,evaluateEliminations,
  startTiebreaker,checkWinner,checkSuddenDeath,constants:C});
