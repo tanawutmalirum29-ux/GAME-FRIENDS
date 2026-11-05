@@ -102,9 +102,9 @@ function resolve(players,opts={}){
    if(dist<1e-7){
     // Deterministic even if several spawn at the same exact coordinates.
     const angle=((i+1)*17+(j+1)*29)*2.399963;
-    dx=Math.cos(angle);dy=Math.sin(angle);dist=1e-7;
+    dx=Math.cos(angle);dy=Math.sin(angle);dist=1;
    }
-   const nx=dx/dist,ny=dy/dist,overlap=minDistance-dist;
+   const nx=dx/dist,ny=dy/dist,overlap=minDistance-Math.min(dist,minDistance);
    const af=force(a,nx,ny),bf=force(b,-nx,-ny),sum=af+bf;
    const shiftA=Math.min(maxShift,overlap*bf/sum);
    const shiftB=Math.min(maxShift,overlap*af/sum);
