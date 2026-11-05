@@ -185,8 +185,8 @@ function setup(round,ps){
  s.pairs=makePairs(s);
  people.forEach((p,i)=>{
    const angle=-Math.PI/2+TAU*i/count;
-   p.x=s.center.x+Math.cos(angle)*world.w*.115;
-   p.y=s.center.y+Math.sin(angle)*world.h*.135;
+   p.x=s.center.x+Math.cos(angle)*world.w*.06;
+   p.y=s.center.y+Math.sin(angle)*world.h*.070435;
    p.dir={x:Math.cos(angle),y:Math.sin(angle)};p.vx=0;p.vy=0;p.score=0;
    p.pizza={held:null,order:[],delivered:[],assignedTotal:0,lastCost:0,orderSerial:0,
      botPath:[],botGoal:null,repath:0};
