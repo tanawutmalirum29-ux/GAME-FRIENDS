@@ -104,6 +104,7 @@ function newMemorize(state,players,entrants){
  state.revealDuration=state.revealTimeline.at(-1).end;
  state.target=null;state.rounds++;
  state.fallEntries=[];state.pendingWinner=null;state.botTargets={};
+ state.pendingTie=false;state.tieIds=[];
  for(const p of players){
    p.fruitAlive=entrants.includes(p.id)&&p.active;
    p.fruitFall=0;p.fruitStun=0;p.fruitAttack=null;p.fruitCooldown=0;p.fruitPunchPressed=false;
@@ -131,10 +132,10 @@ function setup(round,players){
  const state={startCount,big:large,cols:large?6:5,rows:large?6:5,
    moveSeconds:large?7:5,collapseSeconds:large?1.8:1.5,
    tiles:[],elapsed:0,accumulator:0,rounds:0,phase:'memorize',previousTarget:null,
-   winnerId:null,finished:false,totalElapsed:0};
+   winnerId:null,finished:false,totalElapsed:0,pendingTie:false,tieIds:[]};
  configureBoard(state);
  round.fruitMemory=state;
- for(const p of players){p.active=true;p.score=0;p.fruitRounds=0;}
+ for(const p of players){p.active=true;p.score=0;p.fruitRounds=0;p.fruitEliminatedRound=0;}
  newMemorize(state,players,players.map(p=>p.id));
  return state;
 }
@@ -259,24 +260,27 @@ function evaluateSurvivors(state,players){
  const survivors=new Set(snapshots.filter(s=>s.result.survive).map(s=>s.id));
  state.snapshots=snapshots;
  state.fallEntries=entrants.map(p=>({id:p.id,x:p.x,y:p.y,survive:survivors.has(p.id)}));
- if(!survivors.size){
-   // True simultaneous wipe: replay the tie-break only among this round's entrants.
-   state.replayEntrants=entrants.map(p=>p.id);state.pendingWinner=null;
- }else{
-   state.replayEntrants=null;
-   for(const p of entrants){
-     p.fruitAlive=survivors.has(p.id);
-     if(p.fruitAlive){p.fruitRounds++;p.score=p.fruitRounds;}
-   }
-   const remaining=living(players);
-   state.pendingWinner=remaining.length===1?remaining[0].id:null;
+ // All entrants are assessed from the same movement snapshot.
+ // Nobody resurrects after simultaneous elimination; previous-round losers
+ // remain permanently eliminated and cannot appear in future rounds.
+ for(const p of entrants){
+   p.fruitAlive=survivors.has(p.id);
+   if(p.fruitAlive){p.fruitRounds++;p.score=p.fruitRounds;}
+   else p.fruitEliminatedRound=state.rounds;
  }
+ state.pendingTie=survivors.size===0;
+ state.tieIds=state.pendingTie?entrants.map(p=>p.id):[];
+ state.replayEntrants=null;
+ const remaining=living(players);
+ state.pendingWinner=remaining.length===1?remaining[0].id:null;
  for(const t of state.tiles)t.collapseState=t.fruitType===state.target?'safe':'falling';
  setPhase(state,'collapse');
 }
 function step(state,players,dt){
  state.totalElapsed+=dt;
- if(!living(players).length){state.winnerId=null;state.finished=true;return;}
+ if(!living(players).length&&state.phase!=='collapse'){
+  state.winnerId=null;state.finished=true;return;
+ }
  if(state.pendingWinner&&!players.some(p=>p.id===state.pendingWinner&&p.active)){
    state.pendingWinner=null;state.replayEntrants=living(players).map(p=>p.id);
  }
@@ -305,7 +309,8 @@ function step(state,players,dt){
    state.elapsed+=dt;
    if(state.elapsed>=state.collapseSeconds){
      if(state.pendingWinner){state.winnerId=state.pendingWinner;state.finished=true;return;}
-     const entrants=state.replayEntrants||living(players).map(p=>p.id);
+     if(state.pendingTie){state.winnerId=null;state.finished=true;return;}
+     const entrants=living(players).map(p=>p.id);
      state.nextEntrants=entrants;setPhase(state,'rebuild');
    }
  }else if(state.phase==='rebuild'){
@@ -392,18 +397,18 @@ function drawTile(ctx,state,t,time){
  ctx.restore();
 }
 function drawPlayer(ctx,p,state,time){
- if(!p.active||(!p.fruitAlive&&state.phase!=='collapse'))return;
+ if(!p.active)return;
  const entry=state.fallEntries.find(e=>e.id===p.id);
  const falling=state.phase==='collapse'&&entry&&!entry.survive;
- const rising=state.phase==='rebuild'&&state.replayEntrants?.includes(p.id)&&entry&&!entry.survive;
- const progress=falling?clamp((state.elapsed-.15)/(state.collapseSeconds-.15),0,1):
-   rising?1-clamp(state.elapsed/.85,0,1):0;
- if((falling||rising)&&progress>=1)return;
+ // Only losses from the CURRENT wave fall; earlier losses stay invisible.
+ if(!p.fruitAlive&&!falling)return;
+ const progress=falling?clamp((state.elapsed-.15)/(state.collapseSeconds-.15),0,1):0;
+ if(falling&&progress>=1)return;
  ctx.save();ctx.translate(p.x,p.y+progress*180);
  ctx.globalAlpha=1-progress*.85;ctx.scale(1-progress*.65,1-progress*.65);
  window.PartyPlayerAvatar.draw(ctx,p,{local:true,time,
    color:p.fruitHitFlash>0?'#ffe86b':p.color,attacking:!!p.fruitAttack});
- if(p.fruitStun>0){
+ if(p.fruitStun>0&&p.fruitAlive){
    ctx.fillStyle='#ffe477';
    for(let a=0;a<3;a++){
      const x=Math.cos(time*9+a*TAU/3)*17,y=-35+Math.sin(time*9+a*TAU/3)*6;
@@ -468,5 +473,5 @@ function draw(ctx,time,round,players){
  ctx.restore();
 }
 window.FruitMemory=Object.freeze({setup,update,draw,hud,generateGrid,buildRevealSchedule,
- calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
+ calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();
