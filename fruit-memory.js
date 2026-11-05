@@ -36,13 +36,23 @@ function generateGrid(count,selected){
  return distributed.map((fruitType,i)=>({tileId:i,row:Math.floor(i/cols),column:i%cols,fruitType,
    revealState:'closed',collapseState:'solid',fall:0}));
 }
-function buildRevealSchedule(tiles){
- // Random groups of 2-4; never leave one lone card for the final flip.
+function buildRevealSchedule(tiles,minCards=4,maxCards=6){
+ // Small arena: 4–6 cards/batch; large arena: 6–8 cards/batch.
+ // Only pick counts that allow every remaining batch to meet its own limits.
  const pending=shuffle(tiles.map(t=>t.tileId)),groups=[];
+ const partitionable=remaining=>{
+   if(remaining===0)return true;
+   for(let batches=Math.ceil(remaining/maxCards);batches<=Math.floor(remaining/minCards);batches++)
+     if(batches*minCards<=remaining&&remaining<=batches*maxCards)return true;
+   return false;
+ };
+ if(!partitionable(pending.length))throw Error('Fruit Memory grid cannot be partitioned into reveal batches');
  while(pending.length){
-   const possible=[2,3,4].filter(n=>n<=pending.length&&pending.length-n!==1);
+   const possible=[];
+   for(let n=minCards;n<=maxCards;n++)
+     if(n<=pending.length&&partitionable(pending.length-n))possible.push(n);
+   if(!possible.length)throw Error('Cannot schedule remaining Fruit Memory cards');
    const count=possible[Math.floor(Math.random()*possible.length)];
-   if(!count)throw Error('Cannot schedule remaining Fruit Memory cards');
    groups.push(pending.splice(0,count));
  }
  return groups;
@@ -88,7 +98,7 @@ function newMemorize(state,players,entrants){
    }
  }
  state.revealedTileIds=new Set();
- state.revealGroups=buildRevealSchedule(state.tiles);
+ state.revealGroups=state.big?buildRevealSchedule(state.tiles,6,8):buildRevealSchedule(state.tiles,4,6);
  state.revealTimeline=buildRevealTimeline(state.revealGroups);
  state.revealCursor=0;
  state.revealDuration=state.revealTimeline.at(-1).end;
