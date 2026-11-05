@@ -492,7 +492,7 @@ function renderRoster(){
   el.style.setProperty('--roster-cols',String(columns));
   el.style.setProperty('--roster-rows',String(MAX_PLAYERS/columns));
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
-  $('startBtn').disabled=players.length<1||nominatedGames().length!==players.length;
+  $('startBtn').disabled=players.length<1||(selectedSessionMode==='queue'&&nominatedGames().length!==players.length);
   updateHostQueue();
   players.forEach(p=>{
     const item=document.createElement('div');item.className='roster-item';
@@ -1497,7 +1497,29 @@ function resultVoters(){
 }
 function resultNextLabel(){
   if(!tournament)return 'เล่นอีกครั้ง';
+  if(tournament.endless)return 'เกมถัดไป';
   return tournament.index+1<tournament.schedule.length?'เกมถัดไป':'สุ่มชุดใหม่จากตัวเลือกเดิม';
+}
+// Rank 1 earns 11, rank 2 earns 10 and rank 12 earns 0, always using
+// twelve as the fixed scale (even if a room has fewer players).
+function pointsForRank(rank,count){
+  return tournament?.endless?Math.max(0,MAX_PLAYERS-rank):Math.max(1,count-rank+1);
+}
+function awardRoundPoints(ordered,rankOf){
+  if(!tournament)return;
+  for(const p of ordered){
+    const points=pointsForRank(rankOf(p),ordered.length);
+    p.total=(p.total||0)+points;
+    p.lastRoundPoints=points;
+  }
+}
+function totalScoreNote(p){
+  if(!tournament)return '';
+  return tournament.endless?' • +'+(p.lastRoundPoints||0)+' แต้ม • รวม '+p.total+' คะแนน':
+    ' • รวม '+p.total+' คะแนน';
+}
+function canAutoAdvanceResults(){
+  return !!(tournament&&(tournament.endless||tournament.index+1<tournament.schedule.length)&&$('autoNext').checked);
 }
 function resultVoteSnapshot(){
   if(!round||round.phase!=='results')return null;
@@ -1601,9 +1623,8 @@ function endRound(){
   $('results').querySelector('h2').textContent=first.length>1?
     'เสมอ! อันดับ 1 ร่วม':first[0]&&!first[0].ghost?
       'ผู้รอดคนสุดท้าย!':'อยู่รอดนานที่สุด!';
-  if(tournament)ranked.forEach(p=>
-    p.total=(p.total||0)+Math.max(1,ranked.length-rankOf(p)+1));
-  round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
+  awardRoundPoints(ranked,rankOf);
+  round.autoNextRemaining=canAutoAdvanceResults()?7:0;
   const list=$('resultList');list.replaceChildren();
   ranked.forEach(p=>{
     const rank=rankOf(p),tied=ranked.filter(q=>rankOf(q)===rank).length>1;
@@ -1614,10 +1635,10 @@ function endRound(){
     const detail=document.createElement('span');
     detail.textContent=(p.ghost?'ตกรอบ':'ผู้รอดคนสุดท้าย')+
       (p.ghost&&Number.isFinite(p.infectedAt)?' • '+p.infectedAt.toFixed(1)+' วิ':'')+
-      (tournament?' • รวม '+p.total+' คะแนน':'');
+      totalScoreNote(p);
     row.append(label,detail);list.append(row);
   });
-  if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
+  if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
     const overall=[...ranked].sort((a,b)=>b.total-a.total);
     list.replaceChildren();
     overall.forEach(p=>{
@@ -1647,11 +1668,11 @@ function endShockwaveRound(){
  const rankOf=p=>p.id===s.winnerId?1:1+ranked.filter(q=>
    q.id===s.winnerId||(q.shockEliminatedAt||0)>(p.shockEliminatedAt||0)).length;
  if(tournament){
-   ranked.forEach(p=>p.total=(p.total||0)+Math.max(1,ranked.length-rankOf(p)+1));
+   awardRoundPoints(ranked,rankOf);
    $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
      'สุ่มชุดใหม่จากตัวเลือกเดิม':'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
  }else $('replayBtn').textContent='เล่นอีกครั้ง';
- round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
+ round.autoNextRemaining=canAutoAdvanceResults()?7:0;
  const winner=ranked.find(p=>p.id===s.winnerId);
  $('results').querySelector('h2').textContent=winner?'ผู้ชนะ: '+winner.name:'ไม่มีผู้ชนะ';
  const list=$('resultList');list.replaceChildren();
@@ -1661,10 +1682,10 @@ function endShockwaveRound(){
    name.textContent='อันดับ '+rankOf(p)+' • '+p.name;
    const detail=document.createElement('span');
    detail.textContent=(p.id===s.winnerId?'ผู้รอดคนสุดท้าย':'ตกรอบ Wave '+(p.shockEliminatedWave||s.wave))+
-     (tournament?' • รวม '+p.total+' คะแนน':'');
+     totalScoreNote(p);
    row.append(name,detail);list.append(row);
  });
- if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
+ if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
    const overall=[...ranked].sort((a,b)=>b.total-a.total);list.replaceChildren();
    overall.forEach((p,i)=>{
      const row=document.createElement('div');row.className='result-player';
@@ -1690,14 +1711,11 @@ function endColorSwitchRound(){
  const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
  const winners=ranked.filter(p=>s.winnerIds.includes(p.id));
  if(tournament){
-   ranked.forEach(p=>{
-     const position=byId.get(p.id)?.rank||ranked.length;
-     p.total=(p.total||0)+Math.max(1,ranked.length-position+1);
-   });
+   awardRoundPoints(ranked,p=>byId.get(p.id)?.rank||ranked.length);
    $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
      'สุ่มชุดใหม่จากตัวเลือกเดิม':'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
  }else $('replayBtn').textContent='เล่นอีกครั้ง';
- round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
+ round.autoNextRemaining=canAutoAdvanceResults()?7:0;
  $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ!';
  const list=$('resultList');list.replaceChildren();
  ranked.forEach(p=>{
@@ -1707,10 +1725,10 @@ function endColorSwitchRound(){
     const tied=ranked.filter(q=>(byId.get(q.id)?.rank||1)===rank).length>1;
     name.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
    const score=document.createElement('span');
-   score.textContent=p.score+' ช่อง'+(tournament?' • รวม '+p.total+' คะแนน':'');
+   score.textContent=p.score+' ช่อง'+totalScoreNote(p);
    row.append(name,score);list.append(row);
  });
- if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
+ if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
    const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
    list.replaceChildren();
    overall.forEach(p=>{
@@ -1733,11 +1751,8 @@ function endPizzaTimeRound(){
  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
  const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
  const top=ranked[0]?.score??0,winners=ranked.filter(p=>p.score===top);
- if(tournament)ranked.forEach(p=>{
-   const rank=1+ranked.filter(q=>q.score>p.score).length;
-   p.total=(p.total||0)+Math.max(1,ranked.length-rank+1);
- });
- round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
+ awardRoundPoints(ranked,p=>1+ranked.filter(q=>q.score>p.score).length);
+ round.autoNextRemaining=canAutoAdvanceResults()?7:0;
  $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ • อันดับ 1 ร่วม';
  const list=$('resultList');list.replaceChildren();
  const show=(people,useTotal=false)=>people.forEach(p=>{
@@ -1748,11 +1763,11 @@ function endPizzaTimeRound(){
    const label=document.createElement('div');label.style.color=p.color;
    label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
    const score=document.createElement('span');
-   score.textContent=useTotal?p.total+' คะแนนรวม':p.score+' ออร์เดอร์'+(tournament?' • รวม '+p.total+' คะแนน':'');
+   score.textContent=useTotal?p.total+' คะแนนรวม':p.score+' ออร์เดอร์'+totalScoreNote(p);
    row.append(label,score);list.append(row);
  });
  show(ranked);
- if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
+ if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
    list.replaceChildren();
    const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
    show(overall,true);
@@ -1771,15 +1786,12 @@ function endChickensRound(){
   const best=ranked[0]?.score??0;
   const winners=ranked.filter(p=>p.score===best);
   if(tournament){
-    ranked.forEach(p=>{
-      const rank=ranked.findIndex(q=>q.score===p.score);
-      p.total=(p.total||0)+Math.max(1,ranked.length-rank);
-    });
+    awardRoundPoints(ranked,p=>1+ranked.filter(q=>q.score>p.score).length);
     $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
       'สุ่มชุดใหม่จากตัวเลือกเดิม':
       'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
   }else $('replayBtn').textContent='เล่นอีกครั้ง';
-  round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
+  round.autoNextRemaining=canAutoAdvanceResults()?7:0;
   $('results').querySelector('h2').textContent=winners.length===1?
     'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ!';
   const list=$('resultList');list.replaceChildren();
@@ -1790,10 +1802,10 @@ function endChickensRound(){
     name.textContent='อันดับ '+rank+
       (ranked.filter(q=>q.score===p.score).length>1?' ร่วม':'')+' • '+p.name;
     const score=document.createElement('span');
-    score.textContent=p.score+' ไก่'+(tournament?' • รวม '+p.total+' คะแนน':'');
+    score.textContent=p.score+' ไก่'+totalScoreNote(p);
     row.append(name,score);list.append(row);
   });
-  if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
+  if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
     const overall=[...ranked].sort((a,b)=>b.total-a.total);
     list.replaceChildren();
     overall.forEach((p,i)=>{
@@ -1825,12 +1837,12 @@ function endFruitMemoryRound(){
     finishWave(b)-finishWave(a)||String(a.id).localeCompare(String(b.id)));
   const rankOf=p=>1+ranked.filter(q=>finishWave(q)>finishWave(p)).length;
   if(tournament){
-    ranked.forEach(p=>p.total=(p.total||0)+Math.max(1,ranked.length-rankOf(p)+1));
+    awardRoundPoints(ranked,rankOf);
     $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
       'สุ่มชุดใหม่จากตัวเลือกเดิม':
       'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
   }else $('replayBtn').textContent='เล่นอีกครั้ง';
-  round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
+  round.autoNextRemaining=canAutoAdvanceResults()?7:0;
   const winner=ranked.find(p=>p.id===winnerId);
   $('results').querySelector('h2').textContent=winner?
     'ผู้ชนะ: '+winner.name:s.tieIds?.length?'เสมอ! ไม่มีผู้รอด':'ไม่มีผู้ชนะ';
@@ -1844,10 +1856,10 @@ function endFruitMemoryRound(){
     detail.textContent=(p.id===winnerId?'ผู้รอดคนสุดท้าย':
       tied?'อันดับร่วม • ตกรอบพร้อมกัน รอบ '+(p.fruitEliminatedRound||s.rounds):
       'ตกรอบ รอบ '+(p.fruitEliminatedRound||s.rounds))+
-      (tournament?' • รวม '+p.total+' คะแนน':'');
+      totalScoreNote(p);
     row.append(name,detail);list.append(row);
   });
-  if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
+  if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
     const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
     // The old design appended twelve more total rows after the twelve
     // round rows (24 rows), hiding some names on compact screens. Show the
@@ -2086,20 +2098,25 @@ function shuffleGames(items){
   return result;
 }
 function beginParty(){
-  const picks=nominatedGames();
-  if(!picks.length||picks.length!==players.length)return;
-  const shuffled=shuffleGames(picks);
-  if(selectedSessionMode==='queue'){
-    tournament={schedule:shuffled,index:0};
-    players.forEach(p=>p.total=0);
-    startRound(tournament.schedule[0]);
-  }else{
-    tournament=null;
-    startRound(shuffled[0]);
+  if(!players.length)return;
+  if(selectedSessionMode==='endless'){
+    // Every six rounds visit all six games once, then repeat indefinitely.
+    tournament={schedule:Object.keys(MODES),index:0,endless:true,roundsPlayed:0};
+    players.forEach(p=>{p.total=0;p.lastRoundPoints=0;});
+    startRound(tournament.schedule[0]);return;
   }
+  const picks=nominatedGames();
+  if(picks.length!==players.length)return;
+  tournament={schedule:shuffleGames(picks),index:0,endless:false};
+  players.forEach(p=>{p.total=0;p.lastRoundPoints=0;});
+  startRound(tournament.schedule[0]);
 }
 function advanceParty(){
-  if(tournament&&tournament.index+1<tournament.schedule.length){
+  if(tournament?.endless){
+    tournament.roundsPlayed++;
+    tournament.index=(tournament.index+1)%tournament.schedule.length;
+    startRound(tournament.schedule[tournament.index]);
+  }else if(tournament&&tournament.index+1<tournament.schedule.length){
     tournament.index++;startRound(tournament.schedule[tournament.index]);
   }else beginParty();
 }
@@ -2133,7 +2150,8 @@ $('backBtn').addEventListener('click',returnToLobby);
 $('replayBtn').addEventListener('click',advanceParty);
 document.querySelectorAll('[data-session-mode]').forEach(button=>{
  button.addEventListener('click',()=>{
-  selectedSessionMode=button.dataset.sessionMode==='quick'?'quick':'queue';
+  selectedSessionMode=button.dataset.sessionMode==='endless'?'endless':'queue';
+   renderRoster();
   for(const other of document.querySelectorAll('[data-session-mode]')){
    const active=other.dataset.sessionMode===selectedSessionMode;
    other.classList.toggle('active',active);
@@ -2262,7 +2280,7 @@ const savedHost=getSession(HOST_SESSION);
 const savedOffline=getSession(OFFLINE_SESSION);
 const savedPhone=getSession(PHONE_SESSION);
 function restoreRoomOptions(snapshot){
- selectedSessionMode=snapshot.selectedSessionMode==='quick'?'quick':'queue';
+ selectedSessionMode=snapshot.selectedSessionMode==='endless'?'endless':'queue';
  $('autoNext').checked=snapshot.autoNext!==false;
  for(const btn of document.querySelectorAll('[data-session-mode]')){
   const active=btn.dataset.sessionMode===selectedSessionMode;
