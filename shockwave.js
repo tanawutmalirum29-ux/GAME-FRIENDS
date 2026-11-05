@@ -48,15 +48,27 @@ function setup(round,players){
 }
 function inputVector(p,s){
  if(p.isBot){
-   if(!p.shockBotTarget || Math.hypot(p.x-p.shockBotTarget.x,p.y-p.shockBotTarget.y)<13 || random(s)<.001){
-     let candidates=s.tiles.filter(t=>t.state==='safe'&&!s.danger.includes(t.id));
-     if(!candidates.length)candidates=s.tiles.filter(t=>t.state!=='destroyed'&&t.state!=='exploding');
-     if(candidates.length)p.shockBotTarget=center(s,candidates[Math.floor(random(s)*candidates.length)]);
+   // Bots route one tile at a time, never run through destroyed bridges.
+   const underfoot=tileAt(s,p.x,p.y);
+   if(!underfoot||underfoot.state==='destroyed')return {x:0,y:0};
+   const isThreatened=underfoot.state==='warning';
+   if(!isThreatened){
+     p.shockBotTarget=null;
+     return {x:0,y:0};
    }
-   const goal=p.shockBotTarget;
+   const reachable=new Set([underfoot.id]),queue=[{id:underfoot.id,first:null}];
+   let goal=null;
+   while(queue.length){
+     const node=queue.shift(),tile=s.tiles[node.id];
+     if(node.id!==underfoot.id&&tile.state==='safe'){goal=node.first||tile;break;}
+     for(const n of neighbors(s,node.id)){
+       if(n.state==='destroyed'||n.state==='exploding'||reachable.has(n.id))continue;
+       reachable.add(n.id);queue.push({id:n.id,first:node.first||n});
+     }
+   }
    if(!goal)return {x:0,y:0};
-   const dx=goal.x-p.x,dy=goal.y-p.y,d=Math.hypot(dx,dy);
-   return d<8?{x:0,y:0}:{x:dx/d,y:dy/d};
+   const c=center(s,goal),dx=c.x-p.x,dy=c.y-p.y,d=Math.hypot(dx,dy);
+   return d<4?{x:0,y:0}:{x:dx/d,y:dy/d};
  }
  const input=p.input||{};
  let x=Number.isFinite(input.axisX)?input.axisX:Number(!!input.right)-Number(!!input.left);
@@ -225,7 +237,7 @@ function evaluateEliminations(s,players,fallen){
  }
  s.eliminationEvent++;
  for(const p of alive)if(ids.has(p.id)){
-   p.shockAlive=false;p.shockFall=.001;p.shockEliminatedAt=s.eliminationEvent;
+   p.shockAlive=false;p.shockFall=.001;p.shockEliminatedAt=s.eliminationEvent;p.shockEliminatedWave=s.wave;
    p.vx=0;p.vy=0;
  }
  s.events.push({event:s.eliminationEvent,wave:s.wave,ids:[...ids]});
@@ -294,7 +306,8 @@ function step(dt,round,players){
    s.timer-=dt;
    if(s.timer<=0){collapseTiles(s);s.phase='CHECK';}
  }else if(s.phase==='CHECK'){
-   if(!checkWinner(s,players)){s.phase='NEXT_WAVE';s.timer=intervalSeconds(s.wave,s.big);}
+   checkWinner(s,players);
+   if(s.phase==='CHECK'&&!s.finished){s.phase='NEXT_WAVE';s.timer=intervalSeconds(s.wave,s.big);}
  }else if(s.phase==='NEXT_WAVE'){
    s.timer-=dt;
    if(s.timer<=0)startWave(s,players);
@@ -304,6 +317,8 @@ function step(dt,round,players){
 function update(dt,round,players){
  const s=round.shockwave;
  if(!s||s.finished)return s?.finished?'winner':null;
+ if(round.paused)return null;
+ if(round.phase==='playing'&&s.wave===0&&s.phase==='PREPARE')startWave(s,players);
  s.accumulator=Math.min(.25,s.accumulator+clamp(dt,0,.25));
  let steps=0;
  while(s.accumulator>=STEP&&steps++<15&&!s.finished){
