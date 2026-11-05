@@ -1443,8 +1443,15 @@ function resultVoteSnapshot(){
 function renderResultVotes(sendUpdate=false){
   const v=resultVoteSnapshot();if(!v)return;
   const seconds=round.autoNextRemaining>0?' • อีก '+Math.ceil(round.autoNextRemaining)+' วิ':'';
-  $('replayBtn').textContent='A '+v.nextLabel+seconds+'  '+v.next+'/'+v.total;
-  $('backBtn').textContent='B กลับล็อบบี้  '+v.lobby+'/'+v.total;
+  // Align A/B on the left, action text in the center and votes on the right.
+  // The accessibility label contains the full sentence for screen readers.
+  const next=$('replayBtn'),back=$('backBtn');
+  next.textContent=v.nextLabel+seconds;
+  next.dataset.action='A';next.dataset.votes=v.next+'/'+v.total;
+  next.setAttribute('aria-label','A '+next.textContent+' '+next.dataset.votes);
+  back.textContent='กลับล็อบบี้';
+  back.dataset.action='B';back.dataset.votes=v.lobby+'/'+v.total;
+  back.setAttribute('aria-label','B กลับล็อบบี้ '+back.dataset.votes);
   if(sendUpdate)broadcast(v);
 }
 function beginResultVoting(){
