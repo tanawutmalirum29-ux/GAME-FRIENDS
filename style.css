@@ -3377,3 +3377,29 @@ body.controller-playing #controller #controllerActive #phoneGameChoices{
  body.controller-playing.portrait-fallback #controller #controllerActive .controller-buttons.shockwave-mode{
   grid-template-columns:minmax(110px,.8fr) minmax(140px,1.3fr)!important}
 }
+
+/* One-tap bulk game selection for all locally hosted bots, next to the
+   roster count. Zero additional rows even when all 12 slots are occupied. */
+#hostLobby .lobby-section-title .bulk-bot-switch{
+  margin-left:auto;
+  display:inline-flex;align-items:center;justify-content:center;
+  flex:0 1 auto;min-width:0;max-width:min(56%,290px);
+  min-height:clamp(25px,3.2dvh,34px);
+  padding:3px clamp(6px,.85vw,12px);
+  background:#183e46;border:1px solid #5baea9;border-radius:8px;
+  color:#abfff1;font-size:clamp(9px,1vw,12px);font-weight:800;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+  cursor:pointer;
+}
+#hostLobby .lobby-section-title .bulk-bot-switch:focus-visible{
+  outline:2px solid #fff;outline-offset:2px;
+}
+#hostLobby .lobby-section-title .bulk-bot-switch:disabled{
+  opacity:.5;cursor:default;
+}
+#hostLobby .lobby-section-title .bulk-bot-switch.hidden{display:none!important}
+@media(orientation:portrait) and (max-width:720px){
+  #hostLobby .lobby-section-title .bulk-bot-switch{
+    max-width:53%;font-size:clamp(8px,1.8vw,11px);padding:2px 5px;
+  }
+}
