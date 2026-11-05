@@ -14,6 +14,7 @@ const avatarSource=fs.readFileSync('player-avatar.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
 const shockwaveSource=fs.readFileSync('shockwave.js','utf8');
+const mayanSource=fs.readFileSync('color-switch-mayan.js','utf8');
 const colorSwitchSource=fs.readFileSync('color-switch.js','utf8');
 const artSource=fs.readFileSync('graveyard-art.js','utf8');
 const combatSource=fs.readFileSync('combat-motion.js','utf8');
@@ -34,6 +35,7 @@ assert.match(html,/data-pick="shockwave"/);
 assert.match(html,/src=".\/shockwave\.js"/);
 assert.match(html,/data-pick="color_switch"/);
 assert.match(html,/src=".\/color-switch\.js"/);
+assert.match(html,/src=".\/color-switch-mayan\.js"/);
 assert.match(html,/src="\.\/graveyard-art\.js"/);
 assert.match(artSource,/window\.GhostCemeteryArt=Object\.freeze/);
 assert.match(html,/<script defer src="\.\/combat-motion\.js"><\/script>[\s\S]*?<script defer src="\.\/ghost-attack\.js"><\/script>/);
@@ -862,6 +864,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
   vm.runInContext(fruitSource,scope,{filename:'fruit-memory.js'});
    vm.runInContext(shockwaveSource,scope,{filename:'shockwave.js'});
+  vm.runInContext(mayanSource,scope,{filename:'color-switch-mayan.js'});
   vm.runInContext(colorSwitchSource,scope,{filename:'color-switch.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
   return {elements,pickButtons,sessionButtons,padButtons,instances,scope,sessionData,timers,canvasTransforms,
