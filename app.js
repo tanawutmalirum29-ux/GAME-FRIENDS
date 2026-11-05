@@ -65,6 +65,66 @@ let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false;
 let disconnectRequested=false;
+const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
+const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
+const seatTimers=new Map();let reconnectTimer=null,reconnectTries=0;
+function getSession(k){try{return JSON.parse(sessionStorage.getItem(k)||'null')}catch(_){return null}}
+function putSession(k,v){try{sessionStorage.setItem(k,JSON.stringify(v));return !!sessionStorage.getItem(k)}catch(_){return false}}
+function deleteSession(k){try{sessionStorage.removeItem?.(k)}catch(_){}}
+function makeToken(){
+ let t=getSession(PHONE_TOKEN);
+ if(typeof t!=='string'||t.length<12){
+  t=Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2);
+  putSession(PHONE_TOKEN,t);
+ }
+ return t;
+}
+const stablePhoneToken=makeToken();
+const compactPlayer=p=>({id:p.id,name:p.name,color:p.color,type:p.type,
+ choice:p.choice,token:p.clientToken||null,total:p.total||0});
+function saveHost(){
+ if(!onlineHost||!roomCode)return false;
+ return putSession(HOST_SESSION,{code:roomCode,players:players.map(compactPlayer),
+  nextId,selectedSessionMode,autoNext:$('autoNext').checked});
+}
+function saveOffline(){
+ if(onlineHost||currentView!=='hostLobby')return false;
+ return putSession(OFFLINE_SESSION,{players:players.filter(p=>p.isBot).map(compactPlayer),
+  nextId,selectedSessionMode,autoNext:$('autoNext').checked});
+}
+function savePhone(){
+ const code=parseRoomCode($('roomCodeInput').value);
+ return !!(controllerReady&&code)&&putSession(PHONE_SESSION,{code,name:$('nick').value});
+}
+function restorePlayers(list){
+ if(!Array.isArray(list)||list.length>MAX_PLAYERS)return;
+ const colors=new Set(),ids=new Set();
+ players=[];
+ for(const a of list){
+  if(!a||!/^p\d+$/.test(String(a.id))||ids.has(a.id)||!COLORS.includes(a.color)||
+     colors.has(a.color)||!['local','remote'].includes(a.type))continue;
+  ids.add(a.id);colors.add(a.color);
+  players.push({id:a.id,name:cleanName(a.name),color:a.color,type:a.type,
+   clientToken:a.token||null,conn:null,input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,
+   score:0,total:Number(a.total)||0,choice:Object.hasOwn(MODES,a.choice)?a.choice:null,
+   ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,isBot:a.type==='local'});
+ }
+ nextId=Math.max(nextId,...players.map(p=>Number(p.id.slice(1))+1));
+}
+function cancelSeat(id){
+ const t=seatTimers.get(id);
+ if(t!==undefined&&typeof clearTimeout==='function')clearTimeout(t);
+ seatTimers.delete(id);
+}
+function holdSeat(p){
+ if(!p||p.type!=='remote'||p.conn)return;
+ cancelSeat(p.id);
+ seatTimers.set(p.id,setTimeout(()=>{
+  seatTimers.delete(p.id);
+  const q=players.find(q=>q.id===p.id);
+  if(q&&!q.conn)removePlayer(p.id);
+ },60000));
+}
 const canvas=$('arena'), g=canvas.getContext('2d');
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -178,6 +238,7 @@ function makePlayer(name,type,conn) {
 function removePlayer(id) {
   const at=players.findIndex(p=>p.id===id);
   if(at<0)return;
+  cancelSeat(id);
   const p=players[at];
   if(p.conn)stopHostVideoCall(p.conn);
   players.splice(at,1);
@@ -298,6 +359,7 @@ function networkPhase(){return round?(round.paused?'paused':round.phase):'lobby'
 function broadcastRoster(){
   broadcast({t:'roster',players:players.map(playerPublic),phase:networkPhase(),
     mode:round?round.mode:'ghost',selectionOpen:!round});
+  if(onlineHost)saveHost();else saveOffline();
 }
 function nominatedGames(){
   return players.map(p=>p.choice).filter(mode=>Object.hasOwn(MODES,mode));
@@ -390,6 +452,7 @@ function renderRoster(){
     item.append(marker,name,waiting);
     el.append(item);
   }
+  if(onlineHost)saveHost();else saveOffline();
 }
 function addLocal(){
   if(players.length>=MAX_PLAYERS){showToast('ห้องเต็ม '+MAX_PLAYERS+' คน',true);return;}
@@ -401,6 +464,8 @@ function resetInputs(){
 }
 function closeHost(){
   stopAllHostVideoCalls();
+  for(const id of [...seatTimers.keys()])cancelSeat(id);
+  deleteSession(HOST_SESSION);
   onlineHost=false;roomCode='';$('roomPanel').classList.add('hidden');$('hostBtn').disabled=false;
   $('hostRoomBadge').textContent='ห้องปิดแล้ว';
   hostConnections.forEach(c=>{send(c,{t:'closed'});try{c.close();}catch(e){}});
@@ -422,11 +487,12 @@ function renderQr(code){
   }
   box.textContent='QR ไม่พร้อม กรุณาคัดลอกลิงก์';
 }
-function startHost(retries=0){
+function startHost(retries=0,resumeCode=null){
   if(onlineHost){setView('hostLobby');return;}
   if(typeof Peer!=='function'){setStatus('โหลดระบบเชื่อมต่อไม่สำเร็จ',true);showToast('ยังโหลด PeerJS ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วโหลดหน้าใหม่',true);return;}
   if(location.protocol==='file:'){showToast('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย',true);return;}
-  const code=randomCode();
+  const code=resumeCode||randomCode();
+  if(!resumeCode)deleteSession(OFFLINE_SESSION);
   $('hostBtn').disabled=true;setStatus('กำลังสร้างห้อง...');
   const peer=new Peer('gf-party-'+code,{debug:0});
   hostPeer=peer;
@@ -438,6 +504,7 @@ function startHost(retries=0){
     setView('hostLobby');
     renderQr(code);setStatus('เปิดห้อง '+code);
     renderRoster();broadcastRoster();
+    for(const p of players)if(p.type==='remote'&&!p.conn)holdSeat(p);
   });
   peer.on('connection',conn=>{
     if(hostPeer!==peer){conn.close();return;}
@@ -445,11 +512,20 @@ function startHost(retries=0){
     conn.on('data',msg=>{
       if(!msg||typeof msg!=='object')return;
       if(msg.t==='join'&&!conn.playerId){
-        if(players.length>=MAX_PLAYERS){send(conn,{t:'reject',reason:'ห้องเต็มแล้ว (สูงสุด '+MAX_PLAYERS+' คน)'});return;}
-        const p=makePlayer(msg.name,'remote',conn);
-        if(!p)return;
+        const token=typeof msg.clientToken==='string'&&msg.clientToken.length>=12&&msg.clientToken.length<=100?msg.clientToken:null;
+        let p=token?players.find(q=>q.type==='remote'&&q.clientToken===token):null;
+        if(p){
+          cancelSeat(p.id);
+          if(p.conn&&p.conn!==conn){const old=p.conn;p.conn=null;try{old.close()}catch(_){}}
+          p.conn=conn;
+        }else{
+          if(players.length>=MAX_PLAYERS){send(conn,{t:'reject',reason:'ห้องเต็มแล้ว (สูงสุด '+MAX_PLAYERS+' คน)'});return;}
+          p=makePlayer(msg.name,'remote',conn);
+          if(!p)return;
+          p.clientToken=token;
+          if(round&&round.phase!=='results')p.active=false;
+        }
         conn.playerId=p.id;p.lastInputAt=Date.now();
-        if(round&&round.phase!=='results')p.active=false;
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active});
         broadcastRoster();
       }else if(msg.t==='video-ready'&&conn.playerId){
@@ -483,18 +559,27 @@ function startHost(retries=0){
         p.input.axisY=Number.isFinite(msg.keys&&msg.keys.axisY)?clamp(msg.keys.axisY,-1,1):0;
       }
     });
-    conn.on('close',()=>{stopHostVideoCall(conn);hostConnections.delete(conn);if(conn.playerId)removePlayer(conn.playerId);});
-    conn.on('error',()=>{stopHostVideoCall(conn);hostConnections.delete(conn);if(conn.playerId)removePlayer(conn.playerId);});
+    function lost(){
+      stopHostVideoCall(conn);hostConnections.delete(conn);
+      if(!onlineHost||!conn.playerId)return;
+      const p=players.find(q=>q.id===conn.playerId&&q.conn===conn);
+      if(!p)return;
+      p.conn=null;p.input=blankInput();holdSeat(p);
+      renderRoster();broadcastRoster();
+    }
+    conn.on('close',lost);conn.on('error',lost);
   });
   peer.on('disconnected',()=>setStatus('สัญญาณเซิร์ฟเวอร์ขาดชั่วคราว',true));
   peer.on('error',err=>{
     if(hostPeer!==peer)return;
-    if(err.type==='unavailable-id'&&retries<3){
-      try{peer.destroy();}catch(e){}
-      hostPeer=null;startHost(retries+1);return;
+    if(err.type==='unavailable-id'&&retries<(resumeCode?12:3)){
+      try{peer.destroy()}catch(_){}
+      hostPeer=null;setTimeout(()=>startHost(retries+1,resumeCode),resumeCode?1200+retries*350:250);
+      return;
     }
     setStatus('เปิดห้องไม่สำเร็จ: '+(err.type||'network'),true);
-    closeHost();setStatus('เปิดห้องไม่สำเร็จ',true);
+    if(resumeCode){$('hostBtn').disabled=false;showToast('คืนห้องเดิมไม่ได้ ลองโหลดใหม่',true)}
+    else{closeHost();setStatus('เปิดห้องไม่สำเร็จ',true)}
   });
 }
 function copyInvite(){
@@ -1438,6 +1523,7 @@ function advanceParty(){
 }
 function openOfflineLobby(){
  if(onlineHost)closeHost();
+ deleteSession(HOST_SESSION);
  if(!players.length){addLocal();addLocal();}
  $('hostRoomBadge').textContent='OFFLINE';
  $('roomPanel').classList.add('hidden');$('offlineRoomHint').classList.remove('hidden');
@@ -1451,6 +1537,7 @@ $('offlineBtn').addEventListener('click',()=>{
 $('startBtn').addEventListener('click',beginParty);
 function closeHostRoom(){
  if(onlineHost)closeHost();
+ deleteSession(HOST_SESSION);deleteSession(OFFLINE_SESSION);
  tournament=null;round=null;setView('home');
 }
 $('closeRoomBtn').addEventListener('click',()=>{
