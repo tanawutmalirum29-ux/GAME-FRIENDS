@@ -24,12 +24,24 @@ for(let n=1;n<=12;n++){
  assert.equal(tiles.length,small?25:36);
  assert.deepEqual(
    {x:x.state.board.x,y:x.state.board.y,w:x.state.board.w,h:x.state.board.h},
-   small?{x:70,y:110,w:820,h:390}:{x:60,y:110,w:840,h:390},
-   'the same grid now stretches across the screen, below the compact HUD'
+   {x:270,y:105,w:420,h:420},
+   'square arena centered below HUD'
  );
- assert.equal(x.state.tileW,small?164:140,'wider spacing/surfaces without zoom');
- assert.ok(Math.abs(x.state.tileH-(small?78:65))<1,
-   'tiles use the longer vertical play area');
+ assert.equal(x.state.tileW,small?84:70,'5x5 and 6x6 tile side lengths');
+ assert.equal(x.state.tileH,x.state.tileW,'each tile is square');
+ assert.equal(x.state.board.w,x.state.board.h,'entire board is square');
+ assert.ok(x.state.board.y>=73&&x.state.board.y+x.state.board.h<=540,
+   'board is below HUD and entirely in the viewport');
+ const centers=tiles.map(t=>({
+   x:x.state.board.x+(t.column+.5)*x.state.tileW,
+   y:x.state.board.y+(t.row+.5)*x.state.tileH
+ }));
+ assert.equal(new Set(centers.map(c=>c.x+','+c.y)).size,tiles.length,
+   'each cell center is unique');
+ assert.ok(x.players.every(p=>
+   p.x>=x.state.board.x&&p.x<x.state.board.x+x.state.board.w&&
+   p.y>=x.state.board.y&&p.y<x.state.board.y+x.state.board.h),
+   'all spawn positions remain inside square arena');
  assert.equal(game.constants.speed,207,'walking speed is unchanged');
  assert.equal(game.constants.footRadius,10,'collision footprint unchanged');
  assert.equal(game.constants.punchRange,53,'punch reach unchanged');

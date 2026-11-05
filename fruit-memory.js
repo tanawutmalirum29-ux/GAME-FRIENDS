@@ -59,13 +59,14 @@ function buildRevealTimeline(groups){
  });
 }
 function configureBoard(state){
- // Stretch the playfield across the available 960x540 arena instead of
- // zooming the canvas. Keep the existing 5x5/6x6 tile counts and all
- // actor sizes, movement speeds, timers and foot-contact thresholds.
- state.board={x:state.big?60:70,y:110,w:state.big?840:820,h:390};
- state.tileW=state.board.w/state.cols;state.tileH=state.board.h/state.rows;
+  // Each logical tile is a perfect square on the 960x540 arena.
+  // Center the largest practical square below the gameplay HUD.
+  const side=420;
+  state.board={x:(960-side)/2,y:105,w:side,h:side};
+  state.tileW=side/state.cols;
+  state.tileH=side/state.rows;
 }
-function tileAt(state,x,y){
+ function tileAt(state,x,y){
  const b=state.board;
  if(x<b.x||x>=b.x+b.w||y<b.y||y>=b.y+b.h)return null;
  const col=Math.floor((x-b.x)/state.tileW),row=Math.floor((y-b.y)/state.tileH);
