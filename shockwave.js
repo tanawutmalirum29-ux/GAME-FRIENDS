@@ -32,7 +32,7 @@ function spawnPlayers(s,players){
  players.forEach((p,i)=>{
    const t=s.tiles[choices[i%choices.length]],pos=center(s,t);
    p.x=pos.x;p.y=pos.y;p.vx=0;p.vy=0;p.dir={x:0,y:1};
-   p.shockAlive=!!p.active;p.shockFall=0;p.shockEliminatedAt=0;p.shockBotTarget=null;
+   p.shockAlive=!!p.active;p.shockFall=0;p.shockEliminatedAt=0;p.shockBotTarget=null;p.shockBotWave=-1;
  });
 }
 function setup(round,players){
@@ -53,9 +53,15 @@ function inputVector(p,s){
    if(!underfoot||underfoot.state==='destroyed')return {x:0,y:0};
    const isThreatened=underfoot.state==='warning';
    if(!isThreatened){
-     p.shockBotTarget=null;
+     p.shockBotTarget=null;p.shockBotWave=-1;
      return {x:0,y:0};
    }
+   if(p.shockBotWave!==s.wave){
+     p.shockBotWave=s.wave;
+     // Human-like reaction variance: bots can be outplayed, never get perfect dodges.
+     p.shockBotReadyAt=s.clock+.2+random(s)*Math.min(1.9,s.warningDuration*.95);
+   }
+   if(s.clock<p.shockBotReadyAt)return {x:0,y:0};
    const reachable=new Set([underfoot.id]),queue=[{id:underfoot.id,first:null}];
    let goal=null;
    while(queue.length){
@@ -106,25 +112,28 @@ function calculateFootSupport(s,p,removed=null){
 function movePlayers(dt,s,players){
  const alive=living(players);
  for(const p of alive){
-   const v=inputVector(p,s),speed=C.speed;
+   const v=inputVector(p,s),speed=p.isBot?C.speed*.88:C.speed;
    p.vx=v.x*speed;p.vy=v.y*speed;
    if(Math.hypot(v.x,v.y)>.1)p.dir={x:v.x,y:v.y};
    const segments=Math.max(1,Math.ceil(speed*dt/(C.footRadius*.65)));
    for(let i=0;i<segments;i++){
      p.x+=p.vx*dt/segments;p.y+=p.vy*dt/segments;
      // Do not apply wall clamps: walking off the arena is a real fall.
-     if(s.phase!=='PREPARE'&&calculateFootSupport(s,p)<C.footThreshold)break;
+     if(s.phase==='PREPARE'&&s.wave===0){
+       p.x=clamp(p.x,s.board.x+C.footRadius,s.board.x+s.board.w-C.footRadius);
+       p.y=clamp(p.y,s.board.y+C.footRadius,s.board.y+s.board.h-C.footRadius);
+     }else if(calculateFootSupport(s,p)<C.footThreshold)break;
    }
  }
  resolvePlayerCollision(s,players);
- if(s.phase!=='PREPARE'){
+ if(s.wave>0){
    const fall=alive.filter(p=>calculateFootSupport(s,p)<C.footThreshold);
    if(fall.length)evaluateEliminations(s,players,fall);
  }
 }
 function resolvePlayerCollision(s,players){
  const ps=living(players).slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
- for(let pass=0;pass<4;pass++)for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){
+ for(let pass=0;pass<8;pass++)for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){
    const a=ps[i],b=ps[j];let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
    if(d>=C.bodyRadius*2)continue;
    if(d<1e-5){const angle=((i+1)*37+(j+1)*71)*2.4;dx=Math.cos(angle);dy=Math.sin(angle);d=1;}
@@ -356,7 +365,14 @@ function drawTile(ctx,s,t){
    ctx.fillStyle='#040c19';ctx.fillRect(x+1,y+1,size-2,size-2);
    ctx.strokeStyle='#223954';ctx.lineWidth=1;ctx.strokeRect(x+2,y+2,size-4,size-4);return;
  }
- if(t.state==='exploding')return;
+ if(t.state==='exploding'){
+   const duration=s.fastPhase?.26:.40,progress=1-clamp(s.timer/duration,0,1);
+   const scale=1-progress*.66;
+   ctx.save();ctx.translate(x+size/2,y+size/2+progress*size*.34);ctx.scale(scale,scale);
+   ctx.fillStyle='#ff9d6a';ctx.fillRect(-size/2+4,-size/2+4,size-8,size-8);
+   ctx.strokeStyle='#ffdf9d';ctx.lineWidth=3;ctx.strokeRect(-size/2+4,-size/2+4,size-8,size-8);
+   ctx.restore();return;
+ }
  const danger=t.state==='warning',fraction=s.warningDuration?1-clamp(s.timer/s.warningDuration,0,1):0;
  const pulse=danger?Math.sin(s.clock*(9+fraction*30))>0: false;
  ctx.fillStyle='#080e1c';ctx.fillRect(x,y+5,size,size);
@@ -386,7 +402,11 @@ function draw(ctx,time,round,players){
  for(const p of players)if(p.active&&p.shockAlive)drawPlayer(ctx,p,s);
  for(const e of s.effects){
    ctx.save();ctx.globalAlpha=clamp(e.life*2,0,1);ctx.strokeStyle='#ffc07f';ctx.lineWidth=5;
-   ctx.beginPath();ctx.arc(e.x,e.y,(.55-e.life)*s.tileSize*.72+7,0,TAU);ctx.stroke();ctx.restore();
+   ctx.beginPath();ctx.arc(e.x,e.y,(.55-e.life)*s.tileSize*.72+7,0,TAU);ctx.stroke();
+   ctx.fillStyle='#ffca84';for(let i=0;i<5;i++){
+     const ang=i*TAU/5,travel=(.55-e.life)*65;
+     ctx.fillRect(e.x+Math.cos(ang)*travel-3,e.y+Math.sin(ang)*travel-3,6,6);
+   }ctx.restore();
  }
  for(const p of players)if(!p.shockAlive)drawPlayer(ctx,p,s);
  ctx.fillStyle='#0a2037ea';ctx.fillRect(16,13,262,76);
