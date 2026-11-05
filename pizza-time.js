@@ -246,7 +246,7 @@ function setup(round,ps){
  // The lobby initializes everyone with active=false. Activate entrants BEFORE
  // filtering, exactly as the existing minigame engines do; otherwise the
  // entire Pizza Time match starts with zero characters (including all bots).
- ps.forEach(p=>{p.active=true;});
+ window.PartyCharacters.activate(ps);
  const people=active(ps),count=Math.max(1,people.length);
  const world=worldSize(count),s={world,center:{x:world.w/2,y:world.h/2},players:count,
    roster:ps,seed:(Number(round.pizzaSeed)||(Date.now()^0x4b1a8d7))>>>0||1,
@@ -264,20 +264,32 @@ function setup(round,ps){
    p.pizza={chefId:chef.id,held:null,order:[],delivered:[],
      assignedTotal:0,lastCost:0,orderSerial:0,botPath:[],botGoal:null,repath:0};
  });
+ resolvePlayerCollisions(s,people);
  chooseFirstOrders(s,people);
  return s;
 }
-function safeMove(s,p,dx,dy){
- const r=13;
- const nx=bound(p.x+dx,25+r,s.world.w-25-r);
- if(!blocked(s,nx,p.y,r))p.x=nx;
- const ny=bound(p.y+dy,25+r,s.world.h-25-r);
- if(!blocked(s,p.x,ny,r))p.y=ny;
+const PLAYER_RADIUS=15;
+function projectPizzaPlayer(s,p,x,y,r){
+ // Reject solid prep tables; preserve free tangential movement while pushing.
+ const minX=25+r,maxX=s.world.w-25-r,minY=25+r,maxY=s.world.h-25-r;
+ x=bound(x,minX,maxX);y=bound(y,minY,maxY);
+ if(!blocked(s,x,y,r))return {x,y};
+ if(!blocked(s,x,p.y,r))return {x,y:p.y};
+ if(!blocked(s,p.x,y,r))return {x:p.x,y};
+ return {x:p.x,y:p.y};
+}
+function pizzaCharacterRules(s){
+ return {
+   radius:PLAYER_RADIUS,iterations:8,playersSolid:true,
+   bounds:{x:25,y:25,w:s.world.w-50,h:s.world.h-50},
+   constrain:(p,x,y,r)=>projectPizzaPlayer(s,p,x,y,r)
+ };
+}
+function resolvePlayerCollisions(s,players){
+ return window.PartyCharacters.resolve(players,pizzaCharacterRules(s));
 }
 function input(p){
- const k=p.input||{},x=(Number(k.axisX)||0)+(k.right?1:0)-(k.left?1:0);
- const y=(Number(k.axisY)||0)+(k.down?1:0)-(k.jump?1:0);
- const len=Math.hypot(x,y);return {x:len>1?x/len:x,y:len>1?y/len:y};
+ return window.PartyCharacters.control(p.input);
 }
 function nearestWanted(s,p){
  const chef=s.chefById.get(p.id),pending=p.pizza.order.filter(id=>!p.pizza.delivered.includes(id));
@@ -331,16 +343,18 @@ function finish(s,round,ps){
 function step(dt,round,ps){
  const s=round.pizzaTime;s.clock+=dt;s.elapsed=Math.min(s.duration,s.elapsed+dt);
  s.remaining=Math.max(0,s.duration-s.elapsed);round.remaining=s.remaining;
+ const rules=pizzaCharacterRules(s);
  for(const p of active(ps)){
-  if(!p.pizza)continue;
-  const v=p.isBot?botInput(s,p,dt):input(p);
-  const magnitude=Math.hypot(v.x,v.y),speed=s.world.h*.305;
-  const px=p.x,py=p.y;
-  safeMove(s,p,v.x*speed*dt,v.y*speed*dt);
-  // Avatar animation reads vx/vy; update these from actual collision-resolved motion.
-  p.vx=(p.x-px)/dt;p.vy=(p.y-py)/dt;
-  if(magnitude>.12)p.dir={x:v.x/magnitude,y:v.y/magnitude};
-  collect(s,p);deliver(s,p);
+   if(!p.pizza)continue;
+   const v=p.isBot?botInput(s,p,dt):input(p);
+   window.PartyCharacters.move(p,v,dt,{...rules,speed:s.world.h*.305});
+ }
+ // Default character collision/pushing is applied BEFORE food pickup and chef
+ // delivery, so characters cannot pass through each other at busy counters.
+ resolvePlayerCollisions(s,ps);
+ for(const p of active(ps)){
+   if(!p.pizza)continue;
+   collect(s,p);deliver(s,p);
  }
  for(const fx of s.effects)fx.life-=dt;
  s.effects=s.effects.filter(fx=>fx.life>0).slice(-32);
@@ -507,8 +521,7 @@ function draw(ctx,time,round,ps){
  ctx.scale(960/s.world.w,540/s.world.h);
  scene(ctx,s);
  for(const p of active(ps)){
-  if(window.PartyPlayerAvatar?.draw)window.PartyPlayerAvatar.draw(ctx,p,{time:s.clock,holding:!!p.pizza?.held,scale:s.players>=10?1.15:1});
-  else{ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,14,0,TAU);ctx.fill();}
+  window.PartyCharacters.draw(ctx,p,{time:s.clock,holding:!!p.pizza?.held,scale:s.players>=10?1.15:1});
   if(!p.pizza)continue;
   if(p.pizza.held){
    ctx.fillStyle='#fff8df';ctx.beginPath();ctx.arc(p.x+19,p.y-38,17,0,TAU);ctx.fill();
