@@ -381,36 +381,21 @@ function drawPlayer(ctx,p,state,time){
  if(!p.active||(!p.fruitAlive&&state.phase!=='collapse'))return;
  const entry=state.fallEntries.find(e=>e.id===p.id);
  const falling=state.phase==='collapse'&&entry&&!entry.survive;
- // A simultaneous wipe replays on the SAME positions: rise back with the
- // floor instead of abruptly disappearing and respawning elsewhere.
- const rising=state.phase==='rebuild'&&state.replayEntrants?.includes(p.id)&&
-   entry&&!entry.survive;
+ const rising=state.phase==='rebuild'&&state.replayEntrants?.includes(p.id)&&entry&&!entry.survive;
  const progress=falling?clamp((state.elapsed-.15)/(state.collapseSeconds-.15),0,1):
    rising?1-clamp(state.elapsed/.85,0,1):0;
  if((falling||rising)&&progress>=1)return;
  ctx.save();ctx.translate(p.x,p.y+progress*180);
  ctx.globalAlpha=1-progress*.85;ctx.scale(1-progress*.65,1-progress*.65);
- const direction=p.dir||{x:1,y:0};
- ctx.fillStyle='#00152580';ctx.beginPath();ctx.ellipse(0,0,C.footRadius,5,0,0,TAU);ctx.fill();
- ctx.fillStyle=p.fruitHitFlash>0?'#ffe86b':p.color;
- ctx.strokeStyle=p.fruitStun>0?'#ffe88b':p.color;
- ctx.lineWidth=5;ctx.lineCap='round';
- const walking=Math.sin(time*13)*Math.min(3,Math.hypot(p.vx||0,p.vy||0)/C.speed*3);
- ctx.beginPath();ctx.moveTo(0,-5);ctx.lineTo(0,13);
- ctx.moveTo(0,9);ctx.lineTo(-9,19+walking);
- ctx.moveTo(0,9);ctx.lineTo(10,19-walking);
- if(p.fruitAttack){ctx.moveTo(0,-3);ctx.lineTo(direction.x*25, -6+direction.y*20);}
- else{ctx.moveTo(0,-3);ctx.lineTo(-12,5);ctx.moveTo(0,-3);ctx.lineTo(11,5);}
- ctx.stroke();
- ctx.beginPath();ctx.arc(0,-16,10,0,TAU);ctx.fill();
- ctx.lineWidth=2;ctx.strokeStyle='#172337';ctx.stroke();
- if(p.fruitStun>0){ctx.fillStyle='#ffe477';for(let a=0;a<3;a++){
-   const x=Math.cos(time*9+a*TAU/3)*17,y=-27+Math.sin(time*9+a*TAU/3)*6;
-   ctx.beginPath();ctx.arc(x,y,3,0,TAU);ctx.fill();
- }}
- ctx.font='bold 12px system-ui,sans-serif';ctx.textAlign='center';
- ctx.lineWidth=3;ctx.strokeStyle='#122437';ctx.fillStyle='#fff';
- ctx.strokeText(p.name||'',0,-31);ctx.fillText(p.name||'',0,-31);
+ window.PartyPlayerAvatar.draw(ctx,p,{local:true,time,
+   color:p.fruitHitFlash>0?'#ffe86b':p.color,attacking:!!p.fruitAttack});
+ if(p.fruitStun>0){
+   ctx.fillStyle='#ffe477';
+   for(let a=0;a<3;a++){
+     const x=Math.cos(time*9+a*TAU/3)*17,y=-35+Math.sin(time*9+a*TAU/3)*6;
+     ctx.beginPath();ctx.arc(x,y,3,0,TAU);ctx.fill();
+   }
+ }
  ctx.restore();
 }
 function draw(ctx,time,round,players){

@@ -9,6 +9,7 @@ const source=fs.readFileSync('app.js','utf8');
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
   'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
+const avatarSource=fs.readFileSync('player-avatar.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
 const shockwaveSource=fs.readFileSync('shockwave.js','utf8');
@@ -108,6 +109,7 @@ class FakeSvgImage{
 const ghostSandbox=vm.createContext({window:{},Image:FakeSvgImage});
 vm.runInContext(combatSource,ghostSandbox,{filename:'combat-motion.js'});
 vm.runInContext(artSource,ghostSandbox,{filename:'graveyard-art.js'});
+vm.runInContext(avatarSource,ghostSandbox,{filename:'player-avatar.js'});
 vm.runInContext(ghostSource,ghostSandbox,{filename:'ghost-attack.js'});
 const ghost=ghostSandbox.window.GhostAttack;
 const art=ghostSandbox.window.GhostCemeteryArt;
@@ -846,6 +848,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   const scope=vm.createContext(globals);
   vm.runInContext(combatSource,scope,{filename:'combat-motion.js'});
   vm.runInContext(artSource,scope,{filename:'graveyard-art.js'});
+   vm.runInContext(avatarSource,scope,{filename:'player-avatar.js'});
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
   vm.runInContext(fruitSource,scope,{filename:'fruit-memory.js'});
    vm.runInContext(shockwaveSource,scope,{filename:'shockwave.js'});

@@ -411,30 +411,8 @@ function drawChicken(ctx,c,t,scale=1){
   ctx.restore();
 }
 function drawPlayer(ctx,p,t){
-  const v=p.dir||{x:1,y:0},theta=Math.atan2(v.y,v.x);
-  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(theta);
-  ctx.strokeStyle='#1b2738';ctx.lineWidth=5;ctx.lineCap='round';
-  const stride=Math.sin(t*C.playerStrideRate+(Number(p.id?.replace(/\D/g,''))||0))*3;
-  ctx.beginPath();ctx.moveTo(-9,-5);ctx.lineTo(-15,-10+stride);
-  ctx.moveTo(-9,5);ctx.lineTo(-15,10-stride);ctx.stroke();
-  ctx.fillStyle=p.color;ctx.strokeStyle='#24304a';ctx.lineWidth=2;
-  ctx.beginPath();ctx.ellipse(0,0,13,11,0,0,TAU);ctx.fill();ctx.stroke();
-  ctx.fillStyle='#ffe2ba';ctx.beginPath();ctx.arc(5,0,8,0,TAU);ctx.fill();
-  ctx.strokeStyle=p.color;ctx.lineWidth=5;ctx.beginPath();
-  if(p.carriedChickenId!=null){
-    ctx.moveTo(1,-9);ctx.lineTo(20,-12);ctx.lineTo(34,-8);
-    ctx.moveTo(1,9);ctx.lineTo(20,12);ctx.lineTo(34,8);
-  }else if(p.chickenPunchFlash>0){
-    ctx.moveTo(2,-9);ctx.lineTo(42,-10);
-    ctx.moveTo(1,9);ctx.lineTo(11,16);
-  }else{
-    ctx.moveTo(0,-9);ctx.lineTo(15,-15);
-    ctx.moveTo(0,9);ctx.lineTo(15,15);
-  }
-  ctx.stroke();ctx.restore();
-  ctx.save();ctx.fillStyle='#fff';ctx.strokeStyle='#0b1831';ctx.lineWidth=3;
-  ctx.font='bold 15px sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
-  ctx.strokeText(p.name||'',p.x,p.y-22);ctx.fillText(p.name||'',p.x,p.y-22);ctx.restore();
+ window.PartyPlayerAvatar.draw(ctx,p,{time:t,
+   holding:p.carriedChickenId!=null,attacking:p.chickenPunchFlash>0});
 }
 function drawPen(ctx,state,pen,t){
   const inner=penPosition(state,pen,state.radius-2);
