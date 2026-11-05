@@ -24,7 +24,7 @@ function buildTest(){
         new RegExp('GAME_BUILD_VERSION="'+rev+'"'));
       const html=fs.readFileSync(path.join(dir,'index.html'),'utf8');
       for(const asset of ['style.css','graveyard-art.js','combat-motion.js',
-        'ghost-attack.js','chickens.js','app.js','auto-update.js','build-version.js']){
+        'ghost-attack.js','chickens.js','shockwave.js','app.js','auto-update.js','build-version.js']){
         assert.ok(html.includes('./'+asset+'?v='+rev),
           'all asset URLs versioned on each deploy: '+asset);
       }

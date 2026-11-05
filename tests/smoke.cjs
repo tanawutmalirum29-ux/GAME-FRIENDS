@@ -11,6 +11,7 @@ const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
+const shockwaveSource=fs.readFileSync('shockwave.js','utf8');
 const artSource=fs.readFileSync('graveyard-art.js','utf8');
 const combatSource=fs.readFileSync('combat-motion.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
@@ -19,13 +20,15 @@ const hostLauncher=fs.readFileSync('host.html','utf8');
 
 // Game catalog retains Ghost Attack and now adds CHICKENS as game two.
 assert.match(html,/data-pick="ghost"/);
-assert.equal([...html.matchAll(/data-pick="/g)].length,3);
+assert.equal([...html.matchAll(/data-pick="/g)].length,4);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
 assert.match(html,/src=".\/ghost-attack\.js"/);
 assert.match(html,/src=".\/chickens\.js"/);
 assert.match(html,/data-pick="chickens"/);
 assert.match(html,/data-pick="fruit_memory"/);
 assert.match(html,/src=".\/fruit-memory\.js"/);
+assert.match(html,/data-pick="shockwave"/);
+assert.match(html,/src=".\/shockwave\.js"/);
 assert.match(html,/src="\.\/graveyard-art\.js"/);
 assert.match(artSource,/window\.GhostCemeteryArt=Object\.freeze/);
 assert.match(html,/<script defer src="\.\/combat-motion\.js"><\/script>[\s\S]*?<script defer src="\.\/ghost-attack\.js"><\/script>/);
@@ -33,7 +36,7 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY'\}/);
+assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
@@ -845,6 +848,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(artSource,scope,{filename:'graveyard-art.js'});
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
   vm.runInContext(fruitSource,scope,{filename:'fruit-memory.js'});
+   vm.runInContext(shockwaveSource,scope,{filename:'shockwave.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
   return {elements,pickButtons,sessionButtons,padButtons,instances,scope,sessionData,timers,canvasTransforms,
     mediaCall(peer){return new FakeMediaCall(peer);},
@@ -1026,7 +1030,7 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,3);
+assert.equal(phone.pickButtons.length,4);
 assert.equal(phone.pickButtons[2].dataset.pick,'fruit_memory');
 assert.match(phone.pickButtons[2].children[0].innerHTML,/<svg[\s>]/);
 assert.equal(phone.pickButtons[2].children[1].textContent,'FRUIT MEMORY');
@@ -1208,3 +1212,4 @@ console.log('SMOKE PASS: 12-player cap, host/controller reconnect, and Retina 2x
 
 // All chicken gameplay rules run alongside the existing GHOST ATTACK regression suite.
 require('./chickens.cjs');
+require('./shockwave.cjs');

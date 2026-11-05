@@ -3357,3 +3357,23 @@ body.controller-playing #controller #controllerActive #phoneGameChoices .mode-ch
  body.controller-playing #controller #controllerActive #phoneGameChoices .mode-cover{width:clamp(26px,7vw,54px);height:clamp(24px,7dvh,42px)}
  body.controller-playing #controller #controllerActive #phoneGameChoices .mode-choice-title{font-size:clamp(9px,1.6dvh,14px)}
 }
+
+/* SHOCKWAVE has movement only: the preview takes over the unused A/B area. */
+#controller #controllerActive .controller-buttons.shockwave-mode .gamepad-face-buttons,
+#controller #controllerActive .controller-buttons.shockwave-mode .face-button-wrap,
+#controller #controllerActive .controller-buttons.shockwave-mode .target-cycle-controls{display:none!important}
+body.controller-playing #controller #controllerActive .controller-buttons.shockwave-mode{
+ grid-template-columns:minmax(170px,1fr) minmax(260px,1.25fr)!important;
+ justify-content:center!important;gap:clamp(9px,3vw,28px)!important;
+}
+body.controller-playing #controller #controllerActive .controller-buttons.shockwave-mode .joystick-zone{grid-column:1!important;grid-row:1!important}
+body.controller-playing #controller #controllerActive .controller-buttons.shockwave-mode .gamepad-preview-column{
+ grid-column:2!important;grid-row:1!important;transform:none!important;max-width:100%!important}
+body.host-playing #game .leader-chip.shockwave-eliminated{opacity:.42}
+body.host-playing #game .leader-chip.shockwave-leader .leader-role{color:#a4f7d8}
+body.controller-playing #controller #controllerActive #phoneGameChoices{
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important}
+@media(orientation:portrait){
+ body.controller-playing.portrait-fallback #controller #controllerActive .controller-buttons.shockwave-mode{
+  grid-template-columns:minmax(110px,.8fr) minmax(140px,1.3fr)!important}
+}
