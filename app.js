@@ -1531,7 +1531,37 @@ function renderResultVotes(sendUpdate=false){
     broadcast(v);
   }
 }
+
+function layoutFinalResults(){
+  // All occupied seats must remain visible at once, including 12 bots when
+  // no remote controllers are connected (0/0 votes).
+  const list=$('resultList');
+  const children=Array.from(list.children);
+  const rows=children.filter(el=>String(el.className||'').split(/\s+/).includes('result-player'));
+  const hasHeading=children.some(el=>String(el.className||'').split(/\s+/).includes('tournament-header'));
+  const width=Number(window.innerWidth)||960;
+  const maxColumns=width>=1060?4:width>=620?3:2;
+  const columns=Math.max(1,Math.min(rows.length||1,maxColumns));
+  const lines=Math.max(1,Math.ceil(rows.length/columns));
+  list.style.setProperty('--result-cols',String(columns));
+  list.style.setProperty('--result-rows',String(lines));
+  list.dataset.count=String(rows.length);
+  list.dataset.cols=String(columns);
+  list.classList.toggle('has-heading',hasHeading);
+  rows.forEach(row=>{
+    const label=row.children[0];
+    const color=label?.style?.color||'#9fb9da';
+    row.style.setProperty('--result-accent',color);
+    const name=String(label?.textContent||'');
+    const match=name.match(/อันดับ\s*(\d+)|(?:^|\s)(\d+)\.\s*/);
+    const rank=Number(match?.[1]||match?.[2]||0);
+    if(rank>0)row.dataset.rank=String(rank);
+    row.classList.toggle('is-winner',rank===1);
+  });
+}
+
 function beginResultVoting(){
+  layoutFinalResults();
   round.resultVotes={next:new Set(),lobby:new Set()};
   renderResultVotes(true);
 }
@@ -1628,7 +1658,7 @@ function endShockwaveRound(){
  ranked.forEach(p=>{
    const row=document.createElement('div');row.className='result-player';
    const name=document.createElement('div');name.style.color=p.color;
-   name.textContent=(p.id===s.winnerId?'ผู้ชนะ ':'')+rankOf(p)+'. '+p.name;
+   name.textContent='อันดับ '+rankOf(p)+' • '+p.name;
    const detail=document.createElement('span');
    detail.textContent=(p.id===s.winnerId?'ผู้รอดคนสุดท้าย':'ตกรอบ Wave '+(p.shockEliminatedWave||s.wave))+
      (tournament?' • รวม '+p.total+' คะแนน':'');
@@ -1673,7 +1703,9 @@ function endColorSwitchRound(){
  ranked.forEach(p=>{
    const row=document.createElement('div');row.className='result-player';
    const name=document.createElement('div');name.style.color=p.color;
-   name.textContent=(s.winnerIds.includes(p.id)?'ผู้ชนะ ':'')+(byId.get(p.id)?.rank||1)+'. '+p.name;
+   const rank=byId.get(p.id)?.rank||1;
+    const tied=ranked.filter(q=>(byId.get(q.id)?.rank||1)===rank).length>1;
+    name.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
    const score=document.createElement('span');
    score.textContent=p.score+' ช่อง'+(tournament?' • รวม '+p.total+' คะแนน':'');
    row.append(name,score);list.append(row);
@@ -1754,7 +1786,9 @@ function endChickensRound(){
   ranked.forEach((p,i)=>{
     const row=document.createElement('div');row.className='result-player';
     const name=document.createElement('div');name.style.color=p.color;
-    name.textContent=(p.score===best?'ผู้ชนะ ':'')+(1+ranked.filter(q=>q.score>p.score).length)+'. '+p.name;
+    const rank=1+ranked.filter(q=>q.score>p.score).length;
+    name.textContent='อันดับ '+rank+
+      (ranked.filter(q=>q.score===p.score).length>1?' ร่วม':'')+' • '+p.name;
     const score=document.createElement('span');
     score.textContent=p.score+' ไก่'+(tournament?' • รวม '+p.total+' คะแนน':'');
     row.append(name,score);list.append(row);
@@ -1804,7 +1838,7 @@ function endFruitMemoryRound(){
   ranked.forEach(p=>{
     const row=document.createElement('div');row.className='result-player';
     const name=document.createElement('div');name.style.color=p.color;
-    name.textContent=(p.id===winnerId?'ผู้ชนะ ':'')+rankOf(p)+'. '+p.name;
+    name.textContent='อันดับ '+rankOf(p)+' • '+p.name;
     const detail=document.createElement('span');
     const tied=!winnerId&&s.tieIds?.includes(p.id);
     detail.textContent=(p.id===winnerId?'ผู้รอดคนสุดท้าย':
@@ -1815,12 +1849,15 @@ function endFruitMemoryRound(){
   });
   if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
     const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
-    // Preserve individual finishing-order rows above the tournament total.
+    // The old design appended twelve more total rows after the twelve
+    // round rows (24 rows), hiding some names on compact screens. Show the
+    // complete final tournament ranking instead, as every other mode does.
+    list.replaceChildren();
     const heading=document.createElement('div');heading.className='tournament-header';
     const joint=overall.filter(p=>p.total===overall[0].total);
     heading.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:
       'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
-    list.append(heading);
+    list.prepend(heading);
     overall.forEach((p,i)=>{
       const row=document.createElement('div');row.className='result-player';
       const name=document.createElement('div');name.style.color=p.color;
