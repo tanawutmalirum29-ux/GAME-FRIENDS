@@ -23,7 +23,7 @@ function svg(id,opts={}){
  if(!body)return '';
  const done=opts.done===true;
  const marks=done?'<circle cx="38" cy="38" r="9" fill="#2ba66a" stroke="#fff" stroke-width="2"/><path d="m33 38 3.5 3.5L43 34" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>':'';
- return '<svg xmlns="'+SVG_NS+'" viewBox="0 0 48 48" fill="none" class="pizza-ingredient-svg" focusable="false" aria-hidden="true">'+body+marks+'</svg>';
+ return '<svg xmlns="'+SVG_NS+'" width="48" height="48" viewBox="0 0 48 48" fill="none" class="pizza-ingredient-svg" focusable="false" aria-hidden="true">'+body+marks+'</svg>';
 }
 function imageFor(id){
  if(!shapes[id]||typeof Image==='undefined')return null;
