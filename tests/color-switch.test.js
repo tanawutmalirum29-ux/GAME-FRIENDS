@@ -2,6 +2,7 @@
 /* Run with: node tests/color-switch.test.js */
 const nodeAssert=require('node:assert/strict');
 global.window={};
+require('../color-switch-mayan.js');
 require('../color-switch.js');
 const E=global.window.ColorSwitch;
 
