@@ -213,15 +213,17 @@ function advancePlayer(state,p,players,dt){
   }
 }
 function separatePlayers(state,players){
-  const living=players.filter(p=>p.active);
-  for(let i=0;i<living.length;i++)for(let j=i+1;j<living.length;j++){
-    const a=living[i],b=living[j],dx=b.x-a.x,dy=b.y-a.y;
-    const d=length(dx,dy);
-    if(d>=C.playerRadius*2||d===0)continue;
-    const n={x:dx/d,y:dy/d},shift=(C.playerRadius*2-d)*.5;
-    a.x-=n.x*shift;a.y-=n.y*shift;b.x+=n.x*shift;b.y+=n.y*shift;
-    bound(state,a,C.playerRadius+1);bound(state,b,C.playerRadius+1);
-  }
+ return window.PartyCharacters.resolve(players,{
+   radius:C.playerRadius,iterations:5,
+   constrain:(p,x,y,r)=>{
+     const dx=x-state.center.x,dy=y-state.center.y;
+     const distance=Math.hypot(dx,dy),limit=Math.max(0,state.radius-r-1);
+     if(distance<=limit)return {x,y};
+     if(distance<1e-8)return {x:state.center.x,y:state.center.y};
+     return {x:state.center.x+dx*limit/distance,
+       y:state.center.y+dy*limit/distance};
+   }
+ });
 }
 function chooseEscape(state,c,players){
   const threatened=players.filter(p=>p.active&&distance(p,c)<215);
