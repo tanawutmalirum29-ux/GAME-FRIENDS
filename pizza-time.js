@@ -243,6 +243,10 @@ function nextOrder(s,p){
  assignPair(s,p,best);
 }
 function setup(round,ps){
+ // The lobby initializes everyone with active=false. Activate entrants BEFORE
+ // filtering, exactly as the existing minigame engines do; otherwise the
+ // entire Pizza Time match starts with zero characters (including all bots).
+ ps.forEach(p=>{p.active=true;});
  const people=active(ps),count=Math.max(1,people.length);
  const world=worldSize(count),s={world,center:{x:world.w/2,y:world.h/2},players:count,
    roster:ps,seed:(Number(round.pizzaSeed)||(Date.now()^0x4b1a8d7))>>>0||1,
