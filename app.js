@@ -687,6 +687,7 @@ function updatePhoneGamePicker(phase,choice){
   $('controllerButtons').classList.toggle('is-picking',phoneSelectionOpen);
   // No joystick movement while selecting a game.
   if(phoneSelectionOpen)releaseStick();
+  renderControllerPreviewToggle();
   for(const button of document.querySelectorAll('[data-pick]')){
     const selected=button.dataset.pick===myChosenMode;
     button.classList.toggle('selected',selected);
@@ -698,6 +699,7 @@ function updatePhoneGamePicker(phase,choice){
 }
 let controllerMediaCall=null;
 let videoStreamActive=false;
+let controllerPreviewEnabled=false; // Default OFF on every fresh page load.
 const VIDEO_QUALITY_CYCLE=['high','medium','low','auto'];
 const VIDEO_QUALITY_TEXT={
   high:{short:'ส',long:'สูง · 720p'},
@@ -747,7 +749,29 @@ function setControllerVideoQuality(quality){
   controllerVideoQuality=quality;
   renderVideoQualityButton();
   try{window.localStorage.setItem('gf-video-quality-v1',quality);}catch(_){}
-  if(controllerReady)send(controllerConn,videoQualityPacket(quality));
+  if(controllerReady&&controllerPreviewEnabled)send(controllerConn,videoQualityPacket(quality));
+}
+function renderControllerPreviewToggle(){
+  const btn=$('videoPreviewToggleBtn');
+  btn.textContent=controllerPreviewEnabled?'จอเปิด':'จอปิด';
+  btn.dataset.preview=controllerPreviewEnabled?'on':'off';
+  btn.setAttribute('aria-pressed',String(controllerPreviewEnabled));
+  btn.setAttribute('aria-label',controllerPreviewEnabled?'จอพรีวิวเปิดอยู่ กดเพื่อปิด':'จอพรีวิวปิดอยู่ กดเพื่อเปิด');
+  btn.title=controllerPreviewEnabled?'ปิดจอพรีวิวของจอย':'เปิดจอพรีวิวของจอย';
+  // Keep the lobby game-picker clickable even while the preview is off.
+  $('controllerPreviewOff').classList.toggle('hidden',controllerPreviewEnabled||phoneSelectionOpen);
+}
+function setControllerPreviewEnabled(enabled){
+  controllerPreviewEnabled=enabled===true;
+  if(!controllerPreviewEnabled){
+    stopControllerVideo();
+    resetPhonePreview();
+  }else if(controllerReady){
+    // Quality preference is passed first, before asking the host to stream.
+    send(controllerConn,videoQualityPacket(controllerVideoQuality));
+  }
+  renderControllerPreviewToggle();
+  if(controllerReady)send(controllerConn,{t:'preview-toggle',enabled:controllerPreviewEnabled});
 }
 function stopControllerVideo(){
   const call=controllerMediaCall;
@@ -761,7 +785,7 @@ function stopControllerVideo(){
   $('videoStartBtn').classList.add('hidden');
 }
 function showControllerVideo(stream,call){
-  if(controllerMediaCall!==call||!stream)return;
+  if(controllerMediaCall!==call||!controllerPreviewEnabled||!stream)return;
   const video=$('controllerPreviewVideo');
   video.srcObject=stream;
   video.muted=true;
@@ -774,7 +798,7 @@ function showControllerVideo(stream,call){
     try{
       const p=video.play();
       if(p&&p.then)p.then(()=>{
-        if(controllerMediaCall!==call)return;
+        if(controllerMediaCall!==call||!controllerPreviewEnabled)return;
         send(controllerConn,{t:'video-ready',quality:call.metadata?.quality||'medium'});
       }).catch(()=>{$('videoStartBtn').classList.remove('hidden');});
     }catch(_){$('videoStartBtn').classList.remove('hidden');}
@@ -786,7 +810,7 @@ function resetPhonePreview(){
   if(!videoStreamActive)$('controllerPreviewPlaceholder').classList.remove('hidden');
 }
 function receivePhonePreview(image){
-  if(videoStreamActive)return;
+  if(!controllerPreviewEnabled||videoStreamActive)return;
   if(typeof image!=='string'||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>24000)return;
   $('controllerPreviewImage').src=image;
   $('controllerPreviewImage').classList.remove('hidden');
@@ -964,7 +988,7 @@ function joinRoom(recovery=false){
     controllerConn=conn;
     conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken});controllerState('กำลังรอห้องรับผู้เล่น...');});
     peer.on('call',call=>{
-      if(controllerPeer!==peer||call.peer!=='gf-party-'+code){
+      if(controllerPeer!==peer||call.peer!=='gf-party-'+code||!controllerPreviewEnabled){
         try{call.close();}catch(_){}
         return;
       }
@@ -999,8 +1023,10 @@ function joinRoom(recovery=false){
         syncZoomPolicy();
         showControllerMode(data.mode);
         updatePhoneGamePicker(data.phase||'lobby',data.choice||null);
-        // Keep the previously chosen quality between rooms and reloads.
+        // Quality is remembered, but the live preview starts OFF on a fresh
+        // controller page to save bandwidth and device battery.
         setControllerVideoQuality(savedVideoQuality());
+        setControllerPreviewEnabled(controllerPreviewEnabled);
         sendInputs();announceControllerTakeover();
       }else if(data.t==='preview'){
         if(controllerReady)receivePhonePreview(data.image);
@@ -1874,6 +1900,9 @@ document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener
   updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
 }));
+$('videoPreviewToggleBtn').addEventListener('click',()=>{
+  setControllerPreviewEnabled(!controllerPreviewEnabled);
+});
 $('videoQualityBtn').addEventListener('click',()=>{
   const index=VIDEO_QUALITY_CYCLE.indexOf(controllerVideoQuality);
   setControllerVideoQuality(VIDEO_QUALITY_CYCLE[(index+1)%VIDEO_QUALITY_CYCLE.length]);
@@ -1887,7 +1916,9 @@ window.addEventListener('resize',()=>{
 });
 controllerVideoQuality=savedVideoQuality();
 renderVideoQualityButton();
+renderControllerPreviewToggle();
 $('videoStartBtn').addEventListener('click',()=>{
+  if(!controllerPreviewEnabled)return;
   const video=$('controllerPreviewVideo');
   if(typeof video.play==='function'){
     try{
