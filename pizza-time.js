@@ -93,7 +93,11 @@ function aStar(s,a,b,needPath=false){
  return {distance:Infinity,points:[]};
 }
 function approachCost(s,start,table){
- return aStar(s,start,table.pick).distance;
+ const key=navNode(s,start)+'-'+table.id;
+ if(s.pathCostCache.has(key))return s.pathCostCache.get(key);
+ const cost=aStar(s,start,table.pick).distance;
+ s.pathCostCache.set(key,cost);
+ return cost;
 }
 function makePairs(s){
  const ids=[...new Set(s.tables.map(t=>t.ingredient))];
@@ -170,11 +174,11 @@ function setup(round,ps){
  const people=active(ps),count=Math.max(1,people.length);
  const world=worldSize(count),s={world,center:{x:world.w/2,y:world.h/2},players:count,
    roster:ps,elapsed:0,duration:60,remaining:60,accumulator:0,clock:0,finished:false,
-   tables:[],pairs:[],toChef:new Map(),lastIngredient:new Map(),targetDistance:0,
+   tables:[],pairs:[],toChef:new Map(),pathCostCache:new Map(),lastIngredient:new Map(),targetDistance:0,
    firstSpread:0,ranking:[],winnerIds:[],effects:[]};
  round.pizzaTime=s;round.remaining=60;
  tableLayout(s);grid(s);
- for(const t of s.tables)s.toChef.set(t.id,approachCost(s,t.pick,s.center));
+ for(const t of s.tables)s.toChef.set(t.id,aStar(s,t.pick,s.center).distance);
  s.pairs=makePairs(s);
  people.forEach((p,i)=>{
    const angle=-Math.PI/2+TAU*i/count;
