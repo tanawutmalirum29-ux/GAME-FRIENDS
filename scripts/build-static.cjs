@@ -22,7 +22,7 @@ fs.writeFileSync(path.join(root,'build-version.js'),
 const indexPath=path.join(root,'index.html');
 let html=fs.readFileSync(indexPath,'utf8');
 const assets=['style.css','graveyard-art.js','combat-motion.js',
- 'ghost-attack.js','chickens.js','fruit-memory.js','app.js','auto-update.js','build-version.js'];
+ 'ghost-attack.js','chickens.js','fruit-memory.js','shockwave.js','app.js','auto-update.js','build-version.js'];
 const seen=new Set();
 html=html.replace(/\b(src|href)="(\.\/[^"?]+)(?:\?v=[^"]*)?"/g,
  (raw,attr,url)=>{
