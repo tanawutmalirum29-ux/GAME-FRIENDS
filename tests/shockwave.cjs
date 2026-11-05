@@ -193,7 +193,7 @@ assert.match(avatars,/data:image\/svg\+xml/);
  assert.equal(E.constants.blastThreshold,.18);
  assert.equal(E.constants.footRadius,11);
  const danger=new Set([6]),boundary=s.board.x+2*s.tileSize;
- ps[0].x=boundary-4;ps[0].y=center(s,6).y;
+ ps[0].x=boundary+4;ps[0].y=center(s,6).y;
  const ratio=E.calculateDangerContact(s,ps[0],danger);
  assert.ok(ratio>.18&&ratio<.5,'small meaningful overlap must count');
  ps[0].x=boundary+E.constants.footRadius+1;
