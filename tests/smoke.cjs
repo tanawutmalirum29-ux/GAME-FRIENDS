@@ -11,6 +11,8 @@ const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
+const characterSource=fs.readFileSync('character-system.js','utf8');
+const pizzaSource=fs.readFileSync('pizza-time.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
 const shockwaveSource=fs.readFileSync('shockwave.js','utf8');
@@ -24,7 +26,7 @@ const hostLauncher=fs.readFileSync('host.html','utf8');
 
 // Game catalog retains Ghost Attack and now adds CHICKENS as game two.
 assert.match(html,/data-pick="ghost"/);
-assert.equal([...html.matchAll(/data-pick="/g)].length,5);
+assert.equal([...html.matchAll(/data-pick="/g)].length,6);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
 assert.match(html,/src=".\/ghost-attack\.js"/);
 assert.match(html,/src=".\/chickens\.js"/);
@@ -121,6 +123,7 @@ vm.runInContext(arenaSource,ghostSandbox,{filename:'arena-art.js'});
 vm.runInContext(combatSource,ghostSandbox,{filename:'combat-motion.js'});
 vm.runInContext(artSource,ghostSandbox,{filename:'graveyard-art.js'});
 vm.runInContext(avatarSource,ghostSandbox,{filename:'player-avatar.js'});
+vm.runInContext(characterSource,ghostSandbox,{filename:'character-system.js'});
 vm.runInContext(ghostSource,ghostSandbox,{filename:'ghost-attack.js'});
 const ghost=ghostSandbox.window.GhostAttack;
 const art=ghostSandbox.window.GhostCemeteryArt;
@@ -910,11 +913,13 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(combatSource,scope,{filename:'combat-motion.js'});
   vm.runInContext(artSource,scope,{filename:'graveyard-art.js'});
    vm.runInContext(avatarSource,scope,{filename:'player-avatar.js'});
+  vm.runInContext(characterSource,scope,{filename:'character-system.js'});
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
   vm.runInContext(fruitSource,scope,{filename:'fruit-memory.js'});
    vm.runInContext(shockwaveSource,scope,{filename:'shockwave.js'});
   vm.runInContext(mayanSource,scope,{filename:'color-switch-mayan.js'});
   vm.runInContext(colorSwitchSource,scope,{filename:'color-switch.js'});
+  vm.runInContext(pizzaSource,scope,{filename:'pizza-time.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
   return {elements,pickButtons,sessionButtons,padButtons,instances,scope,sessionData,timers,canvasTransforms,
     mediaCall(peer){return new FakeMediaCall(peer);},
@@ -1351,8 +1356,9 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,5);
+assert.equal(phone.pickButtons.length,6);
 assert.equal(phone.pickButtons[4].dataset.pick,'color_switch');
+assert.equal(phone.pickButtons[5].dataset.pick,'pizza_time');
 assert.match(phone.pickButtons[4].children[0].innerHTML,/<svg[\s>]/);
 assert.equal(phone.pickButtons[4].children[1].textContent,'COLOR SWITCH');
 assert.equal(phone.pickButtons[2].dataset.pick,'fruit_memory');
