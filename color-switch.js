@@ -4,7 +4,7 @@
 const TAU=Math.PI*2, FIXED=1/60;
 const C=Object.freeze({speed:170,radius:14,punchRange:46,punchWindup:.12,
  punchActive:.10,punchRecovery:.13,punchCooldown:1.1,punchStun:.55,
- blastCooldown:2.8,blastCast:.18,blastStun:.95,botPunchRate:.7225});
+ blastCooldown:2.8,blastCast:.18,blastStun:.95,botPunchRate:.6});
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function rand(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
 function active(ps){return ps.filter(p=>p.active);}
