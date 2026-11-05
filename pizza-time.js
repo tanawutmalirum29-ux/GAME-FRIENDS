@@ -19,12 +19,21 @@ const active=ps=>ps.filter(p=>p.active);
 function random(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
 const worldSize=n=>n<=3?{w:960,h:540}:n<=6?{w:1200,h:675}:n<=9?{w:1440,h:810}:{w:1600,h:900};
 // Physical worktops contain exactly two ingredient slots each.
-const tableCount=n=>n<=3?2:n<=6?3:n<=9?4:5;
+const tableCount=n=>n<=4?2:n<=6?3:n<=9?4:5;
 const dims=s=>({w:s.world.w,h:s.world.h});
 function tableLayout(s){
  const count=tableCount(s.players);
- const kinds=INGREDIENTS.slice(0,count*2).map(i=>i.id);
+ // Larger maps repeat ingredient types across DIFFERENT counters. Each of
+ // the two slots on the same physical worktop must always differ.
+ const kinds=Array.from({length:count*2},(_,i)=>INGREDIENTS[i%INGREDIENTS.length].id);
  for(let i=kinds.length-1;i>0;i--){const j=Math.floor(random(s)*(i+1));[kinds[i],kinds[j]]=[kinds[j],kinds[i]];}
+ for(let i=0;i<kinds.length;i+=2)if(kinds[i]===kinds[i+1]){
+   const swapAt=kinds.findIndex((id,j)=>j!==i&&j!==i+1&&id!==kinds[i]&&
+     (j%2===0?kinds[j+1]!==kinds[i+1]:kinds[j-1]!==kinds[i]));
+   if(swapAt>=0)[kinds[i+1],kinds[swapAt]]=[kinds[swapAt],kinds[i+1]];
+ }
+ if(kinds.some((id,i)=>!id||(i%2===0&&id===kinds[i+1])))
+   throw Error('PIZZA TIME could not create two distinct ingredients per worktop');
  const locations=[];
  if(count<=3){
    for(let i=0;i<count;i++)locations.push({
