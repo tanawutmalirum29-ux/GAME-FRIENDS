@@ -493,6 +493,7 @@ function renderRoster(){
   el.style.setProperty('--roster-rows',String(MAX_PLAYERS/columns));
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
   $('startBtn').disabled=players.length<1||(selectedSessionMode==='queue'&&nominatedGames().length!==players.length);
+  $('startBtn').textContent=selectedSessionMode==='endless'?'เริ่มเล่นทุกเกม ▶':'สุ่มและเริ่มเล่น ▶';
   updateHostQueue();
   players.forEach(p=>{
     const item=document.createElement('div');item.className='roster-item';
