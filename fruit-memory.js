@@ -412,30 +412,59 @@ function drawPlayer(ctx,p,state,time){
  }
  ctx.restore();
 }
+// Both screens share one phase snapshot; neither changes gameplay state.
+function drawSideDisplays(ctx,state,round,players){
+ const b=state.board,w=146,h=Math.min(350,b.h-30),y=b.y+(b.h-h)/2;
+ const target=FRUIT_BY_ID[state.target];
+ const showTarget=!!target&&['target','move','collapse'].includes(state.phase)&&round.phase!=='countdown';
+ let opened=state.revealedTileIds.size;
+ const batch=state.revealTimeline[state.revealCursor];
+ if(state.phase==='memorize'&&batch&&state.elapsed-batch.start>.12){
+   opened=new Set([...state.revealedTileIds,...batch.ids]).size;
+ }
+ const seconds=state.phase==='move'?Math.ceil(Math.max(0,state.moveSeconds-state.elapsed)):state.moveSeconds;
+ for(const x of [b.x-38-w,b.x+b.w+38]){
+  ctx.save();ctx.translate(x,y);
+  ctx.fillStyle='#342c50';ctx.beginPath();ctx.roundRect(0,6,w,h,12);ctx.fill();
+  ctx.fillStyle='#8662af';ctx.strokeStyle='#d7b9ee';ctx.lineWidth=3;
+  ctx.beginPath();ctx.roundRect(0,0,w,h,12);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#f5b64f';ctx.beginPath();ctx.roundRect(8,9,w-16,h-18,7);ctx.fill();
+  ctx.fillStyle='#ffe09a';ctx.fillRect(15,17,w-30,4);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  const text=(label,yy,size,color='#493153')=>{
+   ctx.fillStyle=color;ctx.font='900 '+size+'px system-ui,sans-serif';ctx.fillText(label,w/2,yy,w-24);
+  };
+  text('FRUIT MEMORY',38,12);
+  if(round.phase==='countdown'){
+   text('เตรียมจำผลไม้',h*.29,17);text(String(Math.max(0,Math.ceil(round.countdown||0))),h*.52,64);text('เริ่มใน • วินาที',h*.76,16);
+  }else if(showTarget){
+   text(state.phase==='collapse'?'ผลไม้ที่รอด':'ไปที่ผลไม้นี้',h*.23,17);
+   const img=fruitImage(state.target),size=82;
+   ctx.fillStyle='#fff2c9';ctx.beginPath();ctx.arc(w/2,h*.43,48,0,TAU);ctx.fill();
+   if(img?.complete&&img.naturalWidth)ctx.drawImage(img,(w-size)/2,h*.43-size/2,size,size);
+   text(target.name,h*.62,18);
+   if(state.phase==='collapse')text('รอด '+living(players).length+' คน',h*.79,22);
+   else{ text(String(seconds),h*.79,48,seconds<=3?'#a62b3c':'#493153');text('วินาที',h*.92,14); }
+  }else if(state.phase==='memorize'||state.phase==='hide'){
+   text('เปิดแล้ว',h*.28,20);text(String(opened),h*.49,64);
+   text('/ '+state.tiles.length+' ช่อง',h*.68,22);
+   text(state.phase==='hide'?'เตรียมดูเป้าหมาย':'จำตำแหน่งให้ดี',h*.85,15);
+   ctx.fillStyle='#ad743c';ctx.fillRect(20,h*.75,w-40,5);
+   ctx.fillStyle='#fff4c7';ctx.fillRect(20,h*.75,(w-40)*opened/state.tiles.length,5);
+  }else{
+   text('รอบถัดไป',h*.34,23);text('เตรียมจำใหม่',h*.57,18);
+   text('ผู้รอด '+living(players).length+' คน',h*.78,17);
+  }
+  ctx.restore();
+ }
+}
 function draw(ctx,time,round,players){
  const state=round.fruitMemory;if(!state)return;
  ctx.save();ctx.clearRect(0,0,960,540);
  window.PartyArenaArt.draw(ctx,'orchard',state);
  for(const tile of state.tiles)drawTile(ctx,state,tile,time);
  for(const p of players)drawPlayer(ctx,p,state,time);
- // Compact HUD above the playfield; never overlaps the grid.
- ctx.fillStyle='#40394f';ctx.fillRect(16,30,250,42);
- ctx.strokeStyle='#d0bb90';ctx.lineWidth=1.4;ctx.strokeRect(16,30,250,42);
- ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='bold 13px system-ui,sans-serif';
- ctx.fillText('FRUIT MEMORY',27,47);
- ctx.font='bold 13px system-ui,sans-serif';
- const phase=round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown)+' วิ':
-   state.phase==='memorize'?'จำผลไม้ • '+state.revealedTileIds.size+'/'+state.tiles.length+' ช่อง':
-   state.phase==='hide'?'คว่ำบล็อกทั้งหมด':
-   state.phase==='target'||state.phase==='move'?'ไปที่ '+FRUIT_BY_ID[state.target].name+' • '+(state.phase==='move'?Math.ceil(Math.max(0,state.moveSeconds-state.elapsed)):'เตรียมตัว')+' วิ':
-   state.phase==='collapse'?'รอด '+(state.replayEntrants?'0':living(players).length)+' คน':
-   'เตรียมรอบถัดไป';
- ctx.fillStyle=state.phase==='move'&&state.moveSeconds-state.elapsed<3?'#ffcd77':'#b7f4d3';
- ctx.fillText(phase,27,64,(state.phase==='target'||state.phase==='move')?190:222);
- if((state.phase==='target'||state.phase==='move')&&state.target){
-   const img=fruitImage(state.target);if(img?.complete&&img.naturalWidth)
-     ctx.drawImage(img,226,40,22,22);
- }
+ drawSideDisplays(ctx,state,round,players);
  ctx.restore();
 }
 window.FruitMemory=Object.freeze({setup,update,draw,hud,generateGrid,buildRevealSchedule,
