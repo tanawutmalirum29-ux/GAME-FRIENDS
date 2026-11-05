@@ -140,7 +140,16 @@ function seam(x){
 }
 {
  const a=init(2),b=init(2);
- for(const x of [a,b]){x.state.phase='move';x.state.target='apple';x.players[0].input.axisX=1;}
+ for(const x of [a,b]){
+   const {board,tileW,tileH}=x.state;
+   x.state.phase='move';x.state.target='apple';
+   // Identical starting world coordinates isolate FPS from random initial spawns.
+   x.players[0].x=board.x+tileW;
+   x.players[0].y=board.y+tileH;
+   x.players[1].x=board.x+board.w-tileW;
+   x.players[1].y=board.y+board.h-tileH;
+   x.players[0].input.axisX=1;
+ }
  advance(a,.5,30);advance(b,.5,60);
  assert.ok(Math.abs(a.players[0].x-b.players[0].x)<.01,'30 and 60 fps are equivalent');
 }
