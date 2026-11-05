@@ -12,6 +12,7 @@ assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
 const characterSource=fs.readFileSync('character-system.js','utf8');
+const pizzaArtSource=fs.readFileSync('pizza-ingredient-art.js','utf8');
 const pizzaSource=fs.readFileSync('pizza-time.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
@@ -36,6 +37,8 @@ assert.match(html,/src=".\/fruit-memory\.js"/);
 assert.match(html,/data-pick="shockwave"/);
 assert.match(html,/src=".\/shockwave\.js"/);
 assert.match(html,/data-pick="color_switch"/);
+assert.match(html,/src="\.\/pizza-ingredient-art\.js"/);
+assert.match(html,/src="\.\/pizza-time\.js"/);
 assert.match(html,/src=".\/color-switch\.js"/);
 assert.match(html,/src=".\/color-switch-mayan\.js"/);
 assert.match(html,/src="\.\/graveyard-art\.js"/);
@@ -919,6 +922,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
    vm.runInContext(shockwaveSource,scope,{filename:'shockwave.js'});
   vm.runInContext(mayanSource,scope,{filename:'color-switch-mayan.js'});
   vm.runInContext(colorSwitchSource,scope,{filename:'color-switch.js'});
+  vm.runInContext(pizzaArtSource,scope,{filename:'pizza-ingredient-art.js'});
   vm.runInContext(pizzaSource,scope,{filename:'pizza-time.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
   return {elements,pickButtons,sessionButtons,padButtons,instances,scope,sessionData,timers,canvasTransforms,
