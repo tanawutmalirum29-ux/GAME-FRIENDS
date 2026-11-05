@@ -421,12 +421,12 @@ function drawChef(ctx,chef,player){
  ctx.fillStyle='#fff9ed';ctx.font='bold 12px system-ui';ctx.textAlign='center';
  ctx.fillText((player?.name||'ผู้เล่น').slice(0,10),p.x,p.y+45);
 }
-function orderBubble(ctx,chef,player){
+function orderBubble(ctx,chef,player,worldWidth){
  if(!player?.pizza)return;
  const q=player.pizza,ids=q.order;
- const x=bound(chef.bubbleX,61,chef.x<50?60:Infinity),y=chef.bubbleY;
+ const x=chef.bubbleX,y=chef.bubbleY;
  // Place order cards horizontally next to their own chefs. Clamp into the world.
- const left=bound(x-59,29,ctx.__pizzaWorldWidth-145);
+ const left=bound(x-59,29,worldWidth-145);
  ctx.fillStyle='#ffffffed';rounded(ctx,left,y-24,144,47,18);ctx.fill();
  ctx.strokeStyle=chef.color;ctx.lineWidth=2;ctx.stroke();
  ctx.fillStyle='#263343';ctx.font='bold 11px system-ui';ctx.textAlign='left';
@@ -485,11 +485,9 @@ function scene(ctx,s){
  for(const chef of s.chefs){
    drawChef(ctx,chef,s.roster.find(p=>p.id===chef.ownerId));
  }
- ctx.__pizzaWorldWidth=w;
  for(const chef of s.chefs){
-   orderBubble(ctx,chef,s.roster.find(p=>p.id===chef.ownerId));
+   orderBubble(ctx,chef,s.roster.find(p=>p.id===chef.ownerId),w);
  }
- delete ctx.__pizzaWorldWidth;
 }
 function draw(ctx,time,round,ps){
  const s=round.pizzaTime;if(!s)return;
