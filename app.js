@@ -1251,7 +1251,7 @@ function startRound(forcedMode=null){
   const engine=gameEngine(mode);
   if(!engine)throw Error(mode+' engine failed to load');
   $('results').classList.add('hidden');
-  round={mode,phase:'countdown',paused:false,countdown:3,remaining:null,autoNextRemaining:0,
+  round={mode,phase:'countdown',paused:false,countdown:mode==='shockwave'?2:3,remaining:null,autoNextRemaining:0,
     rules:{viewMode:'topdown'}};
   window.PartyPlayerAvatar.preload(players);
   engine.setup(round,players);
