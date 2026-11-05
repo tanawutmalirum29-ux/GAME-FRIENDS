@@ -499,6 +499,7 @@ function startHost(retries=0,resumeCode=null){
   peer.on('open',()=>{
     if(hostPeer!==peer)return;
     roomCode=code;onlineHost=true;$('roomCode').textContent=code;
+    deleteSession(OFFLINE_SESSION);
     $('roomPanel').classList.remove('hidden');$('offlineRoomHint').classList.add('hidden');
     $('hostBtn').disabled=false;$('hostRoomBadge').textContent='ROOM '+code;
     setView('hostLobby');
@@ -528,6 +529,9 @@ function startHost(retries=0,resumeCode=null){
         conn.playerId=p.id;p.lastInputAt=Date.now();
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active});
         broadcastRoster();
+      }else if(msg.t==='leave'&&conn.playerId){
+        const id=conn.playerId;conn.playerId=null;
+        removePlayer(id);
       }else if(msg.t==='video-ready'&&conn.playerId){
         if(msg.quality===conn.videoQuality)conn.videoReady=true;
       }else if(msg.t==='video-quality'&&conn.playerId){
@@ -832,6 +836,8 @@ function resetControllerForRoomChange(message){
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;reconnectTries=0;
   deleteSession(PHONE_SESSION);
+  // Explicit leave removes the seat. A refresh does not send this packet.
+  send(controllerConn,{t:'leave'});
   $('leaveConfirm').classList.add('hidden');
   resetPhonePreview();
   void stopRoomScanner();
@@ -956,9 +962,7 @@ function joinRoom(recovery=false){
           data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
       }else if(data.t==='closed'){
-        setControllerGameContext(null,'lobby',false);
-        deleteSession(PHONE_SESSION);
-        controllerState('เจ้าของห้องปิดห้องแล้ว',true);
+        resetControllerForRoomChange('เจ้าของห้องปิดห้องแล้ว');
       }
     });
     conn.on('close',()=>{if(controllerConn===conn)controllerDisconnected();});
@@ -1582,8 +1586,10 @@ document.querySelectorAll('[data-session-mode]').forEach(button=>{
    other.classList.toggle('active',active);
    other.setAttribute('aria-pressed',String(active));
   }
+  if(onlineHost)saveHost();else saveOffline();
  });
 });
+$('autoNext').addEventListener('change',()=>{if(onlineHost)saveHost();else saveOffline();});
 $('uiCancelBtn').addEventListener('click',()=>finishConfirmation(false));
 $('uiConfirmBtn').addEventListener('click',()=>finishConfirmation(true));
 $('uiModal').addEventListener('click',e=>{if(e.target===$('uiModal'))finishConfirmation(false);});
