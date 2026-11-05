@@ -344,7 +344,8 @@ function drawTile(ctx,s,t){
  ctx.fillRect(cx-1,cy+8,2,6);
  if(warning||blast){
    ctx.fillStyle='#fff4ce';ctx.font='900 15px sans-serif';ctx.textAlign='center';
-   ctx.fillText(blast?'✦':'!',x+z-17,y+23);
+   if(blast)window.PartyUiArt.draw(ctx,'sparkle',x+z-17,y+18,14);
+   else ctx.fillText('!',x+z-17,y+23);
    ctx.fillRect(x+13,y+z-17,z-26,3);
  }
 
