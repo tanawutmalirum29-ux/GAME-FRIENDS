@@ -142,6 +142,7 @@ function seam(x){
  const x=init(2),s=x.state,[p,q]=x.players;
  s.phase='move';s.target='apple';
  p.x=s.board.x+s.tileW*.5;p.y=s.board.y+s.tileH*.5;p.dir={x:1,y:0};
+ q.isBot=false;q.input.axisX=0;q.input.axisY=0;
  q.x=p.x+43;q.y=p.y;p.input.action=true;
  advance(x,.23);
  assert.ok(q.fruitStun>0,'front hit stuns');assert.ok(p.fruitCooldown>0,'cooldown authoritative');
