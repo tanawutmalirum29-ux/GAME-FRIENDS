@@ -16,8 +16,8 @@ function pickUnusedColor(){
   lastAssignedColor = color;
   return color;
 }
-const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH'};
-const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch'};
+const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME'};
+const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch',pizza_time:'PizzaTime'};
 const gameEngine=mode=>Object.hasOwn(ENGINES,mode)?window[ENGINES[mode]]:null;
 
 const MODE_COVER_SVG={
@@ -37,6 +37,7 @@ const MODE_COVER_SVG={
  ,chickens:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#24664d"/><circle cx="80" cy="46" r="35" fill="#6aaa60"/><path d="M15 72 40 61v-18h17m46 0h17v18l25 11" fill="none" stroke="#e9ce90" stroke-width="5"/><path d="M67 50q-13-12 0-22t25 0q13 12 0 22z" fill="#fff4d2" stroke="#c39161" stroke-width="2"/><circle cx="87" cy="31" r="9" fill="#fff5de"/><path d="m94 33 10 4-10 4" fill="#ffce57"/><circle cx="89" cy="29" r="2" fill="#222"/><path d="M78 19q-2-8 5-6t6 9" fill="#ef585a"/><path d="M56 62v9m39-9v9" stroke="#e3b15c" stroke-width="3"/><text x="80" y="84" font-size="12" font-weight="900" text-anchor="middle" fill="#fff">CHICKENS</text></svg>'
  ,shockwave:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#10263c"/><g fill="#28778a" stroke="#a4eaf5" stroke-width="1.5"><path d="M12 23h41v27H12zM60 23h41v27H60zM108 23h40v27h-40zM12 55h41v26H12zM60 55h41v26H60z"/></g><path d="M108 55h40v26h-40z" fill="#df4855" stroke="#ffcd82" stroke-width="3"/><path d="m115 62 9 12-11 4m11-4 14-12" fill="none" stroke="#ffe0bb" stroke-width="3"/><circle cx="79" cy="9" r="7" fill="#ffdc9b"/><path d="M76 17h8l8 10-6 5-6-7-7 8-8-5z" fill="#ffe18a"/></svg>'
  ,color_switch:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#3a754f"/><rect x="21" y="6" width="118" height="77" rx="6" fill="#6c4838" stroke="#edd49d" stroke-width="4"/><g stroke="#3e2c35" stroke-width="1.5"><path d="M22 25h116M22 44h116M22 63h116M45 7v75M68 7v75M91 7v75M114 7v75"/></g><path d="M24 9h19v14H24zM47 27h19v15H47zM70 46h19v15H70zM93 27h19v15H93zM116 65h20v15h-20z" fill="#4de4d1"/><path d="M70 9h19v14H70zM116 27h20v15h-20zM24 46h19v15H24zM93 65h19v15H93z" fill="#ff6b9c"/><rect x="96" y="12" width="17" height="15" rx="3" fill="#9e6ff7"/><path d="m104 14 2 4 5 1-4 3 1 4-4-2-4 2 1-4-3-3 5-1Z" fill="#ffe27c"/><circle cx="58" cy="53" r="7" fill="#ffeb79"/><path d="M54 48h8l2 13H52z" fill="#f8dfaa"/><text x="80" y="87" font-size="11" font-weight="900" text-anchor="middle" fill="#fff">COLOR SWITCH</text></svg>'
+ ,pizza_time:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#d99e77"/><rect x="5" y="5" width="150" height="80" rx="5" fill="#edc7b0"/><rect x="14" y="20" width="39" height="50" rx="4" fill="#855438"/><rect x="107" y="20" width="39" height="50" rx="4" fill="#855438"/><circle cx="80" cy="43" r="24" fill="#ebba64" stroke="#f7dfb2" stroke-width="4"/><circle cx="72" cy="35" r="6" fill="#e54d48"/><circle cx="90" cy="48" r="6" fill="#e54d48"/><path d="M62 48q8-8 17 2 9 8 19-4" stroke="#59ba64" stroke-width="5" fill="none"/><text x="80" y="84" text-anchor="middle" font-size="13" font-weight="900" fill="#332d25">PIZZA TIME</text></svg>'
 };
 function gameCover(mode){
  const cover=document.createElement('span');
@@ -433,6 +434,11 @@ function sendPlayerInventory(conn){
      !['countdown','playing','paused'].includes(networkPhase()))return;
   const p=players.find(q=>q.id===conn.playerId);
   if(!p)return;
+  if(round.mode==='pizza_time'){
+    const status=window.PizzaTime.playerStatus(p);
+    if(status)send(conn,{t:'pizza-status',phase:networkPhase(),...status});
+    return;
+  }
   if(round.mode==='fruit_memory'){
     send(conn,{t:'fruit-status',mode:round.mode,phase:networkPhase(),
       cooldown:Math.max(0,p.fruitCooldown||0),eliminated:!p.fruitAlive,stun:p.fruitStun||0});return;
@@ -1083,6 +1089,8 @@ function joinRoom(recovery=false){
         }
       }else if(data.t==='inventory'){
         renderPhoneInventory(data);
+      }else if(data.t==='pizza-status'){
+        renderPhonePizzaStatus(data);
       }else if(data.t==='fruit-status'){
         if(controllerReady&&controllerGameMode==='fruit_memory'&&data.mode==='fruit_memory'){
           const seconds=Math.max(0,Math.min(1.2,Number(data.cooldown)||0));
@@ -1158,7 +1166,7 @@ function controllerDisconnected(){
  retryPhone();
 }
 function isLiveGameContext(){
-  return controllerReady&&controllerPlayerActive&&controllerGameMode==='ghost'&&
+  return controllerReady&&controllerPlayerActive&&['ghost','pizza_time'].includes(controllerGameMode)&&
     ['countdown','playing','paused'].includes(controllerGamePhase);
 }
 function setControllerGameContext(mode,phase,active){
@@ -1219,11 +1227,27 @@ function showControllerMode(mode){
     fruit?'จำผลไม้แล้ววิ่งไปยังช่องที่ถูกต้อง • ดันกันได้ • A ต่อยให้สตั้น':
     colorSwitch?'วิ่งทาสีชิงพื้นที่ • A ต่อยสตั้น • B ระเบิดสี 3×3 / 4×4':
      shockwave?'แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง':
+     mode==='pizza_time'?'รับวัตถุดิบทีละชิ้น กลับไปส่งเชฟ • เดินรับชนิดใหม่เพื่อเปลี่ยนของ • A/B ไม่ใช้':
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
+}
+function renderPhonePizzaStatus(info){
+ if(!isLiveGameContext()||controllerGameMode!=='pizza_time'||!info||
+    info.id!==controllerId||info.phase!==controllerGamePhase)return;
+ const names=Object.fromEntries(window.PizzaTime.ingredients.map(x=>[x.id,x.name]));
+ const icons=Object.fromEntries(window.PizzaTime.ingredients.map(x=>[x.id,x.icon]));
+ const order=(info.order||[]).map(id=>
+   (icons[id]||'')+(names[id]||id)+(info.delivered?.includes(id)?' ✓':'')).join(' + ');
+ $('controllerInventory').classList.remove('is-ghost');
+ $('controllerRole').textContent='ออร์เดอร์ '+(info.delivered?.length||0)+'/2 • '+(info.score||0)+' คะแนน';
+ $('inventoryItem').textContent=order;
+ $('inventoryGuide').textContent=info.held?'ถือ '+(icons[info.held]||'')+' '+(names[info.held]||info.held)+' → ส่งเชฟ (เปลี่ยนได้เมื่อแตะโต๊ะอื่น)':'มือว่าง • เดินไปรับวัตถุดิบ';
+ $('targetCycleControls').classList.add('hidden');
+ $('controllerButtons').classList.remove('has-target');
 }
 function renderPhoneInventory(info){
   if(!isLiveGameContext()||!info||info.id!==controllerId||
      info.mode!==controllerGameMode||info.phase!==controllerGamePhase)return;
+  if(controllerGameMode!=='ghost')return;
   const names=window.GhostAttack.ITEM_NAMES;
   const isGhost=!!info.ghost;
   $('controllerRole').textContent=isGhost?'ผี':'มนุษย์';
@@ -1397,7 +1421,7 @@ function startRound(forcedMode=null){
   window.PartyPlayerAvatar.preload(players);
   engine.setup(round,players);
   $('results').querySelector('.eyebrow').textContent=MODES[mode];
-  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ครอบครองพื้นที่มากที่สุด!':'จับไก่ให้ได้มากที่สุด!';
+  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ครอบครองพื้นที่มากที่สุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':'จับไก่ให้ได้มากที่สุด!';
   // Countdown and player count now live in the solid map-corner HUD.
   $('gameBanner').textContent='';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
