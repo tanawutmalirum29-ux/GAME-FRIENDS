@@ -67,6 +67,7 @@ let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPe
 let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0, inventoryClock=0;
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false,controllerPlayerEliminated=false;
+let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป'};
 let disconnectRequested=false;
 const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
 const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
@@ -1050,6 +1051,17 @@ function joinRoom(recovery=false){
           data.phase==='playing'?(self&&self.eliminated?'ตกรอบ • ดูเกมต่อ':self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):
           data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':
           'กำลังรอเจ้าของห้องเริ่มเกม';
+      }else if(data.t==='result-votes'){
+        if(controllerReady&&controllerGamePhase==='results'){
+          controllerResultVotes={
+            next:Math.max(0,Math.min(MAX_PLAYERS,Number(data.next)||0)),
+            lobby:Math.max(0,Math.min(MAX_PLAYERS,Number(data.lobby)||0)),
+            total:Math.max(0,Math.min(MAX_PLAYERS,Number(data.total)||0)),
+            nextLabel:typeof data.nextLabel==='string'?data.nextLabel:'เกมถัดไป'
+          };
+          showControllerMode(controllerGameMode);
+          $('controllerState').textContent='กด A เพื่อเล่นต่อ หรือ B เพื่อกลับล็อบบี้';
+        }
       }else if(data.t==='inventory'){
         renderPhoneInventory(data);
       }else if(data.t==='fruit-status'){
@@ -1134,6 +1146,8 @@ function setControllerGameContext(mode,phase,active){
   controllerGameMode=mode||null;
   if(mode!=='shockwave'||!['countdown','playing','paused'].includes(phase))controllerPlayerEliminated=false;
   controllerGamePhase=phase||'lobby';
+  if(controllerGamePhase!=='results')
+    controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป'};
   controllerPlayerActive=!!active;
   const visible=isLiveGameContext();
   $('controllerInventory').classList.toggle('hidden',!visible);
@@ -1154,8 +1168,12 @@ function showControllerMode(mode){
     ['countdown','playing','paused'].includes(controllerGamePhase);
   const ghost=playing&&mode==='ghost',chickens=playing&&mode==='chickens';
   const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave',colorSwitch=playing&&mode==='color_switch';
-  const aLabel=ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':colorSwitch?'ต่อย':'';
-  const bLabel=ghost?($('controllerButtons').classList.contains('has-target')?
+  const voting=controllerReady&&controllerGamePhase==='results'&&controllerPlayerActive;
+  const aLabel=voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
+    controllerResultVotes.nextLabel)+' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
+    ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':colorSwitch?'ต่อย':'';
+  const bLabel=voting?'ล็อบบี้ '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
+    ghost?($('controllerButtons').classList.contains('has-target')?
     'ยืนยันสโลว์':'ใช้ไอเทม'):colorSwitch?'ระเบิดสี':'';
   $('controllerButtons').classList.toggle('chickens-mode',chickens);
   $('controllerButtons').classList.toggle('fruit-memory-mode',fruit);
@@ -1315,7 +1333,17 @@ function bindAnalogStick(zone,base,knob,target){
 }
 function bindControl(btn, target, id){
   const key=btn.dataset.control;if(!key)return;
-  const change=(pressed)=>{if(target[key]===pressed)return;target[key]=pressed;btn.classList.toggle('pressed',pressed);if(id==='remote')sendInputs();};
+  const change=(pressed)=>{
+    if(target[key]===pressed)return;
+    target[key]=pressed;btn.classList.toggle('pressed',pressed);
+    if(id==='remote'){
+      if(pressed&&controllerReady&&controllerPlayerActive&&controllerGamePhase==='results'){
+        const choice=key==='action'?'next':key==='alt'?'lobby':null;
+        if(choice)send(controllerConn,{t:'result-vote',choice});
+      }
+      sendInputs();
+    }
+  };
   btn.addEventListener('pointerdown',e=>{e.preventDefault();try{btn.setPointerCapture(e.pointerId);}catch(x){}change(true);});
   btn.addEventListener('pointerup',e=>{e.preventDefault();change(false);});
   btn.addEventListener('pointercancel',()=>change(false));
