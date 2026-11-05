@@ -156,6 +156,8 @@ for(const n of [1,4,5,6,7,8,9,12]){
    'the first large monument makes the chosen theme obvious');
  assert.ok(x.state.obstacles.slice(1).every(o=>o.x>0&&o.y>0));
  assert.equal(x.players.filter(p=>p.active&&!p.ghost).length,n);
+ assert.ok(x.state.obstacles.slice(1).every(o=>o.w>=43&&o.w<=84&&o.h>=36&&o.h<=76),
+  'larger cemetery props have correspondingly larger collision boxes');
  for(const p of x.players){
   assert.ok(p.x>0&&p.x<x.state.world.w&&p.y>0&&p.y<x.state.world.h);
   assert.equal(p.item,null);
@@ -436,7 +438,54 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
  ghost.update(.02,x.round,x.players);
  assert.equal(bot.input.action,false,'AI ghost never punches');
 }
- // The render test observes exactly what spectators see over the collector.
+ // Ghosts must infect at the 32px body-collision radius, never push forever.
+{
+ const x=init(3),[human,spirit,far]=x.players;
+ x.round.phase='playing';x.state.ghostSpawned=true;
+ x.state.obstacles=[];x.state.npcs.forEach(n=>n.stun=999);
+ human.x=300;human.y=290;human.input={};
+ spirit.x=332.5;spirit.y=290;spirit.ghost=true;spirit.stun=0;spirit.input={};
+ far.x=820;far.y=460;far.input={};
+ ghost.update(.016,x.round,x.players);
+ assert.equal(human.ghost,true,'ghost converts at real 32px collision boundary');
+}
+{
+ const x=init(3),[human,far,other]=x.players;
+ x.round.phase='playing';x.state.ghostSpawned=true;
+ x.state.obstacles=[];human.x=330;human.y=280;
+ far.x=730;far.y=400;other.x=840;other.y=420;
+ const npc=x.state.npcs[0];npc.stun=0;
+ npc.x=human.x+32.4;npc.y=human.y;
+ npc.huntTargetId=human.id;npc.huntGoal={x:human.x,y:human.y};
+ ghost.update(.016,x.round,x.players);
+ assert.equal(human.ghost,true,'initial NPC converts on collision-sized touch');
+}
+{
+ const x=init(3),[human,spirit,far]=x.players;
+ x.round.phase='playing';x.state.ghostSpawned=true;
+ x.state.obstacles=[];x.state.npcs.forEach(n=>n.stun=999);
+ human.x=180;human.y=260;human.dir={x:1,y:0};
+ spirit.x=217;spirit.y=260;spirit.ghost=true;spirit.stun=999;
+ far.x=800;far.y=450;
+ human.input.action=true;
+ ghost.update(.016,x.round,x.players);
+ assert.equal(human.attackRemaining,0,'A does not swing at former-human ghosts');
+ assert.ok(spirit.stun>998,'former-human ghost cannot be punched');
+}
+{
+ const x=init(4),[human,spirit,friend,far]=x.players;
+ x.round.phase='playing';x.state.ghostSpawned=true;
+ x.state.obstacles=[];x.state.npcs.forEach(n=>n.stun=999);
+ human.x=180;human.y=260;human.dir={x:1,y:0};
+ spirit.x=218;spirit.y=260;spirit.ghost=true;spirit.stun=999;
+ friend.x=235;friend.y=260;far.x=800;far.y=450;
+ human.input.action=true;
+ ghost.update(.016,x.round,x.players);
+ assert.equal(human.attackRemaining,0,'ghost in front blocks punching human behind');
+ assert.equal(friend.stun,0,'cannot punch through converted ghosts');
+}
+
+// The render test observes exactly what spectators see over the collector.
 const drawTexts=[],drawImages=[];
 const drawProbe=new Proxy({},{
   get(_obj,key){
@@ -1234,6 +1283,34 @@ function createVoteHost(){
  assert.notEqual(next,round,'unanimous A creates a new round immediately');
  assert.equal(next.phase,'countdown','next game starts without waiting for timer');
  assert.equal(ui.elements.get('results').classList.contains('hidden'),true);
+}
+
+// Explicit controller leave must remove the host seat immediately, with ack.
+{
+ const host=setup();host.click('hostBtn');host.instances[0].fire('open');
+ const conn=host.instances[0].connect();host.instances[0].fire('connection',conn);
+ conn.fire('data',{t:'join',name:'Leaving player'});
+ assert.equal(host.scope.window.__ghostTest.getPlayers().length,1);
+ conn.fire('data',{t:'leave'});
+ assert.equal(host.scope.window.__ghostTest.getPlayers().length,0,'confirmed leave removes seat');
+ assert.ok(conn.sent.some(m=>m.t==='leave-ack'),'host sends leave acknowledgment');
+ assert.equal(conn.open,true,'do not close before ack delivery');
+ const deadline=host.timers.find(timer=>timer.ms===300&&!timer.cancelled);
+ assert.ok(deadline);deadline.fn();assert.equal(conn.open,false);
+}
+{
+ const phone=setup('https://game.example/?join=ABCDE3');
+ phone.elements.get('nick').value='Quitter';phone.click('joinBtn');
+ phone.instances[0].fire('open');
+ const conn=phone.instances[0].conn;conn.fire('open');
+ conn.fire('data',{t:'welcome',id:'p1',name:'Quitter',color:'#ff628c',mode:'ghost',phase:'lobby'});
+ phone.click('leaveBtn');phone.click('confirmLeaveBtn');
+ assert.ok(conn.sent.some(m=>m.t==='leave'),'controller sends explicit leave packet');
+ assert.equal(conn.open,true,'controller waits to close until ack');
+ assert.equal(phone.elements.get('joinForm').classList.contains('hidden'),false);
+ conn.fire('data',{t:'leave-ack',id:'p1'});
+ assert.equal(conn.open,false,'ack safely closes controller');
+ assert.equal(phone.elements.get('controllerActive').classList.contains('hidden'),true);
 }
 
 // Closing an online room displays an in-app dialog; cancellation keeps peers.

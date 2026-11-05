@@ -59,12 +59,12 @@ function freeSpot(world,obstacles,others,margin=22,minDistance=52){
 function makeObstacles(world,tier,reserved=[],theme='graveyard'){
   const themeKinds=Art.kindsForTheme(theme);
   const out=[];
-  const count=7+tier*5+(world.w>=1200?5:0);
-  const candidateW=world.w-130,candidateH=world.h-110;
+  const count=7+tier*4+(world.w>=1200?3:0);
+  const candidateW=world.w-150,candidateH=world.h-130;
   for(let k=0,tries=0;k<count&&tries<260;tries++){
-    const w=rand(29,62),h=rand(23,52);
-    const q={x:65+Math.random()*Math.max(1,candidateW-w),
-      y:55+Math.random()*Math.max(1,candidateH-h),w,h,style:k%3,
+    const w=rand(43,84),h=rand(36,76);
+    const q={x:75+Math.random()*Math.max(1,candidateW-w),
+      y:65+Math.random()*Math.max(1,candidateH-h),w,h,style:k%3,
       // The first monument establishes the theme immediately; every
       // subsequent kind cycles through its own matching prop set.
       kind:k===0?(theme==='egypt'?'sarcophagus':'coffin'):
@@ -72,9 +72,9 @@ function makeObstacles(world,tier,reserved=[],theme='graveyard'){
       variant:Math.floor(k/themeKinds.length)%3};
     const center={x:q.x+w/2,y:q.y+h/2};
     // Keep a generous center spawn plaza clear for the starting AI ghost(s).
-    if(Math.hypot(center.x-world.w/2,center.y-world.h/2)<115)continue;
-    if([...reserved,...out].some(o=>!(q.x>o.x+o.w+32||q.x+q.w+32<o.x||
-      q.y>o.y+o.h+32||q.y+q.h+32<o.y)))continue;
+    if(Math.hypot(center.x-world.w/2,center.y-world.h/2)<133)continue;
+    if([...reserved,...out].some(o=>!(q.x>o.x+o.w+26||q.x+q.w+26<o.x||
+      q.y>o.y+o.h+26||q.y+q.h+26<o.y)))continue;
     out.push(q);k++;
   }
   return out;
@@ -317,6 +317,10 @@ function advanceNpcs(dt,players,state){
   for(const npc of state.npcs){
     npc.stun=Math.max(0,npc.stun-dt);
     if(npc.stun>0)continue;
+    // Check current contact BEFORE steering: a ghost may initially face away
+    // from a nearby player, but that must not undo an existing body touch.
+    for(const p of players)if(p.active&&!p.ghost&&p.cloak<=0&&
+      dist(npc,p)<=PLAYER_BODY_RADIUS*2+1)convert(p,state);
     const target=visiblePrey(players).find(p=>p.id===npc.huntTargetId);
     if(!target)continue;
     const goal=npc.huntGoal||ghostForecast(npc,target,state);
@@ -326,7 +330,7 @@ function advanceNpcs(dt,players,state){
     walk(npc,npc.dir.x*C.ghostSpeed,npc.dir.y*C.ghostSpeed,
       dt,state.world,state.obstacles,true);
     for(const p of players){
-      if(p.active&&!p.ghost&&p.cloak<=0&&dist(npc,p)<C.hitRadius+7)
+      if(p.active&&!p.ghost&&p.cloak<=0&&dist(npc,p)<=PLAYER_BODY_RADIUS*2+1)
         convert(p,state);
     }
   }
@@ -373,8 +377,22 @@ function cycleTarget(state,players,p,direction){
 }
 // Ghosts infect by touch ONLY. A is for human-vs-human defensive punches,
 // and hits must be in the forward strike arc instead of any nearby bystander.
-function punch(p){
-  if(!p||!p.active||p.ghost)return false;
+function punch(p,players,state){
+  if(!p||!p.active||p.ghost||p.stun>0)return false;
+  // Humans may defend themselves against other HUMAN players only.
+  // Ignore input A when the only thing in front is a ghost. This avoids
+  // the old strike VFX looking like it punches a converted player / NPC.
+  const facing=p.dir||{x:1,y:0};
+  const forward=o=>{
+    const dx=o.x-p.x,dy=o.y-p.y,d=Math.hypot(dx,dy);
+    return d>0&&d<C.punchRange&&(dx*facing.x+dy*facing.y)/d>.35?d:Infinity;
+  };
+  const humans=players.filter(o=>o!==p&&o.active&&!o.ghost);
+  const targetDistance=Math.min(Infinity,...humans.map(forward));
+  if(!Number.isFinite(targetDistance))return false;
+  const ghosts=[...players.filter(o=>o.active&&o.ghost),...state.npcs];
+  // A ghost closer in the same strike arc blocks the swing visually.
+  if(ghosts.some(g=>forward(g)<=targetDistance))return false;
   return Combat.startAttack(p);
 }
 function strikeImpact(p,players){
@@ -401,7 +419,7 @@ function tickPlayers(dt,players,state){
     // Attacks have one shared windup / impact / recovery window.
     const attackWasActive=Combat.isAttacking(p);
     if(attackWasActive)Combat.stepAttack(p,dt,()=>strikeImpact(p,players));
-    if(!p.ghost&&input.action&&!p.actionLatch)punch(p);
+    if(!p.ghost&&input.action&&!p.actionLatch)punch(p,players,state);
     if(input.alt&&!p.altLatch)useItem(p,state,players);
     p.actionLatch=!!input.action;p.altLatch=!!input.alt;
     if(p.stun>0||attackWasActive||Combat.isAttacking(p)){
@@ -763,6 +781,16 @@ function updateBots(dt,players,state){
     }
   }
 }
+function infectHumanTouch(players,state){
+  for(const spirit of players){
+    if(!spirit.active||!spirit.ghost||spirit.stun>0)continue;
+    for(const person of players){
+      if(person.active&&!person.ghost&&person.cloak<=0&&
+          dist(person,spirit)<=PLAYER_BODY_RADIUS*2+1)
+        convert(person,state);
+    }
+  }
+}
 function update(dt,round,players){
   const state=round.ghost;
   if(!state||!['countdown','playing'].includes(round.phase))return;
@@ -776,17 +804,15 @@ function update(dt,round,players){
     return null;
   }
   advanceNpcs(dt,players,state);
-  // Player ghosts convert people by touch, and pass obstacles completely.
-  for(const spirit of players){
-    if(!spirit.active||!spirit.ghost||spirit.stun>0)continue;
-    for(const person of players){
-      if(person.active&&!person.ghost&&person.cloak<=0&&
-         dist(person,spirit)<C.hitRadius+5)convert(person,state);
-    }
-  }
+  // A collision projection separates bodies to 32px. The previous 24px
+  // infection threshold could NEVER fire while two players pushed against
+  // each other: they were separated again before the next simulation tick.
+  infectHumanTouch(players,state);
   updateTraps(dt,players,state);
   updateBoxes(dt,players,state);
   resolvePlayerCollisions(players,state);
+  // Check once again after multi-player push resolution, including crowds.
+  infectHumanTouch(players,state);
   const live=survivors(players);
   if(live.length===1){
     state.winnerId=live[0].id;

@@ -612,8 +612,15 @@ function startHost(retries=0,resumeCode=null){
         broadcastRoster();
         if(round?.phase==='results')renderResultVotes(true);
       }else if(msg.t==='leave'&&conn.playerId){
+        // Explicit leave is NOT a temporary connection loss. Remove the seat
+        // immediately, then acknowledge it before closing the data channel.
         const id=conn.playerId;conn.playerId=null;
+        const leaving=players.find(p=>p.id===id&&p.conn===conn);
+        if(leaving)leaving.conn=null;
+        stopHostVideoCall(conn);
         removePlayer(id);
+        send(conn,{t:'leave-ack',id});
+        setTimeout(()=>{try{if(conn.open)conn.close();}catch(_){}},300);
       }else if(msg.t==='video-ready'&&conn.playerId){
         if(conn.previewEnabled===true&&msg.quality===conn.videoQuality)conn.videoReady=true;
       }else if(msg.t==='preview-toggle'&&conn.playerId&&typeof msg.enabled==='boolean'){
@@ -944,19 +951,28 @@ async function startRoomScanner(){
     }
   }
 }
-function resetControllerForRoomChange(message){
+function resetControllerForRoomChange(message,awaitLeaveAck=false){
   disconnectRequested=true;
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;reconnectTries=0;
   deleteSession(PHONE_SESSION);
-  // Explicit leave removes the seat. A refresh does not send this packet.
-  send(controllerConn,{t:'leave'});
+  // A PeerJS DataConnection send may be queued; destroying the Peer
+  // immediately used to drop the leave packet before the host could see it.
+  const leavingConn=controllerConn;
+  if(leavingConn?.open)send(leavingConn,{t:'leave'});
   $('leaveConfirm').classList.add('hidden');
   resetPhonePreview();
   void stopRoomScanner();
   // Switching/leaving rooms must not cancel the user's fullscreen or
   // orientation lock. The join form still renders inside #controller.
-  safePeerDestroy();
+  if(awaitLeaveAck&&leavingConn?.open){
+    // Keep the old data channel alive until the host acknowledges removal.
+    // Fail-safe timeout prevents a dead room from trapping the controller.
+    stopControllerVideo();
+    setTimeout(()=>{
+      if(controllerConn===leavingConn)safePeerDestroy();
+    },1000);
+  }else safePeerDestroy();
   controllerReady=false;controllerId=null;
   setControllerGameContext(null,'lobby',false);
   for(const k of INPUT_NAMES)controllerKeys[k]=false;
@@ -1013,6 +1029,9 @@ function joinRoom(recovery=false){
     });
     conn.on('data',data=>{
       if(controllerConn!==conn||!data||typeof data!=='object')return;
+      if(data.t==='leave-ack'&&disconnectRequested){
+        safePeerDestroy();return;
+      }
       if(data.t==='welcome'){
         controllerId=data.id;controllerReady=true;
         reconnectTries=0;
@@ -2060,7 +2079,7 @@ $('stayInRoomBtn').addEventListener('click',()=>{
 });
 $('confirmLeaveBtn').addEventListener('click',()=>{
   // Leaving a room MUST remain a controller. Never redirect to the host UI.
-  resetControllerForRoomChange('ออกจากห้องแล้ว • กรอกรหัสใหม่หรือสแกน QR เพื่อเข้าร่วม');
+  resetControllerForRoomChange('ออกจากห้องแล้ว • กรอกรหัสใหม่หรือสแกน QR เพื่อเข้าร่วม',true);
   $('roomCodeInput').value='';
   $('joinCode').textContent='------';
   try{
