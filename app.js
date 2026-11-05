@@ -1088,9 +1088,9 @@ function showControllerMode(mode){
   $('controllerModeName').textContent=playing?(MODES[mode]||''):'';
   $('controllerHelp').textContent=ghost?
     'ลากจากที่ว่างเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':
-    chickens?'วิ่งชนไก่เพื่อจับ • เอาหัวไก่จุ่มในคอก 0.3 วิ • A ตีให้ไก่หล่น':
+    chickens?'วิ่งชนไก่เพื่อจับ • เอาหัวไก่จุ่มในคอก 0.15 วิ • A ตีให้ไก่หล่น':
     fruit?'จำผลไม้แล้ววิ่งไปยังช่องที่ถูกต้อง • ดันกันได้ • A ต่อยให้สตั้น':
-     shockwave?'หนีออกจากช่องกระพริบก่อนระเบิด • พื้นไม่หาย':
+     shockwave?'หนีจากช่องแดงก่อนระเบิด • วงกลมใต้เท้าคือตำแหน่งจริง':
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
 }
 function renderPhoneInventory(info){

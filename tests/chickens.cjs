@@ -16,7 +16,7 @@ assert.ok(Math.abs(C.idleChickenSpeed-96*.7)<1e-8,'idle movement reduced 30%');
 assert.ok(Math.abs(C.chickenTurnRate-8.2*.7)<1e-8,'turning reduced 30%');
 assert.ok(Math.abs(C.chickenFlapRate-16*.7)<1e-8,'flapping reduced 30%');
 assert.equal(C.chickenRadius,8.3);
-assert.equal(C.depositTime,.3);
+assert.equal(C.depositTime,.15);
 assert.equal(C.punchCooldown,1);
 const playersFor=n=>Array.from({length:n},(_,i)=>({
   id:'p'+i,name:'Player '+i,color:'#'+String(100000+i*11273),
@@ -117,24 +117,24 @@ for(let n=1;n<=12;n++){
   assert.equal(chickens.gateInside(state,pen,point),false,'outside gate side');
   assert.equal(chickens.gateInside(state,pen,pen.gatePosition),false,'no gate penetration');
 }
-// Strict 0.30-second dwell, reset upon withdrawal, and give points to the owner.
+// Strict 0.15-second dwell, reset upon withdrawal, and give points to the owner.
 {
   const x=make(2),{round,players,state}=x,[carrier,owner]=players;
   const pen=state.pens[1],c=state.chickens[0];
   round.phase='playing';state.chickens=[c];
   c.status='carried';c.carrierId=carrier.id;carrier.carriedChickenId=c.id;
   placeAtGate(state,carrier,pen);
-  run(round,players,.15);
+  run(round,players,.07);
   assert.equal(owner.score,0);
   carrier.x=state.center.x;carrier.y=state.center.y;
   run(round,players,.02);
   assert.equal(c.depositFor,0,'withdrawal resets continuous dwell');
   placeAtGate(state,carrier,pen);
-  run(round,players,.14);
+  run(round,players,.07);
   assert.equal(owner.score,0);
-  run(round,players,.15);
-  assert.equal(owner.score,0,'0.29 sec is too short');
-  run(round,players,.02);
+  run(round,players,.06);
+  assert.equal(owner.score,0,'0.13 sec is too short');
+  run(round,players,.03);
   assert.equal(owner.score,1);
   assert.equal(carrier.score,0);
   assert.equal(pen.points,1);
@@ -244,12 +244,12 @@ for(let n=1;n<=12;n++){
   state.remainingReserve=0;
   last.status='carried';last.carrierId=p.id;p.carriedChickenId=last.id;
   placeAtGate(state,p,pen);
-  for(let i=0;i<3;i++){
-    assert.equal(chickens.update(.08,round,players),null,
+  for(let i=0;i<2;i++){
+    assert.equal(chickens.update(.06,round,players),null,
       'bird in hand is unfinished until the deposit dwell completes');
   }
   assert.equal(state.scoredCount,state.totalChickens-1);
-  assert.equal(chickens.update(.08,round,players),'winner',
+  assert.equal(chickens.update(.06,round,players),'winner',
     'last deposited bird finishes the round before the time limit');
   assert.equal(state.scoredCount,state.totalChickens);
   assert.equal(last.status,'penned');
@@ -273,5 +273,27 @@ for(let n=1;n<=12;n++){
   round.phase='results';const old=state.remaining;
   assert.equal(chickens.update(.1,round,players),null);
   assert.equal(state.remaining,old);
+}
+// A carried bird must draw a foreground icon and not disappear behind the carrier.
+{
+ const {round,players,state}=make(2),p=players[0],c=state.chickens[0];
+ c.status='carried';c.carrierId=p.id;p.carriedChickenId=c.id;
+ state.chickens=[c];p.dir={x:1,y:0};
+ c.x=p.x+C.carryOffset;c.y=p.y;
+ const words=[],circles=[],translations=[];
+ const ctx=new Proxy({},{
+  get(_obj,key){
+   if(key==='fillText')return (...args)=>words.push(args);
+   if(key==='arc')return (...args)=>circles.push(args);
+   if(key==='translate')return (...args)=>translations.push(args);
+   return ()=>{};
+  },set(){return true;}
+ });
+ chickens.draw(ctx,.4,round,players);
+ assert.ok(words.some(x=>x[0]==='ไก่'),'visible carried chicken label');
+ assert.ok(circles.some(x=>Math.abs(x[0]-c.x)<1e-8&&x[2]===23),
+   'carried chicken has high-contrast foreground halo');
+ assert.ok(translations.some(x=>Math.abs(x[0]-c.x)<1e-8),
+   'carried sprite is drawn at its actual carry position');
 }
 console.log('CHICKENS physics, gates, deposits, combat, lifecycle and bots: OK');

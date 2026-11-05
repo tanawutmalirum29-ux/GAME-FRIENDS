@@ -188,4 +188,26 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  }
 }
 assert.match(avatars,/data:image\/svg\+xml/);
-console.log('SHOCKWAVE PASS: permanent 5x5, blast hitboxes, 50% contact, phase timing, ties, bounded motion, shared SVG');
+{
+ const {state:s,ps}=game(3,950);
+ assert.equal(E.constants.blastThreshold,.18);
+ assert.equal(E.constants.footRadius,11);
+ const danger=new Set([6]),boundary=s.board.x+2*s.tileSize;
+ ps[0].x=boundary+4;ps[0].y=center(s,6).y;
+ const ratio=E.calculateDangerContact(s,ps[0],danger);
+ assert.ok(ratio>.18&&ratio<.5,'small meaningful overlap must count');
+ ps[0].x=boundary+E.constants.footRadius+1;
+ assert.equal(E.calculateDangerContact(s,ps[0],danger),0);
+ s.phase='WARNING';s.danger=[6];
+ const circles=[],ctx=new Proxy({},{
+  get(_obj,key){
+   if(key==='createLinearGradient')return ()=>({addColorStop(){}});
+   if(key==='arc')return (...args)=>circles.push(args);
+   return ()=>{};
+  },set(){return true;}
+ });
+ E.draw(ctx,0,{shockwave:s,phase:'playing'},ps);
+ assert.ok(circles.some(a=>a[0]===ps[1].x&&a[1]===ps[1].y&&a[2]===11),
+   'rendered foot ring at same position as simulated foot');
+}
+console.log('SHOCKWAVE PASS: permanent 5x5, blast hitboxes, 18% contact, phase timing, ties, bounded motion, shared SVG');

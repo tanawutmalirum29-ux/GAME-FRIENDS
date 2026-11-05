@@ -3,13 +3,13 @@
 'use strict';
 const TAU=Math.PI*2;
 // Scale movement and locomotion animation without changing round timers,
-// punch cooldowns or the 0.30-second deposit rule.
+// punch cooldowns or the 0.15-second deposit rule.
 const SPEED_SCALE=.70;
 const C=Object.freeze({playerSpeed:172*SPEED_SCALE,chickenSpeed:191*SPEED_SCALE,
   idleChickenSpeed:96*SPEED_SCALE,panicChickenSpeed:217*SPEED_SCALE,
   chickenTurnRate:8.2*SPEED_SCALE,chickenFlapRate:16*SPEED_SCALE,
   playerStrideRate:13*SPEED_SCALE,playerRadius:15,chickenRadius:8.3,
-  pickupRadius:26,carryOffset:37,headOffset:12,entryDepth:9,depositTime:.30,
+  pickupRadius:26,carryOffset:37,headOffset:12,entryDepth:9,depositTime:.15,
   punchRange:57,punchHalfAngle:.86,punchCooldown:1,dropImmunity:.35});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const length=(x,y)=>Math.hypot(x,y);
@@ -370,7 +370,7 @@ function update(dt,round,players){
   const state=round.chickens;
   if(!state||!['countdown','playing'].includes(round.phase))return null;
   if(round.phase==='countdown')return null;
-  // Bounded fixed physics substeps preserve collision and the .30s gate rule.
+  // Bounded fixed physics substeps preserve collision and the .15s gate rule.
   let remaining=clamp(dt,0,.1);
   while(remaining>1e-7){
     // Once every chicken is in a pen, finish before the clock reaches zero.
@@ -408,6 +408,22 @@ function drawChicken(ctx,c,t,scale=1){
   ctx.fillStyle='#293443';ctx.beginPath();ctx.arc(13,-2,1.7,0,TAU);ctx.fill();
   ctx.strokeStyle='#e8a93c';ctx.lineWidth=2;
   ctx.beginPath();ctx.moveTo(-3,7);ctx.lineTo(-5,13);ctx.moveTo(5,7);ctx.lineTo(4,13);ctx.stroke();
+  ctx.restore();
+}
+function drawHeldChicken(ctx,chicken,player,t){
+  // The actual carry coordinates remain authoritative. Render the held chicken
+  // lifted in front, with a large contrasting halo and visible label.
+  const lift=15+Math.sin(t*9)*1.5;
+  const x=chicken.x,y=chicken.y-lift;
+  ctx.save();
+  ctx.fillStyle='#071d2780';ctx.beginPath();ctx.ellipse(chicken.x,chicken.y,18,6,0,0,TAU);ctx.fill();
+  ctx.strokeStyle='#fff0b3a6';ctx.lineWidth=3;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(player.x,player.y-10);ctx.lineTo(x,y);ctx.stroke();
+  ctx.fillStyle='#ffde86a6';ctx.beginPath();ctx.arc(x,y,23,0,TAU);ctx.fill();
+  drawChicken(ctx,{...chicken,x,y},t,1.25);
+  ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.lineWidth=3;
+  ctx.strokeStyle='#172b31';ctx.strokeText('ไก่',x,y-25);
+  ctx.fillStyle='#fff';ctx.fillText('ไก่',x,y-25);
   ctx.restore();
 }
 function drawPlayer(ctx,p,t){
@@ -457,7 +473,7 @@ function draw(ctx,time,round,players){
     drawPlayer(ctx,p,time);
     const c=s.chickens.find(q=>q.id===p.carriedChickenId&&q.status==='carried');
     if(c){
-      drawChicken(ctx,c,time,.82);
+      drawHeldChicken(ctx,c,p,time);
       if(c.depositPenId&&c.depositFor>0){
         ctx.save();ctx.strokeStyle='#ffee7a';ctx.lineWidth=4;
         ctx.beginPath();ctx.arc(c.x,c.y,18,-Math.PI/2,-Math.PI/2+
@@ -477,6 +493,6 @@ function draw(ctx,time,round,players){
   ctx.fillText('ไก่สนาม '+s.chickens.filter(c=>c.status==='free').length+' · เหลือ '+(s.totalChickens-s.scoredCount)+'/'+s.totalChickens,22,61);
   ctx.restore();
 }
-window.Chickens=Object.freeze({setup,update,draw,hud,dropChicken,gateInside,goalHead,
+window.Chickens=Object.freeze({setup,update,draw,hud,dropChicken,gateInside,goalHead,drawHeldChicken,
   constants:C});
 })();
