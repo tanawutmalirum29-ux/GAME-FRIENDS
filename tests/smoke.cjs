@@ -1280,7 +1280,7 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  assert.equal(list.style['--result-cols'],'4','four columns set on resultList');
  assert.equal(list.style['--result-rows'],'3','twelve players fit in exactly three rows');
  rows.forEach((row,i)=>{
-   assert.match(row.children[0].textContent,new RegExp('อันดับ '+(i+1)+'(?:\\\\s|\\\\b)'),
+   assert.ok(row.children[0].textContent.startsWith('อันดับ '+(i+1)+' • '),
      'each finishing position 1 through 12 is visible as a label');
    assert.equal(row.dataset.rank,String(i+1),'each row exposes its competition rank');
    assert.ok(row.children[1].textContent.includes('ช่อง'),'each row shows territory score');
