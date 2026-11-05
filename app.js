@@ -421,6 +421,12 @@ function sendPlayerInventory(conn){
       carrying:p.carriedChickenId!=null});
     return;
   }
+  if(round.mode==='color_switch'){
+    const cs=p.cs||{};
+    send(conn,{t:'color-status',mode:round.mode,phase:networkPhase(),score:p.score||0,
+      stun:cs.stunRemaining||0,cooldownA:cs.punchCooldown||0,
+      cooldownB:cs.blastCooldown||0,boost:!!cs.powerBoostReady});return;
+  }
   if(round.mode==='shockwave'){
      send(conn,{t:'shockwave-status',mode:round.mode,phase:networkPhase(),eliminated:!p.shockAlive,wave:round.shockwave?.wave||0});return;
    }
@@ -1005,6 +1011,20 @@ function joinRoom(recovery=false){
             controllerPlayerEliminated=!!data.eliminated;
             $('controllerState').textContent=data.eliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • WAVE '+data.wave;
           }
+        }else if(data.t==='color-status'){
+         if(controllerReady&&controllerGameMode==='color_switch'&&data.mode==='color_switch'){
+           const ca=Math.max(0,Math.min(1.1,Number(data.cooldownA)||0));
+           const cb=Math.max(0,Math.min(2.8,Number(data.cooldownB)||0));
+           for(const [button,seconds,max] of [[$('buttonA'),ca,1.1],[$('buttonB'),cb,2.8]]){
+             button.classList.toggle('cooldown-active',seconds>.03);
+             button.style.setProperty('--cooldown-sweep',Math.round(seconds/max*360)+'deg');
+           }
+           $('buttonBLabel').textContent=data.boost?'ระเบิด 4×4 ★':'ระเบิดสี';
+           $('buttonB').classList.toggle('color-boost-ready',!!data.boost);
+           $('buttonB').title=cb>.03?'รอ '+cb.toFixed(1)+' วิ':data.boost?'พร้อมระเบิด 4×4':'พร้อมระเบิด 3×3';
+           $('controllerState').textContent=data.stun>0?'สตั้น '+Number(data.stun).toFixed(1)+' วิ':
+             'พื้นที่ '+data.score+' ช่อง'+(data.boost?' • มีพลัง 4×4':'');
+         }
        }else if(data.t==='chicken-status'){
         if(controllerReady&&controllerPlayerActive&&controllerGameMode==='chickens'&&
           data.mode==='chickens'){
@@ -1018,7 +1038,7 @@ function joinRoom(recovery=false){
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
+          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
       }else if(data.t==='closed'){
         resetControllerForRoomChange('เจ้าของห้องปิดห้องแล้ว');
@@ -1078,14 +1098,19 @@ function showControllerMode(mode){
   const playing=controllerReady&&controllerPlayerActive&&
     ['countdown','playing','paused'].includes(controllerGamePhase);
   const ghost=playing&&mode==='ghost',chickens=playing&&mode==='chickens';
-  const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave';
-  const aLabel=ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':'';
+  const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave',colorSwitch=playing&&mode==='color_switch';
+  const aLabel=ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':colorSwitch?'ต่อย':'';
   const bLabel=ghost?($('controllerButtons').classList.contains('has-target')?
-    'ยืนยันสโลว์':'ใช้ไอเทม'):'';
+    'ยืนยันสโลว์':'ใช้ไอเทม'):colorSwitch?'ระเบิดสี':'';
   $('controllerButtons').classList.toggle('chickens-mode',chickens);
   $('controllerButtons').classList.toggle('fruit-memory-mode',fruit);
+  $('controllerButtons').classList.toggle('color-switch-mode',colorSwitch);
+  if(!colorSwitch){
+    $('buttonB').classList.remove('cooldown-active','color-boost-ready');
+    $('buttonB').style.removeProperty('--cooldown-sweep');$('buttonB').title='';
+  }
    $('controllerButtons').classList.toggle('shockwave-mode',shockwave);
-  if(!chickens&&!fruit){
+  if(!chickens&&!fruit&&!colorSwitch){
     $('buttonA').classList.remove('cooldown-active');
     $('buttonA').style.removeProperty('--cooldown-sweep');
     $('buttonA').title='';
@@ -1100,6 +1125,7 @@ function showControllerMode(mode){
     'ลากจากที่ว่างเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':
     chickens?'วิ่งชนไก่เพื่อจับ • เอาหัวไก่จุ่มในคอก 0.15 วิ • A ตีให้ไก่หล่น':
     fruit?'จำผลไม้แล้ววิ่งไปยังช่องที่ถูกต้อง • ดันกันได้ • A ต่อยให้สตั้น':
+    colorSwitch?'วิ่งทาสีชิงพื้นที่ • A ต่อยสตั้น • B ระเบิดสี 3×3 / 4×4':
      shockwave?'แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง':
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
 }
