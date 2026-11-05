@@ -829,6 +829,9 @@ async function startRoomScanner(){
 }
 function resetControllerForRoomChange(message){
   disconnectRequested=true;
+  if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
+  reconnectTimer=null;reconnectTries=0;
+  deleteSession(PHONE_SESSION);
   $('leaveConfirm').classList.add('hidden');
   resetPhonePreview();
   void stopRoomScanner();
@@ -849,15 +852,19 @@ function resetControllerForRoomChange(message){
   controllerState(message||'เลือกห้องใหม่ได้เลย โดยไม่ต้องเปิดแท็บใหม่');
   window.GameAutoUpdate?.onSafePoint();
 }
-function joinRoom(){
+function joinRoom(recovery=false){
+  recovery=recovery===true;
   if(typeof Peer!=='function'){controllerState('ไม่สามารถโหลดระบบจอยออนไลน์ได้',true);return;}
+  if(!recovery)reconnectTries=0;
+  if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
+  reconnectTimer=null;
   const code=parseRoomCode($('roomCodeInput').value);
   if(!code){controllerState('รหัสห้องไม่ถูกต้อง กรุณากรอก 6 ตัวหรือสแกน QR',true);return;}
   selectRoomCode(code);
   const name=cleanName($('nick').value);$('nick').value=name;rememberNickname();
   void stopRoomScanner();
-  void requestLandscape();
-  $('joinBtn').disabled=true;controllerState('กำลังเชื่อมต่อห้อง '+code+'...');
+  if(!recovery)void requestLandscape();
+  $('joinBtn').disabled=true;controllerState((recovery?'กำลังกลับเข้าห้อง ':'กำลังเชื่อมต่อห้อง ')+code+'...');
   disconnectRequested=true;safePeerDestroy();
   disconnectRequested=false;
   const peer=new Peer(undefined,{debug:0});
@@ -866,7 +873,7 @@ function joinRoom(){
     if(controllerPeer!==peer)return;
     const conn=peer.connect('gf-party-'+code,{reliable:true,serialization:'json'});
     controllerConn=conn;
-    conn.on('open',()=>{send(conn,{t:'join',name});controllerState('กำลังรอห้องรับผู้เล่น...');});
+    conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken});controllerState('กำลังรอห้องรับผู้เล่น...');});
     peer.on('call',call=>{
       if(controllerPeer!==peer||call.peer!=='gf-party-'+code){
         try{call.close();}catch(_){}
@@ -889,6 +896,9 @@ function joinRoom(){
       if(controllerConn!==conn||!data||typeof data!=='object')return;
       if(data.t==='welcome'){
         controllerId=data.id;controllerReady=true;
+        reconnectTries=0;
+        if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
+        reconnectTimer=null;savePhone();
         $('leaveConfirm').classList.add('hidden');
         resetPhonePreview();
         $('controllerName').textContent=data.name;$('controllerAvatar').style.background=data.color;
@@ -947,6 +957,7 @@ function joinRoom(){
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
       }else if(data.t==='closed'){
         setControllerGameContext(null,'lobby',false);
+        deleteSession(PHONE_SESSION);
         controllerState('เจ้าของห้องปิดห้องแล้ว',true);
       }
     });
@@ -955,13 +966,27 @@ function joinRoom(){
   });
   peer.on('error',err=>{
     if(controllerPeer!==peer)return;
-    controllerState('เชื่อมต่อไม่ได้ ('+(err.type||'network')+') ตรวจสอบรหัส/อินเทอร์เน็ต',true);
-    $('joinBtn').disabled=false;
+    controllerState('เชื่อมต่อไม่ได้ ('+(err.type||'network')+') • กำลังลองใหม่',true);
+    retryPhone();
   });
 }
+function retryPhone(){
+ if(disconnectRequested||reconnectTimer!==null)return;
+ if(!parseRoomCode($('roomCodeInput').value))return;
+ if(reconnectTries>=14){
+   resetControllerForRoomChange('กลับเข้าห้องไม่สำเร็จ กรุณากดเข้าห้องเดิมเพื่อลองอีกครั้ง');
+   return;
+ }
+ reconnectTries++;
+ controllerState('กำลังเชื่อมต่อห้องเดิมใหม่ ('+reconnectTries+'/14)');
+ reconnectTimer=setTimeout(()=>{
+   reconnectTimer=null;
+   if(!disconnectRequested)joinRoom(true);
+ },Math.min(4800,1000+reconnectTries*360));
+}
 function controllerDisconnected(){
-  if(disconnectRequested)return;
-  resetControllerForRoomChange('ขาดการเชื่อมต่อ กดเข้าร่วมห้องเดิมหรือเปลี่ยนห้องได้');
+ if(disconnectRequested)return;
+ retryPhone();
 }
 function isLiveGameContext(){
   return controllerReady&&controllerPlayerActive&&controllerGameMode==='ghost'&&
