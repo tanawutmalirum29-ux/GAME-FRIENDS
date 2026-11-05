@@ -89,8 +89,8 @@ for(const game of ['ghost-attack.js','chickens.js','fruit-memory.js','shockwave.
 }
 const shock=fs.readFileSync('shockwave.js','utf8');
 assert.doesNotMatch(shock,/footAnchor:true/,'old side-view foot offset is removed');
-assert.match(shock,/ctx\.arc\(p\.x,p\.y,C\.footRadius/,
- 'displayed foot marker must use exact physics centre');
+assert.match(shock,/ctx\.arc\(p\.x,p\.y,C\.avatarRadius/,
+ 'displayed full-body blast marker uses exact physics centre');
 console.log('TOP-DOWN AVATAR PASS: overhead SVG, four directions, centred foot anchor, theme ghosts, renderer reuse');
 
 // A seat keeps its costume across engines, transient hit colors and reloads.
