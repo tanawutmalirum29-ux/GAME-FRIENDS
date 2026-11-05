@@ -392,23 +392,26 @@ function hud(players,round){
     left:(state?.totalChickens||0)-(state?.scoredCount||0)};
 }
 function drawChicken(ctx,c,t,scale=1){
-  const angle=Math.atan2(c.dir.y,c.dir.x);
-  ctx.save();ctx.translate(c.x,c.y);ctx.rotate(angle);ctx.scale(scale,scale);
-  const bob=c.status==='free'?Math.sin(c.flap)*1.2:0;
-  ctx.translate(0,bob);
-  ctx.fillStyle='#fff6dc';ctx.strokeStyle='#a98255';ctx.lineWidth=1.5;
-  ctx.beginPath();ctx.ellipse(0,0,13,9,0,0,TAU);ctx.fill();ctx.stroke();
-  ctx.fillStyle='#ffdca5';
-  ctx.beginPath();ctx.ellipse(-5,-1,6,5,-.6,0,TAU);ctx.fill();
-  ctx.fillStyle='#fa644d';ctx.beginPath();ctx.moveTo(-12,0);ctx.lineTo(-21,-7);
-  ctx.lineTo(-17,5);ctx.fill();
-  ctx.fillStyle='#fff6dc';ctx.beginPath();ctx.arc(10,-1,7,0,TAU);ctx.fill();
-  ctx.fillStyle='#ed4a56';ctx.beginPath();ctx.arc(8,-8,3,0,TAU);ctx.arc(12,-8,3,0,TAU);ctx.fill();
-  ctx.fillStyle='#ffc64b';ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(23,3);ctx.lineTo(16,5);ctx.fill();
-  ctx.fillStyle='#293443';ctx.beginPath();ctx.arc(13,-2,1.7,0,TAU);ctx.fill();
-  ctx.strokeStyle='#e8a93c';ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(-3,7);ctx.lineTo(-5,13);ctx.moveTo(5,7);ctx.lineTo(4,13);ctx.stroke();
-  ctx.restore();
+ // True overhead chicken: two wings flanking the body, facing c.dir.
+ const angle=Math.atan2(c.dir.y,c.dir.x);
+ ctx.save();ctx.translate(c.x,c.y);ctx.rotate(angle);ctx.scale(scale,scale);
+ const wing=c.status==='free'?Math.sin(c.flap)*1.4:0;
+ // Floor shadow shares the physics center, and cannot slide under the feet.
+ ctx.fillStyle='#091f2370';ctx.beginPath();ctx.ellipse(0,0,14,10,0,0,TAU);ctx.fill();
+ ctx.fillStyle='#ffe9c8';ctx.strokeStyle='#a98255';ctx.lineWidth=1.5;
+ ctx.beginPath();ctx.ellipse(-1,0,13,10,0,0,TAU);ctx.fill();ctx.stroke();
+ ctx.fillStyle='#ffdca5';
+ ctx.beginPath();ctx.ellipse(-3,-8-wing,7,4,.4,0,TAU);ctx.fill();
+ ctx.beginPath();ctx.ellipse(-3,8+wing,7,4,-.4,0,TAU);ctx.fill();
+ ctx.fillStyle='#fa644d';ctx.beginPath();ctx.moveTo(-12,0);
+ ctx.lineTo(-20,-7);ctx.lineTo(-19,7);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#fff6dc';ctx.beginPath();ctx.arc(10,0,7,0,TAU);ctx.fill();
+ ctx.fillStyle='#ed4a56';ctx.beginPath();ctx.arc(9,-5,3,0,TAU);ctx.fill();
+ ctx.fillStyle='#ffc64b';ctx.beginPath();
+ ctx.moveTo(16,-3);ctx.lineTo(23,0);ctx.lineTo(16,3);ctx.fill();
+ ctx.fillStyle='#293443';ctx.beginPath();
+ ctx.arc(12,-3,1.5,0,TAU);ctx.arc(12,3,1.5,0,TAU);ctx.fill();
+ ctx.restore();
 }
 function drawHeldChicken(ctx,chicken,player,t){
   // The actual carry coordinates remain authoritative. Render the held chicken

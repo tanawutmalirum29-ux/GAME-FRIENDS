@@ -822,7 +822,7 @@ function drawPerson(ctx,p,color,ghost,t,alpha=1,theme='graveyard'){
   // The shared combat and stun timelines also decorate the SVG sprite.
   Combat.drawAttack(ctx,p);
   Combat.drawStun(ctx,p,t);
-  const labelY=p.y-(ghost?(p.stun>0?81:61):34);
+  const labelY=p.y-(p.stun>0?48:34);
   ctx.font='bold 13px system-ui';ctx.textAlign='center';
   ctx.strokeStyle='#081329';ctx.lineWidth=4;
   ctx.strokeText(p.name||'GHOST',p.x,labelY);

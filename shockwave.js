@@ -279,7 +279,7 @@ function drawPlayer(ctx,p,s){
  if(!p.shockAlive&&!(p.shockFall>0&&p.shockFall<.65))return;
  const opacity=p.shockAlive?1:Math.max(0,1-p.shockFall/.65);
  window.PartyPlayerAvatar.draw(ctx,p,{time:s.clock,alpha:opacity,
-   scale:p.shockAlive?1:.3+.7*opacity,footAnchor:true});
+   scale:p.shockAlive?1:.3+.7*opacity});
  if(p.shockAlive){
    // This ring is the exact contact footprint tested at the explosion snapshot.
    const inDanger=s.phase==='WARNING'&&
