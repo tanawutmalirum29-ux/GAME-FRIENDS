@@ -784,7 +784,7 @@ body .party-entry .hero .button-group{max-width:710px}
   color:#e2edff;font-size:12px;line-height:1.7;
 }
 .host-lobby .lobby-controls{
-  display:grid;grid-template-columns:minmax(200px,1.4fr) minmax(110px,.55fr) minmax(160px,.95fr) minmax(230px,1.1fr);
+  display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr) minmax(230px,1.1fr);
   gap:clamp(8px,1.5vw,16px);align-items:end;flex:0 0 auto;
   background:#15233b;border:1px solid #405677;border-radius:17px;padding:13px;
 }
@@ -831,14 +831,14 @@ body.controller-playing .phone-choice-status{
 }
 @media(max-width:900px){
   .host-lobby .host-lobby-grid{grid-template-columns:1fr 1fr}
-  .host-lobby .lobby-controls{grid-template-columns:1.1fr .6fr 1fr}
+  .host-lobby .lobby-controls{grid-template-columns:1.1fr 1fr}
   .host-lobby .lobby-room-actions{grid-column:1/-1}
 }
 @media(max-width:650px){
   #hostLobby.host-lobby{position:fixed;overflow:auto;padding:9px}
   .host-lobby .host-lobby-grid{grid-template-columns:1fr;overflow:visible}
-  .host-lobby .lobby-controls{grid-template-columns:1fr 1fr}
-  .host-lobby .auto-next-control,.host-lobby .lobby-room-actions{grid-column:1/-1}
+  .host-lobby .lobby-controls{grid-template-columns:1fr}
+  .host-lobby .auto-next-control,.host-lobby .lobby-room-actions{grid-column:auto}
   .host-lobby .qr-box{width:200px;height:200px}
   .host-lobby .roster-item{flex-wrap:wrap}
   body.controller-playing .phone-game-choices{grid-template-columns:repeat(2,minmax(0,1fr))}
