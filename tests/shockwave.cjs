@@ -47,6 +47,90 @@ assert.equal(E.warningSeconds(13),1.1);
 assert.ok(E.warningSeconds(7)<E.warningSeconds(6));
 assert.ok(E.intervalSeconds(10)<E.intervalSeconds(4));
 assert.ok(E.distanceBias(13)>E.distanceBias(3));
+
+{
+ // 25 fixed floor tiles, but the safe area shrinks each wave.
+ const expected=[0,3,4,5,6,8,10,12,14,16,18,20,21,22,23,24];
+ const {state:s}=game(4,303);
+ let last=0;
+ for(let wave=1;wave<=30;wave++){
+   s.wave=wave;
+   const count=E.dangerCount(s);
+   assert.equal(count,expected[Math.min(wave,15)],
+     'progressive blast count must match the wave number');
+   assert.ok(count>=last,'danger tiles must never decrease with later waves');
+   assert.ok(count<=24,'always keep at least one safe square');
+   last=count;
+ }
+ assert.equal(25-E.dangerCount({wave:11}),5);
+ assert.equal(25-E.dangerCount({wave:12}),4);
+ assert.equal(25-E.dangerCount({wave:13}),3);
+ assert.equal(25-E.dangerCount({wave:14}),2);
+ assert.equal(25-E.dangerCount({wave:15}),1);
+ assert.ok(E.distanceBias(15)>E.distanceBias(10));
+ assert.ok(E.distanceBias(15)<1,'nearby tiles still have a nonzero chance');
+}
+{
+ // Verify that planned hazard coverage is NEVER quietly reduced by path
+ // validation. Adaptive warning duration preserves a real escape chance.
+ for(const n of [2,4,12]){
+   for(let seed=1;seed<=12;seed++){
+     const {state:s,ps}=game(n,seed);
+     for(let wave=10;wave<=16;wave++){
+       s.wave=wave;
+       const tiles=E.selectDangerTiles(s,ps),target=E.dangerCount(s);
+       assert.equal(tiles.length,target,'must select exact target danger count');
+       assert.equal(new Set(tiles).size,target,'hazard tile ids are unique');
+       assert.ok(tiles.every(id=>s.tiles[id].state==='safe'),'only safe floor is selected');
+       assert.equal(s.plannedDangerCount,target);
+       assert.ok(s.plannedWarningDuration>=E.warningSeconds(wave));
+       assert.equal(E.validateSafeRoutes(s,ps,tiles,s.plannedWarningDuration),true,
+         'every threatened player can reach safe ground in the planned warning');
+       if(wave>=15)assert.equal(25-tiles.length,1);
+       assert.equal(s.tiles.filter(tile=>tile.state==='destroyed').length,0,
+         'pressure is explosions, never disappearing floor');
+     }
+   }
+ }
+}
+{
+ // Opposite corners cannot reach a single central safe tile in 1.1 seconds.
+ // Do not make this a blind elimination: extend the actual warning instead.
+ const {state:s,ps}=game(2,2718);
+ put(ps[0],center(s,0));
+ put(ps[1],center(s,24));
+ s.wave=15;
+ E.startWarning(s,ps);
+ assert.equal(s.phase,'WARNING');
+ assert.equal(s.danger.length,24);
+ assert.equal(s.tiles.filter(t=>t.state==='safe').length,1);
+ assert.ok(s.warningDuration>E.warningSeconds(15),
+   'a one-tile endgame must allow longer travel from distant corners');
+ assert.equal(E.validateSafeRoutes(s,ps,s.danger,s.warningDuration),true);
+ assert.ok(s.tiles.every(t=>t.state==='safe'||t.state==='warning'));
+}
+{
+ // An all-player blast at 24/25 hazard coverage must be a TIE, not an
+ // arbitrary ID-based victory. Earlier eliminated players cannot return.
+ const {state:s,ps,round}=game(3,408);
+ E.startWave(s,ps);
+ E.evaluateEliminations(s,ps,[ps[0]]);
+ assert.equal(ps[0].shockAlive,false);
+ s.wave=15;
+ E.startWarning(s,ps);
+ const dangerId=s.danger[0];
+ for(const p of [ps[1],ps[2]])put(p,center(s,dangerId));
+ E.triggerExplosion(s,ps);
+ assert.equal(s.pendingTiebreaker.length,2);
+ assert.equal(s.finished,false);
+ round.phase='playing';
+ run({state:s,ps,round},.4);
+ assert.equal(s.tiebreakers,1);
+ assert.equal(ps[0].shockAlive,false,'prior eliminated player stays out of the tiebreaker');
+ assert.ok(ps[1].shockAlive&&ps[2].shockAlive);
+ assert.equal(s.tiles.length,25,'tiebreaker reinitializes a full clean board');
+}
+
 {
  const g=game(4,31),{state:s,ps,round}=g;
  round.phase='playing';E.update(1/60,round,ps);
@@ -211,4 +295,4 @@ assert.match(avatars,/data:image\/svg\+xml/);
  assert.ok(circles.some(a=>a[0]===ps[1].x&&a[1]===ps[1].y&&a[2]===11),
    'rendered foot ring at same position as simulated foot');
 }
-console.log('SHOCKWAVE PASS: permanent 5x5, blast hitboxes, 18% contact, phase timing, ties, bounded motion, shared SVG');
+console.log('SHOCKWAVE PASS: 5x5 permanent floor, growing 3–24 hazards, 1 safe tile endgame, weighted distance, adaptive warnings, hitboxes, ties and shared SVG');
