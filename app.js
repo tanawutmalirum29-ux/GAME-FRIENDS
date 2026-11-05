@@ -1415,12 +1415,22 @@ function startRound(forcedMode=null){
   }
   const mode=forcedMode??'ghost';
   const engine=gameEngine(mode);
-  if(!engine)throw Error(mode+' engine failed to load');
+  if(!engine||typeof engine.setup!=='function'||typeof engine.draw!=='function'){
+    showToast('โหลดเอนจิน '+(MODES[mode]||mode)+' ไม่สำเร็จ • ตรวจ Deploy แล้วเปิดเว็บใหม่',true);
+    return;
+  }
   $('results').classList.add('hidden');
   round={mode,phase:'countdown',paused:false,countdown:mode==='shockwave'?2:3,remaining:null,autoNextRemaining:0,
     rules:{viewMode:'topdown'}};
-  window.PartyPlayerAvatar.preload(players);
-  engine.setup(round,players);
+  try{
+    window.PartyPlayerAvatar.preload(players);
+    engine.setup(round,players);
+  }catch(error){
+    console.error('Game setup failed',mode,error);
+    round=null;
+    showToast('เริ่ม '+(MODES[mode]||mode)+' ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
+    return;
+  }
   $('results').querySelector('.eyebrow').textContent=MODES[mode];
   $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ครอบครองพื้นที่มากที่สุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':'จับไก่ให้ได้มากที่สุด!';
   // Countdown and player count now live in the solid map-corner HUD.
@@ -1908,7 +1918,8 @@ function drawGame(t){
 }
 function animate(ts){
   const dt=Math.min(.045,Math.max(0,(ts-frameLast)/1000||.016));frameLast=ts;
-  if(currentView==='game'&&round){
+  try{
+   if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
     updateRound(dt);drawGame(graphicsClock);
     renderHostVideoFrames();
@@ -1936,6 +1947,14 @@ function animate(ts){
       broadcast({t:'state',phase:networkPhase(),
         survivors:gameEngine(round.mode).hud(players,round).survivors,remaining:round.remaining,mode:round.mode});
       networkClock=0;
+    }
+   }
+  }catch(error){
+    console.error('Game frame failed',round?.mode,error);
+    const mode=round?.mode;
+    if(mode){
+      returnToLobby();
+      showToast((MODES[mode]||mode)+' หยุดเพราะมีข้อผิดพลาด: '+String(error?.message||error).slice(0,100),true);
     }
   }
   requestAnimationFrame(animate);
