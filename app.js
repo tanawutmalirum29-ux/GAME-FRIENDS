@@ -1177,6 +1177,7 @@ function setControllerGameContext(mode,phase,active){
     controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป'};
   controllerPlayerActive=!!active;
   const visible=isLiveGameContext();
+  document.body.classList.toggle('pizza-controller-game',visible&&mode==='pizza_time');
   $('controllerInventory').classList.toggle('hidden',!visible);
   if(!visible){
     // Clear stale items on results, lobby, switching rooms or future game modes.
