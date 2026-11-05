@@ -103,4 +103,20 @@ function seam(x){
  advance(a,.5,30);advance(b,.5,60);
  assert.ok(Math.abs(a.players[0].x-b.players[0].x)<.01,'30/60 FPS host simulation consistent');
 }
+{
+ const x=init(12),s=x.state;
+ const coords=new Set(x.players.map(p=>p.x.toFixed(2)+','+p.y.toFixed(2)));
+ assert.equal(coords.size,12,'12 entrants spawn on distinct blocks');
+ for(const p of x.players){p.x=s.board.x+s.board.w/2;p.y=s.board.y+s.board.h/2;}
+ game.resolvePlayerCollisions(s,x.players);
+ for(const p of x.players)assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y),'crowded physics remains finite');
+}
+for(const side of ['behind','far']){
+ const x=init(2),s=x.state,[p,q]=x.players;
+ s.phase='move';s.target='apple';s.elapsed=0;
+ p.x=s.board.x+s.tileW*1.5;p.y=s.board.y+s.tileH*1.5;p.dir={x:1,y:0};
+ q.x=p.x+(side==='behind'?-44:90);q.y=p.y;
+ p.input.action=true;advance(x,.22);
+ assert.equal(q.fruitStun,0,'punch cannot hit '+side+' target');
+}
 console.log('FRUIT MEMORY PASS: 1-12 players, map sizes, shuffle, all reveals, foot overlap, shared support, last survivor, all-fall replay, punch and FPS');

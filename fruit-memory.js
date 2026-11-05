@@ -62,13 +62,12 @@ function newMemorize(state,players,entrants){
    p.fruitAlive=entrants.includes(p.id)&&p.active;
    p.fruitFall=0;p.fruitStun=0;p.fruitAttack=null;p.fruitCooldown=0;p.fruitPunchPressed=false;
  }
- const active=living(players);
+ const active=living(players),spawns=shuffle(state.tiles);
  for(let i=0;i<active.length;i++){
-   const p=active[i],n=active.length;
-   // Spawn on real blocks, never on a gap. Spread around the board.
-   const col=(i*3)%state.cols,row=(Math.floor(i*3/state.cols)+i)%state.rows;
-   p.x=state.board.x+(col+.5)*state.tileW;
-   p.y=state.board.y+(row+.5)*state.tileH;
+   const p=active[i],tile=spawns[i];
+   // Unique spawn tile per entrant prevents initial overlaps even with 12 players.
+   p.x=state.board.x+(tile.column+.5)*state.tileW;
+   p.y=state.board.y+(tile.row+.5)*state.tileH;
    p.dir={x:1,y:0};p.vx=0;p.vy=0;
  }
  state.previousEntrants=[...entrants];
@@ -159,7 +158,7 @@ function stepPlayer(p,state,players,dt){
 function resolvePlayerCollisions(state,players){
  const ps=living(players),b=state.board,r=C.radius;
  // Symmetric pair corrections, multiple iterations for crowded 12-person lobbies.
- for(let pass=0;pass<5;pass++)for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){
+ for(let pass=0;pass<8;pass++)for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){
    const a=ps[i],c=ps[j];let dx=c.x-a.x,dy=c.y-a.y;
    let d=Math.hypot(dx,dy);
    if(d>=2*r-1e-6)continue;
@@ -225,6 +224,10 @@ function evaluateSurvivors(state,players){
 }
 function step(state,players,dt){
  state.totalElapsed+=dt;
+ if(!living(players).length){state.winnerId=null;state.finished=true;return;}
+ if(state.pendingWinner&&!players.some(p=>p.id===state.pendingWinner&&p.active)){
+   state.pendingWinner=null;state.replayEntrants=living(players).map(p=>p.id);
+ }
  if(state.phase==='memorize'){
    state.elapsed+=dt;
    const g=state.revealGroups.length,groupIndex=Math.floor(state.elapsed/state.groupSeconds);
@@ -388,7 +391,7 @@ function draw(ctx,time,round,players){
    state.phase==='collapse'?'รอด '+(state.replayEntrants?'0':living(players).length)+' คน':
    'เตรียมรอบถัดไป';
  ctx.fillStyle=state.phase==='move'&&state.moveSeconds-state.elapsed<3?'#ffcd77':'#b7f4d3';
- ctx.fillText(phase,27,119,308);
+ ctx.fillText(phase,27,119,265);
  if((state.phase==='target'||state.phase==='move')&&state.target){
    const img=fruitImage(state.target);if(img?.complete&&img.naturalWidth)
      ctx.drawImage(img,305,86,35,35);

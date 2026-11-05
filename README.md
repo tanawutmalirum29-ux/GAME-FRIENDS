@@ -77,3 +77,15 @@
 เว็บนี้เป็น static hosting ผ่าน AWS Amplify; อุปกรณ์ที่เข้าจอยจำเป็นต้องเชื่อม PeerJS และบางเครือข่ายอาจต้องมี TURN server การแยกหน้าโฮสต์กับจอยเป็นเพียงการนำทาง UI **ไม่ใช่ระบบยืนยันสิทธิ์เจ้าของห้องที่ปลอดภัย** การคุมสิทธิ์จริงต้องมี backend
 
 วิดีโอจอยเลือกระดับ 144p / 540p / 720p / Auto โดยไม่ล็อก FPS ตามคุณภาพ (เบราว์เซอร์/เครือข่ายอาจปรับ FPS เอง) โหมดเต็มจอยังขึ้นกับข้อจำกัด iOS/Safari
+
+
+## FRUIT MEMORY (third mini-game)
+
+- 1–6 entrants: 4×4 tiles, four fruits × four tiles, 20-second reveal and 5-second move.
+- 7–12 entrants: 6×5 tiles, five fruits × six tiles, 28-second reveal and 7-second move.
+- Host chooses fruits and advances a precomputed non-repeating reveal queue; all tiles must be revealed before target selection.
+- Each elimination uses the host's fixed-step snapshot and a circle/rectangle foot-contact area check. At least 50% safe support is needed; an exact tie follows the foot-center tile.
+- Free 360-degree movement, physical pushing, and a front-facing A punch with 0.15/0.10/0.15-second phases, 1.2-second cooldown, and 0.55-second stun. B is hidden only for FRUIT MEMORY.
+- If everyone falls simultaneously, only the entrants of that elimination replay. No overall time limit; the match ends with one survivor. Single-player games run a full trial before the win screen.
+- Source: `fruit-memory.js`; controller, lobby and tournament integration: `app.js`, `index.html`, `style.css`.
+- Run `node tests/fruit-memory.cjs` and `node tests/smoke.cjs` to validate engine and cross-game integration.

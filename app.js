@@ -1234,7 +1234,7 @@ function endFruitMemoryRound(){
       'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
   }else $('replayBtn').textContent='เล่นอีกครั้ง';
   round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
-  $('results').querySelector('h2').textContent='ผู้ชนะ: '+(ranked.find(p=>p.id===winnerId)?.name||'');
+  $('results').querySelector('h2').textContent=winnerId?'ผู้ชนะ: '+(ranked.find(p=>p.id===winnerId)?.name||''):'ไม่มีผู้ชนะ';
   const list=$('resultList');list.replaceChildren();
   ranked.forEach((p,i)=>{
     const row=document.createElement('div');row.className='result-player';
