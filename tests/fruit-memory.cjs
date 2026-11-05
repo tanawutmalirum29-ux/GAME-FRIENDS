@@ -49,15 +49,15 @@ for(let n=1;n<=12;n++){
  assert.equal(Object.keys(counts).length,small?5:6);
  for(const count of Object.values(counts))assert.equal(count,small?5:6);
  const groups=x.state.revealGroups;
- assert.ok(groups.length>= (small?7:9),'enough batches');
- for(const g of groups)assert.ok(g.length>=2&&g.length<=4,'each flip reveals 2–4 cards');
+ assert.ok(groups.length>=5&&groups.length<=6,'5–6 complete batches cover each arena');
+ for(const g of groups)assert.ok(g.length>=(small?4:6)&&g.length<=(small?6:8),'every batch obeys the player-count-specific reveal range');
  assert.equal(new Set(groups.flat()).size,tiles.length,'all cards scheduled exactly once');
  assert.equal(groups.flat().length,tiles.length,'no repeated card before full coverage');
  assert.equal(x.state.revealTimeline.length,groups.length);
  assert.ok(x.state.revealDuration>0&&x.state.revealDuration<50,'completion-controlled duration');
  for(const batch of x.state.revealTimeline){
    assert.ok(batch.duration>1,'each batch is visible long enough to remember');
-   assert.equal(batch.ids.length>=2&&batch.ids.length<=4,true);
+   assert.equal(batch.ids.length>=(small?4:6)&&batch.ids.length<=(small?6:8),true);
  }
  assert.equal(x.state.moveSeconds,small?5:7);
  assert.equal(x.state.collapseSeconds,small?1.5:1.8);
@@ -65,10 +65,26 @@ for(let n=1;n<=12;n++){
 }
 {
  const seen=new Set();
- for(let i=0;i<20;i++){
+ for(let i=0;i<50;i++){
    const x=init(7);seen.add(x.state.revealGroups.map(g=>g.length).join(','));
  }
  assert.ok(seen.size>1,'group sizes vary between matches');
+}
+{
+ // Repeatedly cover both 25-card and 36-card grids with no undersized tail batch.
+ for(const n of [1,6,7,12]){
+   for(let seed=0;seed<100;seed++){
+     const state=init(n).state,groups=state.revealGroups;
+     const min=n<=6?4:6,max=n<=6?6:8;
+     assert.ok(groups.length>=5&&groups.length<=6);
+     assert.ok(groups.every(batch=>batch.length>=min&&batch.length<=max),
+       'no batch may underflow or overflow the specified range');
+     const ids=groups.flat();
+     assert.equal(new Set(ids).size,state.tiles.length,'no duplicate or missing tile');
+     assert.equal(ids.length,state.tiles.length,'all cards revealed exactly once');
+   }
+ }
+
 }
 {
  const a=init(6),b=init(6);
@@ -195,4 +211,4 @@ for(const side of ['behind','far']){
  p.input.action=true;advance(x,.22);
  assert.equal(q.fruitStun,0,'punch cannot hit '+side);
 }
-console.log('FRUIT MEMORY PASS: variable 2–4 card reveal, completion-only transition, preserved map and bot positions, existing physics and gameplay');
+console.log('FRUIT MEMORY PASS: variable 4–6/6–8 card reveal, completion-only transition, preserved map and bot positions, existing physics and gameplay');
