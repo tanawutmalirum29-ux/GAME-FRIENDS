@@ -3482,3 +3482,41 @@ body.controller-playing #controllerActive .gamepad-preview-off.hidden{
   }
   body.controller-playing #controllerActive .gamepad-preview-off small{display:none}
 }
+
+/* Result decisions: key at left, game action/timer centered, votes at right.
+   Fits the 12-player counters without squeezing the middle title. */
+#game .result-card #replayBtn,
+#game .result-card #backBtn{
+  position:relative;
+  display:flex;align-items:center;justify-content:center;
+  text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  padding-left:clamp(60px,9vw,100px);
+  padding-right:clamp(60px,9vw,100px);
+}
+#game .result-card #replayBtn::before,
+#game .result-card #backBtn::before{
+  content:attr(data-action);
+  position:absolute;left:clamp(14px,2.5vw,30px);top:50%;
+  transform:translateY(-50%);
+  font-weight:1000;font-size:clamp(19px,3.2vw,28px);line-height:1;
+  pointer-events:none;
+}
+#game .result-card #replayBtn::after,
+#game .result-card #backBtn::after{
+  content:attr(data-votes);
+  position:absolute;right:clamp(14px,2.5vw,30px);top:50%;
+  transform:translateY(-50%);
+  font-weight:900;font-variant-numeric:tabular-nums;
+  font-size:clamp(15px,2.6vw,23px);letter-spacing:.03em;line-height:1;
+  pointer-events:none;
+}
+@media(max-width:440px){
+  #game .result-card #replayBtn,
+  #game .result-card #backBtn{
+    padding-left:52px;padding-right:54px;font-size:clamp(11px,2.8vw,14px);
+  }
+  #game .result-card #replayBtn::before,
+  #game .result-card #backBtn::before{left:11px;font-size:20px}
+  #game .result-card #replayBtn::after,
+  #game .result-card #backBtn::after{right:11px;font-size:15px}
+}

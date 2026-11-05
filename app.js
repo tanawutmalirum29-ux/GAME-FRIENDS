@@ -67,6 +67,7 @@ let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPe
 let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0, inventoryClock=0;
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false,controllerPlayerEliminated=false;
+let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป'};
 let disconnectRequested=false;
 const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
 const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
@@ -285,6 +286,7 @@ function removePlayer(id) {
   // Remove from roster BEFORE closing, which can synchronously emit a close event.
   if(p.conn&&p.conn.open){try{p.conn.close();}catch(e){}}
   renderRoster();broadcastRoster();
+  if(round?.phase==='results')renderResultVotes(true);
 }
 function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active,choice:p.choice,eliminated:!!(round?.mode==='shockwave'&&p.active&&!p.shockAlive)};}
 function send(conn,msg){if(conn&&conn.open){try{conn.send(msg);}catch(e){/* peer disconnected */}}}
@@ -608,6 +610,7 @@ function startHost(retries=0,resumeCode=null){
         conn.playerId=p.id;conn.previewEnabled=false;p.lastInputAt=Date.now();
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active});
         broadcastRoster();
+        if(round?.phase==='results')renderResultVotes(true);
       }else if(msg.t==='leave'&&conn.playerId){
         const id=conn.playerId;conn.playerId=null;
         removePlayer(id);
@@ -630,6 +633,8 @@ function startHost(retries=0,resumeCode=null){
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!p||p.choice===msg.mode)return;
         p.choice=msg.mode;renderRoster();broadcastRoster();
+      }else if(msg.t==='result-vote'&&conn.playerId){
+        castResultVote(conn,msg.choice);
       }else if(msg.t==='target-cycle'&&conn.playerId){
         if(!round||round.phase!=='playing'||round.paused)return;
         if(msg.direction!==1&&msg.direction!==-1)return;
@@ -653,6 +658,7 @@ function startHost(retries=0,resumeCode=null){
       if(!p)return;
       p.conn=null;p.input=blankInput();holdSeat(p);
       renderRoster();broadcastRoster();
+      if(round?.phase==='results')renderResultVotes(true);
     }
     conn.on('close',lost);conn.on('error',lost);
   });
@@ -1045,6 +1051,17 @@ function joinRoom(recovery=false){
           data.phase==='playing'?(self&&self.eliminated?'ตกรอบ • ดูเกมต่อ':self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):
           data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':
           'กำลังรอเจ้าของห้องเริ่มเกม';
+      }else if(data.t==='result-votes'){
+        if(controllerReady&&controllerGamePhase==='results'){
+          controllerResultVotes={
+            next:Math.max(0,Math.min(MAX_PLAYERS,Number(data.next)||0)),
+            lobby:Math.max(0,Math.min(MAX_PLAYERS,Number(data.lobby)||0)),
+            total:Math.max(0,Math.min(MAX_PLAYERS,Number(data.total)||0)),
+            nextLabel:typeof data.nextLabel==='string'?data.nextLabel:'เกมถัดไป'
+          };
+          showControllerMode(controllerGameMode);
+          $('controllerState').textContent='กด A เพื่อเล่นต่อ หรือ B เพื่อกลับล็อบบี้';
+        }
       }else if(data.t==='inventory'){
         renderPhoneInventory(data);
       }else if(data.t==='fruit-status'){
@@ -1129,6 +1146,8 @@ function setControllerGameContext(mode,phase,active){
   controllerGameMode=mode||null;
   if(mode!=='shockwave'||!['countdown','playing','paused'].includes(phase))controllerPlayerEliminated=false;
   controllerGamePhase=phase||'lobby';
+  if(controllerGamePhase!=='results')
+    controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป'};
   controllerPlayerActive=!!active;
   const visible=isLiveGameContext();
   $('controllerInventory').classList.toggle('hidden',!visible);
@@ -1149,8 +1168,12 @@ function showControllerMode(mode){
     ['countdown','playing','paused'].includes(controllerGamePhase);
   const ghost=playing&&mode==='ghost',chickens=playing&&mode==='chickens';
   const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave',colorSwitch=playing&&mode==='color_switch';
-  const aLabel=ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':colorSwitch?'ต่อย':'';
-  const bLabel=ghost?($('controllerButtons').classList.contains('has-target')?
+  const voting=controllerReady&&controllerGamePhase==='results'&&controllerPlayerActive;
+  const aLabel=voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
+    controllerResultVotes.nextLabel)+' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
+    ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':colorSwitch?'ต่อย':'';
+  const bLabel=voting?'ล็อบบี้ '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
+    ghost?($('controllerButtons').classList.contains('has-target')?
     'ยืนยันสโลว์':'ใช้ไอเทม'):colorSwitch?'ระเบิดสี':'';
   $('controllerButtons').classList.toggle('chickens-mode',chickens);
   $('controllerButtons').classList.toggle('fruit-memory-mode',fruit);
@@ -1310,7 +1333,17 @@ function bindAnalogStick(zone,base,knob,target){
 }
 function bindControl(btn, target, id){
   const key=btn.dataset.control;if(!key)return;
-  const change=(pressed)=>{if(target[key]===pressed)return;target[key]=pressed;btn.classList.toggle('pressed',pressed);if(id==='remote')sendInputs();};
+  const change=(pressed)=>{
+    if(target[key]===pressed)return;
+    target[key]=pressed;btn.classList.toggle('pressed',pressed);
+    if(id==='remote'){
+      if(pressed&&controllerReady&&controllerPlayerActive&&controllerGamePhase==='results'){
+        const choice=key==='action'?'next':key==='alt'?'lobby':null;
+        if(choice)send(controllerConn,{t:'result-vote',choice});
+      }
+      sendInputs();
+    }
+  };
   btn.addEventListener('pointerdown',e=>{e.preventDefault();try{btn.setPointerCapture(e.pointerId);}catch(x){}change(true);});
   btn.addEventListener('pointerup',e=>{e.preventDefault();change(false);});
   btn.addEventListener('pointercancel',()=>change(false));
@@ -1387,6 +1420,59 @@ function updateRound(dt){
   const result=gameEngine(round.mode).update(dt,round,players);
   if(result==='winner')endRound();
 }
+
+// Result decisions are host-authoritative. Connected human controllers count;
+// bots have no joypad and must never prevent a unanimous decision.
+function resultVoters(){
+  return players.filter(p=>p.type==='remote'&&p.active&&p.conn?.open&&p.conn.playerId===p.id);
+}
+function resultNextLabel(){
+  if(!tournament)return 'เล่นอีกครั้ง';
+  return tournament.index+1<tournament.schedule.length?'เกมถัดไป':'สุ่มชุดใหม่จากตัวเลือกเดิม';
+}
+function resultVoteSnapshot(){
+  if(!round||round.phase!=='results')return null;
+  if(!round.resultVotes)round.resultVotes={next:new Set(),lobby:new Set()};
+  const valid=new Set(resultVoters().map(p=>p.id));
+  for(const name of ['next','lobby'])
+    for(const id of round.resultVotes[name])if(!valid.has(id))round.resultVotes[name].delete(id);
+  return {t:'result-votes',
+    next:round.resultVotes.next.size,lobby:round.resultVotes.lobby.size,
+    total:valid.size,nextLabel:resultNextLabel()};
+}
+function renderResultVotes(sendUpdate=false){
+  const v=resultVoteSnapshot();if(!v)return;
+  const seconds=round.autoNextRemaining>0?' • อีก '+Math.ceil(round.autoNextRemaining)+' วิ':'';
+  // Align A/B on the left, action text in the center and votes on the right.
+  // The accessibility label contains the full sentence for screen readers.
+  const next=$('replayBtn'),back=$('backBtn');
+  next.textContent=v.nextLabel+seconds;
+  next.dataset.action='A';next.dataset.votes=v.next+'/'+v.total;
+  next.setAttribute('aria-label','A '+next.textContent+' '+next.dataset.votes);
+  back.textContent='กลับล็อบบี้';
+  back.dataset.action='B';back.dataset.votes=v.lobby+'/'+v.total;
+  back.setAttribute('aria-label','B กลับล็อบบี้ '+back.dataset.votes);
+  if(sendUpdate)broadcast(v);
+}
+function beginResultVoting(){
+  round.resultVotes={next:new Set(),lobby:new Set()};
+  renderResultVotes(true);
+}
+function castResultVote(conn,choice){
+  if(!round||round.phase!=='results'||!['next','lobby'].includes(choice))return;
+  const voter=resultVoters().find(p=>p.id===conn.playerId&&p.conn===conn);
+  if(!voter)return;
+  const votes=round.resultVotes||(round.resultVotes={next:new Set(),lobby:new Set()});
+  for(const name of ['next','lobby'])votes[name].delete(voter.id);
+  votes[choice].add(voter.id);
+  const snapshot=resultVoteSnapshot();
+  renderResultVotes(true);
+  // Unanimity acts instantly. Host buttons and the countdown still work.
+  if(snapshot.total>0&&snapshot[choice]===snapshot.total){
+    if(choice==='next')advanceParty();
+    else returnToLobby();
+  }
+}
 function endRound(){
   if(!round||round.phase==='results')return;
    if(round.mode==='color_switch'){endColorSwitchRound();return;}
@@ -1395,44 +1481,52 @@ function endRound(){
    if(round.mode==='shockwave'){endShockwaveRound();return;}
   round.phase='results';round.paused=false;resetInputs();broadcastRoster();
   $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
-  const ranked=players.filter(p=>p.active).sort((a,b)=>{
-    if(a.id===round.ghost.winnerId)return -1;
-    if(b.id===round.ghost.winnerId)return 1;
-    return b.score-a.score;
-  });
-  if(tournament){
-    ranked.forEach((p,i)=>p.total=(p.total||0)+Math.max(1,ranked.length-i));
-    $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
-      'สุ่มชุดใหม่จากตัวเลือกเดิม':
-      'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
-  }else $('replayBtn').textContent='เล่นอีกครั้ง';
+  // Same infection frame OR same 0.1-second score -> shared competition rank.
+  // When all humans are infected, winnerId is a fallback, not proof of a solo winner.
+  const finishValue=p=>!p.ghost?Infinity:
+    Math.floor((Number.isFinite(p.infectedAt)?p.infectedAt:
+      Number.isFinite(p.survival)?p.survival:0)*10+1e-7);
+  const ranked=players.filter(p=>p.active).sort((a,b)=>
+    finishValue(b)-finishValue(a)||String(a.id).localeCompare(String(b.id)));
+  const rankOf=p=>1+ranked.filter(q=>finishValue(q)>finishValue(p)).length;
+  const first=ranked.filter(p=>rankOf(p)===1);
+  $('results').querySelector('h2').textContent=first.length>1?
+    'เสมอ! อันดับ 1 ร่วม':first[0]&&!first[0].ghost?
+      'ผู้รอดคนสุดท้าย!':'อยู่รอดนานที่สุด!';
+  if(tournament)ranked.forEach(p=>
+    p.total=(p.total||0)+Math.max(1,ranked.length-rankOf(p)+1));
   round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
   const list=$('resultList');list.replaceChildren();
-  ranked.forEach((p,i)=>{
+  ranked.forEach(p=>{
+    const rank=rankOf(p),tied=ranked.filter(q=>rankOf(q)===rank).length>1;
     const row=document.createElement('div');row.className='result-player';
     const label=document.createElement('div');
-    const winner=p.id===round.ghost.winnerId;
-    label.textContent=(winner?'🏆 ':'')+(i+1)+'. '+p.name;
+    label.textContent=(rank===1?'★ ':'')+'อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
     label.style.color=p.color;
     const detail=document.createElement('span');
-    detail.textContent=(winner?'ผู้รอดคนสุดท้าย':p.ghost?'กลายเป็นผี':'รอด')+
+    detail.textContent=(p.ghost?'ตกรอบ':'ผู้รอดคนสุดท้าย')+
+      (p.ghost&&Number.isFinite(p.infectedAt)?' • '+p.infectedAt.toFixed(1)+' วิ':'')+
       (tournament?' • รวม '+p.total+' คะแนน':'');
     row.append(label,detail);list.append(row);
   });
   if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
     const overall=[...ranked].sort((a,b)=>b.total-a.total);
     list.replaceChildren();
-    overall.forEach((p,i)=>{
+    overall.forEach(p=>{
       const row=document.createElement('div');row.className='result-player';
-      const name=document.createElement('div');name.textContent=(i+1)+'. '+p.name;
+      const rank=1+overall.filter(q=>q.total>p.total).length;
+      const name=document.createElement('div');name.textContent='อันดับ '+rank+'. '+p.name;
       name.style.color=p.color;
       const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
       row.append(name,score);list.append(row);
     });
     const heading=document.createElement('div');heading.className='tournament-header';
-    heading.textContent='ผู้ชนะรวม: '+overall[0].name;list.prepend(heading);
+    const top=overall.filter(p=>p.total===overall[0].total);
+    heading.textContent=top.length===1?'ผู้ชนะรวม: '+top[0].name:
+      'คะแนนรวมเสมอ: '+top.map(p=>p.name).join(', ');list.prepend(heading);
   }
   $('results').classList.remove('hidden');$('gameBanner').textContent='';
+  beginResultVoting();
   renderLeaderboard();
 }
 
@@ -1466,7 +1560,7 @@ function endShockwaveRound(){
    const overall=[...ranked].sort((a,b)=>b.total-a.total);list.replaceChildren();
    overall.forEach((p,i)=>{
      const row=document.createElement('div');row.className='result-player';
-     const name=document.createElement('div');name.textContent=(i+1)+'. '+p.name;name.style.color=p.color;
+     const name=document.createElement('div');name.textContent=(1+overall.filter(q=>q.total>p.total).length)+'. '+p.name;name.style.color=p.color;
      const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
      row.append(name,score);list.append(row);
    });
@@ -1476,7 +1570,8 @@ function endShockwaveRound(){
    list.prepend(heading);
  }
  $('results').classList.remove('hidden');$('gameBanner').textContent='';
- renderLeaderboard();
+  beginResultVoting();
+  renderLeaderboard();
 }
 function endColorSwitchRound(){
  const s=round.colorSwitch;
@@ -1520,7 +1615,8 @@ function endColorSwitchRound(){
    list.prepend(heading);
  }
  $('results').classList.remove('hidden');$('gameBanner').textContent='';
- renderLeaderboard();
+  beginResultVoting();
+  renderLeaderboard();
 }
 function endChickensRound(){
   round.phase='results';round.paused=false;resetInputs();broadcastRoster();
@@ -1544,7 +1640,7 @@ function endChickensRound(){
   ranked.forEach((p,i)=>{
     const row=document.createElement('div');row.className='result-player';
     const name=document.createElement('div');name.style.color=p.color;
-    name.textContent=(p.score===best?'★ ':'')+(i+1)+'. '+p.name;
+    name.textContent=(p.score===best?'★ ':'')+(1+ranked.filter(q=>q.score>p.score).length)+'. '+p.name;
     const score=document.createElement('span');
     score.textContent=p.score+' ไก่'+(tournament?' • รวม '+p.total+' คะแนน':'');
     row.append(name,score);list.append(row);
@@ -1555,7 +1651,7 @@ function endChickensRound(){
     overall.forEach((p,i)=>{
       const row=document.createElement('div');row.className='result-player';
       const name=document.createElement('div');name.style.color=p.color;
-      name.textContent=(i+1)+'. '+p.name;
+      name.textContent=(1+overall.filter(q=>q.total>p.total).length)+'. '+p.name;
       const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
       row.append(name,score);list.append(row);
     });
@@ -1565,6 +1661,7 @@ function endChickensRound(){
     list.prepend(heading);
   }
   $('results').classList.remove('hidden');$('gameBanner').textContent='';
+  beginResultVoting();
   renderLeaderboard();
 }
 function endFruitMemoryRound(){
@@ -1620,6 +1717,7 @@ function endFruitMemoryRound(){
     });
   }
   $('results').classList.remove('hidden');$('gameBanner').textContent='';
+  beginResultVoting();
   renderLeaderboard();
 }
 function renderLeaderboard(){
@@ -1723,8 +1821,7 @@ function animate(ts){
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
       if(round.autoNextRemaining===0)advanceParty();
-      else $('replayBtn').textContent='เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+
-        ') • อีก '+Math.ceil(round.autoNextRemaining)+' วิ';
+      else renderResultVotes();
     }
     hudClock+=dt;
     if(hudClock>.22){

@@ -7,7 +7,7 @@ const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
 // production code or relying on internal globals.
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
-  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endFruitMemoryRound,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
+  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,resultVoteSnapshot,castResultVote,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
@@ -1147,6 +1147,95 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  assert.equal(ui.scope.window.__ghostTest.getRound().phase,'results');
 }
 
+
+// Result ranking: the exact same infection time gets the same competition rank.
+{
+ const ui=setup();
+ ui.click('offlineBtn');ui.click('addLocalBtn');
+ const three=ui.scope.window.__ghostTest.getPlayers();
+ assert.equal(three.length,3);
+ three.forEach(p=>{p.active=true;p.score=0;});
+ three[0].ghost=false;three[0].survival=12;
+ three[1].ghost=true;three[1].infectedAt=6.2;three[1].score=62;
+ three[2].ghost=true;three[2].infectedAt=6.2;three[2].score=62;
+ ui.scope.window.__ghostTest.setRound({
+  mode:'ghost',phase:'playing',paused:false,autoNextRemaining:0,
+  ghost:{winnerId:three[0].id}
+ });
+ ui.scope.window.__ghostTest.endRound();
+ const rows=ui.elements.get('resultList').children;
+ assert.equal(rows.length,3);
+ assert.match(rows[0].children[0].textContent,/อันดับ 1/);
+ assert.match(rows[1].children[0].textContent,/อันดับ 2 ร่วม/);
+ assert.match(rows[2].children[0].textContent,/อันดับ 2 ร่วม/);
+ assert.equal(ui.elements.get('replayBtn').dataset.action,'A');
+ assert.match(ui.elements.get('replayBtn').textContent,/^เล่นอีกครั้ง/);
+ assert.equal(ui.elements.get('backBtn').dataset.action,'B');
+ assert.equal(ui.elements.get('backBtn').textContent,'กลับล็อบบี้');
+ // The engine's last-infected fallback winner must not break an exact tie.
+ for(const p of three){p.ghost=true;p.infectedAt=6.2;p.score=62;}
+ three[0].infectedAt=2.1;three[0].score=21;
+ three[2].score=100000; // artificial fallback winner, same infection frame
+ ui.scope.window.__ghostTest.setRound({
+  mode:'ghost',phase:'playing',paused:false,autoNextRemaining:0,
+  ghost:{winnerId:three[2].id}
+ });
+ ui.scope.window.__ghostTest.endRound();
+ const simultaneous=ui.elements.get('resultList').children;
+ assert.match(simultaneous[0].children[0].textContent,/อันดับ 1 ร่วม/);
+ assert.match(simultaneous[1].children[0].textContent,/อันดับ 1 ร่วม/);
+ assert.match(simultaneous[2].children[0].textContent,/อันดับ 3/);
+ assert.match(ui.elements.get('results').querySelector('h2').textContent,/เสมอ/);
+}
+// Host counts ONLY the real joypads, rejects duplicate votes, lets players
+// switch preferences, and launches the chosen action at unanimity.
+function createVoteHost(){
+ const ui=setup();ui.click('hostBtn');ui.instances[0].fire('open');
+ const cons=[];
+ for(const name of ['Alice','Bob']){
+  const conn=ui.instances[0].connect();
+  ui.instances[0].fire('connection',conn);
+  conn.fire('data',{t:'join',name});
+  conn.fire('data',{t:'pick',mode:'ghost'});
+  cons.push(conn);
+ }
+ ui.click('startBtn');
+ const round=ui.scope.window.__ghostTest.getRound();
+ assert.equal(round.phase,'countdown');
+ ui.scope.window.__ghostTest.endRound();
+ assert.equal(round.phase,'results');
+ assert.equal(ui.elements.get('replayBtn').dataset.action,'A');
+ assert.match(ui.elements.get('replayBtn').textContent,/^เกมถัดไป/);
+ assert.doesNotMatch(ui.elements.get('replayBtn').textContent,/เกมถัดไป \(\d+\/\d+\)/);
+ assert.equal(ui.elements.get('replayBtn').dataset.votes,'0/2');
+ assert.equal(ui.elements.get('backBtn').dataset.votes,'0/2');
+ return {ui,cons,round};
+}
+{
+ const {ui,cons,round}=createVoteHost();
+ cons[0].fire('data',{t:'result-vote',choice:'next'});
+ assert.equal(ui.elements.get('replayBtn').dataset.votes,'1/2');
+ assert.equal(ui.elements.get('backBtn').dataset.votes,'0/2');
+ cons[0].fire('data',{t:'result-vote',choice:'next'});
+ assert.equal(round.resultVotes.next.size,1,'repeat presses do not duplicate votes');
+ cons[1].fire('data',{t:'result-vote',choice:'lobby'});
+ assert.equal(ui.elements.get('backBtn').dataset.votes,'1/2');
+ cons[0].fire('data',{t:'result-vote',choice:'lobby'});
+ assert.equal(ui.scope.window.__ghostTest.getRound(),null,'unanimous B goes directly to lobby');
+ assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false);
+ assert.ok(cons.every(c=>c.open),'lobby vote keeps room and controllers connected');
+}
+{
+ const {ui,cons,round}=createVoteHost();
+ cons[0].fire('data',{t:'result-vote',choice:'next'});
+ assert.equal(round.phase,'results','one vote does not trigger game');
+ cons[1].fire('data',{t:'result-vote',choice:'next'});
+ const next=ui.scope.window.__ghostTest.getRound();
+ assert.notEqual(next,round,'unanimous A creates a new round immediately');
+ assert.equal(next.phase,'countdown','next game starts without waiting for timer');
+ assert.equal(ui.elements.get('results').classList.contains('hidden'),true);
+}
+
 // Closing an online room displays an in-app dialog; cancellation keeps peers.
 const confirmHost=setup();
 confirmHost.click('hostBtn');
@@ -1259,8 +1348,19 @@ phoneConn.fire('data',{t:'roster',phase:'results',mode:'ghost',
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
  'role and item must disappear as soon as a round ends');
 assert.equal(phone.elements.get('inventoryItem').textContent,'');
-assert.equal(phone.elements.get('buttonALabel').textContent,'');
-assert.equal(phone.elements.get('buttonBLabel').textContent,'');
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป 0/0');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'ล็อบบี้ 0/0');
+phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป'});
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป 1/2');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'ล็อบบี้ 0/2');
+phone.padButtons.action.fire('pointerdown');
+assert.equal(phoneConn.sent.filter(m=>m.t==='result-vote').at(-1).choice,'next',
+ 'A joypad press votes to advance');
+phone.padButtons.action.fire('pointerup');
+phone.padButtons.alt.fire('pointerdown');
+assert.equal(phoneConn.sent.filter(m=>m.t==='result-vote').at(-1).choice,'lobby',
+ 'B joypad press votes to return to lobby');
+phone.padButtons.alt.fire('pointerup');
 phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'slow',
  ghost:false,selecting:true,targetId:'p2',targetName:'Friend'});
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
