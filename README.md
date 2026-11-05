@@ -3,6 +3,36 @@
 เกมปาร์ตี้เล่นบนเว็บแบบจอใหญ่ + จอยมือถือผ่าน QR Code สูงสุด **12 ผู้เล่น**
 มีมินิเกม **GHOST ATTACK**, **CHICKENS**, **FRUIT MEMORY**, **SHOCKWAVE**, **COLOR SWITCH** และ **PIZZA TIME** ใช้ระบบห้อง จอยมือถือ พรีวิวและการแข่งขันเดียวกัน; มินิเกมเก่า STAR RUSH, BRAWL, LAVA RUN, TANKS, FOOTBALL, RALLY และ COLOR CLASH ไม่ได้ถูกนำกลับมา
 
+## ระบบกลางตัวละครและกฎชนกัน (ใช้กับทุกแมพ)
+
+ระบบกลางอยู่ที่ `character-system.js` โหลดหลัง `player-avatar.js` และก่อนมินิเกมทุกตัว โดย `window.PartyCharacters` เป็น API กลางสำหรับตัวละคร การเดิน ทิศทาง ความเร็ว วาดตัวละคร และการชน/ดันกันแบบ host-authoritative
+
+**กฎบังคับสำหรับทุกเกม:** เมื่อไม่ได้ระบุไว้ว่าเดินทะลุกันได้ ตัวละครทุกตัวต้องชนและดันกันได้เป็นค่าเริ่มต้น (รวมบอทด้วย) ต้องไม่คัดลอกหรือสร้างระบบแยกในแต่ละเกม โดยเกมจะส่งเฉพาะค่าขอบสนาม รัศมีตัวละคร กำแพง/สิ่งกีดขวาง และข้อยกเว้นที่กติกากำหนดไว้ให้ระบบกลาง
+
+ตัวอย่างการใช้งานสำหรับมินิเกมใหม่:
+
+```js
+const characters = window.PartyCharacters;
+characters.activate(players); // เปิดใช้ผู้เล่น/บอทหลังสร้างห้อง
+for (const p of players) {
+  const direction = p.isBot ? chooseBotMovement(p) : characters.control(p.input);
+  characters.move(p, direction, dt, {
+    speed: 165, radius: 15, bounds: board
+  });
+}
+characters.resolve(players, {
+  radius: 15, bounds: board,
+  // Optional: constrain เพื่อคงผนัง โต๊ะ สิ่งกีดขวาง หรือสนามวงกลม
+});
+for (const p of players) if (p.active) characters.draw(ctx, p, {time:clock});
+```
+
+- `characters.resolve(players)` ทำงานโดยตั้งต้น `playersSolid:true` อัตโนมัติ รองรับการเกิดทับตำแหน่งกัน แรงดันจากทิศทาง/ความเร็ว และผู้เล่นสูงสุด 12 คน
+- การยกเว้นให้เดินทะลุผู้เล่นต้องเขียน `playersSolid:false` **ชัดเจนเฉพาะเกมที่มีข้อกำหนดนั้นจริง** ห้ามถือว่าการไม่ส่งค่าหมายถึงปิดการชน
+- ระบบกลางไม่ตัดสินการติดเชื้อผี การตกพื้น ระเบิด การเก็บของ หรือคะแนน กติกาเหล่านี้ยังอยู่ในเอนจินมินิเกม และต้องตรวจ hitbox/สิ่งกีดขวางตามแผนที่เดิม
+- `GHOST ATTACK`, `CHICKENS`, `FRUIT MEMORY`, `SHOCKWAVE`, `COLOR SWITCH` และ `PIZZA TIME` เรียกโมดูลชนกลางแทนการคำนวณชนแยกภายในเกม
+- ทดสอบระบบกลางด้วย `node tests/character-system.cjs`; ทดสอบระบบเดิมด้วยสคริปต์ใน `tests/`
+
 ## วิธีเข้าเล่น
 
 1. เจ้าของห้องเปิด `/host.html` เพื่อสร้างห้องและแสดง QR / รหัส 6 ตัวในหน้าล็อบบี้
