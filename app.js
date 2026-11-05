@@ -64,7 +64,7 @@ const INPUT_NAMES = ['left','right','jump','down','action','alt'];
 let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPeer=null, controllerConn=null;
 let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0, inventoryClock=0;
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
-let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false;
+let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false,controllerPlayerEliminated=false;
 let disconnectRequested=false;
 const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
 const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
@@ -973,6 +973,7 @@ function joinRoom(recovery=false){
         showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
         setControllerGameContext(data.mode,data.phase,!!(self&&self.active));
+         controllerPlayerEliminated=!!(data.mode==='shockwave'&&self?.eliminated);
         updatePhoneGamePicker(data.phase,self&&self.choice);
         $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
           data.phase==='playing'?(self&&self.eliminated?'ตกรอบ • ดูเกมต่อ':self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):
@@ -990,8 +991,10 @@ function joinRoom(recovery=false){
           else if(data.stun>0)$('controllerState').textContent='ถูกสตั้น • '+Number(data.stun).toFixed(1)+' วิ';
         }
       }else if(data.t==='shockwave-status'){
-         if(controllerReady&&controllerGameMode==='shockwave'&&data.mode==='shockwave')
-           $('controllerState').textContent=data.eliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • WAVE '+data.wave;
+         if(controllerReady&&controllerGameMode==='shockwave'&&data.mode==='shockwave'){
+            controllerPlayerEliminated=!!data.eliminated;
+            $('controllerState').textContent=data.eliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • WAVE '+data.wave;
+          }
        }else if(data.t==='chicken-status'){
         if(controllerReady&&controllerPlayerActive&&controllerGameMode==='chickens'&&
           data.mode==='chickens'){
@@ -1005,7 +1008,7 @@ function joinRoom(recovery=false){
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
+          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
       }else if(data.t==='closed'){
         resetControllerForRoomChange('เจ้าของห้องปิดห้องแล้ว');
@@ -1044,6 +1047,7 @@ function isLiveGameContext(){
 }
 function setControllerGameContext(mode,phase,active){
   controllerGameMode=mode||null;
+  if(mode!=='shockwave'||!['countdown','playing','paused'].includes(phase))controllerPlayerEliminated=false;
   controllerGamePhase=phase||'lobby';
   controllerPlayerActive=!!active;
   const visible=isLiveGameContext();

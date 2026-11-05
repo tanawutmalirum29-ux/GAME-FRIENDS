@@ -134,4 +134,11 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  assert.ok(state.remainingTiles<=16);
  assert.ok(state.tiebreakers>=0);
 }
+{
+ const {state}=game(4,44);state.wave=10;
+ state.tiles.slice(0,13).forEach(t=>t.state='destroyed');
+ assert.equal(E.checkSuddenDeath(state),true);
+ assert.equal(state.suddenDeath,true);
+ assert.equal(state.remainingTiles,3);
+}
 console.log('SHOCKWAVE PASS: map sizes, seeded waves, warnings, weighted tiles, foot support, ties, collision and final arena');
