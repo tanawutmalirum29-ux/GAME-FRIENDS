@@ -18,25 +18,78 @@ const hyp=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const active=ps=>ps.filter(p=>p.active);
 function random(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
 const worldSize=n=>n<=3?{w:960,h:540}:n<=6?{w:1200,h:675}:n<=9?{w:1440,h:810}:{w:1600,h:900};
-const tableCount=n=>n<=3?4:n<=6?6:n<=9?8:10;
+// Physical worktops contain exactly two ingredient slots each.
+const tableCount=n=>n<=3?2:n<=6?3:n<=9?4:5;
 const dims=s=>({w:s.world.w,h:s.world.h});
 function tableLayout(s){
  const count=tableCount(s.players);
- const ids=INGREDIENTS.slice(0,s.players<=3?4:s.players<=6?5:s.players<=9?6:8).map(x=>x.id);
- for(let i=ids.length-1;i>0;i--){const j=Math.floor(random(s)*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
- s.tables=Array.from({length:count},(_,i)=>{
-   const theta=-Math.PI/2+TAU*i/count;
-   const x=s.center.x+Math.cos(theta)*s.world.w*.365;
-   const y=s.center.y+Math.sin(theta)*s.world.h*.34;
-   // Pickup pad faces the chef; table bodies are solid but pickups remain reachable.
-   const dx=s.center.x-x,dy=s.center.y-y,len=Math.hypot(dx,dy)||1;
-   return {id:i,ingredient:ids[i%ids.length],x,y,
-     pick:{x:x+dx/len*69,y:y+dy/len*69},size:38};
+ const kinds=INGREDIENTS.slice(0,count*2).map(i=>i.id);
+ for(let i=kinds.length-1;i>0;i--){const j=Math.floor(random(s)*(i+1));[kinds[i],kinds[j]]=[kinds[j],kinds[i]];}
+ const locations=[];
+ if(count<=3){
+   for(let i=0;i<count;i++)locations.push({
+     x:s.center.x+(i-(count-1)/2)*Math.min(185,s.world.w*.152),y:s.center.y
+   });
+ }else{
+   const top=Math.ceil(count/2),bottom=count-top;
+   for(let row=0;row<2;row++){
+     const n=row===0?top:bottom;
+     for(let i=0;i<n;i++)locations.push({
+       x:s.center.x+(i-(n-1)/2)*Math.min(225,s.world.w*.18),
+       y:s.center.y+(row===0?-s.world.h*.13:s.world.h*.13)
+     });
+   }
+ }
+ s.worktops=locations.map((pos,i)=>({
+   id:i,x:pos.x,y:pos.y,halfW:56,halfH:43
+ }));
+ // Ingredient illustrations sit ON the counter. Pickup pads are directly
+ // above/below that SAME counter, reachable without walking through furniture.
+ s.tables=[];
+ for(const w of s.worktops)for(let slot=0;slot<2;slot++){
+   const ingredient=kinds[w.id*2+slot];
+   s.tables.push({
+     id:w.id*2+slot,worktopId:w.id,ingredient,
+     x:w.x+(slot===0?-25:25),y:w.y,
+     pick:{x:w.x+(slot===0?-25:25),y:w.y+(slot===0?-71:71)}
+   });
+ }
+}
+function stationLayout(s,ps){
+ const n=ps.length;
+ // Four chefs occupy the four reference corners. Larger lobbies distribute
+ // one PERSONAL chef station per player across the upper/lower boundary.
+ let positions=[];
+ if(n<=4){
+   const slots=[
+     {x:.155,y:.165},{x:.845,y:.165},
+     {x:.155,y:.835},{x:.845,y:.835}
+   ];
+   const order=n===1?[0]:n===2?[0,3]:n===3?[0,1,2]:[0,1,2,3];
+   positions=order.map(i=>slots[i]);
+ }else{
+   const top=Math.ceil(n/2),bottom=n-top;
+   for(let side=0;side<2;side++){
+     const m=side===0?top:bottom;
+     for(let i=0;i<m;i++)positions.push({
+       x:m===1?.5:.13+i*.74/(m-1),y:side===0?.145:.855
+     });
+   }
+ }
+ s.chefs=ps.map((p,i)=>{
+   const q=positions[i],x=q.x*s.world.w,y=q.y*s.world.h;
+   const dx=s.center.x-x,dy=s.center.y-y;
+   const magnitude=Math.hypot(dx,dy)||1,ux=dx/magnitude,uy=dy/magnitude;
+   const deliver={x:x+ux*55,y:y+uy*55};
+   const spawn={x:x+ux*78,y:y+uy*78};
+   return {id:i,ownerId:p.id,color:p.color,x,y,deliver,spawn,
+     bubbleX:x+(q.x<.5?76:-76),bubbleY:y-(q.y<.5?8:-8),facing:{x:ux,y:uy}};
  });
+ s.chefById=new Map(s.chefs.map(c=>[c.ownerId,c]));
 }
 function blocked(s,x,y,r=14){
- if(x<25+r||y<25+r||x>s.world.w-25-r||y>s.world.h-25-r)return true;
- return s.tables.some(t=>Math.abs(x-t.x)<t.size+r&&Math.abs(y-t.y)<t.size+r);
+ if(x<24+r||y<24+r||x>s.world.w-24-r||y>s.world.h-24-r)return true;
+ return s.worktops.some(t=>Math.abs(x-t.x)<t.halfW+r&&Math.abs(y-t.y)<t.halfH+r);
 }
 function grid(s){
  const cell=27,cols=Math.ceil(s.world.w/cell),rows=Math.ceil(s.world.h/cell);
@@ -110,26 +163,29 @@ function makePairs(s){
 function tableOptions(s,ingredient){
  return s.tables.filter(t=>t.ingredient===ingredient);
 }
-function cheapestTable(s,ingredient,start){
- let best=null,cost=Infinity;
- for(const t of tableOptions(s,ingredient)){
-   const route=approachCost(s,start,t);
-   if(route<cost){best=t;cost=route;}
- }
- return {table:best,distance:cost};
+function chefRoute(s,chef,table){
+ const key=chef.id+'-'+table.id;
+ if(!s.chefRouteCache.has(key))
+  s.chefRouteCache.set(key,aStar(s,table.pick,chef.deliver).distance);
+ return s.chefRouteCache.get(key);
 }
-function pairCost(s,start,pair){
- const first=pair.map(id=>cheapestTable(s,id,start));
- const costs=first.map((o,i)=>{
-   if(!o.table)return Infinity;
-   const second=pair[1-i],back=s.toChef.get(o.table.id);
-   const toOther=Math.min(...tableOptions(s,second).map(t=>s.toChef.get(t.id)*2));
-   return o.distance+back+toOther;
- });
- return Math.min(...costs);
+function pairCost(s,start,pair,chef){
+ const station=chef||s.chefById.get(start.id);
+ if(!station)return Infinity;
+ const src=start.pizza?start:start;
+ const landing=station.deliver;
+ let shortest=Infinity;
+ for(const firstId of pair)for(const first of tableOptions(s,firstId)){
+   const otherId=pair.find(id=>id!==firstId);
+   const firstDist=approachCost(s,src,first)+chefRoute(s,station,first);
+   const secondDist=Math.min(...tableOptions(s,otherId).map(t=>
+     approachCost(s,landing,t)+chefRoute(s,station,t)));
+   shortest=Math.min(shortest,firstDist+secondDist);
+ }
+ return shortest;
 }
 function fairnessCandidates(s,p){
- return s.pairs.map(pair=>({pair,distance:pairCost(s,p,pair)}))
+ return s.pairs.map(pair=>({pair,distance:pairCost(s,p,pair,s.chefById.get(p.id))}))
   .filter(x=>Number.isFinite(x.distance)).sort((a,b)=>a.distance-b.distance);
 }
 function chooseFirstOrders(s,ps){
@@ -175,21 +231,20 @@ function nextOrder(s,p){
 function setup(round,ps){
  const people=active(ps),count=Math.max(1,people.length);
  const world=worldSize(count),s={world,center:{x:world.w/2,y:world.h/2},players:count,
-   roster:ps,seed:(Number(round.pizzaSeed)||Date.now()^0x4b1a8d7)>>>0||1,
+   roster:ps,seed:(Number(round.pizzaSeed)||(Date.now()^0x4b1a8d7))>>>0||1,
    elapsed:0,duration:60,remaining:60,accumulator:0,clock:0,finished:false,
-   tables:[],pairs:[],toChef:new Map(),pathCostCache:new Map(),lastIngredient:new Map(),targetDistance:0,
+   tables:[],worktops:[],chefs:[],chefById:new Map(),chefRouteCache:new Map(),
+   pairs:[],pathCostCache:new Map(),lastIngredient:new Map(),targetDistance:0,
    firstSpread:0,ranking:[],winnerIds:[],effects:[]};
  round.pizzaTime=s;round.remaining=60;
- tableLayout(s);grid(s);
- for(const t of s.tables)s.toChef.set(t.id,aStar(s,t.pick,s.center).distance);
+ tableLayout(s);stationLayout(s,people);grid(s);
  s.pairs=makePairs(s);
- people.forEach((p,i)=>{
-   const angle=-Math.PI/2+TAU*i/count;
-   p.x=s.center.x+Math.cos(angle)*world.w*.06;
-   p.y=s.center.y+Math.sin(angle)*world.h*.070435;
-   p.dir={x:Math.cos(angle),y:Math.sin(angle)};p.vx=0;p.vy=0;p.score=0;
-   p.pizza={held:null,order:[],delivered:[],assignedTotal:0,lastCost:0,orderSerial:0,
-     botPath:[],botGoal:null,repath:0};
+ people.forEach(p=>{
+   const chef=s.chefById.get(p.id);
+   p.x=chef.spawn.x;p.y=chef.spawn.y;
+   p.dir={...chef.facing};p.vx=0;p.vy=0;p.score=0;
+   p.pizza={chefId:chef.id,held:null,order:[],delivered:[],
+     assignedTotal:0,lastCost:0,orderSerial:0,botPath:[],botGoal:null,repath:0};
  });
  chooseFirstOrders(s,people);
  return s;
@@ -207,14 +262,14 @@ function input(p){
  const len=Math.hypot(x,y);return {x:len>1?x/len:x,y:len>1?y/len:y};
 }
 function nearestWanted(s,p){
- const remaining=p.pizza.order.filter(id=>!p.pizza.delivered.includes(id));
- const targets=remaining.flatMap(id=>tableOptions(s,id));
- return targets.map(t=>({table:t,dist:approachCost(s,p,t)}))
-   .sort((a,b)=>(a.dist+s.toChef.get(a.table.id))-(b.dist+s.toChef.get(b.table.id)))[0]?.table||null;
+ const chef=s.chefById.get(p.id),pending=p.pizza.order.filter(id=>!p.pizza.delivered.includes(id));
+ const targets=pending.flatMap(id=>tableOptions(s,id));
+ return targets.map(t=>({table:t,distance:approachCost(s,p,t)+chefRoute(s,chef,t)}))
+   .sort((a,b)=>a.distance-b.distance)[0]?.table||null;
 }
 function botInput(s,p,dt){
- const pizza=p.pizza;
- const target=pizza.held?s.center:nearestWanted(s,p);
+ const pizza=p.pizza,chef=s.chefById.get(p.id);
+ const target=pizza.held?chef.deliver:nearestWanted(s,p);
  if(!target)return {x:0,y:0};
  const point=target.pick||target,goal=(target.id??'chef')+'-'+pizza.orderSerial+'-'+(pizza.held||'');
  pizza.repath-=dt;
@@ -238,7 +293,8 @@ function collect(s,p){
 }
 function deliver(s,p){
  const pizza=p.pizza;
- if(!pizza.held||hyp(p,s.center)>57)return;
+ const chef=s.chefById.get(p.id);
+ if(!chef||!pizza.held||hyp(p,chef.deliver)>41)return;
  const id=pizza.held;
  if(!pizza.order.includes(id)||pizza.delivered.includes(id)){pizza.held=null;return;}
  pizza.delivered.push(id);pizza.held=null;pizza.botGoal=null;
@@ -287,7 +343,7 @@ function hud(ps,round){
 }
 function playerStatus(p){
  const x=p.pizza;if(!x)return null;
- return {id:p.id,mode:'pizza_time',order:[...x.order],delivered:[...x.delivered],
+ return {id:p.id,mode:'pizza_time',chefId:x.chefId,order:[...x.order],delivered:[...x.delivered],
   held:x.held,score:p.score||0};
 }
 function drawIngredient(ctx,id,x,y,size=19){
