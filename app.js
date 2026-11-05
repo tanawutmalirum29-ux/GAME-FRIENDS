@@ -216,14 +216,22 @@ function tryLandscapeOrientation(){
     if(result&&typeof result.catch==='function')result.catch(()=>{});
   }catch(_){/* The device/browser controls physical orientation. */}
 }
+// iPadOS may warn that the page is spoofing a keyboard while a player
+// only touches the canvas. WebKit bug 205917 documents this native fullscreen
+// false positive. Use the existing 100dvh CSS immersive view on all iOS
+// browsers; leave the OS phishing protection intact.
+function avoidIOSNativeFullscreen(){
+  const ua=String(navigator.userAgent||'');
+  const platform=String(navigator.platform||'');
+  return /iPad|iPhone|iPod/i.test(ua)||/iPad|iPhone|iPod/i.test(platform)||
+    (platform==='MacIntel'&&Number(navigator.maxTouchPoints||0)>1);
+}
 function requestHostFullscreen(){
-  // Remain fullscreen across the game and host lobby; do not fullscreen #game.
-  // Attempt native landscape AFTER fullscreen is granted. In browsers that
-  // deny orientation locking, CSS paints the host arena landscape instead.
+  // Native fullscreen remains on desktop/Android; iOS stays CSS-immersive.
   const root=document.documentElement;
   let request=null;
   try{
-    if(root&&root.requestFullscreen&&!document.fullscreenElement){
+    if(!avoidIOSNativeFullscreen()&&root&&root.requestFullscreen&&!document.fullscreenElement){
       request=root.requestFullscreen({navigationUI:'hide'});
     }
   }catch(_){/* Device may reject fullscreen. */}
@@ -1141,7 +1149,7 @@ function requestLandscape(){
   const panel=$('controller');
   let request=null;
   try{
-    if(panel.requestFullscreen&&!document.fullscreenElement)
+    if(!avoidIOSNativeFullscreen()&&panel.requestFullscreen&&!document.fullscreenElement)
       request=panel.requestFullscreen();
   }catch(_){/* Fullscreen is not available on this device. */}
   if(request&&typeof request.then==='function')

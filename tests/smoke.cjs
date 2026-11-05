@@ -684,7 +684,7 @@ for(const item of ['cloak','boost','stun','trap','slow']){
 }
 
 const persistedNicknames=new Map();
-function setup(url='https://game.example/?host=1',portrait=false,savedSession=null,arenaViewport=null) {
+function setup(url='https://game.example/?host=1',portrait=false,savedSession=null,arenaViewport=null,browserProfile=null) {
   const elements=new Map();
   const makeElement=(id='')=>{
     const handlers={},classes=new Set();
@@ -842,7 +842,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
     removeItem(key){sessionData.delete(key);}
   };
   const globals={window:win,location:win.location,document,crypto:webcrypto,sessionStorage,
-    navigator:{},Peer:FakePeer,URL,URLSearchParams,
+    navigator:browserProfile||{userAgent:'Test Browser',platform:'Linux x86_64',maxTouchPoints:0},Peer:FakePeer,URL,URLSearchParams,
     setInterval(){return 1;},
     setTimeout(fn,ms){timers.push({fn,ms,cancelled:false});return timers.length;},
     clearTimeout(id){if(timers[id-1])timers[id-1].cancelled=true;},
@@ -944,6 +944,41 @@ assert.equal(host.elements.get('results').classList.contains('hidden'),false,
 host.click('backBtn');
 assert.equal(host.elements.get('hostLobby').classList.contains('hidden'),false);
 assert.equal(host.scope.document.fullscreenElement,host.scope.document.documentElement);
+
+// WebKit native fullscreen security sheet can appear after touch gestures,
+// even with no real keyboard. iOS uses the existing 100dvh CSS game view.
+const ipadUA={userAgent:'Mozilla/5.0 (iPad; CPU OS 26_6 like Mac OS X) AppleWebKit CriOS/152',platform:'iPad',maxTouchPoints:5};
+const tablet=setup('https://game.example/?host=1',false,null,null,ipadUA);
+tablet.click('addLocalBtn');tablet.click('offlineBtn');tablet.click('startBtn');
+assert.equal(tablet.elements.get('game').classList.contains('hidden'),false);
+assert.equal(tablet.scope.document.fullscreenRequests,0,
+  'iPad host must not trigger native fullscreen phishing protection');
+assert.equal(tablet.scope.document.fullscreenElement,null);
+tablet.click('backBtn');
+assert.equal(tablet.elements.get('hostLobby').classList.contains('hidden'),false);
+const ipadController=setup('https://game.example/?room=ABC123',false,null,null,ipadUA);
+ipadController.click('joinLandscapeBtn');
+ipadController.click('landscapeBtn');
+assert.equal(ipadController.scope.document.fullscreenRequests,0,
+  'iPad text join form and joystick never request OS fullscreen');
+for(const profile of [
+ {userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 26_3 like Mac OS X)',platform:'iPhone',maxTouchPoints:5},
+ {userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit',platform:'MacIntel',maxTouchPoints:5}
+]){
+ const device=setup('https://game.example/?host=1',false,null,null,profile);
+ device.click('addLocalBtn');device.click('offlineBtn');device.click('startBtn');
+ assert.equal(device.scope.document.fullscreenRequests,0,
+   'iPhone and iPad desktop UA skip native fullscreen');
+}
+for(const profile of [
+ {userAgent:'Mozilla/5.0 (Linux; Android 16) Chrome',platform:'Linux armv8l',maxTouchPoints:5},
+ {userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Safari',platform:'MacIntel',maxTouchPoints:0}
+]){
+ const device=setup('https://game.example/?host=1',false,null,null,profile);
+ device.click('addLocalBtn');device.click('offlineBtn');device.click('startBtn');
+ assert.equal(device.scope.document.fullscreenRequests,1,
+   'Android and Mac keep original fullscreen option');
+}
 
 const online=setup();
 online.click('hostBtn');online.instances[0].fire('open');
