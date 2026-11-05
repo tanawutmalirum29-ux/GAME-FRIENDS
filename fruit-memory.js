@@ -27,9 +27,10 @@ function fruitImage(id){
  imageCache[id]=img;return img;
 }
 function generateGrid(count,selected){
- const cols=count<=6?4:6,rows=count<=6?4:5;
- const kinds=selected||shuffle(FRUITS.map(f=>f.id)).slice(0,count<=6?4:5);
- const distributed=shuffle(kinds.flatMap(id=>Array.from({length:count<=6?4:6},()=>id)));
+ const small=count<=6;
+ const cols=small?5:6,kindsCount=small?5:6;
+ const kinds=selected||shuffle(FRUITS.map(f=>f.id)).slice(0,kindsCount);
+ const distributed=shuffle(kinds.flatMap(id=>Array.from({length:small?5:6},()=>id)));
  return distributed.map((fruitType,i)=>({tileId:i,row:Math.floor(i/cols),column:i%cols,fruitType,
    revealState:'closed',collapseState:'solid',fall:0}));
 }
@@ -57,7 +58,7 @@ function buildRevealTimeline(groups){
 }
 function configureBoard(state){
  const large=state.big;
- state.board={x:large?96:182,y:139,w:large?768:596,h:large?360:352};
+ state.board={x:large?140:250,y:large?150:170,w:large?660:500,h:large?330:300};
  state.tileW=state.board.w/state.cols;state.tileH=state.board.h/state.rows;
 }
 function tileAt(state,x,y){
@@ -112,7 +113,7 @@ function newMemorize(state,players,entrants){
 function setup(round,players){
  const startCount=clamp(players.length,1,12);
  const large=startCount>6;
- const state={startCount,big:large,cols:large?6:4,rows:large?5:4,
+ const state={startCount,big:large,cols:large?6:5,rows:large?6:5,
    moveSeconds:large?7:5,collapseSeconds:large?1.8:1.5,
    tiles:[],elapsed:0,accumulator:0,rounds:0,phase:'memorize',previousTarget:null,
    winnerId:null,finished:false,totalElapsed:0};
@@ -420,12 +421,12 @@ function draw(ctx,time,round,players){
  ctx.strokeStyle='#5e91ab';ctx.lineWidth=3;ctx.strokeRect(b.x-10,b.y-10,b.w+20,b.h+20);
  for(const tile of state.tiles)drawTile(ctx,state,tile,time);
  for(const p of players)drawPlayer(ctx,p,state,time);
- // Single compact, solid on-canvas status. No duplicate DOM countdown.
- ctx.fillStyle='#102e44';ctx.fillRect(16,76,340,55);
- ctx.strokeStyle='#5d8da6';ctx.lineWidth=1.6;ctx.strokeRect(16,76,340,55);
- ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='bold 16px system-ui,sans-serif';
- ctx.fillText('FRUIT MEMORY',27,97);
- ctx.font='bold 17px system-ui,sans-serif';
+ // Compact HUD above the playfield; never overlaps the grid.
+ ctx.fillStyle='#102e44';ctx.fillRect(16,30,250,42);
+ ctx.strokeStyle='#5d8da6';ctx.lineWidth=1.4;ctx.strokeRect(16,30,250,42);
+ ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='bold 13px system-ui,sans-serif';
+ ctx.fillText('FRUIT MEMORY',27,47);
+ ctx.font='bold 13px system-ui,sans-serif';
  const phase=round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown)+' วิ':
    state.phase==='memorize'?'จำผลไม้ • '+state.revealedTileIds.size+'/'+state.tiles.length+' ช่อง':
    state.phase==='hide'?'คว่ำบล็อกทั้งหมด':
@@ -433,10 +434,10 @@ function draw(ctx,time,round,players){
    state.phase==='collapse'?'รอด '+(state.replayEntrants?'0':living(players).length)+' คน':
    'เตรียมรอบถัดไป';
  ctx.fillStyle=state.phase==='move'&&state.moveSeconds-state.elapsed<3?'#ffcd77':'#b7f4d3';
- ctx.fillText(phase,27,119,265);
+ ctx.fillText(phase,27,64,(state.phase==='target'||state.phase==='move')?190:222);
  if((state.phase==='target'||state.phase==='move')&&state.target){
    const img=fruitImage(state.target);if(img?.complete&&img.naturalWidth)
-     ctx.drawImage(img,305,86,35,35);
+     ctx.drawImage(img,226,40,22,22);
  }
  ctx.restore();
 }

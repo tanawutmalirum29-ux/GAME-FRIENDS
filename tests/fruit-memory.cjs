@@ -19,13 +19,20 @@ function advance(x,seconds,fps=60){
 }
 for(let n=1;n<=12;n++){
  const x=init(n),small=n<=6,tiles=x.state.tiles;
- assert.equal(x.state.cols,small?4:6);assert.equal(x.state.rows,small?4:5);
- assert.equal(tiles.length,small?16:30);
+ assert.equal(x.state.cols,small?5:6);assert.equal(x.state.rows,small?5:6);
+ assert.equal(tiles.length,small?25:36);
+ assert.deepEqual(
+   {x:x.state.board.x,y:x.state.board.y,w:x.state.board.w,h:x.state.board.h},
+   small?{x:250,y:170,w:500,h:300}:{x:140,y:150,w:660,h:330},
+   'board is smaller, with the HUD fully above it'
+ );
+ assert.equal(x.state.tileW,small?100:110,'smaller tile width');
+ assert.equal(x.state.tileH,small?60:55,'smaller tile height');
  const counts={};for(const t of tiles)counts[t.fruitType]=(counts[t.fruitType]||0)+1;
- assert.equal(Object.keys(counts).length,small?4:5);
- for(const count of Object.values(counts))assert.equal(count,small?4:6);
+ assert.equal(Object.keys(counts).length,small?5:6);
+ for(const count of Object.values(counts))assert.equal(count,small?5:6);
  const groups=x.state.revealGroups;
- assert.ok(groups.length>= (small?4:8),'enough batches');
+ assert.ok(groups.length>= (small?7:9),'enough batches');
  for(const g of groups)assert.ok(g.length>=2&&g.length<=4,'each flip reveals 2–4 cards');
  assert.equal(new Set(groups.flat()).size,tiles.length,'all cards scheduled exactly once');
  assert.equal(groups.flat().length,tiles.length,'no repeated card before full coverage');
