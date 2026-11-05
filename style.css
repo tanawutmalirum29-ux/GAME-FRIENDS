@@ -3404,3 +3404,29 @@ body.controller-playing #controller #controllerActive #phoneGameChoices{
   }
 }
 
+
+
+/* COLOR SWITCH: both combat buttons are usable on the existing landscape controller. */
+#controller #controllerActive .controller-buttons.color-switch-mode .face-b,
+#controller #controllerActive .controller-buttons.color-switch-mode .face-a{display:block!important}
+#controller #controllerActive .controller-buttons.color-switch-mode .target-cycle-controls{display:none!important}
+#controller #controllerActive .controller-buttons.color-switch-mode #buttonA,
+#controller #controllerActive .controller-buttons.color-switch-mode #buttonB{
+  position:relative;isolation:isolate;overflow:hidden;
+}
+#controller #controllerActive .controller-buttons.color-switch-mode .face-button.cooldown-active::after{
+  content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from -90deg,#091a31a9 0deg,
+    #091a31a9 var(--cooldown-sweep,0deg),
+    transparent var(--cooldown-sweep,0deg),transparent 360deg);
+}
+#controller #controllerActive .controller-buttons.color-switch-mode .face-button .face-button-letter,
+#controller #controllerActive .controller-buttons.color-switch-mode .face-button .face-caption{
+  position:relative;z-index:1
+}
+#controller #controllerActive .controller-buttons.color-switch-mode #buttonB.color-boost-ready{
+  box-shadow:0 0 0 3px #ffdb69,0 0 22px #ffcc5caa!important;
+}
+#game .leader-chip.color-switch-leader .leader-role{color:#e8fd9c}
+#game .leader-chip.color-switch-leader .leader-item-slot{color:#fff2a4;min-width:10px}
+#phoneGameChoices .phone-game-choice[data-pick="color_switch"] .mode-cover-svg{display:block}

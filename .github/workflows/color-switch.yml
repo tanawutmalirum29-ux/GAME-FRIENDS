@@ -1,0 +1,25 @@
+name: COLOR SWITCH smoke and regression checks
+on:
+  push:
+    branches: [main, feat/color-switch-game-5]
+  pull_request:
+    branches: [main]
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          for source in app.js color-switch.js ghost-attack.js chickens.js fruit-memory.js shockwave.js; do
+            node --check "$source"
+          done
+      - name: Test COLOR SWITCH core rules and stress
+        run: node tests/color-switch.test.js
+      - name: Ensure fifth game is loaded by HTML
+        run: |
+          grep -q 'src="./color-switch.js"' index.html
+          grep -q 'data-pick="color_switch"' index.html

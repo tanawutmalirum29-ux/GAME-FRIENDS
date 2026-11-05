@@ -16,8 +16,9 @@ function pickUnusedColor(){
   lastAssignedColor = color;
   return color;
 }
-const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE'};
-const gameEngine=mode=>mode==='fruit_memory'?window.FruitMemory:mode==='chickens'?window.Chickens:mode==='shockwave'?window.Shockwave:window.GhostAttack;
+const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH'};
+const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch'};
+const gameEngine=mode=>Object.hasOwn(ENGINES,mode)?window[ENGINES[mode]]:null;
 
 const MODE_COVER_SVG={
  ghost:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true">
@@ -35,6 +36,7 @@ const MODE_COVER_SVG={
  ,fruit_memory:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#143955"/><g fill="#366b88" stroke="#c1dfea" stroke-width="2"><rect x="12" y="15" width="41" height="43" rx="4"/><rect x="59" y="15" width="42" height="43" rx="4"/><rect x="107" y="15" width="41" height="43" rx="4"/></g><circle cx="33" cy="37" r="14" fill="#f4506b"/><path d="M33 23c3-8 8-10 14-6" fill="none" stroke="#69c781" stroke-width="4"/><circle cx="80" cy="37" r="14" fill="#f9a03e"/><path d="M80 23c3-8 8-10 14-6" fill="none" stroke="#69c781" stroke-width="4"/><path d="M116 28q7 20 26 5-7 20-27 6Z" fill="#ffda63"/><text x="80" y="80" font-size="14" font-weight="900" text-anchor="middle" fill="#fff">FRUIT MEMORY</text></svg>'
  ,chickens:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#24664d"/><circle cx="80" cy="46" r="35" fill="#6aaa60"/><path d="M15 72 40 61v-18h17m46 0h17v18l25 11" fill="none" stroke="#e9ce90" stroke-width="5"/><path d="M67 50q-13-12 0-22t25 0q13 12 0 22z" fill="#fff4d2" stroke="#c39161" stroke-width="2"/><circle cx="87" cy="31" r="9" fill="#fff5de"/><path d="m94 33 10 4-10 4" fill="#ffce57"/><circle cx="89" cy="29" r="2" fill="#222"/><path d="M78 19q-2-8 5-6t6 9" fill="#ef585a"/><path d="M56 62v9m39-9v9" stroke="#e3b15c" stroke-width="3"/><text x="80" y="84" font-size="12" font-weight="900" text-anchor="middle" fill="#fff">CHICKENS</text></svg>'
  ,shockwave:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#10263c"/><g fill="#28778a" stroke="#a4eaf5" stroke-width="1.5"><path d="M12 23h41v27H12zM60 23h41v27H60zM108 23h40v27h-40zM12 55h41v26H12zM60 55h41v26H60z"/></g><path d="M108 55h40v26h-40z" fill="#df4855" stroke="#ffcd82" stroke-width="3"/><path d="m115 62 9 12-11 4m11-4 14-12" fill="none" stroke="#ffe0bb" stroke-width="3"/><circle cx="79" cy="9" r="7" fill="#ffdc9b"/><path d="M76 17h8l8 10-6 5-6-7-7 8-8-5z" fill="#ffe18a"/></svg>'
+ ,color_switch:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#3a754f"/><rect x="21" y="6" width="118" height="77" rx="6" fill="#6c4838" stroke="#edd49d" stroke-width="4"/><g stroke="#3e2c35" stroke-width="1.5"><path d="M22 25h116M22 44h116M22 63h116M45 7v75M68 7v75M91 7v75M114 7v75"/></g><path d="M24 9h19v14H24zM47 27h19v15H47zM70 46h19v15H70zM93 27h19v15H93zM116 65h20v15h-20z" fill="#4de4d1"/><path d="M70 9h19v14H70zM116 27h20v15h-20zM24 46h19v15H24zM93 65h19v15H93z" fill="#ff6b9c"/><rect x="96" y="12" width="17" height="15" rx="3" fill="#9e6ff7"/><path d="m104 14 2 4 5 1-4 3 1 4-4-2-4 2 1-4-3-3 5-1Z" fill="#ffe27c"/><circle cx="58" cy="53" r="7" fill="#ffeb79"/><path d="M54 48h8l2 13H52z" fill="#f8dfaa"/><text x="80" y="87" font-size="11" font-weight="900" text-anchor="middle" fill="#fff">COLOR SWITCH</text></svg>'
 };
 function gameCover(mode){
  const cover=document.createElement('span');
@@ -418,6 +420,12 @@ function sendPlayerInventory(conn){
       cooldown:Math.max(0,p.chickenAttackCooldown||0),
       carrying:p.carriedChickenId!=null});
     return;
+  }
+  if(round.mode==='color_switch'){
+    const cs=p.cs||{};
+    send(conn,{t:'color-status',mode:round.mode,phase:networkPhase(),score:p.score||0,
+      stun:cs.stunRemaining||0,cooldownA:cs.punchCooldown||0,
+      cooldownB:cs.blastCooldown||0,boost:!!cs.powerBoostReady});return;
   }
   if(round.mode==='shockwave'){
      send(conn,{t:'shockwave-status',mode:round.mode,phase:networkPhase(),eliminated:!p.shockAlive,wave:round.shockwave?.wave||0});return;
@@ -1003,6 +1011,20 @@ function joinRoom(recovery=false){
             controllerPlayerEliminated=!!data.eliminated;
             $('controllerState').textContent=data.eliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • WAVE '+data.wave;
           }
+        }else if(data.t==='color-status'){
+         if(controllerReady&&controllerGameMode==='color_switch'&&data.mode==='color_switch'){
+           const ca=Math.max(0,Math.min(1.1,Number(data.cooldownA)||0));
+           const cb=Math.max(0,Math.min(2.8,Number(data.cooldownB)||0));
+           for(const [button,seconds,max] of [[$('buttonA'),ca,1.1],[$('buttonB'),cb,2.8]]){
+             button.classList.toggle('cooldown-active',seconds>.03);
+             button.style.setProperty('--cooldown-sweep',Math.round(seconds/max*360)+'deg');
+           }
+           $('buttonBLabel').textContent=data.boost?'ระเบิด 4×4 ★':'ระเบิดสี';
+           $('buttonB').classList.toggle('color-boost-ready',!!data.boost);
+           $('buttonB').title=cb>.03?'รอ '+cb.toFixed(1)+' วิ':data.boost?'พร้อมระเบิด 4×4':'พร้อมระเบิด 3×3';
+           $('controllerState').textContent=data.stun>0?'สตั้น '+Number(data.stun).toFixed(1)+' วิ':
+             'พื้นที่ '+data.score+' ช่อง'+(data.boost?' • มีพลัง 4×4':'');
+         }
        }else if(data.t==='chicken-status'){
         if(controllerReady&&controllerPlayerActive&&controllerGameMode==='chickens'&&
           data.mode==='chickens'){
@@ -1016,7 +1038,7 @@ function joinRoom(recovery=false){
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
+          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
       }else if(data.t==='closed'){
         resetControllerForRoomChange('เจ้าของห้องปิดห้องแล้ว');
@@ -1076,14 +1098,19 @@ function showControllerMode(mode){
   const playing=controllerReady&&controllerPlayerActive&&
     ['countdown','playing','paused'].includes(controllerGamePhase);
   const ghost=playing&&mode==='ghost',chickens=playing&&mode==='chickens';
-  const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave';
-  const aLabel=ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':'';
+  const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave',colorSwitch=playing&&mode==='color_switch';
+  const aLabel=ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':colorSwitch?'ต่อย':'';
   const bLabel=ghost?($('controllerButtons').classList.contains('has-target')?
-    'ยืนยันสโลว์':'ใช้ไอเทม'):'';
+    'ยืนยันสโลว์':'ใช้ไอเทม'):colorSwitch?'ระเบิดสี':'';
   $('controllerButtons').classList.toggle('chickens-mode',chickens);
   $('controllerButtons').classList.toggle('fruit-memory-mode',fruit);
+  $('controllerButtons').classList.toggle('color-switch-mode',colorSwitch);
+  if(!colorSwitch){
+    $('buttonB').classList.remove('cooldown-active','color-boost-ready');
+    $('buttonB').style.removeProperty('--cooldown-sweep');$('buttonB').title='';
+  }
    $('controllerButtons').classList.toggle('shockwave-mode',shockwave);
-  if(!chickens&&!fruit){
+  if(!chickens&&!fruit&&!colorSwitch){
     $('buttonA').classList.remove('cooldown-active');
     $('buttonA').style.removeProperty('--cooldown-sweep');
     $('buttonA').title='';
@@ -1098,6 +1125,7 @@ function showControllerMode(mode){
     'ลากจากที่ว่างเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':
     chickens?'วิ่งชนไก่เพื่อจับ • เอาหัวไก่จุ่มในคอก 0.15 วิ • A ตีให้ไก่หล่น':
     fruit?'จำผลไม้แล้ววิ่งไปยังช่องที่ถูกต้อง • ดันกันได้ • A ต่อยให้สตั้น':
+    colorSwitch?'วิ่งทาสีชิงพื้นที่ • A ต่อยสตั้น • B ระเบิดสี 3×3 / 4×4':
      shockwave?'แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง':
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
 }
@@ -1255,7 +1283,10 @@ window.addEventListener('blur',()=>{
 });
 function startRound(forcedMode=null){
   if(!players.length)return;
-  const mode=Object.hasOwn(MODES,forcedMode)?forcedMode:'ghost';
+  if(forcedMode!==null&&!Object.hasOwn(MODES,forcedMode)){
+    showToast('ไม่รู้จักเกมที่เลือก: '+String(forcedMode));return;
+  }
+  const mode=forcedMode??'ghost';
   const engine=gameEngine(mode);
   if(!engine)throw Error(mode+' engine failed to load');
   $('results').classList.add('hidden');
@@ -1264,7 +1295,7 @@ function startRound(forcedMode=null){
   window.PartyPlayerAvatar.preload(players);
   engine.setup(round,players);
   $('results').querySelector('.eyebrow').textContent=MODES[mode];
-  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':'จับไก่ให้ได้มากที่สุด!';
+  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ครอบครองพื้นที่มากที่สุด!':'จับไก่ให้ได้มากที่สุด!';
   // Countdown and player count now live in the solid map-corner HUD.
   $('gameBanner').textContent='';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
@@ -1308,6 +1339,7 @@ function updateRound(dt){
 }
 function endRound(){
   if(!round||round.phase==='results')return;
+   if(round.mode==='color_switch'){endColorSwitchRound();return;}
   if(round.mode==='chickens'){endChickensRound();return;}
   if(round.mode==='fruit_memory'){endFruitMemoryRound();return;}
    if(round.mode==='shockwave'){endShockwaveRound();return;}
@@ -1385,6 +1417,50 @@ function endShockwaveRound(){
    overall.forEach((p,i)=>{
      const row=document.createElement('div');row.className='result-player';
      const name=document.createElement('div');name.textContent=(i+1)+'. '+p.name;name.style.color=p.color;
+     const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
+     row.append(name,score);list.append(row);
+   });
+   const joint=overall.filter(p=>p.total===overall[0].total);
+   const heading=document.createElement('div');heading.className='tournament-header';
+   heading.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
+   list.prepend(heading);
+ }
+ $('results').classList.remove('hidden');$('gameBanner').textContent='';
+ renderLeaderboard();
+}
+function endColorSwitchRound(){
+ const s=round.colorSwitch;
+ window.ColorSwitch.calculateFinalRanking(s,players);
+ round.phase='results';round.paused=false;resetInputs();broadcastRoster();
+ $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
+ const byId=new Map(s.ranking.map(r=>[r.id,r]));
+ const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
+ const winners=ranked.filter(p=>s.winnerIds.includes(p.id));
+ if(tournament){
+   ranked.forEach(p=>{
+     const position=byId.get(p.id)?.rank||ranked.length;
+     p.total=(p.total||0)+Math.max(1,ranked.length-position+1);
+   });
+   $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
+     'สุ่มชุดใหม่จากตัวเลือกเดิม':'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
+ }else $('replayBtn').textContent='เล่นอีกครั้ง';
+ round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
+ $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ!';
+ const list=$('resultList');list.replaceChildren();
+ ranked.forEach(p=>{
+   const row=document.createElement('div');row.className='result-player';
+   const name=document.createElement('div');name.style.color=p.color;
+   name.textContent=(s.winnerIds.includes(p.id)?'★ ':'')+(byId.get(p.id)?.rank||1)+'. '+p.name;
+   const score=document.createElement('span');
+   score.textContent=p.score+' ช่อง'+(tournament?' • รวม '+p.total+' คะแนน':'');
+   row.append(name,score);list.append(row);
+ });
+ if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
+   const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
+   list.replaceChildren();
+   overall.forEach(p=>{
+     const row=document.createElement('div');row.className='result-player';
+     const name=document.createElement('div');name.textContent=(1+overall.filter(q=>q.total>p.total).length)+'. '+p.name;name.style.color=p.color;
      const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
      row.append(name,score);list.append(row);
    });
@@ -1515,6 +1591,18 @@ function renderLeaderboard(){
       box.append(color,name,status,info);root.append(box);
     });return;
   }
+   if(round.mode==='color_switch'){
+     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
+       const box=document.createElement('div');box.className='leader-chip color-switch-leader';
+       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
+       const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' ช่อง';
+       const status=document.createElement('span');status.className='leader-item-slot';
+       status.textContent=p.cs?.powerBoostReady?'★':p.cs?.stunRemaining>0?'สตั้น':'';
+       box.append(color,name,score,status);root.append(box);
+     });return;
+   }
+
   if(round.mode==='chickens'){
     active.sort((a,b)=>b.score-a.score).forEach(p=>{
       const box=document.createElement('div');box.className='leader-chip chicken-leader';
