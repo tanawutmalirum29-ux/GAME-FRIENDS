@@ -338,6 +338,16 @@ function getHostVideoSource(quality,autoHeight){
   hostVideoSources.set(key,source);
   return source;
 }
+function releaseHostVideoSourcesWhenIdle(){
+  if(hostVideoCalls.size!==0)return;
+  // Stop captureStream tracks when no phone is watching.
+  for(const source of hostVideoSources.values()){
+    if(source.stream?.getTracks)source.stream.getTracks().forEach(track=>{
+      try{track.stop();}catch(_){}
+    });
+  }
+  hostVideoSources.clear();
+}
 function renderHostVideoFrames(){
   if(!round||hostVideoCalls.size===0)return;
   for(const source of hostVideoSources.values()){
@@ -349,6 +359,8 @@ function stopHostVideoCall(conn){
   const call=hostVideoCalls.get(conn);
   hostVideoCalls.delete(conn);
   if(call)try{call.close();}catch(_){}
+  conn.videoReady=false;
+  releaseHostVideoSourcesWhenIdle();
 }
 function stopAllHostVideoCalls(){
   for(const conn of [...hostVideoCalls.keys()])stopHostVideoCall(conn);
@@ -359,7 +371,7 @@ function stopAllHostVideoCalls(){
   hostVideoSources.clear();
 }
 function startHostVideoCall(conn){
-  if(!round||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId)return;
+  if(!round||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId||conn.previewEnabled!==true)return;
   stopHostVideoCall(conn);
   conn.videoReady=false;
   const quality=Object.hasOwn(VIDEO_QUALITY,conn.videoQuality)?conn.videoQuality:'medium';
@@ -369,14 +381,22 @@ function startHostVideoCall(conn){
     const call=hostPeer.call(conn.peer,source.stream,{metadata:{type:'game-video',quality}});
     if(!call)return;
     hostVideoCalls.set(conn,call);
-    call.on('close',()=>{if(hostVideoCalls.get(conn)===call)hostVideoCalls.delete(conn);});
-    call.on('error',()=>{if(hostVideoCalls.get(conn)===call)hostVideoCalls.delete(conn);});
+    call.on('close',()=>{
+      if(hostVideoCalls.get(conn)!==call)return;
+      hostVideoCalls.delete(conn);conn.videoReady=false;
+      releaseHostVideoSourcesWhenIdle();
+    });
+    call.on('error',()=>{
+      if(hostVideoCalls.get(conn)!==call)return;
+      hostVideoCalls.delete(conn);conn.videoReady=false;
+      releaseHostVideoSourcesWhenIdle();
+    });
   }catch(_){/* Fall back to the low-rate JPEG preview. */}
 }
 function broadcastGamePreview(){
   if(!round||!onlineHost||!remotePreviewContext||hostConnections.size===0)return;
   const active=[...hostConnections].filter(c=>
-    c.open&&c.playerId&&!c.videoReady&&
+    c.open&&c.playerId&&c.previewEnabled===true&&!c.videoReady&&
     (!c.dataChannel||c.dataChannel.bufferedAmount<65536));
   if(!active.length||typeof remotePreviewCanvas.toDataURL!=='function')return;
   try{
@@ -585,14 +605,18 @@ function startHost(retries=0,resumeCode=null){
           p.clientToken=token;
           if(round&&round.phase!=='results')p.active=false;
         }
-        conn.playerId=p.id;p.lastInputAt=Date.now();
+        conn.playerId=p.id;conn.previewEnabled=false;p.lastInputAt=Date.now();
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active});
         broadcastRoster();
       }else if(msg.t==='leave'&&conn.playerId){
         const id=conn.playerId;conn.playerId=null;
         removePlayer(id);
       }else if(msg.t==='video-ready'&&conn.playerId){
-        if(msg.quality===conn.videoQuality)conn.videoReady=true;
+        if(conn.previewEnabled===true&&msg.quality===conn.videoQuality)conn.videoReady=true;
+      }else if(msg.t==='preview-toggle'&&conn.playerId&&typeof msg.enabled==='boolean'){
+        conn.previewEnabled=msg.enabled;
+        if(msg.enabled){if(round)startHostVideoCall(conn);}
+        else stopHostVideoCall(conn);
       }else if(msg.t==='video-quality'&&conn.playerId){
         if(!Object.hasOwn(VIDEO_QUALITY,msg.quality))return;
         const autoHeight=msg.quality==='auto'?normalizeAutoHeight(msg.autoHeight):null;
@@ -600,7 +624,7 @@ function startHost(retries=0,resumeCode=null){
           (msg.quality==='auto'&&conn.videoAutoHeight!==autoHeight);
         conn.videoQuality=msg.quality;
         conn.videoAutoHeight=autoHeight;
-        if(round&&(changed||!hostVideoCalls.has(conn)))startHostVideoCall(conn);
+        if(round&&conn.previewEnabled===true&&(changed||!hostVideoCalls.has(conn)))startHostVideoCall(conn);
       }else if(msg.t==='pick'&&conn.playerId){
         if(round||currentView!=='hostLobby'||!Object.hasOwn(MODES,msg.mode))return;
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
