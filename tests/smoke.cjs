@@ -1168,8 +1168,10 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  assert.match(rows[0].children[0].textContent,/อันดับ 1/);
  assert.match(rows[1].children[0].textContent,/อันดับ 2 ร่วม/);
  assert.match(rows[2].children[0].textContent,/อันดับ 2 ร่วม/);
- assert.match(ui.elements.get('replayBtn').textContent,/^A เล่นอีกครั้ง/);
- assert.match(ui.elements.get('backBtn').textContent,/^B กลับล็อบบี้/);
+ assert.equal(ui.elements.get('replayBtn').dataset.action,'A');
+ assert.match(ui.elements.get('replayBtn').textContent,/^เล่นอีกครั้ง/);
+ assert.equal(ui.elements.get('backBtn').dataset.action,'B');
+ assert.equal(ui.elements.get('backBtn').textContent,'กลับล็อบบี้');
  // The engine's last-infected fallback winner must not break an exact tie.
  for(const p of three){p.ghost=true;p.infectedAt=6.2;p.score=62;}
  three[0].infectedAt=2.1;three[0].score=21;
@@ -1202,21 +1204,22 @@ function createVoteHost(){
  assert.equal(round.phase,'countdown');
  ui.scope.window.__ghostTest.endRound();
  assert.equal(round.phase,'results');
- assert.match(ui.elements.get('replayBtn').textContent,/^A เกมถัดไป/);
+ assert.equal(ui.elements.get('replayBtn').dataset.action,'A');
+ assert.match(ui.elements.get('replayBtn').textContent,/^เกมถัดไป/);
  assert.doesNotMatch(ui.elements.get('replayBtn').textContent,/เกมถัดไป \(\d+\/\d+\)/);
- assert.match(ui.elements.get('replayBtn').textContent,/0\/2$/);
- assert.match(ui.elements.get('backBtn').textContent,/0\/2$/);
+ assert.equal(ui.elements.get('replayBtn').dataset.votes,'0/2');
+ assert.equal(ui.elements.get('backBtn').dataset.votes,'0/2');
  return {ui,cons,round};
 }
 {
  const {ui,cons,round}=createVoteHost();
  cons[0].fire('data',{t:'result-vote',choice:'next'});
- assert.match(ui.elements.get('replayBtn').textContent,/1\/2$/);
- assert.match(ui.elements.get('backBtn').textContent,/0\/2$/);
+ assert.equal(ui.elements.get('replayBtn').dataset.votes,'1/2');
+ assert.equal(ui.elements.get('backBtn').dataset.votes,'0/2');
  cons[0].fire('data',{t:'result-vote',choice:'next'});
  assert.equal(round.resultVotes.next.size,1,'repeat presses do not duplicate votes');
  cons[1].fire('data',{t:'result-vote',choice:'lobby'});
- assert.match(ui.elements.get('backBtn').textContent,/1\/2$/);
+ assert.equal(ui.elements.get('backBtn').dataset.votes,'1/2');
  cons[0].fire('data',{t:'result-vote',choice:'lobby'});
  assert.equal(ui.scope.window.__ghostTest.getRound(),null,'unanimous B goes directly to lobby');
  assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false);
