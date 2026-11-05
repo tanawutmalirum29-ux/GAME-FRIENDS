@@ -7,7 +7,7 @@ const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
 // production code or relying on internal globals.
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
-  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,resultVoteSnapshot,castResultVote,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
+  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
@@ -765,7 +765,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
       addEventListener(name,fn){(handlers[name]??=[]).push(fn);},
       fire(name,extra={}){for(const fn of handlers[name]||[])fn({preventDefault(){},pointerId:1,...extra});},
       append(...items){this.children.push(...items);},
-      replaceChildren(...items){this.children=items;},
+      replaceChildren(...items){this.children=items;this.textContent='';this.innerHTML='';},
       prepend(item){this.children.unshift(item);},
       setAttribute(name,value){this.attributes??={};this.attributes[name]=value;if(name==='content')this.content=value;},
       select(){},scrollIntoView(){},setPointerCapture(){},matches(){return false;},
@@ -1202,9 +1202,9 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  assert.match(heading.textContent,/เสมอ/);
  const rows=ui.elements.get('resultList').children;
  assert.equal(rows.length,3);
- assert.ok(rows[0].children[0].textContent.startsWith('1.'));
- assert.ok(rows[1].children[0].textContent.startsWith('1.'));
- assert.ok(rows[2].children[0].textContent.startsWith('3.'));
+ assert.ok(rows[0].children[0].textContent.startsWith('อันดับ 1 •'));
+ assert.ok(rows[1].children[0].textContent.startsWith('อันดับ 1 •'));
+ assert.ok(rows[2].children[0].textContent.startsWith('อันดับ 3 •'));
  assert.match(rows[0].children[1].textContent,/อันดับร่วม/);
  assert.match(rows[1].children[1].textContent,/อันดับร่วม/);
  assert.match(rows[2].children[1].textContent,/ตกรอบ รอบ 1/);
@@ -1251,6 +1251,65 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  assert.match(simultaneous[2].children[0].textContent,/อันดับ 3/);
  assert.match(ui.elements.get('results').querySelector('h2').textContent,/เสมอ/);
 }
+// Display all 12 COLOR SWITCH ranks in a 4×3 grid on a wide host screen.
+// This detects the old min-height:0 / flex-basis:0 bug that hid the ENTIRE
+// resultList even though the engine correctly generated 12 score rows.
+{
+ const ui=setup();
+ ui.click('offlineBtn');
+ for(let i=0;i<10;i++)ui.click('addLocalBtn');
+ const people=ui.scope.window.__ghostTest.getPlayers();
+ assert.equal(people.length,12,'twelve bots occupy the match');
+ for(let i=0;i<4;i++)ui.click('cycleAllBotsBtn');
+ assert.ok(people.every(p=>p.choice==='color_switch'));
+ ui.scope.window.innerWidth=1473; // reference: landscape tablet host
+ ui.click('startBtn');
+ const round=ui.scope.window.__ghostTest.getRound();
+ assert.equal(round.mode,'color_switch');
+ const tiles=round.colorSwitch.tiles;
+ let tileIndex=0;
+ for(let rank=0;rank<12;rank++){
+   for(let n=0;n<12-rank;n++)tiles[tileIndex++].ownerId=people[rank].id;
+ }
+ ui.scope.window.__ghostTest.endColorSwitchRound();
+ const list=ui.elements.get('resultList');
+ const rows=list.children.filter(row=>row.className==='result-player');
+ assert.equal(rows.length,12,'all twelve result rows are present');
+ assert.equal(list.dataset.count,'12','grid counts the full roster');
+ assert.equal(list.dataset.cols,'4','tablet uses four columns');
+ assert.equal(list.style['--result-cols'],'4','four columns set on resultList');
+ assert.equal(list.style['--result-rows'],'3','twelve players fit in exactly three rows');
+ rows.forEach((row,i)=>{
+   assert.ok(row.children[0].textContent.startsWith('อันดับ '+(i+1)+' • '),
+     'each finishing position 1 through 12 is visible as a label');
+   assert.equal(row.dataset.rank,String(i+1),'each row exposes its competition rank');
+   assert.ok(row.children[1].textContent.includes('ช่อง'),'each row shows territory score');
+ });
+ assert.equal(rows[0].classList.contains('is-winner'),true,'first place is highlighted');
+ assert.equal(ui.elements.get('results').classList.contains('hidden'),false);
+ assert.match(ui.elements.get('replayBtn').textContent,/อีก 7 วิ/,
+   'ranking uses the existing next-game countdown');
+ // Same data must reflow to three and two columns without hiding anyone.
+ ui.scope.window.innerWidth=900;ui.scope.window.__ghostTest.layoutFinalResults();
+ assert.equal(list.style['--result-cols'],'3');
+ assert.equal(list.style['--result-rows'],'4');
+ ui.scope.window.innerWidth=390;ui.scope.window.__ghostTest.layoutFinalResults();
+ assert.equal(list.style['--result-cols'],'2');
+ assert.equal(list.style['--result-rows'],'6');
+ assert.equal(list.children.length,12,'mobile layout retains every player');
+ // Competition ties keep the same rank without discarding either player.
+ const s=round.colorSwitch;
+ for(const tile of s.tiles)if(tile.ownerId===people[1].id)tile.ownerId=people[0].id;
+ const tie=ui.scope.window.__ghostTest.getRound();
+ assert.equal(tie.phase,'results','the existing result phase remains intact');
+}
+assert.match(css,/#game \.result-card\{[\s\S]*?height:min\(86dvh,690px\)/,
+  'result card reserves a real nonzero height');
+assert.match(css,/#game #resultList\{[\s\S]*?height:100%/,
+  'result list stretches into the reserved grid row instead of collapsing');
+assert.match(css,/grid-template-columns:repeat\(var\(--result-cols,4\),minmax\(0,1fr\)\)/,
+  'responsive ranking grid supports four landscape columns');
+
 // Host counts ONLY the real joypads, rejects duplicate votes, lets players
 // switch preferences, and launches the chosen action at unanimity.
 function createVoteHost(){
