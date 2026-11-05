@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta id="viewportMeta" name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d1122">
-  <meta name="description" content="Stick Squad Party เกมปาร์ตี้ GHOST ATTACK, CHICKENS, FRUIT MEMORY, SHOCKWAVE และ COLOR SWITCH เล่นได้ 12 คน ผ่านมือถือเป็นจอย">
+  <meta name="description" content="Stick Squad Party เกมปาร์ตี้ GHOST ATTACK, CHICKENS, FRUIT MEMORY, SHOCKWAVE, COLOR SWITCH และ PIZZA TIME เล่นได้ 12 คน ผ่านมือถือเป็นจอย">
   <title>STICK SQUAD PARTY | GAME FRIENDS</title>
   <link rel="stylesheet" href="./style.css">
   <script defer src="./build-version.js"></script>
@@ -20,6 +20,7 @@
   <script defer src="./shockwave.js"></script>
   <script defer src="./color-switch-mayan.js"></script>
   <script defer src="./color-switch.js"></script>
+  <script defer src="./pizza-time.js"></script>
   <script defer src="./app.js"></script>
   <script defer src="./auto-update.js"></script>
 </head>
@@ -35,8 +36,8 @@
       <section class="hero">
         <div class="eyebrow">STICK SQUAD • PARTY ROOM</div>
         <h1>สร้างห้อง<br><em>แล้วให้เพื่อนเลือกเกม</em></h1>
-        <p>จอหลักสร้าง QR Code และจัดการแข่งขัน ผู้เล่นเลือกได้ 5 เกม รวม COLOR SWITCH ด้วยจอยมือถือ เกมผีเน้นเอาตัวรอด ส่วนเกมไก่เน้นไล่ต้อน จับ อุ้ม และฝากไก่เข้าคอกเพื่อทำคะแนน</p>
-        <div class="feature-tags"><span>สูงสุด 12 ผู้เล่น</span><span>GHOST ATTACK + CHICKENS + FRUIT MEMORY + SHOCKWAVE + COLOR SWITCH</span><span>สุ่มลำดับทุกตัวเลือก</span></div>
+        <p>จอหลักสร้าง QR Code และจัดการแข่งขัน ผู้เล่นเลือกได้ 6 เกม รวม COLOR SWITCH และ PIZZA TIME ด้วยจอยมือถือ เกมผีเน้นเอาตัวรอด ส่วนเกมไก่เน้นไล่ต้อน จับ อุ้ม และฝากไก่เข้าคอกเพื่อทำคะแนน</p>
+        <div class="feature-tags"><span>สูงสุด 12 ผู้เล่น</span><span>GHOST ATTACK + CHICKENS + FRUIT MEMORY + SHOCKWAVE + COLOR SWITCH + PIZZA TIME</span><span>สุ่มลำดับทุกตัวเลือก</span></div>
         <div class="button-group">
           <button id="hostBtn" class="btn btn-primary" type="button">สร้างห้อง + เปิดจอหลัก <span>↗</span></button>
           <button id="offlineBtn" class="btn btn-secondary" type="button">ทดลองเล่นด้วยคีย์บอร์ด</button>
@@ -69,7 +70,7 @@
         </section>
         <section class="lobby-player-panel">
           <div class="lobby-section-title"><h2>รายชื่อผู้เล่นและเกมที่เลือก</h2><span id="rosterCount" class="count">0/12</span><button id="cycleAllBotsBtn" type="button" class="bulk-bot-switch hidden" title="เปลี่ยนเกมที่บอททุกตัวเลือกพร้อมกัน" disabled>เปลี่ยนเกมทุกบอท</button></div>
-          <p class="lobby-hint">เกม GHOST ATTACK, CHICKENS, FRUIT MEMORY, SHOCKWAVE และ COLOR SWITCH • ทุกคนต้องเลือกก่อนเริ่ม • เลือกซ้ำเพื่อเล่นหลายรอบได้</p>
+          <p class="lobby-hint">เกม GHOST ATTACK, CHICKENS, FRUIT MEMORY, SHOCKWAVE, COLOR SWITCH และ PIZZA TIME • ทุกคนต้องเลือกก่อนเริ่ม • เลือกซ้ำเพื่อเล่นหลายรอบได้</p>
           <div id="roster" class="roster lobby-roster"><p class="empty">ยังไม่มีผู้เล่น • สแกน QR หรือเพิ่มบอท</p></div>
           <div id="hostQueue" class="host-queue hidden" aria-hidden="true"></div>
         </section>
@@ -156,6 +157,7 @@
                  <button type="button" data-pick="fruit_memory" class="phone-game-choice" aria-pressed="false">FRUIT MEMORY</button>
                  <button type="button" data-pick="shockwave" class="phone-game-choice" aria-pressed="false">SHOCKWAVE</button>
                 <button type="button" data-pick="color_switch" class="phone-game-choice" aria-pressed="false">COLOR SWITCH</button>
+                <button type="button" data-pick="pizza_time" class="phone-game-choice" aria-pressed="false">PIZZA TIME</button>
               </div>
               <small id="phoneChoiceStatus" class="phone-choice-status">มุมมองบน • ผู้เล่นเดินชนและดันกันได้ • เลือกเกมก่อนเริ่ม</small>
             </div>
