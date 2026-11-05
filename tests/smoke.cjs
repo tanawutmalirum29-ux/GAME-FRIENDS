@@ -45,7 +45,7 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH'\}/);
+assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
@@ -1105,9 +1105,11 @@ assert.equal(online.scope.document.fullscreenExits,0);
  bulk.click('cycleAllBotsBtn');
  assert.ok(local.every(p=>p.choice==='shockwave'));
  bulk.click('cycleAllBotsBtn');
- assert.ok(local.every(p=>p.choice==='color_switch'),'cycles through all five games');
+ assert.ok(local.every(p=>p.choice==='color_switch'),'cycles through first five games');
   bulk.click('cycleAllBotsBtn');
-  assert.ok(local.every(p=>p.choice==='ghost'),'fifth game wraps back to ghost');
+  assert.ok(local.every(p=>p.choice==='pizza_time'),'sixth game is PIZZA TIME');
+  bulk.click('cycleAllBotsBtn');
+  assert.ok(local.every(p=>p.choice==='ghost'),'sixth game wraps back to ghost');
  // Individual selection remains independent; bulk applies the NEXT
  // game of the first bot, synchronizing any mixed bot choices.
  const choice=bulk.elements.get('roster').children[0].children[3];
