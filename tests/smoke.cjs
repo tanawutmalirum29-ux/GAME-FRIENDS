@@ -1350,14 +1350,14 @@ assert.equal(phone.elements.get('buttonBLabel').textContent,'ล็อบบี�
 phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป'});
 assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป 1/2');
 assert.equal(phone.elements.get('buttonBLabel').textContent,'ล็อบบี้ 0/2');
-phone.elements.get('buttonA').fire('pointerdown');
+phone.padButtons.action.fire('pointerdown');
 assert.equal(phoneConn.sent.filter(m=>m.t==='result-vote').at(-1).choice,'next',
  'A joypad press votes to advance');
-phone.elements.get('buttonA').fire('pointerup');
-phone.elements.get('buttonB').fire('pointerdown');
+phone.padButtons.action.fire('pointerup');
+phone.padButtons.alt.fire('pointerdown');
 assert.equal(phoneConn.sent.filter(m=>m.t==='result-vote').at(-1).choice,'lobby',
  'B joypad press votes to return to lobby');
-phone.elements.get('buttonB').fire('pointerup');
+phone.padButtons.alt.fire('pointerup');
 phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'slow',
  ghost:false,selecting:true,targetId:'p2',targetName:'Friend'});
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
