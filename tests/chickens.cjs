@@ -6,6 +6,7 @@ const engineSource=fs.readFileSync('chickens.js','utf8');
 const host=vm.createContext({window:{}});
 vm.runInContext(fs.readFileSync('arena-art.js','utf8'),host,{filename:'arena-art.js'});
 vm.runInContext(fs.readFileSync('player-avatar.js','utf8'),host,{filename:'player-avatar.js'});
+vm.runInContext(fs.readFileSync('character-system.js','utf8'),host,{filename:'character-system.js'});
 vm.runInContext(engineSource,host,{filename:'chickens.js'});
 const chickens=host.window.Chickens;
 assert.ok(chickens,'CHICKENS engine is exported');
