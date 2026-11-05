@@ -20,6 +20,7 @@ jobs:
           node --check chickens.js
           node --check fruit-memory.js
           node --check shockwave.js
+          node --check color-switch-mayan.js
           node --check color-switch.js
           node --check tests/color-switch.test.js
           node --check tests/avatar-topdown.cjs
