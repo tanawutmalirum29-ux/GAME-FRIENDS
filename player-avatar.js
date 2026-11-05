@@ -1,65 +1,75 @@
-/* Shared SVG avatar for every human player in GAME-FRIENDS.
-   Role-specific supernatural NPC / ghost skins can still use themed art. */
+/* Shared top-down SVG avatar for every playable human in GAME-FRIENDS.
+   The visual center and collision/footprint center are always p.x, p.y. */
 (() => {
 'use strict';
-const TAU=Math.PI*2;
-const cache=new Map();
-const safeColor=value=>/^#[0-9a-f]{6}$/i.test(value||'')?value:'#8bd9ec';
+const TAU=Math.PI*2,cache=new Map();
+const safeColor=v=>/^#[0-9a-f]{6}$/i.test(String(v||''))?String(v):'#8bd9ec';
+const poseKey=v=>['idle','walk','hold','attack'].includes(v)?v:'idle';
 function svgFor(color,pose='idle'){
- const body=safeColor(color);
- const holding=pose==='hold',attacking=pose==='attack';
- const arms=holding?'<path d="M21 39 11 29 15 22M43 39 53 29 49 22"/>':
-   attacking?'<path d="M21 38 7 32 4 23M43 38 56 34"/>':
-   '<path d="M22 40 13 49M42 40 51 49"/>';
- return '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="74" viewBox="0 0 64 74">'+
-  '<ellipse cx="32" cy="61" rx="21" ry="7" fill="#061521" opacity=".28"/>'+
-  '<g stroke="#11253a" stroke-width="6" stroke-linecap="round" fill="none">'+
-  '<path d="M25 44 23 62M39 44 41 62"/>'+arms+'</g>'+
-  '<circle cx="32" cy="36" r="19" fill="'+body+'" stroke="#11243b" stroke-width="3.5"/>'+
-  '<ellipse cx="25" cy="30" rx="3.4" ry="3.8" fill="#fff"/>'+
-  '<ellipse cx="39" cy="30" rx="3.4" ry="3.8" fill="#fff"/>'+
-  '<path d="M24 47 Q32 52 40 47" fill="none" stroke="#122b40" stroke-width="1.5" opacity=".24"/>'+
-  '</svg>';
+ const body=safeColor(color),action=poseKey(pose);
+ const left=action==='hold'?[19,16]:action==='attack'?[18,27]:[16,34];
+ const right=action==='hold'?[45,16]:action==='attack'?[45,10]:[48,34];
+ const shoes=action==='walk'?'<ellipse cx="24" cy="50" rx="5" ry="8"/><ellipse cx="41" cy="46" rx="5" ry="8"/>':
+   '<ellipse cx="25" cy="49" rx="5" ry="7"/><ellipse cx="39" cy="49" rx="5" ry="7"/>';
+ return '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" data-view="top-down" data-pose="'+action+'">'+
+  '<g stroke="#12243b" stroke-width="2.7" stroke-linejoin="round">'+
+  '<g fill="#213b50">'+shoes+'</g>'+
+  '<ellipse cx="32" cy="35" rx="18" ry="16" fill="'+body+'"/>'+
+  '<path d="M24 35 Q19 33 '+left[0]+' '+left[1]+' M40 35 Q45 33 '+right[0]+' '+right[1]+'" fill="none" stroke="'+body+'" stroke-width="8" stroke-linecap="round"/>'+
+  '<circle cx="'+left[0]+'" cy="'+left[1]+'" r="5" fill="'+body+'"/>'+
+  '<circle cx="'+right[0]+'" cy="'+right[1]+'" r="5" fill="'+body+'"/>'+
+  '<circle cx="32" cy="27" r="14" fill="'+body+'"/>'+
+  '<path d="M23 23 Q30 14 39 22" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity=".62" fill="none"/>'+
+  '<ellipse cx="32" cy="27" rx="10" ry="11" fill="#ffffff" opacity=".08" stroke="none"/>'+
+  '</g></svg>';
 }
 function imageFor(color,pose='idle'){
- const key=safeColor(color)+'/'+pose;
+ const key=safeColor(color)+'/'+poseKey(pose);
  if(cache.has(key))return cache.get(key);
  if(typeof Image==='undefined')return null;
- const img=new Image();
- img.decoding='async';
+ const img=new Image();img.decoding='async';
  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgFor(color,pose));
  cache.set(key,img);return img;
 }
-function drawFallback(ctx,color,pose){
- ctx.strokeStyle='#11253a';ctx.lineWidth=5;ctx.lineCap='round';
- ctx.beginPath();ctx.moveTo(-7,7);ctx.lineTo(-9,23);
- ctx.moveTo(7,7);ctx.lineTo(9,23);
- ctx.moveTo(-11,2);ctx.lineTo(-19,12);ctx.moveTo(11,2);ctx.lineTo(19,12);ctx.stroke();
- ctx.fillStyle=safeColor(color);ctx.strokeStyle='#11243b';ctx.lineWidth=3;
- ctx.beginPath();ctx.arc(0,0,18,0,TAU);ctx.fill();ctx.stroke();
- ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-7,-5,3.2,0,TAU);
- ctx.arc(7,-5,3.2,0,TAU);ctx.fill();
+function drawFallback(ctx,color){
+ ctx.lineWidth=2.5;ctx.strokeStyle='#12243b';
+ ctx.fillStyle='#203a50';
+ for(const sx of [-8,8]){
+   ctx.beginPath();ctx.ellipse(sx,14,4.5,6,0,0,TAU);ctx.fill();ctx.stroke();
+ }
+ ctx.fillStyle=safeColor(color);ctx.beginPath();ctx.ellipse(0,3,17,15,0,0,TAU);ctx.fill();ctx.stroke();
+ ctx.beginPath();ctx.arc(-16,2,5,0,TAU);ctx.arc(16,2,5,0,TAU);ctx.fill();ctx.stroke();
+ ctx.beginPath();ctx.arc(0,-5,13,0,TAU);ctx.fill();ctx.stroke();
+ ctx.strokeStyle='#ffffff99';ctx.lineWidth=2.5;ctx.beginPath();
+ ctx.arc(-2,-8,8,Math.PI*1.16,Math.PI*1.85);ctx.stroke();
+}
+function heading(p){
+ const d=p.dir||{x:0,y:-1},x=Number(d.x),y=Number(d.y);
+ if(!Number.isFinite(x)||!Number.isFinite(y)||Math.hypot(x,y)<.001)return 0;
+ return Math.atan2(y,x)+Math.PI/2;
 }
 function draw(ctx,p,opts={}){
- const x=opts.local?0:(p.x||0),y=opts.local?0:(p.y||0);
- const speed=Math.hypot(p.vx||0,p.vy||0),t=opts.time||0;
- const stride=speed>15?Math.abs(Math.sin(t*11))*1.3:0;
- const footLift=opts.footAnchor?20:0; // Align SVG feet with logical p.x,p.y.
- const pose=opts.holding?'hold':opts.attacking?'attack':'idle';
- const color=opts.color||p.color;
- ctx.save();ctx.translate(x,y-stride-footLift);
- ctx.globalAlpha*=opts.alpha===undefined?1:opts.alpha;
- const scale=opts.scale===undefined?1:opts.scale;ctx.scale(scale,scale);
- ctx.fillStyle='#06142266';ctx.beginPath();ctx.ellipse(1,15,16,5,0,0,TAU);ctx.fill();
+ const x=opts.local?0:(p.x||0),y=opts.local?0:(p.y||0),t=opts.time||0;
+ const moving=Math.hypot(p.vx||0,p.vy||0)>15;
+ const pose=opts.holding?'hold':opts.attacking?'attack':moving&&Math.sin(t*12)>0?'walk':'idle';
+ const color=opts.color||p.color,scale=opts.scale===undefined?1:opts.scale;
+ ctx.save();ctx.translate(x,y);
+ ctx.globalAlpha=(typeof ctx.globalAlpha==='number'?ctx.globalAlpha:1)*
+   (opts.alpha===undefined?1:opts.alpha);
+ ctx.scale(scale,scale);
+ // Ground shadow is concentric with the physics contact origin.
+ ctx.fillStyle='#06142270';ctx.beginPath();ctx.ellipse(0,0,17,14,0,0,TAU);ctx.fill();
+ ctx.save();ctx.rotate(heading(p));
  const img=imageFor(color,pose);
- if(img&&img.complete&&img.naturalWidth)ctx.drawImage(img,-27,-32,54,62);
- else drawFallback(ctx,color,pose);
+ if(img&&img.complete&&img.naturalWidth)ctx.drawImage(img,-26,-26,52,52);
+ else drawFallback(ctx,color);
+ ctx.restore();ctx.restore();
  if(opts.label!==false){
-   ctx.font='bold 12px sans-serif';ctx.textAlign='center';
-   ctx.lineWidth=3;ctx.strokeStyle='#061627';ctx.strokeText(p.name||'',0,-34);
-   ctx.fillStyle='#fff';ctx.fillText(p.name||'',0,-34);
+   // Text remains horizontal when the player rotates.
+   ctx.save();ctx.font='bold 12px sans-serif';ctx.textAlign='center';
+   ctx.lineWidth=3;ctx.strokeStyle='#061627';ctx.strokeText(p.name||'',x,y-30);
+   ctx.fillStyle='#fff';ctx.fillText(p.name||'',x,y-30);ctx.restore();
  }
- ctx.restore();
 }
-window.PartyPlayerAvatar=Object.freeze({draw,imageFor,svgFor});
+window.PartyPlayerAvatar=Object.freeze({draw,imageFor,svgFor,heading});
 })();
