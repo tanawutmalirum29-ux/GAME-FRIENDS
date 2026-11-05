@@ -3,14 +3,14 @@
 'use strict';
 const TAU=Math.PI*2, STEP=1/60;
 const INGREDIENTS=Object.freeze([
- {id:'tomato',name:'มะเขือเทศ',icon:'🍅',color:'#ec4c42'},
- {id:'cheese',name:'ชีส',icon:'🧀',color:'#f5c545'},
- {id:'mushroom',name:'เห็ด',icon:'🍄',color:'#dec7aa'},
- {id:'pepperoni',name:'เปปเปอโรนี',icon:'🥓',color:'#ca6052'},
- {id:'pepper',name:'พริกหวาน',icon:'🫑',color:'#58bd70'},
- {id:'onion',name:'หัวหอม',icon:'🧅',color:'#d8aaef'},
- {id:'pineapple',name:'สับปะรด',icon:'🍍',color:'#efdb60'},
- {id:'basil',name:'ใบโหระพา',icon:'🌿',color:'#4fbf6d'}
+ {id:'tomato',name:'มะเขือเทศ',color:'#ec4c42'},
+ {id:'cheese',name:'ชีส',color:'#f5c545'},
+ {id:'mushroom',name:'เห็ด',color:'#dec7aa'},
+ {id:'pepperoni',name:'เปปเปอโรนี',color:'#ca6052'},
+ {id:'pepper',name:'พริกหวาน',color:'#58bd70'},
+ {id:'onion',name:'หัวหอม',color:'#d8aaef'},
+ {id:'pineapple',name:'สับปะรด',color:'#efdb60'},
+ {id:'basil',name:'ใบโหระพา',color:'#4fbf6d'}
 ]);
 const byId=Object.fromEntries(INGREDIENTS.map(x=>[x.id,x]));
 const bound=(x,a,b)=>Math.max(a,Math.min(b,x));
@@ -255,7 +255,7 @@ function setup(round,ps){
    pairs:[],pathCostCache:new Map(),lastIngredient:new Map(),targetDistance:0,
    firstSpread:0,ranking:[],winnerIds:[],effects:[]};
  round.pizzaTime=s;round.remaining=60;
- tableLayout(s);stationLayout(s,people);grid(s);
+ tableLayout(s);stationLayout(s,people);grid(s);planOrderCards(s);
  s.pairs=makePairs(s);
  people.forEach(p=>{
    const chef=s.chefById.get(p.id);
@@ -381,37 +381,71 @@ function playerStatus(p){
  return {id:p.id,mode:'pizza_time',chefId:x.chefId,order:[...x.order],delivered:[...x.delivered],
   held:x.held,score:p.score||0};
 }
+// All on-field ingredient illustrations use the same original SVG assets as
+// the HUD. No fonts/emoji/Canvas approximation for ingredients.
 function drawIngredient(ctx,id,x,y,size=19){
- const item=byId[id];if(!item)return;
- ctx.save();ctx.translate(x,y);const k=size/19;ctx.scale(k,k);
- ctx.shadowColor='#39231c77';ctx.shadowBlur=3;ctx.shadowOffsetY=2;
- if(id==='cheese'){
-  ctx.fillStyle='#f6cd54';ctx.beginPath();ctx.moveTo(-16,11);ctx.lineTo(5,-15);ctx.lineTo(16,12);ctx.closePath();ctx.fill();
-  ctx.fillStyle='#e4a93c';for(const [a,b] of [[1,3],[-5,7],[8,9]]){ctx.beginPath();ctx.arc(a,b,2.5,0,TAU);ctx.fill();}
- }else if(id==='tomato'){
-  ctx.fillStyle='#e73e35';ctx.beginPath();ctx.arc(0,2,14,0,TAU);ctx.fill();
-  ctx.fillStyle='#67ba45';for(let i=0;i<5;i++){ctx.save();ctx.rotate(i*TAU/5);ctx.beginPath();ctx.moveTo(0,-2);ctx.lineTo(-4,-13);ctx.lineTo(4,-12);ctx.fill();ctx.restore();}
- }else if(id==='mushroom'){
-  ctx.fillStyle='#f6dfb2';ctx.fillRect(-5,-1,10,15);ctx.beginPath();ctx.arc(0,-3,14,Math.PI,0);ctx.fill();
-  ctx.fillStyle='#9b6f65';ctx.beginPath();ctx.ellipse(0,-4,14,7,0,Math.PI,TAU);ctx.fill();
- }else if(id==='pepperoni'){
-  ctx.fillStyle='#b44036';ctx.beginPath();ctx.arc(0,0,14,0,TAU);ctx.fill();
-  ctx.fillStyle='#f49c75';for(const [a,b] of [[-5,-5],[5,-2],[1,7],[-8,6]]){ctx.beginPath();ctx.arc(a,b,2.8,0,TAU);ctx.fill();}
- }else if(id==='pepper'){
-  ctx.fillStyle='#56b966';ctx.beginPath();ctx.ellipse(-4,3,8,13,-.3,0,TAU);ctx.ellipse(5,3,8,13,.3,0,TAU);ctx.fill();
-  ctx.strokeStyle='#2d7b42';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(4,-15);ctx.stroke();
- }else if(id==='onion'){
-  ctx.fillStyle='#d7a4e6';ctx.beginPath();ctx.ellipse(0,1,12,15,0,0,TAU);ctx.fill();
-  ctx.strokeStyle='#a076bb';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,1,7,10,0,0,TAU);ctx.stroke();
- }else if(id==='pineapple'){
-  ctx.fillStyle='#ecce4f';ctx.beginPath();ctx.ellipse(0,3,10,13,0,0,TAU);ctx.fill();
-  ctx.strokeStyle='#b58f33';ctx.lineWidth=1.5;for(let i=-8;i<12;i+=7){ctx.beginPath();ctx.moveTo(-8,i);ctx.lineTo(8,i+6);ctx.stroke();}
-  ctx.strokeStyle='#427d3a';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(-7,-17);ctx.moveTo(0,-10);ctx.lineTo(8,-18);ctx.stroke();
- }else{
-  ctx.fillStyle='#46b96d';ctx.beginPath();ctx.ellipse(-6,-2,7,14,-.5,0,TAU);ctx.ellipse(6,-2,7,14,.5,0,TAU);ctx.fill();
-  ctx.strokeStyle='#337c4a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,13);ctx.lineTo(0,-12);ctx.stroke();
+ return window.PizzaIngredientArt.draw(ctx,id,x,y,size);
+}
+function rectanglesOverlap(a,b,margin=0){
+ return a.x<b.x+b.w+margin&&a.x+a.w+margin>b.x&&
+   a.y<b.y+b.h+margin&&a.y+a.h+margin>b.y;
+}
+function planOrderCards(s){
+ const width=s.players>=10?118:s.players>=5?128:138, height=45;
+ const border=8,room=s.world;
+ const chefZones=s.chefs.map(c=>({
+   x:c.x-65,y:c.y-49,w:130,h:105
+ }));
+ const spawnZones=s.chefs.map(c=>({
+   x:c.spawn.x-26,y:c.spawn.y-26,w:52,h:52
+ }));
+ const placed=[];
+ s.orderCards=new Map();
+ for(let i=0;i<s.chefs.length;i++){
+  const chef=s.chefs[i],x=chef.x,y=chef.y;
+  const above={x:x-width/2,y:y-height-61,w:width,h:height};
+  const below={x:x-width/2,y:y+62,w:width,h:height};
+  const sideRight={x:x+75,y:y-height/2,w:width,h:height};
+  const sideLeft={x:x-width-75,y:y-height/2,w:width,h:height};
+  const diagonalRight={x:x+68,y:y-height-60,w:width,h:height};
+  const diagonalLeft={x:x-width-68,y:y-height-60,w:width,h:height};
+  const diagonalBottomRight={x:x+68,y:y+62,w:width,h:height};
+  const diagonalBottomLeft={x:x-width-68,y:y+62,w:width,h:height};
+  const top=x=>x; // candidate positions are evaluated, never clamped through a chef
+  const preferred=y<room.h/2?
+   [above,sideRight,sideLeft,diagonalRight,diagonalLeft,below,diagonalBottomRight,diagonalBottomLeft]:
+   [below,sideRight,sideLeft,diagonalBottomRight,diagonalBottomLeft,above,diagonalRight,diagonalLeft];
+  let best=null,bestScore=Infinity;
+  for(const [order,c] of preferred.entries()){
+   if(c.x<border||c.y<border||c.x+c.w>room.w-border||c.y+c.h>room.h-border)continue;
+   const touchesChef=chefZones.some(z=>rectanglesOverlap(c,z,5));
+   if(touchesChef)continue;
+   const overlapsCard=placed.some(z=>rectanglesOverlap(c,z,5));
+   if(overlapsCard)continue;
+   const touchesSpawn=spawnZones.some(z=>rectanglesOverlap(c,z,5));
+   const score=order*10+(touchesSpawn?200:0);
+   if(score<bestScore){best=c;bestScore=score;}
+  }
+  // Last resort for tightly-packed 12-player maps: select smallest available
+  // rectangle, still preferring cards completely away from chef bodies.
+  if(!best){
+   let candidates=[];
+   for(const yPos of [8,room.h-height-8,Math.max(8,y-112),Math.min(room.h-height-8,y+75)]){
+    for(let xPos=10;xPos<=room.w-width-10;xPos+=Math.max(20,width/3)){
+     const c={x:xPos,y:yPos,w:width,h:height};
+     let penalty=chefZones.filter(z=>rectanglesOverlap(c,z,3)).length*100000+
+       placed.filter(z=>rectanglesOverlap(c,z,2)).length*50000+
+       spawnZones.filter(z=>rectanglesOverlap(c,z,2)).length*400;
+     penalty+=Math.hypot(c.x+c.w/2-chef.x,c.y+c.h/2-chef.y)/100;
+     candidates.push({c,penalty});
+    }
+   }
+   candidates.sort((a,b)=>a.penalty-b.penalty);
+   best=candidates[0]?.c||{x:10,y:8,w:width,h:height};
+  }
+  placed.push(best);s.orderCards.set(chef.ownerId,best);
  }
- ctx.restore();
+ return s.orderCards;
 }
 function rounded(ctx,x,y,w,h,r=9){
  r=Math.min(Math.max(0,r),w/2,h/2);
@@ -447,22 +481,23 @@ function drawChef(ctx,chef,player){
  ctx.fillStyle='#fff9ed';ctx.font='bold 12px system-ui';ctx.textAlign='center';
  ctx.fillText((player?.name||'ผู้เล่น').slice(0,10),p.x,p.y+45);
 }
-function orderBubble(ctx,chef,player,worldWidth){
+function orderBubble(ctx,chef,player,s){
  if(!player?.pizza)return;
- const q=player.pizza,ids=q.order;
- const x=chef.bubbleX,y=chef.bubbleY;
- // Place order cards horizontally next to their own chefs. Clamp into the world.
- const left=bound(x-59,29,worldWidth-145);
- ctx.fillStyle='#ffffffed';rounded(ctx,left,y-24,144,47,18);ctx.fill();
+ const c=s.orderCards?.get(chef.ownerId);
+ if(!c)return;
+ const q=player.pizza;
+ ctx.fillStyle='#fffaf2f5';rounded(ctx,c.x,c.y,c.w,c.h,13);ctx.fill();
  ctx.strokeStyle=chef.color;ctx.lineWidth=2;ctx.stroke();
- ctx.fillStyle='#263343';ctx.font='bold 11px system-ui';ctx.textAlign='left';
- ctx.fillText('ออร์เดอร์ '+(q.delivered.length||0)+'/2',left+10,y-8);
- ids.forEach((id,i)=>{
-   drawIngredient(ctx,id,left+41+i*57,y+8,12);
+ ctx.fillStyle='#334054';ctx.font='bold 11px system-ui';ctx.textAlign='left';
+ ctx.fillText('ออร์เดอร์ '+(q.delivered.length||0)+'/2',c.x+8,c.y+13);
+ const firstX=c.x+c.w*.31,secondX=c.x+c.w*.70,y=c.y+30;
+ q.order.forEach((id,i)=>{
+   const cx=i===0?firstX:secondX;
+   drawIngredient(ctx,id,cx,y,12);
    if(q.delivered.includes(id)){
-     ctx.lineWidth=3;ctx.strokeStyle='#2ea867';
-     ctx.beginPath();ctx.moveTo(left+27+i*57,y+8);
-     ctx.lineTo(left+37+i*57,y+16);ctx.lineTo(left+52+i*57,y-2);ctx.stroke();
+     ctx.fillStyle='#28aa6b';ctx.beginPath();ctx.arc(cx+13,y-10,8,0,TAU);ctx.fill();
+     ctx.strokeStyle='#fff';ctx.lineWidth=2.5;ctx.beginPath();
+     ctx.moveTo(cx+9,y-10);ctx.lineTo(cx+12,y-7);ctx.lineTo(cx+17,y-13);ctx.stroke();
    }
  });
 }
@@ -512,7 +547,7 @@ function scene(ctx,s){
    drawChef(ctx,chef,s.roster.find(p=>p.id===chef.ownerId));
  }
  for(const chef of s.chefs){
-   orderBubble(ctx,chef,s.roster.find(p=>p.id===chef.ownerId),w);
+   orderBubble(ctx,chef,s.roster.find(p=>p.id===chef.ownerId),s);
  }
 }
 function draw(ctx,time,round,ps){
@@ -541,5 +576,6 @@ function draw(ctx,time,round,ps){
  ctx.restore();
 }
 window.PizzaTime=Object.freeze({setup,update,draw,hud,playerStatus,drawIngredient,
-  worldSize,tableCount,pairCost,aStar,fairnessCandidates,ingredients:INGREDIENTS});
+  worldSize,tableCount,pairCost,aStar,fairnessCandidates,ingredients:INGREDIENTS,
+  planOrderCards,rectanglesOverlap});
 })();
