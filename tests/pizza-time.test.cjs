@@ -8,8 +8,17 @@ const vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'..','pizza-time.js'),'utf8');
 const sandbox={window:{},Date,Math,Uint8Array,Float64Array,Int32Array};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','character-system.js'),'utf8'),sandbox,{filename:'character-system.js'});
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','pizza-ingredient-art.js'),'utf8'),sandbox,{filename:'pizza-ingredient-art.js'});
 vm.runInNewContext(source,sandbox,{filename:'pizza-time.js'});
 const G=sandbox.window.PizzaTime;
+const art=sandbox.window.PizzaIngredientArt;
+assert.ok(art&&art.ids.length===8,'original SVG icons must be registered for all ingredients');
+for(const id of art.ids){
+ const markup=art.svg(id);
+ assert.match(markup,/<svg[^>]+viewBox=/);
+ assert.doesNotMatch(markup,/[\u{1F300}-\u{1FAFF}]/u,'SVG artwork must not contain emoji');
+}
+
 assert.ok(G&&G.setup&&G.update&&G.draw&&G.hud);
 const make=(n,bot=false)=>Array.from({length:n},(_,i)=>({
  id:'p'+(i+1),name:'P'+(i+1),type:bot?'local':'remote',active:false,isBot:bot,input:{axisX:0,axisY:0},
@@ -26,6 +35,16 @@ function assertState(x,n){
  assert.equal(x.s.worktops.length,G.tableCount(n));
  assert.equal(x.s.tables.length,x.s.worktops.length*2);
  assert.equal(x.s.chefs.length,n);
+ assert.equal(x.s.orderCards.size,n,'one order bubble for each private chef');
+ const all=[...x.s.orderCards.values()];
+ const zones=x.s.chefs.map(c=>({x:c.x-65,y:c.y-49,w:130,h:105}));
+ for(const [i,bubble] of all.entries()){
+   assert.ok(zones.every(z=>!G.rectanglesOverlap(bubble,z,5)),
+     'order bubble must not cover a chef');
+   assert.ok(all.slice(i+1).every(z=>!G.rectanglesOverlap(bubble,z,5)),
+     'order bubbles must not overlap each other');
+ }
+
  assert.equal(x.s.roster.filter(p=>p.isBot).length,x.ps.filter(p=>p.isBot).length);
  assert.equal(new Set(x.s.chefs.map(c=>c.ownerId)).size,n);
  for(const top of x.s.worktops){
