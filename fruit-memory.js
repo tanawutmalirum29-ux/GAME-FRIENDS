@@ -52,6 +52,7 @@ function tileAt(state,x,y){
 function tileRect(state,t){return {x:state.board.x+t.column*state.tileW,y:state.board.y+t.row*state.tileH,w:state.tileW,h:state.tileH};}
 function setPhase(state,phase){state.phase=phase;state.elapsed=0;}
 function newMemorize(state,players,entrants){
+ state.memorizeSeconds=state.big?28:20;
  state.tiles=generateGrid(state.startCount);
  state.revealedTileIds=new Set();state.revealGroups=buildRevealSchedule(state.tiles,state.big?3:2);
  state.groupSeconds=state.big?2.3:1.8;
@@ -101,7 +102,9 @@ function chooseTargetFruit(state){
 function botVector(p,state){
  if(state.phase!=='move'||!state.target)return {x:0,y:0};
  if(!state.botTargets[p.id]){
-   const options=state.tiles.filter(t=>t.fruitType===state.target);
+   // Bots remember most tiles but can misremember, so bot-only matches can conclude.
+   const mistake=state.startCount>1&&Math.random()<.24;
+   const options=state.tiles.filter(t=>mistake?t.fruitType!==state.target:t.fruitType===state.target);
    const sorted=options.map(t=>({t,x:tileRect(state,t).x+state.tileW*.5,
      y:tileRect(state,t).y+state.tileH*.5})).sort((a,b)=>
      Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y));
@@ -262,7 +265,8 @@ function step(state,players,dt){
  // A disconnect must not block victory forever.
  if(state.phase==='memorize'||state.phase==='move'){
    const remaining=living(players);
-   if(remaining.length===1&&players.length!==1&&state.rounds>0){
+   if(remaining.length===0){state.winnerId=null;state.finished=true;}
+   else if(remaining.length===1&&state.startCount>1&&state.rounds>0){
      state.winnerId=remaining[0].id;state.finished=true;
    }
  }

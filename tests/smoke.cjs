@@ -1017,7 +1017,10 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,2);
+assert.equal(phone.pickButtons.length,3);
+assert.equal(phone.pickButtons[2].dataset.pick,'fruit_memory');
+assert.match(phone.pickButtons[2].children[0].innerHTML,/<svg[\s>]/);
+assert.equal(phone.pickButtons[2].children[1].textContent,'FRUIT MEMORY');
 assert.equal(phone.pickButtons[1].dataset.pick,'chickens');
 assert.match(phone.pickButtons[1].children[0].innerHTML,/<svg[\s>]/);
 assert.equal(phone.pickButtons[1].children[1].textContent,'CHICKENS');
