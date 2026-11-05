@@ -2438,7 +2438,7 @@ body.controller-playing #controller #controllerActive #phoneGameChoices .phone-g
   color:#fff;
 }
 body.controller-playing #controller #controllerActive #phoneGameChoices .phone-game-choice.selected::after{
-  content:'✓ เลือกแล้ว';
+  content:'เลือกแล้ว';
   position:absolute;right:clamp(8px,2vw,20px);bottom:clamp(5px,1.2dvh,12px);
   color:#adffda;font-size:clamp(10px,1.65dvh,14px);font-weight:900;
 }
@@ -3542,3 +3542,59 @@ body.controller-playing.pizza-controller-game #controller #controllerActive #con
 }
 #game .leader-chip.pizza-leader .leader-item-slot{white-space:nowrap;letter-spacing:-.02em;}
 body.controller-playing .phone-game-choices{grid-template-columns:repeat(3,minmax(0,1fr));}
+
+
+/* Original SVG food artwork shared by every Pizza Time UI surface.
+   Inherit zero glyphs from the system emoji font. */
+.pizza-order-icons{
+ display:inline-flex!important;align-items:center;justify-content:center;
+ flex-wrap:nowrap;gap:4px;white-space:nowrap;min-width:0;
+}
+.pizza-ingredient-icon{
+ display:inline-flex;align-items:center;justify-content:center;
+ flex:0 0 auto;position:relative;
+ width:var(--pizza-icon-size,18px);height:var(--pizza-icon-size,18px);
+ vertical-align:middle;line-height:1;min-width:0;
+}
+.pizza-ingredient-icon svg{
+ display:block;width:100%;height:100%;overflow:visible;
+ flex-shrink:0;filter:drop-shadow(0 1px 1px #16223655);
+}
+.pizza-ingredient-icon.is-delivered svg{
+ opacity:.82;
+}
+#game .leader-chip.pizza-leader .leader-item-slot.pizza-order-icons{
+ display:inline-flex!important;gap:clamp(1px,.3vw,4px);
+ align-items:center;justify-content:center;overflow:visible;
+ font-family:system-ui,sans-serif;line-height:1;
+}
+#game .leader-chip.pizza-leader .leader-item-slot.pizza-order-icons .pizza-ingredient-icon{
+ width:clamp(15px,1.5vw,20px);
+ height:clamp(15px,1.5vw,20px);
+}
+body.controller-playing.pizza-controller-game #controller #controllerActive #inventoryItem.pizza-order-icons{
+ display:flex!important;flex:0 0 auto;max-width:100%;
+ align-items:center;justify-content:flex-start;gap:8px;overflow:hidden;
+ text-overflow:clip;white-space:nowrap;
+}
+body.controller-playing.pizza-controller-game #controller #controllerActive #inventoryItem.pizza-order-icons .pizza-ingredient-icon{
+ display:inline-flex;align-items:center;gap:3px;
+ width:auto;max-width:50%;height:18px;font-family:system-ui,sans-serif;
+ font-size:clamp(9px,1.5dvh,12px);font-weight:800;
+}
+body.controller-playing.pizza-controller-game #controller #controllerActive #inventoryItem.pizza-order-icons svg{
+ width:18px;height:18px;flex:0 0 18px;
+}
+.pizza-ingredient-label{
+ display:inline-block;color:#fff7df;overflow:hidden;white-space:nowrap;
+ text-overflow:ellipsis;min-width:0;max-width:90px;line-height:18px;
+}
+body.controller-playing.pizza-controller-game #controller #controllerActive #inventoryGuide{
+ display:flex;align-items:center;gap:3px;max-width:100%;min-width:0;white-space:nowrap;
+}
+body.controller-playing.pizza-controller-game #controller #controllerActive #inventoryGuide .pizza-ingredient-icon{
+ width:15px;height:15px;flex:0 0 15px;
+}
+body.controller-playing.pizza-controller-game #controller #controllerActive #inventoryGuide span:last-child{
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
