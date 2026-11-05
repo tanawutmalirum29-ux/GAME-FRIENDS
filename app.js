@@ -1553,7 +1553,7 @@ function endShockwaveRound(){
    const overall=[...ranked].sort((a,b)=>b.total-a.total);list.replaceChildren();
    overall.forEach((p,i)=>{
      const row=document.createElement('div');row.className='result-player';
-     const name=document.createElement('div');name.textContent=(i+1)+'. '+p.name;name.style.color=p.color;
+     const name=document.createElement('div');name.textContent=(1+overall.filter(q=>q.total>p.total).length)+'. '+p.name;name.style.color=p.color;
      const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
      row.append(name,score);list.append(row);
    });
@@ -1633,7 +1633,7 @@ function endChickensRound(){
   ranked.forEach((p,i)=>{
     const row=document.createElement('div');row.className='result-player';
     const name=document.createElement('div');name.style.color=p.color;
-    name.textContent=(p.score===best?'★ ':'')+(i+1)+'. '+p.name;
+    name.textContent=(p.score===best?'★ ':'')+(1+ranked.filter(q=>q.score>p.score).length)+'. '+p.name;
     const score=document.createElement('span');
     score.textContent=p.score+' ไก่'+(tournament?' • รวม '+p.total+' คะแนน':'');
     row.append(name,score);list.append(row);
@@ -1644,7 +1644,7 @@ function endChickensRound(){
     overall.forEach((p,i)=>{
       const row=document.createElement('div');row.className='result-player';
       const name=document.createElement('div');name.style.color=p.color;
-      name.textContent=(i+1)+'. '+p.name;
+      name.textContent=(1+overall.filter(q=>q.total>p.total).length)+'. '+p.name;
       const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
       row.append(name,score);list.append(row);
     });
