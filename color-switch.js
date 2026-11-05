@@ -4,7 +4,7 @@
 const TAU=Math.PI*2, FIXED=1/60;
 const C=Object.freeze({speed:170,radius:14,punchRange:46,punchWindup:.12,
  punchActive:.10,punchRecovery:.13,punchCooldown:1.1,punchStun:.55,
- blastCooldown:2.8,blastCast:.18,blastStun:.95});
+ blastCooldown:2.8,blastCast:.18,blastStun:.95,botPunchRate:.85});
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function rand(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
 function active(ps){return ps.filter(p=>p.active);}
@@ -41,10 +41,15 @@ function setup(round,ps){
   accumulator:0,seed:(Number(round.colorSeed)||Date.now()^0x6d213a9b)>>>0||1,
   tiles:[],board:null,cols:0,rows:0,size:0,boxes:[],effects:[],
   boxCounter:0,nextBoxSpawn:0,eventCounter:0,finished:false,
-  winnerIds:[],ranking:[],totalCaptures:0};
+  winnerIds:[],ranking:[],totalCaptures:0,theme:'classic',mayan:null};
  round.colorSwitch=s;round.remaining=s.duration;
  ps.forEach(p=>{p.active=true;p.score=0;});
+ const requested=['classic','mayan'].includes(round.colorTheme)?round.colorTheme:null;
+ s.theme=requested||(rand(s)<.5?'classic':'mayan');
+ // The default map remains playable when external theme code is unavailable.
+ if(s.theme==='mayan'&&!window.ColorSwitchMayan)s.theme='classic';
  createArena(s,active(ps).length);spawnPlayers(s,ps);
+ if(s.theme==='mayan')window.ColorSwitchMayan.setup(s,rand);
  s.nextBoxSpawn=8+rand(s)*4;
  return s;
 }
@@ -209,7 +214,7 @@ function botControls(s,p,ps){
  const gain=ids.filter(id=>s.tiles[id].ownerId!==p.id).length;
  const blast=c.blastCooldown===0&&s.clock>=c.botNextBlast&&(gain>=(c.powerBoostReady?6:4)||
   (c.powerBoostReady&&active(ps).some(q=>q.id!==p.id&&touchedByBlast(s,q,ids))));
- if(action)c.botNextPunch=s.clock+1.15+rand(s)*.45;
+ if(action)c.botNextPunch=s.clock+(1.15+rand(s)*.45)/C.botPunchRate;
  if(blast)c.botNextBlast=s.clock+3+rand(s)*1.2;
  return {x,y,action,alt:blast};
 }
@@ -262,6 +267,7 @@ function step(dt,round,ps){
   c.actionLatch=a;c.altLatch=b;
  }
  updateBoxes(s,people);
+ if(s.theme==='mayan')window.ColorSwitchMayan.update(dt,s,people,applyStun,rand);
  for(const t of s.tiles)t.paintAnimation=Math.max(0,t.paintAnimation-dt);
  for(const e of s.effects)e.life-=dt;
  s.effects=s.effects.filter(e=>e.life>0).slice(-32);
@@ -283,6 +289,7 @@ function hud(ps,round){
   scores:active(ps).map(p=>({id:p.id,score:p.score||0})),winnerIds:s?.winnerIds||[]};
 }
 function drawScenery(ctx,s){
+ if(s.theme==='mayan'){window.ColorSwitchMayan.drawGround(ctx,s);return;}
  ctx.fillStyle='#4b9166';ctx.fillRect(0,0,960,540);
  ctx.fillStyle='#357a58';for(let i=0;i<48;i++){
   const x=(i*73+29)%960,y=(i*139+71)%540;
@@ -305,14 +312,20 @@ function draw(ctx,time,round,ps){
  ctx.save();ctx.clearRect(0,0,960,540);drawScenery(ctx,s);
  const colors=new Map(ps.map(p=>[p.id,p.color]));
  for(const t of s.tiles){
-  ctx.fillStyle='#493b2e';ctx.fillRect(t.x,t.y,s.size,s.size);
-  ctx.fillStyle=t.ownerId==null?'#ae8559':colors.get(t.ownerId)||'#ae8559';
+  ctx.fillStyle=s.theme==='mayan'?'#342c24':'#493b2e';ctx.fillRect(t.x,t.y,s.size,s.size);
+  ctx.fillStyle=t.ownerId==null?(s.theme==='mayan'?'#756c57':'#ae8559'):colors.get(t.ownerId)||'#ae8559';
   ctx.fillRect(t.x+1.2,t.y+1.2,s.size-2.4,s.size-2.4);
-  ctx.fillStyle=t.ownerId==null?'#d7ae76':'#ffffff22';
+  ctx.fillStyle=t.ownerId==null?(s.theme==='mayan'?'#998f72':'#d7ae76'):'#ffffff22';
   ctx.fillRect(t.x+3,t.y+3,s.size-6,3);
+  if(s.theme==='mayan'){
+   ctx.strokeStyle=t.ownerId==null?'#4b4232':'#172e3b66';
+   ctx.lineWidth=2;ctx.strokeRect(t.x+10,t.y+10,s.size-20,s.size-20);
+   ctx.lineWidth=1;ctx.strokeRect(t.x+16,t.y+16,s.size-32,s.size-32);
+  }
   if(t.paintAnimation>0){ctx.globalAlpha=Math.min(.6,t.paintAnimation*3);
    ctx.fillStyle='#fff';ctx.fillRect(t.x+2,t.y+2,s.size-4,s.size-4);ctx.globalAlpha=1;}
  }
+ if(s.theme==='mayan')window.ColorSwitchMayan.drawDevices(ctx,s);
  for(const box of s.boxes){
   const bob=Math.sin(s.clock*5+box.id)*3;
   ctx.save();ctx.translate(box.x,box.y+bob);ctx.fillStyle='#412965';ctx.fillRect(-13,-11,26,26);
@@ -342,6 +355,7 @@ function draw(ctx,time,round,ps){
   }else{ctx.fillStyle=e.color;ctx.beginPath();ctx.arc(e.x,e.y,(.5-e.life)*15+4,0,TAU);ctx.fill();}
   ctx.restore();
  }
+ if(s.theme==='mayan')window.ColorSwitchMayan.drawBullets(ctx,s);
  ctx.fillStyle='#152b2add';ctx.fillRect(13,12,174,57);
  ctx.fillStyle='#f5ffeb';ctx.font='900 17px sans-serif';ctx.textAlign='left';ctx.fillText('COLOR SWITCH',23,34);
  ctx.font='bold 13px sans-serif';ctx.fillStyle='#ffe3a0';

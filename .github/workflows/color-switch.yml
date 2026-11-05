@@ -14,11 +14,13 @@ jobs:
           node-version: '22'
       - name: Check JavaScript syntax
         run: |
-          for source in app.js color-switch.js ghost-attack.js chickens.js fruit-memory.js shockwave.js; do
+          for source in app.js color-switch-mayan.js color-switch.js ghost-attack.js chickens.js fruit-memory.js shockwave.js; do
             node --check "$source"
           done
       - name: Test COLOR SWITCH core rules and stress
         run: node tests/color-switch.test.js
+      - name: Mayan skull theme and 15 percent bot nerf
+        run: node tests/color-switch-mayan.test.js
       - name: Ensure fifth game is loaded by HTML
         run: |
           grep -q 'src="./color-switch.js"' index.html
