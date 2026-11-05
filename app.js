@@ -1809,6 +1809,19 @@ function renderLeaderboard(){
   root.style.setProperty('--leader-cols-compact',String(Math.min(6,count)));
   root.style.setProperty('--leader-rows','1');
   if(!round)return;
+  if(round.mode==='pizza_time'){
+    active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
+      const box=document.createElement('div');box.className='leader-chip pizza-leader';
+      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
+      const score=document.createElement('small');score.className='leader-role';score.textContent=(p.score||0)+' คะแนน';
+      const status=document.createElement('span');status.className='leader-item-slot';
+      const order=p.pizza?.order||[],sent=p.pizza?.delivered||[];
+      status.textContent=order.map(id=>(window.PizzaTime.ingredients.find(x=>x.id===id)?.icon||'')+(sent.includes(id)?'✓':'')).join(' ');
+      status.title=p.pizza?.held?'ถือ '+p.pizza.held:'ยังไม่ได้ถือ';
+      box.append(color,name,score,status);root.append(box);
+    });return;
+  }
   if(round.mode==='fruit_memory'){
     active.sort((a,b)=>Number(b.fruitAlive)-Number(a.fruitAlive)||b.fruitRounds-a.fruitRounds).forEach(p=>{
       const box=document.createElement('div');box.className='leader-chip fruit-leader';
