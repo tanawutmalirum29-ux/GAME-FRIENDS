@@ -219,16 +219,10 @@ function botControls(s,p,ps){
  return {x,y,action,alt:blast};
 }
 function resolvePlayerCollisions(s,ps){
- const people=active(ps).slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
- const b=s.board,r=C.radius,min=r*2;
- for(let pass=0;pass<5;pass++)for(let i=0;i<people.length;i++)for(let j=i+1;j<people.length;j++){
-  const a=people[i],z=people[j];let dx=z.x-a.x,dy=z.y-a.y,dist=Math.hypot(dx,dy);
-  if(dist>=min)continue;
-  if(dist<.001){const theta=(i*19+j*13+1)*2.4;dx=Math.cos(theta);dy=Math.sin(theta);dist=1;}
-  const gap=Math.min(5,(min-dist)/2),nx=dx/dist,ny=dy/dist;
-  a.x=clamp(a.x-nx*gap,b.x+r,b.x+b.w-r);a.y=clamp(a.y-ny*gap,b.y+r,b.y+b.h-r);
-  z.x=clamp(z.x+nx*gap,b.x+r,b.x+b.w-r);z.y=clamp(z.y+ny*gap,b.y+r,b.y+b.h-r);
- }
+ return window.PartyCharacters.resolve(ps,{
+   radius:C.radius,iterations:5,maxShift:5,
+   pressure:false,bounds:s.board
+ });
 }
 function calculateFinalRanking(s,ps){
  updateTerritoryScores(s,ps);
