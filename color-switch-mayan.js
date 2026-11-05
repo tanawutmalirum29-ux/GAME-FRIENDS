@@ -23,7 +23,8 @@ function beginWarning(s,random=Math.random){
  const side=m.nextSide,pool=m.skulls.filter(skull=>skull.side===side);
  if(!pool.length)return false;
  const selected=[];
- for(let i=0;i<Math.min(3,pool.length);i++){
+ const shotsPerVolley=Math.min(3,pool.length);
+ for(let i=0;i<shotsPerVolley;i++){
   selected.push(pool.splice(Math.floor(random(s)*pool.length),1)[0]);
  }
  m.warning={side,rows:selected.map(skull=>skull.row),remaining:C.warning};
