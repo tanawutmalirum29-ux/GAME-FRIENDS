@@ -2,6 +2,7 @@
 const assert=require('node:assert/strict');
 global.window={};
 require('../character-system.js');
+require('../party-ui-art.js');
 require('../color-switch-mayan.js');
 require('../color-switch.js');
 const E=window.ColorSwitch,M=window.ColorSwitchMayan;
