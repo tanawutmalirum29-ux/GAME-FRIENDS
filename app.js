@@ -1518,6 +1518,7 @@ function castResultVote(conn,choice){
 }
 function endRound(){
   if(!round||round.phase==='results')return;
+   if(round.mode==='pizza_time'){endPizzaTimeRound();return;}
    if(round.mode==='color_switch'){endColorSwitchRound();return;}
   if(round.mode==='chickens'){endChickensRound();return;}
   if(round.mode==='fruit_memory'){endFruitMemoryRound();return;}
@@ -1660,6 +1661,42 @@ function endColorSwitchRound(){
  $('results').classList.remove('hidden');$('gameBanner').textContent='';
   beginResultVoting();
   renderLeaderboard();
+}
+function endPizzaTimeRound(){
+ round.phase='results';round.paused=false;resetInputs();broadcastRoster();
+ $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
+ const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
+ const top=ranked[0]?.score??0,winners=ranked.filter(p=>p.score===top);
+ if(tournament)ranked.forEach(p=>{
+   const rank=1+ranked.filter(q=>q.score>p.score).length;
+   p.total=(p.total||0)+Math.max(1,ranked.length-rank+1);
+ });
+ round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
+ $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ • อันดับ 1 ร่วม';
+ const list=$('resultList');list.replaceChildren();
+ const show=(people,useTotal=false)=>people.forEach(p=>{
+   const value=q=>useTotal?q.total:q.score;
+   const rank=1+people.filter(q=>value(q)>value(p)).length;
+   const tied=people.filter(q=>value(q)===value(p)).length>1;
+   const row=document.createElement('div');row.className='result-player';
+   const label=document.createElement('div');label.style.color=p.color;
+   label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
+   const score=document.createElement('span');
+   score.textContent=useTotal?p.total+' คะแนนรวม':p.score+' ออร์เดอร์'+(tournament?' • รวม '+p.total+' คะแนน':'');
+   row.append(label,score);list.append(row);
+ });
+ show(ranked);
+ if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
+   list.replaceChildren();
+   const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
+   show(overall,true);
+   const first=overall.filter(p=>p.total===overall[0].total);
+   const title=document.createElement('div');title.className='tournament-header';
+   title.textContent=first.length===1?'ผู้ชนะรวม: '+first[0].name:'คะแนนรวมเสมอ: '+first.map(p=>p.name).join(', ');
+   list.prepend(title);
+ }
+ $('results').classList.remove('hidden');$('gameBanner').textContent='';
+ beginResultVoting();renderLeaderboard();
 }
 function endChickensRound(){
   round.phase='results';round.paused=false;resetInputs();broadcastRoster();
