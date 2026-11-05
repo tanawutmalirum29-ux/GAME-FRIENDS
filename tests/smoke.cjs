@@ -7,7 +7,7 @@ const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
 // production code or relying on internal globals.
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
-  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
+  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,getTournament:()=>tournament,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
@@ -54,7 +54,8 @@ assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fr
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
-assert.match(html,/data-session-mode="quick"/);
+assert.match(html,/data-session-mode="endless"/);
+assert.match(html,/เล่นทุกเกมไปเรื่อยๆ/);
 assert.match(html,/id="cycleAllBotsBtn"/);
 assert.doesNotMatch(html,/id="iosFullscreenBtn"|manifest\.webmanifest|apple-mobile-web-app-capable/);
 assert.doesNotMatch(source,/avoidIOSNativeFullscreen|canUseNativeHostFullscreen|iosNativeFullscreenEnabled|IOS_FULLSCREEN_PREF/);
@@ -801,7 +802,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   });
   for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,makeElement(id));
   elements.get('autoNext').checked=true;
-  const sessionButtons=['queue','quick'].map(mode=>{
+  const sessionButtons=['queue','endless'].map(mode=>{
     const btn=makeElement('session-'+mode);btn.dataset.sessionMode=mode;return btn;
   });
   const pickButtons=[...html.matchAll(/data-pick="([^"]+)"/g)].map(([,game])=>{
@@ -1310,6 +1311,120 @@ assert.match(css,/#game #resultList\{[\s\S]*?height:100%/,
 assert.match(css,/grid-template-columns:repeat\(var\(--result-cols,4\),minmax\(0,1fr\)\)/,
   'responsive ranking grid supports four landscape columns');
 
+// Two selectable session modes: nominated one-off deck and an endless cycle
+// through all SIX games with 12–rank points (11 to 0), preserving scores.
+{
+ const ui=setup();ui.click('offlineBtn');
+ for(let i=0;i<10;i++)ui.click('addLocalBtn');
+ const players=ui.scope.window.__ghostTest.getPlayers();
+ assert.equal(players.length,12);
+ ui.sessionButtons[1].fire('click');
+ assert.equal(ui.sessionButtons[1].dataset.sessionMode,'endless');
+ assert.equal(ui.sessionButtons[1].classList.contains('active'),true);
+ assert.equal(ui.elements.get('startBtn').textContent,'เริ่มเล่นทุกเกม ▶');
+ ui.click('startBtn');
+ const test=ui.scope.window.__ghostTest;
+ const order=['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time'];
+ assert.equal(test.getTournament().endless,true);
+ assert.equal(test.getTournament().schedule.length,6);
+ assert.equal(test.getRound().mode,order[0]);
+ for(let i=1;i<5;i++){
+  test.advanceParty();
+  assert.equal(test.getRound().mode,order[i],'every type appears once in deck order');
+ }
+ const round=test.getRound(),tiles=round.colorSwitch.tiles;
+ let cursor=0;
+ for(let rank=0;rank<players.length;rank++){
+  for(let amount=0;amount<12-rank;amount++)tiles[cursor++].ownerId=players[rank].id;
+ }
+ test.endColorSwitchRound();
+ assert.equal(round.phase,'results');
+ assert.equal(round.autoNextRemaining,7,'endless games retain next-game countdown');
+ assert.equal(ui.elements.get('backBtn').textContent,'สรุปคะแนน','B opens cumulative scores in endless mode');
+ assert.equal(ui.elements.get('backBtn').dataset.action,'B');
+ assert.equal(ui.elements.get('resultList').children.length,12);
+ const ranked=[...players].sort((a,b)=>b.score-a.score);
+ ranked.forEach((p,i)=>{
+  assert.equal(p.lastRoundPoints,11-i,'rank '+(i+1)+' earns '+(11-i)+' points');
+  assert.equal(p.total,11-i,'first scored round uses fixed 12-player scale');
+ });
+ const oldScores=new Map(players.map(p=>[p.id,p.total]));
+ ui.click('backBtn');
+ assert.equal(round.phase,'summary','first B opens total scoreboard instead of lobby');
+ assert.equal(round.autoNextRemaining,0,'scoreboard freezes the original timer');
+ assert.equal(ui.elements.get('game').classList.contains('hidden'),false,'scoreboard remains on host display');
+ assert.equal(ui.elements.get('results').querySelector('h2').textContent,'ตารางคะแนนรวม');
+ assert.equal(ui.elements.get('backBtn').textContent,'กลับล็อบบี้','summary B returns to lobby');
+ const resultRows=ui.elements.get('resultList').children.filter(x=>x.className==='result-player');
+ assert.equal(resultRows.length,12,'all twelve cumulative scores visible at once');
+ resultRows.forEach((row,i)=>{
+  assert.match(row.children[0].textContent,new RegExp('^อันดับ '+(i+1)+' '));
+  assert.equal(row.dataset.rank,String(i+1));
+  assert.ok(row.children[1].textContent.includes(String(11-i)+' คะแนนสะสม'));
+ });
+ ui.click('replayBtn');
+ assert.equal(test.getRound().mode,'pizza_time','summary A goes to next game');
+ for(const p of players)assert.equal(p.total,oldScores.get(p.id),'scores survive transitions');
+ test.advanceParty();
+ assert.equal(test.getRound().mode,'ghost','all six games loop to the first game');
+ assert.equal(test.getTournament().roundsPlayed,6);
+ test.advanceParty();
+ assert.equal(test.getRound().mode,'chickens','continuous play continues past first cycle');
+}
+{
+ const ui=setup();ui.click('offlineBtn');
+ ui.sessionButtons[1].fire('click');ui.click('startBtn');
+ const test=ui.scope.window.__ghostTest;
+ for(let i=0;i<4;i++)test.advanceParty();
+ const ps=test.getPlayers(),s=test.getRound().colorSwitch;
+ for(const tile of s.tiles)tile.ownerId=null;
+ s.tiles[0].ownerId=ps[0].id;s.tiles[1].ownerId=ps[1].id;
+ test.endColorSwitchRound();
+ assert.equal(ps[0].lastRoundPoints,11,'joint first place gets 11 points');
+ assert.equal(ps[1].lastRoundPoints,11,'joint first place ties share 11 points');
+ ui.click('backBtn');
+ const rows=ui.elements.get('resultList').children.filter(x=>x.className==='result-player');
+ assert.equal(rows.length,2);
+ assert.ok(rows.every(r=>r.children[0].textContent.startsWith('อันดับ 1 ร่วม')),
+   'cumulative scoreboard preserves shared ranks');
+ ui.click('backBtn');
+ assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false,
+   'summary B returns to lobby without disconnecting controllers');
+ assert.equal(test.getTournament(),null,'exiting endless session clears accumulated competition');
+}
+// B votes on mobile controllers navigate to summary, and then a second
+// unanimous B vote exits that page; A remains next game in both phases.
+{
+ const ui=setup();ui.click('hostBtn');ui.instances[0].fire('open');
+ const cons=[];
+ for(const name of ['Alice','Bob']){
+  const conn=ui.instances[0].connect();ui.instances[0].fire('connection',conn);
+  conn.fire('data',{t:'join',name});cons.push(conn);
+ }
+ ui.sessionButtons[1].fire('click');
+ assert.equal(ui.elements.get('startBtn').disabled,false,'endless mode ignores unselected game picks');
+ ui.click('startBtn');
+ const test=ui.scope.window.__ghostTest;
+ for(let i=0;i<4;i++)test.advanceParty();
+ const game=test.getRound();
+ test.endColorSwitchRound();
+ assert.equal(game.phase,'results');
+ const firstPacket=cons[0].sent.filter(x=>x.t==='result-votes').at(-1);
+ assert.equal(firstPacket.backLabel,'สรุปคะแนน');
+ cons[0].fire('data',{t:'result-vote',choice:'lobby'});
+ assert.equal(game.phase,'results','one B vote does not prematurely change screen');
+ cons[1].fire('data',{t:'result-vote',choice:'lobby'});
+ assert.equal(game.phase,'summary','unanimous B shows score summary');
+ const secondPacket=cons[0].sent.filter(x=>x.t==='result-votes').at(-1);
+ assert.equal(secondPacket.backLabel,'กลับล็อบบี้');
+ assert.equal(secondPacket.nextLabel,'เกมถัดไป');
+ cons[0].fire('data',{t:'result-vote',choice:'lobby'});
+ assert.equal(game.phase,'summary','summary B also requires unanimous confirmation');
+ cons[1].fire('data',{t:'result-vote',choice:'lobby'});
+ assert.equal(test.getRound(),null,'all B on score summary returns to lobby');
+ assert.ok(cons.every(c=>c.open),'return does not disconnect gamepads');
+}
+
 // Host counts ONLY the real joypads, rejects duplicate votes, lets players
 // switch preferences, and launches the chosen action at unanimity.
 function createVoteHost(){
@@ -1535,10 +1650,13 @@ assert.equal(phone.elements.get('buttonBLabel').textContent,'ล็อบบี�
 phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',autoNextSeconds:7});
 assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 7 วิ 1/2',
   'the controller next-game action shows timer together with votes');
-phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',autoNextSeconds:6});
+phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',backLabel:'สรุปคะแนน',autoNextSeconds:6});
 assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 6 วิ 1/2',
   'the controller countdown changes independently of the vote count');
-assert.equal(phone.elements.get('buttonBLabel').textContent,'ล็อบบี้ 0/2');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'สรุปคะแนน 0/2');
+phoneConn.fire('data',{t:'roster',phase:'summary',mode:'color_switch',players:[{id:'p1',active:true,choice:'color_switch'}]});
+phoneConn.fire('data',{t:'result-votes',next:0,lobby:0,total:2,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null});
+assert.equal(phone.elements.get('buttonBLabel').textContent,'กลับล็อบบี้ 0/2','B changes to lobby on score summary');
 phone.padButtons.action.fire('pointerdown');
 assert.equal(phoneConn.sent.filter(m=>m.t==='result-vote').at(-1).choice,'next',
  'A joypad press votes to advance');
