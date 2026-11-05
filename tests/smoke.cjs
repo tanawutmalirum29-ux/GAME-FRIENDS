@@ -1204,7 +1204,7 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  assert.equal(rows.length,3);
  assert.ok(rows[0].children[0].textContent.startsWith('อันดับ 1 •'));
  assert.ok(rows[1].children[0].textContent.startsWith('อันดับ 1 •'));
- assert.ok(rows[2].children[0].textContent.startsWith('3.'));
+ assert.ok(rows[2].children[0].textContent.startsWith('อันดับ 3 •'));
  assert.match(rows[0].children[1].textContent,/อันดับร่วม/);
  assert.match(rows[1].children[1].textContent,/อันดับร่วม/);
  assert.match(rows[2].children[1].textContent,/ตกรอบ รอบ 1/);
