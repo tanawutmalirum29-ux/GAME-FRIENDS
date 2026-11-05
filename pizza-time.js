@@ -379,35 +379,108 @@ function drawIngredient(ctx,id,x,y,size=19){
  ctx.restore();
 }
 function rounded(ctx,x,y,w,h,r=9){
- ctx.beginPath();ctx.roundRect(x,y,w,h,r);
+ r=Math.min(Math.max(0,r),w/2,h/2);
+ ctx.beginPath();
+ if(typeof ctx.roundRect==='function'){ctx.roundRect(x,y,w,h,r);return;}
+ ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+ ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+ ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+ ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+function drawChef(ctx,chef,player){
+ const p=chef;
+ ctx.save();ctx.translate(p.x,p.y);
+ // Individual chef station, mirroring reference counters in each corner.
+ ctx.fillStyle='#44291f66';rounded(ctx,-63,-39,126,80,12);ctx.fill();
+ ctx.fillStyle='#805038';rounded(ctx,-63,-44,126,77,10);ctx.fill();
+ ctx.fillStyle='#b27a52';rounded(ctx,-57,-40,114,69,8);ctx.fill();
+ ctx.fillStyle='#d8ab74';ctx.fillRect(-46,19,34,10);ctx.fillRect(12,19,34,10);
+ // Distinct colored uniform and chef hat (no image load dependency).
+ ctx.fillStyle=p.color||'#53cedd';
+ ctx.beginPath();ctx.ellipse(0,2,22,22,0,0,TAU);ctx.fill();
+ ctx.fillStyle='#f6e9d5';ctx.beginPath();ctx.arc(0,-5,17,0,TAU);ctx.fill();
+ ctx.fillStyle='#eaf8ff';
+ ctx.beginPath();ctx.arc(-13,-22,12,0,TAU);ctx.arc(0,-27,14,0,TAU);ctx.arc(14,-22,12,0,TAU);ctx.fill();
+ ctx.fillStyle='#dae8ef';rounded(ctx,-20,-23,40,13,4);ctx.fill();
+ ctx.fillStyle='#2e333c';ctx.beginPath();ctx.arc(-6,-6,1.7,0,TAU);ctx.arc(6,-6,1.7,0,TAU);ctx.fill();
+ ctx.strokeStyle='#997059';ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(0,1,6,.1,Math.PI-.1);ctx.stroke();
+ ctx.restore();
+ // Personal chef pickup/delivery area and player ownership.
+ ctx.lineWidth=3;ctx.strokeStyle=p.color;
+ ctx.beginPath();ctx.arc(p.deliver.x,p.deliver.y,36,0,TAU);ctx.stroke();
+ ctx.fillStyle='#304556de';rounded(ctx,p.x-47,p.y+31,94,19,7);ctx.fill();
+ ctx.fillStyle='#fff9ed';ctx.font='bold 12px system-ui';ctx.textAlign='center';
+ ctx.fillText((player?.name||'ผู้เล่น').slice(0,10),p.x,p.y+45);
+}
+function orderBubble(ctx,chef,player){
+ if(!player?.pizza)return;
+ const q=player.pizza,ids=q.order;
+ const x=bound(chef.bubbleX,61,chef.x<50?60:Infinity),y=chef.bubbleY;
+ // Place order cards horizontally next to their own chefs. Clamp into the world.
+ const left=bound(x-59,29,ctx.__pizzaWorldWidth-145);
+ ctx.fillStyle='#ffffffed';rounded(ctx,left,y-24,144,47,18);ctx.fill();
+ ctx.strokeStyle=chef.color;ctx.lineWidth=2;ctx.stroke();
+ ctx.fillStyle='#263343';ctx.font='bold 11px system-ui';ctx.textAlign='left';
+ ctx.fillText('ออร์เดอร์ '+(q.delivered.length||0)+'/2',left+10,y-8);
+ ids.forEach((id,i)=>{
+   drawIngredient(ctx,id,left+41+i*57,y+8,12);
+   if(q.delivered.includes(id)){
+     ctx.lineWidth=3;ctx.strokeStyle='#2ea867';
+     ctx.beginPath();ctx.moveTo(left+27+i*57,y+8);
+     ctx.lineTo(left+37+i*57,y+16);ctx.lineTo(left+52+i*57,y-2);ctx.stroke();
+   }
+ });
 }
 function scene(ctx,s){
- const {w,h}=dims(s),tile=46;
- ctx.fillStyle='#589d56';ctx.fillRect(0,0,w,h);
- ctx.fillStyle='#e2bca7';ctx.fillRect(25,25,w-50,h-50);
- for(let yy=25,row=0;yy<h-25;yy+=tile,row++)for(let xx=25,col=0;xx<w-25;xx+=tile,col++){
-  ctx.fillStyle=(row+col)%2?'#eac8b4':'#f4d8c4';ctx.fillRect(xx,yy,tile-1,tile-1);
+ const {w,h}=dims(s),tile=48;
+ ctx.fillStyle='#4b9850';ctx.fillRect(0,0,w,h);
+ // Garden / river accent outside the working room, matching visual reference.
+ ctx.fillStyle='#72c3a4';ctx.fillRect(0,0,w,25);ctx.fillRect(w-23,0,23,h);
+ ctx.fillStyle='#aa7b5d';ctx.fillRect(22,22,w-44,h-44);
+ ctx.fillStyle='#edc5ad';ctx.fillRect(30,30,w-60,h-60);
+ for(let yy=30,row=0;yy<h-30;yy+=tile,row++)
+  for(let xx=30,col=0;xx<w-30;xx+=tile,col++){
+   ctx.fillStyle=(row+col)%2?'#edcbb8':'#f6dac7';
+   ctx.fillRect(xx,yy,Math.min(tile-1,w-30-xx),Math.min(tile-1,h-30-yy));
+  }
+ ctx.strokeStyle='#815c43';ctx.lineWidth=7;ctx.strokeRect(30,30,w-60,h-60);
+ // Lightweight decorative oven housings on sides; not collision objects.
+ for(const oven of [{x:56,y:h*.50},{x:w-56,y:h*.50}]){
+   ctx.fillStyle='#976944';rounded(ctx,oven.x-30,oven.y-35,60,70,8);ctx.fill();
+   ctx.fillStyle='#e4bc76';ctx.beginPath();ctx.arc(oven.x,oven.y,26,0,TAU);ctx.fill();
+   ctx.fillStyle='#6b4033';ctx.beginPath();ctx.arc(oven.x,oven.y,18,0,TAU);ctx.fill();
+   ctx.fillStyle='#edc65f';ctx.beginPath();ctx.arc(oven.x,oven.y,10,0,TAU);ctx.fill();
  }
- ctx.strokeStyle='#7d503d';ctx.lineWidth=8;ctx.strokeRect(25,25,w-50,h-50);
- // Decorative counters are outside the movement area.
- ctx.fillStyle='#7d4d36';ctx.fillRect(w*.35,15,w*.30,32);ctx.fillRect(w*.35,h-47,w*.30,32);
- for(const t of s.tables){
-  ctx.save();ctx.translate(t.x,t.y);
-  ctx.fillStyle='#4a342e66';rounded(ctx,-42,-37,87,83,12);ctx.fill();
-  ctx.fillStyle='#925d3f';rounded(ctx,-42,-43,84,82,10);ctx.fill();
-  ctx.fillStyle='#c98b5c';rounded(ctx,-35,-36,70,66,7);ctx.fill();
-  ctx.fillStyle='#f7e1b8';rounded(ctx,-29,-30,58,54,6);ctx.fill();
-  drawIngredient(ctx,t.ingredient,0,-1,25);
+ // Every worktop visibly holds TWO DIFFERENT ingredients.
+ for(const top of s.worktops){
+  ctx.save();ctx.translate(top.x,top.y);
+  ctx.fillStyle='#33231f77';rounded(ctx,-60,-46,120,98,12);ctx.fill();
+  ctx.fillStyle='#835137';rounded(ctx,-61,-51,122,98,9);ctx.fill();
+  ctx.fillStyle='#ae7650';rounded(ctx,-56,-46,112,88,8);ctx.fill();
+  ctx.fillStyle='#d9a875';rounded(ctx,-48,-39,96,73,7);ctx.fill();
+  ctx.strokeStyle='#a36c46';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-35);ctx.lineTo(0,30);ctx.stroke();
+  const left=s.tables[top.id*2],right=s.tables[top.id*2+1];
+  ctx.fillStyle='#f5dfb3';
+  rounded(ctx,-44,-31,40,57,6);ctx.fill();
+  rounded(ctx,4,-31,40,57,6);ctx.fill();
+  drawIngredient(ctx,left.ingredient,-25,-3,20);
+  drawIngredient(ctx,right.ingredient,25,-3,20);
   ctx.restore();
+  // Small pick markers near BOTH reachable table ends.
+  for(const slot of s.tables.slice(top.id*2,top.id*2+2)){
+   ctx.fillStyle='#fff2c9';ctx.beginPath();ctx.arc(slot.pick.x,slot.pick.y,19,0,TAU);ctx.fill();
+   ctx.strokeStyle='#a77c4f';ctx.lineWidth=2;ctx.stroke();
+   drawIngredient(ctx,slot.ingredient,slot.pick.x,slot.pick.y,9);
+  }
  }
- // Chef collection counter in the center.
- const c=s.center;
- ctx.fillStyle='#734b33';rounded(ctx,c.x-52,c.y-45,104,90,16);ctx.fill();
- ctx.fillStyle='#e9c68f';rounded(ctx,c.x-43,c.y-39,86,78,14);ctx.fill();
- ctx.fillStyle='#fff3d3';ctx.beginPath();ctx.arc(c.x,c.y,18,0,TAU);ctx.fill();
- ctx.fillStyle='#293b45';ctx.font='900 15px system-ui';ctx.textAlign='center';
- ctx.fillText('CHEF',c.x,c.y+5);
- ctx.strokeStyle='#ffd777';ctx.lineWidth=3;ctx.setLineDash([9,7]);ctx.beginPath();ctx.arc(c.x,c.y,59,0,TAU);ctx.stroke();ctx.setLineDash([]);
+ for(const chef of s.chefs){
+   drawChef(ctx,chef,s.roster.find(p=>p.id===chef.ownerId));
+ }
+ ctx.__pizzaWorldWidth=w;
+ for(const chef of s.chefs){
+   orderBubble(ctx,chef,s.roster.find(p=>p.id===chef.ownerId));
+ }
+ delete ctx.__pizzaWorldWidth;
 }
 function draw(ctx,time,round,ps){
  const s=round.pizzaTime;if(!s)return;
@@ -417,32 +490,22 @@ function draw(ctx,time,round,ps){
  for(const p of active(ps)){
   if(window.PartyPlayerAvatar?.draw)window.PartyPlayerAvatar.draw(ctx,p,{time:s.clock});
   else{ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,14,0,TAU);ctx.fill();}
-  const pizza=p.pizza;if(!pizza)continue;
-  if(pizza.held){
-    ctx.fillStyle='#fff9e9';ctx.beginPath();ctx.arc(p.x+20,p.y-29,16,0,TAU);ctx.fill();
-    drawIngredient(ctx,pizza.held,p.x+20,p.y-29,11);
+  if(!p.pizza)continue;
+  if(p.pizza.held){
+   ctx.fillStyle='#fff8df';ctx.beginPath();ctx.arc(p.x+19,p.y-38,17,0,TAU);ctx.fill();
+   drawIngredient(ctx,p.pizza.held,p.x+19,p.y-38,12);
   }
-  // Compact order card above avatar: crossed-off ONLY when physically delivered.
-  const ox=p.x,oy=p.y-65;
-  ctx.fillStyle='#fffaf0f0';rounded(ctx,ox-33,oy-16,66,30,10);ctx.fill();
-  pizza.order.forEach((id,i)=>{
-    drawIngredient(ctx,id,ox-15+i*31,oy-1,10);
-    if(pizza.delivered.includes(id)){
-      ctx.strokeStyle='#1f9b54';ctx.lineWidth=3;ctx.beginPath();
-      ctx.moveTo(ox-24+i*31,oy+1);ctx.lineTo(ox-17+i*31,oy+8);ctx.lineTo(ox-7+i*31,oy-7);ctx.stroke();
-    }
-  });
  }
  for(const fx of s.effects){
-  ctx.save();ctx.globalAlpha=bound(fx.life*1.6,0,1);ctx.fillStyle=fx.color;
-  ctx.font='900 19px system-ui';ctx.textAlign='center';ctx.fillText(fx.text,fx.x,fx.y-(1-fx.life)*15);ctx.restore();
+   ctx.save();ctx.globalAlpha=bound(fx.life*1.6,0,1);
+   ctx.fillStyle=fx.color;ctx.font='900 20px system-ui';ctx.textAlign='center';
+   ctx.fillText(fx.text,fx.x,fx.y-(1-fx.life)*15);ctx.restore();
  }
- ctx.fillStyle='#2c302cdd';rounded(ctx,14,11,218,52,12);ctx.fill();
- ctx.fillStyle='#fff7e6';ctx.font='900 23px system-ui';ctx.textAlign='left';
- ctx.fillText('PIZZA TIME',26,34);
- ctx.font='bold 16px system-ui';
+ ctx.fillStyle='#2e342de6';rounded(ctx,13,10,206,52,10);ctx.fill();
+ ctx.fillStyle='#fff7e6';ctx.font='900 22px system-ui';ctx.textAlign='left';
+ ctx.fillText('PIZZA TIME',24,33);ctx.font='bold 15px system-ui';
  ctx.fillText(round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown):
-    'เหลือ '+Math.ceil(s.remaining)+' วินาที',26,53);
+   'เหลือ '+Math.ceil(s.remaining)+' วินาที',24,54);
  ctx.restore();
 }
 window.PizzaTime=Object.freeze({setup,update,draw,hud,playerStatus,drawIngredient,
