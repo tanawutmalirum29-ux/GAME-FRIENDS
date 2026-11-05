@@ -3,7 +3,7 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2, FIXED=1/60;
-const C=Object.freeze({speed:177,bodyRadius:13,footRadius:9,blastThreshold:.5,maxPlayers:12});
+const C=Object.freeze({speed:177,bodyRadius:13,footRadius:11,blastThreshold:.18,maxPlayers:12});
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const living=ps=>ps.filter(p=>p.active&&p.shockAlive);
 function random(s){let x=s.seed|0;x^=x<<13;x^=x>>>17;x^=x<<5;s.seed=x||0x13579bdf;return (s.seed>>>0)/4294967296;}
@@ -64,7 +64,8 @@ function calculateDangerContact(s,p,dangerIds){
 function inputVector(p,s){
  if(p.isBot){
    const t=tileAt(s,p.x,p.y);
-   if(!t||t.state!=='warning')return {x:0,y:0};
+   // React to meaningful foot overlap, not merely the centre tile.
+   if(!t||calculateDangerContact(s,p,new Set(s.danger))<C.blastThreshold)return {x:0,y:0};
    if(p.shockBotWave!==s.wave){
      p.shockBotWave=s.wave;p.shockBotReadyAt=s.clock+.18+
        random(s)*Math.min(1.7,s.warningDuration*.83);
@@ -277,7 +278,17 @@ function drawPlayer(ctx,p,s){
  if(!p.active)return;
  if(!p.shockAlive&&!(p.shockFall>0&&p.shockFall<.65))return;
  const opacity=p.shockAlive?1:Math.max(0,1-p.shockFall/.65);
- window.PartyPlayerAvatar.draw(ctx,p,{time:s.clock,alpha:opacity,scale:p.shockAlive?1:.3+.7*opacity});
+ window.PartyPlayerAvatar.draw(ctx,p,{time:s.clock,alpha:opacity,
+   scale:p.shockAlive?1:.3+.7*opacity,footAnchor:true});
+ if(p.shockAlive){
+   // This ring is the exact contact footprint tested at the explosion snapshot.
+   const inDanger=s.phase==='WARNING'&&
+     calculateDangerContact(s,p,new Set(s.danger))>=C.blastThreshold;
+   ctx.save();ctx.strokeStyle=inDanger?'#ffe8a6':'#d5f7e9';ctx.lineWidth=1.8;
+   ctx.beginPath();ctx.arc(p.x,p.y,C.footRadius,0,TAU);ctx.stroke();
+   ctx.fillStyle=inDanger?'#ffca72':'#fff';
+   ctx.beginPath();ctx.arc(p.x,p.y,2.9,0,TAU);ctx.fill();ctx.restore();
+ }
 }
 function drawTile(ctx,s,t){
  const z=s.tileSize,x=s.board.x+t.col*z,y=s.board.y+t.row*z;

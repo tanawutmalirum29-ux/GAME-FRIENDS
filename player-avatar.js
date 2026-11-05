@@ -44,9 +44,10 @@ function draw(ctx,p,opts={}){
  const x=opts.local?0:(p.x||0),y=opts.local?0:(p.y||0);
  const speed=Math.hypot(p.vx||0,p.vy||0),t=opts.time||0;
  const stride=speed>15?Math.abs(Math.sin(t*11))*1.3:0;
+ const footLift=opts.footAnchor?20:0; // Align SVG feet with logical p.x,p.y.
  const pose=opts.holding?'hold':opts.attacking?'attack':'idle';
  const color=opts.color||p.color;
- ctx.save();ctx.translate(x,y-stride);
+ ctx.save();ctx.translate(x,y-stride-footLift);
  ctx.globalAlpha*=opts.alpha===undefined?1:opts.alpha;
  const scale=opts.scale===undefined?1:opts.scale;ctx.scale(scale,scale);
  ctx.fillStyle='#06142266';ctx.beginPath();ctx.ellipse(1,15,16,5,0,0,TAU);ctx.fill();
