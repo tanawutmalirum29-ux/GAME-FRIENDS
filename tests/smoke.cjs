@@ -998,11 +998,19 @@ assert.equal(online.elements.get('startBtn').disabled,false);
 conn.fire('data',{t:'pick',mode:'stars'});
 assert.equal(online.elements.get('roster').children[0].children[3].children[1].textContent,'GHOST ATTACK');
 online.click('startBtn');
-assert.equal(online.instances[0].mediaCalls.length,1,'WebRTC game stream still starts');
+assert.equal((online.instances[0].mediaCalls||[]).length,0,'host must not stream before the phone opts in');
+conn.fire('data',{t:'video-quality',quality:'medium'});
+assert.equal((online.instances[0].mediaCalls||[]).length,0,'quality alone cannot enable video');
+conn.fire('data',{t:'preview-toggle',enabled:true});
+assert.equal(online.instances[0].mediaCalls.length,1,'opted-in phone receives WebRTC game stream');
 assert.equal(online.instances[0].mediaCalls[0].stream.height,540);
 const pair=online.instances[0].mediaCalls[0];
 assert.ok(pair.stream.width===960);
 assert.equal(pair.stream.fps,undefined);
+conn.fire('data',{t:'preview-toggle',enabled:false});
+assert.equal(pair.closed,true,'turning preview off closes the active host media call');
+conn.fire('data',{t:'video-quality',quality:'high'});
+assert.equal(online.instances[0].mediaCalls.length,1,'graphic changes while off do not restart the video');
 assert.equal(online.scope.window.__ghostTest.getRound().ghost.npcs.length,1);
 assert.equal(conn.sent.some(x=>x.t==='inventory'),true);
 // A slow medicine target selection is always host authoritative.
@@ -1157,6 +1165,14 @@ const phoneConn=phone.instances[0].conn;
 phoneConn.fire('open');
 phoneConn.fire('data',{t:'welcome',id:'p1',name:'Wut',color:'#ff628c',
  mode:'ghost',phase:'lobby'});
+assert.equal(phone.elements.get('videoPreviewToggleBtn').textContent,'จอปิด','controller starts with screen off');
+assert.equal(phoneConn.sent.filter(m=>m.t==='preview-toggle').at(-1)?.enabled,false,
+  'controller explicitly sends default OFF even before the first input packet');
+assert.equal(phone.elements.get('controllerPreviewOff').classList.contains('hidden'),true,
+  'the game selector remains visible in the lobby even while preview is off');
+const unwantedVideo=phone.mediaCall('gf-party-ABCDE3');
+phone.instances[0].fire('call',unwantedVideo);
+assert.equal(unwantedVideo.closed,true,'disabled controller rejects incoming video without answering');
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
 assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),false);
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
@@ -1186,6 +1202,37 @@ assert.equal(phoneConn.sent.at(-1).mode,'ghost');
 phoneConn.fire('data',{t:'roster',phase:'playing',mode:'ghost',
  players:[{id:'p1',active:true,choice:'ghost'}]});
 assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),true);
+assert.equal(phone.elements.get('controllerPreviewOff').classList.contains('hidden'),false,
+  'disabled preview shows a clear screen-off overlay during gameplay');
+const previewFrame='data:image/jpeg;base64,QUJDRA==';
+phoneConn.fire('data',{t:'preview',image:previewFrame});
+assert.equal(phone.elements.get('controllerPreviewImage').src,'',
+  'JPEG fallback is ignored while preview is disabled');
+phone.click('videoPreviewToggleBtn');
+assert.equal(phoneConn.sent.at(-1).t,'preview-toggle');
+assert.equal(phoneConn.sent.at(-1).enabled,true);
+assert.equal(phone.elements.get('videoPreviewToggleBtn').textContent,'จอเปิด');
+assert.equal(phone.elements.get('controllerPreviewOff').classList.contains('hidden'),true);
+phoneConn.fire('data',{t:'preview',image:previewFrame});
+assert.equal(phone.elements.get('controllerPreviewImage').src,previewFrame,
+  'opted-in controller can show JPEG fallback');
+const activeVideo=phone.mediaCall('gf-party-ABCDE3');
+activeVideo.metadata={type:'game-video',quality:'medium'};
+phone.instances[0].fire('call',activeVideo);
+assert.equal(activeVideo.answered,true,'opted-in controller answers host media calls');
+const incomingStream={id:'test-stream'};
+activeVideo.fire('stream',incomingStream);
+assert.equal(phone.elements.get('controllerPreviewVideo').srcObject,incomingStream,
+  'opted-in preview shows WebRTC stream');
+phone.click('videoPreviewToggleBtn');
+assert.equal(activeVideo.closed,true,'disabling preview closes WebRTC connection');
+assert.equal(phone.elements.get('controllerPreviewVideo').srcObject,null);
+assert.equal(phone.elements.get('controllerPreviewImage').src,'');
+assert.equal(phoneConn.sent.at(-1).enabled,false,'host is asked to stop sending');
+assert.equal(phone.elements.get('videoPreviewToggleBtn').textContent,'จอปิด');
+assert.equal(phone.elements.get('controllerPreviewOff').classList.contains('hidden'),false);
+phoneConn.fire('data',{t:'preview',image:previewFrame});
+assert.equal(phone.elements.get('controllerPreviewImage').src,'','late frames are dropped while off');
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),false,
   'active Ghost Attack displays HUD in top rail');
 assert.equal(phone.elements.get('buttonALabel').textContent,'ตีสตั้น');

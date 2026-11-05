@@ -338,6 +338,16 @@ function getHostVideoSource(quality,autoHeight){
   hostVideoSources.set(key,source);
   return source;
 }
+function releaseHostVideoSourcesWhenIdle(){
+  if(hostVideoCalls.size!==0)return;
+  // Stop captureStream tracks when no phone is watching.
+  for(const source of hostVideoSources.values()){
+    if(source.stream?.getTracks)source.stream.getTracks().forEach(track=>{
+      try{track.stop();}catch(_){}
+    });
+  }
+  hostVideoSources.clear();
+}
 function renderHostVideoFrames(){
   if(!round||hostVideoCalls.size===0)return;
   for(const source of hostVideoSources.values()){
@@ -349,6 +359,8 @@ function stopHostVideoCall(conn){
   const call=hostVideoCalls.get(conn);
   hostVideoCalls.delete(conn);
   if(call)try{call.close();}catch(_){}
+  conn.videoReady=false;
+  releaseHostVideoSourcesWhenIdle();
 }
 function stopAllHostVideoCalls(){
   for(const conn of [...hostVideoCalls.keys()])stopHostVideoCall(conn);
@@ -359,7 +371,7 @@ function stopAllHostVideoCalls(){
   hostVideoSources.clear();
 }
 function startHostVideoCall(conn){
-  if(!round||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId)return;
+  if(!round||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId||conn.previewEnabled!==true)return;
   stopHostVideoCall(conn);
   conn.videoReady=false;
   const quality=Object.hasOwn(VIDEO_QUALITY,conn.videoQuality)?conn.videoQuality:'medium';
@@ -369,14 +381,22 @@ function startHostVideoCall(conn){
     const call=hostPeer.call(conn.peer,source.stream,{metadata:{type:'game-video',quality}});
     if(!call)return;
     hostVideoCalls.set(conn,call);
-    call.on('close',()=>{if(hostVideoCalls.get(conn)===call)hostVideoCalls.delete(conn);});
-    call.on('error',()=>{if(hostVideoCalls.get(conn)===call)hostVideoCalls.delete(conn);});
+    call.on('close',()=>{
+      if(hostVideoCalls.get(conn)!==call)return;
+      hostVideoCalls.delete(conn);conn.videoReady=false;
+      releaseHostVideoSourcesWhenIdle();
+    });
+    call.on('error',()=>{
+      if(hostVideoCalls.get(conn)!==call)return;
+      hostVideoCalls.delete(conn);conn.videoReady=false;
+      releaseHostVideoSourcesWhenIdle();
+    });
   }catch(_){/* Fall back to the low-rate JPEG preview. */}
 }
 function broadcastGamePreview(){
   if(!round||!onlineHost||!remotePreviewContext||hostConnections.size===0)return;
   const active=[...hostConnections].filter(c=>
-    c.open&&c.playerId&&!c.videoReady&&
+    c.open&&c.playerId&&c.previewEnabled===true&&!c.videoReady&&
     (!c.dataChannel||c.dataChannel.bufferedAmount<65536));
   if(!active.length||typeof remotePreviewCanvas.toDataURL!=='function')return;
   try{
@@ -585,14 +605,18 @@ function startHost(retries=0,resumeCode=null){
           p.clientToken=token;
           if(round&&round.phase!=='results')p.active=false;
         }
-        conn.playerId=p.id;p.lastInputAt=Date.now();
+        conn.playerId=p.id;conn.previewEnabled=false;p.lastInputAt=Date.now();
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active});
         broadcastRoster();
       }else if(msg.t==='leave'&&conn.playerId){
         const id=conn.playerId;conn.playerId=null;
         removePlayer(id);
       }else if(msg.t==='video-ready'&&conn.playerId){
-        if(msg.quality===conn.videoQuality)conn.videoReady=true;
+        if(conn.previewEnabled===true&&msg.quality===conn.videoQuality)conn.videoReady=true;
+      }else if(msg.t==='preview-toggle'&&conn.playerId&&typeof msg.enabled==='boolean'){
+        conn.previewEnabled=msg.enabled;
+        if(msg.enabled){if(round)startHostVideoCall(conn);}
+        else stopHostVideoCall(conn);
       }else if(msg.t==='video-quality'&&conn.playerId){
         if(!Object.hasOwn(VIDEO_QUALITY,msg.quality))return;
         const autoHeight=msg.quality==='auto'?normalizeAutoHeight(msg.autoHeight):null;
@@ -600,7 +624,7 @@ function startHost(retries=0,resumeCode=null){
           (msg.quality==='auto'&&conn.videoAutoHeight!==autoHeight);
         conn.videoQuality=msg.quality;
         conn.videoAutoHeight=autoHeight;
-        if(round&&(changed||!hostVideoCalls.has(conn)))startHostVideoCall(conn);
+        if(round&&conn.previewEnabled===true&&(changed||!hostVideoCalls.has(conn)))startHostVideoCall(conn);
       }else if(msg.t==='pick'&&conn.playerId){
         if(round||currentView!=='hostLobby'||!Object.hasOwn(MODES,msg.mode))return;
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
@@ -663,6 +687,7 @@ function updatePhoneGamePicker(phase,choice){
   $('controllerButtons').classList.toggle('is-picking',phoneSelectionOpen);
   // No joystick movement while selecting a game.
   if(phoneSelectionOpen)releaseStick();
+  renderControllerPreviewToggle();
   for(const button of document.querySelectorAll('[data-pick]')){
     const selected=button.dataset.pick===myChosenMode;
     button.classList.toggle('selected',selected);
@@ -674,6 +699,7 @@ function updatePhoneGamePicker(phase,choice){
 }
 let controllerMediaCall=null;
 let videoStreamActive=false;
+let controllerPreviewEnabled=false; // Default OFF on every fresh page load.
 const VIDEO_QUALITY_CYCLE=['high','medium','low','auto'];
 const VIDEO_QUALITY_TEXT={
   high:{short:'ส',long:'สูง · 720p'},
@@ -723,7 +749,29 @@ function setControllerVideoQuality(quality){
   controllerVideoQuality=quality;
   renderVideoQualityButton();
   try{window.localStorage.setItem('gf-video-quality-v1',quality);}catch(_){}
-  if(controllerReady)send(controllerConn,videoQualityPacket(quality));
+  if(controllerReady&&controllerPreviewEnabled)send(controllerConn,videoQualityPacket(quality));
+}
+function renderControllerPreviewToggle(){
+  const btn=$('videoPreviewToggleBtn');
+  btn.textContent=controllerPreviewEnabled?'จอเปิด':'จอปิด';
+  btn.dataset.preview=controllerPreviewEnabled?'on':'off';
+  btn.setAttribute('aria-pressed',String(controllerPreviewEnabled));
+  btn.setAttribute('aria-label',controllerPreviewEnabled?'จอพรีวิวเปิดอยู่ กดเพื่อปิด':'จอพรีวิวปิดอยู่ กดเพื่อเปิด');
+  btn.title=controllerPreviewEnabled?'ปิดจอพรีวิวของจอย':'เปิดจอพรีวิวของจอย';
+  // Keep the lobby game-picker clickable even while the preview is off.
+  $('controllerPreviewOff').classList.toggle('hidden',controllerPreviewEnabled||phoneSelectionOpen);
+}
+function setControllerPreviewEnabled(enabled){
+  controllerPreviewEnabled=enabled===true;
+  if(!controllerPreviewEnabled){
+    stopControllerVideo();
+    resetPhonePreview();
+  }else if(controllerReady){
+    // Quality preference is passed first, before asking the host to stream.
+    send(controllerConn,videoQualityPacket(controllerVideoQuality));
+  }
+  renderControllerPreviewToggle();
+  if(controllerReady)send(controllerConn,{t:'preview-toggle',enabled:controllerPreviewEnabled});
 }
 function stopControllerVideo(){
   const call=controllerMediaCall;
@@ -737,7 +785,7 @@ function stopControllerVideo(){
   $('videoStartBtn').classList.add('hidden');
 }
 function showControllerVideo(stream,call){
-  if(controllerMediaCall!==call||!stream)return;
+  if(controllerMediaCall!==call||!controllerPreviewEnabled||!stream)return;
   const video=$('controllerPreviewVideo');
   video.srcObject=stream;
   video.muted=true;
@@ -750,7 +798,7 @@ function showControllerVideo(stream,call){
     try{
       const p=video.play();
       if(p&&p.then)p.then(()=>{
-        if(controllerMediaCall!==call)return;
+        if(controllerMediaCall!==call||!controllerPreviewEnabled)return;
         send(controllerConn,{t:'video-ready',quality:call.metadata?.quality||'medium'});
       }).catch(()=>{$('videoStartBtn').classList.remove('hidden');});
     }catch(_){$('videoStartBtn').classList.remove('hidden');}
@@ -762,7 +810,7 @@ function resetPhonePreview(){
   if(!videoStreamActive)$('controllerPreviewPlaceholder').classList.remove('hidden');
 }
 function receivePhonePreview(image){
-  if(videoStreamActive)return;
+  if(!controllerPreviewEnabled||videoStreamActive)return;
   if(typeof image!=='string'||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>24000)return;
   $('controllerPreviewImage').src=image;
   $('controllerPreviewImage').classList.remove('hidden');
@@ -940,7 +988,7 @@ function joinRoom(recovery=false){
     controllerConn=conn;
     conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken});controllerState('กำลังรอห้องรับผู้เล่น...');});
     peer.on('call',call=>{
-      if(controllerPeer!==peer||call.peer!=='gf-party-'+code){
+      if(controllerPeer!==peer||call.peer!=='gf-party-'+code||!controllerPreviewEnabled){
         try{call.close();}catch(_){}
         return;
       }
@@ -975,8 +1023,10 @@ function joinRoom(recovery=false){
         syncZoomPolicy();
         showControllerMode(data.mode);
         updatePhoneGamePicker(data.phase||'lobby',data.choice||null);
-        // Keep the previously chosen quality between rooms and reloads.
+        // Quality is remembered, but the live preview starts OFF on a fresh
+        // controller page to save bandwidth and device battery.
         setControllerVideoQuality(savedVideoQuality());
+        setControllerPreviewEnabled(controllerPreviewEnabled);
         sendInputs();announceControllerTakeover();
       }else if(data.t==='preview'){
         if(controllerReady)receivePhonePreview(data.image);
@@ -1850,6 +1900,9 @@ document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener
   updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
 }));
+$('videoPreviewToggleBtn').addEventListener('click',()=>{
+  setControllerPreviewEnabled(!controllerPreviewEnabled);
+});
 $('videoQualityBtn').addEventListener('click',()=>{
   const index=VIDEO_QUALITY_CYCLE.indexOf(controllerVideoQuality);
   setControllerVideoQuality(VIDEO_QUALITY_CYCLE[(index+1)%VIDEO_QUALITY_CYCLE.length]);
@@ -1863,7 +1916,9 @@ window.addEventListener('resize',()=>{
 });
 controllerVideoQuality=savedVideoQuality();
 renderVideoQualityButton();
+renderControllerPreviewToggle();
 $('videoStartBtn').addEventListener('click',()=>{
+  if(!controllerPreviewEnabled)return;
   const video=$('controllerPreviewVideo');
   if(typeof video.play==='function'){
     try{

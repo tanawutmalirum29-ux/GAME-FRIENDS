@@ -3430,3 +3430,55 @@ body.controller-playing #controller #controllerActive #phoneGameChoices{
 #game .leader-chip.color-switch-leader .leader-role{color:#e8fd9c}
 #game .leader-chip.color-switch-leader .leader-item-slot{color:#fff2a4;min-width:10px}
 #phoneGameChoices .phone-game-choice[data-pick="color_switch"] .mode-cover-svg{display:block}
+
+/* Controller preview defaults to OFF. Small button beside graphic-quality
+   remains touchable; the disabled view keeps the joystick's entire hit area. */
+body.controller-playing #controllerActive .gamepad-top-actions .gamepad-preview-toggle{
+  order:1;
+  width:clamp(42px,7.2dvh,58px);
+  min-width:clamp(42px,7.2dvh,58px);
+  max-width:58px;
+  min-height:clamp(29px,5.1dvh,37px);
+  height:clamp(29px,5.1dvh,37px);
+  padding:0 3px;
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  font-size:clamp(9px,1.5dvh,12px);
+  font-weight:900;
+  line-height:1;
+  touch-action:manipulation;
+  color:#edf5ff;
+  border:1px solid #8a99b0;
+  background:#334056;
+}
+body.controller-playing #controllerActive .gamepad-top-actions .gamepad-preview-toggle[data-preview="on"]{
+  color:#e5ffed;background:#1b5943;border-color:#8cedb0;
+}
+body.controller-playing #controllerActive .gamepad-preview-off{
+  position:absolute;inset:0;z-index:5;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:clamp(2px,1.1dvh,8px);text-align:center;
+  padding:10px;pointer-events:none;
+  background:radial-gradient(ellipse at center,#1a2739 0%,#080e1b 95%);
+  color:#eef3fa;
+}
+body.controller-playing #controllerActive .gamepad-preview-off .preview-off-symbol{
+  color:#9aacc0;font-size:clamp(22px,5dvh,40px);line-height:1;
+}
+body.controller-playing #controllerActive .gamepad-preview-off strong{
+  font-size:clamp(11px,1.7dvh,17px);font-weight:900;
+}
+body.controller-playing #controllerActive .gamepad-preview-off small{
+  font-size:clamp(9px,1.2dvh,12px);color:#b5c5d8;
+}
+body.controller-playing #controllerActive .gamepad-preview-off.hidden{
+  display:none!important;
+}
+@media (orientation:landscape) and (max-height:400px){
+  body.controller-playing #controllerActive .gamepad-top-actions .gamepad-preview-toggle{
+    width:42px;min-width:42px;font-size:9px;
+  }
+  body.controller-playing #controllerActive .gamepad-preview-off small{display:none}
+}
