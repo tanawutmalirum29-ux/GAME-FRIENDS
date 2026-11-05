@@ -317,6 +317,10 @@ function advanceNpcs(dt,players,state){
   for(const npc of state.npcs){
     npc.stun=Math.max(0,npc.stun-dt);
     if(npc.stun>0)continue;
+    // Check current contact BEFORE steering: a ghost may initially face away
+    // from a nearby player, but that must not undo an existing body touch.
+    for(const p of players)if(p.active&&!p.ghost&&p.cloak<=0&&
+      dist(npc,p)<=PLAYER_BODY_RADIUS*2+1)convert(p,state);
     const target=visiblePrey(players).find(p=>p.id===npc.huntTargetId);
     if(!target)continue;
     const goal=npc.huntGoal||ghostForecast(npc,target,state);
