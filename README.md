@@ -103,3 +103,24 @@
 - If everyone falls simultaneously, only the entrants of that elimination replay. No overall time limit; the match ends with one survivor. Single-player games run a full trial before the win screen.
 - Source: `fruit-memory.js`; controller, lobby and tournament integration: `app.js`, `index.html`, `style.css`.
 - Run `node tests/fruit-memory.cjs` and `node tests/smoke.cjs` to validate engine and cross-game integration.
+
+## ภาพตัวละครและธีมมุมบน (Overhead art)
+
+![ตัวละครชุดเดียวกันและภาพพรีวิวทั้ง 5 ธีม](docs/art-preview.jpg)
+
+- ทุกมินิเกมใช้ `player-avatar.js`: ตัวป้อมฮู้ดนักสำรวจ ไก่ ฟาโรห์ และจิ้งจอก ขนาดมาตรฐาน 52×52 หมุนตามจอย มีท่ายืน เดินสลับเท้า อุ้ม และตี โดยชื่อยังอ่านในแนวนอน
+- ชุดประจำตัวผูกกับ ID ผู้เล่น จึงคงเดิมเมื่อสลับเกม สีประจำตัวไม่หาย และไม่มีผลต่อ hitbox, ความเร็ว หรือกติกา
+- `arena-art.js` วาดพื้นตกแต่งแบบคงที่และแคชต่อรอบ รองรับความละเอียดสูงถึง 2× โดยไม่สุ่มหรือแก้สถานะเกมระหว่างวาด
+- CHICKENS: ลานดินกลางสนามหญ้า รั้วเว้นช่องตามประตูคอกจริง และคอกสีผู้เล่น
+- SHOCKWAVE: แท่นหิน 5×5 กลางลาวา ช่องอันตรายมีสีส้มกะพริบ ขอบสว่าง และเครื่องหมาย `!`; พื้นยังคงอยู่ตามกติกาเดิม
+- FRUIT MEMORY: สวนผลไม้ การ์ดม่วงด้านหลังเหมือนกันทุกชนิด สีและรูปผลไม้ปรากฏเฉพาะตอนเปิดเท่านั้น
+- GHOST ATTACK: สุสานม่วงพร้อมแสงเทียน และห้องฟาโรห์หินทราย/เทอร์ควอยซ์ วัตถุเป็นมุมบนภายในกรอบชนเดิม
+
+เปิดพรีวิวตัวละครและทั้ง 5 ธีมโดยไม่ต้องสร้างห้อง:
+
+```sh
+python3 -m http.server 8080
+# เปิด http://localhost:8080/tools/art-preview.html
+```
+
+หน้า preview ใช้ตัววาดและสถานะจาก engine จริง เลือก 4/8/12 ผู้เล่นและดูท่าเดินได้ แต่หยุดกติกาเกมไว้เพื่อเทียบภาพ (ไม่ใช่โหมดเล่นจริง)

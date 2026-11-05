@@ -4,6 +4,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const engineSource=fs.readFileSync('chickens.js','utf8');
 const host=vm.createContext({window:{}});
+vm.runInContext(fs.readFileSync('arena-art.js','utf8'),host,{filename:'arena-art.js'});
 vm.runInContext(fs.readFileSync('player-avatar.js','utf8'),host,{filename:'player-avatar.js'});
 vm.runInContext(engineSource,host,{filename:'chickens.js'});
 const chickens=host.window.Chickens;
@@ -283,6 +284,7 @@ for(let n=1;n<=12;n++){
  const words=[],circles=[],translations=[];
  const ctx=new Proxy({},{
   get(_obj,key){
+   if(key==='createLinearGradient'||key==='createRadialGradient')return ()=>({addColorStop(){}});
    if(key==='fillText')return (...args)=>words.push(args);
    if(key==='arc')return (...args)=>circles.push(args);
    if(key==='translate')return (...args)=>translations.push(args);
@@ -297,3 +299,14 @@ for(let n=1;n<=12;n++){
    'carried sprite is drawn at its actual carry position');
 }
 console.log('CHICKENS physics, gates, deposits, combat, lifecycle and bots: OK');
+// A held bird must point at the same gate location in all four directions.
+for(const dir of [{x:1,y:0},{x:0,y:1},{x:-1,y:0},{x:0,y:-1}]){
+ const player={x:480,y:270,dir};
+ const bird={x:player.x+dir.x*C.carryOffset,y:player.y+dir.y*C.carryOffset,
+   dir,status:'carried',flap:0};
+ const moves=[];
+ const ctx=new Proxy({},{get(_target,key){return (...args)=>{if(key==='translate')moves.push(args);};},set(){return true;}});
+ chickens.drawHeldChicken(ctx,bird,player,1);
+ assert.ok(moves.some(([x,y])=>x===bird.x&&y===bird.y),
+   'overhead carried art has no screen-up offset from the deposit coordinates');
+}

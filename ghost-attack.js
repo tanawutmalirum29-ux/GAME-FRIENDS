@@ -818,7 +818,7 @@ function hud(players,round){
 function drawPerson(ctx,p,color,ghost,t,alpha=1,theme='graveyard'){
   ctx.save();ctx.globalAlpha=alpha;
   if(ghost)Art.drawActor(ctx,p,color,true,t,theme);
-   else window.PartyPlayerAvatar.draw(ctx,p,{time:t,color,label:false});
+   else window.PartyPlayerAvatar.draw(ctx,p,{time:t,color,label:false,attacking:p.attackRemaining>0});
   // The shared combat and stun timelines also decorate the SVG sprite.
   Combat.drawAttack(ctx,p);
   Combat.drawStun(ctx,p,t);
@@ -910,72 +910,7 @@ function drawCornerHud(ctx,round,players,state){
   ctx.restore();
 }
 function drawThemeBackdrop(ctx,state,t,w,h){
-  const egypt=state.theme==='egypt';
-  const gradient=ctx.createLinearGradient(0,0,w,h);
-  if(egypt){
-    // Twilight over a buried pharaoh's chamber: warm sandstone, teal
-    // lapis accents, a quiet dune texture, and gold-trimmed walls.
-    gradient.addColorStop(0,'#40382d');
-    gradient.addColorStop(.52,'#685138');
-    gradient.addColorStop(1,'#38372f');
-  }else{
-    gradient.addColorStop(0,'#132b39');
-    gradient.addColorStop(.55,'#193349');
-    gradient.addColorStop(1,'#0c1e35');
-  }
-  ctx.fillStyle=gradient;ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle=egypt?'#d9b27025':'#39616f32';
-  ctx.lineWidth=1;
-  for(let x=0;x<w;x+=54){
-    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();
-  }
-  for(let y=0;y<h;y+=54){
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();
-  }
-  ctx.fillStyle=egypt?'#b88b51':'#124358';
-  ctx.strokeStyle=egypt?'#f3cb79b0':'#5fcad183';ctx.lineWidth=6;
-  ctx.fillRect(7,7,w-14,h-14);ctx.strokeRect(7,7,w-14,h-14);
-  ctx.fillStyle=gradient;ctx.fillRect(16,16,w-32,h-32);
-  if(egypt){
-    // Engraved pyramid outlines stay behind the active playfield.
-    for(let i=0;i<3;i++){
-      const cx=w*(.17+i*.32),baseY=h*(.23+(i%2)*.045);
-      const size=50+i*12;
-      ctx.save();ctx.globalAlpha=.16;
-      ctx.fillStyle='#e2b770';
-      ctx.beginPath();
-      ctx.moveTo(cx-size,baseY+size*.65);
-      ctx.lineTo(cx,baseY-size*.52);
-      ctx.lineTo(cx+size,baseY+size*.65);
-      ctx.closePath();ctx.fill();
-      ctx.fillStyle='#6c492c';ctx.beginPath();
-      ctx.moveTo(cx,baseY-size*.52);ctx.lineTo(cx+size,baseY+size*.65);
-      ctx.lineTo(cx,baseY+size*.65);ctx.closePath();ctx.fill();
-      ctx.restore();
-    }
-    for(let i=0;i<46;i++){
-      const x=(39+i*191)%w,y=(41+i*83)%h;
-      ctx.fillStyle=i%3===0?'#f7d79722':'#f4d49c12';
-      ctx.beginPath();ctx.ellipse(x,y,8+i%9,2.5+i%4,(i%4)*.12,0,TAU);ctx.fill();
-      if(i%5===0){
-        ctx.strokeStyle='#ffe4aa22';ctx.lineWidth=1.5;
-        ctx.beginPath();ctx.moveTo(x-11,y+6);ctx.lineTo(x+13,y+7);
-        ctx.stroke();
-      }
-    }
-  }else{
-    // Original cemetery moss, mist and ground chips are unchanged.
-    for(let i=0;i<30;i++){
-      const px=(37+i*173)%w,py=(29+i*97)%h;
-      ctx.fillStyle=i%2?'#87b59c19':'#b3d4d011';
-      ctx.beginPath();ctx.ellipse(px,py,9+i%5,3+i%3,(i%3)*.3,0,TAU);ctx.fill();
-      if(i%3===0){
-        ctx.strokeStyle='#b9d6ce26';ctx.lineWidth=1.2;
-        ctx.beginPath();ctx.moveTo(px-5,py+4);ctx.lineTo(px-3,py-2);
-        ctx.moveTo(px+5,py+3);ctx.lineTo(px+2,py-1);ctx.stroke();
-      }
-    }
-  }
+  window.PartyArenaArt.draw(ctx,state.theme,state,w,h);
 }
 function draw(ctx,t,round,players){
   const state=round.ghost;if(!state)return;

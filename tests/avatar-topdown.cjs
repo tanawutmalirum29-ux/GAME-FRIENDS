@@ -92,3 +92,32 @@ assert.doesNotMatch(shock,/footAnchor:true/,'old side-view foot offset is remove
 assert.match(shock,/ctx\.arc\(p\.x,p\.y,C\.footRadius/,
  'displayed foot marker must use exact physics centre');
 console.log('TOP-DOWN AVATAR PASS: overhead SVG, four directions, centred foot anchor, theme ghosts, renderer reuse');
+
+// A seat keeps its costume across engines, transient hit colors and reloads.
+for(let id=1;id<=12;id++){
+ const player={id:'p'+id,color:'#ff628c'};
+ assert.equal(Avatar.costumeFor(player),Avatar.costumeFor({...player,color:'#ffe86b'}));
+ assert.equal(Avatar.costumeFor(player),Avatar.costumeFor(JSON.parse(JSON.stringify(player))));
+}
+assert.equal(new Set([1,2,3,4].map(id=>Avatar.costumeFor({id:'p'+id}))).size,4);
+for(const costume of Avatar.COSTUMES){
+ for(const pose of ['idle','walk','walk2','hold','attack']){
+  assert.match(Avatar.svgFor('#3fe4ef',pose,costume),/data-view="top-down"/);
+  assert.equal(Avatar.imageFor('#3fe4ef',pose,costume),Avatar.imageFor('#3fe4ef',pose,costume));
+ }
+}
+assert.notEqual(Avatar.imageFor('#3fe4ef','idle','chicken'),Avatar.imageFor('#3fe4ef','idle','fox'));
+assert.notEqual(Avatar.svgFor('#3fe4ef','walk'),Avatar.svgFor('#3fe4ef','walk2'));
+assert.match(Art.actorSVG(false,'#ff628c','walk0'),/data-view="top-down"/,
+ 'legacy human entry point must not resurrect a front-facing actor');
+assert.doesNotMatch(Avatar.svgFor('\" onload=\"alert(1)','idle','<script>'),/onload|<script>/);
+// Loading without Image still produces a centred, rotated overhead fallback.
+const noImages=vm.createContext({window:{}});
+vm.runInContext(avatarSource,noImages);
+{
+ const {ctx,calls}=probe();noImages.window.PartyPlayerAvatar.draw(ctx,p,{label:false});
+ assert.ok(calls.some(c=>c[0]==='arc'));
+ assert.ok(!calls.some(c=>c[0]==='drawImage'));
+ assert.ok(calls.some(c=>c[0]==='translate'&&c[1]===p.x&&c[2]===p.y));
+}
+console.log('COSTUME PASS: stable identity, separate cached poses, overhead legacy path and no-image fallback');
