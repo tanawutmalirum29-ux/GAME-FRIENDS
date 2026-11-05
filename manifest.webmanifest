@@ -1,0 +1,16 @@
+{
+  "name": "Stick Squad Party — GAME FRIENDS",
+  "short_name": "Stick Squad",
+  "description": "เกมปาร์ตี้หลายผู้เล่น ใช้มือถือเป็นจอย เล่นบนจอหลัก",
+  "lang": "th",
+  "start_url": "./?host=1",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0d1122",
+  "theme_color": "#0d1122",
+  "categories": [
+    "games",
+    "entertainment"
+  ]
+}
