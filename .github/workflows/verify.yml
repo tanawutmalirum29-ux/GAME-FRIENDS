@@ -20,6 +20,8 @@ jobs:
           node --check chickens.js
           node --check fruit-memory.js
           node --check shockwave.js
+          node --check color-switch.js
+          node --check tests/color-switch.test.js
           node --check tests/avatar-topdown.cjs
           node --check tests/shockwave.cjs
           node --check tests/fruit-memory.cjs
@@ -28,6 +30,8 @@ jobs:
           node --check scripts/build-static.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
+      - name: COLOR SWITCH rules and 12-player stress
+        run: node tests/color-switch.test.js
       - name: Shared overhead avatar checks
         run: node tests/avatar-topdown.cjs
       - name: Scenery cache and physics isolation
