@@ -18,6 +18,7 @@ const artSource=fs.readFileSync('graveyard-art.js','utf8');
 const combatSource=fs.readFileSync('combat-motion.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
+const manifest=JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));
 const hostLauncher=fs.readFileSync('host.html','utf8');
 
 // Game catalog retains Ghost Attack and now adds CHICKENS as game two.
@@ -44,6 +45,11 @@ assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
 assert.match(html,/data-session-mode="quick"/);
 assert.match(html,/id="cycleAllBotsBtn"/);
+assert.match(html,/id="iosFullscreenBtn"/);
+assert.match(html,/apple-mobile-web-app-capable/);
+assert.match(html,/rel="manifest" href="\.\/manifest\.webmanifest"/);
+assert.equal(manifest.display,'standalone');
+assert.equal(manifest.start_url,'./?host=1');
 assert.match(css,/#hostLobby \.lobby-section-title \.bulk-bot-switch\{/);
 assert.match(html,/id="uiModal"/);
 assert.doesNotMatch(source,/\b(?:alert|confirm)\(/);
@@ -830,7 +836,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
       getItem(key){return persistedNicknames.get(key)||null;},
       setItem(key,value){persistedNicknames.set(key,String(value));}
     },
-    matchMedia(){return {matches:this.portrait};},
+    matchMedia(query){return {matches:query.includes('display-mode: standalone')||query.includes('display-mode: fullscreen')?!!browserProfile?.standalone:this.portrait};},
     addEventListener(name,fn){(windowHandlers[name]??=[]).push(fn);},
     fire(name){for(const fn of windowHandlers[name]||[])fn();},
     scrollTo(){}
@@ -956,8 +962,33 @@ assert.equal(tablet.elements.get('game').classList.contains('hidden'),false);
 assert.equal(tablet.scope.document.fullscreenRequests,0,
   'iPad host must not trigger native fullscreen phishing protection');
 assert.equal(tablet.scope.document.fullscreenElement,null);
+assert.equal(tablet.elements.get('iosFullscreenBtn').classList.contains('hidden'),false);
+assert.equal(tablet.elements.get('iosFullscreenBtn').getAttribute?.('aria-pressed')||tablet.elements.get('iosFullscreenBtn').attributes?.['aria-pressed'],'false');
 tablet.click('backBtn');
 assert.equal(tablet.elements.get('hostLobby').classList.contains('hidden'),false);
+// iPad users can explicitly opt into REAL native fullscreen, and can turn
+// it off again to avoid OS keyboard-phishing sheets. Preference persists.
+tablet.click('iosFullscreenBtn');
+assert.equal(tablet.elements.get('iosFullscreenBtn').textContent,'เต็มจอจริง: เปิด');
+tablet.click('startBtn');
+assert.equal(tablet.scope.document.fullscreenRequests,1,
+  'native fullscreen is requested when the iPad user explicitly enables it');
+tablet.click('backBtn');
+const persistedTablet=setup('https://game.example/?host=1',false,null,null,ipadUA);
+assert.equal(persistedTablet.elements.get('iosFullscreenBtn').textContent,'เต็มจอจริง: เปิด',
+  'iPad preference survives a new page instance');
+const homeScreenUA={...ipadUA,standalone:true};
+const standaloneApp=setup('https://game.example/?host=1',false,null,null,homeScreenUA);
+assert.equal(standaloneApp.elements.get('iosFullscreenBtn').classList.contains('hidden'),true,
+  'an installed home screen app does not need an additional fullscreen switch');
+standaloneApp.click('offlineBtn');standaloneApp.click('startBtn');
+assert.equal(standaloneApp.scope.document.fullscreenRequests,0,
+  'standalone app fills its viewport without invoking native fullscreen');
+tablet.click('iosFullscreenBtn');
+assert.equal(tablet.elements.get('iosFullscreenBtn').textContent,'เต็มจอจริง: ปิด');
+const resetTablet=setup('https://game.example/?host=1',false,null,null,ipadUA);
+assert.equal(resetTablet.elements.get('iosFullscreenBtn').textContent,'เต็มจอจริง: ปิด');
+
 const ipadController=setup('https://game.example/?room=ABC123',false,null,null,ipadUA);
 ipadController.click('joinLandscapeBtn');
 ipadController.click('landscapeBtn');
