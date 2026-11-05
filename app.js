@@ -1283,7 +1283,10 @@ window.addEventListener('blur',()=>{
 });
 function startRound(forcedMode=null){
   if(!players.length)return;
-  const mode=Object.hasOwn(MODES,forcedMode)?forcedMode:'ghost';
+  if(forcedMode!==null&&!Object.hasOwn(MODES,forcedMode)){
+    showToast('ไม่รู้จักเกมที่เลือก: '+String(forcedMode));return;
+  }
+  const mode=forcedMode??'ghost';
   const engine=gameEngine(mode);
   if(!engine)throw Error(mode+' engine failed to load');
   $('results').classList.add('hidden');
