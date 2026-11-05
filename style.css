@@ -262,6 +262,8 @@ body.host-playing{overflow:hidden;overscroll-behavior:none;touch-action:none}
 #game .game-frame canvas{
   width:100%;height:100%;aspect-ratio:auto;
   max-width:100%;max-height:100%;object-fit:contain;
+  /* A higher-resolution backing store gives Retina-class clarity without CSS zoom. */
+  image-rendering:auto;
   display:block;touch-action:none;
 }
 #game .game-banner{z-index:3;top:35%;font-size:clamp(34px,6vw,80px)}

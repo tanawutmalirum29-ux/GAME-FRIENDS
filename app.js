@@ -126,6 +126,40 @@ function holdSeat(p){
  },60000));
 }
 const canvas=$('arena'), g=canvas.getContext('2d');
+// The game world stays at 960x540. Increase the bitmap resolution of the
+// *host canvas* to match the screen instead of stretching 960 physical pixels
+// across Retina tablets/large monitors. This changes graphics only: coordinates,
+// speeds, physics, HUD geometry and the controller's video quality are unchanged.
+const ARENA_WIDTH=960,ARENA_HEIGHT=540,MAX_ARENA_SCALE=3;
+let arenaResolutionDirty=true,arenaLastDpr=0;
+function markArenaResolutionDirty(){arenaResolutionDirty=true;}
+function syncArenaResolution(){
+ const rawDpr=Number(window.devicePixelRatio);
+ const dpr=Number.isFinite(rawDpr)&&rawDpr>0?rawDpr:1;
+ if(!arenaResolutionDirty&&arenaLastDpr===dpr)return;
+ arenaResolutionDirty=false;arenaLastDpr=dpr;
+ const box=canvas.getBoundingClientRect?.();
+ // Long/short sides are intentional: portrait fallback may rotate the
+ // host canvas by 90 degrees without changing the game world's coordinates.
+ const longSide=Math.max(Number(box?.width)||0,Number(box?.height)||0);
+ const shortSide=Math.min(Number(box?.width)||0,Number(box?.height)||0);
+ const displayScale=longSide>0&&shortSide>0?
+   Math.max(longSide/ARENA_WIDTH,shortSide/ARENA_HEIGHT):1;
+ const scale=Math.min(MAX_ARENA_SCALE,Math.max(1,displayScale*dpr));
+ const width=Math.round(ARENA_WIDTH*scale);
+ const height=Math.round(ARENA_HEIGHT*scale);
+ if(canvas.width!==width||canvas.height!==height){
+   canvas.width=width;canvas.height=height;
+ }
+ // Setting canvas.width/height clears all context state. Restore the
+ // pixel-to-world transform so existing game engines still draw 960x540.
+ g.setTransform(width/ARENA_WIDTH,0,0,height/ARENA_HEIGHT,0,0);
+ g.imageSmoothingEnabled=true;
+ g.imageSmoothingQuality='high';
+}
+window.addEventListener('resize',markArenaResolutionDirty);
+window.addEventListener('orientationchange',markArenaResolutionDirty);
+window.visualViewport?.addEventListener?.('resize',markArenaResolutionDirty);
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const cleanName=(value)=>String(value||'').trim().replace(/[<>]/g,'').slice(0,14)||'เพื่อนใหม่';
@@ -161,6 +195,7 @@ function syncZoomPolicy(){
 }
 function setView(view) {
   currentView=view;
+  if(view==='game')markArenaResolutionDirty();
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
   syncZoomPolicy();
@@ -1442,6 +1477,7 @@ function renderLeaderboard(){
 }
 function drawGame(t){
   if(!round)return;
+  syncArenaResolution();
   gameEngine(round.mode).draw(g,t,round,players);
 }
 function animate(ts){

@@ -79,6 +79,11 @@
 วิดีโอจอยเลือกระดับ 144p / 540p / 720p / Auto โดยไม่ล็อก FPS ตามคุณภาพ (เบราว์เซอร์/เครือข่ายอาจปรับ FPS เอง) โหมดเต็มจอยังขึ้นกับข้อจำกัด iOS/Safari
 
 
+## Native-resolution host canvas
+
+- The main game canvas still uses a **960×540 logical coordinate system** for every minigame, but its physical backing bitmap now follows the rendered display size and device pixel ratio (up to 3×, i.e. 2880×1620). This removes low-resolution upscaling on iPad/Retina screens without altering movement, collision, tile counts, UI geometry or game timings.
+- The host bitmap is rebuilt only when the host view, window/orientation or device pixel ratio changes. Remote phone-preview video retains its independently selected stream resolution; a clearer host display does not force high-bandwidth phone streams.
+
 ## Room continuity and web patching
 
 - A host lobby refresh reopens its original PeerJS room ID from tab-scoped session storage, preserving player seats, local bots, selected games and settings. Joined controllers store a stable per-tab token and automatically reconnect to the saved room after an update or refresh.

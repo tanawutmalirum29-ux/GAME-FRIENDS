@@ -677,7 +677,7 @@ for(const item of ['cloak','boost','stun','trap','slow']){
 }
 
 const persistedNicknames=new Map();
-function setup(url='https://game.example/?host=1',portrait=false,savedSession=null) {
+function setup(url='https://game.example/?host=1',portrait=false,savedSession=null,arenaViewport=null) {
   const elements=new Map();
   const makeElement=(id='')=>{
     const handlers={},classes=new Set();
@@ -710,11 +710,14 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
       play(){this.played=true;return Promise.resolve();},
       pause(){this.paused=true;},
       toDataURL(mime){assert.equal(mime,'image/jpeg');return 'data:image/jpeg;base64,QUJDRA==';},
-      getBoundingClientRect(){return {left:0,top:0,width:200,height:200};},parentElement:null
+      getBoundingClientRect(){return id==='arena'&&arenaViewport?
+        {left:0,top:0,...arenaViewport}:{left:0,top:0,width:200,height:200};},parentElement:null
     };
   };
+  const canvasTransforms=[];
   const context=new Proxy({},{
     get(_,key){
+      if(key==='setTransform')return (...args)=>{canvasTransforms.push(args);};
       if(key==='createLinearGradient')return ()=>({addColorStop(){}});
       // Used by the bounded Thai HUD label renderer.
       if(key==='measureText')return text=>({width:String(text).length*8});
@@ -843,7 +846,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
   vm.runInContext(fruitSource,scope,{filename:'fruit-memory.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
-  return {elements,pickButtons,sessionButtons,padButtons,instances,scope,sessionData,timers,
+  return {elements,pickButtons,sessionButtons,padButtons,instances,scope,sessionData,timers,canvasTransforms,
     mediaCall(peer){return new FakeMediaCall(peer);},
     step(ms){assert(raf);raf(ms);},
     click(id){elements.get(id).fire('click');},
@@ -1164,7 +1167,44 @@ assert.equal(phone.scope.window.location.search,'?controller=1');
  assert.equal(offlineB.scope.window.__ghostTest.getPlayers().length,oldBotCount);
  assert.equal(offlineB.scope.window.GAME_CAN_AUTO_RELOAD(),true);
 }
-console.log('SMOKE PASS: 12-player cap, game controls, host/player reload recovery, tokens, session continuity, automatic patch safety');
+// Retina host-canvas regression. The CSS size, world coordinates and
+// video-stream canvas remain unchanged while the backing bitmap gets sharper.
+{
+ const viewport={width:1024,height:576};
+ const hi=setup('https://game.example/?host=1',false,null,viewport);
+ hi.click('offlineBtn');hi.click('startBtn');
+ const frame=hi.elements.get('arena');
+ hi.step(16.667);
+ assert.equal(frame.width,2048,'2x iPad DPR and 1024 CSS px must yield a 2048px backing');
+ assert.equal(frame.height,1152,'the 16:9 backing ratio is preserved');
+ assert.ok(Math.abs(hi.canvasTransforms.at(-1)[0]-2048/960)<1e-8);
+ assert.ok(Math.abs(hi.canvasTransforms.at(-1)[3]-1152/540)<1e-8);
+ const renderedAt=hi.canvasTransforms.length;
+ hi.step(33.334);
+ assert.equal(hi.canvasTransforms.length,renderedAt,
+   'do not reallocate the canvas every animation frame');
+ // Rotated host display is still rendered for the long side, not width alone.
+ viewport.width=576;viewport.height=1024;
+ hi.scope.window.fire('orientationchange');
+ hi.step(50);
+ assert.equal(frame.width,2048);
+ assert.equal(frame.height,1152);
+ // Desktop/4K-style displays never allocate an unbounded canvas.
+ viewport.width=2500;viewport.height=1406.25;
+ hi.scope.window.fire('resize');
+ hi.step(66.667);
+ assert.equal(frame.width,2880,'resolution is capped at 3x for GPU safety');
+ assert.equal(frame.height,1620);
+ // Shrink back to another valid size; no fixed-size/low-res canvas remains.
+ viewport.width=640;viewport.height=360;
+ hi.scope.window.fire('resize');
+ hi.step(83.333);
+ assert.equal(frame.width,1280);
+ assert.equal(frame.height,720);
+ assert.equal(hi.scope.window.__ghostTest.getRound().ghost.world.w,960,
+   'the gameplay world is not resized or zoomed');
+}
+console.log('SMOKE PASS: 12-player cap, host/controller reconnect, and Retina 2x/3x host canvas scaling');
 
 // All chicken gameplay rules run alongside the existing GHOST ATTACK regression suite.
 require('./chickens.cjs');
