@@ -14,6 +14,7 @@ function onSafePoint(){
   const url=new URL(window.location.href);
   // Do not reload-loop while a CDN still serves an obsolete index.html.
   if(url.searchParams.get('_gf_build')===pending)return false;
+  if(window.GAME_PREPARE_AUTO_RELOAD?.()===false)return false;
   reloading=true;
   url.searchParams.set('_gf_build',pending);
   window.location.replace(url.href);

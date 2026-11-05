@@ -55,7 +55,7 @@ assert.doesNotMatch(css,/leader-held-item/);
 assert.match(ghostSource,/function drawPickupNotice\(ctx,p,w,h\)/);
 assert.match(ghostSource,/p\.pickupNoticeTime=2\.1/);
 assert.match(source,/root\.style\.setProperty\('--leader-count'/);
-assert.match(html,/ไม่จับเวลา/);
+assert.doesNotMatch(html,/กฎการจบเกม/,'remove redundant end rules panel');
 assert.doesNotMatch(html,/id="duration"/);
 assert.match(html,/id="controllerInventory"/);
 assert.match(html,/<div class="gamepad-hud">[\s\S]*?<div id="controllerInventory" class="controller-inventory hidden"[\s\S]*?<div class="gamepad-top-actions">/,
