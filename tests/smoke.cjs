@@ -1345,7 +1345,7 @@ phoneConn.fire('data',{t:'roster',phase:'results',mode:'ghost',
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
  'role and item must disappear as soon as a round ends');
 assert.equal(phone.elements.get('inventoryItem').textContent,'');
-assert.equal(phone.elements.get('buttonALabel').textContent,'เล่นอีกครั้ง 0/0');
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป 0/0');
 assert.equal(phone.elements.get('buttonBLabel').textContent,'ล็อบบี้ 0/0');
 phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป'});
 assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป 1/2');
