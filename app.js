@@ -1387,6 +1387,52 @@ function updateRound(dt){
   const result=gameEngine(round.mode).update(dt,round,players);
   if(result==='winner')endRound();
 }
+
+// Result decisions are host-authoritative. Connected human controllers count;
+// bots have no joypad and must never prevent a unanimous decision.
+function resultVoters(){
+  return players.filter(p=>p.type==='remote'&&p.active&&p.conn?.open&&p.conn.playerId===p.id);
+}
+function resultNextLabel(){
+  if(!tournament)return 'เล่นอีกครั้ง';
+  return tournament.index+1<tournament.schedule.length?'เกมถัดไป':'สุ่มชุดใหม่จากตัวเลือกเดิม';
+}
+function resultVoteSnapshot(){
+  if(!round||round.phase!=='results')return null;
+  if(!round.resultVotes)round.resultVotes={next:new Set(),lobby:new Set()};
+  const valid=new Set(resultVoters().map(p=>p.id));
+  for(const name of ['next','lobby'])
+    for(const id of round.resultVotes[name])if(!valid.has(id))round.resultVotes[name].delete(id);
+  return {t:'result-votes',
+    next:round.resultVotes.next.size,lobby:round.resultVotes.lobby.size,
+    total:valid.size,nextLabel:resultNextLabel()};
+}
+function renderResultVotes(sendUpdate=false){
+  const v=resultVoteSnapshot();if(!v)return;
+  const seconds=round.autoNextRemaining>0?' • อีก '+Math.ceil(round.autoNextRemaining)+' วิ':'';
+  $('replayBtn').textContent='A '+v.nextLabel+seconds+'  '+v.next+'/'+v.total;
+  $('backBtn').textContent='B กลับล็อบบี้  '+v.lobby+'/'+v.total;
+  if(sendUpdate)broadcast(v);
+}
+function beginResultVoting(){
+  round.resultVotes={next:new Set(),lobby:new Set()};
+  renderResultVotes(true);
+}
+function castResultVote(conn,choice){
+  if(!round||round.phase!=='results'||!['next','lobby'].includes(choice))return;
+  const voter=resultVoters().find(p=>p.id===conn.playerId&&p.conn===conn);
+  if(!voter)return;
+  const votes=round.resultVotes||(round.resultVotes={next:new Set(),lobby:new Set()});
+  for(const name of ['next','lobby'])votes[name].delete(voter.id);
+  votes[choice].add(voter.id);
+  const snapshot=resultVoteSnapshot();
+  renderResultVotes(true);
+  // Unanimity acts instantly. Host buttons and the countdown still work.
+  if(snapshot.total>0&&snapshot[choice]===snapshot.total){
+    if(choice==='next')advanceParty();
+    else returnToLobby();
+  }
+}
 function endRound(){
   if(!round||round.phase==='results')return;
    if(round.mode==='color_switch'){endColorSwitchRound();return;}
