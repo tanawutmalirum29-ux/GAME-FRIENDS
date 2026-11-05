@@ -1166,8 +1166,8 @@ phoneConn.fire('open');
 phoneConn.fire('data',{t:'welcome',id:'p1',name:'Wut',color:'#ff628c',
  mode:'ghost',phase:'lobby'});
 assert.equal(phone.elements.get('videoPreviewToggleBtn').textContent,'จอปิด','controller starts with screen off');
-assert.equal(phoneConn.sent.at(-1).t,'preview-toggle');
-assert.equal(phoneConn.sent.at(-1).enabled,false,'controller explicitly sends default OFF');
+assert.equal(phoneConn.sent.filter(m=>m.t==='preview-toggle').at(-1)?.enabled,false,
+  'controller explicitly sends default OFF even before the first input packet');
 assert.equal(phone.elements.get('controllerPreviewOff').classList.contains('hidden'),true,
   'the game selector remains visible in the lobby even while preview is off');
 const unwantedVideo=phone.mediaCall('gf-party-ABCDE3');
