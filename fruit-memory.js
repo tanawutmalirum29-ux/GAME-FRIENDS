@@ -209,19 +209,11 @@ function stepPlayer(p,state,players,dt){
  p.y=clamp(p.y,b.y+C.radius,b.y+b.h-C.radius);
 }
 function resolvePlayerCollisions(state,players){
- const ps=living(players),b=state.board,r=C.radius;
- // Symmetric pair corrections, multiple iterations for crowded 12-person lobbies.
- for(let pass=0;pass<8;pass++)for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){
-   const a=ps[i],c=ps[j];let dx=c.x-a.x,dy=c.y-a.y;
-   let d=Math.hypot(dx,dy);
-   if(d>=2*r-1e-6)continue;
-   if(d<1e-5){const angle=(i*29+j*17)*1.618;dx=Math.cos(angle);dy=Math.sin(angle);d=1;}
-   const push=(2*r-d)/2,nx=dx/d,ny=dy/d;
-   a.x-=nx*push;a.y-=ny*push;c.x+=nx*push;c.y+=ny*push;
-   for(const p of [a,c]){
-     p.x=clamp(p.x,b.x+r,b.x+b.w-r);p.y=clamp(p.y,b.y+r,b.y+b.h-r);
-   }
- }
+ return window.PartyCharacters.resolve(players,{
+   filter:p=>p.active&&p.fruitAlive,
+   radius:C.radius,iterations:8,pressure:false,
+   bounds:state.board
+ });
 }
 // Exact circle/rectangle intersection (Simpson numerical integration), used ONLY at the snapshot.
 function circleRectArea(cx,cy,r,rect){
