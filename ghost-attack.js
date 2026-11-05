@@ -449,40 +449,21 @@ function pushPressure(p,nx,ny){
   const approach=(p.vx||0)*nx+(p.vy||0)*ny;
   return .22+Math.max(0,approach)/C.humanSpeed;
 }
-function movePushedPlayer(p,dx,dy,state){
-  const radius=15,edge=radius+6;
-  const x=clamp(p.x+dx,edge,state.world.w-edge);
-  const y=clamp(p.y+dy,edge,state.world.h-edge);
-  const clear=(xx,yy)=>state.obstacles.every(o=>
-    (p.ghost&&o.kind!=='hud-blocker')||safeCircle(o,xx,yy,radius));
-  if(clear(x,y)){p.x=x;p.y=y;return;}
-  // Slide along a wall when only one axis is available, never through props.
-  if(clear(x,p.y))p.x=x;
-  if(clear(p.x,y))p.y=y;
-}
 function resolvePlayerCollisions(players,state){
-  const bodies=players.filter(p=>p.active);
-  const minDist=PLAYER_BODY_RADIUS*2;
-  // Repeated shallow projections also work for three or more overlapping people.
-  for(let pass=0;pass<4;pass++){
-    for(let i=0;i<bodies.length;i++){
-      for(let j=i+1;j<bodies.length;j++){
-        const a=bodies[i],b=bodies[j];
-        const dx=b.x-a.x,dy=b.y-a.y;
-        const d=Math.hypot(dx,dy);
-        if(d>=minDist)continue;
-        // Exact co-location uses stable direction, avoiding NaN and oscillation.
-        const nx=d>.0001?dx/d:1,ny=d>.0001?dy/d:0;
-        const aForce=pushPressure(a,nx,ny);
-        const bForce=pushPressure(b,-nx,-ny);
-        const overlap=minDist-d;
-        const sum=aForce+bForce;
-        // High pressure resists being moved and instead pushes the other body.
-        movePushedPlayer(a,-nx*overlap*(bForce/sum),-ny*overlap*(bForce/sum),state);
-        movePushedPlayer(b,nx*overlap*(aForce/sum),ny*overlap*(aForce/sum),state);
-      }
-    }
-  }
+ return window.PartyCharacters.resolve(players,{
+   radius:PLAYER_BODY_RADIUS,iterations:4,speedReference:C.humanSpeed,
+   force:pushPressure,
+   constrain:(p,x,y)=>{
+     const radius=15,edge=radius+6;
+     const nextX=clamp(x,edge,state.world.w-edge),nextY=clamp(y,edge,state.world.h-edge);
+     const clear=(xx,yy)=>state.obstacles.every(o=>
+       (p.ghost&&o.kind!=='hud-blocker')||safeCircle(o,xx,yy,radius));
+     if(clear(nextX,nextY))return {x:nextX,y:nextY};
+     if(clear(nextX,p.y))return {x:nextX,y:p.y};
+     if(clear(p.x,nextY))return {x:p.x,y:nextY};
+     return {x:p.x,y:p.y};
+   }
+ });
 }
 function updateTraps(dt,players,state){
   state.traps=state.traps.filter(t=>{
