@@ -1265,6 +1265,10 @@ function createVoteHost(){
  assert.doesNotMatch(ui.elements.get('replayBtn').textContent,/เกมถัดไป \(\d+\/\d+\)/);
  assert.equal(ui.elements.get('replayBtn').dataset.votes,'0/2');
  assert.equal(ui.elements.get('backBtn').dataset.votes,'0/2');
+ assert.match(ui.elements.get('replayBtn').textContent,/อีก 7 วิ/,
+   'host next-game action still displays the seven-second timer');
+ assert.equal(cons[0].sent.filter(m=>m.t==='result-votes').at(-1).autoNextSeconds,7,
+   'connected controller receives the original countdown in the vote packet');
  return {ui,cons,round};
 }
 {
@@ -1285,11 +1289,37 @@ function createVoteHost(){
  const {ui,cons,round}=createVoteHost();
  cons[0].fire('data',{t:'result-vote',choice:'next'});
  assert.equal(round.phase,'results','one vote does not trigger game');
+ assert.equal(round.autoNextRemaining,7,'vote does not reset original countdown');
  cons[1].fire('data',{t:'result-vote',choice:'next'});
  const next=ui.scope.window.__ghostTest.getRound();
  assert.notEqual(next,round,'unanimous A creates a new round immediately');
  assert.equal(next.phase,'countdown','next game starts without waiting for timer');
  assert.equal(ui.elements.get('results').classList.contains('hidden'),true);
+}
+
+
+// The auto-next timer runs independently of the number or direction of votes.
+{
+ const {ui,cons,round}=createVoteHost();
+ cons[0].fire('data',{t:'result-vote',choice:'next'});
+ cons[1].fire('data',{t:'result-vote',choice:'lobby'});
+ for(let tick=0;tick<27;tick++)ui.step(1000+tick*45);
+ assert.ok(round.autoNextRemaining<7&&round.autoNextRemaining>5,
+   'countdown continues with opposed votes');
+ assert.match(ui.elements.get('replayBtn').textContent,/อีก 6 วิ/,
+   'host button still shows the decreasing seconds and action label');
+ assert.equal(ui.elements.get('replayBtn').dataset.votes,'1/2','A vote stays visible');
+ assert.equal(ui.elements.get('backBtn').dataset.votes,'1/2','B vote stays visible');
+ const packets=cons[0].sent.filter(m=>m.t==='result-votes');
+ assert.equal(packets.at(-1).autoNextSeconds,6,
+   'host synchronizes remaining seconds to controller');
+ assert.equal(packets.at(-1).next,1,'countdown keeps next-vote count');
+ assert.equal(packets.at(-1).lobby,1,'countdown keeps lobby-vote count');
+ assert.ok(packets.length<15,'countdown broadcasts only once per displayed second');
+ for(let tick=27;tick<175;tick++)ui.step(1000+tick*45);
+ assert.notEqual(ui.scope.window.__ghostTest.getRound(),round,
+   'automatic game advance still occurs at the original seven-second deadline');
+ assert.equal(ui.scope.window.__ghostTest.getRound().phase,'countdown');
 }
 
 // Explicit controller leave must remove the host seat immediately, with ack.
@@ -1435,8 +1465,12 @@ assert.equal(phone.elements.get('controllerInventory').classList.contains('hidde
 assert.equal(phone.elements.get('inventoryItem').textContent,'');
 assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป 0/0');
 assert.equal(phone.elements.get('buttonBLabel').textContent,'ล็อบบี้ 0/0');
-phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป'});
-assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป 1/2');
+phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',autoNextSeconds:7});
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 7 วิ 1/2',
+  'the controller next-game action shows timer together with votes');
+phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',autoNextSeconds:6});
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 6 วิ 1/2',
+  'the controller countdown changes independently of the vote count');
 assert.equal(phone.elements.get('buttonBLabel').textContent,'ล็อบบี้ 0/2');
 phone.padButtons.action.fire('pointerdown');
 assert.equal(phoneConn.sent.filter(m=>m.t==='result-vote').at(-1).choice,'next',

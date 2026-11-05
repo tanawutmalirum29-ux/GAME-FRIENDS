@@ -68,7 +68,7 @@ let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPe
 let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0, inventoryClock=0;
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false,controllerPlayerEliminated=false;
-let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป'};
+let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',autoNextSeconds:null};
 let disconnectRequested=false;
 const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
 const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
@@ -1082,7 +1082,9 @@ function joinRoom(recovery=false){
             next:Math.max(0,Math.min(MAX_PLAYERS,Number(data.next)||0)),
             lobby:Math.max(0,Math.min(MAX_PLAYERS,Number(data.lobby)||0)),
             total:Math.max(0,Math.min(MAX_PLAYERS,Number(data.total)||0)),
-            nextLabel:typeof data.nextLabel==='string'?data.nextLabel:'เกมถัดไป'
+            nextLabel:typeof data.nextLabel==='string'?data.nextLabel:'เกมถัดไป',
+            autoNextSeconds:Number.isFinite(data.autoNextSeconds)&&data.autoNextSeconds>0?
+              Math.ceil(data.autoNextSeconds):null
           };
           showControllerMode(controllerGameMode);
           $('controllerState').textContent='กด A เพื่อเล่นต่อ หรือ B เพื่อกลับล็อบบี้';
@@ -1174,7 +1176,7 @@ function setControllerGameContext(mode,phase,active){
   if(mode!=='shockwave'||!['countdown','playing','paused'].includes(phase))controllerPlayerEliminated=false;
   controllerGamePhase=phase||'lobby';
   if(controllerGamePhase!=='results')
-    controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป'};
+    controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',autoNextSeconds:null};
   controllerPlayerActive=!!active;
   const visible=isLiveGameContext();
   document.body.classList.toggle('pizza-controller-game',visible&&mode==='pizza_time');
@@ -1198,7 +1200,9 @@ function showControllerMode(mode){
   const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave',colorSwitch=playing&&mode==='color_switch';
   const voting=controllerReady&&controllerGamePhase==='results'&&controllerPlayerActive;
   const aLabel=voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
-    controllerResultVotes.nextLabel)+' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
+    controllerResultVotes.nextLabel)+
+    (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
+    ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
     ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':colorSwitch?'ต่อย':'';
   const bLabel=voting?'ล็อบบี้ '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
     ghost?($('controllerButtons').classList.contains('has-target')?
@@ -1492,11 +1496,14 @@ function resultVoteSnapshot(){
     for(const id of round.resultVotes[name])if(!valid.has(id))round.resultVotes[name].delete(id);
   return {t:'result-votes',
     next:round.resultVotes.next.size,lobby:round.resultVotes.lobby.size,
-    total:valid.size,nextLabel:resultNextLabel()};
+    total:valid.size,nextLabel:resultNextLabel(),
+    // The same authoritative 7-second auto-next timer drives the host button
+    // and each connected phone's A label. Votes do not pause or reset it.
+    autoNextSeconds:round.autoNextRemaining>0?Math.ceil(round.autoNextRemaining):null};
 }
 function renderResultVotes(sendUpdate=false){
   const v=resultVoteSnapshot();if(!v)return;
-  const seconds=round.autoNextRemaining>0?' • อีก '+Math.ceil(round.autoNextRemaining)+' วิ':'';
+  const seconds=v.autoNextSeconds!==null?' • อีก '+v.autoNextSeconds+' วิ':'';
   // Align A/B on the left, action text in the center and votes on the right.
   // The accessibility label contains the full sentence for screen readers.
   const next=$('replayBtn'),back=$('backBtn');
@@ -1506,7 +1513,12 @@ function renderResultVotes(sendUpdate=false){
   back.textContent='กลับล็อบบี้';
   back.dataset.action='B';back.dataset.votes=v.lobby+'/'+v.total;
   back.setAttribute('aria-label','B กลับล็อบบี้ '+back.dataset.votes);
-  if(sendUpdate)broadcast(v);
+  // Only broadcast when the displayed second changes or a vote changes;
+  // never spam all controllers on every animation frame.
+  if(sendUpdate||round.lastBroadcastAutoNextSeconds!==v.autoNextSeconds){
+    round.lastBroadcastAutoNextSeconds=v.autoNextSeconds;
+    broadcast(v);
+  }
 }
 function beginResultVoting(){
   round.resultVotes={next:new Set(),lobby:new Set()};
