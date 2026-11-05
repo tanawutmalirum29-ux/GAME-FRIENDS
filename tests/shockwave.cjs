@@ -39,33 +39,54 @@ for(let n=1;n<=12;n++){
  assert.equal(E.hud(ps,round).survivors,n);
  assert.ok(ps.every(p=>E.calculateFootSupport(state,p)>.99));
 }
-assert.equal(E.warningSeconds(1),2.5);
-assert.equal(E.warningSeconds(4),2.1);
-assert.equal(E.warningSeconds(7),1.6);
-assert.equal(E.warningSeconds(10),1.3);
-assert.equal(E.warningSeconds(13),1.1);
+assert.equal(E.warningSeconds(1),1.45);
+assert.equal(E.warningSeconds(4),1.15);
+assert.equal(E.warningSeconds(7),.95);
+assert.equal(E.warningSeconds(10),.75);
+assert.equal(E.warningSeconds(13),.65);
 assert.ok(E.warningSeconds(7)<E.warningSeconds(6));
 assert.ok(E.intervalSeconds(10)<E.intervalSeconds(4));
+assert.equal(E.intervalSeconds(1),.45);
+assert.equal(E.intervalSeconds(7),.19);
+assert.equal(E.intervalSeconds(12),.10);
+assert.ok(E.warningSeconds(4)<1.2,'quick early rounds');
+assert.ok(E.warningSeconds(12)<.7,'quick late rounds');
+assert.equal(25-E.dangerCount({wave:10}),3,'only three safe tiles by wave 10');
+{
+ const {state:s,ps}=game(4,6420);
+ s.wave=12;
+ E.startWarning(s,ps);
+ assert.equal(s.danger.length,24);
+ const previousSafe=s.lastSafeTileId;
+ // Complete the explosion state before the next wave begins.
+ for(const id of s.danger)s.tiles[id].state='exploding';
+ E.collapseTiles(s);
+ s.wave=13;
+ E.startWarning(s,ps);
+ assert.equal(s.danger.length,24);
+ assert.notEqual(s.lastSafeTileId,previousSafe,
+   'the last safe tile must relocate rather than enable permanent camping');
+}
 assert.ok(E.distanceBias(13)>E.distanceBias(3));
 
 {
  // 25 fixed floor tiles, but the safe area shrinks each wave.
- const expected=[0,3,4,5,6,8,10,12,14,16,18,20,21,22,23,24];
+ const expected=[0,4,6,8,10,12,14,16,18,20,22,23,24];
  const {state:s}=game(4,303);
  let last=0;
  for(let wave=1;wave<=30;wave++){
    s.wave=wave;
    const count=E.dangerCount(s);
-   assert.equal(count,expected[Math.min(wave,15)],
-     'progressive blast count must match the wave number');
+   assert.equal(count,expected[Math.min(wave,12)],
+     'accelerated danger counts must match the wave number');
    assert.ok(count>=last,'danger tiles must never decrease with later waves');
    assert.ok(count<=24,'always keep at least one safe square');
    last=count;
  }
- assert.equal(25-E.dangerCount({wave:11}),5);
- assert.equal(25-E.dangerCount({wave:12}),4);
- assert.equal(25-E.dangerCount({wave:13}),3);
- assert.equal(25-E.dangerCount({wave:14}),2);
+ assert.equal(25-E.dangerCount({wave:11}),2);
+ assert.equal(25-E.dangerCount({wave:12}),1);
+ assert.equal(25-E.dangerCount({wave:13}),1);
+ assert.equal(25-E.dangerCount({wave:14}),1);
  assert.equal(25-E.dangerCount({wave:15}),1);
  assert.ok(E.distanceBias(15)>E.distanceBias(10));
  assert.ok(E.distanceBias(15)<1,'nearby tiles still have a nonzero chance');
@@ -86,7 +107,7 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
        assert.ok(s.plannedWarningDuration>=E.warningSeconds(wave));
        assert.equal(E.validateSafeRoutes(s,ps,tiles,s.plannedWarningDuration),true,
          'every threatened player can reach safe ground in the planned warning');
-       if(wave>=15)assert.equal(25-tiles.length,1);
+       if(wave>=12)assert.equal(25-tiles.length,1);
        assert.equal(s.tiles.filter(tile=>tile.state==='destroyed').length,0,
          'pressure is explosions, never disappearing floor');
      }
@@ -99,13 +120,13 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  const {state:s,ps}=game(2,2718);
  put(ps[0],center(s,0));
  put(ps[1],center(s,24));
- s.wave=15;
+ s.wave=12;
  E.startWarning(s,ps);
  assert.equal(s.phase,'WARNING');
  assert.equal(s.danger.length,24);
  assert.equal(s.tiles.filter(t=>t.state==='safe').length,1);
- assert.ok(s.warningDuration>E.warningSeconds(15),
-   'a one-tile endgame must allow longer travel from distant corners');
+ assert.ok(s.warningDuration>E.warningSeconds(12),
+   'the fast one-tile endgame must extend the warning for distant corners');
  assert.equal(E.validateSafeRoutes(s,ps,s.danger,s.warningDuration),true);
  assert.ok(s.tiles.every(t=>t.state==='safe'||t.state==='warning'));
 }
@@ -116,7 +137,7 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  E.startWave(s,ps);
  E.evaluateEliminations(s,ps,[ps[0]]);
  assert.equal(ps[0].shockAlive,false);
- s.wave=15;
+ s.wave=12;
  E.startWarning(s,ps);
  const dangerId=s.danger[0];
  for(const p of [ps[1],ps[2]])put(p,center(s,dangerId));
@@ -295,4 +316,4 @@ assert.match(avatars,/data:image\/svg\+xml/);
  assert.ok(circles.some(a=>a[0]===ps[1].x&&a[1]===ps[1].y&&a[2]===11),
    'rendered foot ring at same position as simulated foot');
 }
-console.log('SHOCKWAVE PASS: 5x5 permanent floor, growing 3–24 hazards, 1 safe tile endgame, weighted distance, adaptive warnings, hitboxes, ties and shared SVG');
+console.log('SHOCKWAVE PASS: fast waves 4–24 blasts, one safe tile by wave 12, rotating shelter, adaptive warnings, hitboxes and ties');

@@ -31,7 +31,7 @@ function setup(round,ps){
   warningStarted:false,seed:((Number(round.shockSeed)||Date.now()^0x6a53)>>>0)||1,
   winnerId:null,finished:false,fastPhase:false,suddenDeath:false,finalArena:false,
   events:[],effects:[],eliminationEvent:0,tiebreakers:0,pendingTiebreaker:null,roundId:0,
-  startCount:ps.length,plannedWarningDuration:0,plannedDangerCount:0};
+  startCount:ps.length,plannedWarningDuration:0,plannedDangerCount:0,lastSafeTileId:null};
  round.shockwave=s;round.remaining=null;
  for(const p of ps){p.active=true;p.score=0;}
  createGrid(s);spawnPlayers(s,ps);return s;
@@ -123,13 +123,14 @@ function calculateDangerWeights(s,ps){
  return tiles.map((t,i)=>({id:t.id,distance:distances[i],
    weight:1+8*bias*Math.pow(distances[i]/maximum,1.5)}));
 }
-function warningSeconds(w){return w<=3?2.5:w<=6?2.1:w<=9?1.6:w<=12?1.3:1.1;}
-function intervalSeconds(w){return w<=3?1:w<=6?.85:w<=9?.65:w<=12?.5:.4;}
-// Growing danger coverage. Wave 15+ leaves exactly one safe tile.
+// Compact and fast: only the escape validator may extend individual warnings.
+function warningSeconds(w){return w<=3?1.45:w<=6?1.15:w<=9?.95:w<=11?.75:.65;}
+function intervalSeconds(w){return w<=3?.45:w<=6?.30:w<=9?.19:w<=11?.12:.10;}
+// Fast progression: Wave 12+ leaves exactly one safe tile.
 // Floor tiles stay solid; dangerous tiles revert after exploding.
 function dangerCount(s){
- const targets=[0,3,4,5,6,8,10,12,14,16,18,20,21,22,23,24];
- return targets[Math.min(Math.max(1,s.wave),15)];
+ const targets=[0,4,6,8,10,12,14,16,18,20,22,23,24];
+ return targets[Math.min(Math.max(1,s.wave),12)];
 }
 function requiredEscapeSeconds(s,ps,danger){
  const selected=danger instanceof Set?danger:new Set(danger);
@@ -147,7 +148,7 @@ function requiredEscapeSeconds(s,ps,danger){
        clamp(p.x,x+inset,x+s.tileSize-inset)-p.x,
        clamp(p.y,y+inset,y+s.tileSize-inset)-p.y);
    }));
-   longest=Math.max(longest,distance/(C.speed*.80)+.18);
+   longest=Math.max(longest,distance/(C.speed*.84)+.12);
  }
  return longest;
 }
@@ -171,6 +172,10 @@ function selectDangerTiles(s,ps){
      selected.push(picked.id);
      bag.splice(bag.findIndex(t=>t.id===picked.id),1);
    }
+   const safeId=target===24?s.tiles.find(tile=>!selected.includes(tile.id))?.id:null;
+   // On one-safe-tile waves, force the shelter to move between waves
+   // instead of allowing everyone to camp forever in one tile.
+   if(target===24&&safeId===s.lastSafeTileId)continue;
    const required=requiredEscapeSeconds(s,ps,selected);
    if(!Number.isFinite(required))continue;
    const duration=Math.max(base,required);
@@ -189,7 +194,7 @@ function startTiebreaker(s,ps,ids){
  if(!contenders.length){s.finished=true;return;}
  s.tiebreakers++;s.roundId++;s.wave=0;s.fastPhase=false;s.suddenDeath=false;
  s.finalArena=true;s.pendingTiebreaker=null;s.danger=[];s.warningStarted=false;
- s.phase='NEXT_WAVE';s.timer=.65;s.plannedWarningDuration=0;s.plannedDangerCount=0;
+ s.phase='NEXT_WAVE';s.timer=.35;s.plannedWarningDuration=0;s.plannedDangerCount=0;s.lastSafeTileId=null;
  // Never resurrect anyone eliminated before the last simultaneous wipe.
  ps.forEach(p=>{p.shockAlive=eligible.has(p.id)&&p.active;});
  createGrid(s);spawnPlayers(s,contenders);
@@ -221,6 +226,7 @@ function startWarning(s,ps){
  if(!chosen.length){startTiebreaker(s,ps,living(ps).map(p=>p.id));return;}
  s.danger=chosen;
  s.warningDuration=Math.max(warningSeconds(s.wave),s.plannedWarningDuration||0);
+ s.lastSafeTileId=chosen.length===24?s.tiles.find(tile=>!chosen.includes(tile.id))?.id??null:null;
  for(const id of chosen){const t=s.tiles[id];t.state='warning';t.wave=s.wave;}
  s.warningStarted=true;s.phase='WARNING';s.timer=s.warningDuration;
 }
@@ -228,7 +234,7 @@ function checkSuddenDeath(s){s.remainingTiles=25;s.suddenDeath=s.wave>=10;return
 function startWave(s,ps){
  if(checkWinner(s,ps))return;
  s.wave++;s.fastPhase=s.wave>=7;checkSuddenDeath(s);
- s.phase='PREPARE';s.timer=.08;s.danger=[];s.warningStarted=false;
+ s.phase='PREPARE';s.timer=.025;s.danger=[];s.warningStarted=false;
  s.plannedWarningDuration=0;s.plannedDangerCount=0;
 }
 function triggerExplosion(s,ps){
@@ -246,7 +252,7 @@ function triggerExplosion(s,ps){
    const c=tileCenter(s,tile);s.effects.push({x:c.x,y:c.y,life:.55});
  }
  if(hit.length)evaluateEliminations(s,ps,hit);
- s.phase='EXPLOSION';s.timer=s.fastPhase?.24:.35;
+ s.phase='EXPLOSION';s.timer=s.wave>=10?.12:s.fastPhase?.16:.22;
 }
 function collapseTiles(s){
  // Old public name retained for compatibility: restore, NEVER destroy.
