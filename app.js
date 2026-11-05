@@ -285,6 +285,7 @@ function removePlayer(id) {
   // Remove from roster BEFORE closing, which can synchronously emit a close event.
   if(p.conn&&p.conn.open){try{p.conn.close();}catch(e){}}
   renderRoster();broadcastRoster();
+  if(round?.phase==='results')renderResultVotes(true);
 }
 function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active,choice:p.choice,eliminated:!!(round?.mode==='shockwave'&&p.active&&!p.shockAlive)};}
 function send(conn,msg){if(conn&&conn.open){try{conn.send(msg);}catch(e){/* peer disconnected */}}}
@@ -608,6 +609,7 @@ function startHost(retries=0,resumeCode=null){
         conn.playerId=p.id;conn.previewEnabled=false;p.lastInputAt=Date.now();
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active});
         broadcastRoster();
+        if(round?.phase==='results')renderResultVotes(true);
       }else if(msg.t==='leave'&&conn.playerId){
         const id=conn.playerId;conn.playerId=null;
         removePlayer(id);
@@ -630,6 +632,8 @@ function startHost(retries=0,resumeCode=null){
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!p||p.choice===msg.mode)return;
         p.choice=msg.mode;renderRoster();broadcastRoster();
+      }else if(msg.t==='result-vote'&&conn.playerId){
+        castResultVote(conn,msg.choice);
       }else if(msg.t==='target-cycle'&&conn.playerId){
         if(!round||round.phase!=='playing'||round.paused)return;
         if(msg.direction!==1&&msg.direction!==-1)return;
@@ -653,6 +657,7 @@ function startHost(retries=0,resumeCode=null){
       if(!p)return;
       p.conn=null;p.input=blankInput();holdSeat(p);
       renderRoster();broadcastRoster();
+      if(round?.phase==='results')renderResultVotes(true);
     }
     conn.on('close',lost);conn.on('error',lost);
   });
@@ -1479,6 +1484,7 @@ function endRound(){
     heading.textContent='ผู้ชนะรวม: '+overall[0].name;list.prepend(heading);
   }
   $('results').classList.remove('hidden');$('gameBanner').textContent='';
+  beginResultVoting();
   renderLeaderboard();
 }
 
@@ -1522,7 +1528,8 @@ function endShockwaveRound(){
    list.prepend(heading);
  }
  $('results').classList.remove('hidden');$('gameBanner').textContent='';
- renderLeaderboard();
+  beginResultVoting();
+  renderLeaderboard();
 }
 function endColorSwitchRound(){
  const s=round.colorSwitch;
@@ -1566,7 +1573,8 @@ function endColorSwitchRound(){
    list.prepend(heading);
  }
  $('results').classList.remove('hidden');$('gameBanner').textContent='';
- renderLeaderboard();
+  beginResultVoting();
+  renderLeaderboard();
 }
 function endChickensRound(){
   round.phase='results';round.paused=false;resetInputs();broadcastRoster();
@@ -1611,6 +1619,7 @@ function endChickensRound(){
     list.prepend(heading);
   }
   $('results').classList.remove('hidden');$('gameBanner').textContent='';
+  beginResultVoting();
   renderLeaderboard();
 }
 function endFruitMemoryRound(){
@@ -1666,6 +1675,7 @@ function endFruitMemoryRound(){
     });
   }
   $('results').classList.remove('hidden');$('gameBanner').textContent='';
+  beginResultVoting();
   renderLeaderboard();
 }
 function renderLeaderboard(){
@@ -1769,8 +1779,7 @@ function animate(ts){
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
       if(round.autoNextRemaining===0)advanceParty();
-      else $('replayBtn').textContent='เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+
-        ') • อีก '+Math.ceil(round.autoNextRemaining)+' วิ';
+      else renderResultVotes();
     }
     hudClock+=dt;
     if(hudClock>.22){
