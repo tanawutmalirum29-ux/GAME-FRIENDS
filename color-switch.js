@@ -324,7 +324,7 @@ function draw(ctx,time,round,ps){
   const bob=Math.sin(s.clock*5+box.id)*3;
   ctx.save();ctx.translate(box.x,box.y+bob);ctx.fillStyle='#412965';ctx.fillRect(-13,-11,26,26);
   ctx.fillStyle='#9d69f3';ctx.fillRect(-12,-13,24,23);
-  ctx.fillStyle='#fff2ae';ctx.font='bold 22px sans-serif';ctx.textAlign='center';ctx.fillText('★',0,7);
+  window.PartyUiArt.draw(ctx,'star',0,0,21);
   ctx.restore();
  }
  for(const p of active(ps)){
@@ -334,11 +334,11 @@ function draw(ctx,time,round,ps){
   const c=p.cs;
   if(c?.powerBoostReady){
    ctx.strokeStyle='#ffe46d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,21,0,TAU);ctx.stroke();
-   ctx.fillStyle='#ffe46d';ctx.font='bold 17px sans-serif';ctx.textAlign='center';ctx.fillText('★',p.x+20,p.y-19);
+   window.PartyUiArt.draw(ctx,'star',p.x+20,p.y-19,18);
   }
   if(c?.stunRemaining>0){
-   ctx.fillStyle='#ffe992';ctx.font='bold 17px sans-serif';ctx.textAlign='center';
-   ctx.fillText('✦ ✦',p.x,p.y-28);
+   window.PartyUiArt.draw(ctx,'sparkle',p.x-10,p.y-28,16);
+   window.PartyUiArt.draw(ctx,'sparkle',p.x+10,p.y-28,16);
   }
  }
  for(const e of s.effects){
