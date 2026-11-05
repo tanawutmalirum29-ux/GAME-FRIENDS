@@ -19,6 +19,7 @@ jobs:
           node --check chickens.js
           node --check fruit-memory.js
           node --check shockwave.js
+          node --check tests/avatar-topdown.cjs
           node --check tests/shockwave.cjs
           node --check tests/fruit-memory.cjs
           node --check tests/chickens.cjs
@@ -26,6 +27,8 @@ jobs:
           node --check scripts/build-static.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
+      - name: Shared overhead avatar checks
+        run: node tests/avatar-topdown.cjs
       - name: Shockwave survival rules
         run: node tests/shockwave.cjs
       - name: Fruit memory rules

@@ -29,107 +29,41 @@
   function svg(inner){
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${inner}</svg>`;
   }
-  // A distinctly Egyptian flying spirit: nemes crown, gold uraeus cobra,
-  // spectral mummy wraps, lapis/gold collar and animated floating shroud.
-  // Unlike cemetery spirits, the player's individual tint stays visible.
+  // Match the overhead camera used for the shared player avatar.
+  function topDownSpecterSVG(color,pose='float0',theme='graveyard'){
+    color=accent(color);
+    const egypt=theme==='egypt',wobble=pose==='float1'?4:pose==='float2'?-4:0;
+    const crown=egypt?
+      '<path d="M29 46 L22 30 Q32 12 50 13 Q68 12 78 30 L71 46 Q65 24 50 23 Q35 24 29 46Z" fill="url(#nemes)" stroke="#e7c36a" stroke-width="3.8"/>'+
+      '<path d="M33 31 L22 38 M67 31 L78 38" stroke="#efc569" stroke-width="4"/>'+
+      '<path d="M50 15 L50 30" stroke="#ffe7a0" stroke-width="4"/>'+
+      '<circle cx="50" cy="16" r="4" fill="#38f4d2" stroke="#ffe7a0" stroke-width="2"/>':
+      '<path d="M36 35 Q50 21 64 35" fill="none" stroke="#ffffff" stroke-width="5" opacity=".62"/>'+
+      '<path d="M34 54 Q50 62 66 54" fill="none" stroke="#d6fcff" stroke-width="4" opacity=".5"/>';
+    return svg(
+      '<defs><radialGradient id="spectralTop">'+
+      '<stop stop-color="#f6feff"/><stop offset=".65" stop-color="'+color+'"/>'+
+      '<stop offset="1" stop-color="#436d8a"/></radialGradient>'+
+      '<linearGradient id="nemes" x1="0" y1="0" x2="1" y2="1">'+
+      '<stop stop-color="#267bb6"/><stop offset=".55" stop-color="#163c77"/>'+
+      '<stop offset="1" stop-color="#08294c"/></linearGradient></defs>'+
+      '<g data-actor="'+(egypt?'pharaoh-ghost':'cemetery-ghost')+'" data-view="top-down">'+
+      '<ellipse cx="50" cy="51" rx="29" ry="25" fill="#06182b" opacity=".25"/>'+
+      '<path d="M50 '+(22+wobble)+' C69 18 84 31 79 50 Q90 63 77 70 Q64 '+(82+wobble)+
+      ' 50 75 Q36 85 23 70 Q10 63 21 50 C16 30 31 18 50 '+(22+wobble)+'Z"'+
+      ' fill="url(#spectralTop)" stroke="#1d4158" stroke-width="3.4"/>'+
+      '<circle cx="50" cy="44" r="20" fill="'+color+'" stroke="#20435a" stroke-width="3"/>'+
+      '<ellipse cx="50" cy="42" rx="13" ry="15" fill="#ffffff" opacity=".18"/>'+
+      crown+'</g>'
+    );
+  }
   function pharaohGhostSVG(color,pose='float0'){
-    const wave=pose==='float1'?5:pose==='float2'?-5:0;
-    const hover=pose==='float1'?-2:pose==='float2'?2:0;
-    return svg(`
-      <defs>
-        <linearGradient id="phantom" x1="0" y1="0" x2=".7" y2="1">
-          <stop offset="0" stop-color="#f9f4cb"/>
-          <stop offset=".52" stop-color="${color}"/>
-          <stop offset="1" stop-color="#2d6677"/>
-        </linearGradient>
-        <linearGradient id="nemes" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#277db7"/>
-          <stop offset=".5" stop-color="#143b77"/>
-          <stop offset="1" stop-color="#08294c"/>
-        </linearGradient>
-        <linearGradient id="gold" x1="0" y1="0" x2=".8" y2="1">
-          <stop offset="0" stop-color="#fff0a8"/>
-          <stop offset=".6" stop-color="#ecc45e"/>
-          <stop offset="1" stop-color="#9c6b29"/>
-        </linearGradient>
-      </defs>
-      <g data-actor="pharaoh-ghost">
-        <ellipse cx="50" cy="94" rx="24" ry="4.5" fill="#122533" opacity=".28"/>
-        <path d="M50 22 C26 19 22 38 23 57 L20 76
-          Q18 ${86+wave} 30 79 Q38 ${91-wave} 44 82
-          Q50 94 56 82 Q64 ${91+wave} 71 79
-          Q82 ${86-wave} 80 75 L77 53 C76 35 67 22 50 22Z"
-          fill="url(#phantom)" stroke="#214555" stroke-width="3.8" stroke-linejoin="round"/>
-        <path d="M28 51 Q${13+wave} 55 21 ${69+wave}
-          M72 51 Q${87-wave} 55 79 ${69-wave}"
-          fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"/>
-        <path d="M30 65 Q45 69 57 65 M38 73Q50 77 64 71
-          M31 81Q42 85 48 83" fill="none" stroke="#f6deb0"
-          stroke-width="3" opacity=".65"/>
-        <path d="M23 43 L24 25 Q26 10 50 9 Q74 10 76 25 L77 44
-          L88 65 L73 61 L64 46 L36 46 L27 61 L12 65Z"
-          fill="url(#nemes)" stroke="#dfba5d" stroke-width="3.6"
-          stroke-linejoin="round"/>
-        <path d="M21 50 L34 47 M16 60L29 56
-          M66 47L79 50 M71 56L84 60" stroke="#ffdb72"
-          stroke-width="5" stroke-linecap="round"/>
-        <path d="M29 25 Q38 16 50 19 Q62 16 71 25
-          L69 41 Q63 54 50 55 Q37 54 31 41Z"
-          fill="#e5dfbd" stroke="#1a405b" stroke-width="3"/>
-        <path d="M31 28 Q37 20 50 23 Q63 20 69 28" fill="none"
-          stroke="#ffe6a3" stroke-width="3.5"/>
-        <path d="M39 34 L45 34 M55 34 L61 34"
-          stroke="#163c54" stroke-width="4" stroke-linecap="round"/>
-        <circle cx="42" cy="${35+hover}" r="2.8" fill="#42ffdb"/>
-        <circle cx="58" cy="${35+hover}" r="2.8" fill="#42ffdb"/>
-        <path d="M47 43 Q50 45 53 43" fill="none"
-          stroke="#615343" stroke-width="2.4" stroke-linecap="round"/>
-        <path d="M43 48 L50 59 L57 48Z"
-          fill="url(#gold)" stroke="#163c54" stroke-width="2"/>
-        <path d="M33 54 Q50 67 67 54 M34 60 Q50 72 66 60"
-          fill="none" stroke="#f6cd67" stroke-width="3.5"/>
-        <path d="M48 13 Q42 7 49 4 Q55 3 56 12
-          M50 10 L50 20" fill="none" stroke="#ecca5e"
-          stroke-width="4" stroke-linecap="round"/>
-        <circle cx="50" cy="13" r="3.5" fill="#55d6c0" stroke="#f9dd87" stroke-width="2"/>
-        <path d="M28 73 Q25 68 23 72 M74 72Q76 68 80 73"
-          stroke="#fff6c9" stroke-width="2" fill="none" opacity=".55"/>
-        <g fill="${color}" opacity=".8">
-          <circle cx="12" cy="28" r="2"/>
-          <circle cx="87" cy="34" r="2.5"/>
-          <circle cx="18" cy="14" r="1.5"/>
-        </g>
-      </g>
-    `);
+    return topDownSpecterSVG(color,pose,'egypt');
   }
   function actorSVG(ghost,color,pose='idle',theme='graveyard'){
     color=accent(color);
     if(ghost&&theme==='egypt')return pharaohGhostSVG(color,pose);
-    if(ghost){
-      const drift=pose==='float1'?3:pose==='float2'?-2:0;
-      const wave=pose==='float1'?5:pose==='float2'?-4:0;
-      return svg(`
-        <defs><linearGradient id="specter" x1="0" y1="0" x2=".8" y2="1">
-          <stop offset="0" stop-color="#ffffff"/><stop offset=".54" stop-color="${color}"/>
-          <stop offset="1" stop-color="#4e7598"/></linearGradient></defs>
-        <ellipse cx="50" cy="91" rx="23" ry="4" fill="#09182a" opacity=".28"/>
-        <path d="M50 12 C26 12 18 35 18 54 L18 77 Q20 88 29 79
-          Q37 ${88+wave} 44 81 Q50 93 57 81 Q68 ${88-wave} 74 81 Q83 87 83 74
-          L83 49 C82 27 68 12 50 12 Z"
-          fill="url(#specter)" stroke="#233952" stroke-width="3.8" stroke-linejoin="round"/>
-        <path d="M23 52 Q10 ${56+wave} 19 69 M79 53 Q91 ${56-wave} 81 69"
-          fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"/>
-        <path d="M27 45 Q32 22 50 22" fill="none" stroke="#ffffff" stroke-width="4" opacity=".52"/>
-        <ellipse cx="39" cy="${47+drift}" rx="5.7" ry="7.6" fill="#16263e"/>
-        <ellipse cx="62" cy="${47+drift}" rx="5.7" ry="7.6" fill="#16263e"/>
-        <circle cx="41" cy="${45+drift}" r="2" fill="#ffffff"/>
-        <circle cx="64" cy="${45+drift}" r="2" fill="#ffffff"/>
-        <path d="M45 ${64+drift} Q51 ${71+drift} 57 ${64+drift}"
-          fill="none" stroke="#22374b" stroke-width="3" stroke-linecap="round"/>
-        <g fill="#ffffff" opacity=".65"><circle cx="23" cy="18" r="2"/>
-        <circle cx="76" cy="26" r="2.8"/><circle cx="84" cy="16" r="1.5"/></g>
-      `);
-    }
+    if(ghost)return topDownSpecterSVG(color,pose,'graveyard');
     const stride=pose==='walk0'?8:pose==='walk1'?4:pose==='walk2'?-7:pose==='walk3'?-3:0;
     const attack=pose==='attack';
     const fistX=attack?91:75-stride*.6;
@@ -452,21 +386,20 @@
   }
   function drawActor(ctx,p,color,isGhost,time,theme='graveyard'){
     const movement=Math.hypot(p.vx||0,p.vy||0);
-    const pose=isGhost?`float${Math.floor(time*3.3)%3}`:
+    const pose=isGhost?'float'+(Math.floor(time*3.3)%3):
       p.attackRemaining>0?'attack':movement>18?
-        `walk${Math.floor(time*9)%4}`:'idle';
+        'walk'+(Math.floor(time*9)%4):'idle';
     const img=getActorImage(isGhost,color,pose,theme);
-    const bob=isGhost?Math.sin(time*3.9+(p.x||0)*.02)*2.5:
-      movement>18?Math.abs(Math.sin(time*9))*1.2:0;
-    ctx.save();
-    ctx.translate(p.x,p.y+bob);
-    if((p.dir?.x||0)<-.2)ctx.scale(-1,1);
-    if(ready(img))ctx.drawImage(img,-28,-54,56,77);
+    // The sprite is centered on the same (x,y) used by physics.
+    const d=p.dir||{x:0,y:-1};
+    const angle=Math.hypot(d.x||0,d.y||0)>.001?
+      Math.atan2(d.y,d.x)+Math.PI/2:0;
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);
+    if(ready(img))ctx.drawImage(img,-27,-27,54,54);
     else{
-      // Visible first frame while an SVG is decoding.
-      ctx.fillStyle=color;ctx.strokeStyle='#172f41';ctx.lineWidth=3;
-      ctx.beginPath();ctx.arc(0,-20,14,0,Math.PI*2);ctx.fill();ctx.stroke();
-      ctx.beginPath();ctx.roundRect(-11,-7,22,25,8);ctx.fill();ctx.stroke();
+      ctx.fillStyle=color;ctx.strokeStyle='#173d52';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(0,0,19,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.arc(0,-7,12,0,Math.PI*2);ctx.fill();ctx.stroke();
     }
     ctx.restore();
   }
