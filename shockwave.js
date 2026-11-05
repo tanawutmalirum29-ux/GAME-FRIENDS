@@ -92,18 +92,11 @@ function inputVector(p,s){
  return {x,y};
 }
 function resolvePlayerCollision(s,ps){
- const all=living(ps).slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
- const b=s.board,r=C.avatarRadius;
- for(let pass=0;pass<8;pass++)for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++){
-   const a=all[i],c=all[j];let dx=c.x-a.x,dy=c.y-a.y,d=Math.hypot(dx,dy);
-   if(d>=2*C.bodyRadius)continue;
-   if(d<.0001){const angle=(i*17+j*29+1)*1.618;dx=Math.cos(angle);dy=Math.sin(angle);d=1;}
-   const move=Math.min(3.5,(2*C.bodyRadius-d)/2),nx=dx/d,ny=dy/d;
-   a.x=clamp(a.x-nx*move,b.x+r,b.x+b.w-r);
-   a.y=clamp(a.y-ny*move,b.y+r,b.y+b.h-r);
-   c.x=clamp(c.x+nx*move,b.x+r,b.x+b.w-r);
-   c.y=clamp(c.y+ny*move,b.y+r,b.y+b.h-r);
- }
+ return window.PartyCharacters.resolve(ps,{
+   filter:p=>p.active&&p.shockAlive,
+   radius:C.bodyRadius,iterations:8,maxShift:3.5,
+   boundaryRadius:C.avatarRadius,bounds:s.board,pressure:false
+ });
 }
 function movePlayers(dt,s,ps){
  const b=s.board,foot=C.avatarRadius;
