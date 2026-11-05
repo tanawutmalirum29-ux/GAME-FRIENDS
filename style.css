@@ -3520,3 +3520,25 @@ body.controller-playing #controllerActive .gamepad-preview-off.hidden{
   #game .result-card #replayBtn::after,
   #game .result-card #backBtn::after{right:11px;font-size:15px}
 }
+
+
+/* PIZZA TIME: show the personal two-ingredient order above the controller. */
+body.controller-playing.pizza-controller-game #controller #controllerActive #controllerInventory{
+ display:flex!important;max-height:55px;min-width:0;flex:1 1 auto;
+ flex-direction:column;align-items:flex-start;justify-content:center;
+ gap:1px;padding:3px 7px;overflow:hidden;
+ background:#2f332bd9;border:1px solid #dfc38e;border-radius:8px;
+}
+body.controller-playing.pizza-controller-game #controller #controllerActive #controllerInventory .controller-role{
+ font-size:clamp(10px,1.45dvh,13px);font-weight:900;color:#ffe7ad;
+}
+body.controller-playing.pizza-controller-game #controller #controllerActive #controllerInventory .inventory-item{
+ font-size:clamp(10px,1.4dvh,12px);font-weight:800;max-width:100%;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ffffff;
+}
+body.controller-playing.pizza-controller-game #controller #controllerActive #controllerInventory .inventory-guide{
+ font-size:clamp(9px,1.15dvh,11px);max-width:100%;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#d5edca;
+}
+#game .leader-chip.pizza-leader .leader-item-slot{white-space:nowrap;letter-spacing:-.02em;}
+body.controller-playing .phone-game-choices{grid-template-columns:repeat(3,minmax(0,1fr));}
