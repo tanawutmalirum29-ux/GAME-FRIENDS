@@ -58,6 +58,8 @@ assert.equal(25-E.dangerCount({wave:10}),3,'only three safe tiles by wave 10');
  E.startWarning(s,ps);
  assert.equal(s.danger.length,24);
  const previousSafe=s.lastSafeTileId;
+ // Complete the explosion state before the next wave begins.
+ for(const id of s.danger)s.tiles[id].state='exploding';
  E.collapseTiles(s);
  s.wave=13;
  E.startWarning(s,ps);
