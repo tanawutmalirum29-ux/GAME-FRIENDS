@@ -295,30 +295,34 @@ function drawTile(ctx,s,t){
  const warning=t.state==='warning',blast=t.state==='exploding';
  const frac=s.warningDuration?1-clamp(s.timer/s.warningDuration,0,1):0;
  const flash=warning&&Math.sin(s.clock*(8+frac*32))>0;
- ctx.fillStyle='#0b233a';ctx.fillRect(x,y+4,z,z-1);
- ctx.fillStyle=blast?'#ff9252':warning?(flash?'#fd6766':'#ac4641'):'#286b80';
- ctx.fillRect(x+2,y+2,z-4,z-7);
- ctx.fillStyle=warning||blast?'#ffd69b66':'#b5f1ea37';ctx.fillRect(x+4,y+4,z-8,7);
- ctx.strokeStyle=warning?'#ffc270':blast?'#fff0bc':'#8ac7d0';
- ctx.lineWidth=warning||blast?3:1.3;ctx.strokeRect(x+3,y+3,z-6,z-10);
+ ctx.fillStyle='#48352d';ctx.fillRect(x,y+3,z,z-3);
+ ctx.fillStyle=blast?'#fff0a3':warning?(flash?'#f48443':'#b34735'):'#9d8557';
+ ctx.fillRect(x+2,y+2,z-4,z-5);
+ // Bevelled stone edge and an inset carved tile, matching the lava temple.
+ ctx.fillStyle=warning||blast?'#ffd890':'#dac38a';ctx.fillRect(x+3,y+3,z-6,5);
+ ctx.fillStyle=warning||blast?'#a64c32':'#6e583e';ctx.fillRect(x+3,y+z-8,z-6,5);
+ ctx.strokeStyle=warning?'#ffe69b':blast?'#fffbe1':'#dac38a';
+ ctx.lineWidth=warning||blast?3:1.4;ctx.strokeRect(x+9,y+9,z-18,z-18);
+ ctx.fillStyle=blast?'#f9973c':warning?'#ffda7b':'#746040';
+ const cx=x+z/2,cy=y+z/2;
+ // A skull motif is subdued on safe stone; warning adds pulsing orange,
+ // a bright frame, and an exclamation mark so danger is not color alone.
+ ctx.beginPath();ctx.ellipse(cx,cy-3,12,11,0,0,TAU);ctx.fill();
+ ctx.fillRect(cx-8,cy+2,16,12);
+ ctx.fillStyle=warning||blast?'#9c4430':'#9d8557';
+ ctx.beginPath();ctx.arc(cx-5,cy-3,3,0,TAU);ctx.arc(cx+5,cy-3,3,0,TAU);ctx.fill();
+ ctx.fillRect(cx-1,cy+8,2,6);
  if(warning||blast){
-   ctx.strokeStyle='#692c38';ctx.lineWidth=2;ctx.beginPath();
-   ctx.moveTo(x+z*.26,y+z*.18);ctx.lineTo(x+z*.49,y+z*.42);
-   ctx.lineTo(x+z*.35,y+z*.7);ctx.lineTo(x+z*.72,y+z*.83);
-   ctx.moveTo(x+z*.49,y+z*.42);ctx.lineTo(x+z*.77,y+z*.32);ctx.stroke();
-   ctx.fillStyle='#fff1d5';ctx.font='bold 18px sans-serif';ctx.textAlign='center';
-   ctx.fillText(blast?'✦':'!',x+z/2,y+z*.67);
+   ctx.fillStyle='#fff4ce';ctx.font='900 15px sans-serif';ctx.textAlign='center';
+   ctx.fillText(blast?'✦':'!',x+z-17,y+23);
+   ctx.fillRect(x+13,y+z-17,z-26,3);
  }
+
 }
 function draw(ctx,time,round,ps){
  const s=round.shockwave;if(!s)return;
  ctx.save();ctx.clearRect(0,0,960,540);
- const bg=ctx.createLinearGradient(0,0,0,540);
- bg.addColorStop(0,'#0a1729');bg.addColorStop(1,'#17334a');
- ctx.fillStyle=bg;ctx.fillRect(0,0,960,540);
- const b=s.board;
- ctx.fillStyle='#071a2e';ctx.fillRect(b.x-10,b.y-10,b.w+20,b.h+20);
- ctx.strokeStyle='#6194ab';ctx.lineWidth=2;ctx.strokeRect(b.x-10,b.y-10,b.w+20,b.h+20);
+ window.PartyArenaArt.draw(ctx,'lava',s);
  for(const tile of s.tiles)drawTile(ctx,s,tile);
  for(const p of ps)if(p.active&&p.shockAlive)drawPlayer(ctx,p,s);
  for(const e of s.effects){
@@ -330,15 +334,15 @@ function draw(ctx,time,round,ps){
    ctx.restore();
  }
  for(const p of ps)if(!p.shockAlive)drawPlayer(ctx,p,s);
- ctx.fillStyle='#0b2139ee';ctx.fillRect(16,13,263,76);
- ctx.strokeStyle='#53859f';ctx.lineWidth=1.5;ctx.strokeRect(16,13,263,76);
+ ctx.fillStyle='#3a2c2bee';ctx.fillRect(16,13,263,76);
+ ctx.strokeStyle='#d2a66a';ctx.lineWidth=1.5;ctx.strokeRect(16,13,263,76);
  ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';
  ctx.fillText('SHOCKWAVE',27,37);
  const description=round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown)+' วิ':
    s.phase==='WARNING'?'WAVE '+s.wave+' • ระเบิดใน '+Math.max(0,s.timer).toFixed(1)+' วิ':
    s.phase==='EXPLOSION'?'WAVE '+s.wave+' • ระเบิด!':
    'WAVE '+s.wave+(s.fastPhase?' • FAST':'');
- ctx.font='bold 13px sans-serif';ctx.fillStyle='#b1eeff';ctx.fillText(description,27,59);
+ ctx.font='bold 13px sans-serif';ctx.fillStyle='#ffdda0';ctx.fillText(description,27,59);
  ctx.fillStyle='#b1f1ca';ctx.fillText('ผู้รอด '+living(ps).length+' คน • สนาม 5×5',27,79);
  if(s.fastPhase&&!s.finished){
    ctx.fillStyle='#d86842';ctx.fillRect(796,16,141,29);

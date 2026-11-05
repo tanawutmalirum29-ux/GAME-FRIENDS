@@ -9,6 +9,7 @@ const source=fs.readFileSync('app.js','utf8');
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
   'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
+const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
@@ -107,6 +108,7 @@ class FakeSvgImage{
  get src(){return this._src;}
 }
 const ghostSandbox=vm.createContext({window:{},Image:FakeSvgImage});
+vm.runInContext(arenaSource,ghostSandbox,{filename:'arena-art.js'});
 vm.runInContext(combatSource,ghostSandbox,{filename:'combat-motion.js'});
 vm.runInContext(artSource,ghostSandbox,{filename:'graveyard-art.js'});
 vm.runInContext(avatarSource,ghostSandbox,{filename:'player-avatar.js'});
@@ -429,7 +431,7 @@ assert.equal(ghost.getItemIconImage('boost'),ghost.getItemIconImage('boost'));
 const drawTexts=[],drawImages=[];
 const drawProbe=new Proxy({},{
   get(_obj,key){
-    if(key==='createLinearGradient')return ()=>({addColorStop(){}});
+    if(key==='createLinearGradient'||key==='createRadialGradient')return ()=>({addColorStop(){}});
     if(key==='measureText')return v=>({width:String(v).length*8});
     if(key==='drawImage')return (...args)=>drawImages.push(args);
     if(key==='fillText')return (...args)=>drawTexts.push(args);
@@ -469,7 +471,7 @@ const drawProbe=new Proxy({},{
  let clipped=false;
  const hudProbe=new Proxy({},{
   get(_target,key){
-   if(key==='createLinearGradient')return ()=>({addColorStop(){}});
+   if(key==='createLinearGradient'||key==='createRadialGradient')return ()=>({addColorStop(){}});
    if(key==='measureText')return text=>{
     const size=Number((styles.font.match(/([\\d.]+)px/)||[])[1]||16);
     return {width:Array.from(String(text)).length*size*.63};
@@ -723,7 +725,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   const context=new Proxy({},{
     get(_,key){
       if(key==='setTransform')return (...args)=>{canvasTransforms.push(args);};
-      if(key==='createLinearGradient')return ()=>({addColorStop(){}});
+      if(key==='createLinearGradient'||key==='createRadialGradient')return ()=>({addColorStop(){}});
       // Used by the bounded Thai HUD label renderer.
       if(key==='measureText')return text=>({width:String(text).length*8});
       return ()=>{};
@@ -846,6 +848,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
     clearTimeout(id){if(timers[id-1])timers[id-1].cancelled=true;},
     requestAnimationFrame(fn){raf=fn;},alert(){},confirm(){return true;}};
   const scope=vm.createContext(globals);
+  vm.runInContext(arenaSource,scope,{filename:'arena-art.js'});
   vm.runInContext(combatSource,scope,{filename:'combat-motion.js'});
   vm.runInContext(artSource,scope,{filename:'graveyard-art.js'});
    vm.runInContext(avatarSource,scope,{filename:'player-avatar.js'});

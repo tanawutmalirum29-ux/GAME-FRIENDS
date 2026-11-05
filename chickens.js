@@ -414,14 +414,13 @@ function drawChicken(ctx,c,t,scale=1){
  ctx.restore();
 }
 function drawHeldChicken(ctx,chicken,player,t){
-  // The actual carry coordinates remain authoritative. Render the held chicken
-  // lifted in front, with a large contrasting halo and visible label.
-  const lift=15+Math.sin(t*9)*1.5;
-  const x=chicken.x,y=chicken.y-lift;
+  // Overhead carry art uses the actual world position in every direction.
+  // A screen-up lift would make the beak disagree with gate/deposit physics.
+  const x=chicken.x,y=chicken.y,dir=player.dir||{x:1,y:0};
   ctx.save();
   ctx.fillStyle='#071d2780';ctx.beginPath();ctx.ellipse(chicken.x,chicken.y,18,6,0,0,TAU);ctx.fill();
   ctx.strokeStyle='#fff0b3a6';ctx.lineWidth=3;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(player.x,player.y-10);ctx.lineTo(x,y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(player.x+dir.x*16,player.y+dir.y*16);ctx.lineTo(x,y);ctx.stroke();
   ctx.fillStyle='#ffde86a6';ctx.beginPath();ctx.arc(x,y,23,0,TAU);ctx.fill();
   drawChicken(ctx,{...chicken,x,y},t,1.25);
   ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.lineWidth=3;
@@ -439,13 +438,18 @@ function drawPen(ctx,state,pen,t){
   const half=pen.gateWidth/2;
   const at=(p,d)=>({x:p.x+pen.tangent.x*d,y:p.y+pen.tangent.y*d});
   const a=at(inner,-half),b=at(inner,half),c=at(outer,half),d=at(outer,-half);
-  ctx.save();ctx.fillStyle=pen.color+'35';ctx.strokeStyle=pen.color;ctx.lineWidth=4;
+  ctx.save();ctx.fillStyle=pen.color+'42';ctx.strokeStyle=pen.color;ctx.lineWidth=5;
   ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(d.x,d.y);ctx.lineTo(c.x,c.y);ctx.lineTo(b.x,b.y);
   ctx.closePath();ctx.fill();
   // Both solid side fences and back fence. Front opening is never blocked.
-  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(d.x,d.y);ctx.lineTo(c.x,c.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(d.x,d.y);ctx.lineTo(c.x,c.y);ctx.lineTo(b.x,b.y);
+  ctx.strokeStyle='#4b4834';ctx.lineWidth=8;ctx.stroke();
+  ctx.strokeStyle=pen.color;ctx.lineWidth=5;ctx.stroke();
+  ctx.strokeStyle='#ffffff70';ctx.lineWidth=1;ctx.stroke();
   for(const pos of [a,b,d,c]){
-    ctx.fillStyle='#e8c28b';ctx.beginPath();ctx.arc(pos.x,pos.y,5.5,0,TAU);ctx.fill();
+    ctx.fillStyle='#635039';ctx.fillRect(pos.x-5,pos.y-4,10,11);
+    ctx.fillStyle=pen.color;ctx.fillRect(pos.x-4,pos.y-4,8,8);
+    ctx.fillStyle='#fff3c1';ctx.fillRect(pos.x-3,pos.y-4,6,2);
   }
   ctx.strokeStyle=pen.color+'99';ctx.lineWidth=1.5;ctx.setLineDash([5,5]);
   ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);
@@ -461,13 +465,7 @@ function draw(ctx,time,round,players){
   const s=round.chickens;if(!s)return;
   const w=s.world.w,h=s.world.h;
   ctx.save();ctx.clearRect(0,0,960,540);ctx.scale(960/w,540/h);
-  ctx.fillStyle='#152f36';ctx.fillRect(0,0,w,h);
-  ctx.fillStyle='#42784d';ctx.strokeStyle='#d9ba83';ctx.lineWidth=7;
-  ctx.beginPath();ctx.arc(s.center.x,s.center.y,s.radius,0,TAU);ctx.fill();ctx.stroke();
-  ctx.save();ctx.strokeStyle='#e4f2cf2d';ctx.lineWidth=2;
-  for(let r=75;r<s.radius-10;r+=75){
-    ctx.beginPath();ctx.arc(s.center.x,s.center.y,r,0,TAU);ctx.stroke();
-  }ctx.restore();
+  window.PartyArenaArt.draw(ctx,'farm',s,w,h);
   for(const pen of s.pens)drawPen(ctx,s,pen,time);
   // Pen residents remain visible and inert, never re-entering the arena.
   for(const c of s.chickens)if(c.status==='penned')drawChicken(ctx,c,time,.66);

@@ -23,7 +23,7 @@ function buildTest(){
       assert.match(fs.readFileSync(path.join(dir,'build-version.js'),'utf8'),
         new RegExp('GAME_BUILD_VERSION="'+rev+'"'));
       const html=fs.readFileSync(path.join(dir,'index.html'),'utf8');
-      for(const asset of ['style.css','graveyard-art.js','combat-motion.js',
+      for(const asset of ['style.css','arena-art.js','graveyard-art.js','combat-motion.js',
         'player-avatar.js','ghost-attack.js','chickens.js','shockwave.js','app.js','auto-update.js','build-version.js']){
         assert.ok(html.includes('./'+asset+'?v='+rev),
           'all asset URLs versioned on each deploy: '+asset);

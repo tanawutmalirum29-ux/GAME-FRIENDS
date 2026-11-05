@@ -4,6 +4,7 @@ const fs=require('node:fs'),vm=require('node:vm');
 const avatars=fs.readFileSync('player-avatar.js','utf8');
 const engine=fs.readFileSync('shockwave.js','utf8');
 const env=vm.createContext({window:{},Date,Math});
+vm.runInContext(fs.readFileSync('arena-art.js','utf8'),env,{filename:'arena-art.js'});
 vm.runInContext(avatars,env,{filename:'player-avatar.js'});
 vm.runInContext(engine,env,{filename:'shockwave.js'});
 const E=env.window.Shockwave;
@@ -201,7 +202,7 @@ assert.match(avatars,/data:image\/svg\+xml/);
  s.phase='WARNING';s.danger=[6];
  const circles=[],ctx=new Proxy({},{
   get(_obj,key){
-   if(key==='createLinearGradient')return ()=>({addColorStop(){}});
+   if(key==='createLinearGradient'||key==='createRadialGradient')return ()=>({addColorStop(){}});
    if(key==='arc')return (...args)=>circles.push(args);
    return ()=>{};
   },set(){return true;}

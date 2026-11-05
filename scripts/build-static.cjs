@@ -21,7 +21,7 @@ fs.writeFileSync(path.join(root,'build-version.js'),
   'window.GAME_BUILD_VERSION='+JSON.stringify(id)+';\n');
 const indexPath=path.join(root,'index.html');
 let html=fs.readFileSync(indexPath,'utf8');
-const assets=['style.css','graveyard-art.js','combat-motion.js',
+const assets=['style.css','arena-art.js','graveyard-art.js','combat-motion.js',
  'player-avatar.js','ghost-attack.js','chickens.js','fruit-memory.js','shockwave.js','app.js','auto-update.js','build-version.js'];
 const seen=new Set();
 html=html.replace(/\b(src|href)="(\.\/[^"?]+)(?:\?v=[^"]*)?"/g,

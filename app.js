@@ -1253,6 +1253,7 @@ function startRound(forcedMode=null){
   $('results').classList.add('hidden');
   round={mode,phase:'countdown',paused:false,countdown:3,remaining:null,autoNextRemaining:0,
     rules:{viewMode:'topdown'}};
+  window.PartyPlayerAvatar.preload(players);
   engine.setup(round,players);
   $('results').querySelector('.eyebrow').textContent=MODES[mode];
   $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':'จับไก่ให้ได้มากที่สุด!';

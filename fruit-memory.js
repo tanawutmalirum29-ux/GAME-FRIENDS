@@ -14,6 +14,8 @@ const FRUITS=[
  {id:'cherry',name:'เชอร์รี',color:'#eb4669',svg:'<path d="M31 17C22 6 17 14 15 29m16-12C39 5 48 9 48 28" stroke="#538e4f" stroke-width="4" fill="none"/><path d="M31 17c-5-10 2-14 15-13-1 9-6 12-15 13Z" fill="#67c174"/><circle cx="16" cy="39" r="13" fill="#df4564"/><circle cx="47" cy="39" r="13" fill="#f15170"/>'}
 ];
 const FRUIT_BY_ID=Object.fromEntries(FRUITS.map(f=>[f.id,f]));
+const TILE_COLORS=Object.freeze({apple:'#f3b6ad',banana:'#f2da78',orange:'#f9c56a',grape:'#aeceec',
+ strawberry:'#efb5cb',pineapple:'#dbdf80',watermelon:'#95d6b5',cherry:'#d4b5e8'});
 const imageCache={};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const shuffle=list=>{const a=[...list];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
@@ -352,29 +354,30 @@ function drawTile(ctx,state,t,time){
  ctx.save();ctx.globalAlpha=alpha;ctx.translate(r.x+r.w/2,r.y+r.h/2+yOffset);
  if(falling||rebuilding){ctx.rotate(fallProgress*.12*(t.column%2?1:-1));ctx.scale(1-fallProgress*.19,1-fallProgress*.19);}
  const w=(r.w-pad*2)*(revealed?Math.max(.06,flipping):1),h=r.h-pad*2;
- ctx.shadowColor='#000a';ctx.shadowBlur=8;ctx.shadowOffsetY=7;
- ctx.fillStyle=revealed?'#fff2d6':'#244563';
- if(collapsing&&correct)ctx.fillStyle='#438e77';
- ctx.fillRect(-w/2,-h/2,w,h);ctx.shadowBlur=0;ctx.shadowOffsetY=0;
- ctx.strokeStyle=revealed?'#dfc68b':'#6189a8';ctx.lineWidth=2;
- ctx.strokeRect(-w/2,-h/2,w,h);
+ // Only revealed cards get fruit-specific colors. Hidden cards remain identical.
+ const face=revealed?TILE_COLORS[t.fruitType]:'#68648d';
+ ctx.fillStyle='#302e4f';ctx.beginPath();ctx.roundRect(-w/2,-h/2+5,w,h,8);ctx.fill();
+ ctx.fillStyle=face;ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h-3,8);ctx.fill();
+ ctx.strokeStyle=revealed?'#fff2c9':'#b7b1d2';ctx.lineWidth=2;
+ ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle='#ffffff1a';ctx.beginPath();ctx.roundRect(-w/2+5,-h/2+5,w-10,7,3);ctx.fill();
  if(revealed&&flipping>.56){
    const icon=fruitImage(t.fruitType);
-   // Keep fruit artwork at its original size; stretch tile surfaces only.
-   const size=Math.min(w*.55,h*.70,state.big?34.3:37.8);
-   if(icon?.complete&&icon.naturalWidth>0)ctx.drawImage(icon,-size/2,-size/2,size,size);
+   const size=Math.min(w*.65,h*.78,54);
+   if(icon?.complete&&icon.naturalWidth>0)ctx.drawImage(icon,-size/2,-size/2-1,size,size);
    else{
      ctx.fillStyle=FRUIT_BY_ID[t.fruitType].color;
      ctx.beginPath();ctx.arc(0,0,size*.28,0,TAU);ctx.fill();
    }
  }else if(!revealed){
-   ctx.fillStyle='#46718e';ctx.globalAlpha*=.8;
-   // Original closed-card marker size, independent of the wider grid.
-   ctx.beginPath();ctx.arc(0,0,Math.min(w,h,state.big?49:54)*.12,0,TAU);ctx.fill();
+   ctx.fillStyle='#b5afcf';ctx.font='900 '+Math.round(Math.min(h*.65,44))+'px sans-serif';
+   ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',0,0);
  }
  if(collapsing&&correct){
-   ctx.strokeStyle='#83ffba';ctx.lineWidth=3;ctx.strokeRect(-w/2+2,-h/2+2,w-4,h-4);
+   ctx.strokeStyle='#d5ffac';ctx.lineWidth=4;
+   ctx.beginPath();ctx.roundRect(-w/2+3,-h/2+3,w-6,h-9,6);ctx.stroke();
  }
+
  ctx.restore();
 }
 function drawPlayer(ctx,p,state,time){
@@ -401,18 +404,12 @@ function drawPlayer(ctx,p,state,time){
 function draw(ctx,time,round,players){
  const state=round.fruitMemory;if(!state)return;
  ctx.save();ctx.clearRect(0,0,960,540);
- const bg=ctx.createLinearGradient?.(0,0,0,540);
- if(bg){bg.addColorStop(0,'#0c2135');bg.addColorStop(1,'#20455e');ctx.fillStyle=bg;}
- else ctx.fillStyle='#17364f';
- ctx.fillRect(0,0,960,540);
- const b=state.board;
- ctx.fillStyle='#07192a';ctx.fillRect(b.x-10,b.y-10,b.w+20,b.h+20);
- ctx.strokeStyle='#5e91ab';ctx.lineWidth=3;ctx.strokeRect(b.x-10,b.y-10,b.w+20,b.h+20);
+ window.PartyArenaArt.draw(ctx,'orchard',state);
  for(const tile of state.tiles)drawTile(ctx,state,tile,time);
  for(const p of players)drawPlayer(ctx,p,state,time);
  // Compact HUD above the playfield; never overlaps the grid.
- ctx.fillStyle='#102e44';ctx.fillRect(16,30,250,42);
- ctx.strokeStyle='#5d8da6';ctx.lineWidth=1.4;ctx.strokeRect(16,30,250,42);
+ ctx.fillStyle='#40394f';ctx.fillRect(16,30,250,42);
+ ctx.strokeStyle='#d0bb90';ctx.lineWidth=1.4;ctx.strokeRect(16,30,250,42);
  ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='bold 13px system-ui,sans-serif';
  ctx.fillText('FRUIT MEMORY',27,47);
  ctx.font='bold 13px system-ui,sans-serif';
