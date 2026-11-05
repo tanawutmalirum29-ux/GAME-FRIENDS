@@ -1446,42 +1446,49 @@ function endRound(){
    if(round.mode==='shockwave'){endShockwaveRound();return;}
   round.phase='results';round.paused=false;resetInputs();broadcastRoster();
   $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
-  const ranked=players.filter(p=>p.active).sort((a,b)=>{
-    if(a.id===round.ghost.winnerId)return -1;
-    if(b.id===round.ghost.winnerId)return 1;
-    return b.score-a.score;
-  });
-  if(tournament){
-    ranked.forEach((p,i)=>p.total=(p.total||0)+Math.max(1,ranked.length-i));
-    $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
-      'สุ่มชุดใหม่จากตัวเลือกเดิม':
-      'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
-  }else $('replayBtn').textContent='เล่นอีกครั้ง';
+  // Same infection frame OR same 0.1-second score -> shared competition rank.
+  // When all humans are infected, winnerId is a fallback, not proof of a solo winner.
+  const finishValue=p=>!p.ghost?Infinity:
+    Math.floor((Number.isFinite(p.infectedAt)?p.infectedAt:
+      Number.isFinite(p.survival)?p.survival:0)*10+1e-7);
+  const ranked=players.filter(p=>p.active).sort((a,b)=>
+    finishValue(b)-finishValue(a)||String(a.id).localeCompare(String(b.id)));
+  const rankOf=p=>1+ranked.filter(q=>finishValue(q)>finishValue(p)).length;
+  const first=ranked.filter(p=>rankOf(p)===1);
+  $('results').querySelector('h2').textContent=first.length>1?
+    'เสมอ! อันดับ 1 ร่วม':first[0]&&!first[0].ghost?
+      'ผู้รอดคนสุดท้าย!':'อยู่รอดนานที่สุด!';
+  if(tournament)ranked.forEach(p=>
+    p.total=(p.total||0)+Math.max(1,ranked.length-rankOf(p)+1));
   round.autoNextRemaining=tournament&&tournament.index+1<tournament.schedule.length&&$('autoNext').checked?7:0;
   const list=$('resultList');list.replaceChildren();
-  ranked.forEach((p,i)=>{
+  ranked.forEach(p=>{
+    const rank=rankOf(p),tied=ranked.filter(q=>rankOf(q)===rank).length>1;
     const row=document.createElement('div');row.className='result-player';
     const label=document.createElement('div');
-    const winner=p.id===round.ghost.winnerId;
-    label.textContent=(winner?'🏆 ':'')+(i+1)+'. '+p.name;
+    label.textContent=(rank===1?'★ ':'')+'อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
     label.style.color=p.color;
     const detail=document.createElement('span');
-    detail.textContent=(winner?'ผู้รอดคนสุดท้าย':p.ghost?'กลายเป็นผี':'รอด')+
+    detail.textContent=(p.ghost?'ตกรอบ':'ผู้รอดคนสุดท้าย')+
+      (p.ghost&&Number.isFinite(p.infectedAt)?' • '+p.infectedAt.toFixed(1)+' วิ':'')+
       (tournament?' • รวม '+p.total+' คะแนน':'');
     row.append(label,detail);list.append(row);
   });
   if(tournament&&tournament.index===tournament.schedule.length-1&&ranked.length){
     const overall=[...ranked].sort((a,b)=>b.total-a.total);
     list.replaceChildren();
-    overall.forEach((p,i)=>{
+    overall.forEach(p=>{
       const row=document.createElement('div');row.className='result-player';
-      const name=document.createElement('div');name.textContent=(i+1)+'. '+p.name;
+      const rank=1+overall.filter(q=>q.total>p.total).length;
+      const name=document.createElement('div');name.textContent='อันดับ '+rank+'. '+p.name;
       name.style.color=p.color;
       const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
       row.append(name,score);list.append(row);
     });
     const heading=document.createElement('div');heading.className='tournament-header';
-    heading.textContent='ผู้ชนะรวม: '+overall[0].name;list.prepend(heading);
+    const top=overall.filter(p=>p.total===overall[0].total);
+    heading.textContent=top.length===1?'ผู้ชนะรวม: '+top[0].name:
+      'คะแนนรวมเสมอ: '+top.map(p=>p.name).join(', ');list.prepend(heading);
   }
   $('results').classList.remove('hidden');$('gameBanner').textContent='';
   beginResultVoting();
