@@ -11,7 +11,7 @@ vm.runInNewContext(source,sandbox,{filename:'pizza-time.js'});
 const G=sandbox.window.PizzaTime;
 assert.ok(G&&G.setup&&G.update&&G.draw&&G.hud);
 const make=(n,bot=false)=>Array.from({length:n},(_,i)=>({
- id:i+1,name:'P'+(i+1),active:true,isBot:bot,input:{axisX:0,axisY:0},
+ id:'p'+(i+1),name:'P'+(i+1),type:bot?'local':'remote',active:false,isBot:bot,input:{axisX:0,axisY:0},
  color:'#ffaaaa',score:0
 }));
 function start(n,seed=1,bot=false){
@@ -21,9 +21,11 @@ function start(n,seed=1,bot=false){
 }
 function tick(ctx,count=1){for(let i=0;i<count;i++)G.update(1/60,ctx.round,ctx.ps)}
 function assertState(x,n){
+ assert.ok(x.ps.every(p=>p.active), 'lobby players (including bots) must be activated when Pizza Time starts');
  assert.equal(x.s.worktops.length,G.tableCount(n));
  assert.equal(x.s.tables.length,x.s.worktops.length*2);
  assert.equal(x.s.chefs.length,n);
+ assert.equal(x.s.roster.filter(p=>p.isBot).length,x.ps.filter(p=>p.isBot).length);
  assert.equal(new Set(x.s.chefs.map(c=>c.ownerId)).size,n);
  for(const top of x.s.worktops){
    const pair=x.s.tables.slice(top.id*2,top.id*2+2);
