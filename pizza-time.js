@@ -77,12 +77,17 @@ function stationLayout(s,ps){
    const order=n===1?[0]:n===2?[0,3]:n===3?[0,1,2]:[0,1,2,3];
    positions=order.map(i=>slots[i]);
  }else{
-   const top=Math.ceil(n/2),bottom=n-top;
-   for(let side=0;side<2;side++){
-     const m=side===0?top:bottom;
-     for(let i=0;i<m;i++)positions.push({
-       x:m===1?.5:.13+i*.74/(m-1),y:side===0?.145:.855
-     });
+   // More than four: create small personal-chef clusters around the SAME four
+   // corners, rather than advantaging middle-edge stations.
+   const corners=[
+     {x:.155,y:.165},{x:.845,y:.165},
+     {x:.155,y:.835},{x:.845,y:.835}
+   ];
+   const counts=[0,0,0,0],placed=[0,0,0,0];
+   for(let i=0;i<n;i++)counts[i%4]++;
+   for(let i=0;i<n;i++){
+     const corner=i%4,q=corners[corner],index=placed[corner]++;
+     positions.push({x:q.x+(index-(counts[corner]-1)/2)*.09,y:q.y});
    }
  }
  s.chefs=ps.map((p,i)=>{
