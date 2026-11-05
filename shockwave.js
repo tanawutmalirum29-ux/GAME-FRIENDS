@@ -3,7 +3,7 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2, FIXED=1/60;
-const C=Object.freeze({speed:177,bodyRadius:13,footRadius:11,blastThreshold:.18,maxPlayers:12});
+const C=Object.freeze({speed:177,bodyRadius:13,footRadius:11,avatarRadius:29,maxPlayers:12});
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const living=ps=>ps.filter(p=>p.active&&p.shockAlive);
 function random(s){let x=s.seed|0;x^=x<<13;x^=x>>>17;x^=x<<5;s.seed=x||0x13579bdf;return (s.seed>>>0)/4294967296;}
@@ -49,23 +49,29 @@ function circleRectArea(cx,cy,r,rect){
 function calculateFootSupport(s,p){
  return clamp(circleRectArea(p.x,p.y,C.footRadius,s.board)/(Math.PI*C.footRadius**2),0,1);
 }
+// Top-down player art is drawn in a 52x52 box (including arms, hats and
+// fox ears). This conservative 29px circle encloses all visible body parts;
+// labels are not part of the body. Use EXACT circle/rectangle intersection:
+// no percentage threshold and no numerical area approximation at tiny edges.
+function touchesTile(s,p,t){
+ const x=s.board.x+t.col*s.tileSize,y=s.board.y+t.row*s.tileSize;
+ const dx=p.x-clamp(p.x,x,x+s.tileSize);
+ const dy=p.y-clamp(p.y,y,y+s.tileSize);
+ return dx*dx+dy*dy<=C.avatarRadius*C.avatarRadius;
+}
 function calculateDangerContact(s,p,dangerIds){
  const selected=dangerIds instanceof Set?dangerIds:new Set(dangerIds);
- let area=0;
  for(const id of selected){
-   const t=s.tiles[id];if(!t)continue;
-   const r={x:s.board.x+t.col*s.tileSize,y:s.board.y+t.row*s.tileSize,w:s.tileSize,h:s.tileSize};
-   if(Math.abs(p.x-r.x-r.w/2)>r.w/2+C.footRadius||
-      Math.abs(p.y-r.y-r.h/2)>r.h/2+C.footRadius)continue;
-   area+=circleRectArea(p.x,p.y,C.footRadius,r);
+   const tile=s.tiles[id];
+   if(tile&&touchesTile(s,p,tile))return 1;
  }
- return clamp(area/(Math.PI*C.footRadius**2),0,1);
+ return 0;
 }
 function inputVector(p,s){
  if(p.isBot){
    const t=tileAt(s,p.x,p.y);
-   // React to meaningful foot overlap, not merely the centre tile.
-   if(!t||calculateDangerContact(s,p,new Set(s.danger))<C.blastThreshold)return {x:0,y:0};
+   // React to any part of the character touching a warning square.
+   if(!t||calculateDangerContact(s,p,new Set(s.danger))===0)return {x:0,y:0};
    if(p.shockBotWave!==s.wave){
      p.shockBotWave=s.wave;p.shockBotReadyAt=s.clock+.18+
        random(s)*Math.min(1.7,s.warningDuration*.83);
@@ -87,7 +93,7 @@ function inputVector(p,s){
 }
 function resolvePlayerCollision(s,ps){
  const all=living(ps).slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
- const b=s.board,r=C.footRadius;
+ const b=s.board,r=C.avatarRadius;
  for(let pass=0;pass<8;pass++)for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++){
    const a=all[i],c=all[j];let dx=c.x-a.x,dy=c.y-a.y,d=Math.hypot(dx,dy);
    if(d>=2*C.bodyRadius)continue;
@@ -100,7 +106,7 @@ function resolvePlayerCollision(s,ps){
  }
 }
 function movePlayers(dt,s,ps){
- const b=s.board,foot=C.footRadius;
+ const b=s.board,foot=C.avatarRadius;
  for(const p of living(ps)){
    const v=inputVector(p,s),speed=p.isBot?C.speed*.88:C.speed;
    p.vx=v.x*speed;p.vy=v.y*speed;
@@ -138,12 +144,12 @@ function requiredEscapeSeconds(s,ps,danger){
  if(!safe.length)return Infinity;
  let longest=0;
  for(const p of living(ps)){
-   if(calculateDangerContact(s,p,selected)<C.blastThreshold)continue;
+   if(calculateDangerContact(s,p,selected)===0)continue;
    // Warning has continuous walkable floor. Check the nearest fully safe
    // interior square, accounting for the real footprint diameter.
    const distance=Math.min(...safe.map(t=>{
      const x=s.board.x+t.col*s.tileSize,y=s.board.y+t.row*s.tileSize;
-     const inset=C.footRadius;
+     const inset=C.avatarRadius;
      return Math.hypot(
        clamp(p.x,x+inset,x+s.tileSize-inset)-p.x,
        clamp(p.y,y+inset,y+s.tileSize-inset)-p.y);
@@ -246,7 +252,7 @@ function triggerExplosion(s,ps){
  }
  const chosen=new Set(s.danger);
  // Snapshot hits all alive players at one moment, before visual changes.
- const hit=living(ps).filter(p=>calculateDangerContact(s,p,chosen)>=C.blastThreshold);
+ const hit=living(ps).filter(p=>calculateDangerContact(s,p,chosen)>0);
  for(const id of chosen){
    const tile=s.tiles[id];tile.state='exploding';
    const c=tileCenter(s,tile);s.effects.push({x:c.x,y:c.y,life:.55});
@@ -312,11 +318,11 @@ function drawPlayer(ctx,p,s){
  window.PartyPlayerAvatar.draw(ctx,p,{time:s.clock,alpha:opacity,
    scale:p.shockAlive?1:.3+.7*opacity});
  if(p.shockAlive){
-   // This ring is the exact contact footprint tested at the explosion snapshot.
+   // This ring encloses the entire character and is the explosion contact area.
    const inDanger=s.phase==='WARNING'&&
-     calculateDangerContact(s,p,new Set(s.danger))>=C.blastThreshold;
+     calculateDangerContact(s,p,new Set(s.danger))>0;
    ctx.save();ctx.strokeStyle=inDanger?'#ffe8a6':'#d5f7e9';ctx.lineWidth=1.8;
-   ctx.beginPath();ctx.arc(p.x,p.y,C.footRadius,0,TAU);ctx.stroke();
+   ctx.beginPath();ctx.arc(p.x,p.y,C.avatarRadius,0,TAU);ctx.stroke();
    ctx.fillStyle=inDanger?'#ffca72':'#fff';
    ctx.beginPath();ctx.arc(p.x,p.y,2.9,0,TAU);ctx.fill();ctx.restore();
  }

@@ -186,16 +186,22 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  put(ps[0],center(s,6));put(ps[1],center(s,7));
  assert.ok(E.calculateDangerContact(s,ps[0],danger)>.99);
  assert.ok(E.calculateDangerContact(s,ps[1],danger)<.01);
- // Exactly across a tile border is 50%; foot circle, not sprite radius.
+ // Even a tiny piece of the whole avatar crossing the tile border dies.
  const border=s.board.x+s.tileSize*2,y=s.board.y+s.tileSize*1.5;
- ps[0].x=border-3;ps[0].y=y;
- const right=new Set([7]);
- const overlapHigh=E.calculateDangerContact(s,ps[0],right);
- ps[0].x=border-6;
- const overlapLow=E.calculateDangerContact(s,ps[0],right);
- assert.ok(overlapHigh>.20&&overlapLow<.20,
-   'foot overlap decreases continuously near edges');
- assert.ok(overlapHigh>overlapLow);
+ const dangerRight=new Set([7]),r=E.constants.avatarRadius;
+ ps[0].y=y;
+ ps[0].x=border-r+.001;
+ assert.equal(E.calculateDangerContact(s,ps[0],dangerRight),1,
+   '0.001px brush of the full body counts as lethal contact');
+ ps[0].x=border-r;
+ assert.equal(E.calculateDangerContact(s,ps[0],dangerRight),1,
+   'exact tangent must count as touching');
+ ps[0].x=border-r-.001;
+ assert.equal(E.calculateDangerContact(s,ps[0],dangerRight),0,
+   'no part touching means safe');
+ ps[0].x=border;
+ assert.equal(E.calculateDangerContact(s,ps[0],dangerRight),1,
+   'standing on the seam is not a loophole');
 }
 {
  const g=game(3,73),{ps,state:s,round}=g;
@@ -220,13 +226,14 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  const g=game(3,52),{ps,state:s,round}=g;
  E.startWave(s,ps);const b=s.tiles[6];b.wave=1;b.state='warning';
  s.danger=[6];s.phase='WARNING';s.warningStarted=true;
- // 50%-area foot overlap on border must be hit, 20% must survive.
- const boundary=s.board.x+2*s.tileSize;
- ps[0].x=boundary-1;ps[0].y=center(s,6).y;
- ps[1].x=boundary+7;ps[1].y=center(s,6).y;
+ // Center on the safe neighbor, but the avatar's outer rim touches red.
+ const boundary=s.board.x+2*s.tileSize,r=E.constants.avatarRadius;
+ ps[0].x=boundary+r-.001;ps[0].y=center(s,6).y;
+ ps[1].x=boundary+r+.001;ps[1].y=center(s,6).y;
  put(ps[2],center(s,18));
  const hits=ps.slice(0,2).map(p=>E.calculateDangerContact(s,p,new Set([6])));
- assert.ok(hits[0]>.50&&hits[1]<.20);
+ assert.equal(hits[0],1,'near-zero visual overlap still dies');
+ assert.equal(hits[1],0,'no overlap survives');
  E.triggerExplosion(s,ps);
  assert.equal(ps[0].shockAlive,false);
  assert.equal(ps[1].shockAlive,true);
@@ -296,13 +303,15 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
 assert.match(avatars,/data:image\/svg\+xml/);
 {
  const {state:s,ps}=game(3,950);
- assert.equal(E.constants.blastThreshold,.18);
- assert.equal(E.constants.footRadius,11);
+ assert.equal(E.constants.avatarRadius,29,'whole visible character radius');
+ assert.equal(E.constants.footRadius,11,'foot support remains a separate metric');
+ assert.equal(Object.hasOwn(E.constants,'blastThreshold'),false,
+   'eliminate the old percentage-based immunity');
  const danger=new Set([6]),boundary=s.board.x+2*s.tileSize;
- ps[0].x=boundary+4;ps[0].y=center(s,6).y;
- const ratio=E.calculateDangerContact(s,ps[0],danger);
- assert.ok(ratio>.18&&ratio<.5,'small meaningful overlap must count');
- ps[0].x=boundary+E.constants.footRadius+1;
+ ps[0].x=boundary+E.constants.avatarRadius-.0001;ps[0].y=center(s,6).y;
+ assert.equal(E.calculateDangerContact(s,ps[0],danger),1,
+   'even a tiny amount inside the outer body edge must die');
+ ps[0].x=boundary+E.constants.avatarRadius+.0001;
  assert.equal(E.calculateDangerContact(s,ps[0],danger),0);
  s.phase='WARNING';s.danger=[6];
  const circles=[],ctx=new Proxy({},{
@@ -313,7 +322,40 @@ assert.match(avatars,/data:image\/svg\+xml/);
   },set(){return true;}
  });
  E.draw(ctx,0,{shockwave:s,phase:'playing'},ps);
- assert.ok(circles.some(a=>a[0]===ps[1].x&&a[1]===ps[1].y&&a[2]===11),
-   'rendered foot ring at same position as simulated foot');
+ assert.ok(circles.some(a=>a[0]===ps[1].x&&a[1]===ps[1].y&&a[2]===29),
+   'full-body blast ring uses the same logical center as the sprite');
 }
-console.log('SHOCKWAVE PASS: fast waves 4–24 blasts, one safe tile by wave 12, rotating shelter, adaptive warnings, hitboxes and ties');
+{
+ // Body contact at the diagonal corner, not just horizontal and vertical edges.
+ const {state:s,ps}=game(3,314);
+ const t=s.tiles[6],right=s.board.x+(t.col+1)*s.tileSize;
+ const bottom=s.board.y+(t.row+1)*s.tileSize;
+ const danger=new Set([6]),radius=E.constants.avatarRadius;
+ put(ps[0],{x:right+20,y:bottom+20});
+ assert.equal(E.calculateDangerContact(s,ps[0],danger),1,
+   'diagonal grazing of a warning tile must count');
+ put(ps[0],{x:right+22,y:bottom+22});
+ assert.equal(E.calculateDangerContact(s,ps[0],danger),0,
+   'diagonal gap outside the avatar radius remains safe');
+ for(const dir of [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]){
+   ps[0].dir=dir;
+   ps[0].x=right+radius-.0001;
+   ps[0].y=center(s,6).y;
+   assert.equal(E.calculateDangerContact(s,ps[0],danger),1,
+     'no directional loopholes for different avatar costumes');
+ }
+ put(ps[0],center(s,7));
+ assert.equal(E.calculateDangerContact(s,ps[0],danger),0,
+   'safe neighbor center stays safe, even if its border explodes');
+}
+{
+ const {state:s,ps}=game(2,650);
+ s.wave=12;
+ const danger=E.selectDangerTiles(s,ps);
+ const safe=s.tiles.find(t=>!danger.includes(t.id));
+ assert.equal(danger.length,24);
+ put(ps[0],center(s,safe.id));
+ assert.equal(E.calculateDangerContact(s,ps[0],new Set(danger)),0,
+   'the only safe tile still has safe standing room for a full character');
+}
+console.log('SHOCKWAVE PASS: any-pixel whole-body contact, seams/corners, one-safe-tile late waves and ties');
