@@ -10,6 +10,7 @@ const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
   'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
+const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
 const artSource=fs.readFileSync('graveyard-art.js','utf8');
 const combatSource=fs.readFileSync('combat-motion.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
@@ -840,6 +841,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(combatSource,scope,{filename:'combat-motion.js'});
   vm.runInContext(artSource,scope,{filename:'graveyard-art.js'});
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
+  vm.runInContext(fruitSource,scope,{filename:'fruit-memory.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
   return {elements,pickButtons,sessionButtons,padButtons,instances,scope,sessionData,timers,
     mediaCall(peer){return new FakeMediaCall(peer);},
