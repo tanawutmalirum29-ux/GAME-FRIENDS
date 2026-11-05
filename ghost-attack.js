@@ -817,11 +817,12 @@ function hud(players,round){
 }
 function drawPerson(ctx,p,color,ghost,t,alpha=1,theme='graveyard'){
   ctx.save();ctx.globalAlpha=alpha;
-  Art.drawActor(ctx,p,color,ghost,t,theme);
+  if(ghost)Art.drawActor(ctx,p,color,true,t,theme);
+   else window.PartyPlayerAvatar.draw(ctx,p,{time:t,color,label:false});
   // The shared combat and stun timelines also decorate the SVG sprite.
   Combat.drawAttack(ctx,p);
   Combat.drawStun(ctx,p,t);
-  const labelY=p.y-(p.stun>0?81:61);
+  const labelY=p.y-(ghost?(p.stun>0?81:61):34);
   ctx.font='bold 13px system-ui';ctx.textAlign='center';
   ctx.strokeStyle='#081329';ctx.lineWidth=4;
   ctx.strokeText(p.name||'GHOST',p.x,labelY);

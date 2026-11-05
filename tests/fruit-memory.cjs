@@ -4,6 +4,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const source=fs.readFileSync('fruit-memory.js','utf8');
 const context={window:{},Image:class {constructor(){this.complete=true;this.naturalWidth=64;}}};
+vm.runInNewContext(fs.readFileSync('player-avatar.js','utf8'),context);
 vm.runInNewContext(source,context);
 const game=context.window.FruitMemory;
 assert.ok(game&&game.setup&&game.update&&game.draw&&game.hud);
