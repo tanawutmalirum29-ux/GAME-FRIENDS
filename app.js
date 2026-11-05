@@ -216,52 +216,15 @@ function tryLandscapeOrientation(){
     if(result&&typeof result.catch==='function')result.catch(()=>{});
   }catch(_){/* The device/browser controls physical orientation. */}
 }
-// iPadOS may warn that the page is spoofing a keyboard while a player
-// only touches the canvas. WebKit bug 205917 documents this native fullscreen
-// false positive. Use the existing 100dvh CSS immersive view on all iOS
-// browsers; leave the OS phishing protection intact.
-function avoidIOSNativeFullscreen(){
-  const ua=String(navigator.userAgent||'');
-  const platform=String(navigator.platform||'');
-  return /iPad|iPhone|iPod/i.test(ua)||/iPad|iPhone|iPod/i.test(platform)||
-    (platform==='MacIntel'&&Number(navigator.maxTouchPoints||0)>1);
-}
-// iPad users may explicitly opt into native fullscreen. Otherwise use the
-// safe CSS viewport (or the installed standalone Home Screen web app).
-// Never bypass iPadOS's built-in security warning.
-const IOS_FULLSCREEN_PREF='gf-ipad-native-fullscreen-v1';
-let iosNativeFullscreenEnabled=false;
-try{iosNativeFullscreenEnabled=window.localStorage?.getItem(IOS_FULLSCREEN_PREF)==='true';}catch(_){}
-function isStandaloneWebApp(){
-  return navigator.standalone===true||
-    window.matchMedia?.('(display-mode: standalone)')?.matches===true||
-    window.matchMedia?.('(display-mode: fullscreen)')?.matches===true;
-}
-function canUseNativeHostFullscreen(){
-  return !avoidIOSNativeFullscreen()||
-    (iosNativeFullscreenEnabled&&!isStandaloneWebApp());
-}
-function syncIOSFullscreenControl(){
-  const button=$('iosFullscreenBtn');
-  if(!button)return;
-  const eligible=avoidIOSNativeFullscreen()&&!isStandaloneWebApp();
-  button.classList.toggle('hidden',!eligible);
-  button.disabled=!eligible||typeof document.documentElement?.requestFullscreen!=='function';
-  button.setAttribute('aria-pressed',String(iosNativeFullscreenEnabled));
-  button.textContent='เต็มจอจริง: '+(iosNativeFullscreenEnabled?'เปิด':'ปิด');
-  button.title=iosNativeFullscreenEnabled?
-    'เปิด Native Fullscreen เมื่อเริ่มเกม (iPad อาจแสดงคำเตือนความปลอดภัย)':
-    'กดเพื่อให้ iPad เข้า Native Fullscreen เมื่อเริ่มเกม หรือเพิ่มเว็บไปหน้าจอโฮมเพื่อไม่มีแถบบราวเซอร์';
-}
+// Restore the original fullscreen behavior on any browser that supports it.
+// Browser/OS permission prompts remain under the browser's control.
 function requestHostFullscreen(){
-  // Opt-in on iPad; always native on compatible non-iOS browsers.
   const root=document.documentElement;
   let request=null;
   try{
-    if(canUseNativeHostFullscreen()&&root&&root.requestFullscreen&&!document.fullscreenElement){
+    if(root&&root.requestFullscreen&&!document.fullscreenElement)
       request=root.requestFullscreen({navigationUI:'hide'});
-    }
-  }catch(_){/* Device may reject fullscreen. */}
+  }catch(_){/* Browser may deny native fullscreen. */}
   if(request&&typeof request.then==='function')
     request.then(tryLandscapeOrientation,tryLandscapeOrientation);
   else tryLandscapeOrientation();
@@ -1186,7 +1149,7 @@ function requestLandscape(){
   const panel=$('controller');
   let request=null;
   try{
-    if(!avoidIOSNativeFullscreen()&&panel.requestFullscreen&&!document.fullscreenElement)
+    if(panel.requestFullscreen&&!document.fullscreenElement)
       request=panel.requestFullscreen();
   }catch(_){/* Fullscreen is not available on this device. */}
   if(request&&typeof request.then==='function')
@@ -1731,16 +1694,6 @@ $('offlineBtn').addEventListener('click',()=>{
   .then(yes=>{if(yes)openOfflineLobby();});
 });
 $('startBtn').addEventListener('click',beginParty);
-$('iosFullscreenBtn').addEventListener('click',()=>{
-  if(!avoidIOSNativeFullscreen()||isStandaloneWebApp())return;
-  iosNativeFullscreenEnabled=!iosNativeFullscreenEnabled;
-  try{window.localStorage?.setItem(IOS_FULLSCREEN_PREF,String(iosNativeFullscreenEnabled));}catch(_){}
-  syncIOSFullscreenControl();
-  showToast(iosNativeFullscreenEnabled?
-    'เปิดเต็มจอจริงแล้ว • iPad อาจแสดงคำเตือนความปลอดภัยเมื่อเริ่มเกม':
-    'ใช้เต็มพื้นที่เว็บแล้ว • ต้องเปิดจากหน้าจอโฮมเพื่อซ่อนแถบเบราว์เซอร์');
-});
-syncIOSFullscreenControl();
 function closeHostRoom(){
  if(onlineHost)closeHost();
  deleteSession(HOST_SESSION);deleteSession(OFFLINE_SESSION);
