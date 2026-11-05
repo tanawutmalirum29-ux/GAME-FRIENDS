@@ -175,6 +175,8 @@ function seam(x){
 for(const side of ['behind','far']){
  const x=init(2),s=x.state,[p,q]=x.players;s.phase='move';s.target='apple';
  p.x=s.board.x+s.tileW*1.5;p.y=s.board.y+s.tileH*1.5;p.dir={x:1,y:0};
+ // Keep the hit-test dummy still; a moving bot can walk into a punch.
+ q.isBot=false;q.input.axisX=0;q.input.axisY=0;
  q.x=p.x+(side==='behind'?-44:90);q.y=p.y;
  p.input.action=true;advance(x,.22);
  assert.equal(q.fruitStun,0,'punch cannot hit '+side);
