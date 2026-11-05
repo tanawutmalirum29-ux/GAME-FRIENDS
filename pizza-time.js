@@ -335,7 +335,10 @@ function step(dt,round,ps){
   if(!p.pizza)continue;
   const v=p.isBot?botInput(s,p,dt):input(p);
   const magnitude=Math.hypot(v.x,v.y),speed=s.world.h*.305;
+  const px=p.x,py=p.y;
   safeMove(s,p,v.x*speed*dt,v.y*speed*dt);
+  // Avatar animation reads vx/vy; update these from actual collision-resolved motion.
+  p.vx=(p.x-px)/dt;p.vy=(p.y-py)/dt;
   if(magnitude>.12)p.dir={x:v.x/magnitude,y:v.y/magnitude};
   collect(s,p);deliver(s,p);
  }
@@ -504,7 +507,7 @@ function draw(ctx,time,round,ps){
  ctx.scale(960/s.world.w,540/s.world.h);
  scene(ctx,s);
  for(const p of active(ps)){
-  if(window.PartyPlayerAvatar?.draw)window.PartyPlayerAvatar.draw(ctx,p,{time:s.clock});
+  if(window.PartyPlayerAvatar?.draw)window.PartyPlayerAvatar.draw(ctx,p,{time:s.clock,holding:!!p.pizza?.held,scale:s.players>=10?1.15:1});
   else{ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,14,0,TAU);ctx.fill();}
   if(!p.pizza)continue;
   if(p.pizza.held){
