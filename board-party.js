@@ -13,7 +13,8 @@ function phase(s,name,duration=0){s.phase=name;s.phaseAt=s.time;s.deadline=s.tim
 // across a node must not wait for a network round trip or require another tap.
 function movePhase(s,name,duration=8){
  if(s.move?.kind!=='walk'){phase(s,name,duration);return;}
- s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;
+ // Manual walking, pausing and choosing a branch cannot trigger an autoplay timer.
+ s.phase=name;s.phaseAt=s.time;s.deadline=Infinity;
 }
 const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
 function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
@@ -76,8 +77,8 @@ function nextStep(s){
  if(p.currentNodeId===s.map.finishId){win(s,p);return;}
  if(m.remaining<=0||m.stop||s.time>=m.expires||(m.kind==='rocket'&&m.expires-s.time<.48)){land(s);return;}
  const options=s.map.nodes[p.currentNodeId].nextNodes;
- if(options.length>1){s.branch={options:[...options],selected:options[0]};movePhase(s,'branch',Math.min(m.kind==='walk'&&!m.auto&&!m.started?15:8,m.expires-s.time));return;}
- if(m.kind==='walk'&&!m.auto){movePhase(s,'move_ready',m.started?8:15);return;}
+ if(options.length>1){s.branch={options:[...options],selected:options[0]};movePhase(s,'branch',Math.min(8,m.expires-s.time));return;}
+ if(m.kind==='walk'){movePhase(s,'move_ready');return;}
  step(s,options[0]);
 }
 const WALK_SPEED=240,LANE_RADIUS=18,NODE_RADIUS=18,TURN_DELAY=.16;
@@ -103,10 +104,6 @@ function step(s,to){
 function roamNode(s,p,dt){
  const m=s.move;if(!m)return;
  const a=axes(s,p.id),strength=Math.hypot(a.x,a.y);
- if(m.auto){
-  const next=s.phase==='branch'?s.branch.selected:s.map.nodes[p.currentNodeId].nextNodes[0];
-  step(s,next);return;
- }
  if(strength>.11){
   if(!m.started){m.started=true;s.camera.explore=false;}
   // Walk freely inside the plaza around each tile. An accidental touch does
@@ -123,17 +120,13 @@ function roamNode(s,p,dt){
    if(m.intentTime>=TURN_DELAY){step(s,next);return;}
   }else{m.intent=null;m.intentTime=0;}
  }else{m.intent=null;m.intentTime=0;}
- if(s.time>=s.deadline){
-  m.auto=true;m.started=true;s.camera.explore=false;
-  step(s,s.phase==='branch'?s.branch.selected:s.map.nodes[p.currentNodeId].nextNodes[0]);
- }
 }
 function walkEdge(s,p,dt){
  const m=s.move;
  const a=m.startPosition,b=m.endPosition;
  const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,nx=dx/d,ny=dy/d;
  const stick=axes(s,p.id),magnitude=Math.hypot(stick.x,stick.y);
- if(!m.auto&&magnitude>.13){
+ if(magnitude>.13){
   const options=s.map.nodes[m.from].nextNodes;
   // Still able to change the chosen branch until far enough down the edge.
   if(options.length>1&&m.t<.70){
@@ -159,19 +152,14 @@ function walkEdge(s,p,dt){
  const tangent=stick.x*nx+stick.y*ny;
  const sideways=-stick.x*ny+stick.y*nx;
  const beforeT=m.t,beforeL=m.lateral||0;
- if(m.auto){
-  m.t=Math.min(1,m.t+WALK_SPEED*dt/d);
-  // Autowalk retains its lane instead of pulling the player to the pad centre.
-  m.lateral=beforeL;
- }else if(magnitude>.1){
+ if(magnitude>.1){
   // Full 2D input: forwards, sideways and backwards are all allowed. The
   // walkable lane bounds prevent shortcuts while the dice still count nodes.
   m.t=bound(m.t+tangent*WALK_SPEED*dt/d,0,1);
   m.lateral=bound(beforeL+sideways*WALK_SPEED*dt,-LANE_RADIUS,LANE_RADIUS);
  }
  m.walking=Math.abs(m.t-beforeT)>1e-6||Math.abs(m.lateral-beforeL)>1e-6;
- if(m.walking)s.deadline=s.time+8;
- if(!m.auto&&m.t<=.001&&tangent<-.15){
+ if(m.t<=.001&&tangent<-.15){
   // Reverse to the fork and choose again without consuming a die step.
   const pos=I().position(s,p),base=I().positionOnNode(s,p,m.from);
   m.nodeOffset={x:0,y:0};
@@ -193,7 +181,7 @@ function walkEdge(s,p,dt){
   m.nodeOffset={x:worldPos.x-node.x,y:worldPos.y-node.y};
   if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};
   nextStep(s);
- }else if(!m.auto&&s.time>=s.deadline)m.auto=true;
+ }
 }
 function roll(s){
  if(s.phase!=='ready'||s.rolled)return false;
@@ -323,7 +311,7 @@ function update(s,dt){
   const to=forwardInput(s,current(s));if(to)s.branch.selected=to;
   if(s.move.kind==='walk')roamNode(s,current(s),dt);
   else if(to&&s.move.kind==='rocket'&&s.move.auto)step(s,to);
-  else if(s.time>=s.deadline){if(s.time>=s.move.expires)land(s);else{if(s.move.kind==='walk')s.move.auto=true;step(s,s.branch.selected);}}
+  else if(s.time>=s.deadline){if(s.time>=s.move.expires)land(s);else step(s,s.branch.selected);}
  }else if(s.phase==='moving'){
   const m=s.move,p=current(s);
   if(m.kind==='walk')walkEdge(s,p,dt);
@@ -356,7 +344,7 @@ function controls(s,id){
  }
  if(s.move?.kind==='walk')return{a:s.camera.explore?'เริ่มเดิน':'',b:'',
    help:(s.camera.explore?'ลากหน้าจอหลักดูแผนที่ • A เริ่มเดิน หรือขยับจอยเพื่อล็อกกล้อง':
-     s.move.auto?'ช่วยเดินเมื่อหมดเวลา':'ลากจอยเพื่อเดิน / ปล่อยเพื่อหยุด')+
+     'ลากจอยเพื่อเดิน / ปล่อยเพื่อหยุด • ไม่มีการช่วยเดินอัตโนมัติ')+
      ' • เหลือ '+s.move.remaining+' ก้าว'};
  if(s.phase==='branch')return{a:'เลือกทาง',b:'',help:'อนาล็อกเลือกทางจรวด / A ยืนยัน'};
  if(s.phase==='aim')return{a:'ยืนยัน',b:s.skill.kind==='bomber'?'หมุน 45°':'',help:s.skill.kind==='ufo'?'เล็งให้สัมผัสตัวละคร / A สลับ':'เลื่อนแนวบิน / B หมุน / A โจมตี'};
