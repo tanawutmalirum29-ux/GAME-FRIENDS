@@ -1,12 +1,14 @@
-/* Handcrafted winter expedition, v3. All coordinates, edges, terrain, bridges,
+/* Handcrafted winter expedition, v6. All coordinates, edges, terrain, bridges,
  * tile roles and decoration placements below are authored, never seeded.
- * Version v5 adds a fixed six-step STARLIGHT KEY to MIRRORFROST LAKE link; reject old sessions. */
+ * Version v6 relocates a Lucky Star and adds two sword territory pairs; reject stale rooms. */
 (()=>{
 'use strict';
 function random(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 const MAIN_LENGTH=152,
  SWORD_PAIRS=Object.freeze([
   Object.freeze({id:'sword-territory-14',nodeIds:Object.freeze(['n14','n15'])}),
+  Object.freeze({id:'sword-territory-43',nodeIds:Object.freeze(['n43','n44'])}),
+  Object.freeze({id:'sword-territory-b33_9',nodeIds:Object.freeze(['b33_9','b33_10'])}),
   Object.freeze({id:'sword-territory-27',nodeIds:Object.freeze(['n27','n28'])}),
   Object.freeze({id:'sword-territory-59',nodeIds:Object.freeze(['n59','n60'])}),
   Object.freeze({id:'sword-territory-69',nodeIds:Object.freeze(['n69','n70'])}),
@@ -20,7 +22,7 @@ const MAIN_LENGTH=152,
 function neighbors(map,id){const n=map.nodes[id];return [...n.nextNodes,...n.previousNodes];}
 function adjacentType(map,id,type){return neighbors(map,id).some(k=>map.nodes[k]?.type===type);}
 const FIXED_MAP={
-  "version": "winter-expedition-152-v5",
+  "version": "winter-expedition-152-v6",
   "nodes": {
     "n0": {"id":"n0","position":{"x":650,"y":4750},"type":"start","nextNodes":["n1"],"previousNodes":[],"islandId":"village","progress":0,"effects":{},"remainingSteps":140,"longestRemainingSteps":174},
     "n1": {"id":"n1","position":{"x":800,"y":4800},"type":"movement","nextNodes":["n2"],"previousNodes":["n0"],"islandId":"village","progress":1,"effects":{},"remainingSteps":139,"longestRemainingSteps":173},
@@ -64,9 +66,9 @@ const FIXED_MAP={
     "n39": {"id":"n39","position":{"x":1650,"y":1670},"type":"movement","nextNodes":["n40"],"previousNodes":["n38"],"islandId":"grove","progress":39,"effects":{},"remainingSteps":104,"longestRemainingSteps":131},
     "n40": {"id":"n40","position":{"x":1690,"y":1480},"type":"danger","nextNodes":["n41"],"previousNodes":["n39"],"islandId":"grove","progress":40,"effects":{"hp":-35},"remainingSteps":103,"longestRemainingSteps":130},
     "n41": {"id":"n41","position":{"x":1590,"y":1320},"type":"movement","nextNodes":["n42"],"previousNodes":["n40","b37_7"],"islandId":"grove","progress":41,"effects":{},"remainingSteps":102,"longestRemainingSteps":129},
-    "n42": {"id":"n42","position":{"x":1410,"y":1260},"type":"movement","nextNodes":["n43"],"previousNodes":["n41"],"islandId":"grove","progress":42,"effects":{},"remainingSteps":101,"longestRemainingSteps":128},
-    "n43": {"id":"n43","position":{"x":1220,"y":1200},"type":"lucky","nextNodes":["n44"],"previousNodes":["n42"],"islandId":"grove","progress":43,"effects":{"item":true},"remainingSteps":100,"longestRemainingSteps":127},
-    "n44": {"id":"n44","position":{"x":1090,"y":1040},"type":"movement","nextNodes":["n45"],"previousNodes":["n43"],"islandId":"grove","progress":44,"effects":{},"remainingSteps":99,"longestRemainingSteps":126},
+    "n42": {"id":"n42","position":{"x":1410,"y":1260},"type":"lucky","nextNodes":["n43"],"previousNodes":["n41"],"islandId":"grove","progress":42,"effects":{"item":true},"remainingSteps":101,"longestRemainingSteps":128},
+    "n43": {"id":"n43","position":{"x":1220,"y":1200},"type":"sword","nextNodes":["n44"],"previousNodes":["n42"],"islandId":"grove","progress":43,"effects":{},"remainingSteps":100,"longestRemainingSteps":127,"territoryId":"sword-territory-43","ownerId":null},
+    "n44": {"id":"n44","position":{"x":1090,"y":1040},"type":"sword","nextNodes":["n45"],"previousNodes":["n43"],"islandId":"grove","progress":44,"effects":{},"remainingSteps":99,"longestRemainingSteps":126,"territoryId":"sword-territory-43","ownerId":null},
     "n45": {"id":"n45","position":{"x":1090,"y":840},"type":"movement","nextNodes":["n46"],"previousNodes":["n44","b33_10"],"islandId":"grove","progress":45,"effects":{},"remainingSteps":98,"longestRemainingSteps":125},
     "n46": {"id":"n46","position":{"x":1230,"y":680},"type":"movement","nextNodes":["n47"],"previousNodes":["n45"],"islandId":"grove","progress":46,"effects":{},"remainingSteps":97,"longestRemainingSteps":124},
     "n47": {"id":"n47","position":{"x":1440,"y":630},"type":"movement","nextNodes":["n48"],"previousNodes":["n46"],"islandId":"grove","progress":47,"effects":{},"remainingSteps":96,"longestRemainingSteps":123},
@@ -186,8 +188,8 @@ const FIXED_MAP={
     "b33_6": {"id":"b33_6","position":{"x":420,"y":420},"type":"danger","nextNodes":["b33_7"],"previousNodes":["b33_5"],"islandId":"bells","progress":39.5455,"effects":{"hp":-35},"remainingSteps":103,"longestRemainingSteps":130},
     "b33_7": {"id":"b33_7","position":{"x":620,"y":450},"type":"movement","nextNodes":["b33_8"],"previousNodes":["b33_6"],"islandId":"bells","progress":40.6364,"effects":{},"remainingSteps":102,"longestRemainingSteps":129},
     "b33_8": {"id":"b33_8","position":{"x":740,"y":600},"type":"movement","nextNodes":["b33_9"],"previousNodes":["b33_7"],"islandId":"bells","progress":41.7273,"effects":{},"remainingSteps":101,"longestRemainingSteps":128},
-    "b33_9": {"id":"b33_9","position":{"x":760,"y":800},"type":"movement","nextNodes":["b33_10"],"previousNodes":["b33_8"],"islandId":"bells","progress":42.8182,"effects":{},"remainingSteps":100,"longestRemainingSteps":127},
-    "b33_10": {"id":"b33_10","position":{"x":920,"y":820},"type":"movement","nextNodes":["n45"],"previousNodes":["b33_9"],"islandId":null,"progress":43.9091,"effects":{},"bridgeId":"bells-out","remainingSteps":99,"longestRemainingSteps":126},
+    "b33_9": {"id":"b33_9","position":{"x":760,"y":800},"type":"sword","nextNodes":["b33_10"],"previousNodes":["b33_8"],"islandId":"bells","progress":42.8182,"effects":{},"remainingSteps":100,"longestRemainingSteps":127,"territoryId":"sword-territory-b33_9","ownerId":null},
+    "b33_10": {"id":"b33_10","position":{"x":920,"y":820},"type":"sword","nextNodes":["n45"],"previousNodes":["b33_9"],"islandId":null,"progress":43.9091,"effects":{},"bridgeId":"bells-out","remainingSteps":99,"longestRemainingSteps":126,"territoryId":"sword-territory-b33_9","ownerId":null},
     "b37_1": {"id":"b37_1","position":{"x":1200,"y":1980},"type":"healing","nextNodes":["b37_2"],"previousNodes":["n37"],"islandId":"grove","progress":37.5,"effects":{"hp":20},"remainingSteps":109,"longestRemainingSteps":136},
     "b37_2": {"id":"b37_2","position":{"x":1360,"y":2100},"type":"movement","nextNodes":["b37_3"],"previousNodes":["b37_1"],"islandId":"grove","progress":38.0,"effects":{},"remainingSteps":108,"longestRemainingSteps":135},
     "b37_3": {"id":"b37_3","position":{"x":1560,"y":2100},"type":"lucky","nextNodes":["b37_4"],"previousNodes":["b37_2"],"islandId":"grove","progress":38.5,"effects":{"item":true},"remainingSteps":107,"longestRemainingSteps":134},
@@ -314,12 +316,12 @@ const FIXED_MAP={
     {"id":"b111","a":111,"b":114,"count":5,"kind":"scenic","nodeIds":["b111_1","b111_2","b111_3","b111_4","b111_5"]},
     {"id":"b117","a":117,"b":121,"count":12,"kind":"scenic","nodeIds":["b117_1","b117_2","b117_3","b117_4","b117_5","b117_6","b117_7","b117_8","b117_9","b117_10","b117_11","b117_12"]}
   ],
-  "territories": {"sword-territory-14":{"id":"sword-territory-14","nodeIds":["n14","n15"],"ownerId":null},"sword-territory-27":{"id":"sword-territory-27","nodeIds":["n27","n28"],"ownerId":null},"sword-territory-59":{"id":"sword-territory-59","nodeIds":["n59","n60"],"ownerId":null},"sword-territory-69":{"id":"sword-territory-69","nodeIds":["n69","n70"],"ownerId":null},"sword-territory-85":{"id":"sword-territory-85","nodeIds":["n85","n86"],"ownerId":null},"sword-territory-c76_10":{"id":"sword-territory-c76_10","nodeIds":["c76_10","c76_11"],"ownerId":null},"sword-territory-103":{"id":"sword-territory-103","nodeIds":["n103","n104"],"ownerId":null},"sword-territory-124":{"id":"sword-territory-124","nodeIds":["n124","n125"],"ownerId":null},"sword-territory-137":{"id":"sword-territory-137","nodeIds":["n137","n138"],"ownerId":null}},
+  "territories": {"sword-territory-14":{"id":"sword-territory-14","nodeIds":["n14","n15"],"ownerId":null},"sword-territory-27":{"id":"sword-territory-27","nodeIds":["n27","n28"],"ownerId":null},"sword-territory-59":{"id":"sword-territory-59","nodeIds":["n59","n60"],"ownerId":null},"sword-territory-69":{"id":"sword-territory-69","nodeIds":["n69","n70"],"ownerId":null},"sword-territory-85":{"id":"sword-territory-85","nodeIds":["n85","n86"],"ownerId":null},"sword-territory-c76_10":{"id":"sword-territory-c76_10","nodeIds":["c76_10","c76_11"],"ownerId":null},"sword-territory-103":{"id":"sword-territory-103","nodeIds":["n103","n104"],"ownerId":null},"sword-territory-124":{"id":"sword-territory-124","nodeIds":["n124","n125"],"ownerId":null},"sword-territory-137":{"id":"sword-territory-137","nodeIds":["n137","n138"],"ownerId":null},"sword-territory-43":{"id":"sword-territory-43","nodeIds":["n43","n44"],"ownerId":null},"sword-territory-b33_9":{"id":"sword-territory-b33_9","nodeIds":["b33_9","b33_10"],"ownerId":null}},
   "luckyTileIds": [
     "n6",
     "n17",
     "n31",
-    "n43",
+    "n42",
     "n53",
     "n61",
     "n83",

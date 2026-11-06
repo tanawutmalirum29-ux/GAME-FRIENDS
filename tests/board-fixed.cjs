@@ -5,7 +5,7 @@ vm.runInContext(source,ctx,{filename:'board-map.js'});
 const M=ctx.window.BoardMap,plain=x=>JSON.parse(JSON.stringify(x));
 const normalize=map=>{const copy=plain(map);delete copy.seed;return JSON.stringify(copy);};
 const map=M.create(0),expected=normalize(map),nodes=Object.values(map.nodes);
-assert.equal(M.MAIN_LENGTH,152);assert.equal(M.MAP_VERSION,'winter-expedition-152-v5');
+assert.equal(M.MAIN_LENGTH,152);assert.equal(M.MAP_VERSION,'winter-expedition-152-v6');
 for(let seed=1;seed<=1000;seed++)assert.equal(normalize(M.create(seed)),expected,'Full definition, including scenery, must ignore seed '+seed);
 const fresh=vm.createContext({window:{},console});vm.runInContext(source,fresh);
 assert.equal(normalize(fresh.window.BoardMap.create(9987)),expected,'reload recreates identical geometry and tile effects');
@@ -35,6 +35,14 @@ for(const r of map.bridgeRoutes){
  for(let i=1;i<r.nodeIds.length;i++)assert.ok(map.nodes[r.nodeIds[i-1]].nextNodes.includes(r.nodeIds[i]));
 }
 assert.equal(M.validate(map),true);
+assert.equal(map.nodes.n42.type,'lucky');
+assert.equal(map.nodes.n43.type,'sword');assert.equal(map.nodes.n44.type,'sword');
+assert.equal(map.nodes.b33_9.type,'sword');assert.equal(map.nodes.b33_10.type,'sword');
+assert.equal(Object.keys(map.territories).length,11);
+assert.equal(M.SWORD_PAIRS.length,11);
+assert.deepEqual(plain(map.territories['sword-territory-43'].nodeIds),['n43','n44']);
+assert.deepEqual(plain(map.territories['sword-territory-b33_9'].nodeIds),['b33_9','b33_10']);
+assert.ok(map.luckyTileIds.includes('n42'));assert.ok(!map.luckyTileIds.includes('n43'));
 assert.deepEqual(plain(map.nodes.b72_5.nextNodes),['n74','b72_6']);
 assert.deepEqual(plain(map.nodes.b72_6.previousNodes),['b72_5']);
 assert.deepEqual(plain(map.nodes.b72_6.nextNodes),['c76_2']);
@@ -58,6 +66,7 @@ function invalid(edit,re){const bad=plain(map);edit(bad);assert.throws(()=>M.val
 invalid(m=>m.version='winter-fixed-120-v2',/Incompatible/);
 invalid(m=>m.version='winter-expedition-152-v3',/Incompatible/);
 invalid(m=>m.version='winter-expedition-152-v4',/Incompatible/);
+invalid(m=>m.version='winter-expedition-152-v5',/Incompatible/);
 invalid(m=>delete m.version,/Incompatible/);
 invalid(m=>m.nodes.n1.id='n0',/ID/);
 invalid(m=>m.nodes.n1.position.x=NaN,/position/);

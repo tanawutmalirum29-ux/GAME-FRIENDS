@@ -98,7 +98,7 @@ function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
  }
  if(kind==='shield'){
   // NEVER auto-equip on pickup: only the explicitly selected shield's A
-  // action consumes it. This round's shield blocks every hostile effect.
+  // action consumes it. Block only the FIRST hostile hit/status this round.
   if(api.isProtected(s,p))return false;
   consume(s,p,kind);p.shieldTurns=1;p.shieldRound=s.roundNumber;
   api.effect(s,{kind:'shield',points:[position(s,p)],targets:[p.id],next:afterUse(kind)},.85);return true;
@@ -143,7 +143,16 @@ function confirm(s,button,api){
   // Only a visibly highlighted player chosen AFTER steering may be swapped.
   if((skill.aimTravel||0)<UFO_AIM_TRAVEL_MIN||!skill.targetId)return false;
   const q=target(s,skill,p);if(!q||q.id!==skill.targetId)return false;
-  if(api.blockHarm(s,q))return false;
+  if(api.blockHarm(s,q)){
+   // A protected target absorbs THIS confirmed UFO cast and the shield
+   // shatters. The attacker cannot immediately repeat A with the same item
+   // to force a free teleport past a one-hit shield.
+   const blockPoint=position(s,q);
+   consume(s,p,skill.kind);s.skill=null;
+   api.effect(s,{kind:'shieldBreak',source:'ufo',points:[blockPoint],
+    targets:[q.id],next:afterUse('ufo')},1.25);
+   return true;
+  }
   const points=[position(s,p),position(s,q)],a=p.currentNodeId,b=q.currentNodeId;
   // Validate first, then commit both node IDs in the same host action.
   if(b===s.map.finishId||a===s.map.finishId)return false;

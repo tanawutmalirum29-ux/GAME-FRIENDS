@@ -373,7 +373,17 @@ function actors(g,s,t){
  const list=s.players.map(p=>({p,pos:I.position(s,p)})).sort((a,b)=>a.pos.y-b.pos.y);
  for(const {p,pos}of list){
   const dead=p.death&&s.time-p.death.at<1.2,xy=dead?p.death.position:pos;
-  g.save();if(window.BoardParty.isProtected(s,p)){circle(g,xy.x,xy.y,29,'#8cddf42d',p.blockedUntil>s.time?'#fff':'#8bd8f1',p.blockedUntil>s.time?5:2);icon(g,'shield',xy.x-22,xy.y-25,10);}
+  g.save();if(window.BoardParty.isProtected(s,p)){circle(g,xy.x,xy.y,29,'#8cddf42d','#8bd8f1',2);icon(g,'shield',xy.x-22,xy.y-25,10);}
+  // A used shield disappears immediately; brief icy fragments signal the
+  // single attack was absorbed and further attacks are now effective.
+  if(Number.isFinite(p.shieldBrokenAt)&&s.time-p.shieldBrokenAt>=0&&s.time-p.shieldBrokenAt<.85){
+   const age=(s.time-p.shieldBrokenAt)/.85;
+   circle(g,xy.x,xy.y,27+age*27,null,'#bcf3ff',Math.max(.4,3*(1-age)));
+   for(let k=0;k<6;k++){
+    const angle=k*TAU/6+age*.5,r=27+age*24;
+    star(g,xy.x+Math.cos(angle)*r,xy.y+Math.sin(angle)*r,Math.max(1,5*(1-age)),'#e9faff');
+   }
+  }
   if(p.id===active?.id){circle(g,xy.x,xy.y,29+Math.sin(t*4)*2,null,'#ffdc83',3);path(g,[[xy.x-6,xy.y-48],[xy.x+6,xy.y-48],[xy.x,xy.y-39]],'#ffcf76');}
   if(dead){g.globalAlpha=Math.max(.1,1-(s.time-p.death.at)/1.2);g.translate(xy.x,xy.y);g.rotate((s.time-p.death.at)*2);g.translate(-xy.x,-xy.y);}
   const moving=s.move?.playerId===p.id&&s.move.to,from=moving?s.map.nodes[s.move.from].position:null,to=moving?s.map.nodes[s.move.to].position:null;
@@ -416,6 +426,14 @@ function effects(g,s,t){
    if(fx.kind==='car'){circle(g,p.x,p.y,I.blastRadius*(.3+.7*f),'#ffc97655','#fff0b8',3);for(let i=0;i<10;i++){const a=i*TAU/10;circle(g,p.x+Math.cos(a)*f*I.blastRadius,p.y+Math.sin(a)*f*I.blastRadius,12*(1-f)+2,i%2?'#ffb971':'#fff1bb');}}
    else if(fx.kind==='ufo'){path(g,[[p.x-36,p.y],[p.x+36,p.y],[p.x+12,p.y-120],[p.x-12,p.y-120]],'#b0f4ff66');icon(g,'ufo',p.x,p.y-120,32);}
    else if(fx.kind==='shield'){circle(g,p.x,p.y,25+f*35,null,'#a2e8ff',4);icon(g,'shield',p.x,p.y-40-f*20,23);}
+   else if(fx.kind==='shieldBreak'){
+    circle(g,p.x,p.y,24+f*43,null,'#d9f9ff',Math.max(.6,4*(1-f)));
+    for(let k=0;k<8;k++){
+     const a=k*TAU/8,r=20+f*61;
+     star(g,p.x+Math.cos(a)*r,p.y+Math.sin(a)*r,Math.max(1,(1-f)*5),'#c5f5ff');
+    }
+    label(g,'โล่แตก! ป้องกันแล้ว 1 ครั้ง',p.x,p.y-92-f*22,14,'#ccefff','center',850,220);
+   }
    else if(fx.kind==='heal'){circle(g,p.x,p.y,25+f*35,null,'#73e4b5',4);icon(g,'healing',p.x,p.y-35-f*30,18,'#3fbd8b');}
     else if(fx.kind==='luckyReward'){
      circle(g,p.x,p.y,32+f*25,null,'#ffd976',4);
@@ -428,6 +446,13 @@ function effects(g,s,t){
     icon(g,'sword',p.x,p.y-55-f*24,27,'#fff8da');
     label(g,fx.kind==='swordClaim'?'ยึดพื้นที่ทั้ง 2 ช่อง!':'พื้นที่ของคุณ',p.x,p.y-90-f*20,16,'#fff5cb','center',900,160);
    }
+  }
+  if(fx.swordLoot){
+   const defender=s.players.find(q=>q.id===fx.swordLoot.ownerId);
+   const center=fx.points[0];
+   icon(g,fx.swordLoot.item,center.x+52,center.y-100-f*18,23);
+   label(g,'เขตดาบสังหาร! '+(defender?.name||'เจ้าของเขต')+' ได้รับ: '+IName(fx.swordLoot.item),
+    center.x,center.y-145-f*20,15,'#ffe2a1','center',900,340);
   }
   if(fx.kind==='bomber'){
    const flight=I.bomberFlight(fx.points,s.time-fx.at);
