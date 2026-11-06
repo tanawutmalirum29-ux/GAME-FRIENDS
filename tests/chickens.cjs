@@ -6,6 +6,7 @@ const engineSource=fs.readFileSync('chickens.js','utf8');
 const host=vm.createContext({window:{}});
 vm.runInContext(fs.readFileSync('arena-art.js','utf8'),host,{filename:'arena-art.js'});
 vm.runInContext(fs.readFileSync('player-avatar.js','utf8'),host,{filename:'player-avatar.js'});
+vm.runInContext(fs.readFileSync('combat-motion.js','utf8'),host,{filename:'combat-motion.js'});
 vm.runInContext(fs.readFileSync('character-system.js','utf8'),host,{filename:'character-system.js'});
 vm.runInContext(engineSource,host,{filename:'chickens.js'});
 const chickens=host.window.Chickens;
@@ -19,7 +20,7 @@ assert.ok(Math.abs(C.chickenTurnRate-8.2*.7)<1e-8,'turning reduced 30%');
 assert.ok(Math.abs(C.chickenFlapRate-16*.7)<1e-8,'flapping reduced 30%');
 assert.equal(C.chickenRadius,8.3);
 assert.equal(C.depositTime,.15);
-assert.equal(C.punchCooldown,1);
+assert.equal(C.punchCooldown,host.window.PartyCombatMotion.ATTACK.cooldown);
 const playersFor=n=>Array.from({length:n},(_,i)=>({
   id:'p'+i,name:'Player '+i,color:'#'+String(100000+i*11273),
   type:'remote',active:true,isBot:false,score:0,alive:true,
@@ -148,7 +149,7 @@ for(let n=1;n<=12;n++){
   run(round,players,.9);
   assert.equal(owner.score,originalScore,'same chicken only scores once');
 }
-// Punching drops the carried chicken, never stuns or slows the target.
+// Normal shared punches stun for 0.8s, color the stars after the attacker and drop carried chickens.
 {
   const x=make(2),{round,players,state}=x,[attacker,victim]=players;
   round.phase='playing';
@@ -159,10 +160,13 @@ for(let n=1;n<=12;n++){
   c.status='carried';c.carrierId=victim.id;victim.carriedChickenId=c.id;
   attacker.input.action=true;
   chickens.update(.016,round,players);
+  assert.equal(victim.carriedChickenId,c.id,'normal punch has shared visible windup');
+  run(round,players,.20);
   assert.equal(victim.carriedChickenId,null);
   assert.equal(c.status,'free');
   assert.ok(c.invulnerable>0,'cannot immediately re-catch');
-  assert.equal(victim.stun,0);
+  assert.ok(victim.stun>.6&&victim.stun<=.8,'normal hit stuns for 0.8 seconds');
+  assert.equal(victim.stunColor,attacker.color,'stars use hitter color');
   assert.equal(attacker.chickenAttackCooldown>0,true);
   run(round,players,1.12);
   assert.equal(attacker.chickenAttackCooldown,0,'hold A cannot retrigger');

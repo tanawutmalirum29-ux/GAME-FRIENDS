@@ -120,14 +120,29 @@ function resolve(players,opts={}){
  }
  return {contacts,moved,enabled:true};
 }
+// Every avatar carries the same combat API and visual feedback in any map.
+function combat(){return window.PartyCombatMotion;}
+function startPunch(p){return combat().startAttack(p);}
+function stepPunch(p,dt,onImpact){return combat().stepAttack(p,dt,onImpact);}
+function punchFriends(attacker,players,opts){return combat().hitPlayers(attacker,players,opts);}
 function draw(ctx,p,opts={}){
+ const fx=combat();
  if(window.PartyPlayerAvatar?.draw)
-   return window.PartyPlayerAvatar.draw(ctx,p,opts);
- // Keep a visible character even while SVG images are still decoding.
- ctx.save();ctx.fillStyle=p.color||'#69dddc';
- ctx.beginPath();ctx.arc(p.x,p.y,15,0,Math.PI*2);ctx.fill();ctx.restore();
+   window.PartyPlayerAvatar.draw(ctx,p,{
+     ...opts,attacking:opts.attacking??!!fx?.isAttacking(p)
+   });
+ else{
+   // Keep visible avatar art even before SVG images have decoded.
+   const x=opts.local?0:p.x,y=opts.local?0:p.y;
+   ctx.save();ctx.fillStyle=p.color||'#69dddc';
+   ctx.beginPath();ctx.arc(x,y,15,0,Math.PI*2);ctx.fill();ctx.restore();
+ }
+ if(fx&&opts.combat!==false){
+   if(!opts.local)fx.drawAttack(ctx,p);
+   fx.drawStun(ctx,p,opts.time||0,{local:!!opts.local});
+ }
 }
 window.PartyCharacters=Object.freeze({
- DEFAULTS,activate,control,move,resolve,draw
+ DEFAULTS,activate,control,move,resolve,startPunch,stepPunch,punchFriends,draw
 });
 })();

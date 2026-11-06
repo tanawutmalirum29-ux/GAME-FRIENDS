@@ -35,7 +35,7 @@ if(!Art)throw new Error('graveyard-art.js must load before ghost-attack.js');
 let previousGhostTheme='';
 // Modest speed edge; interceptions, not teleporting, make ghosts competitive.
 const C={humanSpeed:172,ghostSpeed:186,ghostTurn:6.1,hitRadius:19,punchRange:67,
-  punchStun:.63,punchCooldown:Combat.ATTACK.cooldown,ghostStun:1.45,
+  punchStun:Combat.NORMAL_STUN,punchCooldown:Combat.ATTACK.cooldown,ghostStun:1.45,
   trapRoot:1.1,slowTime:2.5,boostTime:2.6,cloakTime:2};
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -396,18 +396,13 @@ function punch(p,players,state){
   return Combat.startAttack(p);
 }
 function strikeImpact(p,players){
-  if(!p.active||p.ghost||p.stun>0)return false;
-  const facing=p.attackFacing||p.dir||{x:1,y:0};
-  const candidates=players.filter(o=>o.active&&!o.ghost&&o.id!==p.id)
-    .map(o=>{
-      const dx=o.x-p.x,dy=o.y-p.y,range=Math.hypot(dx,dy);
-      return {player:o,range,forward:range>0?(dx*facing.x+dy*facing.y)/range:1};
-    })
-    .filter(o=>o.range<C.punchRange&&o.forward>.35)
-    .sort((a,b)=>a.range-b.range);
-  if(!candidates.length)return false;
-  Combat.applyStun(candidates[0].player,C.punchStun,p.color);
-  return true;
+ if(!p.active||p.ghost||p.stun>0)return false;
+ // Normal punching belongs to the shared character, not Ghost Attack.
+ // Preserve Ghost Attack's human-only and nearest-target rule.
+ return window.PartyCharacters.punchFriends(p,players,{
+   range:C.punchRange,coneCos:.35,maxHits:1,
+   canHit:other=>!other.ghost
+ }).length>0;
 }
 function tickPlayers(dt,players,state){
   for(const p of players){

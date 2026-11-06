@@ -2,7 +2,8 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2, FIXED=1/60;
-const C=Object.freeze({speed:207,radius:13,footRadius:10,punchRange:53,windup:.15,hit:.10,recovery:.15,cooldown:1.2,stun:.55});
+const Combat=window.PartyCombatMotion;
+const C=Object.freeze({speed:207,radius:13,footRadius:10,punchRange:53,windup:Combat.ATTACK.windup,hit:Combat.ATTACK.active,recovery:Combat.ATTACK.recovery,cooldown:Combat.ATTACK.cooldown,stun:Combat.NORMAL_STUN});
 const FRUITS=[
  {id:'apple',name:'แอปเปิล',color:'#e84957',svg:'<path d="M32 20c-9-13-25-6-23 10 1 14 11 24 23 17 12 7 22-3 23-17 2-16-14-23-23-10Z" fill="#e84957"/><path d="M32 22c-2-9 1-14 7-18" stroke="#65452b" stroke-width="4" fill="none"/><path d="M33 15c5-9 13-9 17-7-3 9-9 12-17 7Z" fill="#73d180"/>'},
  {id:'banana',name:'กล้วย',color:'#f5d258',svg:'<path d="M11 10c10 29 25 35 48 23-8 24-43 31-51-16Z" fill="#ffda61" stroke="#b98525" stroke-width="3"/><path d="M10 11 6 7m51 28 3 3" stroke="#654622" stroke-width="5"/>'},
@@ -121,6 +122,7 @@ function newMemorize(state,players,entrants){
  for(const p of players){
    p.fruitAlive=entrants.includes(p.id)&&p.active;
    p.fruitFall=0;p.fruitStun=0;p.fruitAttack=null;p.fruitCooldown=0;p.fruitPunchPressed=false;
+   p.stun=0;p.punchCooldown=0;Combat.reset(p);
  }
  const active=living(players);
  if(firstRound){
@@ -181,40 +183,39 @@ function botVector(p,state){
  return d<6?{x:0,y:0}:{x:dx/d,y:dy/d};
 }
 function startPunch(p){
- p.fruitAttack={elapsed:0,hitIds:new Set()};
- p.fruitCooldown=C.cooldown;
+ if(!window.PartyCharacters.startPunch(p))return false;
+ p.fruitAttack={elapsed:0};
+ p.fruitCooldown=p.punchCooldown;
+ return true;
 }
 function resolvePunchHits(attacker,players){
- const dir=attacker.dir||{x:1,y:0},a=attacker.fruitAttack;
- if(!a)return;
- for(const target of living(players)){
-   if(target===attacker||a.hitIds.has(target.id))continue;
-   const dx=target.x-attacker.x,dy=target.y-attacker.y,d=Math.hypot(dx,dy);
-   if(d>C.punchRange+C.radius||d<.01)continue;
-   if((dx*dir.x+dy*dir.y)/d<.55)continue;
-   target.fruitStun=Math.max(target.fruitStun,C.stun);
-   target.fruitHitFlash=.45;a.hitIds.add(target.id);
- }
+ // Keep Fruit Memory's multi-target arc with the shared 0.8s stun.
+ return window.PartyCharacters.punchFriends(attacker,living(players),{
+   range:C.punchRange+C.radius,coneCos:.55,
+   canHit:target=>target.fruitAlive
+ });
 }
 function stepPlayer(p,state,players,dt){
  if(!p.active||!p.fruitAlive)return;
- p.fruitCooldown=Math.max(0,(p.fruitCooldown||0)-dt);
+ p.punchCooldown=Math.max(0,(p.punchCooldown||0)-dt);
+ p.fruitCooldown=p.punchCooldown;
  p.fruitStun=Math.max(0,(p.fruitStun||0)-dt);
+ p.stun=p.fruitStun;
  p.fruitHitFlash=Math.max(0,(p.fruitHitFlash||0)-dt);
  const input=p.input||{},pressed=!!input.action;
- if(pressed&&!p.fruitPunchPressed&&p.fruitCooldown<=0&&p.fruitStun<=0&&!p.fruitAttack)
-   startPunch(p);
- p.fruitPunchPressed=pressed;
- if(p.fruitAttack){
-   const before=p.fruitAttack.elapsed;
-   p.fruitAttack.elapsed+=dt;
-   if(before<C.windup&&p.fruitAttack.elapsed>=C.windup)resolvePunchHits(p,players);
-   if(p.fruitAttack.elapsed>=C.windup+C.hit+C.recovery)p.fruitAttack=null;
+ const wasAttacking=Combat.isAttacking(p);
+ if(wasAttacking){
+   window.PartyCharacters.stepPunch(p,dt,()=>resolvePunchHits(p,players));
+   if(p.fruitAttack)p.fruitAttack.elapsed+=dt;
+   if(!Combat.isAttacking(p))p.fruitAttack=null;
  }
+ if(pressed&&!p.fruitPunchPressed&&p.fruitStun<=0&&!p.fruitAttack)startPunch(p);
+ p.fruitPunchPressed=pressed;
  const motion=p.isBot?botVector(p,state):inputVector(input);
- if(Math.hypot(motion.x,motion.y)>.14&&!p.fruitAttack&&p.fruitStun<=0)p.dir={x:motion.x,y:motion.y};
- const allowed=(state.phase==='memorize'||state.phase==='move');
- const canWalk=allowed&&!p.fruitAttack&&p.fruitStun<=0;
+ if(Math.hypot(motion.x,motion.y)>.14&&!Combat.isAttacking(p)&&p.fruitStun<=0)
+   p.dir={x:motion.x,y:motion.y};
+ const allowed=state.phase==='memorize'||state.phase==='move';
+ const canWalk=allowed&&!wasAttacking&&!Combat.isAttacking(p)&&p.fruitStun<=0;
  p.vx=canWalk?motion.x*C.speed:0;p.vy=canWalk?motion.y*C.speed:0;
  p.x+=p.vx*dt;p.y+=p.vy*dt;
  const b=state.board;
@@ -411,15 +412,8 @@ function drawPlayer(ctx,p,state,time){
  if(falling&&progress>=1)return;
  ctx.save();ctx.translate(p.x,p.y+progress*180);
  ctx.globalAlpha=1-progress*.85;ctx.scale(1-progress*.65,1-progress*.65);
- window.PartyPlayerAvatar.draw(ctx,p,{local:true,time,
-   color:p.fruitHitFlash>0?'#ffe86b':p.color,attacking:!!p.fruitAttack});
- if(p.fruitStun>0&&p.fruitAlive){
-   ctx.fillStyle='#ffe477';
-   for(let a=0;a<3;a++){
-     const x=Math.cos(time*9+a*TAU/3)*17,y=-35+Math.sin(time*9+a*TAU/3)*6;
-     ctx.beginPath();ctx.arc(x,y,3,0,TAU);ctx.fill();
-   }
- }
+ window.PartyCharacters.draw(ctx,p,{local:true,time,
+   color:p.color,attacking:Combat.isAttacking(p)});
  ctx.restore();
 }
 // Both screens share one phase snapshot; neither changes gameplay state.

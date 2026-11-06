@@ -2,6 +2,7 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2;
+const Combat=window.PartyCombatMotion;
 // Scale movement and locomotion animation without changing round timers,
 // punch cooldowns or the 0.15-second deposit rule.
 const SPEED_SCALE=.70;
@@ -10,7 +11,7 @@ const C=Object.freeze({playerSpeed:172*SPEED_SCALE,chickenSpeed:191*SPEED_SCALE,
   chickenTurnRate:8.2*SPEED_SCALE,chickenFlapRate:16*SPEED_SCALE,
   playerStrideRate:13*SPEED_SCALE,playerRadius:15,chickenRadius:8.3,
   pickupRadius:26,carryOffset:37,headOffset:12,entryDepth:9,depositTime:.15,
-  punchRange:57,punchHalfAngle:.86,punchCooldown:1,dropImmunity:.35});
+  punchRange:57,punchHalfAngle:.86,punchCooldown:Combat.ATTACK.cooldown,dropImmunity:.35});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const length=(x,y)=>Math.hypot(x,y);
 const distance=(a,b)=>length(a.x-b.x,a.y-b.y);
@@ -112,6 +113,7 @@ function setup(round,players){
     p.active=true;p.alive=true;p.score=0;p.ghost=false;p.stun=0;
     p.item=null;p.selecting=false;p.targetId=null;
     p.carriedChickenId=null;p.chickenAttackCooldown=0;p.chickenActionLatch=false;
+  p.punchCooldown=0;Combat.reset(p);
     p.chickenPunchFlash=0;p.chickenBotGoal=null;
   }
   round.chickens=state;round.remaining=state.remaining;
@@ -182,35 +184,40 @@ function moveCircle(state,p,vx,vy,dt,margin){
   bound(state,p,margin);
 }
 function punch(state,p,players){
-  const face=p.dir||{x:1,y:0};
-  for(const q of players){
-    if(q===p||!q.active||q.carriedChickenId==null)continue;
-    const d=distance(p,q);
-    if(d>C.punchRange+C.playerRadius||d<.001)continue;
-    if(dot(face,unit(q.x-p.x,q.y-p.y))<Math.cos(C.punchHalfAngle))continue;
-    dropChicken(state,q,face);
-    state.effects.push({x:q.x,y:q.y,text:'!',color:'#fff1a6',life:.46});
-  }
+ // The shared normal punch stuns ALL touched friends for 0.8 seconds.
+ // Chicken-specific rule: anyone struck while carrying drops their chicken.
+ return window.PartyCharacters.punchFriends(p,players,{
+   range:C.punchRange+C.playerRadius,coneCos:Math.cos(C.punchHalfAngle),
+   onHit:q=>{
+     if(q.carriedChickenId!=null)dropChicken(state,q,p.dir||{x:1,y:0});
+     state.effects.push({x:q.x,y:q.y,text:'!',color:p.color,life:.46});
+   }
+ });
 }
 function advancePlayer(state,p,players,dt){
-  if(!p.active)return;
-  const input=p.isBot?botMove(state,p,players):movement(p);
-  if(input.x||input.y){
-    p.dir=unit(input.x,input.y);p.face=p.dir.x<0?-1:1;
-  }
-  p.vx=input.x*C.playerSpeed;p.vy=input.y*C.playerSpeed;
-  moveCircle(state,p,p.vx,p.vy,dt,C.playerRadius+1);
-  p.chickenAttackCooldown=Math.max(0,(p.chickenAttackCooldown||0)-dt);
-  p.chickenPunchFlash=Math.max(0,(p.chickenPunchFlash||0)-dt);
-  if(!input.action)p.chickenActionLatch=false;
-  if(input.action&&!p.chickenActionLatch){
-    p.chickenActionLatch=true;
-    if(p.chickenAttackCooldown<=0){
-      p.chickenAttackCooldown=C.punchCooldown;
-      p.chickenPunchFlash=.18;
-      punch(state,p,players);
-    }
-  }
+ if(!p.active)return;
+ p.stun=Math.max(0,(p.stun||0)-dt);
+ p.punchCooldown=Math.max(0,(p.punchCooldown||0)-dt);
+ p.chickenAttackCooldown=p.punchCooldown;
+ const wasAttacking=Combat.isAttacking(p);
+ if(wasAttacking)window.PartyCharacters.stepPunch(p,dt,()=>punch(state,p,players));
+ const input=p.isBot?botMove(state,p,players):movement(p);
+ const canMove=p.stun<=0&&!wasAttacking&&!Combat.isAttacking(p);
+ if(canMove&&(input.x||input.y)){
+   p.dir=unit(input.x,input.y);p.face=p.dir.x<0?-1:1;
+ }
+ p.vx=canMove?input.x*C.playerSpeed:0;
+ p.vy=canMove?input.y*C.playerSpeed:0;
+ moveCircle(state,p,p.vx,p.vy,dt,C.playerRadius+1);
+ p.chickenPunchFlash=Math.max(0,(p.chickenPunchFlash||0)-dt);
+ if(!input.action)p.chickenActionLatch=false;
+ if(input.action&&!p.chickenActionLatch){
+   p.chickenActionLatch=true;
+   if(p.stun<=0&&window.PartyCharacters.startPunch(p)){
+     p.chickenAttackCooldown=p.punchCooldown;
+     p.chickenPunchFlash=Combat.TOTAL;
+   }
+ }
 }
 function separatePlayers(state,players){
  return window.PartyCharacters.resolve(players,{
@@ -355,7 +362,7 @@ function step(state,players,dt){
   separateChickens(state);
   // The host resolves every pickup sequentially, so a chicken has one carrier.
   for(const c of state.chickens)if(c.status==='free'&&c.invulnerable<=0){
-    for(const p of players)if(p.active&&p.carriedChickenId==null&&
+    for(const p of players)if(p.active&&p.stun<=0&&p.carriedChickenId==null&&
       distance(p,c)<=C.pickupRadius&&collect(state,c,p))break;
   }
   for(const c of state.chickens)if(c.status==='carried'){
@@ -431,8 +438,8 @@ function drawHeldChicken(ctx,chicken,player,t){
   ctx.restore();
 }
 function drawPlayer(ctx,p,t){
- window.PartyPlayerAvatar.draw(ctx,p,{time:t,
-   holding:p.carriedChickenId!=null,attacking:p.chickenPunchFlash>0});
+ window.PartyCharacters.draw(ctx,p,{time:t,
+   holding:p.carriedChickenId!=null,attacking:Combat.isAttacking(p)});
 }
 function drawPen(ctx,state,pen,t){
   const inner=penPosition(state,pen,state.radius-2);

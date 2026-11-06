@@ -2,8 +2,9 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2, FIXED=1/60;
-const C=Object.freeze({speed:170,radius:14,punchRange:46,punchWindup:.12,
- punchActive:.10,punchRecovery:.13,punchCooldown:1.1,punchStun:.55,
+const Combat=window.PartyCombatMotion;
+const C=Object.freeze({speed:170,radius:14,punchRange:46,punchWindup:Combat.ATTACK.windup,
+ punchActive:Combat.ATTACK.active,punchRecovery:Combat.ATTACK.recovery,punchCooldown:Combat.ATTACK.cooldown,punchStun:Combat.NORMAL_STUN,
  blastCooldown:2.8,blastCast:.18,blastStun:.95,botPunchRate:.42});
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function rand(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
@@ -34,6 +35,7 @@ function spawnPlayers(s,ps){
    punchState:null,castRemaining:0,powerBoostReady:false,
    actionLatch:false,altLatch:false,botTarget:null,botRetarget:0,
    botNextPunch:0,botNextBlast:0,fxClock:0};
+  p.stun=0;p.punchCooldown=0;Combat.reset(p);
  });
 }
 function setup(round,ps){
@@ -150,17 +152,17 @@ function touchedByBlast(s,p,tileIds){
  }
  return false;
 }
-function applyStun(p,seconds){
+function applyStun(p,seconds,color='#ffe28a'){
  const c=p.cs;if(!c||c.stunImmunity>0)return false;
- c.punchState=null; // Interrupt any pending punch when stunned.
- c.stunRemaining=Math.max(c.stunRemaining,seconds);return true;
+ c.punchState=null;c.stunRemaining=Math.max(c.stunRemaining,seconds);
+ Combat.applyStun(p,seconds,color);return true;
 }
 function activateColorBlast(s,p,ps){
  const c=p.cs;if(!c||c.blastCooldown>0||c.stunRemaining>0||c.castRemaining>0)return false;
  const boosted=c.powerBoostReady,ids=calculateBlastCells(s,p,boosted);
  for(const id of ids)captureTile(s,s.tiles[id],p,ps);
  if(boosted){for(const other of active(ps)){
-  if(other.id!==p.id&&touchedByBlast(s,other,ids))applyStun(other,C.blastStun);
+  if(other.id!==p.id&&touchedByBlast(s,other,ids))applyStun(other,C.blastStun,p.color);
  }}
  c.powerBoostReady=false;c.blastCooldown=C.blastCooldown;c.castRemaining=C.blastCast;
  if(s.effects.length<30)s.effects.push({x:p.x,y:p.y,color:p.color,life:.4,type:'blast',boosted});
@@ -168,31 +170,25 @@ function activateColorBlast(s,p,ps){
 }
 function startPunch(p){
  const c=p.cs;if(!c||c.punchCooldown>0||c.stunRemaining>0||c.castRemaining>0)return false;
- c.punchCooldown=C.punchCooldown;c.punchState={timer:C.punchWindup,hit:false};
+ p.stun=c.stunRemaining;p.punchCooldown=c.punchCooldown;
+ if(!window.PartyCharacters.startPunch(p))return false;
+ c.punchCooldown=p.punchCooldown;
  return true;
 }
 function resolvePunchHit(p,ps){
- const d=p.dir||{x:1,y:0};
- for(const target of active(ps))if(target.id!==p.id){
-  const dx=target.x-p.x,dy=target.y-p.y,length=Math.hypot(dx,dy);
-  if(length>C.punchRange||length<.01)continue;
-  if((dx*d.x+dy*d.y)/length<.45)continue;
-  applyStun(target,C.punchStun);
- }
+ return window.PartyCharacters.punchFriends(p,active(ps),{
+   range:C.punchRange,coneCos:.45,
+   canHit:target=>!!target.cs&&target.cs.stunImmunity<=0
+ });
 }
 function updateCooldowns(dt,p,ps){
  const c=p.cs;
  for(const key of ['stunRemaining','stunImmunity','punchCooldown','blastCooldown','castRemaining'])
-  c[key]=Math.max(0,c[key]-dt);
- if(c.stunRemaining===0&&c._wasStunned){c.stunImmunity=Math.max(c.stunImmunity,.22);}
+   c[key]=Math.max(0,c[key]-dt);
+ if(c.stunRemaining===0&&c._wasStunned)c.stunImmunity=Math.max(c.stunImmunity,.22);
  c._wasStunned=c.stunRemaining>0;
- if(c.punchState){
-  c.punchState.timer-=dt;
-  if(c.punchState.timer<=0&&!c.punchState.hit){
-   c.punchState.hit=true;resolvePunchHit(p,ps);
-  }
-  if(c.punchState.timer<-(C.punchActive+C.punchRecovery))c.punchState=null;
- }
+ p.stun=c.stunRemaining;p.punchCooldown=c.punchCooldown;
+ if(Combat.isAttacking(p))window.PartyCharacters.stepPunch(p,dt,()=>resolvePunchHit(p,ps));
 }
 function spawnPowerBox(s,ps){
  const max=active(ps).length<=6?1:2;
@@ -288,7 +284,7 @@ function step(dt,round,ps){
  for(const p of people){
   moved.set(p.id,{x:p.x,y:p.y});updateCooldowns(dt,p,people);
   const v=p.isBot?botControls(s,p,people):inputVector(p);ctrl.set(p.id,v);
-  const canMove=p.cs.stunRemaining===0&&p.cs.castRemaining===0;
+  const canMove=p.cs.stunRemaining===0&&p.cs.castRemaining===0&&!Combat.isAttacking(p);
   const vx=canMove?v.x*C.speed:0,vy=canMove?v.y*C.speed:0;
   p.vx=vx;p.vy=vy;
   if(Math.hypot(v.x,v.y)>.1&&canMove){const m=Math.hypot(v.x,v.y);p.dir={x:v.x/m,y:v.y/m};p.face=v.x<0?-1:1;}
@@ -373,17 +369,11 @@ function draw(ctx,time,round,ps){
   ctx.restore();
  }
  for(const p of active(ps)){
-  if(window.PartyPlayerAvatar&&window.PartyPlayerAvatar.draw)
-   window.PartyPlayerAvatar.draw(ctx,p,{time:s.clock});
-  else{ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,C.radius,0,TAU);ctx.fill();}
+  window.PartyCharacters.draw(ctx,p,{time:s.clock});
   const c=p.cs;
   if(c?.powerBoostReady){
    ctx.strokeStyle='#ffe46d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,21,0,TAU);ctx.stroke();
    window.PartyUiArt.draw(ctx,'star',p.x+20,p.y-19,18);
-  }
-  if(c?.stunRemaining>0){
-   window.PartyUiArt.draw(ctx,'sparkle',p.x-10,p.y-28,16);
-   window.PartyUiArt.draw(ctx,'sparkle',p.x+10,p.y-28,16);
   }
  }
  for(const e of s.effects){

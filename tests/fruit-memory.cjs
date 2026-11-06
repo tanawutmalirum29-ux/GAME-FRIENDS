@@ -5,6 +5,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync('fruit-memory.js','utf8');
 const context={window:{},Image:class {constructor(){this.complete=true;this.naturalWidth=64;}}};
 vm.runInNewContext(fs.readFileSync('player-avatar.js','utf8'),context);
+vm.runInNewContext(fs.readFileSync('combat-motion.js','utf8'),context);
 vm.runInNewContext(fs.readFileSync('character-system.js','utf8'),context);
 vm.runInNewContext(source,context);
 const game=context.window.FruitMemory;
@@ -216,7 +217,9 @@ function seam(x){
  q.isBot=false;q.input.axisX=0;q.input.axisY=0;
  q.x=p.x+43;q.y=p.y;p.input.action=true;
  advance(x,.23);
- assert.ok(q.fruitStun>0,'front hit stuns');assert.ok(p.fruitCooldown>0,'cooldown authoritative');
+ assert.ok(q.fruitStun>.65&&q.fruitStun<=.8,'standard punch stuns for 0.8 seconds');
+  assert.equal(q.stunColor,p.color,'fruit stun effect uses attacker color');
+  assert.ok(p.fruitCooldown>0,'cooldown authoritative');
  advance(x,.35);assert.equal(p.fruitAttack,null,'recovery finite');
  advance(x,1.1);assert.equal(p.fruitAttack,null,'held A never auto-repeats');
  assert.equal(p.fruitCooldown,0);

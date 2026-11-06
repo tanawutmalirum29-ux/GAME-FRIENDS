@@ -1,6 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 global.window={};
+require('../combat-motion.js');
 require('../character-system.js');
 require('../party-ui-art.js');
 require('../color-switch-mayan.js');
