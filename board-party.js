@@ -10,7 +10,7 @@ const HEAL=Object.freeze({tile:20,event:15,potion:50});
 let serial=0;
 function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
- const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,actionIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
  s.camera.x=s.map.width/2;s.camera.y=s.map.height/2;
  phase(s,'overview',INTRO_OVERVIEW_SECONDS);return s;
 }
@@ -39,7 +39,7 @@ function movePhase(s,name,duration=8){
 const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
 function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
 function rollOrder(s,p){if(p.dice||s.phase!=='order')return false;p.dice=[D().roll(s.rng),D().roll(s.rng)];p.rollAt=s.time;return true;}
-function ready(s,extend=true){s.move=null;s.skill=null;for(const p of s.players)p.bagOpen=false;if(extend)s.readyDeadline=s.time+12;phase(s,'ready',Math.max(.1,s.readyDeadline-s.time));}
+function ready(s,extend=true){s.move=null;s.skill=null;for(const p of s.players){p.bagOpen=false;if(p.id===current(s)?.id){p.actionIndex=0;p.bagMessage='';}}if(extend)s.readyDeadline=s.time+12;phase(s,'ready',Math.max(.1,s.readyDeadline-s.time));}
 function startTurn(s){s.camera.overview=false;s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
 function endTurn(s){
  if(s.phase==='finished')return;
@@ -321,35 +321,33 @@ function forwardInput(s,p){
  const a=axes(s,p.id),id=M().choose(s.map,p.currentNodeId,a.x,a.y);
  return forwardForce(s,p,id)>0?id:null;
 }
-function openBag(s,p){
+// Bottom HUD owns the full action list: [Roll, ...items].
+// B cycles and A confirms the highlighted action, never the reverse.
+function cycleAction(s,p){
  if(s.phase!=='ready'||s.rolled)return false;
- if(p.bagOpen)return true;
- p.bagOpen=true;p.bagIndex=0;p.bagMessage='';
- // Opening a menu once gives time to read item names, but cannot create an
- // infinite timer extension by repeatedly opening and closing it.
- if(!p.bagGraceRound||p.bagGraceRound!==s.roundNumber){
-  p.bagGraceRound=s.roundNumber;
+ const items=I().bag(p);
+ p.actionIndex=((Number(p.actionIndex)||0)+1)%(items.length+1);
+ p.bagMessage='';
+ if(p.actionGraceRound!==s.roundNumber){
+  p.actionGraceRound=s.roundNumber;
   s.readyDeadline=Math.max(s.readyDeadline,s.time+9);
   s.deadline=s.readyDeadline;
  }
  return true;
 }
-function cycleBag(s,p){
- if(!p.bagOpen)return false;
- p.bagIndex=((p.bagIndex||0)+1)%(I().bag(p).length+1);
- p.bagMessage='';return true;
-}
-function confirmBag(s,p){
- if(!p.bagOpen)return false;
- const items=I().bag(p),at=p.bagIndex||0;
- if(at>=items.length){p.bagOpen=false;p.bagMessage='';return true;}
+function confirmAction(s,p){
+ if(s.phase!=='ready'||s.rolled)return false;
+ const items=I().bag(p);
+ const selected=Math.min(items.length,Math.max(0,Math.trunc(p.actionIndex||0)));
+ if(selected===0)return roll(s);
+ const kind=items[selected-1];
  if(p.usedRound===s.roundNumber){p.bagMessage='ใช้ไอเทมในรอบนี้แล้ว';return false;}
- const kind=items[at];
  if(!I().begin(s,p,api,kind)){
   p.bagMessage=kind==='potion'?'HP เต็มแล้ว':kind==='shield'?'โล่ยังทำงานอยู่':'ยังใช้ไอเทมนี้ไม่ได้';
   return false;
  }
- p.bagOpen=false;p.bagMessage='';return true;
+ p.actionIndex=0;p.bagOpen=false;p.bagMessage='';
+ return true;
 }
 function action(s,id,button){
  const p=s.players.find(p=>p.id===id);if(!p||!['A','B'].includes(button))return false;
@@ -357,8 +355,7 @@ function action(s,id,button){
 
  if(p.id!==current(s)?.id)return false;
  if(s.phase==='ready'){
-  if(p.bagOpen)return button==='A'?cycleBag(s,p):confirmBag(s,p);
-  return button==='A'?roll(s):openBag(s,p);
+  return button==='A'?confirmAction(s,p):cycleAction(s,p);
  }
  if(s.move?.kind==='walk'&&s.camera.explore&&button==='A'&&
    (s.phase==='move_ready'||s.phase==='branch')){
@@ -459,18 +456,15 @@ function controls(s,id){
  const p=s.players.find(p=>p.id===id),mine=current(s)?.id===id;
  if(s.phase==='overview')return{a:'',b:'',help:'กำลังชมแผนที่ • อีกสักครู่กล้องจะซูมไปจุดเริ่มต้น'};
  if(s.phase==='intro_zoom')return{a:'',b:'',help:'กำลังซูมไปจุดเริ่มต้น • เตรียมทอยลูกเต๋าหาคนเริ่ม'};
- if(s.phase==='order')return{a:'ทอย 2 ลูก',b:'ทอย 2 ลูก',help:p?.dice?'ทอยแล้ว • รอเพื่อน':'A หรือ B ทอยลำดับ'};
- if(s.phase==='rewards')return{a:'',b:'',help:'เก็บไอเทมรางวัลลงกระเป๋าอัตโนมัติ'};
+ if(s.phase==='order')return{a:'ทอย',b:'ทอย',help:p?.dice?'ทอยแล้ว • รอเพื่อน':'A หรือ B ทอยลำดับ'};
+ if(s.phase==='rewards')return{a:'',b:'',help:'ได้รับไอเทมรางวัลแล้ว'};
  if(s.phase==='lucky_roulette')return{a:'',b:'',help:'LUCKY STAR • กำลังสุ่มไอเทมเข้ากระเป๋า'};
  if(!mine)return{a:'',b:'',help:'รอตาของคุณ • '+(current(s)?.name||'สรุปผล')};
  if(s.phase==='ready'){
-  if(p.bagOpen){
-   const items=I().bag(p),at=p.bagIndex||0,close=at>=items.length;
-   return{a:'เลือกถัดไป',b:close?'ปิดกระเป๋า':'ใช้ไอเทม',
-    help:'กระเป๋า '+(at+1)+'/'+(items.length+1)+' • '+(close?'ปิดกระเป๋า':I().names[items[at]])+
-      (p.bagMessage?' • '+p.bagMessage:'')+' • A เลือก / B ยืนยัน'};
-  }
-  return{a:'ทอย 2 ลูก',b:'เปิดกระเป๋า',help:'A ทอย 2 ลูก • B เปิดกระเป๋า ('+I().bag(p).length+' ชิ้น)'};
+  const items=I().bag(p),selected=Math.min(items.length,Math.max(0,Math.trunc(p.actionIndex||0)));
+  const name=selected===0?'ทอยลูกเต๋า':I().names[items[selected-1]];
+  return{a:selected===0?'ทอย':'ใช้ไอเทม',b:'เปลี่ยนตัวเลือก',
+   help:'เลือก: '+name+(p.bagMessage?' • '+p.bagMessage:'')+' • B เปลี่ยน / A ยืนยัน'};
  }
  if(s.move?.kind==='walk')return{a:s.camera.explore?'เริ่มเดิน':'',b:'',
    help:(s.camera.explore?'ลากหน้าจอหลักดูแผนที่ • A เริ่มเดิน หรือขยับจอยเพื่อล็อกกล้อง':
