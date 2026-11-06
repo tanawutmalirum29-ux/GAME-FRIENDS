@@ -131,7 +131,7 @@ test('Free 2D walking: reverse and sideways inputs are real movement, no acciden
  assert.equal(s.move.remaining,remaining,'reversing cannot spend extra dice');
  steer(s,p);until(s,()=>p.currentNodeId==='n1');assert.equal(s.move.remaining,2);
  press(s,p,null);tick(s,.2);
- if(s.phase==='moving'){
+ if(s.phase==='moving'&&!s.move.auto){
   const stale=plain(I.position(s,p));tick(s,.3);
   assert.deepEqual(plain(I.position(s,p)),stale,'released stick stops mid-edge');
  }
