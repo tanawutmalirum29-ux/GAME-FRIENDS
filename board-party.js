@@ -386,10 +386,9 @@ function input(s,id,packet){
  const y=Number.isFinite(k.axisY)&&k.axisY!==0?Math.max(-1,Math.min(1,k.axisY)):Number(k.down===true)-Number(k.jump===true);
  const a=k.action===true,b=k.alt===true,c=k.cancel===true;
  s.inputs[id]={x,y,a,b,c,at:s.time,turnId:packet.turnId};
- // After the first A enters bomber aiming, the phone may resend its held A
- // with a NEW phase token before pointerup arrives. Never interpret that
- // replay as the second confirmation; require observing A released first.
- if(s.phase==='aim'&&s.skill?.kind==='bomber'&&!a)
+ // On a new phase token, phones can replay the A still held from selection.
+ // Both UFO and bomber must see A released before any second confirmation.
+ if(s.phase==='aim'&&['ufo','bomber'].includes(s.skill?.kind)&&!a)
   s.skill.requiresConfirmRelease=false;
  if(c&&!old.c)action(s,id,'C');
  else if(a&&!old.a)action(s,id,'A');
@@ -503,7 +502,9 @@ function controls(s,id){
   if(s.phase==='branch')return{a:'',b:'',help:'ชี้ทิศทางที่แยกด้วยอนาล็อก'};
  if(s.phase==='aim')return s.skill.kind==='bomber'?
   {a:'โจมตี',b:'หมุน 45°',c:'ยกเลิก',help:'กำลังเล็งเครื่องบิน • ทิศ '+(Math.round(s.skill.angle/(Math.PI/4))%8+1)+'/8 • B หมุน / A โจมตี / C ยกเลิก'}:
-  {a:'ยืนยัน',b:'',c:'',help:'เล็งให้สัมผัสตัวละคร / A สลับ'};
+  {a:'ยืนยันสลับ',b:'',c:'ยกเลิก',
+   help:!s.skill.targetId?'ลากจอยเลื่อน UFO ไปหาเป้าหมาย • A ยืนยันเมื่อเลือกได้ • C ยกเลิก':
+    'เป้าหมาย: '+(s.players.find(q=>q.id===s.skill.targetId)?.name||'ผู้เล่น')+' • A ยืนยันสลับ / C ยกเลิก'};
  if(s.phase==='car')return{a:'',b:'',help:'อนาล็อกขับตามลูกศร • ระเบิดเมื่อชนหรือครบ 6 วินาที'};
  
  return{a:'',b:'',help:'กำลังดำเนินตา'};

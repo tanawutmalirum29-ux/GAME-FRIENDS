@@ -67,7 +67,16 @@ function update(s,dt,api){
   const skill=s.skill,q=skill.kind==='ufo'?forwardTarget(s,p):s.players.find(q=>q.id!==p.id&&!q.shieldTurns);
   if(!q)return;
   const pos=window.BoardItems.position(s,q),dx=pos.x-skill.x,dy=pos.y-skill.y,d=Math.hypot(dx,dy);
-  if(d<10)send(s,p,api,0,0,'A');else send(s,p,api,dx/d,dy/d);
+  // UFO bots must also steer the marker before confirming. If the target is
+  // already next to the caster, nudge away first to arm deliberate aiming.
+  if(skill.kind==='ufo'&&(skill.aimTravel||0)<window.BoardItems.UFO_AIM_TRAVEL_MIN&&d<12){
+   send(s,p,api,1,0);
+  }else if(d<10&&(!skill.requiresConfirmRelease)&&
+    (skill.kind!=='ufo'||(skill.aimTravel||0)>=window.BoardItems.UFO_AIM_TRAVEL_MIN)){
+   send(s,p,api,0,0,'A');
+  }else if(d>0){
+   send(s,p,api,dx/d,dy/d);
+  }
  }else if(s.phase==='car'){
   const sk=s.skill,q=forwardTarget(s,p);
   const choices=s.map.nodes[sk.step?.to||sk.nodeId].nextNodes;

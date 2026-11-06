@@ -1967,6 +1967,21 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
   c:'',a:'เรียกเครื่องบิน',b:'เปลี่ยนตัวเลือก'});
  assert.equal(phone.elements.get('controllerButtons').classList.contains('board-bomber-aim'),false);
  assert.equal(phone.elements.get('buttonC').disabled,true);
+ // UFO shares the same C-cancel control and on-screen aim layout.
+ conn.fire('data',{...frame,boardPhase:'aim',turnId:'ufo-aim-3',
+  a:'ยืนยันสลับ',b:'',c:'ยกเลิก',help:'ลากจอยเลื่อน UFO ไปหาเป้าหมาย'});
+ assert.equal(phone.elements.get('controllerButtons').classList.contains('board-bomber-aim'),true);
+ assert.equal(phone.elements.get('buttonC').disabled,false,'C is visible for UFO aiming');
+ assert.equal(phone.elements.get('buttonCLabel').textContent,'ยกเลิก');
+ assert.match(phone.elements.get('buttonC').attributes['aria-label'],/เล็งไอเทม/);
+ phone.padZones.cancel.fire('pointerdown',{pointerId:312});
+ assert.equal(last().cancel,true,'UFO C sends cancel, not attack');
+ assert.equal(last().action,false);
+ phone.padZones.cancel.fire('pointerup',{pointerId:312});
+ assert.equal(last().cancel,false);
+ conn.fire('data',{...frame,boardPhase:'ready',turnId:'ufo-ready-4',
+  c:'',a:'ใช้ไอเทม',b:'เปลี่ยนตัวเลือก'});
+ assert.equal(phone.elements.get('buttonC').disabled,true,'C hides after UFO cancellation');
 }
 // BOARD PARTY after using an item: all six choices darken even if stock
 // remains, only the Roll card stays active, and the real stock counts remain.
