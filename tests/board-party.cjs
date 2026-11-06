@@ -65,8 +65,8 @@ test('Fresh turn token accepts A/B despite old pressed state',()=>{
  assert.notEqual(newTurn,oldTurn);
  assert.equal(P.input(s,p.id,{turnId:newTurn,actionId:2,keys:{action:true}}),true);
  assert.equal(s.phase,'dice','new A press must roll immediately, even if old A was held');
- assert.equal(P.input(s,p.id,{turnId:newTurn,actionId:3,keys:{action:true}}),true);
- assert.equal(s.phase,'dice','same turn repeated held A cannot trigger again');
+ assert.equal(P.input(s,p.id,{turnId:newTurn,actionId:3,keys:{action:true}}),false,'ready token expires after moving to dice');
+ assert.equal(s.phase,'dice','stale press cannot trigger a second roll');
  assert.equal(P.input(s,p.id,{turnId:oldTurn,actionId:4,keys:{alt:true}}),false);
 });
 test('Board clock uses true elapsed time with bounded steps even at low FPS',()=>{
