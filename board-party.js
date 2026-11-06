@@ -341,7 +341,7 @@ function confirmAction(s,p){
  const selected=Math.min(items.length,Math.max(0,Math.trunc(p.actionIndex||0)));
  if(selected===0)return roll(s);
  const kind=items[selected-1];
- if(p.usedRound===s.roundNumber){p.bagMessage='ใช้ไอเทมในรอบนี้แล้ว';return false;}
+ if(!p.debugUnlimitedItems&&p.usedRound===s.roundNumber){p.bagMessage='ใช้ไอเทมในรอบนี้แล้ว';return false;}
  if(!I().begin(s,p,api,kind)){
   p.bagMessage=kind==='potion'?'HP เต็มแล้ว':kind==='shield'?'โล่ยังทำงานอยู่':'ยังใช้ไอเทมนี้ไม่ได้';
   return false;
