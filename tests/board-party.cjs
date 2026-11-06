@@ -8,7 +8,11 @@ const roster=(n,bots=false)=>Array.from({length:n},(_,i)=>({id:'p'+(i+1),name:'P
 const game=(n=3,seed=42,bots=false)=>{
  const s=P.create(roster(n,bots),{seed,rng:M.random(seed)});
  assert.equal(s.phase,'overview');
- assert.equal(P.beginOrder(s),true);return s;
+ for(let i=0;i<40;i++)P.update(s,.05);
+ assert.equal(s.phase,'intro_zoom');
+ for(let i=0;i<30;i++)P.update(s,.05);
+ assert.equal(s.phase,'order','new games begin dice ordering automatically');
+ return s;
 };
 const tick=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds/.05);i++)P.update(s,.05);};
 const until=(s,pred,seconds=100)=>{for(let i=0;i<seconds/.05;i++){if(pred())return;P.update(s,.05);}assert.fail('Timeout '+s.phase+' at '+s.time);};
@@ -38,13 +42,22 @@ test('1,000 seeds: connected DAG, reciprocal edges, all branches finish',()=>{
   }
  }
 });
-test('Opening overview must show the full board before the host starts dice',()=>{
+test('Automatic intro: full board 2s, start zoom 1.5s, then dice order',()=>{
  const s=P.create(roster(3),{seed:37,rng:M.random(37)});
- assert.equal(s.phase,'overview');assert.equal(s.time,0);assert.ok(s.players.every(p=>p.dice===null));
- tick(s,20);assert.equal(s.phase,'overview');assert.ok(s.players.every(p=>p.dice===null));
+ assert.equal(s.phase,'overview');assert.equal(s.time,0);
+ assert.equal(s.deadline,2);assert.ok(s.players.every(p=>p.dice===null));
+ tick(s,1.95);assert.equal(s.phase,'overview');
  assert.equal(P.action(s,s.players[0].id,'A'),false);
- assert.equal(P.beginOrder(s),true);assert.equal(s.phase,'order');
- assert.equal(P.beginOrder(s),false);
+ assert.equal(P.beginOrder(s),false,'cannot bypass the map showcase');
+ tick(s,.05);assert.equal(s.phase,'intro_zoom');
+ assert.ok(s.camera.introFrom&&s.camera.introFrom.zoom>0,'camera saves overview framing');
+ assert.equal(s.deadline-s.phaseAt,1.5);
+ assert.equal(P.action(s,s.players[0].id,'A'),false);
+ assert.equal(P.beginOrder(s),false,'cannot bypass camera fly-in');
+ tick(s,1.45);assert.equal(s.phase,'intro_zoom');
+ tick(s,.05);assert.equal(s.phase,'order');
+ assert.ok(s.players.every(p=>p.dice===null),'players roll only after intro completes');
+ assert.equal(P.beginOrder(s),false,'intro cannot be triggered twice');
 });
 test('1–12 players: simultaneous A/B order rolls, double-input protection and timeout',()=>{
  for(let n=1;n<=12;n++){
@@ -99,8 +112,9 @@ test('Board clock uses true elapsed time with bounded steps even at low FPS',()=
   }
  }
  const s=game(1,7);s.players[0].isBot=false;
+ const start=s.time;
  for(let frame=0;frame<60;frame++)advance(s,.2);
- assert.ok(Math.abs(s.time-12)<.001,'5 FPS must advance twelve game seconds in twelve real seconds');
+ assert.ok(Math.abs(s.time-start-12)<.001,'5 FPS must advance twelve game seconds in twelve real seconds');
  assert.equal(s.players[0].dice.length,2,'order timeout must resolve even on low FPS');
 });
 test('Backpack B opens, A cycles across items and Close, B uses only the selected slot',()=>{
