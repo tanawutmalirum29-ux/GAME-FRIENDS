@@ -250,7 +250,7 @@ test('Directional walking: release stops mid-edge, A/B cannot move, counts only 
  const fraction=s.move.t,position=plain(I.position(s,p));assert.ok(fraction>0&&fraction<1);
  press(s,p,null);tick(s,.5);assert.equal(s.move.t,fraction);assert.deepEqual(plain(I.position(s,p)),position);
  for(let i=0;i<5;i++){press(s,p,'A');press(s,p,'B');tick(s,.05);}assert.equal(s.move.t,fraction);assert.equal(p.item,'rocket');
- steer(s,p);until(s,()=>p.currentNodeId==='n1');assert.equal(P.remainingSteps(s,p.id),1);assert.equal(s.turnId,token);
+ steer(s,p);until(s,()=>{if(s.move)steer(s,p);return p.currentNodeId==='n1';});assert.equal(P.remainingSteps(s,p.id),1);assert.equal(s.turnId,token);
  tick(s,.25);assert.equal(s.phase,'moving','held direction continues across a node without A or a new token');
  until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';});assert.equal(p.currentNodeId,'n2');assert.equal(P.remainingSteps(s,p.id),0);
  assert.equal(P.remainingSteps(s,s.players[1].id),0);assert.equal(p.item,'rocket');assert.notEqual(s.turnId,token);
