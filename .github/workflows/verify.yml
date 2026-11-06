@@ -40,7 +40,7 @@ jobs:
           node tests/board-party.cjs
           node tests/board-art.cjs
           node tests/board-layout.cjs
-      - name: Central character combat: 0.8-second stun and attacker-colored VFX
+      - name: "Central character combat: 0.8-second stun and attacker-colored VFX"
         run: node tests/combat-motion.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
