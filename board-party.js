@@ -120,7 +120,7 @@ function beginMove(s,p,steps,kind='walk'){
  if(kind==='walk'&&!p.worldPosition)p.worldPosition={...position};
  s.move={playerId:p.id,kind,remaining:steps,total:steps,from:p.currentNodeId,to:null,
    t:0,lateral:0,nodeOffset:{x:position.x-origin.x,y:position.y-origin.y},
-   intent:null,intentTime:0,started:false,visited:[p.currentNodeId],auto:false,
+   intent:null,intentTime:0,started:false,visited:[p.currentNodeId],completedSteps:0,auto:false,
    expires:kind==='rocket'?s.time+5:Infinity};
  s.camera.explore=kind==='walk'&&!p.isBot;
  if(kind==='walk'&&s.inputs[p.id]){
@@ -263,7 +263,7 @@ function updateRocket(s,dt){
     startPosition:{...m.startPosition},endPosition:{...m.endPosition}};
    land(s,false);return;
   }
-  land(s,true);return;
+  land(s,m.completedSteps>0);return;
  }
  if(strength<=.12)return;
  const stick={x:axesNow.x/strength,y:axesNow.y/strength};
@@ -286,7 +286,7 @@ function updateRocket(s,dt){
  m.walking=forward>.05||Math.abs(side)>.05;
  if(m.t>=1){
   p.worldPosition=I().position(s,p);
-  p.currentNodeId=m.to;m.visited.push(m.to);
+  p.currentNodeId=m.to;m.visited.push(m.to);m.completedSteps++;
   m.from=p.currentNodeId;m.to=null;m.lateral=0;
   if(p.currentNodeId===s.map.finishId)win(s,p);
  }
