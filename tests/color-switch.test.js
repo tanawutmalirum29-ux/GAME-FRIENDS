@@ -160,8 +160,9 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  const {s,ps}=make();
  s.elapsed=11;
  ok(E.spawnPowerBox(s,ps),'first box spawned');
- eq(s.boxes.length,1,'single box');
- ok(!E.spawnPowerBox(s,ps),'small map box cap');
+ ok(E.spawnPowerBox(s,ps),'second box spawned alongside first');
+ eq(s.boxes.length,2,'small map supports two simultaneous boxes');
+ ok(!E.spawnPowerBox(s,ps),'two-box small map cap');
  const box=s.boxes[0];box.type='score_bank';
  const tile=s.tiles[10];E.captureTile(s,tile,ps[0],ps);
  ps[0].x=box.x;ps[0].y=box.y;
@@ -170,7 +171,7 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  eq(ps[0].cs.territoryScore,0,'bank clears live score');
  eq(ps[0].score,1,'bank maintains total score');
  eq(tile.ownerId,null,'bank clears color');
- eq(s.boxes.length,0,'box removed after pickup');
+ eq(s.boxes.length,1,'only claimed box removed; another box stays on map');
  E.collectPowerBox(s,ps);
  eq(ps[0].cs.bankedScore,1,'cannot collect same box twice');
  E.captureTile(s,tile,ps[0],ps);
@@ -180,8 +181,10 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  const {s,ps}=make(7);s.elapsed=10;
  ok(E.spawnPowerBox(s,ps),'first big map box');
  ok(E.spawnPowerBox(s,ps),'second big map box');
- ok(!E.spawnPowerBox(s,ps),'large map box cap');
- eq(s.boxes.length,2,'large box max two');
+ ok(E.spawnPowerBox(s,ps),'third big map box');
+ ok(!E.spawnPowerBox(s,ps),'large map box cap reached after three');
+ eq(s.boxes.length,3,'large map allows three simultaneous boxes');
+ ok(new Set(s.boxes.map(box=>box.id)).size===3,'simultaneous boxes have distinct IDs');
 }
 {
  const {round,ps,s}=make();
@@ -233,7 +236,7 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  }
  ok(ps.some(p=>p.score>0),'bots capture tiles');
  ok(ps.some(p=>p.cs.punchCooldown>0||p.cs.blastCooldown>0)||s.totalCaptures>80,'bots act strategically');
- ok(s.boxes.length<=2,'box cap under stress');
+ ok(s.boxes.length<=3,'three-box cap under stress');
  ok(s.effects.length<=32,'effects bounded');
 }
 
@@ -300,4 +303,34 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  eq(s.boxes.length,0,'box taken only once');
 }
 
+
+{
+ // Scheduled spawning should fill empty slots, but never exceed the per-map cap.
+ for(const count of [2,6,7,12]){
+  const {ps,s,round}=make(count);
+  const expected=count<=6?2:3;
+  s.nextBoxSpawn=0;
+  E.update(1/60,round,ps);
+  eq(s.boxes.length,expected,'scheduled spawn fills '+expected+' slots for '+count+' players');
+  ok(s.boxes.every(box=>box.active&&box.type==='rocket'||box.active&&box.type==='score_bank'),
+    'all spawned boxes are usable for '+count+' players');
+  ok(s.boxes.every((box,i)=>s.boxes.every((other,j)=>i===j||Math.hypot(box.x-other.x,box.y-other.y)>s.size*1.5)),
+    'simultaneous boxes do not overlap for '+count+' players');
+  s.elapsed=s.nextBoxSpawn;
+  E.update(1/60,round,ps);
+  eq(s.boxes.length,expected,'scheduled spawn respects box cap for '+count+' players');
+ }
+}
+{
+ const {ps,round,s}=make();
+ const bot=ps[0],enemy=ps[1];bot.isBot=true;
+ bot.x=s.board.x+s.size*4;bot.y=s.board.y+s.size*4;
+ enemy.x=bot.x+32;enemy.y=bot.y;
+ bot.dir={x:1,y:0};
+ E.update(1/60,round,ps);
+ const delay=bot.cs.botNextPunch-s.clock;
+ eq(E.constants.botPunchRate,.084,'bot punch rate reduced by 80% relative to .42');
+ ok(delay>=1.15/.084-1e-6,'bot punch delay has reduced lower bound');
+ ok(delay<=1.6/.084+1e-6,'bot punch delay has reduced upper bound');
+}
 console.log('COLOR SWITCH: '+passed+' assertions passed');
