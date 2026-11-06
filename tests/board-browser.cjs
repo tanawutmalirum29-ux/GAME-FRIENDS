@@ -117,7 +117,7 @@ async function main(){
   await mobile.addInitScript(()=>{window.requestAnimationFrame=()=>0;});
   const phone=await mobile.newPage();phone.on('pageerror',e=>errors.push(String(e)));await phone.goto(base+'/?join=ABC123');
   async function refreshPhone(){
-   const info=await host.evaluate(()=>{const s=__boardTest.board,p=s.players[0];return{phase:'playing',turnId:s.turnId,boardPhase:s.phase,round:s.roundNumber,hp:p.hp,stepsRemaining:BoardParty.remainingSteps(s,p.id),shieldTurns:p.shieldTurns,item:BoardItems.names[p.item]||'ไม่มีไอเทม',bag:BoardItems.bag(p).slice(),bagOpen:!!p.bagOpen,bagIndex:p.bagIndex||0,...BoardParty.controls(s,p.id)};});
+   const info=await host.evaluate(()=>{const s=__boardTest.board,p=s.players[0];return{phase:'playing',turnId:s.turnId,boardPhase:s.phase,round:s.roundNumber,hp:p.hp,stepsRemaining:BoardParty.remainingSteps(s,p.id),shieldTurns:p.shieldTurns,item:BoardItems.names[p.item]||'ไม่มีไอเทม',bag:BoardItems.bag(p).slice(),actionIndex:p.actionIndex||0,...BoardParty.controls(s,p.id)};});
    await phone.evaluate(info=>__boardTest.phone(info),info);
    const packets=await phone.evaluate(()=>__boardPackets.filter(p=>p.t==='input'));
    await host.evaluate(packets=>{const s=__boardTest.board;for(const p of packets)BoardParty.input(s,s.players[0].id,p);},packets);return info;
@@ -128,9 +128,9 @@ async function main(){
   }
   await host.evaluate(()=>{const s=__boardTest.board;s.players[0].bag=['potion'];s.players[0].item='potion';s.players[0].hp=50;s.players[0].currentNodeId='n1';s.players[0].worldPosition=null;s.rng=()=>0;});
   await refreshPhone();await noScroll(phone);await phone.screenshot({path:path.join(out,'phone.png')});
-  assert.match(await phone.locator('#buttonBLabel').innerText(),/เปิดกระเป๋า/);await tap('#buttonB');
-  await refreshPhone();assert.match(await phone.locator('#buttonBLabel').innerText(),/ใช้ไอเทม/);
-  await tap('#buttonB');assert.equal(await host.evaluate(()=>__boardTest.board.players[0].hp),100);
+  assert.match(await phone.locator('#buttonBLabel').innerText(),/เปลี่ยนตัวเลือก/);await tap('#buttonB');
+  await refreshPhone();assert.match(await phone.locator('#buttonALabel').innerText(),/ใช้ไอเทม/);
+  await tap('#buttonA');assert.equal(await host.evaluate(()=>__boardTest.board.players[0].hp),100);
   await host.evaluate(()=>{for(let i=0;i<30;i++)BoardParty.update(__boardTest.board,.05);});await refreshPhone();await tap('#buttonA');
   assert.equal(await host.evaluate(()=>__boardTest.board.phase),'dice');
   await host.evaluate(()=>{const s=__boardTest.board;for(let i=0;i<20;i++)BoardParty.update(s,.05);__boardTest.drawGame(s.time);});
@@ -143,7 +143,7 @@ async function main(){
    g.arc=(...args)=>{pips++;arc(...args);};g.fillText=(...args)=>{texts.push(args[0]);text(...args);};
    BoardArt.turnDice(g,__boardTest.board);return{centers:[...new Set(faces.map(p=>p.x))],faces,texts,pips};
   });
-  assert.equal(diceDrawing.centers.length,2);assert.equal(diceDrawing.pips,2);assert.ok(diceDrawing.faces.every(p=>p.x>320&&p.x<640&&p.y>180&&p.y<360));assert.ok(diceDrawing.texts.includes('2 ก้าว'));
+  assert.equal(diceDrawing.centers.length,2);assert.equal(diceDrawing.pips,2);assert.ok(diceDrawing.faces.every(p=>p.x>320&&p.x<640&&p.y>180&&p.y<360));assert.ok(diceDrawing.texts.some(s=>String(s).includes('2 ก้าว')));
   await host.screenshot({path:path.join(out,'dice-center.png')});
   await host.screenshot({path:path.join(out,'board-dice.jpg'),type:'jpeg',quality:82,scale:'css'});
   await host.evaluate(()=>{const s=__boardTest.board;for(let i=0;i<20;i++)BoardParty.update(s,.05);__boardTest.drawGame(s.time);});
@@ -174,7 +174,7 @@ async function main(){
   await host.evaluate(()=>{const s=__boardTest.board;BoardParty.startTurn(s);s.players[0].usedRound=0;s.players[0].bag=['bomber'];s.players[0].item='bomber';});
   await refreshPhone();await tap('#buttonB');await refreshPhone();
   assert.match(await phone.locator('#buttonBLabel').innerText(),/ใช้ไอเทม/);
-  await tap('#buttonB');await refreshPhone();assert.match(await phone.locator('#buttonBLabel').innerText(),/45/);await tap('#buttonB');
+  await tap('#buttonA');await refreshPhone();assert.match(await phone.locator('#buttonBLabel').innerText(),/45/);await tap('#buttonB');
   assert.equal(await host.evaluate(()=>__boardTest.board.skill.angle),Math.PI/4);
   await refreshPhone();await tap('#buttonA');assert.equal(await host.evaluate(()=>__boardTest.board.phase),'effect');
   // A forward branch is selected and entered directly with the actual joystick.
@@ -185,7 +185,7 @@ async function main(){
   await phone.mouse.up();await forwardPhone();
   // Draw all effect/item phases, including split selection and the 12-row reward grid.
   for(const kind of ['ufo','bomber','car','rocket','shield']){
-   await host.evaluate(kind=>{const s=__boardTest.board;BoardParty.startTurn(s);s.players[0].bag=[kind];s.players[0].bagIndex=0;s.players[0].item=kind;s.players[0].usedRound=0;BoardParty.action(s,s.players[0].id,'B');BoardParty.action(s,s.players[0].id,'B');for(let i=0;i<4;i++){BoardParty.update(s,.05);__boardTest.drawGame(s.time);}},kind);
+   await host.evaluate(kind=>{const s=__boardTest.board;BoardParty.startTurn(s);s.players[0].bag=[kind];s.players[0].actionIndex=0;s.players[0].item=kind;s.players[0].usedRound=0;BoardParty.action(s,s.players[0].id,'B');BoardParty.action(s,s.players[0].id,'A');for(let i=0;i<4;i++){BoardParty.update(s,.05);__boardTest.drawGame(s.time);}},kind);
    await host.screenshot({path:path.join(out,kind+'.png')});
   }
   await refreshPhone();assert.match(await phone.locator('#controllerRole').innerText(),/โล่ป้องกัน/);await noScroll(phone);

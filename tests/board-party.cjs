@@ -19,14 +19,17 @@ const until=(s,pred,seconds=100)=>{for(let i=0;i<seconds/.05;i++){if(pred())retu
 function ready(n=3,seed=42){const s=game(n,seed);s.order=s.players.map(p=>p.id);P.startTurn(s);return s;}
 function press(s,p,key,extra={}){
  const send=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
- send(extra);
- const result=send({...extra,action:key==='A',alt:key==='B'});
- // Adapt legacy item-effect fixtures to the new two-press backpack UI.
- // Dedicated backpack tests below exercise BOTH presses individually.
- if(key==='B'&&s.phase==='ready'&&p.bagOpen&&(p.item||p.bag?.length)){
-  send(extra);return send({...extra,alt:true});
+ // Historical test scenarios calling B to "use item" emulate B-select then
+ // A-confirm. Dedicated selector tests below exercise raw phone input instead.
+ if(key==='B'&&s.phase==='ready'&&I.bag(p).length){
+  p.actionIndex=0;
+  send(extra);send({...extra,alt:true});
+  send(extra);const result=send({...extra,action:true});
+  if(s.phase==='ready')p.actionIndex=0;
+  return result;
  }
- return result;
+ send(extra);
+ return send({...extra,action:key==='A',alt:key==='B'});
 }
 function steer(s,p,to=s.move?.to||s.map.nodes[p.currentNodeId].nextNodes[0]){
  const a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position,d=Math.hypot(b.x-a.x,b.y-a.y);
@@ -123,22 +126,26 @@ test('Board clock uses true elapsed time with bounded steps even at low FPS',()=
  assert.ok(Math.abs(s.time-start-12)<.001,'5 FPS must advance twelve game seconds in twelve real seconds');
  assert.equal(s.players[0].dice.length,2,'order timeout must resolve even on low FPS');
 });
-test('Backpack B opens, A cycles across items and Close, B uses only the selected slot',()=>{
+test('B cycles [Roll, inventory], A activates selected action; no bag popup',()=>{
  const s=ready(3),p=s.players[0];p.hp=1;
  I.add(p,'shield');I.add(p,'potion');I.add(p,'rocket');
  const input=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
  const tap=button=>{input({});return input({action:button==='A',alt:button==='B'});};
- tap('B');assert.equal(p.bagOpen,true);assert.equal(s.phase,'ready');
- assert.equal(p.bagIndex,0);assert.equal(P.controls(s,p.id).b,'ใช้ไอเทม');
- tap('A');assert.equal(p.bagIndex,1);assert.equal(p.bag[p.bagIndex],'potion');
- tap('B');assert.equal(p.hp,51);assert.equal(p.usedRound,1);
- assert.deepEqual(plain(p.bag),['shield','rocket']);
- assert.equal(s.phase,'effect');until(s,()=>s.phase==='ready');
- tap('B');assert.equal(p.bagOpen,true);
- tap('A');tap('A');assert.equal(p.bagIndex,2,'selection reaches the Close slot');
- assert.equal(P.controls(s,p.id).b,'ปิดกระเป๋า');
- tap('B');assert.equal(p.bagOpen,false);assert.deepEqual(plain(p.bag),['shield','rocket']);
- tap('A');assert.equal(s.phase,'dice','A resumes dice rolling after closing backpack');
+ assert.equal(p.actionIndex,0);
+ assert.equal(P.controls(s,p.id).a,'ทอย');
+ assert.equal(P.controls(s,p.id).b,'เปลี่ยนตัวเลือก');
+ tap('B');assert.equal(p.actionIndex,1,'the first B selects first item after Roll');
+ tap('B');assert.equal(p.actionIndex,2);assert.equal(I.bag(p)[p.actionIndex-1],'potion');
+ assert.match(P.controls(s,p.id).help,/Healing Potion/);
+ tap('A');assert.equal(p.hp,51);assert.equal(p.usedRound,1);
+ assert.deepEqual(plain(p.bag),['shield','rocket']);assert.equal(s.phase,'effect');
+ until(s,()=>s.phase==='ready');
+ assert.equal(p.actionIndex,0,'after effect, next command resets to Roll');
+ tap('B');assert.equal(p.actionIndex,1);
+ tap('B');assert.equal(p.actionIndex,2);
+ tap('B');assert.equal(p.actionIndex,0,'last item wraps to Roll; no close slot');
+ tap('A');assert.equal(s.phase,'dice');assert.equal(s.moveDice.length,2);
+ assert.equal(p.bagOpen,false,'popup is never opened');
 });
 test('Two independent dice: all 36 combinations move the exact sum, landing effect once',()=>{
  for(let a=1;a<=6;a++)for(let b=1;b<=6;b++){
@@ -424,15 +431,18 @@ test('HP cap, death keeps items and board order after dangerous landing',()=>{
  q.hp=1;q.item='car';q.currentNodeId='n9';P.damage(s,q,1);
  assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,100);assert.equal(q.item,'car');
 });
-test('Potion requires HP below maximum; backpack can be closed without using an item',()=>{
+test('Potion only activates with missing HP; rejected item keeps selection',()=>{
  const s=ready(),p=s.players[0];p.item='potion';
- press(s,p,'B');assert.equal(p.item,'potion');assert.equal(s.phase,'ready');
- p.hp=1;press(s,p,'B');assert.equal(p.hp,51);assert.equal(p.item,null);
+ const input=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
+ const tap=button=>{input({});return input({action:button==='A',alt:button==='B'});};
+ tap('B');assert.equal(p.actionIndex,1);
+ tap('A');assert.equal(s.phase,'ready');assert.equal(p.item,'potion');
+ assert.match(p.bagMessage,/HP เต็ม/);
+ p.hp=1;tap('A');assert.equal(p.hp,51);assert.equal(p.item,null);
  until(s,()=>s.phase==='ready');p.item='rocket';
- press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(p.bagOpen,true);
- press(s,p,'A');assert.equal(p.bagIndex,1,'Close is included in the item selection');
- press(s,p,'B');assert.equal(p.bagOpen,false);
- press(s,p,'A');assert.equal(s.phase,'dice');
+ tap('B');assert.equal(p.actionIndex,1,'one item immediately follows Roll');
+ tap('B');assert.equal(p.actionIndex,0,'B wraps without an inventory popup');
+ tap('A');assert.equal(s.phase,'dice');
 });
 test('Shield is a sixth reward item, once per round, and preserves the dice roll',()=>{
  assert.equal(I.ids.length,6);assert.ok(I.ids.includes('shield'));
@@ -440,7 +450,7 @@ test('Shield is a sixth reward item, once per round, and preserves the dice roll
  assert.equal(p.item,null);assert.equal(p.usedRound,1);assert.equal(p.shieldTurns,2);
  until(s,()=>s.phase==='ready');p.item='rocket';press(s,p,'B');
  assert.equal(p.item,'rocket');assert.equal(s.phase,'ready');
- press(s,p,'A');press(s,p,'B');press(s,p,'A');assert.equal(s.phase,'dice');
+ press(s,p,'A');assert.equal(s.phase,'dice');
  assert.equal(s.moveDice.length,2);
  const t=ready(),q=t.players[0];q.item='shield';q.shieldTurns=1;press(t,q,'B');
  assert.equal(q.item,'shield');assert.equal(q.usedRound,0);assert.equal(q.shieldTurns,1);
