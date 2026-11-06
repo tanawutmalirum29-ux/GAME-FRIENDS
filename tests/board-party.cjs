@@ -198,6 +198,53 @@ test('300 adversarial 2D walks: legal graph edges, finite positions, bounded pat
   assert.ok(edges<=steps);if(s.phase!=='finished')assert.equal(edges,steps);
  }
 });
+test('After the dice roll, camera can explore until A or first walking input',()=>{
+ const s=ready(3,510),p=s.players[0];
+ press(s,p,'A');until(s,()=>s.phase==='move_ready');
+ assert.equal(s.camera.explore,true);
+ assert.equal(s.move.started,false);
+ assert.equal(P.controls(s,p.id).a,'เริ่มเดิน');
+ press(s,p,'A');
+ assert.equal(s.move.started,true);
+ assert.equal(s.camera.explore,false);
+ assert.equal(s.phase,'move_ready');
+ steer(s,p);tick(s,.25);assert.equal(s.phase,'moving');
+ const t=ready(3,511),q=t.players[0];
+ P.beginMove(t,q,2);
+ steer(t,q);tick(t,.05);
+ assert.equal(t.move.started,true);
+ assert.equal(t.camera.explore,false,'first joystick walk should relock the camera');
+});
+test('Walking on a water bridge remains inside its deck and does not snap to the checkpoint centre',()=>{
+ const s=ready(3,512),p=s.players[0];p.currentNodeId='n9';
+ const a=s.map.nodes.n9.position,b=s.map.nodes.n10.position;
+ assert.ok(s.map.bridges.some(pair=>pair[0]==='n9'&&pair[1]==='n10'));
+ P.beginMove(s,p,2);
+ const d=Math.hypot(b.x-a.x,b.y-a.y),forward={x:(b.x-a.x)/d,y:(b.y-a.y)/d};
+ press(s,p,null,forward);until(s,()=>s.phase==='moving',3);
+ // Step sideways, then travel forward while retaining the offset on the bridge.
+ press(s,p,null,{axisX:-forward.y,axisY:forward.x});tick(s,.12);
+ assert.ok(Math.abs(s.move.lateral)>5,'walking sideways should be possible ON the bridge');
+ const lateral=s.move.lateral;
+ press(s,p,null,{axisX:forward.x,axisY:forward.y});
+ let last=plain(I.position(s,p)),crossed=false;
+ for(let i=0;i<100&&!crossed;i++){
+  P.update(s,.05);
+  const pos=I.position(s,p);
+  assert.ok(Math.hypot(pos.x-last.x,pos.y-last.y)<25,'must not teleport toward pad centre');
+  if(p.currentNodeId==='n9'){
+   assert.ok(I.segmentDistance(pos,a,b)<=18.001,'cannot step out onto the water');
+  }else{
+   crossed=true;
+   assert.equal(p.currentNodeId,'n10');
+   assert.ok(Math.abs(pos.x-b.x)+Math.abs(pos.y-b.y)>5,'crossing a checkpoint retains side offset');
+   assert.ok(Math.abs(Math.hypot(pos.x-b.x,pos.y-b.y)-Math.abs(lateral))<2,'side offset survives');
+  }
+  last=plain(pos);
+ }
+ assert.ok(crossed,'crosses the bridge normally');
+ assert.equal(s.move.remaining,1,'one graph edge consumes exactly one die step');
+});
 test('HP cap, death keeps item/order, clears movement and awards no free roll',()=>{
  const s=ready(),p=s.players[0];p.currentNodeId='n1';p.hp=1;p.item='ufo';s.map.nodes.n2.type='danger';const order=plain(s.order);
  P.beginMove(s,p,1,'rocket');until(s,()=>s.phase==='effect');assert.equal(p.hp,3);assert.equal(p.currentNodeId,'n0');assert.equal(p.item,'ufo');assert.equal(s.effect.next,'end');tick(s,2);assert.equal(P.current(s).id,'p2');assert.deepEqual(plain(s.order),order);
