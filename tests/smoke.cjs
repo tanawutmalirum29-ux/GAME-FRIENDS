@@ -1651,7 +1651,7 @@ assert.equal(phone.elements.get('controllerInventory').classList.contains('hidde
  'role and item must disappear as soon as a round ends');
 assert.equal(phone.elements.get('inventoryItem').textContent,'');
 assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป 0/0');
-assert.equal(phone.elements.get('buttonBLabel').textContent,'ล็อบบี้ 0/0');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'กลับล็อบบี้ 0/0');
 phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',autoNextSeconds:7});
 assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 7 วิ 1/2',
   'the controller next-game action shows timer together with votes');
