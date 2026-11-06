@@ -409,8 +409,8 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
  assert.equal(s.move.remaining,1,'one graph edge consumes exactly one die step');
 });
 
-test('152-step winter map uses the exact requested danger, arrow and nine linked sword pair roles',()=>{
- const pairs=[['n14','n15'],['n27','n28'],['n59','n60'],['n69','n70'],
+test('152-step winter map preserves requested tiles plus n42 star and 11 linked sword pairs',()=>{
+ const pairs=[['n14','n15'],['n43','n44'],['b33_9','b33_10'],['n27','n28'],['n59','n60'],['n69','n70'],
   ['n85','n86'],['c76_10','c76_11'],['n103','n104'],
   ['n124','n125'],['n137','n138']];
  const danger=['n5','n49','n120','n148'];
@@ -420,10 +420,14 @@ test('152-step winter map uses the exact requested danger, arrow and nine linked
   const map=M.create(seed);
   assert.equal(map.length,152);assert.equal(map.finishId,'n152');
   assert.ok(map.islands.length>=7&&map.width>5000&&map.height>3000);
-  assert.equal(map.version,'winter-expedition-152-v5');
+  assert.equal(map.version,'winter-expedition-152-v6');
   assert.deepEqual(plain(M.SWORD_TILES),swords);
   assert.deepEqual(plain(M.SWORD_PAIRS.map(p=>p.nodeIds)),pairs);
-  assert.equal(Object.keys(map.territories).length,9);
+  assert.equal(Object.keys(map.territories).length,11);
+  assert.equal(map.nodes.n42.type,'lucky');
+  assert.deepEqual(plain(map.nodes.n42.effects),{item:true});
+  assert.ok(map.luckyTileIds.includes('n42'),'Lucky Star has moved one step earlier');
+  assert.ok(!map.luckyTileIds.includes('n43'),'n43 is now a sword not a reward');
   for(const id of danger){
    assert.equal(map.nodes[id].type,'danger',id);
    assert.deepEqual(plain(map.nodes[id].effects),{hp:-35},id);
@@ -448,6 +452,8 @@ test('152-step winter map uses the exact requested danger, arrow and nine linked
   assert.equal(M.validate(map),true);
   assert.throws(()=>M.assertCompatible({...map,version:'winter-expedition-152-v3'}),/Incompatible BOARD PARTY map/,
    'old room maps are rejected because their territories no longer match');
+  assert.throws(()=>M.assertCompatible({...map,version:'winter-expedition-152-v5'}),/Incompatible BOARD PARTY map/,
+   'v5 map rooms cannot carry outdated shield/sword tile roles');
  }
 });
 test('Star bridge b72_5 offers old n74 exit and new b72_6 to c76_2 link',()=>{
@@ -563,6 +569,59 @@ test('Every sword pair captures two tiles and independently enforces 12 HP damag
     assert.equal(s.map.territories[other.id].ownerId,null,'other territories remain independent');
    }
   }
+ }
+});
+test('Lethal rival sword tile awards exactly ONE random item to its owner',()=>{
+ for(const pair of M.SWORD_PAIRS){
+  for(const nodeId of pair.nodeIds){
+   const s=ready(3,403),[owner,victim,third]=s.players;
+   const landAs=(player,id)=>{
+    s.order=[player.id,...s.players.filter(q=>q.id!==player.id).map(q=>q.id)];
+    s.turnIndex=0;P.startTurn(s);player.currentNodeId=id;delete player.worldPosition;
+    P.land(s);
+   };
+   landAs(owner,pair.nodeIds[0]);
+   const before=I.bag(owner).length,randomCalls=s.swordRewards.length;
+   victim.hp=11;landAs(victim,nodeId);
+   assert.equal(victim.currentNodeId,s.map.startId,'fatal sword hit respawns the victim');
+   assert.equal(victim.hp,100);
+   assert.equal(I.bag(owner).length,before+1,'sword owner earns one item for a fatal hit');
+   assert.equal(s.swordRewards.length,randomCalls+1,'exactly one reward entry is logged');
+   const prize=s.swordRewards.at(-1);
+   assert.equal(prize.ownerId,owner.id);
+   assert.equal(prize.victimId,victim.id);
+   assert.equal(prize.territoryId,pair.id);
+   assert.ok(I.ids.includes(prize.item));
+   assert.equal(s.effect.swordLoot.item,prize.item,'death animation includes the real prize');
+   assert.equal(s.effect.kind,'death');
+   assert.equal(I.bag(third).length,0,'other players receive no loot');
+   assert.equal(I.bag(victim).length,0,'the dying player receives no loot');
+   assert.equal(s.map.territories[pair.id].ownerId,owner.id,'death never clears ownership');
+  }
+ }
+});
+test('Nonfatal or shield-absorbed sword damage never grants loot, and one-hit shield breaks',()=>{
+ for(const pair of M.SWORD_PAIRS){
+  const s=ready(3,114),[owner,victim]=s.players;
+  const landAs=(player,id)=>{
+   s.order=[player.id,...s.players.filter(q=>q.id!==player.id).map(q=>q.id)];
+   s.turnIndex=0;P.startTurn(s);player.currentNodeId=id;delete player.worldPosition;P.land(s);
+  };
+  landAs(owner,pair.nodeIds[0]);
+  landAs(victim,pair.nodeIds[1]);
+  assert.equal(victim.hp,88);
+  assert.equal(I.bag(owner).length,0);
+  victim.hp=4;victim.shieldTurns=1;victim.shieldRound=s.roundNumber;
+  landAs(victim,pair.nodeIds[1]);
+  assert.equal(victim.hp,4,'first hit is fully absorbed');
+  assert.equal(victim.shieldTurns,0,'shield instantly shatters');
+  assert.equal(victim.shieldRound,null);
+  assert.equal(s.effect.kind,'shieldBreak');
+  assert.equal(I.bag(owner).length,0,'blocked lethal blow is not a kill');
+  landAs(victim,pair.nodeIds[1]);
+  assert.equal(victim.hp,100,'a second incoming hit now kills');
+  assert.equal(I.bag(owner).length,1,'only this fatal event rewards owner');
+  assert.equal(s.swordRewards.length,1);
  }
 });
 test('Multiple sword territories can be claimed by different players without interfering',()=>{
