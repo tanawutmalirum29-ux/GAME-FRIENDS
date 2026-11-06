@@ -308,6 +308,9 @@ function nodes(g,s){
   for(const id of choices.options){const b=s.map.nodes[id].position,selected=id===choices.selected;line(g,a.x,a.y,b.x,b.y,selected?'#ffe38b':'#75acc4',selected?8:3);circle(g,b.x,b.y,34,null,selected?'#ffe59a':'#fff8',selected?5:2);if(!s.players.some(q=>q.currentNodeId===id))label(g,s.move.kind==='walk'?'ชี้จอยทางนี้':selected?'A • ทางนี้':'เลือกทาง',b.x,b.y+59,10,'#173b53','center');}
  }
 }
+// Facing is visual state only: keep a stopped explorer looking along their last
+// direction without writing to the authoritative board player or graph.
+const actorFacing=new WeakMap();
 function actors(g,s,t){
  const I=window.BoardItems,active=window.BoardParty.current(s);
  const list=s.players.map(p=>({p,pos:I.position(s,p)})).sort((a,b)=>a.pos.y-b.pos.y);
@@ -319,9 +322,11 @@ function actors(g,s,t){
   const moving=s.move?.playerId===p.id&&s.move.to,from=moving?s.map.nodes[s.move.from].position:null,to=moving?s.map.nodes[s.move.to].position:null;
   const joystick=window.BoardParty.axes(s,p.id);
   const freeWalking=s.move?.kind==='walk'&&s.move.playerId===p.id&&Math.hypot(joystick.x,joystick.y)>.12;
+  const facing=freeWalking?joystick:moving?{x:to.x-from.x,y:to.y-from.y}:actorFacing.get(p)||{x:0,y:-1};
+  if(Math.hypot(facing.x,facing.y)>.001)actorFacing.set(p,{x:facing.x,y:facing.y});
   const shake=p.hurtUntil>s.time?Math.sin(t*50)*3:0;
   window.PartyPlayerAvatar.draw(g,{...p,x:xy.x+shake,y:xy.y,vx:freeWalking?joystick.x*90:moving&&s.move.walking?40:0,vy:freeWalking?joystick.y*90:0,
-    dir:freeWalking?joystick:moving?{x:to.x-from.x,y:to.y-from.y}:{x:0,y:-1}},{time:t,scale:.86,label:false,holding:s.effect?.kind==='heal'&&s.effect.targets.includes(p.id)});
+    dir:facing},{time:t,scale:.86,label:false,holding:s.effect?.kind==='heal'&&s.effect.targets.includes(p.id)});
   const crowded=s.players.filter(q=>q.currentNodeId===p.currentNodeId).length>1;
   if(!crowded||p.id===active?.id||p.id===s.skill?.targetId){box(g,xy.x-42,xy.y+25,84,18,7,'#15394cda');label(g,p.name,xy.x,xy.y+34,10,p.color,'center',700,78);}
   else {circle(g,xy.x+17,xy.y+16,8,'#15394c');label(g,(s.order.indexOf(p.id)+1)||s.players.indexOf(p)+1,xy.x+17,xy.y+16,9,p.color,'center');}
@@ -400,7 +405,7 @@ function hud(g,s){
   const legend=[['sword','ยึดพื้นที่'],['healing','ฟื้น HP'],['danger','อันตราย'],['lucky','ไอเทม']];
   legend.forEach(([type,name],i)=>{const x=410+i*135;circle(g,x,482,12,colors[type]);icon(g,type,x,482,type==='sword'?9:8);label(g,name,x,508,9,'#d6eaf2','center',600,100);});
  }else if(p){
-  window.PartyPlayerAvatar.draw(g,{...p,x:47,y:494},{scale:.85,label:false});
+  window.PartyPlayerAvatar.drawFront(g,p,47,494,44);
   label(g,p.name,83,480,17,p.color,'left',700,235);
   const region=s.map.islands?.find(i=>i.id===s.map.nodes[p.currentNodeId].islandId);
   if(region)label(g,region.name,330,480,10,'#9fc5d3','left',600,243);
@@ -462,7 +467,7 @@ function overlay(g,s){
   if(order){
    box(g,x,y,w,h,12,'#203f55',p.color+'99');
    box(g,x,y,4,h,3,p.color);
-   window.PartyPlayerAvatar.draw(g,{...p,x:x+27,y:y+29},{scale:.72,label:false});
+   window.PartyPlayerAvatar.drawFront(g,p,x+27,y+29,38);
    label(g,p.name,x+53,y+23,13,p.color,'left',700,w-108);
    const elapsed=p.dice?Math.max(0,s.time-p.rollAt):Infinity;
    const rolled=p.dice&&elapsed>=window.BoardDice.TIMING.throw;

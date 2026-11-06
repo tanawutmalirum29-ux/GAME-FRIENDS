@@ -20,6 +20,7 @@ function probe(){
  const ctx=new Proxy({},{
    get(_target,key){
      if(key==='globalAlpha')return 1;
+     if(key==='createRadialGradient'||key==='createLinearGradient')return (...args)=>{calls.push([key,...args]);return{addColorStop(){}};};
      return (...values)=>{calls.push([key,...values]);};
    },
    set(){return true;}
@@ -114,7 +115,7 @@ for(const pose of ['idle','walk','walk2','hold','attack']){
 assert.notEqual(Avatar.svgFor('#3fe4ef','walk'),Avatar.svgFor('#3fe4ef','walk2'));
 const front=Avatar.svgForFront('#ff628c');
 assert.match(front,/data-view="front"/);
-assert.match(front,/<circle cx="48" cy="43"/);
+assert.match(front,/viewBox="0 0 96 96"/,'front portrait keeps its own aspect and projection');
 assert.match(front,/fill="#fff"/);
 assert.doesNotMatch(front,/crown|ears|hat|headdress/i);
 assert.notEqual(front,Avatar.svgFor('#ff628c','idle'));
@@ -129,8 +130,44 @@ const noImages=vm.createContext({window:{}});
 vm.runInContext(avatarSource,noImages);
 {
  const {ctx,calls}=probe();noImages.window.PartyPlayerAvatar.draw(ctx,p,{label:false});
- assert.ok(calls.some(c=>c[0]==='arc'));
+ assert.ok(calls.some(c=>c[0]==='ellipse'&&c[1]===32&&c[2]===30),'fallback draws the same overhead head');
  assert.ok(!calls.some(c=>c[0]==='drawImage'));
  assert.ok(calls.some(c=>c[0]==='translate'&&c[1]===p.x&&c[2]===p.y));
 }
 console.log('HATLESS AVATAR PASS: same mask, 12 colored identities, front/top projections and no-image fallback');
+
+// The portrait is a camera projection, not an overhead sprite forced to face up.
+{
+ const before=JSON.stringify(p),{ctx,calls}=probe();
+ Avatar.drawFront(ctx,p,123,246,72);
+ assert.ok(!calls.some(c=>c[0]==='rotate'),'front portraits ignore world heading');
+ const image=calls.find(c=>c[0]==='drawImage');
+ assert.deepEqual(image.slice(2),[87,210,72,72],'portrait stays inside its requested UI box');
+ assert.equal(JSON.stringify(p),before,'rendering never mutates gameplay state');
+}
+for(const dir of [{x:0,y:0},{x:NaN,y:1},{x:1,y:Infinity}]){
+ assert.equal(Avatar.heading({dir}),0,'missing/invalid direction has a finite canonical heading');
+}
+for(let i=0;i<8;i++){
+ const angle=i*Math.PI/4,dir={x:Math.sin(angle),y:-Math.cos(angle)};
+ const heading=Avatar.heading({dir});
+ assert.ok(Math.abs(Math.sin(heading)-Math.sin(angle))<1e-8);
+ assert.ok(Math.abs(Math.cos(heading)-Math.cos(angle))<1e-8);
+}
+// All action poses use the same fixed physics anchor and sprite bounds.
+for(const opts of [{time:.1},{time:.4},{holding:true},{attacking:true}]){
+ const moving={...p,vx:120,vy:-30},before=JSON.stringify(moving),{ctx,calls}=probe();
+ Avatar.draw(ctx,moving,{...opts,label:false});
+ const image=calls.find(c=>c[0]==='drawImage');
+ assert.deepEqual(image.slice(2),[-26,-26,52,52]);
+ assert.equal(JSON.stringify(moving),before);
+}
+const noFront=probe();noImages.window.PartyPlayerAvatar.drawFront(noFront.ctx,p,70,80,60);
+assert.ok(!noFront.calls.some(c=>c[0]==='rotate'),'front fallback also uses the front projection');
+assert.ok(!noFront.calls.some(c=>c[0]==='drawImage'));
+console.log('PROJECTION CONTRACT PASS: eight headings, separate portrait, stable action bounds and no gameplay mutation');
+
+// Gradient URLs are scoped per color/projection when many SVG portraits share a DOM.
+const redIds=[...Avatar.svgForFront('#ff0000').matchAll(/id="([^"]+)"/g)].map(m=>m[1]);
+const blueIds=[...Avatar.svgForFront('#0000ff').matchAll(/id="([^"]+)"/g)].map(m=>m[1]);
+assert.ok(redIds.length>0&&redIds.every(id=>!blueIds.includes(id)));
