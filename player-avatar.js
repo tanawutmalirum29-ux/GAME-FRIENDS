@@ -10,34 +10,79 @@ const safeColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value):'
 const poseKey=v=>POSES.includes(v)?v:'idle';
 // Legacy callers may supply a costume; it is deliberately ignored everywhere.
 const costumeFor=()=> 'standard';
-function svgForFront(color){
- const body=safeColor(color);
- return '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" data-view="front" data-costume="standard">'+
- '<defs><radialGradient id="head" cx="29%" cy="17%" r="90%"><stop stop-color="#ffffff" stop-opacity=".18"/><stop offset=".35" stop-color="'+body+'"/><stop offset="1" stop-color="'+body+'"/></radialGradient>'+
- '<linearGradient id="torso" x1="0" x2="1" y2="1"><stop stop-color="'+body+'"/><stop offset="1" stop-color="#17233e" stop-opacity=".36"/></linearGradient></defs>'+
- '<path d="M9 96 Q10 70 30 64 L66 64 Q86 70 87 96Z" fill="url(#torso)"/>'+
- '<circle cx="48" cy="43" r="36" fill="url(#head)" stroke="#18223c" stroke-opacity=".24" stroke-width="1.4"/>'+
- '<path d="M15 41 Q24 41 30 48 Q37 54 43 55 Q42 64 35 64 Q24 64 15 52Z" fill="#151b2f" stroke="#151b2f" stroke-width="2.3"/>'+
- '<path d="M81 41 Q72 41 66 48 Q59 54 53 55 Q54 64 61 64 Q72 64 81 52Z" fill="#151b2f" stroke="#151b2f" stroke-width="2.3"/>'+
- '<path d="M19 42 Q31 43 41 55 Q39 60 35 60 Q27 60 19 49Z" fill="#fff" stroke="#141c30" stroke-width="2.2" stroke-linejoin="round"/>'+
- '<path d="M77 42 Q65 43 55 55 Q57 60 61 60 Q69 60 77 49Z" fill="#fff" stroke="#141c30" stroke-width="2.2" stroke-linejoin="round"/>'+
- '</svg>';
+// Both projections are authored separately. The overhead eyes live on the
+// forward rim (-Y); the large front eyes belong only to portrait cards.
+const shape=(tag,attrs)=>({tag,attrs});
+const curve=(d,fill,stroke=null,width=1)=>shape('path',{d,fill,...(stroke?{stroke,'stroke-width':width,'stroke-linejoin':'round','stroke-linecap':'round'}:{})});
+const ellipse=(cx,cy,rx,ry,fill,stroke=null,width=1)=>shape('ellipse',{cx,cy,rx,ry,fill,...(stroke?{stroke,'stroke-width':width}:{})});
+function shade(color,amount){
+ const hex=safeColor(color).slice(1),target=amount>0?255:0,t=Math.abs(amount);
+ return '#'+[0,2,4].map(i=>Math.round(parseInt(hex.slice(i,i+2),16)*(1-t)+target*t).toString(16).padStart(2,'0')).join('');
 }
-function svgFor(color,pose='idle'){
- const body=safeColor(color),action=poseKey(pose),stride=action==='walk'?3:action==='walk2'?-3:0;
- const left=action==='hold'?[15,20]:action==='attack'?[13,29]:[15,37+stride];
- const right=action==='hold'?[49,20]:action==='attack'?[49,12]:[49,37-stride];
- return '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" data-view="top-down" data-pose="'+action+'" data-costume="standard">'+
- '<defs><radialGradient id="head" cx="30%" cy="18%" r="75%"><stop stop-color="#fff" stop-opacity=".29"/><stop offset=".35" stop-color="'+body+'"/><stop offset="1" stop-color="'+body+'"/></radialGradient></defs>'+
- '<ellipse cx="32" cy="43" rx="17" ry="15" fill="'+body+'" stroke="#142039" stroke-opacity=".22" stroke-width="1.2"/>'+
- '<path d="M19 38 L'+left.join(' ')+' M45 38 L'+right.join(' ')+'" stroke="'+body+'" stroke-width="9" stroke-linecap="round"/>'+
- '<circle cx="'+left[0]+'" cy="'+left[1]+'" r="5" fill="'+body+'"/><circle cx="'+right[0]+'" cy="'+right[1]+'" r="5" fill="'+body+'"/>'+
- '<circle cx="32" cy="27" r="21" fill="url(#head)" stroke="#142039" stroke-opacity=".3" stroke-width="1.4"/>'+
- // The shallow arcs are on the FORWARD rim, not a flat front-view face.
- '<path d="M17 25 Q22 24 29 30 L28 32 Q23 33 17 28Z" fill="#fff" stroke="#18213c" stroke-width="2"/>'+
- '<path d="M47 25 Q42 24 35 30 L36 32 Q41 33 47 28Z" fill="#fff" stroke="#18213c" stroke-width="2"/>'+
- '<path d="M20 15 Q29 8 40 15" stroke="#fff" stroke-opacity=".22" stroke-width="3" fill="none" stroke-linecap="round"/>'+
- '</svg>';
+function artwork(color,pose='idle',front=false){
+ const body=safeColor(color),dark=shade(body,-.48),rim=shade(body,-.28);
+ const prefix='avatar-'+body.slice(1)+(front?'-front':'-top-'+poseKey(pose));
+ const gradients=[{id:prefix+'-head',cx:front?35:25,cy:front?24:23,r:front?57:35,
+  stops:[[0,shade(body,.14)],[.48,body],[.82,shade(body,-.07)],[1,shade(body,-.3)]]},
+  {id:prefix+'-body',cx:front?35:26,cy:front?69:35,r:front?58:32,
+  stops:[[0,body],[.6,shade(body,-.16)],[1,dark]]}];
+ const head='url(#'+prefix+'-head)',torso='url(#'+prefix+'-body)';
+ if(front){
+  return {size:96,gradients,shapes:[
+   curve([['M',15,96],['Q',15,77,33,70],['L',63,70],['Q',81,77,81,96],['Z']],torso),
+   ellipse(48,44,36,37,head,rim,1.1),
+   // Pointed inner corners and broad outer curves match the front reference.
+   curve([['M',20,43],['Q',30,49,43,58],['Q',39,64,29,61],['Q',20,57,20,43],['Z']],'#fff','#21191c',1.7),
+   curve([['M',76,43],['Q',66,49,53,58],['Q',57,64,67,61],['Q',76,57,76,43],['Z']],'#fff','#21191c',1.7),
+   curve([['M',32,75],['Q',48,80,64,75]],'none',shade(body,-.17),1.2)
+  ]};
+ }
+ const action=poseKey(pose),stride=action==='walk'?2:action==='walk2'?-2:0;
+ const arms=action==='hold'?[[16,19],[48,19]]:action==='attack'?[[13,38],[48,13]]:[[13,37+stride],[51,37-stride]];
+ const shapes=[
+  // Back/shoulders barely peek from under the head: no upright torso or legs.
+  ellipse(32,35,19,20,torso,dark,1.1)
+ ];
+ for(const [i,arm]of arms.entries()){
+  const shoulder=[i?47:17,36];
+  shapes.push(curve([['M',...shoulder],['Q',arm[0],35,...arm]],'none',rim,10));
+  shapes.push(ellipse(arm[0],arm[1],6,7,torso,dark,1));
+  shapes.push(curve([['M',arm[0]-2,arm[1]-4],['Q',arm[0],arm[1]-5,arm[0]+2,arm[1]-3]],'none',shade(body,.12),1.2));
+ }
+ shapes.push(ellipse(32,30,22,23,head,dark,1.2));
+ shapes.push(curve([['M',15,20],['Q',19,11,28,10.5],['L',28,14],['Q',21,15.5,18,20],['Q',16,22,15,20],['Z']],'#fff','#281a22',1.25));
+ shapes.push(curve([['M',49,20],['Q',45,11,36,10.5],['L',36,14],['Q',43,15.5,46,20],['Q',48,22,49,20],['Z']],'#fff','#281a22',1.25));
+ // A quiet curved crown highlight, never a second face or a decorative hat.
+ shapes.push(curve([['M',17,30],['Q',17,42,28,46]],'none',shade(body,.12),1.4));
+ return {size:64,gradients,shapes};
+}
+function svgArtwork(color,pose,front){
+ const art=artwork(color,pose,front),size=art.size;
+ const defs=art.gradients.map(q=>'<radialGradient id="'+q.id+'" gradientUnits="userSpaceOnUse" cx="'+q.cx+'" cy="'+q.cy+'" r="'+q.r+'">'+q.stops.map(([offset,color])=>'<stop offset="'+offset+'" stop-color="'+color+'"/>').join('')+'</radialGradient>').join('');
+ const shapes=art.shapes.map(({tag,attrs})=>'<'+tag+' '+Object.entries(attrs).map(([k,v])=>k+'="'+(k==='d'?v.map(c=>c.join(' ')).join(' '):v)+'"').join(' ')+'/>').join('');
+ return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" data-view="'+(front?'front':'top-down')+'"'+(front?'':' data-pose="'+poseKey(pose)+'"')+' data-costume="standard"><defs>'+defs+'</defs>'+shapes+'</svg>';
+}
+function svgForFront(color){return svgArtwork(color,'idle',true);}
+function svgFor(color,pose='idle'){return svgArtwork(color,poseKey(pose),false);}
+// Loading/failure fallback uses the exact same geometry, palette and poses as
+// the SVG image so the first frame cannot briefly show a front-facing figure.
+function paintArtwork(ctx,color,pose,front){
+ const art=artwork(color,pose,front),fills={};
+ for(const q of art.gradients){
+  const grad=ctx.createRadialGradient?.(q.cx,q.cy,0,q.cx,q.cy,q.r);
+  if(grad?.addColorStop){for(const [offset,c]of q.stops)grad.addColorStop(offset,c);fills['url(#'+q.id+')']=grad;}
+  else fills['url(#'+q.id+')']=safeColor(color);
+ }
+ for(const {tag,attrs:a}of art.shapes){
+  ctx.beginPath();
+  if(tag==='ellipse')ctx.ellipse(a.cx,a.cy,a.rx,a.ry,0,0,TAU);
+  else for(const [op,...v]of a.d){
+   if(op==='M')ctx.moveTo(...v);else if(op==='L')ctx.lineTo(...v);
+   else if(op==='Q')ctx.quadraticCurveTo(...v);else if(op==='C')ctx.bezierCurveTo(...v);else ctx.closePath();
+  }
+  if(a.fill!=='none'){ctx.fillStyle=fills[a.fill]||a.fill;ctx.fill();}
+  if(a.stroke){ctx.strokeStyle=a.stroke;ctx.lineWidth=a['stroke-width'];ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();}
+ }
 }
 function svgImage(svg,key){
  if(cache.has(key))return cache.get(key);
@@ -55,11 +100,9 @@ function imageForFront(color){
 function preload(players){
  for(const p of players||[]){imageForFront(p.color);for(const pose of POSES)imageFor(p.color,pose);}
 }
-function drawFallback(ctx,color){
- ctx.fillStyle=safeColor(color);ctx.strokeStyle='#24324c';ctx.lineWidth=2;
- ctx.beginPath();ctx.ellipse(0,4,16,16,0,0,TAU);ctx.fill();ctx.stroke();
- ctx.beginPath();ctx.arc(0,-4,20,20,0,0,TAU);ctx.fill();ctx.stroke();
- ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(-8,-2,5,3,.4,0,TAU);ctx.ellipse(8,-2,5,3,-.4,0,TAU);ctx.fill();
+function drawFallback(ctx,color,pose){
+ ctx.save();ctx.scale(52/64,52/64);ctx.translate(-32,-32);
+ paintArtwork(ctx,color,pose,false);ctx.restore();
 }
 function heading(p){
  const d=p.dir||{x:0,y:-1},x=Number(d.x),y=Number(d.y);
@@ -78,7 +121,7 @@ function draw(ctx,p,opts={}){
  ctx.save();ctx.rotate(heading(p));
  const img=imageFor(color,pose);
  if(img&&img.complete&&img.naturalWidth)ctx.drawImage(img,-26,-26,52,52);
- else drawFallback(ctx,color);
+ else drawFallback(ctx,color,pose);
  ctx.restore();ctx.restore();
  if(opts.label!==false){
   ctx.font='bold 12px sans-serif';ctx.textAlign='center';
@@ -92,9 +135,8 @@ function drawFront(ctx,p,x,y,size=60){
  ctx.save();
  if(im&&im.complete&&im.naturalWidth)ctx.drawImage(im,x-size/2,y-size/2,size,size);
  else{
-  ctx.translate(x,y);ctx.scale(size/96,size/96);
-  ctx.fillStyle=safeColor(color);ctx.beginPath();ctx.arc(0,0,36,0,TAU);ctx.fill();
-  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(-15,7,9,5,.35,0,TAU);ctx.ellipse(15,7,9,5,-.35,0,TAU);ctx.fill();
+  ctx.translate(x-size/2,y-size/2);ctx.scale(size/96,size/96);
+  paintArtwork(ctx,color,'idle',true);
  }
  ctx.restore();
 }

@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const surfaces=[],labels=[],labelDraws=[];let denyTerrain=false;
+const surfaces=[],labels=[],labelDraws=[],avatarDraws=[],portraitDraws=[];let denyTerrain=false;
 const artSource=fs.readFileSync('board-art.js','utf8');
 assert.match(artSource,/else sceneryLite\(g,s\)/,
  'low-memory renderer must avoid repainting full scenery every frame');
@@ -13,7 +13,7 @@ function brush(main=false){return new Proxy({globalAlpha:1},{get(target,key){
  if(key==='fillText')return (text,x,y,maxWidth)=>{if(main){labels.push(text);labelDraws.push({text:String(text),x,y,maxWidth,align:target.textAlign});}};
  return()=>{};
 },set(target,key,value){target[key]=value;return true;}});}
-const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(){},drawFront(){},costumeFor(){return 'standard';}}},console,document:{createElement(tag){
+const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(_g,p){avatarDraws.push(JSON.parse(JSON.stringify(p)));},drawFront(_g,p){portraitDraws.push(p.id);},costumeFor(){return 'standard';}}},console,document:{createElement(tag){
  assert.equal(tag,'canvas');const surface={width:0,height:0,getContext(){
   assert.ok(this.width*this.height<=3500000,'terrain allocation stays below the mobile budget');
   return denyTerrain?null:brush();
@@ -191,3 +191,29 @@ assert.equal(lucky.phase,'effect');assert.equal(lucky.effect.kind,'luckyReward')
 luckyLabelStart=labels.length;A.draw(g,lucky.time,lucky);
 assert.ok(labels.slice(luckyLabelStart).some(x=>String(x).includes('ได้รับ: '+ctx.window.BoardItems.names[luckyItem])));
 console.log('BOARD ART PASS: automatic order screen, bounded/reused terrain, replay release and null-context vector fallback');
+
+// Board actors retain their last world heading after stopping, while UI cards
+// deliberately use the frontal portrait and never add world-facing avatars.
+{
+ const s=game(420);s.order=s.players.map(p=>p.id);P.startTurn(s);
+ const p=s.players[0],from=s.map.nodes[p.currentNodeId],to=s.map.nodes[from.nextNodes[0]];
+ P.beginMove(s,p,2);
+ const dx=to.position.x-from.position.x,dy=to.position.y-from.position.y,d=Math.hypot(dx,dy);
+ P.input(s,p.id,{turnId:s.turnId,actionId:1,keys:{axisX:dx/d,axisY:dy/d}});
+ const before=JSON.stringify(s.players);avatarDraws.length=0;portraitDraws.length=0;
+ A.draw(g,0,s);
+ const first=avatarDraws.find(v=>v.id===p.id);
+ assert.ok(first&&Math.abs(first.dir.x-dx/d)<1e-8&&Math.abs(first.dir.y-dy/d)<1e-8);
+ assert.equal(JSON.stringify(s.players),before,'facing cache cannot write to host-owned player data');
+ s.move=null;s.inputs={};P.phase(s,'ready',12);s.time=2;
+ avatarDraws.length=0;portraitDraws.length=0;A.draw(g,2,s);
+ const stopped=avatarDraws.find(v=>v.id===p.id);
+ assert.deepEqual(stopped.dir,first.dir,'idle keeps the last meaningful world direction');
+ assert.equal(avatarDraws.length,s.players.length,'only world actors use the overhead projection');
+ assert.ok(portraitDraws.includes(p.id),'current-player HUD uses frontal portrait');
+ P.beginOrder(s);P.phase(s,'order',12);s.camera.overview=false;
+ avatarDraws.length=0;portraitDraws.length=0;A.draw(g,2,s);
+ assert.equal(avatarDraws.length,0,'dice cards never use the overhead world sprite');
+ assert.equal(portraitDraws.length,s.players.length,'all dice cards show the frontal portrait');
+}
+console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, front-facing HUD/order portraits');
