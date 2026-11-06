@@ -7,5 +7,6 @@ function order(players,rng=Math.random){
  const groups=new Map();for(const p of players){const total=p.dice.reduce((a,b)=>a+b,0);if(!groups.has(total))groups.set(total,[]);groups.get(total).push(p.id);}
  return [...groups.keys()].sort((a,b)=>b-a).flatMap(total=>shuffle(groups.get(total),rng));
 }
-window.BoardDice=Object.freeze({roll,shuffle,order});
+const TIMING=Object.freeze({throw:1.75,hold:.4});
+window.BoardDice=Object.freeze({roll,shuffle,order,TIMING});
 })();
