@@ -322,6 +322,37 @@ test('All earned rewards accumulate in backpack; board, order and HP survive int
  I.add(p,'rocket');assert.equal(p.bag.filter(id=>id==='rocket').length,2,
   'duplicate items occupy independent backpack slots');
 });
+test('One minigame reveals results and grants item rewards exactly once, without repeated randomization',()=>{
+ for(let n=1;n<=12;n++){
+  const s=ready(n,117+n),round=s.roundNumber;
+  const before=s.players.map(p=>I.bag(p).length),ranking=s.players.map((p,i)=>({
+    id:p.id,rank:i+1,label:(100-i)+' คะแนน',value:100-i
+  }));
+  P.phase(s,'minigame_pending');
+  assert.equal(P.minigameStarted(s,'chickens'),true);
+  assert.equal(P.minigameEnded(s,ranking),true);
+  assert.equal(P.minigameEnded(s,ranking),false,'duplicate end report must be rejected');
+  assert.equal(s.phase,'standings');
+  const assigned=plain(s.results.map(r=>r.reward));
+  const quota=Math.floor(n/2);
+  assert.equal(assigned.filter(Boolean).length,quota);
+  until(s,()=>s.phase==='rewards',10);
+  assert.equal(s.rewardGrantRound,round);
+  const after=s.players.map(p=>I.bag(p).length);
+  assert.equal(after.reduce((sum,x,i)=>sum+x-before[i],0),quota);
+  assert.deepEqual(plain(s.results.map(r=>r.reward)),assigned);
+  until(s,()=>s.phase==='returning',10);
+  assert.deepEqual(s.players.map(p=>I.bag(p).length),after,
+    'returning must not award again');
+  until(s,()=>s.phase==='round_order',10);
+  assert.deepEqual(s.players.map(p=>I.bag(p).length),after,
+    'new turn order must not replay rewards');
+  assert.deepEqual(plain(s.results.map(r=>r.reward)),assigned,
+    'reward IDs must remain stable across all intermission phases');
+  until(s,()=>s.phase==='ready',10);
+  assert.deepEqual(s.players.map(p=>I.bag(p).length),after);
+ }
+});
 test('Next-round order follows actual minigame ranks; tied players retain prior relative order',()=>{
  const s=ready(4);s.order=['p3','p2','p1','p4'];s.turnIndex=3;const before=plain(s.order);
  P.phase(s,'minigame_pending');P.minigameStarted(s,'chickens');
