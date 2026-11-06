@@ -113,7 +113,12 @@ function confirm(s,button,api){
   const points=[position(s,p),position(s,q)],a=p.currentNodeId,b=q.currentNodeId;
   // Validate first, then commit both node IDs in the same host action.
   if(b===s.map.finishId||a===s.map.finishId)return false;
-  p.currentNodeId=b;q.currentNodeId=a;delete p.worldPosition;delete q.worldPosition;consume(s,p,skill.kind);s.skill=null;
+  p.currentNodeId=b;q.currentNodeId=a;
+  delete p.worldPosition;delete q.worldPosition;
+  // A UFO swap changes the node underneath BOTH players. Any suspended
+  // rocket traverse belonged to the old position and must not be resumed.
+  delete p.pendingTraverse;delete q.pendingTraverse;
+  consume(s,p,skill.kind);s.skill=null;
   api.effect(s,{kind:'ufo',points,targets:[p.id,q.id],next:'end'},1.25);return true;
  }
  if(skill.kind==='bomber'){
