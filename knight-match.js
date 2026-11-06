@@ -4,7 +4,7 @@
 const TAU=Math.PI*2,STEP=1/60;
 const CONFIG=Object.freeze({duration:60,thrustDuration:.25,thrustDash:160,thrustCooldown:.65,
   lanceReach:66,lanceTipRadius:8,stunDuration:1,stunImmunity:.5,
-  rainbowDuration:10,rainbowPenalty:2,rainbowChance:.08,respawnMin:.8,respawnMax:1.8});
+  rainbowDuration:10,rainbowPenalty:2,rainbowChance:.02,respawnMin:.8,respawnMax:1.8});
 const RIDER_SCALE=.7,BALLOON_SIZE_MULTIPLIER=1.2,MOVE_SPEED_MULTIPLIER=.5;
 const PLAYER_RADIUS=22*RIDER_SCALE,LANCE_TIP_RADIUS=CONFIG.lanceTipRadius*RIDER_SCALE;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
