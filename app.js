@@ -1542,7 +1542,9 @@ function broadcastBoardState(){
   for(const conn of hostConnections){
     const p=boardSession.players.find(p=>p.id===conn.playerId);if(!p)continue;
     send(conn,{t:'board-state',phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
-      round:boardSession.roundNumber,hp:p.hp,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:p.shieldTurns||0,item:window.BoardItems.names[p.item]||'ไม่มีไอเทม',
+      round:boardSession.roundNumber,hp:p.hp,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:p.shieldTurns||0,
+      item:window.BoardItems.names[p.item]||'ไม่มีไอเทม',
+      bag:window.BoardItems.bag(p).slice(),bagOpen:!!p.bagOpen,bagIndex:p.bagIndex||0,bagMessage:p.bagMessage||'',
       ...window.BoardParty.controls(boardSession,p.id)});
   }
 }
@@ -1555,18 +1557,41 @@ function receiveBoardState(info){
   if(info.phase==='playing'&&info.turnId!==previousToken)sendInputs();
 }
 function renderPhoneBoard(){
-  const info=controllerBoard;if(!info||controllerGameMode!=='board')return;
-  $('buttonA').disabled=false;
-  for(const cls of ['chickens-mode','fruit-memory-mode','color-switch-mode','shockwave-mode','has-target'])$('controllerButtons').classList.remove(cls);
-  $('targetCycleControls').classList.add('hidden');
-  for(const id of ['buttonA','buttonB']){$(id).classList.remove('cooldown-active','color-boost-ready');$(id).style.removeProperty('--cooldown-sweep');}
-  $('controllerModeName').textContent='BOARD PARTY • ROUND '+info.round;
-  $('buttonALabel').textContent=info.a||'';$('buttonBLabel').textContent=info.b||'';
-  $('buttonA').setAttribute('aria-label','A '+(info.a||''));$('buttonB').setAttribute('aria-label','B '+(info.b||''));
-  $('controllerHelp').textContent=info.help||'';
-  $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing');
-  $('controllerRole').textContent='HP '+info.hp+'/3 • เหลือ '+(info.stepsRemaining||0)+' ก้าว'+(info.shieldTurns?' • โล่ป้องกัน':'');$('inventoryItem').textContent=info.item;
-  $('inventoryGuide').textContent=info.help;$('controllerState').textContent=info.help;
+ const info=controllerBoard;if(!info||controllerGameMode!=='board')return;
+ $('buttonA').disabled=false;$('buttonB').disabled=false;
+ for(const cls of ['chickens-mode','fruit-memory-mode','color-switch-mode','shockwave-mode','has-target'])$('controllerButtons').classList.remove(cls);
+ $('targetCycleControls').classList.add('hidden');
+ for(const id of ['buttonA','buttonB']){$(id).classList.remove('cooldown-active','color-boost-ready');$(id).style.removeProperty('--cooldown-sweep');}
+ $('controllerModeName').textContent='BOARD PARTY • ROUND '+info.round;
+ $('buttonALabel').textContent=info.a||'';$('buttonBLabel').textContent=info.b||'';
+ $('buttonA').setAttribute('aria-label','A '+(info.a||''));$('buttonB').setAttribute('aria-label','B '+(info.b||''));
+ $('controllerHelp').textContent=info.help||'';
+ $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing');
+ const bag=Array.isArray(info.bag)?info.bag:[],open=!!info.bagOpen,selected=Number.isInteger(info.bagIndex)?info.bagIndex:0;
+ $('controllerRole').textContent='HP '+info.hp+'/3 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • กระเป๋า '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
+ const host=$('inventoryItem');host.classList.remove('pizza-order-icons');host.replaceChildren();
+ host.classList.toggle('board-bag-icons',true);
+ const svg=window.PartyUiArt;
+ const doc=host.ownerDocument||document;
+ for(let i=0;i<bag.length+(open?1:0);i++){
+   const id=i===bag.length?'close':bag[i];
+   const cell=doc.createElement('span');
+   cell.className='board-bag-item'+(open&&i===selected?' is-selected':'');
+   cell.innerHTML=svg?.svg(id)||'';
+   cell.title=id==='close'?'ปิดกระเป๋า':window.BoardItems.names[id]||id;
+   cell.setAttribute('aria-label',cell.title);
+   host.append(cell);
+ }
+ if(!bag.length&&!open){
+   const cell=doc.createElement('span');cell.className='board-bag-item';
+   cell.innerHTML=svg?.svg('bag')||'';
+   cell.title='กระเป๋าว่าง';host.append(cell);
+ }
+ const guide=$('inventoryGuide');
+ const slot=open?(selected>=bag.length?'ปิดกระเป๋า':window.BoardItems.names[bag[selected]]||''):null;
+ guide.textContent=open?'เลือก: '+slot+' • A เลื่อน / B ยืนยัน'+(info.bagMessage?' • '+info.bagMessage:''):
+   'B เปิดกระเป๋า • สะสมไอเทมได้หลายชิ้น';
+ $('controllerState').textContent=info.help||'';
 }
 function finishBoard(){
   round.phase='results';round.paused=false;resetInputs();
