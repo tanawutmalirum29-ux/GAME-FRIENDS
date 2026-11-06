@@ -245,12 +245,12 @@ function hud(g,s){
 }
 const IName=id=>window.BoardItems.names[id]||'ไม่มีไอเทม';
 function overlay(g,s){
- const order=['order','order_result','round_order'].includes(s.phase),results=['standings','rewards','returning'].includes(s.phase);
+ const order=['order','order_result'].includes(s.phase),results=['standings','rewards'].includes(s.phase);
  if(!order&&!results)return;
  box(g,0,0,960,540,0,'#0e2a40ed');
  label(g,'WINTER SNOW ADVENTURE',480,30,11,'#93c8d6','center',500);
- label(g,order?(s.phase==='round_order'?'ลำดับใหม่ตามผลมินิเกม':s.phase==='order'?'ทอยลูกเต๋าเพื่อจัดลำดับ':'ลำดับการเดินพร้อมแล้ว'):s.phase==='standings'?'ผลการแข่งขันมินิเกม':s.phase==='rewards'?'รางวัลสำหรับผู้เล่นครึ่งบน':'กำลังกลับสู่กระดานเดิม',480,63,25,'#eefbff','center');
- label(g,order?(s.phase==='round_order'?'ผู้ชนะเริ่มก่อน • อันดับเสมอคงลำดับเดิมระหว่างกัน':'A หรือ B • ทอย 2 ลูก • คะแนนมากเริ่มก่อน'):s.phase==='rewards'?'ไอเทมรางวัลเข้ากระเป๋าอัตโนมัติ • สะสมได้หลายชิ้น • B เปิดกระเป๋าก่อนทอย':'อันดับร่วมคงเดิม • สุ่มเฉพาะผู้เสมอคร่อมโควตารางวัล '+Math.floor(s.players.length*.5)+' คน',480,96,12,'#adccdc','center',500);
+ label(g,order?(s.phase==='order'?'ทอยลูกเต๋าเพื่อจัดลำดับ':'ลำดับการเดินพร้อมแล้ว'):'สรุปผลมินิเกมและรางวัล',480,63,25,'#eefbff','center');
+ label(g,order?'A หรือ B • ทอย 2 ลูก • คะแนนมากเริ่มก่อน':'อันดับการแข่งขันและสิทธิ์รางวัล • ไอเทมเข้ากระเป๋าอัตโนมัติ • ไม่สุ่มซ้ำ',480,96,12,'#adccdc','center',500);
  const ids=order?(s.phase!=='order'?s.order:s.players.map(p=>p.id)):s.results.map(r=>r.id);
  const cols=ids.length<=4?2:4,rows=Math.ceil(ids.length/cols),w=cols===2?392:211,h=Math.min(108,310/rows),left=(960-(cols*w+(cols-1)*12))/2;
  ids.forEach((id,i)=>{
@@ -315,9 +315,19 @@ function turnDice(g,s){
  label(g,s.phase==='dice'?'ลากจอยเพื่อเดินและเลี้ยว • ปล่อยเพื่อหยุด':'B • ใช้ไอเทมก่อนทอย',480,349,11,'#bcdfed','center',500);
 }
 
+function intermissionNotice(g,s){
+ if(s.phase!=='returning'&&s.phase!=='round_order')return;
+ const returning=s.phase==='returning';
+ const first=s.players.find(p=>p.id===s.order[0])||s.players[0];
+ const title=returning?'กำลังกลับเข้าสู่กระดาน':'เริ่มรอบที่ '+s.roundNumber+' • '+first.name+' เดินก่อน';
+ const detail=returning?'สรุปผลและแจกไอเทมเสร็จแล้ว':'ลำดับการเดินใหม่แสดงในแถบผู้เล่นด้านบน';
+ box(g,230,174,500,77,15,'#16394de9','#93bed0');
+ label(g,title,480,201,19,'#fff3c8','center',800,480);
+ label(g,detail,480,230,12,'#cbebf4','center',500,475);
+}
 function draw(g,t,s){
  // The first screen must render without allocating or painting the world map.
- if(['order','order_result','round_order','standings','rewards','returning'].includes(s.phase)){
+ if(['order','order_result','standings','rewards'].includes(s.phase)){
   g.fillStyle='#102e43';g.fillRect(0,0,960,540);overlay(g,s);return;
  }
  const top=s.players.length>6?145:94,bottom=452,viewH=bottom-top;
@@ -333,7 +343,7 @@ function draw(g,t,s){
  ground(g,s);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<55;i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
- hud(g,s);turnDice(g,s);backpackOverlay(g,s);overlay(g,s);
+ hud(g,s);turnDice(g,s);backpackOverlay(g,s);intermissionNotice(g,s);overlay(g,s);
 }
 window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice});
 })();
