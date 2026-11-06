@@ -9,7 +9,17 @@ const game=(n=3,seed=42,bots=false)=>P.create(roster(n,bots),{seed,rng:M.random(
 const tick=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds/.05);i++)P.update(s,.05);};
 const until=(s,pred,seconds=100)=>{for(let i=0;i<seconds/.05;i++){if(pred())return;P.update(s,.05);}assert.fail('Timeout '+s.phase+' at '+s.time);};
 function ready(n=3,seed=42){const s=game(n,seed);s.order=s.players.map(p=>p.id);P.startTurn(s);return s;}
-function press(s,p,key,extra={}){const send=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});send(extra);return send({...extra,action:key==='A',alt:key==='B'});}
+function press(s,p,key,extra={}){
+ const send=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
+ send(extra);
+ const result=send({...extra,action:key==='A',alt:key==='B'});
+ // Adapt legacy item-effect fixtures to the new two-press backpack UI.
+ // Dedicated backpack tests below exercise BOTH presses individually.
+ if(key==='B'&&s.phase==='ready'&&p.bagOpen&&(p.item||p.bag?.length)){
+  send(extra);return send({...extra,alt:true});
+ }
+ return result;
+}
 function steer(s,p,to=s.move?.to||s.map.nodes[p.currentNodeId].nextNodes[0]){
  const a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position,d=Math.hypot(b.x-a.x,b.y-a.y);
  press(s,p,null,{axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d});
@@ -100,45 +110,70 @@ test('Directional walking: release stops mid-edge, A/B cannot move, counts only 
  press(s,p,null);tick(s,.5);assert.equal(s.move.t,fraction);assert.deepEqual(plain(I.position(s,p)),position);
  for(let i=0;i<5;i++){press(s,p,'A');press(s,p,'B');tick(s,.05);}assert.equal(s.move.t,fraction);assert.equal(p.item,'rocket');
  steer(s,p);until(s,()=>p.currentNodeId==='n1');assert.equal(P.remainingSteps(s,p.id),1);assert.equal(s.turnId,token);
- tick(s,.05);assert.equal(s.phase,'moving','held direction continues across a node without A or a new token');
+ tick(s,.25);assert.equal(s.phase,'moving','held direction continues across a node without A or a new token');
  until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';});assert.equal(p.currentNodeId,'n2');assert.equal(P.remainingSteps(s,p.id),0);
  assert.equal(P.remainingSteps(s,s.players[1].id),0);assert.equal(p.item,'rocket');assert.notEqual(s.turnId,token);
 });
-test('Direction buttons, reverse/sideways rejection, stale input stop and idle fallback',()=>{
+test('Free 2D walking: reverse and sideways inputs are real movement, no accidental spent steps',()=>{
  const s=ready(),p=s.players[0];P.beginMove(s,p,3);
- press(s,p,null,{left:true});tick(s,.5);assert.equal(s.phase,'move_ready');assert.equal(p.currentNodeId,'n0');
- press(s,p,null,{right:true});tick(s,.2);assert.equal(s.phase,'moving');const fraction=s.move.t;
- const a=s.map.nodes.n0.position,b=s.map.nodes.n1.position,dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
- press(s,p,null,{axisX:-dx/d,axisY:-dy/d});tick(s,.3);assert.equal(s.move.t,fraction,'cannot reverse during an edge');
- press(s,p,null,{axisX:-dy/d,axisY:dx/d});tick(s,.3);assert.equal(s.move.t,fraction,'cannot steer off the side of a path');
- steer(s,p);until(s,()=>p.currentNodeId==='n1');press(s,p,null);tick(s,.3);assert.equal(p.currentNodeId,'n1');
- steer(s,p);tick(s,1.1);const stale=plain(I.position(s,p));tick(s,.5);assert.deepEqual(plain(I.position(s,p)),stale,'lost packets stop walking');
- until(s,()=>P.current(s).id!==p.id,20);assert.equal(p.currentNodeId,'n3','idle timeout completes only remaining forward edges');
+ const start=plain(I.position(s,p));
+ press(s,p,null,{left:true});tick(s,.5);assert.equal(s.phase,'move_ready');
+ assert.ok(Math.hypot(I.position(s,p).x-start.x,I.position(s,p).y-start.y)>5,'can roam at a node');
+ press(s,p,null,{right:true});tick(s,.25);assert.equal(s.phase,'moving');
+ const fraction=s.move.t,remaining=s.move.remaining;
+ const from=s.map.nodes.n0.position,to=s.map.nodes.n1.position;
+ const dx=to.x-from.x,dy=to.y-from.y,d=Math.hypot(dx,dy);
+ press(s,p,null,{axisX:-dy/d,axisY:dx/d});tick(s,.2);
+ assert.ok(Math.abs(s.move.lateral)>2,'can walk sideways within a bounded lane');
+ assert.equal(s.move.remaining,remaining);
+ press(s,p,null,{axisX:-dx/d,axisY:-dy/d});tick(s,.3);
+ assert.ok(s.phase==='move_ready'||s.move.t<fraction,'reversing must recover a slightly premature turn');
+ assert.equal(s.move.remaining,remaining,'reversing cannot spend extra dice');
+ steer(s,p);until(s,()=>p.currentNodeId==='n1');assert.equal(s.move.remaining,2);
+ press(s,p,null);tick(s,1.1);const stale=plain(I.position(s,p));tick(s,.6);
+ assert.deepEqual(plain(I.position(s,p)),stale,'released stick stops walking');
+ until(s,()=>P.current(s).id!==p.id,30);
+ assert.equal(p.currentNodeId,'n3','idle fallback must complete only remaining legal nodes');
 });
-test('Joystick takes a forward branch without A; committed edge cannot be switched or skipped',()=>{
+test('Early fork can be changed without consuming a die step or jumping over nodes',()=>{
  const s=ready(),p=s.players[0];p.currentNodeId='n3';P.beginMove(s,p,2);assert.equal(s.phase,'branch');
  assert.equal(P.step(s,'n2'),false);assert.equal(P.step(s,'n8'),false);assert.equal(P.step(s,'missing'),false);
- steer(s,p,'b3_1');tick(s,.05);assert.equal(s.phase,'moving');assert.equal(s.move.to,'b3_1');
- assert.equal(P.step(s,'n4'),false,'cannot replace an in-flight edge');
- until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';});assert.equal(p.currentNodeId,'b3_2');
+ steer(s,p,'b3_1');tick(s,.25);assert.equal(s.phase,'moving');assert.equal(s.move.to,'b3_1');
+ const to=s.map.nodes.n4.position,from=s.map.nodes.n3.position;
+ const dist=Math.hypot(to.x-from.x,to.y-from.y);
+ press(s,p,null,{axisX:(to.x-from.x)/dist,axisY:(to.y-from.y)/dist});tick(s,.3);
+ assert.equal(s.move.remaining,2,'changing a partially entered branch must not cost dice');
+ assert.ok(['n4','b3_1',null].includes(s.move.to),'only valid outgoing branches may be selected');
+ until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';});
+ assert.ok(s.map.nodes[p.currentNodeId].progress>3,'legal forward steps were completed');
 });
-test('300 adversarial walks: no reverse, repeated/skipped nodes, off-path positions or extra steps',()=>{
+test('300 adversarial 2D walks: legal graph edges, finite positions, bounded paths and dice',()=>{
  for(let seed=0;seed<300;seed++){
-  const s=ready(3,seed),p=s.players[0],rng=M.random(seed+99),steps=2+seed%11;p.currentNodeId='n'+(seed%25);
-  P.beginMove(s,p,steps);let last=p.currentNodeId,edges=0,prevFraction=0,edge=null,visited=new Set([last]);
+  const s=ready(3,seed),p=s.players[0],rng=M.random(seed+99),steps=2+seed%11;
+  p.currentNodeId='n'+(seed%25);P.beginMove(s,p,steps);
+  let last=p.currentNodeId,edges=0,visited=new Set([last]);
   for(let frame=0;frame<10000&&!['effect','finished'].includes(s.phase);frame++){
    if(frame%9<6)steer(s,p);else press(s,p,null,{axisX:rng()*2-1,axisY:rng()*2-1,action:true,alt:true});
    P.update(s,.05);
-   if(p.currentNodeId!==last){assert.ok(s.map.nodes[last].nextNodes.includes(p.currentNodeId));assert.ok(!visited.has(p.currentNodeId));visited.add(p.currentNodeId);last=p.currentNodeId;edges++;}
+   if(p.currentNodeId!==last){
+    assert.ok(s.map.nodes[last].nextNodes.includes(p.currentNodeId));
+    assert.ok(!visited.has(p.currentNodeId));visited.add(p.currentNodeId);
+    last=p.currentNodeId;edges++;
+   }
    if(s.move){
     assert.equal(s.move.remaining,steps-edges);assert.ok(edges<=steps);
-    if(s.move.to){
-     const m=s.move;if(edge===m.from+'>'+m.to)assert.ok(m.t>=prevFraction);edge=m.from+'>'+m.to;prevFraction=m.t;
-     assert.ok(I.segmentDistance(I.position(s,p),m.startPosition,m.endPosition)<1e-7,'world hitbox stays on the committed segment');
-    }else{edge=null;prevFraction=0;}
+    const pos=I.position(s,p);assert.ok(Number.isFinite(pos.x)&&Number.isFinite(pos.y));
+    if(s.move.to&&s.move.kind==='walk'){
+     assert.ok(Math.abs(s.move.lateral||0)<=50.001);
+     assert.ok(I.segmentDistance(pos,s.move.startPosition,s.move.endPosition)<=51,
+      '2D walking stays inside the safe corridor');
+    }
+    if(!s.move.to&&s.move.kind==='walk')
+     assert.ok(Math.hypot(s.move.nodeOffset.x,s.move.nodeOffset.y)<=55.001);
    }
   }
-  assert.ok(['effect','finished'].includes(s.phase));assert.ok(edges<=steps);if(s.phase!=='finished')assert.equal(edges,steps);
+  assert.ok(['effect','finished'].includes(s.phase),'every walk finishes even if stick is abandoned');
+  assert.ok(edges<=steps);if(s.phase!=='finished')assert.equal(edges,steps);
  }
 });
 test('HP cap, death keeps item/order, clears movement and awards no free roll',()=>{
@@ -146,16 +181,26 @@ test('HP cap, death keeps item/order, clears movement and awards no free roll',(
  P.beginMove(s,p,1,'rocket');until(s,()=>s.phase==='effect');assert.equal(p.hp,3);assert.equal(p.currentNodeId,'n0');assert.equal(p.item,'ufo');assert.equal(s.effect.next,'end');tick(s,2);assert.equal(P.current(s).id,'p2');assert.deepEqual(plain(s.order),order);
  const q=s.players[2];q.hp=1;q.item='car';q.currentNodeId='n9';P.damage(s,q,1);assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,3);assert.equal(q.item,'car');assert.equal(P.current(s).id,'p2');
 });
-test('Potion only below max HP, consumes once per round and allows roll',()=>{
- const s=ready(),p=s.players[0];p.item='potion';press(s,p,'B');assert.equal(p.item,'potion');assert.equal(s.phase,'ready');p.hp=1;press(s,p,'B');assert.equal(p.hp,2);assert.equal(p.item,null);until(s,()=>s.phase==='ready');p.item='rocket';press(s,p,'B');assert.equal(p.item,'rocket');press(s,p,'A');assert.equal(s.phase,'dice');
+test('Potion requires HP below maximum; backpack can be closed without using an item',()=>{
+ const s=ready(),p=s.players[0];p.item='potion';
+ press(s,p,'B');assert.equal(p.item,'potion');assert.equal(s.phase,'ready');
+ p.hp=1;press(s,p,'B');assert.equal(p.hp,2);assert.equal(p.item,null);
+ until(s,()=>s.phase==='ready');p.item='rocket';
+ press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(p.bagOpen,true);
+ press(s,p,'A');assert.equal(p.bagIndex,1,'Close is included in the item selection');
+ press(s,p,'B');assert.equal(p.bagOpen,false);
+ press(s,p,'A');assert.equal(s.phase,'dice');
 });
-test('Shield is a sixth reward item, usable once, still permits two-dice rolling',()=>{
+test('Shield is a sixth reward item, once per round, and preserves the dice roll',()=>{
  assert.equal(I.ids.length,6);assert.ok(I.ids.includes('shield'));
- const s=ready(),p=s.players[0];p.item='shield';press(s,p,'B');assert.equal(p.item,null);assert.equal(p.usedRound,1);assert.equal(p.shieldTurns,2);
- until(s,()=>s.phase==='ready');p.item='rocket';press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(s.phase,'ready');
- press(s,p,'A');assert.equal(s.phase,'dice');assert.equal(s.moveDice.length,2);
- p.item='shield';press(s,p,'B');assert.equal(p.item,'shield');
- const t=ready(),q=t.players[0];q.item='shield';q.shieldTurns=1;press(t,q,'B');assert.equal(q.item,'shield');assert.equal(q.usedRound,0);assert.equal(q.shieldTurns,1);
+ const s=ready(),p=s.players[0];p.item='shield';press(s,p,'B');
+ assert.equal(p.item,null);assert.equal(p.usedRound,1);assert.equal(p.shieldTurns,2);
+ until(s,()=>s.phase==='ready');p.item='rocket';press(s,p,'B');
+ assert.equal(p.item,'rocket');assert.equal(s.phase,'ready');
+ press(s,p,'A');press(s,p,'B');press(s,p,'A');assert.equal(s.phase,'dice');
+ assert.equal(s.moveDice.length,2);
+ const t=ready(),q=t.players[0];q.item='shield';q.shieldTurns=1;press(t,q,'B');
+ assert.equal(q.item,'shield');assert.equal(q.usedRound,0);assert.equal(q.shieldTurns,1);
 });
 test('Shield blocks danger and random damage, keeps HP and node without consuming protection',()=>{
  for(const type of ['danger','event']){
@@ -238,12 +283,24 @@ test('Every count 1–12, 500 random tied rankings each: exact floor(50%) quota'
   const bestExcluded=r.filter(p=>!ids.includes(p.id)).map(p=>p.rank);for(const id of ids)assert.ok(r.find(p=>p.id===id).rank<=Math.min(...bestExcluded));
  }
 });
-test('Inventory replacement defaults to keep, analog/A replace; same board/order/HP after games',()=>{
- const s=ready(4),p=s.players[0];p.currentNodeId='n12';p.hp=2;p.item='ufo';const map=s.map,order=plain(s.order),snapshot=P.snapshot(s);
- P.phase(s,'minigame_pending');assert.equal(P.minigameStarted(s,'chickens'),true);assert.equal(P.minigameStarted(s,'chickens'),false);
- assert.equal(P.minigameEnded(s,s.players.map((p,i)=>({id:p.id,rank:i+1,label:'score'}))),true);assert.equal(P.minigameEnded(s,[]),false);
- until(s,()=>s.phase==='rewards');assert.ok(s.pendingItems[p.id]);tick(s,9.1);assert.equal(p.item,'ufo');until(s,()=>s.phase==='ready');assert.equal(s.map,map);assert.deepEqual(plain(s.order),order);assert.equal(p.currentNodeId,snapshot.players[0].currentNodeId);assert.equal(p.hp,2);assert.equal(s.roundNumber,2);
- s.pendingItems[p.id]={item:'rocket',replace:false};P.phase(s,'rewards',9);press(s,p,null,{axisX:1});tick(s,.05);press(s,p,'A');assert.equal(p.item,'rocket');assert.equal(s.pendingItems[p.id],undefined);
+test('All earned rewards accumulate in backpack; board, order and HP survive intermissions',()=>{
+ const s=ready(4),p=s.players[0];p.currentNodeId='n12';p.hp=2;p.item='ufo';
+ const map=s.map,order=plain(s.order),snapshot=P.snapshot(s);
+ P.phase(s,'minigame_pending');assert.equal(P.minigameStarted(s,'chickens'),true);
+ assert.equal(P.minigameStarted(s,'chickens'),false);
+ assert.equal(P.minigameEnded(s,s.players.map((p,i)=>({id:p.id,rank:i+1,label:'score'}))),true);
+ assert.equal(P.minigameEnded(s,[]),false);
+ until(s,()=>s.phase==='rewards');
+ assert.equal(s.pendingItems[p.id],undefined,'no forced replacement prompt');
+ assert.equal(p.bag.length,2,'new reward and old UFO are both retained');
+ assert.ok(p.bag.includes('ufo'));
+ until(s,()=>s.phase==='ready');
+ assert.equal(s.map,map);assert.deepEqual(plain(s.order),order);
+ assert.equal(p.currentNodeId,snapshot.players[0].currentNodeId);
+ assert.equal(p.hp,2);assert.equal(s.roundNumber,2);
+ I.add(p,'rocket');assert.equal(p.bag.length,3);
+ I.add(p,'rocket');assert.equal(p.bag.filter(id=>id==='rocket').length,2,
+  'duplicate items occupy independent backpack slots');
 });
 test('Next-round order follows actual minigame ranks; tied players retain prior relative order',()=>{
  const s=ready(4);s.order=['p3','p2','p1','p4'];s.turnIndex=3;const before=plain(s.order);
