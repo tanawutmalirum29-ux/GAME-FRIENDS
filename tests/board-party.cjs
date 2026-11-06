@@ -1025,7 +1025,7 @@ test('RC car drives backward on the same segment and backtracks previous nodes',
 test('Bots complete acute branch merges without steering backwards before the checkpoint',()=>{
  const s=ready(1,0),p=s.players[0];p.isBot=true;p.currentNodeId='b3_3';delete p.worldPosition;
  P.beginMove(s,p,1);
- until(s,()=>p.currentNodeId==='n8',5);
+ until(s,()=>p.currentNodeId==='n'+s.map.branches.find(b=>b.a===3).b,5);
  assert.equal(s.move?.remaining||0,0);
 });
 test('Bot recovers from failed UFO aim without a 12s forced roll',()=>{
