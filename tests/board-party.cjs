@@ -483,29 +483,37 @@ test('Potion only activates with missing HP; rejected item keeps selection',()=>
  tap('A');assert.equal(s.phase,'ready');assert.equal(p.item,'potion');
  assert.match(p.bagMessage,/HP เต็ม/);
  p.hp=1;tap('A');assert.equal(p.hp,51);assert.equal(p.item,null);
- until(s,()=>s.phase==='ready');p.item='rocket';
- tap('B');assert.equal(p.actionIndex,3,'rocket is slot three even when it is the only item');
- tap('B');assert.equal(p.actionIndex,0,'B wraps without an inventory popup');
- tap('A');assert.equal(s.phase,'dice');
+ until(s,()=>s.phase==='ready');
+ assert.equal(P.current(s).id,s.players[1].id,'successful potion ends the owner turn');
+ assert.equal(s.moveDice,null,'healing never adds a free dice roll');
+ const t=ready(),q=t.players[0];q.item='rocket';
+ const send=keys=>P.input(t,q.id,{turnId:t.turnId,actionId:(t.lastActions[q.id]??0)+1,keys});
+ send({alt:true});assert.equal(q.actionIndex,3,'rocket retains the canonical slot');
+ send({});send({alt:true});assert.equal(q.actionIndex,0,'B wraps back to Roll');
+ send({});send({action:true});assert.equal(t.phase,'dice');
 });
-test('Shield is a sixth reward item, once per round, and preserves the dice roll',()=>{
+test('Shield is a sixth reward item, once per round, and ends the current turn',()=>{
  assert.equal(I.ids.length,6);assert.ok(I.ids.includes('shield'));
  const s=ready(),p=s.players[0];p.item='shield';press(s,p,'B');
  assert.equal(p.item,null);assert.equal(p.usedRound,1);assert.equal(p.shieldTurns,2);
- until(s,()=>s.phase==='ready');p.item='rocket';press(s,p,'B');
- assert.equal(p.item,'rocket');assert.equal(s.phase,'ready');
- press(s,p,'A');assert.equal(s.phase,'dice');
- assert.equal(s.moveDice.length,2);
+ until(s,()=>s.phase==='ready');
+ assert.equal(P.current(s).id,s.players[1].id,'shield immediately passes the turn after effect');
+ assert.equal(s.moveDice,null,'shield does not cause an extra dice roll');
+ assert.equal(p.shieldTurns,1,'activating turn counts toward two own turns');
+ p.item='rocket';
+ assert.equal(P.action(s,p.id,'A'),false,'previous owner cannot use another item during someone else turn');
  const t=ready(),q=t.players[0];q.item='shield';q.shieldTurns=1;press(t,q,'B');
  assert.equal(q.item,'shield');assert.equal(q.usedRound,0);assert.equal(q.shieldTurns,1);
 });
 test('Shield blocks danger and events without reducing HP or losing turns',()=>{
  for(const type of ['danger','event']){
   const s=ready(),p=s.players[0];p.hp=1;p.item='shield';
-  press(s,p,'B');until(s,()=>s.phase==='ready');
-  p.currentNodeId='n2';s.map.nodes.n2.type=type;s.rng=()=>.99;
-  P.land(s);assert.equal(s.effect.kind,'shield');assert.equal(p.hp,1);
+  press(s,p,'B');
   assert.equal(p.shieldTurns,2);
+  P.damage(s,p,3);assert.equal(p.hp,1);
+  until(s,()=>s.phase==='ready');
+  assert.equal(p.shieldTurns,1);
+  // Other players can damage a protected player; the shield still absorbs it.
   P.damage(s,p,3);assert.equal(p.hp,1);
  }
 });
@@ -525,7 +533,7 @@ test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected ne
 });
 test('Shield lasts through intermission/reordering until its owner completes their next turn',()=>{
  const s=ready(),[p,q,r]=s.players;p.item='shield';press(s,p,'B');until(s,()=>s.phase==='ready');
- P.endTurn(s);assert.equal(p.shieldTurns,1);assert.equal(P.current(s),q);P.damage(s,p,1);assert.equal(p.hp,100);
+ assert.equal(p.shieldTurns,1);assert.equal(P.current(s),q);P.damage(s,p,1);assert.equal(p.hp,100);
  P.endTurn(s);assert.equal(p.shieldTurns,1);assert.equal(P.current(s),r);P.endTurn(s);assert.equal(p.shieldTurns,1);
  P.minigameStarted(s,'chickens');P.minigameEnded(s,[{id:r.id,rank:1},{id:p.id,rank:2},{id:q.id,rank:3}]);until(s,()=>s.phase==='ready');
  assert.equal(P.current(s),r);assert.equal(p.shieldTurns,1);P.endTurn(s);assert.equal(P.current(s),p);assert.equal(p.shieldTurns,1);
@@ -568,7 +576,9 @@ test('5-second rocket: continuous steering, no five-node cap and preserved mid-e
   if(prev.size>6)multiple++;
   if(s.pendingTraverse){
    const old=plain(p.worldPosition);
-   until(s,()=>s.phase==='ready',7);P.beginMove(s,p,2);
+   until(s,()=>s.phase==='ready',7);
+   assert.notEqual(P.current(s).id,p.id,'rocket ends turn even when between nodes');
+   P.beginMove(s,p,2);
    assert.deepEqual(plain(I.position(s,p)),old,'the next walk resumes from exact landing');
   }
  }
@@ -741,6 +751,43 @@ test('1,000 generated boards contain no trophy or graph-adjacent heal/Lucky spac
   }
  }
 });
+test('One committed item per round: healing, shielding, RC, UFO and bomber end turns',()=>{
+ for(const kind of ['potion','shield','car','ufo','bomber','rocket']){
+  const s=ready(3,753),[p,q]=s.players;p.hp=35;p.item=kind;q.currentNodeId='n10';
+  if(kind==='rocket')p.currentNodeId='n0';
+  const select=()=>{p.actionIndex=I.ids.indexOf(kind)+1;return P.action(s,p.id,'A');};
+  assert.equal(select(),true,'first use should begin '+kind);
+  if(kind==='ufo'){Object.assign(s.skill,I.position(s,q));assert.equal(P.action(s,p.id,'A'),true);}
+  if(kind==='bomber'){
+   const packet=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
+   packet({action:true});packet({});assert.equal(P.action(s,p.id,'A'),true);
+  }
+  if(kind==='rocket'){
+   tick(s,5.05);
+  }else if(kind==='car')tick(s,6.05);
+  assert.ok(['effect','lucky_roulette','finished'].includes(s.phase),'item resolves effect '+kind);
+  if(s.phase==='lucky_roulette')until(s,()=>s.phase==='effect',6);
+  if(s.phase==='effect')until(s,()=>s.phase==='ready',7);
+  assert.equal(P.current(s).id,q.id,'item must end the turn: '+kind);
+  assert.equal(s.moveDice,null,'item must not trigger a free roll: '+kind);
+  assert.equal(p.usedRound,s.roundNumber,'mark use even if stock remains: '+kind);
+ }
+});
+test('Unlimited debug stock still respects one item per round',()=>{
+ const s=ready(),p=s.players[0];p.debugUnlimitedItems=true;p.item='potion';p.hp=10;
+ assert.equal(I.begin(s,p,P,'potion'),true);
+ assert.equal(p.usedRound,s.roundNumber);
+ assert.equal(I.bag(p).length,1,'debug stock stays available');
+ P.ready(s);assert.equal(I.begin(s,p,P,'potion'),false,'debug stock does not bypass round lock');
+});
+test('UFO targeting uses the same larger radius for capture and visible ring',()=>{
+ const s=ready(),[p,q,r]=s.players;
+ p.currentNodeId='n0';q.currentNodeId='n10';r.currentNodeId='n30';
+ const pos=I.position(s,q);
+ assert.ok(I.ufoRadius>26,'ring grows beyond the previous 26px footprint');
+ assert.equal(I.target(s,{x:pos.x+I.ufoRadius+I.radius-1,y:pos.y},p)?.id,q.id);
+ assert.equal(I.target(s,{x:pos.x+I.ufoRadius+I.radius+2,y:pos.y},p),null);
+});
 test('Green heal +20 and potion +50 change real HP without exceeding 100',()=>{
  const s=ready(3,47),p=s.players[0],node='n10';
  p.currentNodeId=node;s.map.nodes[node].type='healing';
@@ -758,25 +805,33 @@ test('Stationary rocket times out after 5s without re-triggering the pad reward'
  const before=I.bag(p).length;P.beginMove(s,p,Infinity,'rocket');
  tick(s,5.2);assert.equal(s.phase,'effect');assert.equal(I.bag(p).length,before);
  assert.equal(s.effect.kind,'land');
- until(s,()=>s.phase==='ready',2);assert.equal(s.turnIndex,0);
+ until(s,()=>s.phase==='ready',2);assert.equal(s.turnIndex,1,'rocket lands then ends its turn');
 });
-test('RC car runs for 6 seconds, moves along forward paths and cannot reverse',()=>{
+test('RC car drives backward on the same segment and backtracks previous nodes',()=>{
  const s=ready(2,55),p=s.players[0];
- // This checks the timer and steering; swept-hit tests cover immediate opponents.
  s.players[1].currentNodeId='n60';I.add(p,'car');
  assert.equal(I.begin(s,p,P,'car'),true);
- const begin={x:s.skill.x,y:s.skill.y};
- const a=s.map.nodes.n0.position,b=s.map.nodes.n1.position;
- const d=Math.hypot(b.x-a.x,b.y-a.y);
- const keys={turnId:s.turnId,actionId:1,keys:{axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d}};
- P.input(s,p.id,keys);tick(s,.3);
- assert.ok(Math.hypot(s.skill.x-begin.x,s.skill.y-begin.y)>10);
- const traversed=s.skill.visited.slice();
- P.input(s,p.id,{turnId:s.turnId,actionId:2,keys:{axisX:-(b.x-a.x)/d,axisY:-(b.y-a.y)/d}});
- tick(s,.3);assert.deepEqual(plain(s.skill.visited),plain(traversed),
-   'reverse input must not backtrack');
- until(s,()=>s.phase==='effect',7);assert.equal(s.effect.kind,'car');
- assert.equal(s.effect.next,'end');assert.equal(s.skill,null);
+ const begin={x:s.skill.x,y:s.skill.y},a=s.map.nodes.n0.position,b=s.map.nodes.n1.position;
+ const d=Math.hypot(b.x-a.x,b.y-a.y),dx=(b.x-a.x)/d,dy=(b.y-a.y)/d;
+ const steer=(x,y)=>P.input(s,p.id,{turnId:s.turnId,
+   actionId:(s.lastActions[p.id]??0)+1,keys:{axisX:x,axisY:y}});
+ steer(dx,dy);tick(s,.25);
+ const outbound=Math.hypot(s.skill.x-begin.x,s.skill.y-begin.y);
+ assert.ok(outbound>10,'forward steering moves the car');
+ steer(-dx,-dy);tick(s,.10);
+ const inbound=Math.hypot(s.skill.x-begin.x,s.skill.y-begin.y);
+ assert.ok(inbound<outbound-5,'backward stick reverses along the same physical edge');
+ tick(s,.3);assert.equal(s.skill.nodeId,'n0','car can return to original node');
+ assert.ok(!s.skill.step);
+ // Move to n1, then reverse onto the incoming road n1 -> n0.
+ steer(dx,dy);tick(s,.9);
+ assert.equal(s.skill.nodeId,'n1');
+ steer(-dx,-dy);tick(s,.9);
+ assert.equal(s.skill.nodeId,'n0','car can visit the same road twice in reverse');
+ assert.ok(s.skill.visited.filter(id=>id==='n0').length>=2);
+ assert.equal(p.currentNodeId,'n0','RC travel cannot move the owner');
+ until(s,()=>s.phase==='effect',7);
+ assert.equal(s.effect.kind,'car');assert.equal(s.effect.next,'end');
 });
 test('Bots complete acute branch merges without steering backwards before the checkpoint',()=>{
  const s=ready(1,0),p=s.players[0];p.isBot=true;p.currentNodeId='b3_3';delete p.worldPosition;
