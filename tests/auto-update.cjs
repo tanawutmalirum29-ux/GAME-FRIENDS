@@ -24,7 +24,9 @@ function buildTest(){
         new RegExp('GAME_BUILD_VERSION="'+rev+'"'));
       const html=fs.readFileSync(path.join(dir,'index.html'),'utf8');
       for(const asset of ['style.css','arena-art.js','graveyard-art.js','combat-motion.js',
-        'player-avatar.js','ghost-attack.js','chickens.js','shockwave.js','color-switch-mayan.js','color-switch.js','app.js','auto-update.js','build-version.js']){
+        'player-avatar.js','ghost-attack.js','chickens.js','shockwave.js','color-switch-mayan.js','color-switch.js','app.js','auto-update.js','build-version.js',
+        'assets/game-friends-cover.svg','assets/game-friends-icon.svg',
+        'assets/game-friends-touch-icon.png','manifest.webmanifest']){
         assert.ok(html.includes('./'+asset+'?v='+rev),
           'all asset URLs versioned on each deploy: '+asset);
       }
