@@ -271,7 +271,7 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  assert.ok(badges.at(-1)[0]+badges.at(-1)[2]<=960);
  assert.ok(rects.some(([x,y,w,h])=>x===82&&y===513&&w===162&&h===6),
   'active-player health bar is located below the name in the footer');
- const health=labelDraws.slice(before).filter(v=>/\\/100$/.test(v.text));
+ const health=labelDraws.slice(before).filter(v=>v.text.endsWith('/100'));
  assert.deepEqual(health.map(v=>v.text),['43/100']);
  assert.equal(health[0].y,501,'numeric HP remains beneath the active player's title');
 }
