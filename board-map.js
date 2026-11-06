@@ -6,9 +6,9 @@
 function random(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 const MAIN_LENGTH=152,
  SWORD_PAIRS=Object.freeze([
+  Object.freeze({id:'sword-territory-14',nodeIds:Object.freeze(['n14','n15'])}),
   Object.freeze({id:'sword-territory-43',nodeIds:Object.freeze(['n43','n44'])}),
   Object.freeze({id:'sword-territory-b33_9',nodeIds:Object.freeze(['b33_9','b33_10'])}),
-  Object.freeze({id:'sword-territory-14',nodeIds:Object.freeze(['n14','n15'])}),
   Object.freeze({id:'sword-territory-27',nodeIds:Object.freeze(['n27','n28'])}),
   Object.freeze({id:'sword-territory-59',nodeIds:Object.freeze(['n59','n60'])}),
   Object.freeze({id:'sword-territory-69',nodeIds:Object.freeze(['n69','n70'])}),
