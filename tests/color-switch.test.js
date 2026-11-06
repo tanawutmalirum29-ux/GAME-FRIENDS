@@ -21,7 +21,7 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  ok(s.tiles.every(t=>t.ownerId===null),'tiles begin neutral');
  eq(s.duration,60,'small timer');
  ok(ps.every(p=>p.score===0),'scores reset');
- ok(ps.every(p=>p.cs.powerBoostReady===false),'boosts reset');
+ ok(ps.every(p=>p.cs.bankedScore===0&&p.cs.territoryScore===0),'score banks reset');
  ok(ps.every(p=>p.active),'everyone active');
 }
 {
@@ -127,29 +127,19 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
 {
  const {s,ps}=make();
  Object.assign(ps[0],center(s,4,5));Object.assign(ps[1],center(s,4,6));
- const ids=E.calculateBlastCells(s,ps[0],false);
+ const ids=E.calculateBlastCells(s,ps[0]);
  eq(ids.length,9,'3x3 exactly nine cells');
  ok(E.activateColorBlast(s,ps[0],ps),'normal B works');
  eq(ps[0].score,9,'normal B scores 9');
  eq(ps[1].cs.stunRemaining,0,'normal B never stuns');
  eq(ps[0].cs.blastCooldown,2.8,'B cooldown begins');
  ok(!E.activateColorBlast(s,ps[0],ps),'cannot reuse B during cooldown');
- ps[0].cs.blastCooldown=0;ps[0].cs.castRemaining=0;ps[0].cs.powerBoostReady=true;
- ps[0].dir={x:1,y:1};
- const bigger=E.calculateBlastCells(s,ps[0],true);
- eq(bigger.length,16,'4x4 exactly sixteen cells');
- ok(E.activateColorBlast(s,ps[0],ps),'boosted B works');
- ok(ps[1].cs.stunRemaining>.9,'boosted B stuns opponent');
- eq(ps[0].cs.stunRemaining,0,'caster is immune to own B');
- ok(!ps[0].cs.powerBoostReady,'upgrade consumed on successful use');
- eq(ps[0].score,16,'boosted B fully captures 16');
- ps[0].cs.powerBoostReady=true;
- ok(!E.activateColorBlast(s,ps[0],ps),'blocked B cannot consume boost');
- ok(ps[0].cs.powerBoostReady,'boost preserved on cooldown');
  ps[0].cs.blastCooldown=0;ps[0].cs.castRemaining=0;
- ps[1].x=s.board.x+15;ps[1].y=s.board.y+15;ps[1].cs.stunRemaining=0;
- E.activateColorBlast(s,ps[0],ps);
- eq(ps[1].cs.stunRemaining,0,'players outside blast not stunned');
+ ps[0].dir={x:1,y:1};
+ const stillNormal=E.calculateBlastCells(s,ps[0],true);
+ eq(stillNormal.length,9,'4x4 boost is removed');
+ ok(E.activateColorBlast(s,ps[0],ps),'B recasts normally');
+ eq(ps[1].cs.stunRemaining,0,'old 4x4 stun is removed');
 }
 {
  const {s,ps}=make();
@@ -172,10 +162,19 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  ok(E.spawnPowerBox(s,ps),'first box spawned');
  eq(s.boxes.length,1,'single box');
  ok(!E.spawnPowerBox(s,ps),'small map box cap');
- const box=s.boxes[0];ps[0].x=box.x;ps[0].y=box.y;
+ const box=s.boxes[0];box.type='score_bank';
+ const tile=s.tiles[10];E.captureTile(s,tile,ps[0],ps);
+ ps[0].x=box.x;ps[0].y=box.y;
  E.collectPowerBox(s,ps);
- ok(ps[0].cs.powerBoostReady,'box grants one-time upgrade');
+ eq(ps[0].cs.bankedScore,1,'box banks owned tile');
+ eq(ps[0].cs.territoryScore,0,'bank clears live score');
+ eq(ps[0].score,1,'bank maintains total score');
+ eq(tile.ownerId,null,'bank clears color');
  eq(s.boxes.length,0,'box removed after pickup');
+ E.collectPowerBox(s,ps);
+ eq(ps[0].cs.bankedScore,1,'cannot collect same box twice');
+ E.captureTile(s,tile,ps[0],ps);
+ eq(ps[0].score,2,'repainting banked tile earns new active point');
 }
 {
  const {s,ps}=make(7);s.elapsed=10;
@@ -226,8 +225,9 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  for(let i=0;i<1800;i++){
   E.update(1/60,round,ps);
   if(i%50===0){
-   const counts=ps.reduce((n,p)=>n+p.score,0);
+   const counts=ps.reduce((n,p)=>n+(p.cs?.territoryScore||0),0);
    eq(counts,s.tiles.filter(t=>t.ownerId!=null).length,'stress score consistency at tick '+i);
+   ok(ps.every(p=>p.score===p.cs.bankedScore+p.cs.territoryScore),'banked total consistency '+i);
    ok(counts<=120,'stress no duplicate tile ownership at tick '+i);
   }
  }
@@ -235,6 +235,69 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  ok(ps.some(p=>p.cs.punchCooldown>0||p.cs.blastCooldown>0)||s.totalCaptures>80,'bots act strategically');
  ok(s.boxes.length<=2,'box cap under stress');
  ok(s.effects.length<=32,'effects bounded');
+}
+
+
+{
+ const {ps,s}=make();const [p,q]=ps;
+ for(const t of s.tiles.slice(0,5))E.captureTile(s,t,p,ps);
+ for(const t of s.tiles.slice(5,8))E.captureTile(s,t,q,ps);
+ eq(E.bankTerritory(s,p),5,'bank five current tiles');
+ eq(p.cs.bankedScore,5,'permanent bank tracks five');
+ eq(p.cs.territoryScore,0,'active territory resets');
+ eq(p.score,5,'HUD total unchanged after bank');
+ eq(q.score,3,'opponent score untouched');
+ ok(s.tiles.slice(0,5).every(t=>t.ownerId===null),'only banker tiles cleared');
+ ok(s.tiles.slice(5,8).every(t=>t.ownerId===q.id),'opponent tiles untouched');
+ eq(E.bankTerritory(s,p),0,'empty bank awards zero');
+ E.captureTile(s,s.tiles[0],p,ps);eq(p.score,6,'repaint new active territory');
+ E.captureTile(s,s.tiles[0],q,ps);eq(p.score,5,'stealing cannot reduce bank');
+ E.captureTile(s,s.tiles[1],p,ps);
+ E.bankTerritory(s,p);eq(p.score,6,'second bank adds only new paint');
+ E.updateTerritoryScores(s,ps);eq(p.score,6,'recalculation preserves bank');
+ const rank=E.calculateFinalRanking(s,ps);
+ eq(rank[0].id,p.id,'winner uses bank plus current territory');
+}
+{
+ const {ps,s,round}=make(2);const [p,q]=ps;
+ const box={id:777,type:'rocket',x:s.board.x+s.size*5.5,y:s.board.y+s.size*4.5,
+  active:true,expireTime:99};
+ s.boxes=[box];p.x=box.x;p.y=box.y;
+ q.x=box.x+115;q.y=box.y;
+ E.collectPowerBox(s,ps);
+ eq(s.rockets.length,8,'exactly eight rockets launch');
+ eq(new Set(s.rockets.map(r=>Math.round(Math.atan2(r.vy,r.vx)*180/Math.PI))).size,8,'eight different directions');
+ ok(s.rockets.every(r=>Math.abs(Math.hypot(r.vx,r.vy)-E.constants.rocketSpeed)<1e-7),'equal rocket speed');
+ eq(s.boxes.length,0,'rocket box consumed once');
+ for(let k=0;k<25;k++)E.updateRockets(s,ps,1/60);
+ eq(q.cs.stunRemaining,1.5,'rocket stuns opponent for 1.5 seconds');
+ eq(p.cs.stunRemaining,0,'rocket owner immune to own rockets');
+ eq(s.rockets.filter(r=>r.id===8).length,0,'rocket removed on collision');
+ E.updateRockets(s,ps,4);eq(s.rockets.length,0,'projectiles expire');
+ eq(s.rocketHits.size,0,'burst collision cache cleaned');
+ E.fireRocketBurst(s,{x:p.x,y:p.y},p);
+ eq(s.rockets.length,8,'can fire another burst');
+ E.finishMatch(s,round,ps);eq(s.rockets.length,0,'finish clears rocket projectiles');
+}
+{
+ const {ps,s}=make(3);const p=ps[0],q=ps[1],r=ps[2];
+ p.x=s.board.x+100;p.y=s.board.y+100;
+ q.x=p.x+80;q.y=p.y+43;r.x=p.x+58;r.y=p.y+95;
+ E.fireRocketBurst(s,{x:p.x,y:p.y},p);
+ // Targets lie away from all 8 straight collision corridors.
+ for(let i=0;i<10;i++)E.updateRockets(s,ps,1/60);
+ eq(q.cs.stunRemaining,0,'off-axis target is not hit');
+ eq(r.cs.stunRemaining,0,'second off-axis target not hit');
+}
+{
+ const {ps,s}=make(2);const p=ps[0],q=ps[1];
+ E.captureTile(s,s.tiles[9],p,ps);
+ const box={id:900,type:'score_bank',x:p.x,y:p.y,active:true,expireTime:99};
+ s.boxes=[box];q.x=box.x;q.y=box.y;
+ E.collectPowerBox(s,ps);
+ eq(p.cs.bankedScore,1,'simultaneous pickup deterministic first player');
+ eq(q.cs.bankedScore,0,'other player receives no bank');
+ eq(s.boxes.length,0,'box taken only once');
 }
 
 console.log('COLOR SWITCH: '+passed+' assertions passed');

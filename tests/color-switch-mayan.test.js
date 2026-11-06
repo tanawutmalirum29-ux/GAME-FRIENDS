@@ -93,7 +93,8 @@ function game(count=2,theme='mayan'){
  for(let i=0;i<2700;i++)E.update(1/60,round,players);
  ok(s.mayan.shots>=10,'skull traps remain active');
  ok(s.mayan.volleyHistory.every((side,i,all)=>i===0||side!==all[i-1]),'volley sides alternate');
- eq(players.reduce((n,p)=>n+p.score,0),s.tiles.filter(t=>t.ownerId!=null).length,'capture scores unaffected');
+ eq(players.reduce((n,p)=>n+p.cs.territoryScore,0),s.tiles.filter(t=>t.ownerId!=null).length,'active territory matches painted cells');
+ ok(players.every(p=>p.score===p.cs.bankedScore+p.cs.territoryScore),'banked score survives Mayan hazards');
  ok(s.mayan.bullets.length<=10,'bounded bullets');
  const ctx=new Proxy({}, {get(o,k){return k in o?o[k]:(o[k]=()=>{});},set(o,k,v){o[k]=v;return true;}});
  E.draw(ctx,0,round,players);ok(true,'Mayan render works');
