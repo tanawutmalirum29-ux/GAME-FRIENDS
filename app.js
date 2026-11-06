@@ -375,7 +375,7 @@ function stopAllHostVideoCalls(){
   hostVideoSources.clear();
 }
 function startHostVideoCall(conn){
-  if(!round||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId||conn.previewEnabled!==true)return;
+  if(!round||round.phase==='roulette'||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId||conn.previewEnabled!==true)return;
   stopHostVideoCall(conn);
   conn.videoReady=false;
   const quality=Object.hasOwn(VIDEO_QUALITY,conn.videoQuality)?conn.videoQuality:'medium';
@@ -2209,7 +2209,7 @@ function beginGameSelection(mode){
   track.style.transform='translate3d(-'+initial+'px,0,0)';
   $('rouletteHeading').textContent='กำลังสุ่มเกม...';
   $('rouletteMessage').textContent='เกมที่จะเล่นกำลังเลื่อนเข้าตรงกลาง';
-  stage.classList.remove('hidden','is-selected');
+  stage.classList.remove('hidden');stage.classList.remove('is-selected');
   $('results').classList.add('hidden');
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').classList.add('hidden');
