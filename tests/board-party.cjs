@@ -487,7 +487,7 @@ test('5-second rocket: continuous steering, no five-node cap and preserved mid-e
  for(let seed=0;seed<80;seed++){
   const s=ready(3,seed),p=s.players[0];p.currentNodeId='n'+(seed%20);p.item='rocket';
   const start=p.currentNodeId,prev=new Set([start]);press(s,p,'B');
-  assert.equal(s.phase,'rocket');assert.equal(s.move.expires-s.time,5);
+  assert.equal(s.phase,'rocket');assert.ok(Math.abs(s.move.expires-s.time-5)<1e-8,'rocket stays active for five seconds');
   for(let j=0;j<103&&s.phase==='rocket';j++){
    const id=s.move.to||p.currentNodeId;
    const startAt=I.position(s,p),end=s.map.nodes[id].nextNodes[0]&&s.move.to?
