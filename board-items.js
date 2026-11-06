@@ -27,7 +27,7 @@ function position(s,p){
   if(m.to){
    const a=m.startPosition||s.map.nodes[m.from].position,b=m.endPosition||s.map.nodes[m.to].position;
    const dx=b.x-a.x,dy=b.y-a.y,dist=Math.hypot(dx,dy)||1;
-   const lateral=m.kind==='walk'?(m.lateral||0):0;
+   const lateral=(m.kind==='walk'||m.kind==='rocket')?(m.lateral||0):0;
    return{x:a.x+dx*m.t-dy/dist*lateral,y:a.y+dy*m.t+dx/dist*lateral};
   }
   if(m.kind==='walk'&&m.nodeOffset){
@@ -51,16 +51,23 @@ function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
  if(s.phase!=='ready'||!kind||!bag(p).includes(kind)||
    p.usedRound===s.roundNumber||s.rolled||s.time>=s.readyDeadline)return false;
  if(kind==='potion'){
-  if(p.hp>=api.MAX_HP)return false;consume(s,p,kind);p.hp=Math.min(api.MAX_HP,p.hp+api.HEAL.potion);api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
+  if(p.hp>=api.MAX_HP)return false;
+  const gained=Math.min(api.MAX_HP-p.hp,api.HEAL.potion);
+  consume(s,p,kind);p.hp+=gained;
+  s.heals.push({id:p.id,amount:gained,at:s.time,position:position(s,p)});
+  api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
  }
  if(kind==='shield'){
   // Two own turns: the activation turn and the owner's next turn, inclusive.
   if(p.shieldTurns>0)return false;consume(s,p,kind);p.shieldTurns=2;
   api.effect(s,{kind:'shield',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
  }
- if(kind==='rocket'){consume(s,p,kind);api.beginMove(s,p,5,'rocket');return true;}
+ if(kind==='rocket'){consume(s,p,kind);api.beginMove(s,p,Infinity,'rocket');return true;}
  if(kind==='car'){
-  consume(s,p,kind);s.skill={kind,nodeId:p.currentNodeId,visited:[p.currentNodeId],...s.map.nodes[p.currentNodeId].position,remaining:6,launchUntil:s.time+.55,step:null};api.phase(s,'car',6);return true;
+  consume(s,p,kind);
+  s.skill={kind,nodeId:p.currentNodeId,visited:[p.currentNodeId],
+    ...position(s,p),remaining:6,step:null,heading:{x:0,y:0}};
+  api.phase(s,'car',6);return true;
  }
  if(kind==='ufo'||kind==='bomber'){
   s.skill={kind,...position(s,p),angle:0,targetId:null};api.phase(s,'aim',Math.min(8,s.readyDeadline-s.time));return true;
@@ -105,26 +112,42 @@ function update(s,dt,api){
   skill.targetId=skill.kind==='ufo'?target(s,skill,p)?.id||null:null;
   if(s.time>=s.deadline){s.skill=null;api.ready(s,false);}
  }else if(s.phase==='car'){
-  skill.remaining-=dt;
+  skill.remaining=Math.max(0,skill.remaining-dt);
   if(skill.remaining<=0){explode(s,api);return;}
-  if(s.time<skill.launchUntil)return;
-  if(!skill.step){
-   const next=s.map.nodes[skill.nodeId].nextNodes.filter(n=>!skill.visited.includes(n));
-   if(!next.length){explode(s,api);return;}
-   const to=window.BoardMap.choose(s.map,skill.nodeId,input.x,input.y,next);
-   skill.selectedNext=to;
-   if(next.length>1){
-    if(skill.forkNode!==skill.nodeId){skill.forkNode=skill.nodeId;skill.forkUntil=s.time+.5;}
-    if(s.time<skill.forkUntil)return;
+  const strength=Math.hypot(input.x,input.y);
+  // No synthetic node-choice hold: joystick steers continuously along the
+  // drivable forward network. Reverse thrust cannot revisit an old edge.
+  if(strength>.12){
+   const stick={x:input.x/strength,y:input.y/strength};
+   if(!skill.step){
+    const next=s.map.nodes[skill.nodeId].nextNodes.filter(n=>!skill.visited.includes(n));
+    if(!next.length){explode(s,api);return;}
+    const to=window.BoardMap.choose(s.map,skill.nodeId,stick.x,stick.y,next);
+    const node=s.map.nodes[skill.nodeId].position,target=s.map.nodes[to].position;
+    const len=Math.hypot(target.x-node.x,target.y-node.y)||1;
+    const dot=(stick.x*(target.x-node.x)+stick.y*(target.y-node.y))/len;
+    if(dot>.22)skill.step={from:skill.nodeId,to,t:0,lateral:0,
+      startPosition:{x:skill.x,y:skill.y},endPosition:{...target}};
    }
-   skill.step={from:skill.nodeId,to,t:0};
+   if(skill.step){
+    const m=skill.step,a=m.startPosition,b=m.endPosition;
+    const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1,nx=dx/len,ny=dy/len;
+    const forward=Math.max(0,stick.x*nx+stick.y*ny);
+    const lateral=-stick.x*ny+stick.y*nx;
+    const old={x:skill.x,y:skill.y};
+    m.t=Math.min(1,m.t+forward*345*dt/len);
+    m.lateral=Math.max(-15,Math.min(15,m.lateral+lateral*345*dt));
+    skill.x=a.x+dx*m.t-ny*m.lateral;
+    skill.y=a.y+dy*m.t+nx*m.lateral;
+    skill.heading={x:nx,y:ny};
+    const collision=s.players.some(q=>q.id!==p.id&&
+      segmentDistance(position(s,q),old,skill)<=radius+12);
+    if(collision){explode(s,api);return;}
+    if(m.t>=1){skill.nodeId=m.to;skill.visited.push(m.to);
+      skill.step=null;}
+   }
   }
-  const m=skill.step,a=s.map.nodes[m.from].position,b=s.map.nodes[m.to].position,old={x:skill.x,y:skill.y};
-  m.t=Math.min(1,m.t+dt/.65);skill.x=a.x+(b.x-a.x)*m.t;skill.y=a.y+(b.y-a.y)*m.t;
-  // Swept collision prevents tunnelling through an avatar between two frames.
-  const collision=s.players.some(q=>q.id!==p.id&&segmentDistance(position(s,q),old,skill)<=radius+12);
-  if(m.t>=1){skill.nodeId=m.to;skill.visited.push(m.to);skill.step=null;}
-  if(collision||skill.remaining<=0)explode(s,api);
+
  }
 }
 window.BoardItems=Object.freeze({names,ids,radius,blastRadius,bag,add,position,positionOnNode,target,bombs,victims,begin,confirm,update,segmentDistance});
