@@ -143,10 +143,15 @@ function beginMove(s,p,steps,kind='walk'){
  }
  if(p.pendingTraverse){
   const pending=p.pendingTraverse;delete p.pendingTraverse;
-  s.move.from=pending.from;s.move.to=pending.to;
-  s.move.startPosition=pending.startPosition;s.move.endPosition=pending.endPosition;
-  s.move.t=pending.t;s.move.lateral=pending.lateral||0;
-  s.move.nodeOffset={x:0,y:0};movePhase(s,'moving');return;
+  // Never resume a stored edge after a UFO swap or any other node teleport.
+  // The stale edge can point backwards into an already-visited tile and strand
+  // bot/human movement. Valid mid-edge rocket position remains resumable.
+  if(pending.from===p.currentNodeId&&s.map.nodes[pending.from]?.nextNodes.includes(pending.to)){
+   s.move.from=pending.from;s.move.to=pending.to;
+   s.move.startPosition=pending.startPosition;s.move.endPosition=pending.endPosition;
+   s.move.t=pending.t;s.move.lateral=pending.lateral||0;
+   s.move.nodeOffset={x:0,y:0};movePhase(s,'moving');return;
+  }
  }
  phase(s,'move_ready',15);nextStep(s);
 }
