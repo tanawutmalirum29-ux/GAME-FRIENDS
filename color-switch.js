@@ -5,8 +5,7 @@ const TAU=Math.PI*2, FIXED=1/60;
 const Combat=window.PartyCombatMotion;
 const C=Object.freeze({speed:170,radius:14,punchRange:46,punchWindup:Combat.ATTACK.windup,
  punchActive:Combat.ATTACK.active,punchRecovery:Combat.ATTACK.recovery,punchCooldown:Combat.ATTACK.cooldown,punchStun:Combat.NORMAL_STUN,
- blastCooldown:2.8,blastCast:.18,botPunchRate:.084,
- boxCapSmall:2,boxCapLarge:3,
+ blastCooldown:2.8,blastCast:.18,botPunchRate:.084,boxSpawnInterval:12,
  rocketSpeed:360,rocketRadius:7,rocketLifetime:2.2,rocketStun:1.5});
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function rand(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
@@ -36,7 +35,7 @@ function spawnPlayers(s,ps){
   p.cs={stunRemaining:0,stunImmunity:0,punchCooldown:0,blastCooldown:0,
    punchState:null,castRemaining:0,bankedScore:0,territoryScore:0,
    actionLatch:false,altLatch:false,botTarget:null,botRetarget:0,
-   botNextPunch:0,botNextBlast:0,fxClock:0};
+   botNextPunch:8+rand(s)*7,botNextBlast:0,fxClock:0};
   p.stun=0;p.punchCooldown=0;Combat.reset(p);
  });
 }
@@ -54,7 +53,7 @@ function setup(round,ps){
  if(s.theme==='mayan'&&!window.ColorSwitchMayan)s.theme='classic';
  createArena(s,active(ps).length);spawnPlayers(s,ps);
  if(s.theme==='mayan')window.ColorSwitchMayan.setup(s,rand);
- s.nextBoxSpawn=8+rand(s)*4;
+ s.nextBoxSpawn=C.boxSpawnInterval;
  return s;
 }
 // Shared scoreboard calculation: banked points never disappear when tiles change owner.
@@ -257,22 +256,22 @@ function updateRockets(s,ps,dt){
  const live=new Set(next.map(r=>r.burstId));
  for(const id of s.rocketHits.keys())if(!live.has(id))s.rocketHits.delete(id);
 }
-// 1–6 players may have two boxes; 7–12 players may have three at once.
-function maxActiveBoxes(ps){return active(ps).length<=6?C.boxCapSmall:C.boxCapLarge;}
-function spawnPowerBox(s,ps){
- const max=maxActiveBoxes(ps);
- if(s.boxes.length>=max)return false;
- const candidates=s.tiles.filter(t=>{
+// New boxes arrive in fixed two-item waves, independent of existing stock.
+// Each wave always includes one red ROCKET BOX and one SCORE BANK BOX.
+function spawnPowerBox(s,ps,type=null){
+ const findCandidates=(playerGap,boxGap)=>s.tiles.filter(t=>{
   if(t.column<1||t.row<1||t.column>=s.cols-1||t.row>=s.rows-1)return false;
   const center=cellCenter(s,t);
-  return active(ps).every(p=>Math.hypot(center.x-p.x,center.y-p.y)>s.size*1.1)&&
-   s.boxes.every(b=>Math.hypot(center.x-b.x,center.y-b.y)>s.size*1.5);
+  return active(ps).every(p=>Math.hypot(center.x-p.x,center.y-p.y)>s.size*playerGap)&&
+   s.boxes.every(b=>Math.hypot(center.x-b.x,center.y-b.y)>s.size*boxGap);
  });
+ // Relax padding only when the map is crowded, without placing a box on a player or another box.
+ let candidates=findCandidates(1.1,1.5);
+ if(!candidates.length)candidates=findCandidates(.75,1);
  if(!candidates.length)return false;
  const at=cellCenter(s,candidates[Math.floor(rand(s)*candidates.length)]);
- s.boxes.push({id:++s.boxCounter,type:rand(s)<.7?'score_bank':'rocket',
-  x:at.x,y:at.y,spawnTime:s.elapsed,expireTime:s.elapsed+24,
-  active:true,collectedBy:null});
+ s.boxes.push({id:++s.boxCounter,type:type|| (rand(s)<.7?'score_bank':'rocket'),
+  x:at.x,y:at.y,spawnTime:s.elapsed,active:true,collectedBy:null});
  return true;
 }
 function collectPowerBox(s,ps){
@@ -288,55 +287,61 @@ function collectPowerBox(s,ps){
  }
 }
 function updateBoxes(s,ps){
- const old=s.boxes.length;
- s.boxes=s.boxes.filter(b=>b.active&&b.expireTime>s.elapsed);
- if(s.elapsed>=s.nextBoxSpawn){
-  const cap=maxActiveBoxes(ps);
-  while(s.boxes.length<cap)if(!spawnPowerBox(s,ps))break;
-  s.nextBoxSpawn=s.elapsed+12+rand(s)*6;
+ // Do not expire uncollected boxes or refill to a maximum. Two fresh boxes
+ // are added at 12,24,36... seconds, even when every previous box remains.
+ s.boxes=s.boxes.filter(b=>b.active);
+ while(s.elapsed+1e-7>=s.nextBoxSpawn&&s.nextBoxSpawn<s.duration){
+  const batch=rand(s)<.5?['rocket','score_bank']:['score_bank','rocket'];
+  for(const type of batch)spawnPowerBox(s,ps,type);
+  s.nextBoxSpawn+=C.boxSpawnInterval;
  }
  collectPowerBox(s,ps);
- if(s.boxes.length<old)s.nextBoxSpawn=Math.min(s.nextBoxSpawn,s.elapsed+12+rand(s)*6);
 }
 function botControls(s,p,ps){
  const c=p.cs;
+ // Paint first: target the nearest connected patch of tiles not owned by this
+ // bot, including enemy territory. Do not pathfind toward rocket pickups.
  if(s.clock>=c.botRetarget||!s.tiles[c.botTarget]||s.tiles[c.botTarget].ownerId===p.id){
   let best=null,bestValue=-Infinity;
   for(const t of s.tiles){
    if(t.ownerId===p.id)continue;
-   const center=cellCenter(s,t),distance=Math.hypot(center.x-p.x,center.y-p.y);
-   const enemy=t.ownerId!=null;
-   const value=(enemy?1.3:1)*80-distance+rand(s)*12;
+   const center=cellCenter(s,t),dx=center.x-p.x,dy=center.y-p.y;
+   const distance=Math.hypot(dx,dy);
+   let paintable=0;
+   for(let row=Math.max(0,t.row-1);row<=Math.min(s.rows-1,t.row+1);row++)
+    for(let col=Math.max(0,t.column-1);col<=Math.min(s.cols-1,t.column+1);col++)
+     if(s.tiles[row*s.cols+col].ownerId!==p.id)paintable++;
+   const forward=distance>0?(dx*(p.dir?.x||1)+dy*(p.dir?.y||0))/distance:0;
+   const value=paintable*12-distance*.6+Math.max(0,forward)*8+
+    (t.ownerId!=null?6:0)+rand(s)*3;
    if(value>bestValue){bestValue=value;best=t.id;}
   }
-  c.botTarget=best;c.botRetarget=s.clock+.5+rand(s)*.5;
+  c.botTarget=best;c.botRetarget=s.clock+.65+rand(s)*.35;
  }
  const target=s.tiles[c.botTarget]||s.tiles[Math.floor(rand(s)*s.tiles.length)];
- let point=cellCenter(s,target),bestPriority=0;
- // Banks become worth collecting as the player's accumulated territory grows.
- for(const box of s.boxes){
-  const distance=Math.hypot(box.x-p.x,box.y-p.y);
-  const owned=c.territoryScore,remaining=s.duration-s.elapsed;
-  const nearbyEnemies=active(ps).filter(q=>q.id!==p.id&&
-   Math.hypot(q.x-box.x,q.y-box.y)<210).length;
-  const value=box.type==='score_bank'?
-    (owned>=7?165+Math.min(owned,35)*3-distance*.55+(remaining<12?65:0):0):
-    (nearbyEnemies>0?120+nearbyEnemies*30-distance*.7:0);
-  if(value>bestPriority){bestPriority=value;point={x:box.x,y:box.y};}
+ let point=cellCenter(s,target);
+ // Bank only as a nearby detour after scoring meaningful territory; never
+ // waste travel time chasing boxes while there are cells left to paint.
+ if(c.territoryScore>=12){
+  const nearby=s.boxes.filter(b=>b.type==='score_bank'&&
+    Math.hypot(b.x-p.x,b.y-p.y)<=s.size*1.15).sort((a,b)=>
+     Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y));
+  if(nearby.length)point={x:nearby[0].x,y:nearby[0].y};
  }
  const dx=point.x-p.x,dy=point.y-p.y,d=Math.hypot(dx,dy);
  let x=d>3?dx/d:0,y=d>3?dy/d:0;
- // Soft separation from other avatars, with identical world collision.
+ // Use the existing shared physical separation without chasing the opponent.
  for(const other of active(ps))if(other.id!==p.id){
   const ax=p.x-other.x,ay=p.y-other.y,dist=Math.hypot(ax,ay);
   if(dist<34&&dist>1){x+=ax/dist*.5;y+=ay/dist*.5;}
  }
  const len=Math.hypot(x,y);if(len>1){x/=len;y/=len;}
- const enemy=active(ps).some(q=>q.id!==p.id&&Math.hypot(q.x-p.x,q.y-p.y)<C.punchRange&&
-  ((q.x-p.x)*(p.dir?.x||1)+(q.y-p.y)*(p.dir?.y||0))>10);
- const action=enemy&&s.clock>=c.botNextPunch&&c.punchCooldown===0;
- const ids=calculateBlastCells(s,p);
- const gain=ids.filter(id=>s.tiles[id].ownerId!==p.id).length;
+ // A punch is defensive only when another avatar physically blocks the path.
+ const threatened=active(ps).some(q=>q.id!==p.id&&
+  Math.hypot(q.x-p.x,q.y-p.y)<=C.radius*2+5&&
+  ((q.x-p.x)*(p.dir?.x||1)+(q.y-p.y)*(p.dir?.y||0))>5);
+ const action=threatened&&s.clock>=c.botNextPunch&&c.punchCooldown===0;
+ const ids=calculateBlastCells(s,p),gain=ids.filter(id=>s.tiles[id].ownerId!==p.id).length;
  const blast=c.blastCooldown===0&&s.clock>=c.botNextBlast&&gain>=4;
  if(action)c.botNextPunch=s.clock+(1.15+rand(s)*.45)/C.botPunchRate;
  if(blast)c.botNextBlast=s.clock+3+rand(s)*1.2;
