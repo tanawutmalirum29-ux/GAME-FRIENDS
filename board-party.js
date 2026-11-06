@@ -64,7 +64,7 @@ function land(s){
   // Only a final landing is eligible; grant once per player turn. Stacked
   // duplicates are legitimate backpack entries, never replacements.
   const grantKey=s.roundNumber+':'+s.turnIndex+':'+p.id;
-  if(s.luckyGrantKey===grantKey){endTurn(s);return;}
+  if(s.luckyGrantKey===grantKey)return;
   const pool=I().ids,index=Math.max(0,Math.min(pool.length-1,Math.floor(s.rng()*pool.length)));
   const item=pool[index];
   if(!I().add(p,item))throw Error('Lucky Star reward not in item registry');
