@@ -373,7 +373,7 @@ function actors(g,s,t){
  const list=s.players.map(p=>({p,pos:I.position(s,p)})).sort((a,b)=>a.pos.y-b.pos.y);
  for(const {p,pos}of list){
   const dead=p.death&&s.time-p.death.at<1.2,xy=dead?p.death.position:pos;
-  g.save();if(p.shieldTurns>0){circle(g,xy.x,xy.y,29,'#8cddf42d',p.blockedUntil>s.time?'#fff':'#8bd8f1',p.blockedUntil>s.time?5:2);icon(g,'shield',xy.x-22,xy.y-25,10);}
+  g.save();if(window.BoardParty.isProtected(s,p)){circle(g,xy.x,xy.y,29,'#8cddf42d',p.blockedUntil>s.time?'#fff':'#8bd8f1',p.blockedUntil>s.time?5:2);icon(g,'shield',xy.x-22,xy.y-25,10);}
   if(p.id===active?.id){circle(g,xy.x,xy.y,29+Math.sin(t*4)*2,null,'#ffdc83',3);path(g,[[xy.x-6,xy.y-48],[xy.x+6,xy.y-48],[xy.x,xy.y-39]],'#ffcf76');}
   if(dead){g.globalAlpha=Math.max(.1,1-(s.time-p.death.at)/1.2);g.translate(xy.x,xy.y);g.rotate((s.time-p.death.at)*2);g.translate(-xy.x,-xy.y);}
   const moving=s.move?.playerId===p.id&&s.move.to,from=moving?s.map.nodes[s.move.from].position:null,to=moving?s.map.nodes[s.move.to].position:null;
@@ -404,7 +404,7 @@ function effects(g,s,t){
    icon(g,'bomber',0,0,44);g.restore();
   }else if(sk.kind==='ufo'){
    circle(g,sk.x,sk.y,I.ufoRadius+I.radius,'#9beef32b',sk.targetId?'#b5ffb8':'#9eefff',3);icon(g,'ufo',sk.x,sk.y-38,33);
-   if(sk.targetId){const p=s.players.find(p=>p.id===sk.targetId);label(g,p.shieldTurns?'โล่ป้องกัน • '+p.name:'A • '+p.name,sk.x,sk.y+46,16,'#163c53','center');}
+   if(sk.targetId){const p=s.players.find(p=>p.id===sk.targetId);label(g,window.BoardParty.isProtected(s,p)?'โล่ป้องกัน • '+p.name:'A • '+p.name,sk.x,sk.y+46,16,'#163c53','center');}
   }else {
    const n=s.map.nodes[sk.nodeId];if(!sk.step&&n.nextNodes.length>1)for(const id of n.nextNodes){const q=s.map.nodes[id].position;line(g,n.position.x,n.position.y,q.x,q.y,id===sk.selectedNext?'#ffe1a0':'#91b8c7',id===sk.selectedNext?6:2);}
    icon(g,'car',sk.x,sk.y,23);
@@ -534,7 +534,7 @@ function hud(g,s){
   const hpX=x+7,hpW=Math.min(w-16,nameWidth(g,fontSize));
   box(g,hpX,y+29,hpW,6,3,'#0b2537');
   if(hpRatio>0)box(g,hpX,y+29,hpW*hpRatio,6,3,p.color);
-  if(p.shieldTurns>0)icon(g,'shield',x+w-10,y+31,8);
+  if(window.BoardParty.isProtected(s,p))icon(g,'shield',x+w-10,y+31,8);
  });
  const footerY=sceneHeight(s)-80;
  box(g,12,footerY,936,68,16,'#102e44f5','#53758a');
