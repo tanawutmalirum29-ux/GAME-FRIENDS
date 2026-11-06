@@ -340,8 +340,8 @@ test('Lucky Star landing adds one stackable item and must finish reel + above-pl
 });
 test('Board result holds add 0.8 seconds for both minigame and item reels',()=>{
  const app=fs.readFileSync('app.js','utf8');
- assert.match(app,/holdDuration:1\\.18/);
- assert.match(app,/gameSelection\\.holdDuration=1\\.4/);
+ assert.match(app,/holdDuration:1\.18/);
+ assert.match(app,/gameSelection\.holdDuration=1\.4/);
  const s=ready();s.order=s.players.map(p=>p.id);s.turnIndex=0;
  s.phase='minigame';P.minigameEnded(s,s.players.map((p,i)=>({id:p.id,rank:i+1,label:'ok'})));
  until(s,()=>s.phase==='rewards',5);
