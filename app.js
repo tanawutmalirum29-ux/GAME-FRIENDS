@@ -1219,7 +1219,7 @@ function setControllerGameContext(mode,phase,active){
     $('controllerInventory').classList.remove('is-ghost');
     $('controllerRole').textContent='';
     $('inventoryItem').replaceChildren();
-    $('inventoryItem').classList.remove('pizza-order-icons');
+    $('inventoryItem').classList.remove('pizza-order-icons','board-bag-icons');
     $('inventoryGuide').replaceChildren();
     $('targetCycleControls').classList.add('hidden');
     $('controllerButtons').classList.remove('has-target');
@@ -1277,6 +1277,7 @@ function renderPhonePizzaStatus(info){
  $('controllerInventory').classList.remove('is-ghost');
  $('controllerRole').textContent='ออร์เดอร์ '+(info.delivered?.length||0)+'/2 • '+(info.score||0)+' คะแนน';
  const items=$('inventoryItem');
+ items.classList.remove('board-bag-icons');
  items.classList.add('pizza-order-icons');
  art.appendRow(items,info.order||[],info.delivered||[],{size:17,showName:true});
  const guide=$('inventoryGuide');
@@ -1301,7 +1302,7 @@ function renderPhoneInventory(info){
   const isGhost=!!info.ghost;
   $('controllerRole').textContent=isGhost?'ผี':'มนุษย์';
   $('controllerInventory').classList.toggle('is-ghost',isGhost);
-  $('inventoryItem').classList.remove('pizza-order-icons');
+  $('inventoryItem').classList.remove('pizza-order-icons','board-bag-icons');
   $('inventoryItem').textContent=isGhost?'เป้าหมาย: ไล่จับมนุษย์':
     'ไอเทม: '+(names[info.item]||'ว่าง');
   $('inventoryGuide').textContent=isGhost?'แตะมนุษย์เพื่อเปลี่ยนเป็นผี':
@@ -1569,7 +1570,7 @@ function renderPhoneBoard(){
  $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing');
  const bag=Array.isArray(info.bag)?info.bag:[],open=!!info.bagOpen,selected=Number.isInteger(info.bagIndex)?info.bagIndex:0;
  $('controllerRole').textContent='HP '+info.hp+'/3 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • กระเป๋า '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
- const host=$('inventoryItem');host.classList.remove('pizza-order-icons');host.replaceChildren();
+ const host=$('inventoryItem');host.classList.remove('pizza-order-icons','board-bag-icons');host.replaceChildren();
  host.classList.toggle('board-bag-icons',true);
  const svg=window.PartyUiArt;
  const doc=host.ownerDocument||document;
