@@ -196,14 +196,11 @@ test('50% movement and dash, 70% rider/hitboxes, 120% balloons use shared consta
 });
 test('Swept contact selects first balloon and consumes exactly one hit across multiple frames',()=>{
  const {ps,s}=game(3,93),p=ps[0],balls=normal(s).slice(0,5);
- s.balloons=balls;for(let i=0;i<balls.length;i++){
+ s.balloons=[...balls];for(let i=0;i<balls.length;i++){
   balls[i].x=p.x+20+i*37;balls[i].y=p.y;
  }
  K.startAttack(s,p);const score=p.score;
- const segA={x:p.x-20,y:p.y},segB={x:p.x+200,y:p.y};
- console.log('DEBUG sweep',balls.map(v=>({id:v.id,r:v.radius,x:v.x,t:K.sweptCircleEntry(v,segA,segB,v.radius+K.scales.lanceTipRadius)})),p.km.balloonHitConsumed,p.km.attackId);
- K.strike(s,p,ps,segA,segB);
- console.log('DEBUG popped',balls.map(v=>v.state),s.popped,p.km.balloonHitConsumed);
+ K.strike(s,p,ps,{x:p.x-20,y:p.y},{x:p.x+200,y:p.y});
  assert.equal(balls[0].state,'popped');
  assert.equal(s.balloons.length,4);
  assert.equal(Math.abs(p.score-score),1);
