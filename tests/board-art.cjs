@@ -79,6 +79,7 @@ for(const n of [4,12]){
 for(const n of [4,12]){
  const match=P.create(Array.from({length:n},(_,i)=>({id:'k'+i,name:'Hero '+i,
    color:['#ff628c','#3fe4ef','#ffcf62','#ae94ff'][i%4]})),{seed:320+n});
+ match.camera.overview=false;
  P.phase(match,'minigame');
  const finish=match.players.map((p,i)=>({id:p.id,rank:i+1,label:(80-i)+' คะแนน'}));
  assert.equal(P.minigameEnded(match,finish),true);
