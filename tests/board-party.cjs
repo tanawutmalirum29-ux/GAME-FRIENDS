@@ -31,6 +31,16 @@ function press(s,p,key,extra={}){
  send(extra);
  return send({...extra,action:key==='A',alt:key==='B',cancel:key==='C'});
 }
+// A real joystick tick arms UFO targeting; fixtures then position the cursor
+// on a named player without bypassing the A-release and aim-movement rules.
+function aimUfoAt(s,p,q){
+ assert.equal(s.phase,'aim');
+ const send=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
+ send({axisX:1});P.update(s,.05);send({});
+ assert.ok(s.skill.aimTravel>=I.UFO_AIM_TRAVEL_MIN,'UFO cursor physically moved before confirmation');
+ Object.assign(s.skill,I.position(s,q));
+ s.skill.targetId=I.target(s,s.skill,p)?.id||null;
+}
 function steer(s,p,to=s.move?.to||s.map.nodes[p.currentNodeId].nextNodes[0]){
  const a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position,d=Math.hypot(b.x-a.x,b.y-a.y);
  press(s,p,null,{axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d});
@@ -536,8 +546,8 @@ test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected ne
   const s=ready(3,seed),[p,q,r]=s.players;p.item=kind;q.hp=1;q.shieldTurns=1;q.currentNodeId='n1';r.currentNodeId=kind==='car'?'n0':'n1';
   press(s,p,'B');
   if(kind==='ufo'){
-   Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(s.phase,'aim');assert.equal(p.item,'ufo');assert.equal(p.currentNodeId,'n0');assert.equal(q.currentNodeId,'n1');assert.equal(p.usedRound,0);
-   Object.assign(s.skill,I.position(s,r));press(s,p,'A');assert.equal(p.currentNodeId,'n1');assert.equal(r.currentNodeId,'n0');
+   aimUfoAt(s,p,q);press(s,p,'A');assert.equal(s.phase,'aim');assert.equal(p.item,'ufo');assert.equal(p.currentNodeId,'n0');assert.equal(q.currentNodeId,'n1');assert.equal(p.usedRound,0);
+   aimUfoAt(s,p,r);press(s,p,'A');assert.equal(p.currentNodeId,'n1');assert.equal(r.currentNodeId,'n0');
   }else{
    if(kind==='bomber'){Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(r.hp,100);tick(s,1.2);}else until(s,()=>s.phase==='effect');
    assert.equal(r.hp,kind==='bomber'?74:82);assert.equal(p.item,null);assert.equal(s.effect.next,'ready');
@@ -563,7 +573,7 @@ test('UFO clears stale mid-rocket edges on BOTH swapped players; walk rejects in
  q.pendingTraverse=pending('n20','n21');
  p.worldPosition={x:330,y:470};q.worldPosition={x:520,y:900};
  assert.equal(I.begin(s,p,P,'ufo'),true);
- Object.assign(s.skill,I.position(s,q));
+ aimUfoAt(s,p,q);
  assert.equal(P.action(s,p.id,'A'),true);
  assert.equal(p.currentNodeId,'n20');assert.equal(q.currentNodeId,'n0');
  assert.equal(p.pendingTraverse,undefined);
@@ -582,10 +592,10 @@ test('250 UFO cases: real world hitboxes, stacked players, atomic swap, no landi
  for(let seed=0;seed<250;seed++){
   const s=ready(12,seed),p=s.players[0],q=s.players[1];p.item='ufo';for(const q of s.players.slice(1))q.currentNodeId='n10';
   press(s,p,'B');assert.equal(s.phase,'aim');s.skill.x=9999;press(s,p,'A');assert.equal(p.item,'ufo');assert.equal(p.currentNodeId,'n0');
-  const pos=I.position(s,q);Object.assign(s.skill,pos);assert.equal(I.target(s,s.skill,p).id,q.id);press(s,p,'A');
+  aimUfoAt(s,p,q);assert.equal(I.target(s,s.skill,p).id,q.id);press(s,p,'A');
   assert.equal(p.currentNodeId,'n10');assert.equal(q.currentNodeId,'n0');assert.equal(p.hp,100);assert.equal(q.hp,100);assert.equal(p.item,null);assert.equal(s.effect.next,'end');assert.equal(new Set(s.players.map(p=>p.id)).size,12);press(s,p,'A');assert.equal(s.phase,'effect');
  }
- const s=ready(),p=s.players[0],q=s.players[1];p.item='ufo';q.currentNodeId=s.map.finishId;press(s,p,'B');Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(p.item,'ufo');tick(s,8.1);assert.equal(p.item,'ufo');assert.equal(s.phase,'ready');assert.equal(p.usedRound,0);
+ const s=ready(),p=s.players[0],q=s.players[1];p.item='ufo';q.currentNodeId=s.map.finishId;press(s,p,'B');aimUfoAt(s,p,q);press(s,p,'A');assert.equal(p.item,'ufo');assert.equal(s.phase,'aim');press(s,p,'C');assert.equal(p.item,'ufo');assert.equal(s.phase,'ready');assert.equal(p.usedRound,0);
 });
 test('Repeated aim cancellation never forces a human dice roll',()=>{
  const s=ready(),p=s.players[0];p.item='ufo';
@@ -839,7 +849,7 @@ test('One item per round: non-UFO item returns to Roll; UFO ends turn',()=>{
   if(kind==='rocket')p.currentNodeId='n0';
   p.actionIndex=I.ids.indexOf(kind)+1;
   assert.equal(P.action(s,p.id,'A'),true,'item begins: '+kind);
-  if(kind==='ufo'){Object.assign(s.skill,I.position(s,q));assert.equal(P.action(s,p.id,'A'),true);}
+  if(kind==='ufo'){aimUfoAt(s,p,q);assert.equal(P.action(s,p.id,'A'),true);}
   if(kind==='bomber'){
    const packet=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
    packet({action:true});packet({});assert.equal(P.action(s,p.id,'A'),true);
