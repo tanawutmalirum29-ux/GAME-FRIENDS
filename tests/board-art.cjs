@@ -122,17 +122,19 @@ assert.ok(old.width*old.height>1000000);
 ctx.window.BoardItems.add(s.players[0],'shield');
 ctx.window.BoardItems.add(s.players[0],'potion');
 P.action(s,s.players[0].id,'B');A.draw(g,0,s);
-assert.ok(labels.some(x=>String(x).includes('กระเป๋าไอเทม (2 ชิ้น)')),
- 'backpack overlay must be visible on the main board');
-P.action(s,s.players[0].id,'A');A.draw(g,0,s);
-assert.ok(labels.some(x=>String(x).includes('Healing Potion')),
- 'cycling selection draws the selected item name in the backpack');
-s.players[0].bagOpen=false;
+assert.equal(s.players[0].actionIndex,1,'B selects the first item without a popup');
+assert.ok(labels.some(x=>String(x).includes('เลือก: Protection Shield')),
+ 'selected item is identified in the always-visible footer');
+P.action(s,s.players[0].id,'B');A.draw(g,0,s);
+assert.equal(s.players[0].actionIndex,2);
+assert.ok(labels.some(x=>String(x).includes('เลือก: Healing Potion')),
+ 'second B selects the next item without opening a bag');
+s.players[0].actionIndex=0;
 const snapshot=JSON.stringify(s.players);
 for(let i=0;i<60;i++)A.draw(g,i/60,s);assert.equal(surfaces.length,initialSurfaces+1,'terrain is reused');assert.equal(JSON.stringify(s.players),snapshot);
 const t=game(2);t.order=t.players.map(p=>p.id);P.startTurn(t);denyTerrain=true;A.draw(g,0,t);
 assert.equal(old.width,1);assert.equal(old.height,1,'previous match pixels are released');assert.equal(surfaces.length,initialSurfaces+2);
-assert.equal(surfaces.at(-1).width,1,'failed allocation is released too');assert.ok(labels.includes('A • ทอยลูกเต๋า'));
+assert.equal(surfaces.at(-1).width,1,'failed allocation is released too');assert.ok(labels.some(x=>String(x).includes('A ทอย')));
 for(let i=0;i<10;i++)A.draw(g,i,t);assert.equal(surfaces.length,initialSurfaces+2,'allocation failure falls back without a retry loop');
 // A BOARD minigame must show exactly one results/reward page. During return,
 // sprites and scores must not be presented as a second prize roll.
@@ -217,3 +219,19 @@ console.log('BOARD ART PASS: automatic order screen, bounded/reused terrain, rep
  assert.equal(portraitDraws.length,s.players.length,'all dice cards show the frontal portrait');
 }
 console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, front-facing HUD/order portraits');
+
+
+// The dice panel and its content use one shared screen center. Neither the
+// selected item nor long player name may spill outside the centered panel.
+{
+ const s=game(2),p=s.players[0];s.order=[p.id,s.players[1].id];P.startTurn(s);
+ p.name='ชื่อผู้เล่นภาษาไทยยาวมากเพื่อทดสอบตำแหน่งให้อยู่ตรงกลาง';
+ const start=labelDraws.length;A.draw(g,0,s);
+ const frame=labelDraws.slice(start);
+ assert.ok(frame.some(x=>x.text===p.name&&x.align==='center'&&x.x===480),
+   'the full player title is anchored on the dice panel center');
+ assert.ok(frame.some(x=>x.text.includes('B เปลี่ยนตัวเลือก')&&x.x===480),
+   'instruction sits below the dice without drifting right');
+ assert.doesNotMatch(artSource,/% • รอ|backpackOverlay\(g,s\)/,
+   'progress percentages and popup bag are gone from the board renderer');
+}
