@@ -18,14 +18,24 @@ function forwardTarget(s,p,maxSteps=Infinity){
   .sort((a,b)=>Number.isFinite(maxSteps)?a.path.length-b.path.length:s.map.nodes[b.q.currentNodeId].progress-s.map.nodes[a.q.currentNodeId].progress)[0]?.q;
 }
 function update(s,dt,api){
- if(s.phase==='rewards')for(const p of s.players.filter(p=>p.isBot&&s.pendingItems[p.id])){
-  if(s.time-s.phaseAt>1){const pending=s.pendingItems[p.id];send(s,p,api,p.item==='potion'&&p.hp===3||pending.item==='rocket'?1:-1,0);if(s.time-s.phaseAt>1.3)send(s,p,api,0,0,'A');}
- }
+ // Rewards are added directly to every bot's backpack by the host.
  const p=api.current(s);if(!p?.isBot)return;
  if(s.time-s.phaseAt<.5&&!(s.phase==='moving'&&s.move?.kind==='walk'))return;
  if(s.phase==='ready'){
-  const use=p.item&&p.usedRound!==s.roundNumber&&(p.item==='potion'?p.hp<3:p.item==='shield'?!p.shieldTurns:p.item==='rocket'?true:p.item==='ufo'?!!forwardTarget(s,p):p.item==='car'?!!forwardTarget(s,p,6):s.players.some(q=>q.id!==p.id&&!q.shieldTurns));
-  send(s,p,api,0,0,use?'B':'A');
+  const bag=window.BoardItems.bag(p);
+  const canUse=kind=>p.usedRound!==s.roundNumber&&(
+   kind==='potion'?p.hp<3:kind==='shield'?!p.shieldTurns:
+   kind==='rocket'?true:kind==='ufo'?!!forwardTarget(s,p):
+   kind==='car'?!!forwardTarget(s,p,6):
+   s.players.some(q=>q.id!==p.id&&!q.shieldTurns));
+  const target=bag.find(canUse);
+  if(p.bagOpen){
+   const index=p.bagIndex||0;
+   if(!target){
+    // Close at the final slot, then roll normally.
+    send(s,p,api,0,0,index>=bag.length?'B':'A');
+   }else send(s,p,api,0,0,bag[index]===target?'B':'A');
+  }else send(s,p,api,0,0,target?'B':'A');
  }else if(s.phase==='move_ready'||(s.phase==='moving'&&s.move?.kind==='walk')){
   const from=s.map.nodes[p.currentNodeId].position,to=s.map.nodes[s.move.to||s.map.nodes[p.currentNodeId].nextNodes[0]].position,d=Math.hypot(to.x-from.x,to.y-from.y);
   send(s,p,api,(to.x-from.x)/d,(to.y-from.y)/d);
