@@ -5,12 +5,17 @@ const M=()=>window.BoardMap,D=()=>window.BoardDice,I=()=>window.BoardItems;
 const MAX_HP=100;
 const LUCKY_SPIN_SECONDS=2,LUCKY_HOLD_SECONDS=1.4; // Previous .6-second result hold + .8 seconds.
 const DAMAGE=Object.freeze({sword:12,car:18,bomber:26,skull:35,event:14});
-const HEAL=Object.freeze({tile:20,event:15,potion:30});
+const HEAL=Object.freeze({tile:20,event:15,potion:50});
 let serial=0;
 function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
- const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],camera:{x:480,y:320,zoom:1,explore:false},lastMinigame:null};
- phase(s,'order',12);return s;
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
+ phase(s,'overview',Infinity);return s;
+}
+function beginOrder(s){
+ if(s.phase!=='overview')return false;
+ s.camera.overview=false;s.camera.explore=false;
+ phase(s,'order',12);return true;
 }
 function phase(s,name,duration=0){s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;s.turnId=s.id+':'+(++s.revision);}
 // A continuous walk owns one input token until it lands; holding the stick
@@ -24,7 +29,7 @@ const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
 function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
 function rollOrder(s,p){if(p.dice||s.phase!=='order')return false;p.dice=[D().roll(s.rng),D().roll(s.rng)];p.rollAt=s.time;return true;}
 function ready(s,extend=true){s.move=null;s.skill=null;for(const p of s.players)p.bagOpen=false;if(extend)s.readyDeadline=s.time+12;phase(s,'ready',Math.max(.1,s.readyDeadline-s.time));}
-function startTurn(s){s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
+function startTurn(s){s.camera.overview=false;s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
 function endTurn(s){
  if(s.phase==='finished')return;
  // Count the shield's owner's completed turns, regardless of round reordering.
@@ -54,12 +59,16 @@ function win(s,p){
  if(s.phase==='finished'){if(s.time===s.phaseAt&&!s.winnerIds.includes(p.id))s.winnerIds.push(p.id);return;}
  s.winnerIds=[p.id];s.move=null;s.skill=null;phase(s,'finished');
 }
-function land(s){
+function land(s,applyTile=true){
  const m=s.move,p=current(s);
  if(m?.kind==='walk')p.worldPosition=I().position(s,p);
  s.move=null;
  if(p.currentNodeId===s.map.finishId){win(s,p);return;}
  const n=s.map.nodes[p.currentNodeId];let dead=false,kind='land';
+ if(!applyTile){
+  effect(s,{kind:'land',points:[I().position(s,p)],targets:[p.id],
+   next:m?.kind==='rocket'?'ready':'end'},.5);return;
+ }
  if(n.type==='lucky'){
   // Only a final landing is eligible; grant once per player turn. Stacked
   // duplicates are legitimate backpack entries, never replacements.
@@ -81,15 +90,24 @@ function land(s){
   phase(s,'lucky_roulette',LUCKY_SPIN_SECONDS+LUCKY_HOLD_SECONDS);
   return;
  }
- if(n.type==='healing'){p.hp=Math.min(MAX_HP,p.hp+HEAL.tile);kind='heal';}
+ if(n.type==='healing'){
+   const gained=Math.min(MAX_HP-p.hp,HEAL.tile);p.hp+=gained;
+   s.heals.push({id:p.id,amount:gained,at:s.time,position:I().position(s,p)});
+   kind='heal';
+ }
  if(n.type==='danger'){dead=damage(s,p,DAMAGE.skull);kind=p.shieldTurns>0?'shield':'hurt';}
  if(n.type==='event'){
   if(s.rng()<.5){p.hp=Math.min(MAX_HP,p.hp+HEAL.event);kind='heal';}
   else{dead=damage(s,p,DAMAGE.event);kind=p.shieldTurns>0?'shield':'hurt';}
  }
  if(n.type==='sword'){
-  if(n.ownerId==null){n.ownerId=p.id;kind='swordClaim';}
-  else if(n.ownerId===p.id){kind='swordSafe';}
+  const territory=s.map.territories[n.territoryId];
+  if(!territory)throw Error('Missing sword territory');
+  if(territory.ownerId==null){
+   territory.ownerId=p.id;
+   for(const id of territory.nodeIds)s.map.nodes[id].ownerId=p.id;
+   kind='swordClaim';
+  }else if(territory.ownerId===p.id)kind='swordSafe';
   else{dead=damage(s,p,DAMAGE.sword);kind=p.shieldTurns>0?'shield':'swordHit';}
  }
  effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],
@@ -102,14 +120,24 @@ function beginMove(s,p,steps,kind='walk'){
  if(kind==='walk'&&!p.worldPosition)p.worldPosition={...position};
  s.move={playerId:p.id,kind,remaining:steps,total:steps,from:p.currentNodeId,to:null,
    t:0,lateral:0,nodeOffset:{x:position.x-origin.x,y:position.y-origin.y},
-   intent:null,intentTime:0,started:false,visited:[p.currentNodeId],auto:false,
-   expires:kind==='rocket'?s.time+4.5:Infinity};
+   intent:null,intentTime:0,started:false,visited:[p.currentNodeId],completedSteps:0,auto:false,
+   expires:kind==='rocket'?s.time+5:Infinity};
  s.camera.explore=kind==='walk'&&!p.isBot;
  if(kind==='walk'&&s.inputs[p.id]){
    s.inputs[p.id].x=0;s.inputs[p.id].y=0;s.inputs[p.id].at=-Infinity;
  }
- phase(s,'move_ready',kind==='walk'?15:8);
- nextStep(s);
+ if(kind==='rocket'){
+  s.move.remaining=Infinity;s.move.total=Infinity;
+  phase(s,'rocket',5);return;
+ }
+ if(p.pendingTraverse){
+  const pending=p.pendingTraverse;delete p.pendingTraverse;
+  s.move.from=pending.from;s.move.to=pending.to;
+  s.move.startPosition=pending.startPosition;s.move.endPosition=pending.endPosition;
+  s.move.t=pending.t;s.move.lateral=pending.lateral||0;
+  s.move.nodeOffset={x:0,y:0};movePhase(s,'moving');return;
+ }
+ phase(s,'move_ready',15);nextStep(s);
 }
 function nextStep(s){
  const m=s.move,p=current(s);
@@ -223,6 +251,46 @@ function walkEdge(s,p,dt){
   nextStep(s);
  }
 }
+// 5-second forward-only free steering. Completed edges advance the graph;
+// mid-edge expiration stores a precise position and never awards the next node.
+function updateRocket(s,dt){
+ const m=s.move,p=current(s);if(!m||m.kind!=='rocket')return;
+ const axesNow=axes(s,p.id),strength=Math.hypot(axesNow.x,axesNow.y);
+ if(s.time>=m.expires){
+  const point=I().position(s,p);p.worldPosition={...point};
+  if(m.to&&m.t<.999){
+   p.pendingTraverse={from:m.from,to:m.to,t:m.t,lateral:m.lateral||0,
+    startPosition:{...m.startPosition},endPosition:{...m.endPosition}};
+   land(s,false);return;
+  }
+  land(s,m.completedSteps>0);return;
+ }
+ if(strength<=.12)return;
+ const stick={x:axesNow.x/strength,y:axesNow.y/strength};
+ if(!m.to){
+  const opts=s.map.nodes[p.currentNodeId].nextNodes;
+  if(!opts.length){win(s,p);return;}
+  const to=M().choose(s.map,p.currentNodeId,stick.x,stick.y);
+  const a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position;
+  const len=Math.hypot(b.x-a.x,b.y-a.y)||1;
+  if((stick.x*(b.x-a.x)+stick.y*(b.y-a.y))/len<.23)return;
+  m.from=p.currentNodeId;m.to=to;
+  m.startPosition=I().position(s,p);m.endPosition={...b};
+  m.t=0;m.lateral=0;
+ }
+ const a=m.startPosition,b=m.endPosition,dx=b.x-a.x,dy=b.y-a.y;
+ const len=Math.hypot(dx,dy)||1,nx=dx/len,ny=dy/len;
+ const forward=Math.max(0,stick.x*nx+stick.y*ny),side=-stick.x*ny+stick.y*nx;
+ m.t=Math.min(1,m.t+forward*510*dt/len);
+ m.lateral=bound((m.lateral||0)+side*510*dt,-LANE_RADIUS,LANE_RADIUS);
+ m.walking=forward>.05||Math.abs(side)>.05;
+ if(m.t>=1){
+  p.worldPosition=I().position(s,p);
+  p.currentNodeId=m.to;m.visited.push(m.to);m.completedSteps++;
+  m.from=p.currentNodeId;m.to=null;m.lateral=0;
+  if(p.currentNodeId===s.map.finishId)win(s,p);
+ }
+}
 function roll(s){
  if(s.phase!=='ready'||s.rolled)return false;
  const p=current(s);if(p){p.bagOpen=false;p.bagMessage='';}
@@ -286,8 +354,7 @@ function action(s,id,button){
    s.camera.explore=false;s.move.started=true;return true;
  }
  if(s.phase==='aim')return I().confirm(s,button,api);
- if(s.phase==='branch'&&s.move?.kind==='rocket'&&button==='A')return step(s,forwardInput(s,p)||s.branch.selected);
- if(s.phase==='moving'&&s.move?.kind==='rocket'&&button==='A'){s.move.stop=true;return true;}
+ // Rocket travel is analogue-controlled; A does not select graph nodes.
  return false;
 }
 function input(s,id,packet){
@@ -338,13 +405,15 @@ function grant(s){
 }
 function update(s,dt){
  if(!Number.isFinite(dt)||dt<=0)return;dt=Math.min(dt,.1);s.time+=dt;
- if(s.phase==='order'){
+ if(s.phase==='overview'){/* Await host confirmation. */}
+ else if(s.phase==='order'){
   for(const p of s.players)if(!p.dice&&(s.time>=s.deadline||(p.isBot&&s.time-s.phaseAt>.6+s.players.indexOf(p)*.12)))rollOrder(s,p);
   if(s.players.every(p=>p.dice&&s.time-p.rollAt>.85)){s.order=D().order(s.players,s.rng);phase(s,'order_result',3);}
  }else if(s.phase==='order_result'&&s.time>=s.deadline)startTurn(s);
  else if(s.phase==='ready'&&s.time>=s.deadline)roll(s);
  else if(s.phase==='dice'&&s.time>=s.deadline)beginMove(s,current(s),s.die);
- else if(s.phase==='move_ready'){
+ else if(s.phase==='rocket')updateRocket(s,dt);
+  else if(s.phase==='move_ready'){
   if(s.move.kind==='walk')roamNode(s,current(s),dt);
   else if(s.time>=s.deadline){s.move.auto=true;step(s,s.map.nodes[current(s).currentNodeId].nextNodes[0]);}
  }else if(s.phase==='branch'){
@@ -376,6 +445,7 @@ function update(s,dt){
 function snapshot(s){return JSON.parse(JSON.stringify({map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}
 function controls(s,id){
  const p=s.players.find(p=>p.id===id),mine=current(s)?.id===id;
+ if(s.phase==='overview')return{a:'',b:'',help:'กำลังดูแมพทั้งหมด • เจ้าของห้องกด เริ่มทอยจัดลำดับ'};
  if(s.phase==='order')return{a:'ทอย 2 ลูก',b:'ทอย 2 ลูก',help:p?.dice?'ทอยแล้ว • รอเพื่อน':'A หรือ B ทอยลำดับ'};
  if(s.phase==='rewards')return{a:'',b:'',help:'เก็บไอเทมรางวัลลงกระเป๋าอัตโนมัติ'};
  if(s.phase==='lucky_roulette')return{a:'',b:'',help:'LUCKY STAR • กำลังสุ่มไอเทมเข้ากระเป๋า'};
@@ -393,12 +463,13 @@ function controls(s,id){
    help:(s.camera.explore?'ลากหน้าจอหลักดูแผนที่ • A เริ่มเดิน หรือขยับจอยเพื่อล็อกกล้อง':
      'ลากจอยเพื่อเดิน / ปล่อยเพื่อหยุด • ไม่มีการช่วยเดินอัตโนมัติ')+
      ' • เหลือ '+s.move.remaining+' ก้าว'};
- if(s.phase==='branch')return{a:'เลือกทาง',b:'',help:'อนาล็อกเลือกทางจรวด / A ยืนยัน'};
+ if(s.phase==='rocket')return{a:'',b:'',help:'จรวด '+Math.max(0,s.move.expires-s.time).toFixed(1)+'s • คุมอนาล็อกไปข้างหน้า ไม่มีจำกัดช่อง'};
+  if(s.phase==='branch')return{a:'',b:'',help:'ชี้ทิศทางที่แยกด้วยอนาล็อก'};
  if(s.phase==='aim')return{a:'ยืนยัน',b:s.skill.kind==='bomber'?'หมุน 45°':'',help:s.skill.kind==='ufo'?'เล็งให้สัมผัสตัวละคร / A สลับ':'เลื่อนแนวบิน / B หมุน / A โจมตี'};
  if(s.phase==='car')return{a:'',b:'',help:'อนาล็อกขับตามลูกศร • ระเบิดเมื่อชนหรือครบ 6 วินาที'};
- if(s.phase==='moving'&&s.move?.kind==='rocket')return{a:'ลงช่องถัดไป',b:'',help:'จรวดไปข้างหน้า / A ลงจอด'};
+ 
  return{a:'',b:'',help:'กำลังดำเนินตา'};
 }
-const api={create,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
+const api={create,beginOrder,updateRocket,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
 window.BoardParty=Object.freeze(api);
 })();

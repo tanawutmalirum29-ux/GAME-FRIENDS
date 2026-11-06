@@ -4292,3 +4292,11 @@ body:has(#home:not(.hidden)) footer{
 #controllerInventory .board-bag-item svg{
  width:23px;height:23px;display:block;flex-shrink:0;
 }
+
+/* BOARD PARTY map tools remain on the host, never rendered on controllers. */
+#game .board-tools{display:flex;align-items:center;gap:5px;flex-wrap:wrap;max-width:min(780px,82vw);pointer-events:auto;position:absolute;right:84px;top:6px;z-index:11;justify-content:flex-end}
+#game .board-tools.hidden,#game .board-tools .hidden{display:none!important}
+#game .board-tool{border:1px solid #87bed8;border-radius:8px;background:#173d58ed;color:#e7f6ff;padding:6px 9px;font:bold clamp(9px,1.3vw,12px) system-ui;cursor:pointer;white-space:nowrap;touch-action:manipulation}
+#game .board-tool-primary{background:#387452;border-color:#f1e0a2;color:#fff6cc}
+#game .board-tool[aria-pressed=true]{background:#a17836;border-color:#ffeaa8}
+@media(max-width:700px){#game .board-tools{left:7px;right:65px;top:4px;gap:3px;max-width:none}#game .board-tool{padding:4px 5px;font-size:9px}}

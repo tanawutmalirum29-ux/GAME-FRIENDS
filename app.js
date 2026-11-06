@@ -139,35 +139,48 @@ function holdSeat(p){
  },60000));
 }
 const canvas=$('arena'), g=canvas.getContext('2d');
-// A pointer drag on the host's board view explores the map only AFTER rolling
-// and BEFORE the first walk. Gameplay inputs remain on the controller.
+// Host map gestures: drag to pan, pinch to zoom and tap nodes in Debug mode.
+// Game input remains exclusively on the controller; pause freezes simulation.
 {
- let panId=null,lastX=0,lastY=0;
- const canPan=()=>round?.mode==='board'&&!round.paused&&
-   !!boardSession&&!!window.BoardArt?.canPan(boardSession);
- const release=e=>{if(e.pointerId===panId)panId=null;};
+ const pointers=new Map();let pinchDistance=0,gestureMoved=false,downAt=null;
+ const enabled=()=>round?.mode==='board'&&!!boardSession&&!!window.BoardArt?.canPan(boardSession);
+ const coords=e=>{const rect=canvas.getBoundingClientRect();
+   return {x:(e.clientX-rect.left)*960/(rect.width||960),y:(e.clientY-rect.top)*540/(rect.height||540)};};
  canvas.addEventListener('pointerdown',e=>{
-   if(panId!==null||!canPan())return;
-   const rect=canvas.getBoundingClientRect();
-   if(!rect.width||!rect.height)return;
-   const y=(e.clientY-rect.top)/rect.height*540;
-   const top=boardSession.players.length>6?145:94;
-   if(y<top||y>452)return; // HUD is not a draggable map.
-   e.preventDefault();panId=e.pointerId;lastX=e.clientX;lastY=e.clientY;
-   try{canvas.setPointerCapture(panId);}catch(_){}
+  if(!enabled())return;
+  const pt=coords(e),top=boardSession.players.length>6?145:94;
+  if(pt.y<top||pt.y>452)return;
+  e.preventDefault();pointers.set(e.pointerId,pt);
+  if(pointers.size===1){downAt=pt;gestureMoved=false;pinchDistance=0;}
+  else if(pointers.size===2){const q=[...pointers.values()];
+   pinchDistance=Math.hypot(q[0].x-q[1].x,q[0].y-q[1].y)||1;gestureMoved=true;}
+  try{canvas.setPointerCapture(e.pointerId);}catch(_){}
  });
  canvas.addEventListener('pointermove',e=>{
-   if(panId!==e.pointerId)return;
-   if(!canPan()){panId=null;return;}
-   const rect=canvas.getBoundingClientRect();
-   if(!rect.width||!rect.height)return;
-   e.preventDefault();
-   window.BoardArt.pan(boardSession,(e.clientX-lastX)*960/rect.width,
-     (e.clientY-lastY)*540/rect.height);
-   lastX=e.clientX;lastY=e.clientY;
+  if(!pointers.has(e.pointerId))return;
+  if(!enabled()){pointers.clear();return;}
+  e.preventDefault();
+  const old=pointers.get(e.pointerId),pt=coords(e);pointers.set(e.pointerId,pt);
+  if(pointers.size===2){
+   const q=[...pointers.values()],newDistance=Math.hypot(q[0].x-q[1].x,q[0].y-q[1].y)||1;
+   if(pinchDistance>0)window.BoardArt.zoom(boardSession,newDistance/pinchDistance);
+   pinchDistance=newDistance;gestureMoved=true;
+  }else{
+   const dx=pt.x-old.x,dy=pt.y-old.y;
+   if(Math.hypot(pt.x-downAt.x,pt.y-downAt.y)>7)gestureMoved=true;
+   window.BoardArt.pan(boardSession,dx,dy);
+  }
  });
+ const release=e=>{
+  if(!pointers.has(e.pointerId))return;
+  const pt=coords(e);pointers.delete(e.pointerId);
+  if(!pointers.size){
+   if(!gestureMoved&&enabled())window.BoardArt.inspect(boardSession,pt.x,pt.y);
+   downAt=null;pinchDistance=0;
+  }
+ };
  for(const name of ['pointerup','pointercancel','lostpointercapture'])
-   canvas.addEventListener(name,release);
+  canvas.addEventListener(name,release);
 }
 // The game world stays at 960x540. Increase the bitmap resolution of the
 // *host canvas* to match the screen instead of stretching 960 physical pixels
@@ -1519,6 +1532,7 @@ function beginBoard(){
   try{
     tournament=null;gameSelection=null;
     boardSession=window.BoardParty.create(players);
+    window.BoardArt.overview(boardSession);
     players.forEach(p=>{p.active=true;});
     window.PartyPlayerAvatar.preload(boardSession.players);
     showBoard();requestHostFullscreen();
@@ -1526,6 +1540,17 @@ function beginBoard(){
     console.error('BOARD PARTY start failed',error);returnToLobby();
     showToast('เริ่ม BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
   }
+}
+function refreshBoardTools(){
+ const active=round?.mode==='board'&&!!boardSession;
+ $('boardTools').classList.toggle('hidden',!active);
+ $('boardStartDiceBtn').classList.toggle('hidden',!active||boardSession.phase!=='overview');
+ if(active)$('boardNodeDebugBtn').setAttribute('aria-pressed',String(!!boardSession.camera.debugNodes));
+ if(active&&round.paused){
+  $('pauseBtn').title='เล่นต่อ';$('pauseBtn').setAttribute('aria-label','เล่นต่อ');
+ }else{
+  $('pauseBtn').title='หยุดเกม';$('pauseBtn').setAttribute('aria-label','หยุดเกม');
+ }
 }
 function showBoard(){
   round={mode:'board',phase:'playing',paused:false,remaining:null,autoNextRemaining:0};
@@ -1537,7 +1562,7 @@ function showBoard(){
   setView('game');
   // Paint the order/result screen in the Start event itself. Safari can delay
   // its first animation frame during fullscreen; old minigame clips must not survive.
-  canvas.width=canvas.width;markArenaResolutionDirty();drawGame(graphicsClock);
+  canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
   renderLeaderboard();broadcastRoster();
   remotePreviewClock=1.1;
   for(const conn of hostConnections)startHostVideoCall(conn);
@@ -1558,7 +1583,8 @@ function updateBoard(dt){
     pending-=step;
     if(s.phase==='minigame_pending'||s.phase==='minigame'||s.phase==='finished')break;
   }
-  if(s.phase==='minigame_pending'){
+  refreshBoardTools();
+   if(s.phase==='minigame_pending'){
     const mode=window.BoardMinigame.pick(boardRegistry(),s.players.length,s.lastMinigame,s.rng);
     if(!mode)throw Error('No compatible minigame');
     s.savedBoard=window.BoardParty.snapshot(s);
@@ -1601,7 +1627,7 @@ function renderPhoneBoard(){
  $('controllerHelp').textContent=info.help||'';
  $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing');
  const bag=Array.isArray(info.bag)?info.bag:[],open=!!info.bagOpen,selected=Number.isInteger(info.bagIndex)?info.bagIndex:0;
- $('controllerRole').textContent='HP '+info.hp+'/3 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • กระเป๋า '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
+ $('controllerRole').textContent='HP '+info.hp+'/100 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • กระเป๋า '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
  const host=$('inventoryItem');host.classList.remove('pizza-order-icons','board-bag-icons');host.replaceChildren();
  host.classList.toggle('board-bag-icons',true);
  const svg=window.PartyUiArt;
@@ -2376,8 +2402,12 @@ function pauseGame(){
   renderPauseChoiceList();
   round.paused=true;
   resetInputs();
-  $('pauseMenu').classList.remove('hidden');
-  $('pauseBtn').setAttribute('aria-expanded','true');
+  if(round.mode==='board'&&boardSession){
+    boardSession.camera.paused=true;
+    $('pauseMenu').classList.add('hidden'); // Keep the frozen map touchable.
+  }else $('pauseMenu').classList.remove('hidden');
+  $('pauseBtn').setAttribute('aria-expanded',String(round.mode!=='board'));
+  refreshBoardTools();
   broadcastRoster();
   broadcastGameState();
 }
@@ -2385,13 +2415,15 @@ function resumeGame(){
   if(!round||!round.paused)return;
   resetInputs();
   round.paused=false;
-  if(round.mode==='board'&&boardSession){const s=boardSession;window.BoardParty.phase(s,s.phase,Math.max(0,s.deadline-s.time));s.inputs={};}
+  if(round.mode==='board'&&boardSession){const s=boardSession;s.camera.paused=false;s.camera.overview=false;s.camera.manualZoom=null;s.inputs={};}
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
+  refreshBoardTools();
   broadcastRoster();
   broadcastGameState();
 }
 function returnToLobby(){
+  $('boardTools').classList.add('hidden');
   gameSelection=null;$('gameRoulette').classList.add('hidden');
   boardSession=null;boardStateToken=null;document.body.classList.remove('board-playing');
   tournament=null;round=null;resetInputs();
@@ -2402,7 +2434,15 @@ function returnToLobby(){
   // Keep document-root fullscreen during lobby/round transitions.
   setView('hostLobby');renderRoster();broadcastRoster();
 }
-$('pauseBtn').addEventListener('click',pauseGame);
+$('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
+$('boardStartDiceBtn').addEventListener('click',()=>{
+ if(!boardSession||round?.mode!=='board'||round.paused)return;
+ if(window.BoardParty.beginOrder(boardSession)){boardSession.camera.manualZoom=null;refreshBoardTools();broadcastBoardState();}
+});
+$('boardOverviewBtn').addEventListener('click',()=>{if(round?.mode==='board'&&boardSession)window.BoardArt.overview(boardSession);});
+$('boardZoomInBtn').addEventListener('click',()=>{if(boardSession)window.BoardArt.zoom(boardSession,1.25);});
+$('boardZoomOutBtn').addEventListener('click',()=>{if(boardSession)window.BoardArt.zoom(boardSession,.8);});
+$('boardNodeDebugBtn').addEventListener('click',()=>{if(boardSession){window.BoardArt.toggleDebug(boardSession);refreshBoardTools();}});
 $('resumeBtn').addEventListener('click',resumeGame);
 document.addEventListener('keydown',e=>{
   if(currentView==='game'&&(e.code==='Escape'||e.code==='KeyP')){
