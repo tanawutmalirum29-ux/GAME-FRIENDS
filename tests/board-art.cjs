@@ -122,13 +122,11 @@ assert.ok(old.width*old.height>1000000);
 ctx.window.BoardItems.add(s.players[0],'shield');
 ctx.window.BoardItems.add(s.players[0],'potion');
 P.action(s,s.players[0].id,'B');A.draw(g,0,s);
-assert.equal(s.players[0].actionIndex,1,'B selects the first item without a popup');
-assert.ok(labels.some(x=>String(x).includes('เลือก: Protection Shield')),
- 'selected item is identified in the always-visible footer');
+assert.equal(s.players[0].actionIndex,1,'B selects the stocked potion slot without a popup');
+assert.ok(labels.includes('ยา'),'permanent grid labels the potion slot, without verbose footer instructions');
 P.action(s,s.players[0].id,'B');A.draw(g,0,s);
-assert.equal(s.players[0].actionIndex,2);
-assert.ok(labels.some(x=>String(x).includes('เลือก: Healing Potion')),
- 'second B selects the next item without opening a bag');
+assert.equal(s.players[0].actionIndex,6,'second B skips empty slots to shield');
+assert.ok(labels.includes('โล่'),'permanent grid includes shield, regardless of selection');
 s.players[0].actionIndex=0;
 const snapshot=JSON.stringify(s.players);
 for(let i=0;i<60;i++)A.draw(g,i/60,s);assert.equal(surfaces.length,initialSurfaces+1,'terrain is reused');assert.equal(JSON.stringify(s.players),snapshot);
