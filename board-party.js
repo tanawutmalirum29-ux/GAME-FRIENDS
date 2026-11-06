@@ -10,7 +10,7 @@ const HEAL=Object.freeze({tile:20,event:15,potion:50});
 let serial=0;
 function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
- const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,actionIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,actionIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,shieldRound:null,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
  s.camera.x=s.map.width/2;s.camera.y=s.map.height/2;
  phase(s,'overview',Infinity);return s;
 }
@@ -43,15 +43,21 @@ function ready(s){s.move=null;s.skill=null;for(const p of s.players){p.bagOpen=f
 function startTurn(s){M().assertCompatible(s.map);s.camera.overview=false;s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
 function endTurn(s){
  if(s.phase==='finished')return;
- // Count the shield's owner's completed turns, regardless of round reordering.
- const p=current(s);if(p?.shieldTurns>0)p.shieldTurns--;
+ // Protection persists to the end of this BOARD round; never decrement by turn.
  s.move=null;s.skill=null;s.effect=null;s.lucky=null;s.turnIndex++;
  if(s.turnIndex>=s.order.length){phase(s,'minigame_pending');return;}
  startTurn(s);
 }
 function effect(s,fx,duration){s.effect={...fx,duration,at:s.time};phase(s,'effect',duration);}
+// Central protection for all current/future harmful actions: use blockHarm
+// for displacement/status effects, damage for HP. Stock does not auto-equip.
+function isProtected(s,p){return !!p&&p.shieldTurns>0&&p.shieldRound===s.roundNumber;}
+function blockHarm(s,p){
+ if(!isProtected(s,p))return false;
+ p.blockedUntil=s.time+1.2;return true;
+}
 function damage(s,p,amount){
- if(p.shieldTurns>0){p.blockedUntil=s.time+1.2;return false;}
+ if(blockHarm(s,p))return false;
  const actual=Math.min(p.hp,Math.max(0,Math.round(amount)));
  if(!actual)return false;
  const position=I().position(s,p);
@@ -60,7 +66,7 @@ function damage(s,p,amount){
  if(s.hits.length>32)s.hits.shift();
  if(p.hp)return false;
  p.death={at:s.time,position};
- p.currentNodeId=s.map.startId;delete p.worldPosition;p.hp=MAX_HP;p.shieldTurns=0;
+ p.currentNodeId=s.map.startId;delete p.worldPosition;p.hp=MAX_HP;p.shieldTurns=0;p.shieldRound=null;
  // Inventory and claimed sword tiles survive this respawn.
  if(current(s)?.id===p.id){s.move=null;s.skill=null;}
  return true;
@@ -106,10 +112,10 @@ function land(s,applyTile=true){
    s.heals.push({id:p.id,amount:gained,at:s.time,position:I().position(s,p)});
    kind='heal';
  }
- if(n.type==='danger'){dead=damage(s,p,DAMAGE.skull);kind=p.shieldTurns>0?'shield':'hurt';}
+ if(n.type==='danger'){dead=damage(s,p,DAMAGE.skull);kind=isProtected(s,p)?'shield':'hurt';}
  if(n.type==='event'){
   if(s.rng()<.5){p.hp=Math.min(MAX_HP,p.hp+HEAL.event);kind='heal';}
-  else{dead=damage(s,p,DAMAGE.event);kind=p.shieldTurns>0?'shield':'hurt';}
+  else{dead=damage(s,p,DAMAGE.event);kind=isProtected(s,p)?'shield':'hurt';}
  }
  if(n.type==='sword'){
   const territory=s.map.territories[n.territoryId];
@@ -119,7 +125,7 @@ function land(s,applyTile=true){
    for(const id of territory.nodeIds)s.map.nodes[id].ownerId=p.id;
    kind='swordClaim';
   }else if(territory.ownerId===p.id)kind='swordSafe';
-  else{dead=damage(s,p,DAMAGE.sword);kind=p.shieldTurns>0?'shield':'swordHit';}
+  else{dead=damage(s,p,DAMAGE.sword);kind=isProtected(s,p)?'shield':'swordHit';}
  }
  effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],
   ownerColor:n.type==='sword'?s.players.find(q=>q.id===n.ownerId)?.color:null,
@@ -484,7 +490,12 @@ function update(s,dt){
  }
  else if(s.phase==='standings'&&s.time>=s.deadline)grant(s);
  else if(s.phase==='rewards'&&s.time>=s.deadline)phase(s,'returning',.6);
- else if(s.phase==='returning'&&s.time>=s.deadline){s.roundNumber++;s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',1.8);}
+ else if(s.phase==='returning'&&s.time>=s.deadline){
+  s.roundNumber++;
+  // Never carry a shield through the minigame into the next BOARD round.
+  for(const p of s.players){p.shieldTurns=0;p.shieldRound=null;}
+  s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',1.8);
+ }
  else if(s.phase==='round_order'&&s.time>=s.deadline)startTurn(s);
  window.BoardBots?.update(s,dt,api);
 }
@@ -523,6 +534,6 @@ function controls(s,id){
  
  return{a:'',b:'',help:'กำลังดำเนินตา'};
 }
-const api={create,beginOrder,startOrder:beginIntroZoom,updateRocket,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
+const api={create,beginOrder,startOrder:beginIntroZoom,updateRocket,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,isProtected,blockHarm,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
 window.BoardParty=Object.freeze(api);
 })();
