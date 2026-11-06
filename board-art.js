@@ -265,7 +265,15 @@ function overlay(g,s){
    const rolled=p.dice&&s.time-p.rollAt>=.85;
    dice(g,p.dice?.[0],x+57,y+65,31,!!p.dice&&!rolled,s.time);dice(g,p.dice?.[1],x+98,y+65,31,!!p.dice&&!rolled,s.time+.2);
    label(g,rolled?'= '+p.dice.reduce((a,b)=>a+b,0):'รอทอย',x+127,y+65,17,'#f3e2b7');
-   label(g,s.phase==='order_result'?'ลำดับ '+(i+1):p.dice?'ทอยแล้ว':'A / B',x+w-12,y+22,10,'#a8cbdc','right');
+   // Show rank/status inside the bottom-right corner, away from names and dice.
+   // Clip the text to the badge so it cannot spill into the next player card.
+   const badgeW=88,badgeH=20,badgeX=x+w-badgeW-10,badgeY=y+h-badgeH-9;
+   box(g,badgeX,badgeY,badgeW,badgeH,6,s.phase==='order_result'?'#355266':'#17384c');
+   g.save();
+   g.beginPath();g.rect(badgeX+4,badgeY+2,badgeW-8,badgeH-4);g.clip();
+   label(g,s.phase==='order_result'?'ลำดับ '+(i+1):p.dice?'ทอยแล้ว':'A / B',
+     badgeX+8,badgeY+badgeH/2,10,'#d5e9f3','left',700,badgeW-16);
+   g.restore();
   }else{
    const tied=s.results.filter(q=>q.rank===r.rank).length>1;
    label(g,'#'+r.rank+(tied?' ร่วม':''),x+13,y+61,22,'#ffe2a1');label(g,r.label,x+90,y+51,11,'#cce5f3');
