@@ -8,7 +8,23 @@ let terrain=null;
 function path(g,points,fill,stroke=null,width=2){g.beginPath();points.forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));g.closePath();if(fill){g.fillStyle=fill;g.fill();}if(stroke){g.strokeStyle=stroke;g.lineWidth=width;g.stroke();}}
 function circle(g,x,y,r,fill,stroke=null,w=2){g.beginPath();g.arc(x,y,r,0,TAU);if(fill){g.fillStyle=fill;g.fill();}if(stroke){g.strokeStyle=stroke;g.lineWidth=w;g.stroke();}}
 function box(g,x,y,w,h,r,fill,stroke=null){g.beginPath();g.roundRect(x,y,w,h,r);g.fillStyle=fill;g.fill();if(stroke){g.strokeStyle=stroke;g.lineWidth=1;g.stroke();}}
-function label(g,text,x,y,size=14,color='#e9f9ff',align='left',weight=700,maxWidth=null){g.font=weight+' '+size+'px "Noto Sans Thai", sans-serif';g.textAlign=align;g.textBaseline='middle';g.fillStyle=color;if(maxWidth)g.fillText(String(text),x,y,maxWidth);else g.fillText(String(text),x,y);}
+function label(g,text,x,y,size=14,color='#e9f9ff',align='left',weight=700,maxWidth=null){
+ const content=String(text);
+ g.font=weight+' '+size+'px "Noto Sans Thai", sans-serif';
+ g.textBaseline='middle';g.fillStyle=color;
+ // iOS WebKit may anchor Thai / mixed Thai-Latin canvas text to the given
+ // coordinate even with textAlign='center'. Compute a PHYSICAL left edge
+ // from actual shaped metrics instead, so the visual box stays centered on x.
+ // The maxWidth cap matches Canvas fillText's horizontal compression.
+ const centeredThai=align==='center'&&/[\u0E00-\u0E7F]/.test(content);
+ const measured=centeredThai?g.measureText?.(content)?.width:null;
+ const usable=Number.isFinite(measured)&&measured>0;
+ const width=usable?(maxWidth>0?Math.min(measured,maxWidth):measured):0;
+ const drawX=centeredThai&&usable?x-width/2:x;
+ g.textAlign=centeredThai&&usable?'left':align;
+ if(maxWidth)g.fillText(content,drawX,y,maxWidth);
+ else g.fillText(content,drawX,y);
+}
 function line(g,x,y,a,b,color,w=2){g.strokeStyle=color;g.lineWidth=w;g.lineCap='round';g.beginPath();g.moveTo(x,y);g.lineTo(a,b);g.stroke();}
 function star(g,x,y,r,fill){path(g,Array.from({length:10},(_,i)=>{const a=i*Math.PI/5-Math.PI/2,d=i%2?r*.45:r;return[x+Math.cos(a)*d,y+Math.sin(a)*d];}),fill);}
 function icon(g,kind,x,y,size=20,color='#fff'){
