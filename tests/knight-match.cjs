@@ -11,6 +11,15 @@ const tests=[];function test(name,fn){fn();tests.push(name);console.log('PASS',n
 const normal=s=>s.balloons.filter(b=>b.kind==='normal'&&b.state==='active');
 const counts=s=>s.owners.map(o=>normal(s).filter(b=>b.baseOwnerId===o.id).length);
 const maxDifference=v=>Math.max(...v)-Math.min(...v);
+test('Rainbow spawn chance is reduced to 2% without changing normal balloon population',()=>{
+ assert.equal(K.constants.rainbowChance,.02);
+ assert.equal(K.constants.rainbowDuration,10,'rainbow ability duration is unaffected');
+ for(let n=1;n<=12;n++){
+  const {s}=game(n,900+n);
+  assert.equal(normal(s).length,s.targetCount,'normal balloon quota is unchanged');
+  assert.ok(s.balloons.filter(b=>b.kind==='rainbow').length<=1,'at most one active rainbow balloon');
+ }
+});
 test('1–12 players: world, circular spawn, normal balloon quotas and unique ids',()=>{
  for(let n=1;n<=12;n++)for(let seed=1;seed<=12;seed++){
   const {ps,s}=game(n,seed),conf=K.dimensions(n),ns=normal(s);
