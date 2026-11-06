@@ -1,0 +1,25 @@
+{
+  "name": "GAME FRIENDS — Multiplayer Party Games",
+  "short_name": "GAME FRIENDS",
+  "description": "เกมปาร์ตี้ 6 มินิเกม เล่นกับเพื่อนสูงสุด 12 คนผ่านมือถือเป็นจอย",
+  "lang": "th",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d1122",
+  "theme_color": "#0d1122",
+  "icons": [
+    {
+      "src": "./assets/game-friends-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/game-friends-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
