@@ -167,12 +167,17 @@ test('B cycles [Roll, inventory], A activates selected action; no bag popup',()=
  tap('A');assert.equal(p.hp,51);assert.equal(p.usedRound,1);
  assert.deepEqual(plain(p.bag),['shield','rocket']);assert.equal(s.phase,'effect');
  until(s,()=>s.phase==='ready');
- assert.equal(p.actionIndex,0,'after effect, next command resets to Roll');
- tap('B');assert.equal(p.actionIndex,3,'rocket stays in its canonical slot');
- tap('B');assert.equal(p.actionIndex,6,'shield stays in its canonical slot');
- tap('B');assert.equal(p.actionIndex,0,'B wraps past stocked item types to Roll');
- tap('A');assert.equal(s.phase,'dice');assert.equal(s.moveDice.length,2);
- assert.equal(p.bagOpen,false,'popup is never opened');
+ assert.equal(P.current(s).id,s.players[1].id,'a used item ends the owner turn');
+ assert.equal(s.moveDice,null,'no automatic dice roll after an item');
+ const q=P.current(s);I.add(q,'shield');I.add(q,'rocket');
+ const nextInput=keys=>P.input(s,q.id,{turnId:s.turnId,actionId:(s.lastActions[q.id]??0)+1,keys});
+ const nextTap=button=>{nextInput({});return nextInput({action:button==='A',alt:button==='B'});};
+ assert.equal(q.actionIndex,0,'the following player starts at Roll');
+ nextTap('B');assert.equal(q.actionIndex,3,'rocket stays in its canonical slot');
+ nextTap('B');assert.equal(q.actionIndex,6,'shield stays in its canonical slot');
+ nextTap('B');assert.equal(q.actionIndex,0,'B wraps past stocked item types to Roll');
+ nextTap('A');assert.equal(s.phase,'dice');assert.equal(s.moveDice.length,2);
+ assert.equal(q.bagOpen,false,'popup is never opened');
 });
 test('Fixed seven-slot item grid counts duplicates and skips zero-stock types',()=>{
  const s=ready(3),p=s.players[0];
