@@ -169,6 +169,7 @@ function walkEdge(s,p,dt){
 }
 function roll(s){
  if(s.phase!=='ready'||s.rolled)return false;
+ const p=current(s);if(p){p.bagOpen=false;p.bagMessage='';}
  s.rolled=true;s.moveDice=[D().roll(s.rng),D().roll(s.rng)];s.die=s.moveDice[0]+s.moveDice[1];
  phase(s,'dice',1.8);return true;
 }
