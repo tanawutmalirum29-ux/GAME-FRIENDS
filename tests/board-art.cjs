@@ -132,7 +132,9 @@ const snapshot=JSON.stringify(s.players);
 for(let i=0;i<60;i++)A.draw(g,i/60,s);assert.equal(surfaces.length,initialSurfaces+1,'terrain is reused');assert.equal(JSON.stringify(s.players),snapshot);
 const t=game(2);t.order=t.players.map(p=>p.id);P.startTurn(t);denyTerrain=true;A.draw(g,0,t);
 assert.equal(old.width,1);assert.equal(old.height,1,'previous match pixels are released');assert.equal(surfaces.length,initialSurfaces+2);
-assert.equal(surfaces.at(-1).width,1,'failed allocation is released too');assert.ok(labels.some(x=>String(x).includes('A ทอย')));
+assert.equal(surfaces.at(-1).width,1,'failed allocation is released too');
+assert.ok(labels.includes('A')&&labels.includes('ทอยลูกเต๋า'),
+ 'fallback rendering still shows the clear A roll badge');
 for(let i=0;i<10;i++)A.draw(g,i,t);assert.equal(surfaces.length,initialSurfaces+2,'allocation failure falls back without a retry loop');
 // A BOARD minigame must show exactly one results/reward page. During return,
 // sprites and scores must not be presented as a second prize roll.
