@@ -410,15 +410,42 @@ function intermissionNotice(g,s){
  label(g,detail,480,230,12,'#cbebf4','center',500,475);
 }
 function canPan(s){
- return !!(s?.camera?.explore&&s.move?.kind==='walk'&&!s.move.started&&
-  !s.move.to&&['move_ready','branch'].includes(s.phase));
+ return !!(s?.phase==='overview'||s?.camera?.paused||s?.camera?.overview||
+  (s?.camera?.explore&&s.move?.kind==='walk'&&!s.move.started&&
+  !s.move.to&&['move_ready','branch'].includes(s.phase)));
 }
 function pan(s,dx,dy){
  if(!canPan(s)||!Number.isFinite(dx)||!Number.isFinite(dy))return false;
  const c=s.camera,top=s.players.length>6?145:94,halfW=480/c.zoom,halfH=(452-top)/2/c.zoom;
- c.x=Math.max(halfW,Math.min(s.map.width-halfW,c.x-dx/c.zoom));
- c.y=Math.max(halfH,Math.min(s.map.height-halfH,c.y-dy/c.zoom));
+ c.x=clampCamera(c.x-dx/c.zoom,halfW,s.map.width);
+ c.y=clampCamera(c.y-dy/c.zoom,halfH,s.map.height);c.panned=true;
  return true;
+}
+function clampCamera(value,half,size){return half>=size/2?size/2:Math.max(half,Math.min(size-half,value));}
+function fitZoom(s){const h=452-(s.players.length>6?145:94);return Math.min(910/s.map.width,(h-25)/s.map.height);}
+function overview(s){const c=s.camera;c.overview=true;c.explore=true;c.manualZoom=fitZoom(s);
+ c.zoom=c.manualZoom;c.x=s.map.width/2;c.y=s.map.height/2;c.panned=false;return true;}
+function zoom(s,scale){
+ if(!canPan(s)||!Number.isFinite(scale)||scale<=0)return false;
+ const c=s.camera;c.zoom=Math.max(.09,Math.min(2.2,c.zoom*scale));
+ c.manualZoom=c.zoom;c.panned=true;return true;
+}
+function toggleDebug(s){s.camera.debugNodes=!s.camera.debugNodes;return s.camera.debugNodes;}
+function inspect(s,x,y){
+ if(!s.camera.debugNodes)return null;
+ const top=s.players.length>6?145:94,viewH=452-top,c=s.camera;
+ if(y<top||y>452)return null;
+ const wx=c.x+(x-480)/c.zoom,wy=c.y+(y-(top+viewH/2))/c.zoom;
+ let best=null,distance=Infinity;
+ for(const n of Object.values(s.map.nodes)){const d=Math.hypot(n.position.x-wx,n.position.y-wy);
+  if(d<distance){best=n;distance=d;}}
+ if(distance>Math.max(50,22/c.zoom))return null;
+ c.selectedId=best.id;
+ return {id:best.id,type:best.type,progress:best.progress,
+  next:[...best.nextNodes],previous:[...best.previousNodes],
+  x:best.position.x,y:best.position.y,
+  owner:s.map.territories[best.territoryId]?.ownerId||null,
+  hp:best.effects.hp||0};
 }
 function draw(g,t,s){
  // The first screen must render without allocating or painting the world map.
@@ -427,15 +454,19 @@ function draw(g,t,s){
  }
  const top=s.players.length>6?145:94,bottom=452,viewH=bottom-top;
  const p=window.BoardParty.current(s)||s.players[0],pos=s.skill||window.BoardItems.position(s,p);
- const wide=s.phase==='aim',zoom=canPan(s)?.65:wide?.65:s.phase==='branch'?.83:1;
+ const wide=s.phase==='aim',overviewMode=s.phase==='overview'||s.camera.overview;
+ const zoomTarget=overviewMode?(s.camera.manualZoom||fitZoom(s)):
+   s.camera.paused?(s.camera.manualZoom||s.camera.zoom):
+   canPan(s)?.65:wide?.65:s.phase==='branch'?.83:1;
  const c=s.camera,dt=Math.min(.05,Math.max(.001,s.time-(c.lastTime||0)));c.lastTime=s.time;
- c.zoom+=(zoom-c.zoom)*(1-Math.exp(-dt*5));
+ if(!overviewMode&&!c.paused)c.manualZoom=null;
+ c.zoom+=(zoomTarget-c.zoom)*(1-Math.exp(-dt*5));
  const halfW=480/c.zoom,halfH=viewH/2/c.zoom;
  if(!canPan(s)){
-  const targetX=Math.max(halfW,Math.min(s.map.width-halfW,pos.x)),targetY=Math.max(halfH,Math.min(s.map.height-halfH,pos.y));
+  const targetX=clampCamera(pos.x,halfW,s.map.width),targetY=clampCamera(pos.y,halfH,s.map.height);
   c.x+=(targetX-c.x)*(1-Math.exp(-dt*6));c.y+=(targetY-c.y)*(1-Math.exp(-dt*6));
  }
- c.x=Math.max(halfW,Math.min(s.map.width-halfW,c.x));c.y=Math.max(halfH,Math.min(s.map.height-halfH,c.y));
+ c.x=clampCamera(c.x,halfW,s.map.width);c.y=clampCamera(c.y,halfH,s.map.height);
  g.clearRect(0,0,960,540);g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();g.translate(480,top+viewH/2);g.scale(c.zoom,c.zoom);g.translate(-c.x,-c.y);
  ground(g,s);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
@@ -446,5 +477,5 @@ function draw(g,t,s){
   label(g,'ลากจอสำรวจแผนที่ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,439,11,'#e9faff','center',700,335);
  }
 }
-window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan});
+window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan,overview,zoom,toggleDebug,inspect,fitZoom});
 })();
