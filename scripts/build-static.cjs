@@ -22,7 +22,9 @@ fs.writeFileSync(path.join(root,'build-version.js'),
 const indexPath=path.join(root,'index.html');
 let html=fs.readFileSync(indexPath,'utf8');
 const assets=['style.css','arena-art.js','graveyard-art.js','combat-motion.js',
- 'player-avatar.js','character-system.js','party-ui-art.js','ghost-attack.js','chickens.js','fruit-memory.js','shockwave.js','color-switch-mayan.js','color-switch.js','pizza-ingredient-art.js','pizza-time.js','app.js','auto-update.js','build-version.js'];
+ 'player-avatar.js','character-system.js','party-ui-art.js','ghost-attack.js','chickens.js','fruit-memory.js','shockwave.js','color-switch-mayan.js','color-switch.js','pizza-ingredient-art.js','pizza-time.js','app.js','auto-update.js','build-version.js',
+ 'assets/game-friends-cover.svg','assets/game-friends-icon.svg',
+ 'assets/game-friends-touch-icon.png','manifest.webmanifest'];
 const seen=new Set();
 html=html.replace(/\b(src|href)="(\.\/[^"?]+)(?:\?v=[^"]*)?"/g,
  (raw,attr,url)=>{

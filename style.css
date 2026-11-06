@@ -4017,3 +4017,27 @@ body.controller-playing #controller #controllerActive .controller-buttons{
   #game #gameRoulette .roulette-option{height:clamp(82px,30dvh,139px)}
   #game #gameRoulette .roulette-message{font-size:11px}
 }
+
+/* Homepage key art: bundled locally, legible text and join controls above it. */
+#home .hero-cover{
+  display:block;
+  width:100%;
+  max-width:100%;
+  aspect-ratio:1200/630;
+  height:auto;
+  object-fit:cover;
+  margin-top:clamp(22px,3vw,34px);
+  border:2px solid #89b8fb;
+  border-radius:clamp(12px,1.7vw,19px);
+  box-shadow:0 14px 30px #050b21aa,0 0 28px #7355eb35;
+  background:#181847;
+}
+#home .hero:has(.hero-cover){
+  min-height:0;
+  overflow:visible;
+}
+#home .hero .button-group{position:relative;z-index:1}
+@media(max-width:720px){
+  #home .hero:has(.hero-cover){padding:clamp(18px,4.5vw,31px)}
+  #home .hero-cover{margin-top:18px}
+}
