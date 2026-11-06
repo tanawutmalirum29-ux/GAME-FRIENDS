@@ -104,6 +104,7 @@ test('Actual engine outcomes use competition ranking and survival semantics',()=
  for(const mode of ['chickens','color_switch','pizza_time'])assert.deepEqual(plain(G.ranking({mode},list).map(r=>r.rank)),[1,2,2,4]);
  list.forEach((p,i)=>{p.ghost=true;p.infectedAt=[9,7,7,3][i];p.shockEliminatedAt=[9,7,7,3][i];p.fruitEliminatedRound=[4,3,3,2][i];p.score=100-i;});
  for(const r of [{mode:'ghost'},{mode:'shockwave',shockwave:{winnerId:'p1'}},{mode:'fruit_memory',fruitMemory:{winnerId:'p1'}}])assert.deepEqual(plain(G.ranking(r,list).map(r=>r.rank)),[1,2,2,4]);
+ assert.equal(G.ranking({mode:'shockwave',shockwave:{winnerId:'p1'}},list)[1].label,'ตกรอบชุดที่ 7','elimination event is not mislabeled as a wave number');
 });
 test('Every count 1–12, 500 random tied rankings each: exact floor(50%) quota',()=>{
  for(let count=1;count<=12;count++)for(let seed=0;seed<500;seed++){
