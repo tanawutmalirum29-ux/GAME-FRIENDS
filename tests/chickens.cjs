@@ -214,7 +214,11 @@ for(let n=1;n<=12;n++){
     assert.ok(c,'a live chicken is available until quota is exhausted');
     c.status='carried';c.carrierId=p.id;p.carriedChickenId=c.id;
     placeAtGate(state,p,pen);
-    run(round,players,.34);
+    // Stop on this bird's deposit. Running .34s can legally collect and deposit
+    // a second randomly nearby bird (two .15s dwells), making the fixture flaky.
+    for(let elapsed=0;elapsed<.34&&c.status!=='penned';elapsed+=1/120)
+      chickens.update(1/120,round,players);
+    assert.equal(c.status,'penned','the selected bird reaches the physical pen');
     assert.equal(state.scoredCount,i+1,'each deposit retires exactly one chicken');
     assert.equal(p.score,i+1,'each retired chicken scores once');
     assert.equal(state.spawnedCount+state.remainingReserve,61,'cannot mint extra chickens');
