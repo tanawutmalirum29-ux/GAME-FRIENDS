@@ -2029,7 +2029,7 @@ for(const count of [1,12]){
  for(let i=0;i<10000&&s.phase!=='minigame';i++)api.updateBoard(.05);
  assert.equal(s.phase,'minigame','every turn completes and starts the reel');
  assert.ok(api.getSelection());
- api.updateGameSelection(3);
+ api.updateGameSelection(3.5); // BOARD reel: 2s spin + 1.4s result hold
  assert.equal(api.getSelection(),null);assert.notEqual(api.getRound().mode,'board');
  const saved=JSON.stringify(P.snapshot(s));
  for(const mode of ['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time']){
