@@ -10,7 +10,7 @@ const HEAL=Object.freeze({tile:20,event:15,potion:50});
 let serial=0;
 function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
- const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,actionIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,shieldRound:null,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,actionIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,shieldRound:null,shieldBrokenAt:null,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],swordRewards:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
  s.camera.x=s.map.width/2;s.camera.y=s.map.height/2;
  phase(s,'overview',Infinity);return s;
 }
@@ -43,18 +43,21 @@ function ready(s){s.move=null;s.skill=null;for(const p of s.players){p.bagOpen=f
 function startTurn(s){M().assertCompatible(s.map);s.camera.overview=false;s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
 function endTurn(s){
  if(s.phase==='finished')return;
- // Protection persists to the end of this BOARD round; never decrement by turn.
+ // An unused one-hit shield lasts until the end of this BOARD round.
  s.move=null;s.skill=null;s.effect=null;s.lucky=null;s.turnIndex++;
  if(s.turnIndex>=s.order.length){phase(s,'minigame_pending');return;}
  startTurn(s);
 }
 function effect(s,fx,duration){s.effect={...fx,duration,at:s.time};phase(s,'effect',duration);}
-// Central protection for all current/future harmful actions: use blockHarm
-// for displacement/status effects, damage for HP. Stock does not auto-equip.
+// Protection is a SINGLE-use guard. The first incoming hostile HP hit, UFO
+// displacement or negative effect consumes the shield immediately. If it
+// never triggers, the round transition expires it as before.
 function isProtected(s,p){return !!p&&p.shieldTurns>0&&p.shieldRound===s.roundNumber;}
 function blockHarm(s,p){
  if(!isProtected(s,p))return false;
- p.blockedUntil=s.time+1.2;return true;
+ p.shieldTurns=0;p.shieldRound=null;p.shieldBrokenAt=s.time;
+ p.blockedUntil=s.time+1.2;
+ return true;
 }
 function damage(s,p,amount){
  if(blockHarm(s,p))return false;
@@ -112,10 +115,14 @@ function land(s,applyTile=true){
    s.heals.push({id:p.id,amount:gained,at:s.time,position:I().position(s,p)});
    kind='heal';
  }
- if(n.type==='danger'){dead=damage(s,p,DAMAGE.skull);kind=isProtected(s,p)?'shield':'hurt';}
+ let swordLoot=null;
+ if(n.type==='danger'){
+  const shielded=isProtected(s,p);
+  dead=damage(s,p,DAMAGE.skull);kind=shielded?'shieldBreak':'hurt';
+ }
  if(n.type==='event'){
   if(s.rng()<.5){p.hp=Math.min(MAX_HP,p.hp+HEAL.event);kind='heal';}
-  else{dead=damage(s,p,DAMAGE.event);kind=isProtected(s,p)?'shield':'hurt';}
+  else{const shielded=isProtected(s,p);dead=damage(s,p,DAMAGE.event);kind=shielded?'shieldBreak':'hurt';}
  }
  if(n.type==='sword'){
   const territory=s.map.territories[n.territoryId];
@@ -125,9 +132,27 @@ function land(s,applyTile=true){
    for(const id of territory.nodeIds)s.map.nodes[id].ownerId=p.id;
    kind='swordClaim';
   }else if(territory.ownerId===p.id)kind='swordSafe';
-  else{dead=damage(s,p,DAMAGE.sword);kind=isProtected(s,p)?'shield':'swordHit';}
+  else{
+   const shielded=isProtected(s,p);
+   dead=damage(s,p,DAMAGE.sword);
+   kind=shielded?'shieldBreak':'swordHit';
+   // Only a DEATH caused by this owned sword grants the defending owner one
+   // random item. Claiming a sword, nonfatal hits and shield blocks pay none.
+   if(dead){
+    const owner=s.players.find(q=>q.id===territory.ownerId);
+    if(owner){
+     const pool=I().ids,index=Math.min(pool.length-1,Math.max(0,Math.floor(s.rng()*pool.length)));
+     const item=pool[index];
+     if(!I().add(owner,item))throw Error('Invalid sword kill reward');
+     swordLoot={ownerId:owner.id,victimId:p.id,territoryId:territory.id,item};
+     s.swordRewards.push({...swordLoot,at:s.time});
+     if(s.swordRewards.length>32)s.swordRewards.shift();
+    }
+   }
+  }
  }
  effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],
+  swordLoot,
   ownerColor:n.type==='sword'?s.players.find(q=>q.id===n.ownerId)?.color:null,
   next:!dead&&m?.kind==='rocket'?'ready':'end'},dead?1.5:.8);
 }
