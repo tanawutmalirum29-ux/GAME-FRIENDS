@@ -100,6 +100,17 @@
         <canvas id="arena" width="960" height="540" aria-label="สนามแข่งขันเต็มหน้าจอ"></canvas>
         <div id="gameBanner" class="game-banner" aria-live="polite">เตรียมพร้อม!</div>
       </div>
+      <div id="gameRoulette" class="game-roulette hidden" role="status" aria-live="polite" aria-label="กำลังสุ่มมินิเกม">
+        <div class="roulette-panel">
+          <div class="roulette-eyebrow">GAME FRIENDS</div>
+          <h2 id="rouletteHeading" class="roulette-heading">กำลังสุ่มเกม...</h2>
+          <div class="roulette-viewport" aria-hidden="true">
+            <div class="roulette-center-mark"></div>
+            <div id="rouletteTrack" class="roulette-track"></div>
+          </div>
+          <div id="rouletteMessage" class="roulette-message">เลือกเกมสำหรับรอบนี้</div>
+        </div>
+      </div>
       <div class="game-toolbar">
         <div class="game-center-hud">
           <div id="leaderboard" class="leaderboard" aria-label="ชื่อผู้เล่นและข้อมูลตามโหมดเกม"></div>

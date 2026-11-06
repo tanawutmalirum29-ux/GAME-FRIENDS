@@ -58,6 +58,7 @@ function renderModeChoices(){
 
 // The match list is nominated by phone players rather than a fixed tournament deck.
 let tournament=null;
+let gameSelection=null;
 let selectedSessionMode='queue';
 const KEYS = [
   {left:'KeyA',right:'KeyD',jump:'KeyW',down:'KeyS',action:'Space',alt:'ShiftLeft'},
@@ -374,7 +375,7 @@ function stopAllHostVideoCalls(){
   hostVideoSources.clear();
 }
 function startHostVideoCall(conn){
-  if(!round||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId||conn.previewEnabled!==true)return;
+  if(!round||round.phase==='roulette'||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId||conn.previewEnabled!==true)return;
   stopHostVideoCall(conn);
   conn.videoReady=false;
   const quality=Object.hasOwn(VIDEO_QUALITY,conn.videoQuality)?conn.videoQuality:'medium';
@@ -560,7 +561,7 @@ function closeHost(){
   hostConnections.clear();
   if(hostPeer){try{hostPeer.destroy();}catch(e){}hostPeer=null;}
   for(const p of players.filter(p=>p.type==='remote')){players.splice(players.indexOf(p),1);}
-  tournament=null;round=null;renderRoster();setStatus('พร้อมเล่น');
+  tournament=null;gameSelection=null;round=null;$('gameRoulette').classList.add('hidden');renderRoster();setStatus('พร้อมเล่น');
 }
 function shareUrl(code){
   const u=new URL(window.location.href);
@@ -1075,7 +1076,7 @@ function joinRoom(recovery=false){
         updatePhoneGamePicker(data.phase,self&&self.choice);
         $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
           data.phase==='playing'?(self&&self.eliminated?'ตกรอบ • ดูเกมต่อ':self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):
-          data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='summary'?'กำลังดูคะแนนรวม • กด B กลับล็อบบี้':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':
+          data.phase==='roulette'?'กำลังสุ่มเกมรอบถัดไป':data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='summary'?'กำลังดูคะแนนรวม • กด B กลับล็อบบี้':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':
           'กำลังรอเจ้าของห้องเริ่มเกม';
       }else if(data.t==='result-votes'){
         if(controllerReady&&['results','summary'].includes(controllerGamePhase)){
@@ -1445,6 +1446,8 @@ window.addEventListener('blur',()=>{
   document.querySelectorAll('.pressed').forEach(b=>b.classList.remove('pressed'));
 });
 function startRound(forcedMode=null){
+  gameSelection=null;
+  $('gameRoulette').classList.add('hidden');
   if(!players.length)return;
   if(forcedMode!==null&&!Object.hasOwn(MODES,forcedMode)){
     showToast('ไม่รู้จักเกมที่เลือก: '+String(forcedMode));return;
@@ -2055,7 +2058,9 @@ function drawGame(t){
 function animate(ts){
   const dt=Math.min(.045,Math.max(0,(ts-frameLast)/1000||.016));frameLast=ts;
   try{
-   if(currentView==='game'&&round){
+   if(currentView==='game'&&gameSelection){
+    updateGameSelection(dt);
+   }else if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
     updateRound(dt);drawGame(graphicsClock);
     renderHostVideoFrames();
@@ -2097,12 +2102,12 @@ function animate(ts){
 }
 
 function broadcastGameState(){
-  if(!round)return;
+  if(!round||gameSelection)return;
   broadcast({t:'state',phase:networkPhase(),
     survivors:gameEngine(round.mode).hud(players,round).survivors,remaining:round.remaining,mode:round.mode});
 }
 function pauseGame(){
-  if(currentView!=='game'||!round||round.phase==='results'||round.paused)return;
+  if(currentView!=='game'||!round||gameSelection||round.phase==='results'||round.paused)return;
   renderPauseChoiceList();
   round.paused=true;
   resetInputs();
@@ -2121,6 +2126,7 @@ function resumeGame(){
   broadcastGameState();
 }
 function returnToLobby(){
+  gameSelection=null;$('gameRoulette').classList.add('hidden');
   tournament=null;round=null;resetInputs();
   stopAllHostVideoCalls();
   broadcast({t:'preview-reset'});
@@ -2160,27 +2166,113 @@ function shuffleGames(items){
   }
   return result;
 }
+
+function pickRandomEndlessGame(previous=null,random=Math.random){
+  // A fresh random choice for EVERY round, not a fixed six-game sequence.
+  // Avoid showing the exact same game twice in a row for a better party flow.
+  const all=Object.keys(MODES);
+  const candidates=all.length>1?all.filter(mode=>mode!==previous):all;
+  const draw=Number(random());
+  const index=Math.min(candidates.length-1,Math.max(0,Math.floor((Number.isFinite(draw)?draw:0)*candidates.length)));
+  return candidates[index];
+}
+function beginGameSelection(mode){
+  if(!players.length||!Object.hasOwn(MODES,mode)||gameSelection)return;
+  // No actual engine starts until the reel settles; this also guards the
+  // seven-second auto-next from launching twice during its last frame.
+  const options=tournament?.endless?Object.keys(MODES):
+    Array.from(new Set(tournament?.schedule||Object.keys(MODES)));
+  const stage=$('gameRoulette'),track=$('rouletteTrack');
+  track.replaceChildren();
+  const width=Math.min(210,Math.max(130,Math.round((window.innerWidth||960)*.19)));
+  const gap=Math.round(width*.085);
+  const winningIndex=9,totalCards=12;
+  let previous=null,winner=null;
+  for(let i=0;i<totalCards;i++){
+    let choice=mode;
+    if(i!==winningIndex){
+      const available=options.filter(m=>m!==previous);
+      const pool=available.length?available:options;
+      choice=pool[Math.floor(Math.random()*pool.length)]||mode;
+    }
+    const card=document.createElement('div');card.className='roulette-option';
+    card.dataset.mode=choice;
+    card.style.width=width+'px';
+    const name=document.createElement('strong');name.textContent=MODES[choice];
+    card.append(gameCover(choice),name);
+    track.append(card);
+    if(i===winningIndex)winner=card;
+    previous=choice;
+  }
+  track.style.gap=gap+'px';
+  const initial=width/2,final=width/2+winningIndex*(width+gap);
+  track.style.transform='translate3d(-'+initial+'px,0,0)';
+  $('rouletteHeading').textContent='กำลังสุ่มเกม...';
+  $('rouletteMessage').textContent='เกมที่จะเล่นกำลังเลื่อนเข้าตรงกลาง';
+  stage.classList.remove('hidden');stage.classList.remove('is-selected');
+  $('results').classList.add('hidden');
+  $('pauseMenu').classList.add('hidden');
+  $('pauseBtn').classList.add('hidden');
+  $('gameBanner').textContent='';
+  round={mode,phase:'roulette',paused:false,remaining:null,autoNextRemaining:0};
+  resetInputs();
+  gameSelection={mode,elapsed:0,spinDuration:1.45,holdDuration:.38,
+    initial,final,winningIndex,winner,track};
+  setView('game');
+  // iOS fullscreen needs the original Start tap: request before the reel runs.
+  requestHostFullscreen();
+  broadcastRoster();
+}
+function updateGameSelection(dt){
+  const selection=gameSelection;if(!selection)return;
+  selection.elapsed+=dt;
+  const progress=Math.min(1,selection.elapsed/selection.spinDuration);
+  // Horizontal reel: accelerates at first, decelerates toward the middle.
+  const eased=1-Math.pow(1-progress,4);
+  const position=selection.initial+(selection.final-selection.initial)*eased;
+  selection.track.style.transform='translate3d(-'+position.toFixed(2)+'px,0,0)';
+  if(progress===1&&!selection.revealed){
+    selection.revealed=true;
+    selection.winner.classList.add('is-selected');
+    $('gameRoulette').classList.add('is-selected');
+    $('rouletteHeading').textContent=MODES[selection.mode];
+    $('rouletteMessage').textContent='เกมที่สุ่มได้ในรอบนี้';
+  }
+  if(selection.elapsed>=selection.spinDuration+selection.holdDuration){
+    const mode=selection.mode;
+    gameSelection=null;
+    $('gameRoulette').classList.add('hidden');
+    startRound(mode);
+    if(!round) returnToLobby();
+  }
+}
 function beginParty(){
   if(!players.length)return;
   if(selectedSessionMode==='endless'){
-    // Every six rounds visit all six games once, then repeat indefinitely.
-    tournament={schedule:Object.keys(MODES),index:0,endless:true,roundsPlayed:0};
+    tournament={schedule:Object.keys(MODES),index:0,endless:true,roundsPlayed:0,lastMode:null};
     players.forEach(p=>{p.total=0;p.lastRoundPoints=0;});
-    startRound(tournament.schedule[0]);return;
+    const mode=pickRandomEndlessGame();
+    tournament.lastMode=mode;
+    beginGameSelection(mode);
+    return;
   }
   const picks=nominatedGames();
-  if(picks.length!==players.length)return;
+  if(!picks.length||picks.length!==players.length)return;
   tournament={schedule:shuffleGames(picks),index:0,endless:false};
   players.forEach(p=>{p.total=0;p.lastRoundPoints=0;});
-  startRound(tournament.schedule[0]);
+  beginGameSelection(tournament.schedule[0]);
 }
 function advanceParty(){
+  if(gameSelection)return;
   if(tournament?.endless){
     tournament.roundsPlayed++;
     tournament.index=(tournament.index+1)%tournament.schedule.length;
-    startRound(tournament.schedule[tournament.index]);
+    const mode=pickRandomEndlessGame(tournament.lastMode);
+    tournament.lastMode=mode;
+    beginGameSelection(mode);
   }else if(tournament&&tournament.index+1<tournament.schedule.length){
-    tournament.index++;startRound(tournament.schedule[tournament.index]);
+    tournament.index++;
+    beginGameSelection(tournament.schedule[tournament.index]);
   }else beginParty();
 }
 function openOfflineLobby(){
