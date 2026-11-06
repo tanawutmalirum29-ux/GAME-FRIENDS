@@ -545,6 +545,29 @@ test('Shield lasts through intermission/reordering until its owner completes the
  assert.equal(P.current(s),r);assert.equal(p.shieldTurns,1);P.endTurn(s);assert.equal(P.current(s),p);assert.equal(p.shieldTurns,1);
  P.damage(s,p,1);assert.equal(p.hp,100);P.endTurn(s);assert.equal(p.shieldTurns,0);P.damage(s,p,1);assert.equal(p.hp,99);
 });
+test('UFO clears stale mid-rocket edges on BOTH swapped players; walk rejects invalid traverse',()=>{
+ const s=ready(3,880),[p,q]=s.players;p.item='ufo';q.currentNodeId='n20';
+ const pending=(from,to)=>({from,to,t:.65,lateral:2,
+  startPosition:{...s.map.nodes[from].position},endPosition:{...s.map.nodes[to].position}});
+ p.pendingTraverse=pending('n0','n1');
+ q.pendingTraverse=pending('n20','n21');
+ p.worldPosition={x:330,y:470};q.worldPosition={x:520,y:900};
+ assert.equal(I.begin(s,p,P,'ufo'),true);
+ Object.assign(s.skill,I.position(s,q));
+ assert.equal(P.action(s,p.id,'A'),true);
+ assert.equal(p.currentNodeId,'n20');assert.equal(q.currentNodeId,'n0');
+ assert.equal(p.pendingTraverse,undefined);
+ assert.equal(q.pendingTraverse,undefined);
+ assert.equal(p.worldPosition,undefined);assert.equal(q.worldPosition,undefined);
+ // Defensive fallback also validates legacy/rejoined states which contain
+ // a stale pending traverse from a different node.
+ q.pendingTraverse=pending('n0','n1');q.currentNodeId='n20';
+ P.beginMove(s,q,2);
+ assert.equal(q.pendingTraverse,undefined);
+ assert.equal(s.move.from,'n20');
+ assert.equal(s.move.to,null,'a stale edge must not be resumed after teleport');
+ assert.equal(s.phase,'move_ready');
+});
 test('250 UFO cases: real world hitboxes, stacked players, atomic swap, no landing effects',()=>{
  for(let seed=0;seed<250;seed++){
   const s=ready(12,seed),p=s.players[0],q=s.players[1];p.item='ufo';for(const q of s.players.slice(1))q.currentNodeId='n10';
