@@ -49,12 +49,10 @@ function icon(g,kind,x,y,size=20,color='#fff'){
  else {path(g,[[-9,-4],[1,-4],[1,-9],[11,0],[1,9],[1,4],[-9,4]],color);}
  g.restore();
 }
-function dice(g,value,x,y,size=42,rolling=false,t=0){
- g.save();g.translate(x,y);if(rolling)g.rotate(Math.sin(t*30)*.16);
- box(g,-size/2,-size/2+3,size,size,size*.2,'#a7cbd6');box(g,-size/2,-size/2,size,size,size*.2,'#f8fdff','#c4e1e8');
- const v=rolling?1+Math.floor(t*19)%6:value;
- const dots={1:[[0,0]],2:[[-1,-1],[1,1]],3:[[-1,-1],[0,0],[1,1]],4:[[-1,-1],[1,-1],[-1,1],[1,1]],5:[[-1,-1],[1,-1],[0,0],[-1,1],[1,1]],6:[[-1,-1],[1,-1],[-1,0],[1,0],[-1,1],[1,1]]};
- for(const [a,b]of dots[v]||[])circle(g,a*size*.22,b*size*.22,size*.065,'#23516a');g.restore();
+function dice(g,value,x,y,size=42,rolling=false,t=0,index=0,lowDetail=false){
+  // Scene art is Canvas vector-based; the shared renderer projects rotating 3D
+  // cube geometry and all six pip layouts, independent of rule RNG.
+  window.BoardDiceRenderer?.draw(g,value,x,y,size,rolling?t:Infinity,index,lowDetail);
 }
 function pine(g,x,y,scale=1,festive=false){
  g.save();g.translate(x,y);g.scale(scale,scale);
@@ -464,9 +462,11 @@ function overlay(g,s){
    const tied=s.results.filter(q=>q.rank===r.rank).length>1;
    label(g,'อันดับ '+r.rank+(tied?' ร่วม':''),x+112,y+59,12,'#cee5f2','left',700,w-125);label(g,r.label,x+112,y+80,10,'#a8cfdf','left',500,w-125);
   }else if(order){
-   const rolled=p.dice&&s.time-p.rollAt>=.85;
-   dice(g,p.dice?.[0],x+57,y+65,31,!!p.dice&&!rolled,s.time);dice(g,p.dice?.[1],x+98,y+65,31,!!p.dice&&!rolled,s.time+.2);
-   label(g,rolled?'= '+p.dice.reduce((a,b)=>a+b,0):'รอทอย',x+127,y+65,17,'#f3e2b7');
+   const elapsed=p.dice?Math.max(0,s.time-p.rollAt):Infinity;
+    const rolled=p.dice&&elapsed>=window.BoardDice.TIMING.throw;
+   dice(g,p.dice?.[0],x+57,y+72,30,!!p.dice,elapsed,0,s.camera.lowDetail);
+    dice(g,p.dice?.[1],x+98,y+72,30,!!p.dice,elapsed,1,s.camera.lowDetail);
+   label(g,rolled?'= '+p.dice.reduce((a,b)=>a+b,0):p.dice?'กำลังทอย':'รอทอย',x+127,y+61,16,'#f3e2b7','left',700,80);
    // Show rank/status inside the bottom-right corner, away from names and dice.
    // Clip the text to the badge so it cannot spill into the next player card.
    const badgeW=88,badgeH=20,badgeX=x+w-badgeW-10,badgeY=y+h-badgeH-9;
@@ -513,16 +513,21 @@ function backpackOverlay(g,s){
  label(g,p.bagMessage||('ตำแหน่ง '+(selected+1)+' / '+total),480,367,12,p.bagMessage?'#ffb2a7':'#a9cfdd','center');
 }
 function turnDice(g,s){
- if(!['ready','dice'].includes(s.phase))return;
- const p=window.BoardParty.current(s);if(!p)return;
- const rolling=s.phase==='dice'&&s.time-s.phaseAt<.85,settled=s.phase==='dice'&&!rolling;
- box(g,320,170,320,200,20,'#12364ef5','#8ac5d8');
- label(g,p.name+' • ทอย 2 ลูก',480,194,16,p.color,'center',700,280);
- dice(g,s.moveDice?.[0],428,258,70,rolling,s.time);
- dice(g,s.moveDice?.[1],532,258,70,rolling,s.time+.23);
- label(g,'+',480,257,22,'#a9d8e8','center');
- label(g,settled?s.die+' ก้าว':rolling?'กำลังทอย…':'A • ทอยลูกเต๋า',480,321,24,'#ffe4a4','center');
- label(g,s.phase==='dice'?'ลากจอยเพื่อเดินและเลี้ยว • ปล่อยเพื่อหยุด':'B • ใช้ไอเทมก่อนทอย',480,349,11,'#bcdfed','center',500);
+  if(!['ready','dice'].includes(s.phase))return;
+  const p=window.BoardParty.current(s);if(!p)return;
+  const elapsed=Math.max(0,s.time-s.phaseAt);
+  const settled=s.phase==='dice'&&elapsed>=window.BoardDice.TIMING.throw;
+  const active=s.phase==='dice';
+  box(g,310,165,340,235,20,'#12364ef5','#D4AB57');
+  label(g,p.name+' • ทอย 2 ลูก',480,190,16,p.color,'center',700,280);
+  dice(g,s.moveDice?.[0],426,282,66,active,elapsed,0,s.camera.lowDetail);
+  dice(g,s.moveDice?.[1],534,282,66,active,elapsed,1,s.camera.lowDetail);
+  label(g,'+',480,279,22,'#d7b878','center');
+  const a=s.moveDice?.[0],b=s.moveDice?.[1];
+  label(g,settled?a+' + '+b+' = '+s.die+' ก้าว':active?'กำลังทอย…':'A • ทอยลูกเต๋า',
+    480,346,22,'#ffe8b5','center',800,320);
+  label(g,active?(settled?'ผลทอยยืนยันแล้ว • เตรียมเดิน':'รอลูกเต๋าหยุดก่อนเริ่มเดิน'):
+    'B • ใช้ไอเทมก่อนทอย',480,377,11,'#bcdfed','center',600,315);
 }
 
 function intermissionNotice(g,s){
