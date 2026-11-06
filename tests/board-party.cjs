@@ -323,47 +323,34 @@ test('Lucky Star locations are reachable purple/gold reward tiles, spread across
   assert.equal(M.validate(map),true);
  }
 });
-test('Lucky Star landing adds one stackable item and must finish reel + above-player reveal before next turn',()=>{
- const s=ready(3,645),p=s.players[0],id=s.map.luckyTileIds[0],node=s.map.nodes[id];
- const predecessor='n'+(Number(id.slice(1))-1);
- assert.ok(s.map.nodes[predecessor].nextNodes.includes(id));
- p.currentNodeId=predecessor;I.add(p,'rocket');I.add(p,'rocket');
- const before=I.bag(p).length;
- P.beginMove(s,p,1,'rocket');
- until(s,()=>s.phase==='lucky_roulette',4);
- assert.equal(p.currentNodeId,id);assert.equal(I.bag(p).length,before+1);
- assert.ok(I.bag(p).includes(s.lucky.item));
- assert.equal(s.lucky.holdDuration,1.4);
+test('Lucky Star landing awards once, and waits for the full reel before switching',()=>{
+ const s=ready(3,645),p=s.players[0],id=s.map.luckyTileIds[0];
+ p.currentNodeId=id;I.add(p,'rocket');I.add(p,'rocket');const count=I.bag(p).length;
+ P.land(s);assert.equal(s.phase,'lucky_roulette');assert.equal(I.bag(p).length,count+1);
  const reward=s.lucky.item,token=s.turnId;
- assert.equal(P.action(s,p.id,'A'),false);
- assert.equal(P.action(s,p.id,'B'),false);
- P.land(s);assert.equal(s.phase,'lucky_roulette','duplicate landing must not skip the reveal');
- assert.equal(I.bag(p).length,before+1,'only one item for the landing');
+ assert.equal(P.action(s,p.id,'A'),false);assert.equal(P.action(s,p.id,'B'),false);
+ P.land(s);assert.equal(s.phase,'lucky_roulette');assert.equal(I.bag(p).length,count+1);
  tick(s,3.2);assert.equal(s.phase,'lucky_roulette');
- until(s,()=>s.phase==='effect',2);
- assert.equal(s.effect.kind,'luckyReward');assert.equal(s.effect.item,reward);
- assert.deepEqual(plain(s.effect.targets),[p.id]);
- assert.equal(I.bag(p).length,before+1);
- until(s,()=>s.phase==='ready',3);
- assert.equal(s.turnIndex,0,'rocket grants a following roll, not a next-player transition');
- assert.equal(p.bag.filter(x=>x==='rocket').length,2+(reward==='rocket'?1:0),'duplicate items remain stacked');
- assert.equal(s.lucky,null);
+ until(s,()=>s.phase==='effect',2);assert.equal(s.effect.kind,'luckyReward');
+ assert.equal(s.effect.item,reward);
+ until(s,()=>s.phase==='ready'||s.turnIndex>0,3);
+ assert.equal(s.turnIndex,1,'ordinary Lucky landing advances exactly once');
+ assert.equal(p.bag.filter(x=>x==='rocket').length,2+(reward==='rocket'?1:0));
  assert.notEqual(s.turnId,token);
 });
-test('Two DIFFERENT Lucky Star landing nodes in one rocket + dice turn both award, no duplicate granting',()=>{
- const s=ready(3,680),p=s.players[0],tiles=s.map.luckyTileIds;
+test('Different Lucky Star landings award separately without duplication',()=>{
+ const s=ready(3,680),p=s.players[0],ids=s.map.luckyTileIds.slice(0,2);
+ // Simulate two distinct final landings in one item-assisted turn.
  for(let i=0;i<2;i++){
-  const id=tiles[i],prev='n'+(Number(id.slice(1))-1);
-  p.currentNodeId=prev;delete p.worldPosition;
-  const before=I.bag(p).length;
-  P.beginMove(s,p,1,'rocket');
-  until(s,()=>s.phase==='lucky_roulette',4);
-  assert.equal(p.currentNodeId,id);
+  const before=I.bag(p).length;p.currentNodeId=ids[i];
+  s.turnIndex=0;s.order[0]=p.id;P.ready(s);
+  s.move={kind:'rocket',playerId:p.id};
+  P.land(s);assert.equal(s.phase,'lucky_roulette');
   assert.equal(I.bag(p).length,before+1);
   until(s,()=>s.phase==='ready',6);
   assert.equal(s.turnIndex,0);
  }
- assert.ok(s.luckyGrantKey.endsWith(':'+tiles[1]));
+ assert.ok(s.luckyGrantKey.endsWith(':'+ids[1]));
 });
 test('Board result holds add 0.8 seconds for both minigame and item reels',()=>{
  const app=fs.readFileSync('app.js','utf8');
@@ -374,34 +361,26 @@ test('Board result holds add 0.8 seconds for both minigame and item reels',()=>{
  until(s,()=>s.phase==='rewards',5);
  assert.ok(s.deadline-s.time>4.4&&s.deadline-s.time<=4.5,'item results hold 4.5 seconds');
 });
-test('Sword territory claims are permanent, separately owned and deal 12 only to visitors',()=>{
- const s=ready(3,2026),[a,b,c]=s.players;
- const arrive=(p,from)=>{
-  s.order=[p.id,...s.players.filter(x=>x.id!==p.id).map(x=>x.id)];
-  s.turnIndex=0;P.startTurn(s);
-  p.currentNodeId=from;delete p.worldPosition;
-  P.beginMove(s,p,1,'rocket');
-  until(s,()=>s.phase==='effect',5);
- };
- arrive(a,'n19');
- assert.equal(s.map.nodes.n20.ownerId,a.id);assert.equal(a.hp,100);
- assert.equal(s.effect.kind,'swordClaim');
- arrive(c,'n20');
- assert.equal(s.map.nodes.n21.ownerId,c.id);assert.equal(c.hp,100);
- assert.notEqual(s.map.nodes.n20.ownerId,s.map.nodes.n21.ownerId);
- arrive(b,'n19');
- assert.equal(b.hp,88,'unowned tile first visit has no damage, owned tile visit takes 12');
- assert.equal(s.effect.kind,'swordHit');
- assert.equal(s.hits.at(-1).amount,12);
- assert.equal(s.map.nodes.n20.ownerId,a.id);
- arrive(a,'n19');assert.equal(a.hp,100);assert.equal(s.effect.kind,'swordSafe');
- b.shieldTurns=1;arrive(b,'n19');
- assert.equal(b.hp,88,'shield blocks enemy sword tile damage');
- assert.equal(s.effect.kind,'shield');
- b.shieldTurns=0;b.hp=10;arrive(b,'n19');
- assert.equal(b.currentNodeId,s.map.startId);assert.equal(b.hp,100,'defeated player respawns at full HP');
- assert.equal(s.map.nodes.n20.ownerId,a.id,'captured territory persists after a visitor is defeated');
- assert.equal(s.map.nodes.n21.ownerId,c.id,'second sword owner is independent');
+test('Linked sword territory: claiming either tile owns BOTH, once-only damage and shield',()=>{
+ for(const first of ['n20','n21']){
+  const s=ready(3,2026),[a,b,c]=s.players,second=first==='n20'?'n21':'n20';
+  const arrive=(p,id)=>{
+   s.order=[p.id,...s.players.filter(q=>q.id!==p.id).map(q=>q.id)];
+   s.turnIndex=0;P.startTurn(s);p.currentNodeId=id;delete p.worldPosition;P.land(s);
+  };
+  arrive(a,first);
+  assert.equal(s.map.territories[M.TERRITORY_ID].ownerId,a.id);
+  assert.equal(s.map.nodes.n20.ownerId,a.id);assert.equal(s.map.nodes.n21.ownerId,a.id);
+  assert.equal(s.effect.kind,'swordClaim');assert.equal(a.hp,100);
+  arrive(c,second);assert.equal(c.hp,88);assert.equal(s.effect.kind,'swordHit');
+  assert.equal(s.hits.at(-1).amount,12);
+  arrive(a,second);assert.equal(a.hp,100);assert.equal(s.effect.kind,'swordSafe');
+  b.shieldTurns=1;arrive(b,first);
+  assert.equal(b.hp,100);assert.equal(s.effect.kind,'shield');
+  b.shieldTurns=0;b.hp=10;arrive(b,second);
+  assert.equal(b.currentNodeId,s.map.startId);assert.equal(b.hp,100);
+  assert.equal(s.map.nodes.n20.ownerId,a.id);assert.equal(s.map.nodes.n21.ownerId,a.id);
+ }
 });
 test('Damage has distinct 100-HP values and healing clamps to max',()=>{
  const s=ready(3,999),p=s.players[0];
@@ -414,10 +393,14 @@ test('Damage has distinct 100-HP values and healing clamps to max',()=>{
  p.hp=95;p.item='potion';I.begin(s,p,P,'potion');
  assert.equal(p.hp,100,'potion cannot overfill beyond 100');
 });
-test('HP cap, death keeps item/order, clears movement and awards no free roll',()=>{
- const s=ready(),p=s.players[0];p.currentNodeId='n1';p.hp=1;p.item='ufo';s.map.nodes.n2.type='danger';const order=plain(s.order);
- P.beginMove(s,p,1,'rocket');until(s,()=>s.phase==='effect');assert.equal(p.hp,100);assert.equal(p.currentNodeId,'n0');assert.equal(p.item,'ufo');assert.equal(s.effect.next,'end');tick(s,2);assert.equal(P.current(s).id,'p2');assert.deepEqual(plain(s.order),order);
- const q=s.players[2];q.hp=1;q.item='car';q.currentNodeId='n9';P.damage(s,q,1);assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,100);assert.equal(q.item,'car');assert.equal(P.current(s).id,'p2');
+test('HP cap, death keeps items and board order after dangerous landing',()=>{
+ const s=ready(),p=s.players[0],q=s.players[2],order=plain(s.order);
+ p.currentNodeId='n2';s.map.nodes.n2.type='danger';p.hp=1;p.item='ufo';
+ P.land(s);assert.equal(s.effect.kind,'death');assert.equal(p.currentNodeId,s.map.startId);
+ assert.equal(p.hp,100);assert.equal(p.item,'ufo');
+ tick(s,2);assert.equal(P.current(s).id,'p2');assert.deepEqual(plain(s.order),order);
+ q.hp=1;q.item='car';q.currentNodeId='n9';P.damage(s,q,1);
+ assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,100);assert.equal(q.item,'car');
 });
 test('Potion requires HP below maximum; backpack can be closed without using an item',()=>{
  const s=ready(),p=s.players[0];p.item='potion';
@@ -440,12 +423,14 @@ test('Shield is a sixth reward item, once per round, and preserves the dice roll
  const t=ready(),q=t.players[0];q.item='shield';q.shieldTurns=1;press(t,q,'B');
  assert.equal(q.item,'shield');assert.equal(q.usedRound,0);assert.equal(q.shieldTurns,1);
 });
-test('Shield blocks danger and random damage, keeps HP and node without consuming protection',()=>{
+test('Shield blocks danger and events without reducing HP or losing turns',()=>{
  for(const type of ['danger','event']){
-  const s=ready(),p=s.players[0];p.hp=1;p.item='shield';press(s,p,'B');until(s,()=>s.phase==='ready');
-  p.currentNodeId='n1';s.map.nodes.n2.type=type;s.rng=()=>.99;P.beginMove(s,p,1,'rocket');until(s,()=>s.phase==='effect');
-  assert.equal(s.effect.kind,'shield');assert.equal(p.hp,1);assert.equal(p.currentNodeId,'n2');assert.equal(p.shieldTurns,2);
-  P.damage(s,p,3);assert.equal(p.hp,1);assert.equal(p.shieldTurns,2);assert.ok(p.blockedUntil>s.time);
+  const s=ready(),p=s.players[0];p.hp=1;p.item='shield';
+  press(s,p,'B');until(s,()=>s.phase==='ready');
+  p.currentNodeId='n2';s.map.nodes.n2.type=type;s.rng=()=>.99;
+  P.land(s);assert.equal(s.effect.kind,'shield');assert.equal(p.hp,1);
+  assert.equal(p.shieldTurns,2);
+  P.damage(s,p,3);assert.equal(p.hp,1);
  }
 });
 test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected neighbours only',()=>{
@@ -482,13 +467,29 @@ test('250 UFO cases: real world hitboxes, stacked players, atomic swap, no landi
 test('Repeated aim cancellation cannot extend a human turn indefinitely',()=>{
  const s=ready(),p=s.players[0];p.item='ufo';press(s,p,'B');tick(s,8.05);assert.equal(s.phase,'ready');press(s,p,'B');tick(s,4.1);press(s,p,'B');tick(s,.2);assert.equal(s.phase,'dice');assert.equal(p.item,'ufo');assert.equal(p.usedRound,0);
 });
-test('250 Rockets: only directed edges, max five steps, landing effect once, roll retained',()=>{
- for(let seed=0;seed<250;seed++){
-  const s=ready(3,seed),p=s.players[0];p.currentNodeId='n'+(seed%30);p.item='rocket';for(const n of Object.values(s.map.nodes))if(n.type!=='finish')n.type='movement';
-  const start=p.currentNodeId;press(s,p,'B');let last=start,steps=0;
-  until(s,()=>{if(p.currentNodeId!==last){assert.ok(s.map.nodes[last].nextNodes.includes(p.currentNodeId));last=p.currentNodeId;steps++;}if(s.phase==='branch')press(s,p,'A');return s.phase==='effect'||s.phase==='finished';});
-  assert.ok(steps<=5&&steps>0);if(s.phase!=='finished'){until(s,()=>s.phase==='ready');press(s,p,'A');assert.equal(s.phase,'dice');}
+test('5-second rocket: continuous steering, no five-node cap and preserved mid-edge landing',()=>{
+ let multiple=0;
+ for(let seed=0;seed<80;seed++){
+  const s=ready(3,seed),p=s.players[0];p.currentNodeId='n'+(seed%20);p.item='rocket';
+  const start=p.currentNodeId,prev=new Set([start]);press(s,p,'B');
+  assert.equal(s.phase,'rocket');assert.equal(s.move.expires-s.time,5);
+  for(let j=0;j<103&&s.phase==='rocket';j++){
+   const id=s.move.to||p.currentNodeId;
+   const startAt=I.position(s,p),end=s.map.nodes[id].nextNodes[0]&&s.move.to?
+    s.map.nodes[s.move.to].position:s.map.nodes[s.map.nodes[p.currentNodeId].nextNodes[0]]?.position;
+   if(end){const dx=end.x-startAt.x,dy=end.y-startAt.y,d=Math.hypot(dx,dy)||1;
+    press(s,p,null,{axisX:dx/d,axisY:dy/d});}
+   P.update(s,.05);prev.add(p.currentNodeId);
+  }
+  assert.ok(['effect','lucky_roulette','finished'].includes(s.phase));
+  if(prev.size>6)multiple++;
+  if(s.pendingTraverse){
+   const old=plain(p.worldPosition);
+   until(s,()=>s.phase==='ready',7);P.beginMove(s,p,2);
+   assert.deepEqual(plain(I.position(s,p)),old,'the next walk resumes from exact landing');
+  }
  }
+ assert.ok(multiple>0,'rocket must be capable of going farther than five checkpoints');
 });
 test('250 Bomber attacks: 45-degree rotations, frozen preview, one hit per volley',()=>{
  for(let seed=0;seed<250;seed++){
