@@ -4,7 +4,7 @@
 const TAU=Math.PI*2, FIXED=1/60;
 const C=Object.freeze({speed:170,radius:14,punchRange:46,punchWindup:.12,
  punchActive:.10,punchRecovery:.13,punchCooldown:1.1,punchStun:.55,
- blastCooldown:2.8,blastCast:.18,blastStun:.95,botPunchRate:.6});
+ blastCooldown:2.8,blastCast:.18,blastStun:.95,botPunchRate:.42});
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function rand(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
 function active(ps){return ps.filter(p=>p.active);}
@@ -62,10 +62,55 @@ function captureTile(s,t,p,ps){
   color:p.color,life:.25,type:'spark'});
  return true;
 }
+// The avatar occupies a disk (radius = real character collision radius), not
+// a single tile center. Sweeping it over the travel segment captures adjacent
+// cells immediately when straddling a seam or corner — including diagonals.
+function circleSegmentTouchesTile(t,size,x0,y0,x1,y1,radius){
+ const left=t.x,top=t.y,right=left+size,bottom=top+size;
+ const r2=radius*radius,dx=x1-x0,dy=y1-y0,len2=dx*dx+dy*dy;
+ const distRectSq=(x,y)=>{
+  const ax=x-clamp(x,left,right),ay=y-clamp(y,top,bottom);
+  return ax*ax+ay*ay;
+ };
+ // Cover stationary body overlap and endpoint collisions.
+ if(distRectSq(x0,y0)<=r2+1e-7||distRectSq(x1,y1)<=r2+1e-7)return true;
+ // Cover long movements where the player's center enters the tile.
+ let enter=0,leave=1;
+ for(const [origin,delta,min,max] of [[x0,dx,left,right],[y0,dy,top,bottom]]){
+  if(Math.abs(delta)<1e-10){
+   if(origin<min||origin>max){enter=2;break;}
+  }else{
+   const a=(min-origin)/delta,b=(max-origin)/delta;
+   enter=Math.max(enter,Math.min(a,b));
+   leave=Math.min(leave,Math.max(a,b));
+   if(enter>leave)break;
+  }
+ }
+ if(enter<=leave)return true;
+ // Close to tile edges/corners: exact segment-to-corner distance. For a
+ // rectangle and segment, a minimum occurs at an endpoint or a corner.
+ if(len2<=1e-12)return false;
+ for(const x of [left,right])for(const y of [top,bottom]){
+  const u=clamp(((x-x0)*dx+(y-y0)*dy)/len2,0,1);
+  const ax=x-(x0+u*dx),ay=y-(y0+u*dy);
+  if(ax*ax+ay*ay<=r2+1e-7)return true;
+ }
+ return false;
+}
 function capturePathTiles(s,p,ps,fromX,fromY){
- const distance=Math.hypot(p.x-fromX,p.y-fromY);
- const n=Math.max(1,Math.ceil(distance/(s.size*.22)));
- for(let i=0;i<=n;i++){const a=i/n;captureTile(s,tileAt(s,fromX+(p.x-fromX)*a,fromY+(p.y-fromY)*a),p,ps);}
+ if(!p||!p.active)return;
+ const x0=Number.isFinite(fromX)?fromX:p.x,y0=Number.isFinite(fromY)?fromY:p.y;
+ const r=C.radius,b=s.board;
+ // Restrict checks to the swept disk's tiles: no full-board scan per player.
+ const left=clamp(Math.floor((Math.min(x0,p.x)-r-b.x)/s.size),0,s.cols-1);
+ const right=clamp(Math.floor((Math.max(x0,p.x)+r-b.x)/s.size),0,s.cols-1);
+ const top=clamp(Math.floor((Math.min(y0,p.y)-r-b.y)/s.size),0,s.rows-1);
+ const bottom=clamp(Math.floor((Math.max(y0,p.y)+r-b.y)/s.size),0,s.rows-1);
+ for(let row=top;row<=bottom;row++)for(let col=left;col<=right;col++){
+  const tile=s.tiles[row*s.cols+col];
+  if(tile.ownerId!==p.id&&circleSegmentTouchesTile(tile,s.size,x0,y0,p.x,p.y,r))
+   captureTile(s,tile,p,ps);
+ }
 }
 function updateTerritoryScores(s,ps){
  const counts=new Map();for(const t of s.tiles)if(t.ownerId!=null)counts.set(t.ownerId,(counts.get(t.ownerId)||0)+1);
