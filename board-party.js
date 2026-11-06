@@ -326,7 +326,7 @@ function grant(s){
   if(p)I().add(p,r.reward);
  }
  s.pendingItems={};
- phase(s,'rewards',3.7);
+ phase(s,'rewards',4.5);
  return true;
 }
 function update(s,dt){
