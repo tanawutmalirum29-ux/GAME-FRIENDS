@@ -1590,6 +1590,8 @@ function startRound(forcedMode=null){
   round={mode,phase:'countdown',paused:false,countdown:mode==='shockwave'?2:3,remaining:null,autoNextRemaining:0,
     rules:{viewMode:'topdown'}};
   try{
+    // Reset cross-minigame punch state before each new match.
+    for(const p of players){p.stun=0;p.punchCooldown=0;window.PartyCombatMotion.reset(p);}
     window.PartyPlayerAvatar.preload(players);
     engine.setup(round,players);
   }catch(error){
