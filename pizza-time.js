@@ -202,45 +202,49 @@ function fairnessCandidates(s,p){
  return s.pairs.map(pair=>({pair,distance:pairCost(s,p,pair,s.chefById.get(p.id))}))
   .filter(x=>Number.isFinite(x.distance)).sort((a,b)=>a.distance-b.distance);
 }
-function chooseFirstOrders(s,ps){
- const pools=new Map(ps.map(p=>[p.id,fairnessCandidates(s,p)]));
- // Search common target distance instead of independently choosing easiest jobs.
- const targets=[...new Set([...pools.values()].flat().map(o=>Math.round(o.distance/8)*8))].sort((a,b)=>a-b);
- let best=null;
- for(const target of targets){
-  const selected=ps.map(p=>{
-   const list=pools.get(p.id),offset=(Number(p.id)||0)%Math.max(1,list.length);
-   return [...list].sort((a,b)=>Math.abs(a.distance-target)-Math.abs(b.distance-target)||
-     Number(a.pair[0]===s.lastIngredient.get(p.id))-Number(b.pair[0]===s.lastIngredient.get(p.id)))[0];
-  });
-  if(selected.some(x=>!x))continue;
-  const values=selected.map(x=>x.distance),min=Math.min(...values),max=Math.max(...values);
-  const spread=max-min,avg=values.reduce((a,b)=>a+b,0)/values.length;
-  const score=spread+Math.abs(avg-s.world.h*1.2)*.015;
-  if(!best||score<best.score)best={score,selected,spread,avg};
-  if(best&&spread<=avg*.02)break;
- }
- if(!best)return;
- s.targetDistance=best.avg;
- s.firstSpread=best.spread;
- ps.forEach((p,i)=>assignPair(s,p,best.selected[i]));
+// Compare difficulty across the same player's own four successive menus.
+// Other players' orders, scores, and distances never enter this selection.
+const menuKey=pair=>[...pair].sort().join('|');
+function selectOrder(s,p){
+ const pizza=p.pizza,options=fairnessCandidates(s,p);
+ if(!options.length)return null;
+ if(pizza.orderSerial%4===0||!Number.isFinite(pizza.blockTarget))
+  pizza.blockTarget=options[Math.floor(options.length/2)].distance;
+ const target=pizza.blockTarget;
+ const ranked=[...options].sort((a,b)=>Math.abs(a.distance-target)-Math.abs(b.distance-target));
+ const fair=ranked.filter(o=>Math.abs(o.distance-target)<=Math.max(1,target*.20));
+ const pool=fair.length>=Math.min(4,ranked.length)?fair:
+  ranked.slice(0,Math.min(4,ranked.length));
+ const recent=new Set(pizza.menuHistory.slice(-3).map(h=>h.key));
+ const fresh=pool.filter(o=>!recent.has(menuKey(o.pair)));
+ const choices=fresh.length?fresh:pool;
+ const times=entry=>pizza.menuCounts[menuKey(entry.pair)]||0;
+ const minCount=Math.min(...choices.map(times));
+ const leastUsed=choices.filter(o=>times(o)===minCount);
+ const inBlock=pizza.menuHistory.slice(-(pizza.orderSerial%4));
+ const ingredientCount=id=>inBlock.reduce((count,h)=>count+Number(h.pair.includes(id)),0);
+ return leastUsed.map(entry=>({
+  entry,
+  score:Math.abs(entry.distance-target)/Math.max(1,target)*2+
+   (ingredientCount(entry.pair[0])+ingredientCount(entry.pair[1]))*.08+random(s)*.24
+ })).sort((a,b)=>a.score-b.score)[0].entry;
 }
 function assignPair(s,p,entry){
- const pizza=p.pizza;
+ if(!entry)return false;
+ const pizza=p.pizza,key=menuKey(entry.pair);
  pizza.order=[...entry.pair];pizza.delivered=[];pizza.held=null;
  pizza.assignedTotal+=entry.distance;
  pizza.lastCost=entry.distance;pizza.orderSerial++;
- s.lastIngredient.set(p.id,entry.pair[0]);pizza.botPath=[];pizza.botGoal=null;
+ pizza.menuCounts[key]=(pizza.menuCounts[key]||0)+1;
+ pizza.menuHistory.push({key,pair:[...entry.pair],distance:entry.distance,target:pizza.blockTarget});
+ pizza.botPath=[];pizza.botGoal=null;return true;
+}
+function chooseFirstOrders(s,ps){
+ for(const p of ps)assignPair(s,p,selectOrder(s,p));
 }
 function nextOrder(s,p){
- const options=fairnessCandidates(s,p);if(!options.length)return;
- const live=active(s.roster);
- const mean=live.reduce((a,x)=>a+(x.pizza?.assignedTotal||0),0)/Math.max(1,live.length);
- const fairTarget=s.targetDistance+bound((mean-p.pizza.assignedTotal)*.20,-s.targetDistance*.20,s.targetDistance*.20);
- const best=[...options].sort((a,b)=>
-  Math.abs(a.distance-fairTarget)-Math.abs(b.distance-fairTarget)||
-  Number(a.pair.includes(s.lastIngredient.get(p.id)))-Number(b.pair.includes(s.lastIngredient.get(p.id))))[0];
- assignPair(s,p,best);
+ // The only fairness comparison is against this chef's own past menu cycle.
+ return assignPair(s,p,selectOrder(s,p));
 }
 function setup(round,ps){
  // The lobby initializes everyone with active=false. Activate entrants BEFORE
@@ -252,8 +256,7 @@ function setup(round,ps){
    roster:ps,seed:(Number(round.pizzaSeed)||(Date.now()^0x4b1a8d7))>>>0||1,
    elapsed:0,duration:60,remaining:60,accumulator:0,clock:0,finished:false,
    tables:[],worktops:[],chefs:[],chefById:new Map(),chefRouteCache:new Map(),
-   pairs:[],pathCostCache:new Map(),lastIngredient:new Map(),targetDistance:0,
-   firstSpread:0,ranking:[],winnerIds:[],effects:[]};
+   pairs:[],pathCostCache:new Map(),ranking:[],winnerIds:[],effects:[]};
  round.pizzaTime=s;round.remaining=60;
  tableLayout(s);stationLayout(s,people);grid(s);planOrderCards(s);
  s.pairs=makePairs(s);
@@ -262,7 +265,8 @@ function setup(round,ps){
    p.x=chef.spawn.x;p.y=chef.spawn.y;
    p.dir={...chef.facing};p.vx=0;p.vy=0;p.score=0;
    p.pizza={chefId:chef.id,held:null,order:[],delivered:[],
-     assignedTotal:0,lastCost:0,orderSerial:0,botPath:[],botGoal:null,repath:0};
+     assignedTotal:0,lastCost:0,orderSerial:0,menuHistory:[],menuCounts:{},
+     blockTarget:null,botPath:[],botGoal:null,repath:0};
  });
  resolvePlayerCollisions(s,people);
  chooseFirstOrders(s,people);
