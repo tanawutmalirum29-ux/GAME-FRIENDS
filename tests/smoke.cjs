@@ -16,6 +16,7 @@ const uiArtSource=fs.readFileSync('party-ui-art.js','utf8');
 const pizzaArtSource=fs.readFileSync('pizza-ingredient-art.js','utf8');
 const pizzaSource=fs.readFileSync('pizza-time.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
+const chickensSource=fs.readFileSync('chickens.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
 const shockwaveSource=fs.readFileSync('shockwave.js','utf8');
 const mayanSource=fs.readFileSync('color-switch-mayan.js','utf8');
@@ -923,6 +924,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(characterSource,scope,{filename:'character-system.js'});
   vm.runInContext(uiArtSource,scope,{filename:'party-ui-art.js'});
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
+  vm.runInContext(chickensSource,scope,{filename:'chickens.js'});
   vm.runInContext(fruitSource,scope,{filename:'fruit-memory.js'});
    vm.runInContext(shockwaveSource,scope,{filename:'shockwave.js'});
   vm.runInContext(mayanSource,scope,{filename:'color-switch-mayan.js'});
