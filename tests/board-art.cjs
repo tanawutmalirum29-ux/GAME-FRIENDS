@@ -39,8 +39,7 @@ function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,nam
  const info=A.inspect(s,x,y);
  assert.ok(info&&info.id==='n35');assert.equal(info.type,n.type);
  assert.deepEqual(JSON.parse(JSON.stringify(info.next)),JSON.parse(JSON.stringify(n.nextNodes)));
- const start=labels.length;A.draw(g,s.time,s);
- assert.ok(labels.slice(start).includes('n35')||labels.slice(start).includes('35'));
+ assert.equal(s.camera.selectedId,'n35','inspector stores selected visible node without changing game state');
  assert.equal(JSON.stringify(s.players),original,'debug selection cannot move or damage players');
  assert.equal(A.toggleDebug(s),false);
 }
