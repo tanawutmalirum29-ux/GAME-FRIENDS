@@ -540,8 +540,15 @@ test('250 UFO cases: real world hitboxes, stacked players, atomic swap, no landi
  }
  const s=ready(),p=s.players[0],q=s.players[1];p.item='ufo';q.currentNodeId=s.map.finishId;press(s,p,'B');Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(p.item,'ufo');tick(s,8.1);assert.equal(p.item,'ufo');assert.equal(s.phase,'ready');assert.equal(p.usedRound,0);
 });
-test('Repeated aim cancellation cannot extend a human turn indefinitely',()=>{
- const s=ready(),p=s.players[0];p.item='ufo';press(s,p,'B');tick(s,8.05);assert.equal(s.phase,'ready');press(s,p,'B');tick(s,4.1);press(s,p,'B');tick(s,.2);assert.equal(s.phase,'dice');assert.equal(p.item,'ufo');assert.equal(p.usedRound,0);
+test('Repeated aim cancellation never forces a human dice roll',()=>{
+ const s=ready(),p=s.players[0];p.item='ufo';
+ press(s,p,'B');tick(s,8.05);assert.equal(s.phase,'ready');
+ press(s,p,'B');tick(s,4.1);press(s,p,'B');tick(s,.2);
+ assert.equal(s.phase,'aim','aiming is not interrupted by a 12s turn deadline');
+ tick(s,8.1);assert.equal(s.phase,'ready');
+ tick(s,30);assert.equal(s.phase,'ready','player may wait to roll after cancelling aim');
+ assert.equal(p.item,'ufo');assert.equal(p.usedRound,0);
+ press(s,p,'A');assert.equal(s.phase,'dice','A still starts the actual dice roll');
 });
 test('5-second rocket: continuous steering, no five-node cap and preserved mid-edge landing',()=>{
  let multiple=0;
