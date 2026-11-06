@@ -3,6 +3,7 @@
 'use strict';
 const M=()=>window.BoardMap,D=()=>window.BoardDice,I=()=>window.BoardItems;
 const MAX_HP=100;
+const INTRO_OVERVIEW_SECONDS=2,INTRO_ZOOM_SECONDS=1.5;
 const LUCKY_SPIN_SECONDS=2,LUCKY_HOLD_SECONDS=1.4; // Previous .6-second result hold + .8 seconds.
 const DAMAGE=Object.freeze({sword:12,car:18,bomber:26,skull:35,event:14});
 const HEAL=Object.freeze({tile:20,event:15,potion:50});
@@ -11,12 +12,21 @@ function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
  const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
  s.camera.x=s.map.width/2;s.camera.y=s.map.height/2;
- phase(s,'overview',Infinity);return s;
+ phase(s,'overview',INTRO_OVERVIEW_SECONDS);return s;
 }
 function beginOrder(s){
- if(s.phase!=='overview')return false;
+ if(s.phase!=='intro_zoom'||s.time+1e-6<s.deadline)return false;
  s.camera.overview=false;s.camera.explore=false;
+ s.camera.introFrom=null;
  phase(s,'order',12);return true;
+}
+function beginIntroZoom(s){
+ if(s.phase!=='overview')return false;
+ const c=s.camera;
+ c.introFrom={x:c.x,y:c.y,zoom:c.zoom};
+ c.overview=false;c.explore=false;c.manualZoom=null;c.panned=false;
+ phase(s,'intro_zoom',INTRO_ZOOM_SECONDS);
+ return true;
 }
 function phase(s,name,duration=0){s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;s.turnId=s.id+':'+(++s.revision);}
 // A continuous walk owns one input token until it lands; holding the stick
@@ -406,7 +416,8 @@ function grant(s){
 }
 function update(s,dt){
  if(!Number.isFinite(dt)||dt<=0)return;dt=Math.min(dt,.1);s.time+=dt;
- if(s.phase==='overview'){/* Await host confirmation. */}
+ if(s.phase==='overview'){if(s.time+1e-6>=s.deadline)beginIntroZoom(s);}
+ else if(s.phase==='intro_zoom'){if(s.time+1e-6>=s.deadline)beginOrder(s);}
  else if(s.phase==='order'){
   for(const p of s.players)if(!p.dice&&(s.time>=s.deadline||(p.isBot&&s.time-s.phaseAt>.6+s.players.indexOf(p)*.12)))rollOrder(s,p);
   if(s.players.every(p=>p.dice&&s.time-p.rollAt>.85)){s.order=D().order(s.players,s.rng);phase(s,'order_result',3);}
@@ -446,7 +457,8 @@ function update(s,dt){
 function snapshot(s){return JSON.parse(JSON.stringify({map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}
 function controls(s,id){
  const p=s.players.find(p=>p.id===id),mine=current(s)?.id===id;
- if(s.phase==='overview')return{a:'',b:'',help:'กำลังดูแมพทั้งหมด • เจ้าของห้องกด เริ่มทอยจัดลำดับ'};
+ if(s.phase==='overview')return{a:'',b:'',help:'กำลังชมแผนที่ • อีกสักครู่กล้องจะซูมไปจุดเริ่มต้น'};
+ if(s.phase==='intro_zoom')return{a:'',b:'',help:'กำลังซูมไปจุดเริ่มต้น • เตรียมทอยลูกเต๋าหาคนเริ่ม'};
  if(s.phase==='order')return{a:'ทอย 2 ลูก',b:'ทอย 2 ลูก',help:p?.dice?'ทอยแล้ว • รอเพื่อน':'A หรือ B ทอยลำดับ'};
  if(s.phase==='rewards')return{a:'',b:'',help:'เก็บไอเทมรางวัลลงกระเป๋าอัตโนมัติ'};
  if(s.phase==='lucky_roulette')return{a:'',b:'',help:'LUCKY STAR • กำลังสุ่มไอเทมเข้ากระเป๋า'};

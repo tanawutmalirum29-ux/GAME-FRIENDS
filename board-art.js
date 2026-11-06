@@ -585,14 +585,27 @@ function draw(g,t,s){
  const top=s.players.length>6?145:94,bottom=452,viewH=bottom-top;
  const p=window.BoardParty.current(s)||s.players[0],pos=s.skill||window.BoardItems.position(s,p);
  const wide=s.phase==='aim',overviewMode=s.phase==='overview'||s.camera.overview;
+ const introZoom=s.phase==='intro_zoom';
  const zoomTarget=overviewMode?(s.camera.manualZoom||fitZoom(s)):
    s.camera.paused?(s.camera.manualZoom||s.camera.zoom):
    canPan(s)?(s.camera.manualZoom||.65):wide?.65:s.phase==='branch'?.83:1;
  const c=s.camera,dt=Math.min(.05,Math.max(.001,t-(c.lastRenderTime??t-.016)));c.lastRenderTime=t;
- if(!canPan(s))c.manualZoom=null;
- c.zoom+=(zoomTarget-c.zoom)*(1-Math.exp(-dt*5));
+ if(introZoom){
+  // Use the authoritative board clock rather than render-frame smoothing.
+  // Exactly 1.5s after the 2s overview, reach the first player's start node.
+  const from=c.introFrom||{x:c.x,y:c.y,zoom:c.zoom};
+  const progress=Math.max(0,Math.min(1,(s.time-s.phaseAt)/1.5));
+  const ease=progress*progress*(3-2*progress);
+  const start=s.map.nodes[s.players[0]?.currentNodeId]?.position||s.map.nodes.n0.position;
+  c.zoom=from.zoom+(1-from.zoom)*ease;
+  c.x=from.x+(start.x-from.x)*ease;
+  c.y=from.y+(start.y-from.y)*ease;
+ }else{
+  if(!canPan(s))c.manualZoom=null;
+  c.zoom+=(zoomTarget-c.zoom)*(1-Math.exp(-dt*5));
+ }
  const halfW=480/c.zoom,halfH=viewH/2/c.zoom,b=bounds(s);
- if(!canPan(s)){
+ if(!introZoom&&!canPan(s)){
   const targetX=clampCamera(pos.x,halfW,b.minX,b.maxX),targetY=clampCamera(pos.y,halfH,b.minY,b.maxY);
   c.x+=(targetX-c.x)*(1-Math.exp(-dt*6));c.y+=(targetY-c.y)*(1-Math.exp(-dt*6));
  }
