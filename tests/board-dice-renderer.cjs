@@ -51,13 +51,11 @@ assert.ok(polys>250&&arcs>0&&gradients>0,'3D vector faces, pips, gradients and s
 for(let n=1;n<=12;n++){
  const roster=Array.from({length:n},(_,i)=>({id:'p'+i,name:'Player '+i,color:'#ac8'}));
  const s=P.create(roster,{seed:n,rng:()=>.53});
- s.time=3.5;P.beginOrder(s); // engine owns the order phase after map overview
- if(s.phase!=='order'){
-  s.phase='order';s.phaseAt=s.time;s.deadline=s.time+12;
- }
+ for(let i=0;i<70;i++)P.update(s,.05);
+ assert.equal(s.phase,'order');
  for(const p of s.players)assert.equal(P.action(s,p.id,'A'),true);
  const committed=s.players.map(p=>plain(p.dice));
- P.update(s,D.TIMING.throw-.15);
+ for(let i=0;i<32;i++)P.update(s,.05); // 1.60s, still flying
  assert.equal(s.phase,'order','order cannot resolve before dice settle');
  s.players.forEach((p,i)=>assert.deepEqual(plain(p.dice),committed[i]));
  for(let i=0;i<10;i++)P.update(s,.05);
@@ -68,10 +66,13 @@ for(let n=1;n<=12;n++){
  s.order=['p1'];P.startTurn(s);
  assert.equal(P.roll(s),true);assert.deepEqual(plain(s.moveDice),[1,1]);
  assert.equal(P.remainingSteps(s,'p1'),0);
- P.update(s,1.0);assert.equal(P.remainingSteps(s,'p1'),0);
- P.update(s,.75);assert.equal(P.remainingSteps(s,'p1'),2);
+ for(let i=0;i<20;i++)P.update(s,.05);
+ assert.equal(P.remainingSteps(s,'p1'),0);
+ for(let i=0;i<16;i++)P.update(s,.05);
+ assert.equal(P.remainingSteps(s,'p1'),2);
  assert.equal(s.phase,'dice','the result hold still blocks movement');
- P.update(s,.4);assert.notEqual(s.phase,'dice');
+ for(let i=0;i<8;i++)P.update(s,.05);
+ assert.notEqual(s.phase,'dice');
  assert.equal(s.die,2,'walk reads the same host result');
 }
 console.log('BOARD 3D DICE PASS: 6 faces, 36 combinations, 2 bounces, 1–12 player order and movement gate');
