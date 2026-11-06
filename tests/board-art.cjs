@@ -100,7 +100,7 @@ assert.equal(intermission.phase,'rewards');
 const firstReveal=frameLabels();
 assert.ok(firstReveal.includes('สรุปผลมินิเกมและรางวัล'));
 assert.ok(firstReveal.includes('กำลังสุ่ม...'),'prizes spin once on reward reveal');
-for(let i=0;i<76;i++)P.update(intermission,.05);
+for(let i=0;i<92;i++)P.update(intermission,.05); // 4.5s reward hold (+0.8s)
 assert.equal(intermission.phase,'returning');
 const back=frameLabels();
 assert.ok(!back.includes('กำลังสุ่ม...'),'returning cannot start a second spinner');
@@ -113,4 +113,24 @@ assert.ok(!newTurn.includes('กำลังสุ่ม...'));
 assert.ok(!newTurn.includes('สรุปผลมินิเกมและรางวัล'));
 assert.ok(newTurn.some(x=>x.includes('เริ่มรอบที่ 2')),
  'new round shows a short on-map notice rather than a second result page');
+// A Lucky Star item reel must show the actual result, then the prize above
+// the landing player's head before any turn advancement.
+const lucky=game(2);
+lucky.order=lucky.players.map(p=>p.id);P.startTurn(lucky);
+const luckyPlayer=lucky.players[0],tile=lucky.map.luckyTileIds[0];
+luckyPlayer.currentNodeId='n'+(Number(tile.slice(1))-1);
+P.beginMove(lucky,luckyPlayer,1,'rocket');
+for(let i=0;i<90&&lucky.phase!=='lucky_roulette';i++)P.update(lucky,.05);
+assert.equal(lucky.phase,'lucky_roulette');
+const luckyItem=lucky.lucky.item;
+let luckyLabelStart=labels.length;A.draw(g,lucky.time,lucky);
+assert.ok(labels.slice(luckyLabelStart).includes('LUCKY STAR'));
+assert.ok(labels.slice(luckyLabelStart).some(x=>String(x).includes('กำลังสุ่มไอเทม')));
+for(let i=0;i<41;i++)P.update(lucky,.05);
+luckyLabelStart=labels.length;A.draw(g,lucky.time,lucky);
+assert.ok(labels.slice(luckyLabelStart).some(x=>String(x).includes('ได้รับ: '+ctx.window.BoardItems.names[luckyItem])));
+for(let i=0;i<29;i++)P.update(lucky,.05);
+assert.equal(lucky.phase,'effect');assert.equal(lucky.effect.kind,'luckyReward');
+luckyLabelStart=labels.length;A.draw(g,lucky.time,lucky);
+assert.ok(labels.slice(luckyLabelStart).some(x=>String(x).includes('ได้รับ: '+ctx.window.BoardItems.names[luckyItem])));
 console.log('BOARD ART PASS: immediate order screen, bounded/reused terrain, replay release and null-context vector fallback');

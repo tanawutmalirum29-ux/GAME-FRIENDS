@@ -824,13 +824,13 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  assert.equal(x.state.winnerId,b.id,'the last human wins');
 }
 
-// Finish the 1.45s horizontal reel plus 0.38s center reveal in the test
+// Finish the 1.45s horizontal reel plus 1.18s center reveal in the test
 // harness without wall-clock delays or accidental extra countdown ticks.
 function finishReel(ui){
  const api=ui.scope.window.__ghostTest;
  assert.ok(api.getSelection(),'a centered roulette must exist before the game starts');
- for(let i=0;i<50&&api.getSelection();i++)api.updateGameSelection(.05);
- assert.equal(api.getSelection(),null,'the reel must finish within two seconds');
+ for(let i=0;i<80&&api.getSelection();i++)api.updateGameSelection(.05);
+ assert.equal(api.getSelection(),null,'the reel must finish within four seconds including the longer result reveal');
  assert.equal(ui.elements.get('gameRoulette').classList.contains('hidden'),true);
  assert.equal(api.getRound().phase,'countdown','engine starts only after roulette settles');
  return api.getRound();
@@ -1419,7 +1419,7 @@ assert.match(css,/grid-template-columns:repeat\(var\(--result-cols,4\),minmax\(0
   'responsive ranking grid supports four landscape columns');
 
 // Endless mode draws a new truly randomized game EVERY round (never a
-// predetermined six-game list). The 1.83-second sideways reel ends with the
+// predetermined six-game list). The 2.63-second sideways reel ends with the
 // PRESELECTED winning game precisely at the center marker.
 assert.match(html,/id="gameRoulette"/);
 assert.match(html,/id="rouletteTrack"/);
@@ -1462,7 +1462,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  assert.equal(first.track.style.transform,'translate3d(-'+first.final.toFixed(2)+'px,0,0)',
    'winning card stops precisely in the middle');
  assert.equal(api.getRound().phase,'roulette','game does not begin until reveal hold');
- api.updateGameSelection(.4);
+ api.updateGameSelection(1.2);
  assert.equal(api.getSelection(),null);
  assert.equal(api.getRound().phase,'countdown');
  assert.equal(api.getRound().mode,first.mode,'actual engine matches the highlighted winner');
@@ -2029,7 +2029,7 @@ for(const count of [1,12]){
  for(let i=0;i<10000&&s.phase!=='minigame';i++)api.updateBoard(.05);
  assert.equal(s.phase,'minigame','every turn completes and starts the reel');
  assert.ok(api.getSelection());
- api.updateGameSelection(3);
+ api.updateGameSelection(3.5); // BOARD reel: 2s spin + 1.4s result hold
  assert.equal(api.getSelection(),null);assert.notEqual(api.getRound().mode,'board');
  const saved=JSON.stringify(P.snapshot(s));
  for(const mode of ['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time']){

@@ -3,12 +3,13 @@
 'use strict';
 const M=()=>window.BoardMap,D=()=>window.BoardDice,I=()=>window.BoardItems;
 const MAX_HP=100;
+const LUCKY_SPIN_SECONDS=2,LUCKY_HOLD_SECONDS=1.4; // Previous .6-second result hold + .8 seconds.
 const DAMAGE=Object.freeze({sword:12,car:18,bomber:26,skull:35,event:14});
 const HEAL=Object.freeze({tile:20,event:15,potion:30});
 let serial=0;
 function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
- const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,results:[],pendingItems:{},winnerIds:[],hits:[],camera:{x:480,y:320,zoom:1,explore:false},lastMinigame:null};
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],camera:{x:480,y:320,zoom:1,explore:false},lastMinigame:null};
  phase(s,'order',12);return s;
 }
 function phase(s,name,duration=0){s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;s.turnId=s.id+':'+(++s.revision);}
@@ -28,7 +29,7 @@ function endTurn(s){
  if(s.phase==='finished')return;
  // Count the shield's owner's completed turns, regardless of round reordering.
  const p=current(s);if(p?.shieldTurns>0)p.shieldTurns--;
- s.move=null;s.skill=null;s.effect=null;s.turnIndex++;
+ s.move=null;s.skill=null;s.effect=null;s.lucky=null;s.turnIndex++;
  if(s.turnIndex>=s.order.length){phase(s,'minigame_pending');return;}
  startTurn(s);
 }
@@ -59,6 +60,27 @@ function land(s){
  s.move=null;
  if(p.currentNodeId===s.map.finishId){win(s,p);return;}
  const n=s.map.nodes[p.currentNodeId];let dead=false,kind='land';
+ if(n.type==='lucky'){
+  // Only a final landing is eligible; grant once per player turn. Stacked
+  // duplicates are legitimate backpack entries, never replacements.
+  // A rocket may land on one Lucky Star, then its bonus roll may reach
+  // another Lucky Star within the same turn. Each DISTINCT landing pays once.
+  const grantKey=s.roundNumber+':'+s.turnIndex+':'+p.id+':'+n.id;
+  if(s.luckyGrantKey===grantKey){
+   // A defensive repeated landing must not leave phase=moving with move=null.
+   if(s.phase==='moving')effect(s,{kind:'land',points:[n.position],targets:[p.id],
+     next:m?.kind==='rocket'?'ready':'end'},.8);
+   return;
+  }
+  const pool=I().ids,index=Math.max(0,Math.min(pool.length-1,Math.floor(s.rng()*pool.length)));
+  const item=pool[index];
+  if(!I().add(p,item))throw Error('Lucky Star reward not in item registry');
+  s.luckyGrantKey=grantKey;
+  s.lucky={playerId:p.id,item,at:s.time,spinDuration:LUCKY_SPIN_SECONDS,
+    holdDuration:LUCKY_HOLD_SECONDS,next:m?.kind==='rocket'?'ready':'end'};
+  phase(s,'lucky_roulette',LUCKY_SPIN_SECONDS+LUCKY_HOLD_SECONDS);
+  return;
+ }
  if(n.type==='healing'){p.hp=Math.min(MAX_HP,p.hp+HEAL.tile);kind='heal';}
  if(n.type==='danger'){dead=damage(s,p,DAMAGE.skull);kind=p.shieldTurns>0?'shield':'hurt';}
  if(n.type==='event'){
@@ -311,7 +333,7 @@ function grant(s){
   if(p)I().add(p,r.reward);
  }
  s.pendingItems={};
- phase(s,'rewards',3.7);
+ phase(s,'rewards',4.5);
  return true;
 }
 function update(s,dt){
@@ -338,7 +360,13 @@ function update(s,dt){
    if(m.t>=1){p.worldPosition=I().position(s,p);p.currentNodeId=m.to;m.visited.push(m.to);m.to=null;m.remaining--;if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};nextStep(s);}
   }
  }else if(s.phase==='aim'||s.phase==='car')I().update(s,dt,api);
- else if(s.phase==='effect'&&s.time>=s.deadline){const next=s.effect.next;s.effect=null;if(next==='ready')ready(s);else endTurn(s);}
+ else if(s.phase==='lucky_roulette'&&s.time>=s.deadline){
+  const prize=s.lucky,p=s.players.find(q=>q.id===prize?.playerId);
+  if(!prize||!p)throw Error('Missing Lucky Star prize');
+  effect(s,{kind:'luckyReward',item:prize.item,points:[I().position(s,p)],
+    targets:[p.id],next:prize.next},1.5);
+ }
+ else if(s.phase==='effect'&&s.time>=s.deadline){const next=s.effect.next;s.effect=null;s.lucky=null;if(next==='ready')ready(s);else endTurn(s);}
  else if(s.phase==='standings'&&s.time>=s.deadline)grant(s);
  else if(s.phase==='rewards'&&s.time>=s.deadline)phase(s,'returning',.6);
  else if(s.phase==='returning'&&s.time>=s.deadline){s.roundNumber++;s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',1.8);}
@@ -350,6 +378,7 @@ function controls(s,id){
  const p=s.players.find(p=>p.id===id),mine=current(s)?.id===id;
  if(s.phase==='order')return{a:'ทอย 2 ลูก',b:'ทอย 2 ลูก',help:p?.dice?'ทอยแล้ว • รอเพื่อน':'A หรือ B ทอยลำดับ'};
  if(s.phase==='rewards')return{a:'',b:'',help:'เก็บไอเทมรางวัลลงกระเป๋าอัตโนมัติ'};
+ if(s.phase==='lucky_roulette')return{a:'',b:'',help:'LUCKY STAR • กำลังสุ่มไอเทมเข้ากระเป๋า'};
  if(!mine)return{a:'',b:'',help:'รอตาของคุณ • '+(current(s)?.name||'สรุปผล')};
  if(s.phase==='ready'){
   if(p.bagOpen){

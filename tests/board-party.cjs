@@ -288,11 +288,11 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
  assert.equal(s.move.remaining,1,'one graph edge consumes exactly one die step');
 });
 
-test('54-step board extends the original map and has two consecutive neutral sword tiles',()=>{
+test('72-step board extends the map and retains two consecutive neutral sword tiles',()=>{
  for(const seed of [1,42,2026,999]){
   const map=M.create(seed);
-  assert.equal(map.length,54);assert.equal(map.finishId,'n54');
-  assert.ok(map.height>=2000&&map.rows>=6,'snow map must extend far enough for six rows');
+  assert.equal(map.length,72);assert.equal(map.finishId,'n72');
+  assert.ok(map.height>=2750&&map.rows>=8,'snow map must extend far enough for eight rows');
   assert.deepEqual(plain(M.SWORD_TILES),['n20','n21']);
   assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
   assert.equal(map.nodes.n20.ownerId,null);assert.equal(map.nodes.n21.ownerId,null);
@@ -300,6 +300,67 @@ test('54-step board extends the original map and has two consecutive neutral swo
   assert.ok(map.nodes.n19.nextNodes.includes('n20'));
   assert.equal(M.validate(map),true);
  }
+});
+test('Lucky Star locations are reachable purple/gold reward tiles, spread across the larger board',()=>{
+ for(let seed=0;seed<120;seed++){
+  const map=M.create(seed),lucky=Object.values(map.nodes).filter(n=>n.type==='lucky');
+  assert.equal(lucky.length,6,'6 lucky tiles in the 6-8% range');
+  assert.deepEqual(plain(lucky.map(n=>n.id).sort()),plain([...map.luckyTileIds].sort()));
+  for(const node of lucky){assert.equal(node.effects.item,true);assert.ok(node.nextNodes.length);assert.ok(node.previousNodes.length);}
+  assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
+  assert.equal(M.validate(map),true);
+ }
+});
+test('Lucky Star landing adds one stackable item and must finish reel + above-player reveal before next turn',()=>{
+ const s=ready(3,645),p=s.players[0],id=s.map.luckyTileIds[0],node=s.map.nodes[id];
+ const predecessor='n'+(Number(id.slice(1))-1);
+ assert.ok(s.map.nodes[predecessor].nextNodes.includes(id));
+ p.currentNodeId=predecessor;I.add(p,'rocket');I.add(p,'rocket');
+ const before=I.bag(p).length;
+ P.beginMove(s,p,1,'rocket');
+ until(s,()=>s.phase==='lucky_roulette',4);
+ assert.equal(p.currentNodeId,id);assert.equal(I.bag(p).length,before+1);
+ assert.ok(I.bag(p).includes(s.lucky.item));
+ assert.equal(s.lucky.holdDuration,1.4);
+ const reward=s.lucky.item,token=s.turnId;
+ assert.equal(P.action(s,p.id,'A'),false);
+ assert.equal(P.action(s,p.id,'B'),false);
+ P.land(s);assert.equal(s.phase,'lucky_roulette','duplicate landing must not skip the reveal');
+ assert.equal(I.bag(p).length,before+1,'only one item for the landing');
+ tick(s,3.2);assert.equal(s.phase,'lucky_roulette');
+ until(s,()=>s.phase==='effect',2);
+ assert.equal(s.effect.kind,'luckyReward');assert.equal(s.effect.item,reward);
+ assert.deepEqual(plain(s.effect.targets),[p.id]);
+ assert.equal(I.bag(p).length,before+1);
+ until(s,()=>s.phase==='ready',3);
+ assert.equal(s.turnIndex,0,'rocket grants a following roll, not a next-player transition');
+ assert.equal(p.bag.filter(x=>x==='rocket').length,2+(reward==='rocket'?1:0),'duplicate items remain stacked');
+ assert.equal(s.lucky,null);
+ assert.notEqual(s.turnId,token);
+});
+test('Two DIFFERENT Lucky Star landing nodes in one rocket + dice turn both award, no duplicate granting',()=>{
+ const s=ready(3,680),p=s.players[0],tiles=s.map.luckyTileIds;
+ for(let i=0;i<2;i++){
+  const id=tiles[i],prev='n'+(Number(id.slice(1))-1);
+  p.currentNodeId=prev;delete p.worldPosition;
+  const before=I.bag(p).length;
+  P.beginMove(s,p,1,'rocket');
+  until(s,()=>s.phase==='lucky_roulette',4);
+  assert.equal(p.currentNodeId,id);
+  assert.equal(I.bag(p).length,before+1);
+  until(s,()=>s.phase==='ready',6);
+  assert.equal(s.turnIndex,0);
+ }
+ assert.ok(s.luckyGrantKey.endsWith(':'+tiles[1]));
+});
+test('Board result holds add 0.8 seconds for both minigame and item reels',()=>{
+ const app=fs.readFileSync('app.js','utf8');
+ assert.match(app,/holdDuration:1\.18/);
+ assert.match(app,/gameSelection\.holdDuration=1\.4/);
+ const s=ready();s.order=s.players.map(p=>p.id);s.turnIndex=0;
+ s.phase='minigame';P.minigameEnded(s,s.players.map((p,i)=>({id:p.id,rank:i+1,label:'ok'})));
+ until(s,()=>s.phase==='rewards',5);
+ assert.ok(s.deadline-s.time>4.4&&s.deadline-s.time<=4.5,'item results hold 4.5 seconds');
 });
 test('Sword territory claims are permanent, separately owned and deal 12 only to visitors',()=>{
  const s=ready(3,2026),[a,b,c]=s.players;

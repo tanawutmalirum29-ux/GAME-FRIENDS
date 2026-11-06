@@ -2,7 +2,7 @@
 (() => {
 'use strict';
 function random(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
-const MAIN_LENGTH=54, SWORD_TILES=Object.freeze(['n20','n21']);
+const MAIN_LENGTH=72, SWORD_TILES=Object.freeze(['n20','n21']);
 function create(seed=Date.now()){
  const rng=random(seed),nodes={},bridges=[];
  const types=['movement','movement','healing','danger','event','neutral','key','milestone'];
@@ -19,7 +19,7 @@ function create(seed=Date.now()){
   if(i)link('n'+(i-1),'n'+i,i%10===0);
  }
  // Two risky shortcuts and a longer healing trail; every branch rejoins.
- for(const [a,b,count,offset,safe] of [[3,8,3,-160,false],[13,18,3,165,false],[24,28,6,165,true]]){
+ for(const [a,b,count,offset,safe] of [[3,8,3,-160,false],[13,18,3,165,false],[24,28,6,165,true],[41,47,4,-160,false],[58,64,5,165,true]]){
   let prev='n'+a;
   for(let j=1;j<=count;j++){
    const t=j/(count+1),from=nodes['n'+a].position,to=nodes['n'+b].position,id='b'+a+'_'+j;
@@ -29,7 +29,14 @@ function create(seed=Date.now()){
   }
   link(prev,'n'+b,true);
  }
- const map={seed,nodes,startId:'n0',finishId:'n'+MAIN_LENGTH,length:MAIN_LENGTH,width:1800,height:2100,rows:Math.ceil((MAIN_LENGTH+1)/10),bridges};
+ // Exactly six golden-star reward spaces across early, middle and late map regions.
+ // Their distribution is seed-dependent and excludes START, FINISH and both swords.
+ const luckyTileIds=[];
+ for(const [start,end] of [[6,12],[14,19],[24,33],[36,45],[49,58],[61,70]]){
+  const id='n'+(start+Math.floor(rng()*(end-start+1)));
+  nodes[id].type='lucky';nodes[id].effects={item:true};luckyTileIds.push(id);
+ }
+ const map={seed,nodes,startId:'n0',finishId:'n'+MAIN_LENGTH,length:MAIN_LENGTH,width:1800,height:2800,rows:Math.ceil((MAIN_LENGTH+1)/10),bridges,luckyTileIds};
  validate(map);return map;
 }
 function validate(map){

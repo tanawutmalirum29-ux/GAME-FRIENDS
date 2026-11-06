@@ -1,7 +1,7 @@
 /* Original vector winter scenery: ground, scenery, paths, actors, FX, then HUD. */
 (() => {
 'use strict';
-const TAU=Math.PI*2,colors={start:'#45c4d9',finish:'#ffca63',movement:'#36c9e7',healing:'#68cf93',danger:'#ef6981',event:'#aa83e9',key:'#efad63',milestone:'#edc45b',neutral:'#94acba',sword:'#7b8997'};
+const TAU=Math.PI*2,colors={start:'#45c4d9',finish:'#ffca63',movement:'#36c9e7',healing:'#68cf93',danger:'#ef6981',event:'#aa83e9',key:'#efad63',milestone:'#edc45b',neutral:'#94acba',sword:'#7b8997',lucky:'#8e36da'};
 // Keep one bounded terrain surface. Replays explicitly release the old pixels
 // instead of waiting for mobile Safari to collect detached canvases.
 let terrain=null;
@@ -28,6 +28,7 @@ function icon(g,kind,x,y,size=20,color='#fff'){
  }else if(kind==='danger'){
   circle(g,0,-3,10,color);box(g,-6,2,12,9,2,color);circle(g,-4,-3,2.7,'#924454');circle(g,4,-3,2.7,'#924454');line(g,-2,7,-2,11,'#924454');line(g,3,7,3,11,'#924454');
  }else if(kind==='event')star(g,0,0,12,color);
+ else if(kind==='lucky'){star(g,0,0,15,'#ffda59');circle(g,0,0,3,'#fff1ad');}
  else if(kind==='key'){circle(g,-6,-3,6,null,color,3);line(g,-1,1,10,10,color,4);line(g,6,7,9,4,color,3);}
  else if(kind==='milestone'||kind==='finish'){path(g,[[-9,-11],[9,-11],[6,2],[0,6],[-6,2]],color);line(g,0,4,0,12,color,3);line(g,-6,12,6,12,color,3);g.strokeStyle=color;g.lineWidth=3;g.beginPath();g.arc(-9,-6,5,Math.PI/2,Math.PI*1.5);g.stroke();g.beginPath();g.arc(9,-6,5,-Math.PI/2,Math.PI/2);g.stroke();}
  else if(kind==='ufo'){
@@ -164,7 +165,8 @@ function nodes(g,s){
   if(!visible(x,y,75))continue;
   const owner=n.type==='sword'?s.players.find(p=>p.id===n.ownerId):null;
   const tileColor=owner?.color||colors[n.type]||colors.neutral;
-  circle(g,x,y+5,45,'#407b9355');circle(g,x,y,44,tileColor,'#fff6',3);
+  if(n.type==='lucky')circle(g,x,y,49+Math.sin(s.time*3)*1.5,'#ffd66a35','#ffd66a',2);
+   circle(g,x,y+5,45,'#407b9355');circle(g,x,y,44,tileColor,n.type==='lucky'?'#ffe58d':'#fff6',3);
   circle(g,x,y-2,39,null,owner?'#ffe7a4':'#ffffff60',owner?3:1);
   g.save();g.translate(x,y);
   if(n.type==='movement'||n.type==='start'){const q=s.map.nodes[n.nextNodes[0]];if(q)g.rotate(Math.atan2(q.position.y-y,q.position.x-x));}
@@ -223,6 +225,11 @@ function effects(g,s,t){
    else if(fx.kind==='ufo'){path(g,[[p.x-36,p.y],[p.x+36,p.y],[p.x+12,p.y-120],[p.x-12,p.y-120]],'#b0f4ff66');icon(g,'ufo',p.x,p.y-120,32);}
    else if(fx.kind==='shield'){circle(g,p.x,p.y,25+f*35,null,'#a2e8ff',4);icon(g,'shield',p.x,p.y-40-f*20,23);}
    else if(fx.kind==='heal'){circle(g,p.x,p.y,25+f*35,null,'#73e4b5',4);icon(g,'healing',p.x,p.y-35-f*30,18,'#3fbd8b');}
+    else if(fx.kind==='luckyReward'){
+     circle(g,p.x,p.y,32+f*25,null,'#ffd976',4);
+     icon(g,fx.item,p.x,p.y-59-f*22,25);
+     label(g,'ได้รับ: '+IName(fx.item),p.x,p.y-103-f*25,15,'#ffe39a','center',900,235);
+    }
    else if(fx.kind==='hurt'||fx.kind==='swordHit'||fx.kind==='death')circle(g,p.x,p.y,30+f*35,null,'#ee6c88',4);
    else if(fx.kind==='swordClaim'||fx.kind==='swordSafe'){
     circle(g,p.x,p.y,32+f*26,null,fx.ownerColor||'#fce2ae',4);
@@ -271,6 +278,35 @@ function hud(g,s){
  const timed=['ready','aim','car'].includes(s.phase)||(['move_ready','branch'].includes(s.phase)&&s.move?.kind!=='walk');if(timed){box(g,886,428,60,25,8,'#173c53e8');label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,441,12,'#e4f5fc','right');}
 }
 const IName=id=>window.BoardItems.names[id]||'ไม่มีไอเทม';
+// Same eased horizontal item carousel as the normal minigame roulette.
+function luckyRoulette(g,s){
+ if(s.phase!=='lucky_roulette'||!s.lucky)return;
+ const prize=s.lucky,items=window.BoardItems.ids;
+ const time=Math.max(0,s.time-s.phaseAt),progress=Math.min(1,time/prize.spinDuration);
+ const eased=1-Math.pow(1-progress,4),winningIndex=9,cardW=126,gap=16,step=cardW+gap;
+ box(g,0,0,960,540,0,'#0c2341dc');
+ label(g,'LUCKY STAR',480,100,30,'#ffda77','center',900);
+ label(g,'สุ่มไอเทม 1 ชิ้น • เข้ากระเป๋าสะสมได้ไม่จำกัด',480,132,14,'#d4eaf7','center');
+ box(g,96,183,768,164,18,'#1e3a56ee','#bd98e5');
+ g.save();g.beginPath();g.rect(106,194,748,142);g.clip();
+ for(let i=0;i<12;i++){
+  const kind=i===winningIndex?prize.item:items[(i*7+3)%items.length];
+  const x=480+(i*step)-(winningIndex*step*eased)-cardW/2,y=205;
+  if(x<-cardW||x>960)continue;
+  const selected=progress>=1&&i===winningIndex;
+  box(g,x,y,cardW,112,13,selected?'#6741a0':'#30526c',selected?'#ffe18e':'#6799b8');
+  icon(g,kind,x+cardW/2,y+41,33);
+  label(g,IName(kind),x+cardW/2,y+89,10,selected?'#fff0b3':'#e4f5ff','center',700,cardW-10);
+ }
+ g.restore();
+ // Marker points at the winning item once the reel settles.
+ box(g,477,180,6,170,3,'#ffe6a0');
+ if(progress>=1){
+  label(g,'ได้รับ: '+IName(prize.item),480,401,24,'#ffe49e','center',900,620);
+  const owner=s.players.find(p=>p.id===prize.playerId);
+  label(g,(owner?.name||'ผู้เล่น')+' • เพิ่มเข้ากระเป๋าแล้ว',480,438,14,'#d5effd','center');
+ }else label(g,'กำลังสุ่มไอเทม...',480,412,18,'#d5effd','center');
+}
 function overlay(g,s){
  const order=['order','order_result'].includes(s.phase),results=['standings','rewards'].includes(s.phase);
  if(!order&&!results)return;
@@ -391,7 +427,7 @@ function draw(g,t,s){
  ground(g,s);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<55;i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
- hud(g,s);turnDice(g,s);backpackOverlay(g,s);intermissionNotice(g,s);overlay(g,s);
+ hud(g,s);turnDice(g,s);backpackOverlay(g,s);intermissionNotice(g,s);overlay(g,s);luckyRoulette(g,s);
  if(canPan(s)){
   box(g,305,423,350,30,9,'#133b50d9','#6cafc3');
   label(g,'ลากจอสำรวจแผนที่ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,439,11,'#e9faff','center',700,335);
