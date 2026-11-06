@@ -22,7 +22,19 @@ function positionOnNode(s,p,nodeId=p.currentNodeId){
  return{x:n.x+(col-(cols-1)/2)*40,y:n.y+(row-(rows-1)/2)*44};
 }
 function position(s,p){
- if(s.move&&s.move.playerId===p.id&&s.move.to){const m=s.move,a=m.startPosition||s.map.nodes[m.from].position,b=m.endPosition||s.map.nodes[m.to].position;return{x:a.x+(b.x-a.x)*m.t,y:a.y+(b.y-a.y)*m.t};}
+ if(s.move?.playerId===p.id){
+  const m=s.move;
+  if(m.to){
+   const a=m.startPosition||s.map.nodes[m.from].position,b=m.endPosition||s.map.nodes[m.to].position;
+   const dx=b.x-a.x,dy=b.y-a.y,dist=Math.hypot(dx,dy)||1;
+   const lateral=m.kind==='walk'?(m.lateral||0):0;
+   return{x:a.x+dx*m.t-dy/dist*lateral,y:a.y+dy*m.t+dx/dist*lateral};
+  }
+  if(m.kind==='walk'&&m.nodeOffset){
+   const n=positionOnNode(s,p);
+   return{x:n.x+(m.nodeOffset.x||0),y:n.y+(m.nodeOffset.y||0)};
+  }
+ }
  return positionOnNode(s,p);
 }
 function target(s,point,user){return s.players.filter(p=>p.id!==user.id&&p.currentNodeId!==s.map.finishId).map(p=>({p,d:Math.hypot(position(s,p).x-point.x,position(s,p).y-point.y)})).filter(q=>q.d<=radius+8).sort((a,b)=>a.d-b.d||String(a.p.id).localeCompare(String(b.p.id)))[0]?.p||null;}
