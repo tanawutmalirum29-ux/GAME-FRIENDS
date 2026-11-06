@@ -751,6 +751,9 @@ test('100 protected UFO/bomber/car hits consume shields once, not unshielded nei
   const s=ready(3,seed),[p,q,r]=s.players;
   p.item=kind;q.hp=1;q.shieldTurns=1;q.shieldRound=s.roundNumber;
   q.currentNodeId='n1';r.currentNodeId=kind==='car'?'n0':'n1';
+  // RC detonates at the car's real position; place the shielded target
+  // inside its blast rather than assuming adjacent pads overlap.
+  if(kind==='car')q.worldPosition={...I.position(s,p)};
   press(s,p,'B');
   if(kind==='ufo'){
    aimUfoAt(s,p,q);assert.equal(press(s,p,'A'),true);
