@@ -221,7 +221,7 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
  assert.ok(s.map.bridges.some(pair=>pair[0]==='n9'&&pair[1]==='n10'));
  P.beginMove(s,p,2);
  const d=Math.hypot(b.x-a.x,b.y-a.y),forward={x:(b.x-a.x)/d,y:(b.y-a.y)/d};
- press(s,p,null,forward);until(s,()=>s.phase==='moving',3);
+ press(s,p,null,{axisX:forward.x,axisY:forward.y});until(s,()=>s.phase==='moving',3);
  // Step sideways, then travel forward while retaining the offset on the bridge.
  press(s,p,null,{axisX:-forward.y,axisY:forward.x});tick(s,.12);
  assert.ok(Math.abs(s.move.lateral)>5,'walking sideways should be possible ON the bridge');
