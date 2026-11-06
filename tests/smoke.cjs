@@ -151,6 +151,11 @@ assert.match(css,/#controller #controllerActive #controllerInventory\.hidden\{\s
 assert.match(css,/#controller #controllerActive \.gamepad-preview-column\{\s*transform:translateX\(clamp\(18px,3\.15vw,56px\)\)/,
   'preview is translated to the right without changing width or height');
 assert.match(css,/#controller #controllerActive \.face-button \.face-caption\{[\s\S]*?position:static!important/);
+assert.match(css,/--gf-controller-visible-width,100dvw/,'Safari controller uses the visual viewport bounds');
+assert.match(css,/grid-template-columns:minmax\(0,1fr\) clamp\(92px,17vw,152px\)!important/);
+assert.match(css,/width:min\(100%,var\(--gf-face-diameter\)\)!important/);
+assert.match(source,/function syncControllerVisibleViewport\(/);
+assert.match(source,/window\.visualViewport\?\.addEventListener\?\.\('resize',syncControllerVisibleViewport\)/);
 assert.match(html,/id="targetCycleControls"/);
 assert.match(html,/id="targetPrevBtn"/);
 assert.match(html,/id="targetNextBtn"/);
@@ -991,8 +996,14 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   const windowHandlers={};
   const sessionData=savedSession||new Map();
   const timers=[];
+  const viewportHandlers={};
+  const visualViewport=browserProfile?.platform==='iPhone'?{
+    width:667,height:305,offsetLeft:0,offsetTop:0,
+    addEventListener(name,fn){(viewportHandlers[name]??=[]).push(fn);},
+    fire(name){for(const fn of viewportHandlers[name]||[])fn();}
+  }:undefined;
   const win={
-    location:new URL(url),crypto:webcrypto,portrait,
+    location:new URL(url),crypto:webcrypto,portrait,visualViewport,
     screen:{width:360,height:800},devicePixelRatio:2,
     innerWidth:800,innerHeight:360,
     localStorage:{
@@ -1673,7 +1684,40 @@ function createVoteHost(){
  assert.ok(deadline);deadline.fn();assert.equal(conn.open,false);
 }
 {
- const phone=setup('https://game.example/?join=ABCDE3');
+ // Safari landscape viewport regression: toolbar changes resize the visible
+// area without changing the device's document/layout viewport.
+const iphoneSafari={userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 26_3 like Mac OS X) AppleWebKit Safari',platform:'iPhone',maxTouchPoints:5};
+const safari=setup('https://game.example/?join=ABCDE3',false,null,null,iphoneSafari);
+safari.elements.get('nick').value='iPhone';
+safari.click('joinBtn');
+safari.instances[0].fire('open');
+safari.instances[0].conn.fire('open');
+safari.instances[0].conn.fire('data',{t:'welcome',id:'ios1',name:'iPhone',color:'#ff628c',
+ mode:'ghost',phase:'playing'});
+assert.equal(safari.elements.get('controller').style['--gf-controller-visible-width'],'667px');
+assert.equal(safari.elements.get('controller').style['--gf-controller-visible-height'],'305px');
+safari.scope.window.visualViewport.width=640;
+safari.scope.window.visualViewport.height=274;
+safari.scope.window.visualViewport.offsetLeft=5;
+safari.scope.window.visualViewport.offsetTop=16;
+safari.scope.window.visualViewport.fire('resize');
+assert.equal(safari.elements.get('controller').style['--gf-controller-visible-width'],'640px',
+ 'Safari toolbar resize must resize the controller without a page reload');
+assert.equal(safari.elements.get('controller').style['--gf-controller-visible-height'],'274px');
+assert.equal(safari.elements.get('controller').style['--gf-controller-visible-left'],'5px');
+assert.equal(safari.elements.get('controller').style['--gf-controller-visible-top'],'16px');
+safari.scope.window.visualViewport.offsetLeft=7;
+safari.scope.window.visualViewport.fire('scroll');
+assert.equal(safari.elements.get('controller').style['--gf-controller-visible-left'],'7px',
+ 'panning/visual offset updates must not clip the controller at either edge');
+// The fixed right column must never overflow the viewport even on narrow phones.
+for(const [width,height] of [[640,274],[667,305],[750,340],[844,390]]){
+ const rail=Math.min(152,Math.max(92,width*.17));
+ const diameter=height<=350?Math.min(95,Math.max(68,height*.25)):
+   Math.min(136,Math.max(76,height*.28));
+ assert.ok(rail>=diameter,'A/B visual circles must fit their allocated grid column');
+}
+const phone=setup('https://game.example/?join=ABCDE3');
  phone.elements.get('nick').value='Quitter';phone.click('joinBtn');
  phone.instances[0].fire('open');
  const conn=phone.instances[0].conn;conn.fire('open');
