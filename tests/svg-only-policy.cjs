@@ -39,5 +39,8 @@ for(const id of art.ids) {
  assert.equal(art.svg(id,{done:true}).includes('path'),true);
 }
 const icons=context.window.PartyUiArt;
-for(const key of ['star','sparkle','check'])assert.match(icons.svg(key),/<svg[^>]*>/);
+for(const key of ['star','sparkle','check','bag','potion','ufo','rocket','bomber','car','shield','close']){
+ assert.match(icons.svg(key),/<svg[^>]*>/,'missing original SVG board icon '+key);
+ assert.doesNotMatch(icons.svg(key),/[\u{1F300}-\u{1FAFF}]/u);
+}
 console.log('SVG-only policy PASS: eight original pizza ingredients, UI icon set, versioned assets, no emoji glyphs');
