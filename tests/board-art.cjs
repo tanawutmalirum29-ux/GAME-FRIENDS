@@ -42,6 +42,13 @@ function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,nam
  assert.equal(s.camera.selectedId,'n35','inspector stores selected visible node without changing game state');
  assert.equal(JSON.stringify(s.players),original,'debug selection cannot move or damage players');
  assert.equal(A.toggleDebug(s),false);
+ const labelsBefore=labels.length;
+ A.draw(g,0,s);
+ const introLabels=labels.slice(labelsBefore).map(String);
+ assert.ok(introLabels.includes('ยึดพื้นที่')&&introLabels.includes('ฟื้น HP')&&
+   introLabels.includes('อันตราย')&&introLabels.includes('ไอเทม'),
+   'overview legend lists only currently supported board benefits and hazards');
+ assert.ok(!introLabels.includes('สุ่มเหตุการณ์'),'unavailable event tile no longer appears in overview legend');
 }
 // Rank labels must stay inside each card at both 2-column (4 players) and
 // compact 4-column (12 players) layouts. This catches badge overflow.
