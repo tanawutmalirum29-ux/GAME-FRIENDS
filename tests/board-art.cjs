@@ -257,3 +257,41 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  assert.match(artSource,/kinds=\['roll',\.\.\.window\.BoardItems\.ids\]/,
   'all fixed inventory types appear alongside the Roll slot');
 }
+
+// BOARD PARTY tall / split-screen views must GAIN scene area, not stretch
+// actors, cover HUD overlays, or move the game-camera input target.
+{
+ const session=game(509);
+ session.order=session.players.map(p=>p.id);
+ P.startTurn(session);
+ const smallZoom=A.fitZoom(session);
+ session.camera.viewHeight=720; // 1024 × 768 iPad: 960 logical pixels wide
+ const tallZoom=A.fitZoom(session);
+ assert.ok(tallZoom>=smallZoom,'extra height lets the overview show more of the island map');
+ const rects=[],fills=[],oldRect=g.roundRect,oldFill=g.fillRect;
+ g.roundRect=(...params)=>{rects.push(params);oldRect(...params);};
+ g.fillRect=(...params)=>{fills.push(params);oldFill(...params);};
+ const initial=JSON.stringify(session.players);
+ A.draw(g,0,session);
+ assert.ok(fills.some(([x,y,w,h])=>x===0&&y===145&&w===960&&h===487),
+  'world is painted through all available height before the 80px footer');
+ assert.ok(rects.some(([x,y,w,h])=>x===12&&y===640&&w===936&&h===68),
+  'HUD footer is pinned 80 logical pixels above the real bottom');
+ assert.equal(JSON.stringify(session.players),initial,'adaptive layout cannot change host player state');
+ assert.equal(session.map.nodes.n35.id,'n35');
+ session.camera.zoom=1;
+ const center=session.map.nodes.n35.position;
+ session.camera.x=center.x;session.camera.y=center.y;
+ A.toggleDebug(session);
+ assert.equal(A.inspect(session,480,145+487/2)?.id,'n35',
+  'map inspection uses the taller viewport center');
+ g.roundRect=oldRect;g.fillRect=oldFill;
+ // 1:1 Split View adds another 240 logical pixels; do not hardcode 16:9.
+ session.camera.viewHeight=960;
+ const footerRects=[];g.roundRect=(...params)=>{footerRects.push(params);oldRect(...params);};
+ A.draw(g,1,session);
+ assert.ok(footerRects.some(([x,y,w,h])=>x===12&&y===880&&w===936&&h===68),
+  'square viewport anchors the footer near the actual bottom');
+ g.roundRect=oldRect;
+}
+console.log('BOARD VIEWPORT PASS: 16:9 / 4:3 / 1:1 map expansion, footer anchoring and stable game state');
