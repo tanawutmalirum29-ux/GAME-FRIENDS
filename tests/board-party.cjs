@@ -658,6 +658,42 @@ test('Activated shield blocks hazards for every turn of this round, with no turn
   assert.equal(s.hits.length,0,'shield blocks damage before the hit log is recorded');
  }
 });
+test('Central shield guard protects all hostile effects this round, but never auto-activates',()=>{
+ const s=ready(3,1777),[owner,victim,other]=s.players;
+ victim.currentNodeId='n5';victim.hp=80;I.add(victim,'shield');
+ assert.equal(P.isProtected(s,victim),false,'a held but unused shield offers no protection');
+ assert.equal(P.blockHarm(s,victim),false,'future negative status effects are not blocked by inventory alone');
+ P.damage(s,victim,18);assert.equal(victim.hp,62);
+ // Temporarily put this player on turn to activate the same inventory slot via A.
+ s.order=[victim.id,owner.id,other.id];s.turnIndex=0;P.startTurn(s);
+ victim.actionIndex=I.ids.indexOf('shield')+1;
+ assert.equal(P.action(s,victim.id,'A'),true,'only deliberate A activates protection');
+ assert.equal(P.isProtected(s,victim),true);
+ assert.equal(victim.shieldRound,s.roundNumber);
+ const hp=victim.hp,nodes=s.players.map(q=>q.currentNodeId);
+ for(const [kind,amount] of [['sword',P.DAMAGE.sword],['skull',P.DAMAGE.skull],
+  ['bomber',P.DAMAGE.bomber],['car',P.DAMAGE.car],['event',P.DAMAGE.event]]){
+  assert.equal(P.damage(s,victim,amount),false,kind+' harm is blocked');
+  assert.equal(victim.hp,hp,'no HP loss from '+kind);
+ }
+ assert.equal(P.blockHarm(s,victim),true,'UFO and future displacement/status effects blocked');
+ assert.deepEqual(plain(s.players.map(q=>q.currentNodeId)),plain(nodes),'blocked effects cannot teleport players');
+ assert.equal(s.hits.length,1,'blocked attacks never append a damage event');
+ assert.equal(I.bag(victim).includes('shield'),false,'manual activation consumes one shield');
+ // A forged old marker from another round cannot grant protection.
+ s.roundNumber++;
+ assert.equal(P.isProtected(s,victim),false,'shield is tied to the activation round, not remaining turns');
+ assert.equal(P.blockHarm(s,victim),false);
+ P.damage(s,victim,1);assert.equal(victim.hp,hp-1);
+});
+test('Bots do not automatically consume shield stock before a player presses A',()=>{
+ const s=ready(2,283),p=s.players[0];p.isBot=true;I.add(p,'shield');
+ tick(s,1.3);
+ assert.equal(P.isProtected(s,p),false);
+ assert.equal(p.usedRound,0);
+ assert.ok(I.bag(p).includes('shield'),'AI must leave shield in the bag');
+ assert.ok(s.moveDice?.length===2,'AI may still roll normally without auto-shielding');
+});
 test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected neighbours only',()=>{
  for(let seed=0;seed<100;seed++)for(const kind of ['ufo','bomber','car']){
   const s=ready(3,seed),[p,q,r]=s.players;p.item=kind;q.hp=1;q.shieldTurns=1;q.shieldRound=s.roundNumber;q.currentNodeId='n1';r.currentNodeId=kind==='car'?'n0':'n1';
