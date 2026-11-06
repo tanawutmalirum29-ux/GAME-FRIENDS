@@ -779,7 +779,7 @@ function inspect(s,x,y){
   if(d<distance){best=n;distance=d;}}
  if(distance>Math.max(50,22/c.zoom))return null;
  c.selectedId=best.id;
- return {id:best.id,type:best.type,progress:best.progress,
+ return {id:best.id,type:best.type,islandId:best.islandId,mapVersion:s.map.version,progress:best.progress,
   next:[...best.nextNodes],previous:[...best.previousNodes],
   x:best.position.x,y:best.position.y,
   owner:s.map.territories[best.territoryId]?.ownerId||null,
@@ -838,7 +838,7 @@ function draw(g,t,s){
   label(g,n.id+' • '+n.type+' • progress '+n.progress+' • HP '+(n.effects.hp||0),
    221,bottom-31,12,'#ffe9a1','left',800,512);
   label(g,'ก่อน: '+n.previousNodes.join(',')+'  ต่อ: '+n.nextNodes.join(',')+
-    '  x='+Math.round(n.position.x)+' y='+Math.round(n.position.y)+
+    '  x='+Math.round(n.position.x)+' y='+Math.round(n.position.y)+'  เกาะ: '+n.islandId+
     (t?'  เจ้าของ: '+(t.ownerId||'ไม่มี'):''),
     221,bottom-10,10,'#d6efff','left',700,513);
  }
