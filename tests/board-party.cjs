@@ -492,7 +492,7 @@ test('Potion only activates with missing HP; rejected item keeps selection',()=>
  p.hp=1;tap('A');assert.equal(p.hp,51);assert.equal(p.item,null);
  until(s,()=>s.phase==='ready');
  assert.equal(P.current(s).id,p.id,'potion effect returns to its owner');
- assert.equal(s.moveDice,null,'dice do not roll without the owner's A');
+ assert.equal(s.moveDice,null,'dice do not roll without A');
  assert.equal(p.actionIndex,0);
  assert.equal(tap('B'),true);assert.equal(p.actionIndex,0,'spent item blocks further item choice');
  tap('A');assert.equal(s.phase,'dice');
@@ -509,7 +509,7 @@ test('Shield uses one item slot then allows dice roll, lasting two own turns',()
  until(s,()=>s.phase==='ready');
  assert.equal(P.current(s).id,p.id,'shield returns to dice selection for the same turn');
  assert.equal(s.moveDice,null,'shield does not automatically throw dice');
- assert.equal(p.shieldTurns,2,'shield protects the owner's whole activation turn and next turn');
+ assert.equal(p.shieldTurns,2,'shield protects activation turn and next turn');
  p.item='rocket';p.actionIndex=3;
  assert.equal(P.action(s,p.id,'A'),false,'cannot use rocket after shield in same round');
  p.actionIndex=0;
@@ -527,7 +527,7 @@ test('Shield blocks danger and events without reducing HP or losing turns',()=>{
   until(s,()=>s.phase==='ready');
   assert.equal(p.shieldTurns,2,'shield is active while preparing bonus dice');
   P.endTurn(s);assert.equal(p.shieldTurns,1,'completed turn consumes one shield turn');
-  P.damage(s,p,3);assert.equal(p.hp,1,'shield still blocks another player's damage');
+  P.damage(s,p,3);assert.equal(p.hp,1,'shield still blocks damage from another player');
  }
 });
 test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected neighbours only',()=>{
