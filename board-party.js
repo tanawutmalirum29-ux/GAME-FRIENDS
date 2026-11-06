@@ -5,7 +5,7 @@ const M=()=>window.BoardMap,D=()=>window.BoardDice,I=()=>window.BoardItems;
 let serial=0;
 function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
- const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:3,item:null,usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,results:[],pendingItems:{},winnerIds:[],camera:{x:480,y:320,zoom:1},lastMinigame:null};
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:3,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,results:[],pendingItems:{},winnerIds:[],camera:{x:480,y:320,zoom:1},lastMinigame:null};
  phase(s,'order',12);return s;
 }
 function phase(s,name,duration=0){s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;s.turnId=s.id+':'+(++s.revision);}
@@ -18,7 +18,7 @@ function movePhase(s,name,duration=8){
 const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
 function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
 function rollOrder(s,p){if(p.dice||s.phase!=='order')return false;p.dice=[D().roll(s.rng),D().roll(s.rng)];p.rollAt=s.time;return true;}
-function ready(s,extend=true){s.move=null;s.skill=null;if(extend)s.readyDeadline=s.time+12;phase(s,'ready',Math.max(.1,s.readyDeadline-s.time));}
+function ready(s,extend=true){s.move=null;s.skill=null;for(const p of s.players)p.bagOpen=false;if(extend)s.readyDeadline=s.time+12;phase(s,'ready',Math.max(.1,s.readyDeadline-s.time));}
 function startTurn(s){s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
 function endTurn(s){
  if(s.phase==='finished')return;
@@ -54,7 +54,7 @@ function land(s){
  effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],next:!dead&&m?.kind==='rocket'?'ready':'end'},dead?1.5:.8);
 }
 function beginMove(s,p,steps,kind='walk'){
- s.move={playerId:p.id,kind,remaining:steps,total:steps,from:p.currentNodeId,to:null,t:0,visited:[p.currentNodeId],auto:false,expires:kind==='rocket'?s.time+4.5:Infinity};
+ s.move={playerId:p.id,kind,remaining:steps,total:steps,from:p.currentNodeId,to:null,t:0,lateral:0,nodeOffset:{x:0,y:0},intent:null,intentTime:0,visited:[p.currentNodeId],auto:false,expires:kind==='rocket'?s.time+4.5:Infinity};
  if(kind==='walk'&&s.inputs[p.id]){s.inputs[p.id].x=0;s.inputs[p.id].y=0;s.inputs[p.id].at=-Infinity;}
  phase(s,'move_ready',8);
  nextStep(s);
@@ -73,7 +73,99 @@ function step(s,to){
  const m=s.move,p=current(s);
  if(!m||m.to||!s.map.nodes[p.currentNodeId].nextNodes.includes(to)||m.visited.includes(to))return false;
  m.startPosition=I().position(s,p);m.endPosition=I().positionOnNode(s,p,to);
- m.from=p.currentNodeId;m.to=to;m.t=0;movePhase(s,'moving');return true;
+ m.from=p.currentNodeId;m.to=to;m.t=0;m.lateral=0;m.nodeOffset={x:0,y:0};m.intent=null;m.intentTime=0;
+ movePhase(s,'moving');return true;
+}
+const WALK_SPEED=240,LANE_RADIUS=50,NODE_RADIUS=55,TURN_DELAY=.16;
+const bound=(x,a,b)=>Math.max(a,Math.min(b,x));
+function roamNode(s,p,dt){
+ const m=s.move;if(!m)return;
+ const a=axes(s,p.id),strength=Math.hypot(a.x,a.y);
+ if(m.auto){
+  const next=s.phase==='branch'?s.branch.selected:s.map.nodes[p.currentNodeId].nextNodes[0];
+  step(s,next);return;
+ }
+ if(strength>.11){
+  // Walk freely inside the plaza around each tile. An accidental touch does
+  // not commit a branch: direction must be held for 160 milliseconds.
+  const v=m.nodeOffset||{x:0,y:0};
+  let x=v.x+a.x*WALK_SPEED*dt,y=v.y+a.y*WALK_SPEED*dt;
+  const d=Math.hypot(x,y);
+  if(d>NODE_RADIUS){x=x*NODE_RADIUS/d;y=y*NODE_RADIUS/d;}
+  m.nodeOffset={x,y};
+  const next=forwardInput(s,p);
+  if(next){
+   if(m.intent===next)m.intentTime+=dt;
+   else{m.intent=next;m.intentTime=dt;}
+   if(m.intentTime>=TURN_DELAY){step(s,next);return;}
+  }else{m.intent=null;m.intentTime=0;}
+ }else{m.intent=null;m.intentTime=0;}
+ if(s.time>=s.deadline){
+  m.auto=true;
+  step(s,s.phase==='branch'?s.branch.selected:s.map.nodes[p.currentNodeId].nextNodes[0]);
+ }
+}
+function walkEdge(s,p,dt){
+ const m=s.move;
+ const a=m.startPosition,b=m.endPosition;
+ const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,nx=dx/d,ny=dy/d;
+ const stick=axes(s,p.id),magnitude=Math.hypot(stick.x,stick.y);
+ if(!m.auto&&magnitude>.13){
+  const options=s.map.nodes[m.from].nextNodes;
+  // Still able to change the chosen branch until far enough down the edge.
+  if(options.length>1&&m.t<.70){
+   const candidate=M().choose(s.map,m.from,stick.x,stick.y);
+   if(candidate!==m.to){
+    const to=s.map.nodes[candidate].position,from=s.map.nodes[m.from].position;
+    const cd=Math.hypot(to.x-from.x,to.y-from.y)||1;
+    const currentDot=(stick.x*nx+stick.y*ny)/magnitude;
+    const candidateDot=(stick.x*(to.x-from.x)+stick.y*(to.y-from.y))/(magnitude*cd);
+    const pos=I().position(s,p),end=I().positionOnNode(s,p,candidate);
+    const vx=end.x-a.x,vy=end.y-a.y,len=Math.hypot(vx,vy)||1;
+    const projected=((pos.x-a.x)*vx+(pos.y-a.y)*vy)/(len*len);
+    const lateral=(-(pos.x-a.x)*vy+(pos.y-a.y)*vx)/len;
+    if(candidateDot>.55&&candidateDot>currentDot+.15&&Math.abs(lateral)<LANE_RADIUS+10){
+     m.to=candidate;m.endPosition=end;m.t=bound(projected,0,.75);m.lateral=bound(lateral,-LANE_RADIUS,LANE_RADIUS);
+     // The sprite retains its real position when the fork is reselected.
+     return;
+    }
+   }
+  }
+ }
+ const tangent=stick.x*nx+stick.y*ny;
+ const sideways=-stick.x*ny+stick.y*nx;
+ const beforeT=m.t,beforeL=m.lateral||0;
+ if(m.auto){
+  m.t=Math.min(1,m.t+WALK_SPEED*dt/d);
+  m.lateral=beforeL*(1-Math.min(1,dt*5));
+ }else if(magnitude>.1){
+  // Full 2D input: forwards, sideways and backwards are all allowed. The
+  // walkable lane bounds prevent shortcuts while the dice still count nodes.
+  m.t=bound(m.t+tangent*WALK_SPEED*dt/d,0,1);
+  m.lateral=bound(beforeL+sideways*WALK_SPEED*dt,-LANE_RADIUS,LANE_RADIUS);
+ }
+ m.walking=Math.abs(m.t-beforeT)>1e-6||Math.abs(m.lateral-beforeL)>1e-6;
+ if(m.walking)s.deadline=s.time+8;
+ if(!m.auto&&m.t<=.001&&tangent<-.15){
+  // Reverse to the fork and choose again without consuming a die step.
+  const pos=I().position(s,p),base=I().positionOnNode(s,p,m.from);
+  m.nodeOffset={x:0,y:0};
+  if(Number.isFinite(pos.x)&&Number.isFinite(pos.y)){
+   const vx=pos.x-base.x,vy=pos.y-base.y,len=Math.hypot(vx,vy)||1;
+   m.nodeOffset={x:len>NODE_RADIUS?vx*NODE_RADIUS/len:vx,y:len>NODE_RADIUS?vy*NODE_RADIUS/len:vy};
+  }
+  m.to=null;m.lateral=0;m.intent=null;m.intentTime=0;
+  const options=s.map.nodes[p.currentNodeId].nextNodes;
+  if(options.length>1){s.branch={options:[...options],selected:options[0]};movePhase(s,'branch');}
+  else movePhase(s,'move_ready');
+  return;
+ }
+ if(m.t>=1){
+  p.currentNodeId=m.to;m.visited.push(m.to);m.to=null;m.remaining--;
+  m.lateral=0;m.nodeOffset={x:0,y:0};
+  if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};
+  nextStep(s);
+ }else if(!m.auto&&s.time>=s.deadline)m.auto=true;
 }
 function roll(s){
  if(s.phase!=='ready'||s.rolled)return false;
@@ -150,25 +242,20 @@ function update(s,dt){
  else if(s.phase==='ready'&&s.time>=s.deadline)roll(s);
  else if(s.phase==='dice'&&s.time>=s.deadline)beginMove(s,current(s),s.die);
  else if(s.phase==='move_ready'){
-  const to=forwardInput(s,current(s));
-  if(to)step(s,to);
+  if(s.move.kind==='walk')roamNode(s,current(s),dt);
   else if(s.time>=s.deadline){s.move.auto=true;step(s,s.map.nodes[current(s).currentNodeId].nextNodes[0]);}
  }else if(s.phase==='branch'){
   const to=forwardInput(s,current(s));if(to)s.branch.selected=to;
-  if(to&&s.move.kind==='walk'&&!s.move.auto)step(s,to);
-  else if(s.time>=s.deadline){if(s.time>=s.move.expires)land(s);else {if(s.move.kind==='walk')s.move.auto=true;step(s,s.branch.selected);}}
+  if(s.move.kind==='walk')roamNode(s,current(s),dt);
+  else if(to&&s.move.kind==='rocket'&&s.move.auto)step(s,to);
+  else if(s.time>=s.deadline){if(s.time>=s.move.expires)land(s);else{if(s.move.kind==='walk')s.move.auto=true;step(s,s.branch.selected);}}
  }else if(s.phase==='moving'){
   const m=s.move,p=current(s);
-  let advance=dt/.48;
-  if(m.kind==='walk'){
-   const a=s.map.nodes[m.from].position,b=s.map.nodes[m.to].position;
-   let force=m.auto?1:forwardForce(s,p,m.to);
-   if(force>0)s.deadline=s.time+8;
-   else if(s.time>=s.deadline){m.auto=true;force=1;}
-   advance=dt*250*force/Math.hypot(b.x-a.x,b.y-a.y);
+  if(m.kind==='walk')walkEdge(s,p,dt);
+  else{
+   const advance=dt/.48;m.walking=advance>0;m.t=Math.min(1,m.t+advance);
+   if(m.t>=1){p.currentNodeId=m.to;m.visited.push(m.to);m.to=null;m.remaining--;if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};nextStep(s);}
   }
-  m.walking=advance>0;m.t=Math.min(1,m.t+advance);
-  if(m.t>=1){p.currentNodeId=m.to;m.visited.push(m.to);m.to=null;m.remaining--;if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};nextStep(s);}
  }else if(s.phase==='aim'||s.phase==='car')I().update(s,dt,api);
  else if(s.phase==='effect'&&s.time>=s.deadline){const next=s.effect.next;s.effect=null;if(next==='ready')ready(s);else endTurn(s);}
  else if(s.phase==='standings'&&s.time>=s.deadline)grant(s);
