@@ -418,15 +418,16 @@ test('Lucky Star landing awards once, and waits for the full reel before switchi
 });
 test('Different Lucky Star landings award separately without duplication',()=>{
  const s=ready(3,680),p=s.players[0],ids=s.map.luckyTileIds.slice(0,2);
- // Simulate two distinct final landings in one item-assisted turn.
+ // Distinct landings on DIFFERENT rounds may still award a fresh item.
+ // The first rocket landing now ends its turn; it cannot chain another roll.
  for(let i=0;i<2;i++){
   const before=I.bag(p).length;p.currentNodeId=ids[i];
-  s.turnIndex=0;s.order[0]=p.id;P.ready(s);
+  s.roundNumber=i+1;s.turnIndex=0;s.order[0]=p.id;P.ready(s);
   s.move={kind:'rocket',playerId:p.id};
   P.land(s);assert.equal(s.phase,'lucky_roulette');
   assert.equal(I.bag(p).length,before+1);
   until(s,()=>s.phase==='ready',6);
-  assert.equal(s.turnIndex,0);
+  assert.equal(s.turnIndex,1,'Lucky Star after a rocket ends its turn');
  }
  assert.ok(s.luckyGrantKey.endsWith(':'+ids[1]));
 });
