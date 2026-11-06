@@ -411,11 +411,11 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
  assert.equal(s.move.remaining,1,'one graph edge consumes exactly one die step');
 });
 
-test('72-step board extends the map and retains two consecutive neutral sword tiles',()=>{
+test('120-step fixed board retains two consecutive linked sword tiles',()=>{
  for(const seed of [1,42,2026,999]){
   const map=M.create(seed);
-  assert.equal(map.length,72);assert.equal(map.finishId,'n72');
-  assert.ok(map.islands.length>=7&&map.width>3000&&map.height>2000,'72-step route spans seven islands across a broad world');
+  assert.equal(map.length,120);assert.equal(map.finishId,'n120');
+  assert.ok(map.islands.length>=7&&map.width>5000&&map.height>3000,'120-step route spans seven large islands across a broad world');
   assert.deepEqual(plain(M.SWORD_TILES),['n20','n21']);
   assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
   assert.equal(map.nodes.n20.ownerId,null);assert.equal(map.nodes.n21.ownerId,null);
@@ -427,7 +427,7 @@ test('72-step board extends the map and retains two consecutive neutral sword ti
 test('Lucky Star locations are reachable purple/gold reward tiles, spread across the larger board',()=>{
  for(let seed=0;seed<120;seed++){
   const map=M.create(seed),lucky=Object.values(map.nodes).filter(n=>n.type==='lucky');
-  assert.ok(lucky.length>=6&&lucky.length<=8,'6–8 separated Lucky Stars with long-route bonuses');
+  assert.ok(lucky.length>=8&&lucky.length<=14,'8–14 fixed separated Lucky Stars with long-route bonuses');
   assert.deepEqual(plain(lucky.map(n=>n.id).sort()),plain([...map.luckyTileIds].sort()));
   for(const node of lucky){assert.equal(node.effects.item,true);assert.ok(node.nextNodes.length);assert.ok(node.previousNodes.length);}
   assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
