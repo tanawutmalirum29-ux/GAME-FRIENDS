@@ -75,16 +75,16 @@ function game(count=2,theme='mayan'){
  p.y=test.y;ok(M.bulletHitsPlayer(test,test.x-5,p),'same lane hits');
 }
 {
- ok(Math.abs(E.constants.botPunchRate-.6)<1e-12,'bot punch frequency reduced 40 percent from original');
- eq(E.constants.botPunchRate,.6,'new punch frequency 60 percent of original');
+ ok(Math.abs(E.constants.botPunchRate-.6*.7)<1e-12,'another 30 percent reduction from current bot punch rate');
+ eq(E.constants.botPunchRate,.42,'new punch frequency is 42 percent of original');
  const {s,players,round}=game(2,'classic');
  const bot=players[0],enemy=players[1];bot.isBot=true;
  bot.x=s.board.x+s.size*4;bot.y=s.board.y+s.size*4;
  enemy.x=bot.x+32;enemy.y=bot.y;bot.dir={x:1,y:0};
  E.update(1/60,round,players);
  const delay=bot.cs.botNextPunch-s.clock;
- ok(delay>=1.15/.6-1e-6,'minimum delay after total 40 percent punch reduction');
- ok(delay<=1.6/.6+1e-6,'maximum delay after total 40 percent punch reduction');
+ ok(delay>=1.15/.42-1e-6,'minimum interval after 30 percent further punch reduction');
+ ok(delay<=1.6/.42+1e-6,'maximum interval after 30 percent further punch reduction');
 }
 {
  const {s,players,round}=game(12);
