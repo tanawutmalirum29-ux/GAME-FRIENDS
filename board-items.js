@@ -176,7 +176,8 @@ function update(s,dt,api){
       skill.step=null;
     }else if(m.t<=0&&forward<-.05){
       // Return to the origin pad without teleporting or triggering an item.
-      skill.nodeId=m.from;skill.visited.push(m.from);
+      skill.nodeId=m.from;
+      if(skill.visited.at(-1)!==m.from)skill.visited.push(m.from);
       skill.step=null;
     }
    }
