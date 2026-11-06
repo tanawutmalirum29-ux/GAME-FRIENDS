@@ -746,25 +746,55 @@ test('Bots do not automatically consume shield stock before a player presses A',
  assert.ok(I.bag(p).includes('shield'),'AI must leave shield in the bag');
  assert.ok(s.moveDice?.length===2,'AI may still roll normally without auto-shielding');
 });
-test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected neighbours only',()=>{
+test('100 protected UFO/bomber/car hits consume shields once, not unshielded neighbours',()=>{
  for(let seed=0;seed<100;seed++)for(const kind of ['ufo','bomber','car']){
-  const s=ready(3,seed),[p,q,r]=s.players;p.item=kind;q.hp=1;q.shieldTurns=1;q.shieldRound=s.roundNumber;q.currentNodeId='n1';r.currentNodeId=kind==='car'?'n0':'n1';
+  const s=ready(3,seed),[p,q,r]=s.players;
+  p.item=kind;q.hp=1;q.shieldTurns=1;q.shieldRound=s.roundNumber;
+  q.currentNodeId='n1';r.currentNodeId=kind==='car'?'n0':'n1';
   press(s,p,'B');
   if(kind==='ufo'){
-   aimUfoAt(s,p,q);press(s,p,'A');assert.equal(s.phase,'aim');assert.equal(p.item,'ufo');assert.equal(p.currentNodeId,'n0');assert.equal(q.currentNodeId,'n1');assert.equal(p.usedRound,0);
-   aimUfoAt(s,p,r);press(s,p,'A');assert.equal(p.currentNodeId,'n1');assert.equal(r.currentNodeId,'n0');
+   aimUfoAt(s,p,q);assert.equal(press(s,p,'A'),true);
+   assert.equal(s.phase,'effect');assert.equal(s.effect.kind,'shieldBreak');
+   assert.equal(s.effect.source,'ufo');
+   assert.equal(p.item,null,'UFO is spent on the one-hit shield');
+   assert.equal(p.usedRound,s.roundNumber);
+   assert.equal(p.currentNodeId,'n0');assert.equal(q.currentNodeId,'n1');
   }else{
-   if(kind==='bomber'){Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(r.hp,100);tick(s,1.2);}else until(s,()=>s.phase==='effect');
-   assert.equal(r.hp,kind==='bomber'?74:82);assert.equal(p.item,null);assert.equal(s.effect.next,'ready');
+   if(kind==='bomber'){
+    Object.assign(s.skill,I.position(s,q));press(s,p,'A');
+    assert.equal(r.hp,100);tick(s,1.2);
+   }else until(s,()=>s.phase==='effect');
+   assert.equal(r.hp,kind==='bomber'?74:82,'unshielded neighbour is damaged');
+   assert.equal(p.item,null);assert.equal(s.effect.next,'ready');
   }
-  assert.equal(q.hp,1);assert.equal(q.currentNodeId,'n1');assert.equal(q.shieldTurns,1);
+  assert.equal(q.hp,1,'first attack absorbed');
+  assert.equal(q.shieldTurns,0);assert.equal(q.shieldRound,null);
+  P.damage(s,q,1);
+  assert.equal(q.hp,100,'next attack kills and respawns vulnerable target');
+  assert.equal(q.currentNodeId,'n0');
  }
+});
+test('After the shield is broken, a new UFO can teleport the same player',()=>{
+ const s=ready(3,900),[attacker,victim]=s.players;
+ victim.currentNodeId='n10';victim.shieldTurns=1;victim.shieldRound=s.roundNumber;
+ attacker.item='ufo';press(s,attacker,'B');
+ aimUfoAt(s,attacker,victim);press(s,attacker,'A');
+ assert.equal(s.effect.kind,'shieldBreak');
+ assert.equal(victim.currentNodeId,'n10');assert.equal(attacker.currentNodeId,'n0');
+ until(s,()=>s.phase==='ready',3);
+ s.roundNumber++;s.order=[attacker.id,...s.players.filter(q=>q.id!==attacker.id).map(q=>q.id)];
+ s.turnIndex=0;P.startTurn(s);I.add(attacker,'ufo');
+ press(s,attacker,'B');assert.equal(s.phase,'aim');
+ aimUfoAt(s,attacker,victim);press(s,attacker,'A');
+ assert.equal(s.effect.kind,'ufo','second UFO works with no active shield');
+ assert.equal(attacker.currentNodeId,'n10');assert.equal(victim.currentNodeId,'n0');
 });
 test('Shield persists through the minigame, expires for everyone at the next BOARD round',()=>{
  const s=ready(),[p,q,r]=s.players;p.item='shield';press(s,p,'B');until(s,()=>s.phase==='ready');
  assert.equal(p.shieldTurns,1);assert.equal(p.shieldRound,s.roundNumber);
  P.endTurn(s);assert.equal(P.current(s),q.id===p.id?p:q);assert.equal(P.isProtected(s,p),true);
- P.damage(s,p,1);assert.equal(p.hp,100);
+ assert.equal(P.isProtected(s,p),true,'unused shield remains through other turns');
+ assert.equal(p.hp,100);
  P.endTurn(s);assert.equal(P.current(s),r);P.endTurn(s);
  assert.equal(s.phase,'minigame_pending');assert.equal(P.isProtected(s,p),true);
  P.minigameStarted(s,'chickens');
