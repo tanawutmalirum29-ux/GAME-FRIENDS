@@ -273,7 +273,7 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
   'active-player health bar is located below the name in the footer');
  const health=labelDraws.slice(before).filter(v=>v.text.endsWith('/100'));
  assert.deepEqual(health.map(v=>v.text),['43/100']);
- assert.equal(health[0].y,501,'numeric HP remains beneath the active player's title');
+ assert.equal(health[0].y,501,'numeric HP remains beneath the active player name');
 }
 
 // BOARD PARTY tall / split-screen views must GAIN scene area, not stretch
