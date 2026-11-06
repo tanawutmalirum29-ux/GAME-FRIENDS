@@ -288,7 +288,7 @@ function hud(g,s){
   label(g,window.BoardParty.remainingSteps(s,p.id),885,487,30,'#ffe3a1','center');label(g,'ก้าวที่เหลือ',885,512,10,'#c8e6f3','center');
   if(p.shieldTurns>0)icon(g,'shield',775,490,16);
  }
- const timed=['ready','aim','car'].includes(s.phase)||(['move_ready','branch'].includes(s.phase)&&s.move?.kind!=='walk');if(timed){box(g,886,428,60,25,8,'#173c53e8');label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,441,12,'#e4f5fc','right');}
+ const timed=['ready','aim','car','rocket'].includes(s.phase)||(['move_ready','branch'].includes(s.phase)&&s.move?.kind!=='walk');if(timed){box(g,886,428,60,25,8,'#173c53e8');label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,441,12,'#e4f5fc','right');}
 }
 const IName=id=>window.BoardItems.names[id]||'ไม่มีไอเทม';
 // Same eased horizontal item carousel as the normal minigame roulette.
@@ -472,6 +472,21 @@ function draw(g,t,s){
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<55;i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
  hud(g,s);turnDice(g,s);backpackOverlay(g,s);intermissionNotice(g,s);overlay(g,s);luckyRoulette(g,s);
+ if(s.phase==='overview'){
+  box(g,195,408,570,46,10,'#0e3651dd','#e7d98c');
+  label(g,'ดูแผนที่ • ลากเลื่อน • ใช้สองนิ้วซูม',480,423,14,'#fff2bc','center',800,550);
+  label(g,'กด เริ่มทอยจัดลำดับ บนหน้าจอหลักเมื่อพร้อม',480,441,12,'#d4eaf9','center',600,550);
+ }
+ if(s.camera.debugNodes&&s.camera.selectedId){
+  const n=s.map.nodes[s.camera.selectedId],t=s.map.territories[n.territoryId];
+  box(g,207,403,546,57,8,'#0a2a43f5','#91cde7');
+  label(g,n.id+' • '+n.type+' • progress '+n.progress+' • HP '+(n.effects.hp||0),
+   221,421,12,'#ffe9a1','left',800,512);
+  label(g,'ก่อน: '+n.previousNodes.join(',')+'  ต่อ: '+n.nextNodes.join(',')+
+    '  x='+Math.round(n.position.x)+' y='+Math.round(n.position.y)+
+    (t?'  เจ้าของ: '+(t.ownerId||'ไม่มี'):''),
+    221,442,10,'#d6efff','left',700,513);
+ }
  if(canPan(s)){
   box(g,305,423,350,30,9,'#133b50d9','#6cafc3');
   label(g,'ลากจอสำรวจแผนที่ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,439,11,'#e9faff','center',700,335);
