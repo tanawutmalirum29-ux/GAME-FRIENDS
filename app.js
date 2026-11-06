@@ -1869,8 +1869,12 @@ function renderPhoneBoard(){
  }
  const guide=$('inventoryGuide');
  const slot=options[selected]||'roll';
- guide.textContent=ready?(info.usedRound===info.round?'ใช้ไอเทมแล้ว 1 ชิ้น • A ทอยลูกเต๋าต่อ':
-   'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[slot]||slot)+' • B เปลี่ยน / A ยืนยัน'+(info.bagMessage?' • '+info.bagMessage:'')):
+ guide.textContent=info.boardPhase==='aim'?
+   'เล็งเป้า • A '+(info.a||'ยืนยัน')+' • B '+(info.b||'ไม่ใช้')+' • C '+(info.c||'ยกเลิก'):
+   ready?(info.usedRound===info.round?'ใช้ไอเทมแล้ว 1 ชิ้น • A ทอยลูกเต๋าต่อ':
+     'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[slot]||slot)+
+     ' • A '+(info.a||'ยืนยัน')+' • B '+(info.b||'เปลี่ยนไอเทม')+
+     (info.bagMessage?' • '+info.bagMessage:'')):
    'ทอยลูกเต๋า + ไอเทมทั้ง 6 ชนิด';
  $('controllerState').textContent=info.help||'';
 }
