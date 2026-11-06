@@ -56,6 +56,73 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  const counts=E.updateTerritoryScores(s,ps);
  eq(counts.get(ps[0].id),ps[0].score,'recalculate points');
 }
+
+// Footprint painting: touching the line between TWO cells captures both,
+// even without movement, rather than only the tile under the avatar center.
+{
+ const {s,ps}=make();
+ const p=ps[0],row=4,seamCol=5;
+ p.x=s.board.x+seamCol*s.size;p.y=center(s,row,seamCol).y;
+ const events=s.eventCounter;
+ E.capturePathTiles(s,p,ps,p.x,p.y);
+ eq(s.tiles[row*s.cols+seamCol-1].ownerId,p.id,'left seam tile painted');
+ eq(s.tiles[row*s.cols+seamCol].ownerId,p.id,'right seam tile painted simultaneously');
+ eq(p.score,2,'two touching tiles score twice');
+ eq(s.eventCounter,events+2,'each tile captures once');
+ E.capturePathTiles(s,p,ps,p.x,p.y);
+ eq(p.score,2,'standing still does not repeatedly score owned tiles');
+ eq(s.eventCounter,events+2,'stationary repeat has no paint events');
+ eq(s.tiles[(row-1)*s.cols+seamCol].ownerId,null,'a distant row stays neutral');
+}
+// A footprint covering the intersection of FOUR tiles captures all four.
+{
+ const {s,ps}=make();
+ const p=ps[0],row=5,col=4;
+ p.x=s.board.x+col*s.size;p.y=s.board.y+row*s.size;
+ E.capturePathTiles(s,p,ps,p.x,p.y);
+ for(const r of [row-1,row])for(const c of [col-1,col]){
+  eq(s.tiles[r*s.cols+c].ownerId,p.id,'corner overlap colors all four tiles');
+ }
+ eq(p.score,4,'four overlapping cells award four ownership points');
+ eq(ps[1].score,0,'other player does not receive accidental points');
+}
+// Diagonal travel paints both side tiles at a crossed tile corner, not just
+// the skinny chain of cells visited by the center of the player.
+{
+ const {s,ps}=make();
+ const p=ps[0],from=center(s,1,1),to=center(s,6,6);
+ p.x=to.x;p.y=to.y;
+ E.capturePathTiles(s,p,ps,from.x,from.y);
+ const touched=[[1,1],[1,2],[2,1],[2,2],[3,3],[4,4],[5,6],[6,5],[6,6]];
+ for(const [r,c] of touched)
+  eq(s.tiles[r*s.cols+c].ownerId,p.id,'diagonal swept disk covers '+r+','+c);
+ eq(s.tiles[0*s.cols+8].ownerId,null,'distant diagonal cell remains neutral');
+ eq(ps.reduce((v,q)=>v+q.score,0),
+    s.tiles.filter(tile=>tile.ownerId!==null).length,'diagonal scoring equals painted cells');
+}
+// Swept collision detects a middle tile even if the old and new positions
+// are both far outside it (prevents fast-moving gaps).
+{
+ const {s,ps}=make();
+ const p=ps[0],from=center(s,3,1),to=center(s,3,9);
+ p.x=to.x;p.y=to.y;
+ E.capturePathTiles(s,p,ps,from.x,from.y);
+ for(let col=1;col<=9;col++)
+  eq(s.tiles[3*s.cols+col].ownerId,p.id,'continuous sweep paints intermediate col '+col);
+ eq(s.tiles[7*s.cols+5].ownerId,null,'non-crossed row remains untouched');
+}
+// The real 60fps movement tick also captures both sides of a seam at once.
+{
+ const {s,ps,round}=make();
+ const p=ps[0],col=5,row=4;
+ p.x=s.board.x+col*s.size-2;p.y=center(s,row,col).y;
+ ps[1].x=s.board.x+s.board.w-25;ps[1].y=s.board.y+24;
+ p.input.axisX=1;
+ E.update(1/60,round,ps);
+ eq(s.tiles[row*s.cols+col-1].ownerId,p.id,'live step paints left tile');
+ eq(s.tiles[row*s.cols+col].ownerId,p.id,'live step paints right tile in same frame');
+ ok(p.x>s.board.x+col*s.size-2,'walking continues through seam without stopping');
+}
 {
  const {s,ps}=make();
  Object.assign(ps[0],center(s,4,5));Object.assign(ps[1],center(s,4,6));
