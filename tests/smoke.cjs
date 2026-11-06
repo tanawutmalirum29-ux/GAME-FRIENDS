@@ -167,6 +167,21 @@ vm.runInContext(uiArtSource,ghostSandbox,{filename:'party-ui-art.js'});
 vm.runInContext(ghostSource,ghostSandbox,{filename:'ghost-attack.js'});
 const ghost=ghostSandbox.window.GhostAttack;
 const art=ghostSandbox.window.GhostCemeteryArt;
+// Both map variants render larger ghosts, while humans and physics retain
+// their original dimensions. Red names apply to NPC ghosts and converted players.
+assert.match(ghostSource,/GHOST_VISUAL_SCALE=1\\.26/);
+assert.match(ghostSource,/GHOST_NAME_COLOR='#ff454f'/);
+assert.match(ghostSource,/ctx\\.fillStyle=ghost\\?GHOST_NAME_COLOR:'#fff'/);
+assert.match(source,/name\\.style\\.color='#ff454f'/);
+assert.match(ghostSource,/const PLAYER_BODY_RADIUS=16/);
+for(const theme of ['graveyard','egypt']){
+ const scales=[];
+ const probe={save(){},restore(){},translate(){},rotate(){},drawImage(){},
+   scale(x,y){scales.push([x,y]);}};
+ art.drawActor(probe,{x:120,y:140,vx:0,vy:0,dir:{x:0,y:-1}},
+   '#ff628c',true,1,theme,1.26);
+ assert.deepEqual(scales,[[1.26,1.26]],'ghost sprite is 26% larger in '+theme);
+}
 const mkPlayers=n=>Array.from({length:n},(_,i)=>({
  id:'p'+i,name:'Tester '+i,color:['#ff628c','#3fe4ef','#ffcf62','#ae94ff'][i%4],
  type:'remote',active:true,input:{},alive:true,score:0
