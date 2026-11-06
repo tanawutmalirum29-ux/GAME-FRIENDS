@@ -5,7 +5,11 @@ for(const f of ['board-map','board-dice','board-items','board-bots','board-minig
 const {BoardMap:M,BoardDice:D,BoardItems:I,BoardParty:P,BoardMinigame:G}=ctx.window;
 const plain=x=>JSON.parse(JSON.stringify(x));
 const roster=(n,bots=false)=>Array.from({length:n},(_,i)=>({id:'p'+(i+1),name:'Player '+(i+1),color:'#66aacc',isBot:bots}));
-const game=(n=3,seed=42,bots=false)=>P.create(roster(n,bots),{seed,rng:M.random(seed)});
+const game=(n=3,seed=42,bots=false)=>{
+ const s=P.create(roster(n,bots),{seed,rng:M.random(seed)});
+ assert.equal(s.phase,'overview');
+ assert.equal(P.beginOrder(s),true);return s;
+};
 const tick=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds/.05);i++)P.update(s,.05);};
 const until=(s,pred,seconds=100)=>{for(let i=0;i<seconds/.05;i++){if(pred())return;P.update(s,.05);}assert.fail('Timeout '+s.phase+' at '+s.time);};
 function ready(n=3,seed=42){const s=game(n,seed);s.order=s.players.map(p=>p.id);P.startTurn(s);return s;}
@@ -33,6 +37,14 @@ test('1,000 seeds: connected DAG, reciprocal edges, all branches finish',()=>{
    while(at.id!==map.finishId){assert.ok(at.nextNodes.length);const next=map.nodes[at.nextNodes[seed%at.nextNodes.length]];assert.ok(next.progress>at.progress);at=next;assert.ok(++steps<map.length+10);}
   }
  }
+});
+test('Opening overview must show the full board before the host starts dice',()=>{
+ const s=P.create(roster(3),{seed:37,rng:M.random(37)});
+ assert.equal(s.phase,'overview');assert.equal(s.time,0);assert.ok(s.players.every(p=>p.dice===null));
+ tick(s,20);assert.equal(s.phase,'overview');assert.ok(s.players.every(p=>p.dice===null));
+ assert.equal(P.action(s,s.players[0].id,'A'),false);
+ assert.equal(P.beginOrder(s),true);assert.equal(s.phase,'order');
+ assert.equal(P.beginOrder(s),false);
 });
 test('1–12 players: simultaneous A/B order rolls, double-input protection and timeout',()=>{
  for(let n=1;n<=12;n++){
@@ -99,7 +111,7 @@ test('Backpack B opens, A cycles across items and Close, B uses only the selecte
  tap('B');assert.equal(p.bagOpen,true);assert.equal(s.phase,'ready');
  assert.equal(p.bagIndex,0);assert.equal(P.controls(s,p.id).b,'ใช้ไอเทม');
  tap('A');assert.equal(p.bagIndex,1);assert.equal(p.bag[p.bagIndex],'potion');
- tap('B');assert.equal(p.hp,31);assert.equal(p.usedRound,1);
+ tap('B');assert.equal(p.hp,51);assert.equal(p.usedRound,1);
  assert.deepEqual(plain(p.bag),['shield','rocket']);
  assert.equal(s.phase,'effect');until(s,()=>s.phase==='ready');
  tap('B');assert.equal(p.bagOpen,true);
@@ -304,7 +316,7 @@ test('72-step board extends the map and retains two consecutive neutral sword ti
 test('Lucky Star locations are reachable purple/gold reward tiles, spread across the larger board',()=>{
  for(let seed=0;seed<120;seed++){
   const map=M.create(seed),lucky=Object.values(map.nodes).filter(n=>n.type==='lucky');
-  assert.equal(lucky.length,6,'6 lucky tiles in the 6-8% range');
+  assert.ok(lucky.length>=6&&lucky.length<=8,'6–8 separated Lucky Stars with long-route bonuses');
   assert.deepEqual(plain(lucky.map(n=>n.id).sort()),plain([...map.luckyTileIds].sort()));
   for(const node of lucky){assert.equal(node.effects.item,true);assert.ok(node.nextNodes.length);assert.ok(node.previousNodes.length);}
   assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
@@ -410,7 +422,7 @@ test('HP cap, death keeps item/order, clears movement and awards no free roll',(
 test('Potion requires HP below maximum; backpack can be closed without using an item',()=>{
  const s=ready(),p=s.players[0];p.item='potion';
  press(s,p,'B');assert.equal(p.item,'potion');assert.equal(s.phase,'ready');
- p.hp=1;press(s,p,'B');assert.equal(p.hp,31);assert.equal(p.item,null);
+ p.hp=1;press(s,p,'B');assert.equal(p.hp,51);assert.equal(p.item,null);
  until(s,()=>s.phase==='ready');p.item='rocket';
  press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(p.bagOpen,true);
  press(s,p,'A');assert.equal(p.bagIndex,1,'Close is included in the item selection');
