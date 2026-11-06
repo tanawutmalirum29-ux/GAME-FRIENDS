@@ -15,6 +15,7 @@ const characterSource=fs.readFileSync('character-system.js','utf8');
 const uiArtSource=fs.readFileSync('party-ui-art.js','utf8');
 const pizzaArtSource=fs.readFileSync('pizza-ingredient-art.js','utf8');
 const pizzaSource=fs.readFileSync('pizza-time.js','utf8');
+const knightSource=fs.readFileSync('knight-match.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const chickensSource=fs.readFileSync('chickens.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
@@ -1032,6 +1033,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(colorSwitchSource,scope,{filename:'color-switch.js'});
   vm.runInContext(pizzaArtSource,scope,{filename:'pizza-ingredient-art.js'});
   vm.runInContext(pizzaSource,scope,{filename:'pizza-time.js'});
+  vm.runInContext(knightSource,scope,{filename:'knight-match.js'});
   for(const name of ['board-map','board-dice','board-items','board-bots','board-minigame','board-party','board-art'])
     vm.runInContext(fs.readFileSync(name+'.js','utf8'),scope,{filename:name+'.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
@@ -1226,7 +1228,9 @@ assert.equal(online.scope.document.fullscreenExits,0);
   bulk.click('cycleAllBotsBtn');
   assert.ok(local.every(p=>p.choice==='pizza_time'),'sixth game is PIZZA TIME');
   bulk.click('cycleAllBotsBtn');
-  assert.ok(local.every(p=>p.choice==='ghost'),'sixth game wraps back to ghost');
+  assert.ok(local.every(p=>p.choice==='knight_match'),'seventh game is KNIGHT MATCH');
+  bulk.click('cycleAllBotsBtn');
+  assert.ok(local.every(p=>p.choice==='ghost'),'seventh game wraps back to ghost');
  // Individual selection remains independent; bulk applies the NEXT
  // game of the first bot, synchronizing any mixed bot choices.
  const choice=bulk.elements.get('roster').children[0].children[3];
@@ -1445,7 +1449,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
    'new random value changes the game instead of following fixed order');
  ui.click('startBtn');
  assert.equal(api.getTournament().endless,true);
- assert.equal(api.getTournament().schedule.length,6);
+ assert.equal(api.getTournament().schedule.length,7);
  const first=api.getSelection();
  assert.ok(first,'roulette appears immediately on start, before game engine');
  assert.equal(api.getRound().phase,'roulette');
@@ -1713,7 +1717,7 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,6);
+assert.equal(phone.pickButtons.length,7);
 assert.equal(phone.pickButtons[4].dataset.pick,'color_switch');
 assert.equal(phone.pickButtons[5].dataset.pick,'pizza_time');
 assert.equal(phone.pickButtons[6].dataset.pick,'knight_match');
