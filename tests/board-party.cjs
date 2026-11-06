@@ -539,7 +539,7 @@ test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected ne
    Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(s.phase,'aim');assert.equal(p.item,'ufo');assert.equal(p.currentNodeId,'n0');assert.equal(q.currentNodeId,'n1');assert.equal(p.usedRound,0);
    Object.assign(s.skill,I.position(s,r));press(s,p,'A');assert.equal(p.currentNodeId,'n1');assert.equal(r.currentNodeId,'n0');
   }else{
-   if(kind==='bomber'){Object.assign(s.skill,I.position(s,q));press(s,p,'A');}else until(s,()=>s.phase==='effect');
+   if(kind==='bomber'){Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(r.hp,100);tick(s,1.2);}else until(s,()=>s.phase==='effect');
    assert.equal(r.hp,kind==='bomber'?74:82);assert.equal(p.item,null);assert.equal(s.effect.next,'ready');
   }
   assert.equal(q.hp,1);assert.equal(q.currentNodeId,'n1');assert.equal(q.shieldTurns,1);
@@ -673,12 +673,52 @@ test('Bomber two-step A flow: release guard, 8 orientations and C cancels with s
  assert.equal(I.bag(p).includes('bomber'),false,'only the actual strike consumes stock');
  assert.equal(P.action(s,p.id,'C'),false,'cancel cannot undo an already committed volley');
 });
+test('Christmas bomber passes every drop point before successive physical impacts',()=>{
+ const s=ready(6,125),[owner,...targets]=s.players;
+ owner.item='bomber';
+ assert.equal(I.begin(s,owner,P,'bomber'),true);
+ const points=I.bombs(s.skill);
+ // Perpendicular offsets place each target inside only one blast circle.
+ for(let i=0;i<5;i++)targets[i].worldPosition={x:points[i].x,y:points[i].y+50};
+ const timeline=I.bomberFlight(points,0);
+ assert.equal(timeline.bombs.length,5);
+ assert.ok(timeline.bombs[4].impact<I.BOMBER_EFFECT_SECONDS);
+ for(let i=0;i<5;i++){
+  const point=points[i],shot=timeline.bombs[i];
+  assert.ok(shot.pass<shot.drop&&shot.drop<shot.impact,'pass < drop < explosion: '+i);
+  const passing=I.bomberFlight(points,shot.pass).plane;
+  assert.ok(Math.hypot(passing.x-point.x,passing.y-point.y)<1e-6,'plane traverses marker '+i);
+  assert.equal(I.bomberFlight(points,shot.drop+.005).bombs[i].phase,'falling');
+  assert.equal(I.bomberFlight(points,shot.impact+.005).bombs[i].phase,'exploding');
+ }
+ s.skill.requiresConfirmRelease=false;
+ assert.equal(I.confirm(s,'A',P),true);
+ assert.equal(s.phase,'effect');
+ assert.equal(s.effect.pendingHits.length,5);
+ assert.ok(targets.every(p=>p.hp===100),'no player loses HP at confirmation');
+ for(let i=0;i<5;i++){
+  const at=timeline.bombs[i].impact;
+  while(s.time-s.effect.at<at+.015)P.update(s,.025);
+  targets.forEach((p,j)=>assert.equal(p.hp,j<=i?74:100,
+   'damage follows individual bomb impact not airplane confirmation'));
+ }
+ while(s.phase==='effect')P.update(s,.025);
+ assert.equal(s.phase,'ready');
+ assert.equal(P.current(s).id,owner.id,'bomber returns the owner to manual dice');
+ assert.equal(s.moveDice,null,'no automatic dice roll');
+ assert.ok(targets.every(p=>p.hp===74));
+});
 test('250 Bomber attacks: 45-degree rotations, frozen preview, one hit per volley',()=>{
  for(let seed=0;seed<250;seed++){
   const s=ready(12,seed),p=s.players[0];p.item='bomber';for(const q of s.players.slice(1))q.currentNodeId='n10';
   press(s,p,'B');Object.assign(s.skill,s.map.nodes.n10.position);const before=s.skill.angle;press(s,p,'B');assert.equal(s.skill.angle,before+Math.PI/4);assert.equal(p.item,'bomber');
   const preview=plain(I.bombs(s.skill)),expected=I.victims(s,preview,p).map(p=>p.id);press(s,p,'A');assert.deepEqual(plain(s.effect.points),preview);
-  for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?74:100);assert.equal(p.hp,100);assert.equal(s.effect.next,'ready');tick(s,.5);for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?74:100);
+  for(const q of s.players.slice(1))assert.equal(q.hp,100,'no HP damage at the moment A confirms');
+  tick(s,.2);for(const q of s.players.slice(1))assert.equal(q.hp,100,'the plane has not passed the first site yet');
+  tick(s,1.0);
+  for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?74:100);
+  assert.equal(p.hp,100);assert.equal(s.effect.next,'ready');
+  tick(s,.2);for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?74:100,'no target is hit twice');
  }
 });
 test('250 RC cars: backward input cannot reverse, no repeated node, swept hit detection',()=>{
