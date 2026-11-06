@@ -60,9 +60,9 @@ function blockHarm(s,p){
  return true;
 }
 function damage(s,p,amount){
- if(blockHarm(s,p))return false;
  const actual=Math.min(p.hp,Math.max(0,Math.round(amount)));
- if(!actual)return false;
+ if(!actual)return false; // A zero-damage event cannot waste the one-use shield.
+ if(blockHarm(s,p))return false;
  const position=I().position(s,p);
  p.hp=Math.max(0,p.hp-actual);p.hurtUntil=s.time+1.2;
  s.hits.push({id:p.id,amount:actual,at:s.time,position,color:p.color});
