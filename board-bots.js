@@ -21,12 +21,13 @@ function update(s,dt,api){
  if(s.phase==='rewards')for(const p of s.players.filter(p=>p.isBot&&s.pendingItems[p.id])){
   if(s.time-s.phaseAt>1){const pending=s.pendingItems[p.id];send(s,p,api,p.item==='potion'&&p.hp===3||pending.item==='rocket'?1:-1,0);if(s.time-s.phaseAt>1.3)send(s,p,api,0,0,'A');}
  }
- const p=api.current(s);if(!p?.isBot||s.time-s.phaseAt<.5)return;
+ const p=api.current(s);if(!p?.isBot)return;
+ if(s.time-s.phaseAt<.5&&!(s.phase==='moving'&&s.move?.kind==='walk'))return;
  if(s.phase==='ready'){
   const use=p.item&&p.usedRound!==s.roundNumber&&(p.item==='potion'?p.hp<3:p.item==='shield'?!p.shieldTurns:p.item==='rocket'?true:p.item==='ufo'?!!forwardTarget(s,p):p.item==='car'?!!forwardTarget(s,p,6):s.players.some(q=>q.id!==p.id&&!q.shieldTurns));
   send(s,p,api,0,0,use?'B':'A');
- }else if(s.phase==='move_ready'){
-  const from=s.map.nodes[p.currentNodeId].position,to=s.map.nodes[s.map.nodes[p.currentNodeId].nextNodes[0]].position,d=Math.hypot(to.x-from.x,to.y-from.y);
+ }else if(s.phase==='move_ready'||(s.phase==='moving'&&s.move?.kind==='walk')){
+  const from=s.map.nodes[p.currentNodeId].position,to=s.map.nodes[s.move.to||s.map.nodes[p.currentNodeId].nextNodes[0]].position,d=Math.hypot(to.x-from.x,to.y-from.y);
   send(s,p,api,(to.x-from.x)/d,(to.y-from.y)/d);
  }else if(s.phase==='branch'){
   const opts=s.branch.options;
@@ -34,7 +35,7 @@ function update(s,dt,api){
   const to=[...opts].sort((a,b)=>cost(b)-cost(a))[0],a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position;
   send(s,p,api,(b.x-a.x)/Math.hypot(b.x-a.x,b.y-a.y),(b.y-a.y)/Math.hypot(b.x-a.x,b.y-a.y));
   // Selection is resolved by the host update before the confirmation arrives.
-  if(s.branch.selected===to)send(s,p,api,0,0,'A');
+  if(s.move.kind==='rocket'&&s.branch.selected===to)send(s,p,api,0,0,'A');
  }else if(s.phase==='aim'){
   const skill=s.skill,q=skill.kind==='ufo'?forwardTarget(s,p):s.players.find(q=>q.id!==p.id&&!q.shieldTurns);
   if(!q)return;

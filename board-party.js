@@ -9,6 +9,12 @@ function create(roster,{seed=Date.now(),rng=Math.random}={}){
  phase(s,'order',12);return s;
 }
 function phase(s,name,duration=0){s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;s.turnId=s.id+':'+(++s.revision);}
+// A continuous walk owns one input token until it lands; holding the stick
+// across a node must not wait for a network round trip or require another tap.
+function movePhase(s,name,duration=8){
+ if(s.move?.kind!=='walk'){phase(s,name,duration);return;}
+ s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;
+}
 const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
 function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
 function rollOrder(s,p){if(p.dice||s.phase!=='order')return false;p.dice=[D().roll(s.rng),D().roll(s.rng)];p.rollAt=s.time;return true;}
@@ -50,6 +56,7 @@ function land(s){
 function beginMove(s,p,steps,kind='walk'){
  s.move={playerId:p.id,kind,remaining:steps,total:steps,from:p.currentNodeId,to:null,t:0,visited:[p.currentNodeId],auto:false,expires:kind==='rocket'?s.time+4.5:Infinity};
  if(kind==='walk'&&s.inputs[p.id]){s.inputs[p.id].x=0;s.inputs[p.id].y=0;s.inputs[p.id].at=-Infinity;}
+ phase(s,'move_ready',8);
  nextStep(s);
 }
 function nextStep(s){
@@ -58,29 +65,33 @@ function nextStep(s){
  if(p.currentNodeId===s.map.finishId){win(s,p);return;}
  if(m.remaining<=0||m.stop||s.time>=m.expires||(m.kind==='rocket'&&m.expires-s.time<.48)){land(s);return;}
  const options=s.map.nodes[p.currentNodeId].nextNodes;
- if(options.length>1){s.branch={options:[...options],selected:options[0]};phase(s,'branch',Math.min(m.kind==='walk'&&!m.auto?8:4,m.expires-s.time));return;}
- if(m.kind==='walk'&&!m.auto){phase(s,'move_ready',8);return;}
+ if(options.length>1){s.branch={options:[...options],selected:options[0]};movePhase(s,'branch',Math.min(m.kind==='walk'&&!m.auto?8:4,m.expires-s.time));return;}
+ if(m.kind==='walk'&&!m.auto){movePhase(s,'move_ready');return;}
  step(s,options[0]);
 }
 function step(s,to){
  const m=s.move,p=current(s);
  if(!m||m.to||!s.map.nodes[p.currentNodeId].nextNodes.includes(to)||m.visited.includes(to))return false;
  m.startPosition=I().position(s,p);m.endPosition=I().positionOnNode(s,p,to);
- m.from=p.currentNodeId;m.to=to;m.t=0;phase(s,'moving');return true;
+ m.from=p.currentNodeId;m.to=to;m.t=0;movePhase(s,'moving');return true;
 }
 function roll(s){
  if(s.phase!=='ready'||s.rolled)return false;
  s.rolled=true;s.moveDice=[D().roll(s.rng),D().roll(s.rng)];s.die=s.moveDice[0]+s.moveDice[1];
  phase(s,'dice',1.8);return true;
 }
-function remainingSteps(s,id){return s.move?.playerId===id?s.move.remaining:current(s)?.id===id&&s.phase==='dice'&&s.time-s.phaseAt>=.85?s.die:0;}
-function forwardInput(s,p){
- if(s.inputs[p.id]?.turnId!==s.turnId)return null;
- const a=axes(s,p.id);if(Math.hypot(a.x,a.y)<.25)return null;
- const id=M().choose(s.map,p.currentNodeId,a.x,a.y),from=s.map.nodes[p.currentNodeId].position,to=s.map.nodes[id]?.position;
- if(!to)return null;
+function remainingSteps(s,id){if(!id)return 0;return s.move?.playerId===id?s.move.remaining:current(s)?.id===id&&s.phase==='dice'&&s.time-s.phaseAt>=.85?s.die:0;}
+function forwardForce(s,p,toId){
+ if(s.inputs[p.id]?.turnId!==s.turnId)return 0;
+ const a=axes(s,p.id),strength=Math.hypot(a.x,a.y);if(strength<.25)return 0;
+ const from=s.map.nodes[p.currentNodeId].position,to=s.map.nodes[toId]?.position;if(!to)return 0;
  const dx=to.x-from.x,dy=to.y-from.y;
- return (dx*a.x+dy*a.y)/Math.hypot(dx,dy)/Math.hypot(a.x,a.y)>.35?id:null;
+ const dot=(dx*a.x+dy*a.y)/Math.hypot(dx,dy)/strength;
+ return dot>.35?Math.min(1,strength)*dot:0;
+}
+function forwardInput(s,p){
+ const a=axes(s,p.id),id=M().choose(s.map,p.currentNodeId,a.x,a.y);
+ return forwardForce(s,p,id)>0?id:null;
 }
 function action(s,id,button){
  const p=s.players.find(p=>p.id===id);if(!p||!['A','B'].includes(button))return false;
@@ -92,8 +103,7 @@ function action(s,id,button){
  if(p.id!==current(s)?.id)return false;
  if(s.phase==='ready')return button==='A'?roll(s):I().begin(s,p,api);
  if(s.phase==='aim')return I().confirm(s,button,api);
- if(s.phase==='move_ready'&&button==='A')return step(s,s.map.nodes[p.currentNodeId].nextNodes[0]);
- if(s.phase==='branch'&&button==='A')return step(s,forwardInput(s,p)||s.branch.selected);
+ if(s.phase==='branch'&&s.move?.kind==='rocket'&&button==='A')return step(s,forwardInput(s,p)||s.branch.selected);
  if(s.phase==='moving'&&s.move?.kind==='rocket'&&button==='A'){s.move.stop=true;return true;}
  return false;
 }
@@ -103,7 +113,8 @@ function input(s,id,packet){
  const p=s.players.find(p=>p.id===id);if(!p||s.phase==='finished'||s.phase==='minigame')return false;
  s.lastActions[id]=packet.actionId;
  const old=s.inputs[id]||{},k=packet.keys||{};
- const x=Number.isFinite(k.axisX)?Math.max(-1,Math.min(1,k.axisX)):0,y=Number.isFinite(k.axisY)?Math.max(-1,Math.min(1,k.axisY)):0;
+ const x=Number.isFinite(k.axisX)&&k.axisX!==0?Math.max(-1,Math.min(1,k.axisX)):Number(k.right===true)-Number(k.left===true);
+ const y=Number.isFinite(k.axisY)&&k.axisY!==0?Math.max(-1,Math.min(1,k.axisY)):Number(k.down===true)-Number(k.jump===true);
  const a=k.action===true,b=k.alt===true;
  s.inputs[id]={x,y,a,b,at:s.time,turnId:packet.turnId};
  if(a&&!old.a)action(s,id,'A');else if(b&&!old.b)action(s,id,'B');
@@ -139,9 +150,19 @@ function update(s,dt){
   else if(s.time>=s.deadline){s.move.auto=true;step(s,s.map.nodes[current(s).currentNodeId].nextNodes[0]);}
  }else if(s.phase==='branch'){
   const to=forwardInput(s,current(s));if(to)s.branch.selected=to;
-  if(s.time>=s.deadline){if(s.time>=s.move.expires)land(s);else {if(s.move.kind==='walk')s.move.auto=true;step(s,s.branch.selected);}}
+  if(to&&s.move.kind==='walk'&&!s.move.auto)step(s,to);
+  else if(s.time>=s.deadline){if(s.time>=s.move.expires)land(s);else {if(s.move.kind==='walk')s.move.auto=true;step(s,s.branch.selected);}}
  }else if(s.phase==='moving'){
-  const m=s.move,p=current(s);m.t=Math.min(1,m.t+dt/(m.kind==='rocket'?.48:.34));
+  const m=s.move,p=current(s);
+  let advance=dt/.48;
+  if(m.kind==='walk'){
+   const a=s.map.nodes[m.from].position,b=s.map.nodes[m.to].position;
+   let force=m.auto?1:forwardForce(s,p,m.to);
+   if(force>0)s.deadline=s.time+8;
+   else if(s.time>=s.deadline){m.auto=true;force=1;}
+   advance=dt*250*force/Math.hypot(b.x-a.x,b.y-a.y);
+  }
+  m.walking=advance>0;m.t=Math.min(1,m.t+advance);
   if(m.t>=1){p.currentNodeId=m.to;m.visited.push(m.to);m.to=null;m.remaining--;if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};nextStep(s);}
  }else if(s.phase==='aim'||s.phase==='car')I().update(s,dt,api);
  else if(s.phase==='effect'&&s.time>=s.deadline){const next=s.effect.next;s.effect=null;if(next==='ready')ready(s);else endTurn(s);}
@@ -160,9 +181,8 @@ function controls(s,id){
  if(s.phase==='rewards'&&s.pendingItems[id])return{a:'ยืนยัน',b:'',help:'ซ้าย เก็บเดิม / ขวา รับ '+I().names[s.pendingItems[id].item]};
  if(!mine)return{a:'',b:'',help:'รอตาของคุณ • '+(current(s)?.name||'สรุปผล')};
  if(s.phase==='ready')return{a:'ทอย 2 ลูก',b:p.item&&p.usedRound!==s.roundNumber?'ใช้ไอเทม':'',help:'A ทอย 2 ลูก / B ใช้ไอเทมก่อนทอย'};
- if(s.phase==='move_ready')return{a:'เดิน 1 ก้าว',b:'',help:'อนาล็อกเดินตามลูกศร / A เดิน 1 ก้าว • เหลือ '+s.move.remaining+' ก้าว'};
- if(s.phase==='moving'&&s.move?.kind==='walk')return{a:'',b:'',help:(s.move.auto?'ช่วยเดินเมื่อหมดเวลา':'กำลังเดิน')+' • เหลือ '+s.move.remaining+' ก้าว'};
- if(s.phase==='branch')return{a:'เลือกทาง',b:'',help:'อนาล็อกเลือกทาง / A ยืนยัน'};
+ if(s.move?.kind==='walk')return{a:'',b:'',help:(s.move.auto?'ช่วยเดินเมื่อหมดเวลา':'ลากจอยหรือปุ่มทิศทางเพื่อเดิน / ปล่อยเพื่อหยุด')+' • เหลือ '+s.move.remaining+' ก้าว'};
+ if(s.phase==='branch')return{a:'เลือกทาง',b:'',help:'อนาล็อกเลือกทางจรวด / A ยืนยัน'};
  if(s.phase==='aim')return{a:'ยืนยัน',b:s.skill.kind==='bomber'?'หมุน 45°':'',help:s.skill.kind==='ufo'?'เล็งให้สัมผัสตัวละคร / A สลับ':'เลื่อนแนวบิน / B หมุน / A โจมตี'};
  if(s.phase==='car')return{a:'',b:'',help:'อนาล็อกขับตามลูกศร • ระเบิดเมื่อชนหรือครบ 6 วินาที'};
  if(s.phase==='moving'&&s.move?.kind==='rocket')return{a:'ลงช่องถัดไป',b:'',help:'จรวดไปข้างหน้า / A ลงจอด'};

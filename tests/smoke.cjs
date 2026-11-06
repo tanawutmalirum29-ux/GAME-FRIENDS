@@ -2011,6 +2011,13 @@ require('./shockwave.cjs');
 
 
 // BOARD PARTY integration uses the real app dispatcher and all six real engines.
+{
+ const ui=setup();ui.click('offlineBtn');ui.sessionButtons[2].fire('click');
+ delete ui.scope.window.BoardArt;ui.click('startBtn');
+ assert.equal(ui.scope.window.__ghostTest.getBoard(),null);assert.equal(ui.scope.window.__ghostTest.getRound(),null);
+ assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false);
+ assert.match(ui.elements.get('uiToast').textContent,/โหลด BOARD PARTY ไม่ครบ/,'incomplete assets leave a usable lobby instead of a blank game');
+}
 for(const count of [1,12]){
  const ui=setup();ui.click('offlineBtn');
  const api=ui.scope.window.__ghostTest,P=ui.scope.window.BoardParty;
@@ -2039,7 +2046,9 @@ for(const count of [1,12]){
  for(let i=0;i<400&&s.phase!=='ready';i++)api.updateBoard(.05);
  assert.equal(s.phase,'ready');assert.equal(s.roundNumber,2);assert.equal(s.map,map);
  assert.deepEqual(Array.from(s.order),expectedOrder,'actual minigame results determine the next board order');
- const p=P.current(s);p.isBot=false;p.currentNodeId='n35';P.beginMove(s,p,1);P.action(s,p.id,'A');
+ const p=P.current(s);p.isBot=false;p.currentNodeId='n35';P.beginMove(s,p,1);
+ const from=s.map.nodes.n35.position,to=s.map.nodes.n36.position,d=Math.hypot(to.x-from.x,to.y-from.y);
+ P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys:{axisX:(to.x-from.x)/d,axisY:(to.y-from.y)/d}});
  for(let i=0;i<80&&api.getRound().phase!=='results';i++)api.updateBoard(.05);
  assert.equal(s.phase,'finished');assert.equal(api.getRound().phase,'results');
  assert.ok(api.resultVoteSnapshot());ui.click('replayBtn');
@@ -2066,10 +2075,10 @@ for(const count of [1,12]){
  replacement.fire('data',{t:'input',turnId:s.turnId,actionId:1,keys:{action:true}});assert.equal(s.phase,'dice','reconnected phone has a fresh input sequence');
  const movementTotal=s.die;assert.equal(s.moveDice.length,2);
  for(let i=0;i<40;i++)api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
- assert.equal(state.stepsRemaining,movementTotal);assert.equal(state.boardPhase,'move_ready');assert.equal(state.a,'เดิน 1 ก้าว');
+ assert.equal(state.stepsRemaining,movementTotal);assert.equal(state.boardPhase,'move_ready');assert.equal(state.a,'');assert.match(state.help,/ลากจอย/);
  replacement.fire('data',{t:'input',turnId:s.turnId,actionId:2,keys:{}});
- replacement.fire('data',{t:'input',turnId:s.turnId,actionId:3,keys:{action:true}});
- for(let i=0;i<9;i++)api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
+ replacement.fire('data',{t:'input',turnId:s.turnId,actionId:3,keys:{right:true}});
+ for(let i=0;i<15;i++)api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
  assert.equal(state.stepsRemaining,movementTotal-1);assert.equal(p.currentNodeId,'n1');
  P.startTurn(s);p.item='shield';p.usedRound=0;
  replacement.fire('data',{t:'input',turnId:s.turnId,actionId:4,keys:{alt:true}});api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);

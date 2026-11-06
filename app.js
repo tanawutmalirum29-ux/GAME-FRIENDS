@@ -172,6 +172,9 @@ function syncArenaResolution(){
 window.addEventListener('resize',markArenaResolutionDirty);
 window.addEventListener('orientationchange',markArenaResolutionDirty);
 window.visualViewport?.addEventListener?.('resize',markArenaResolutionDirty);
+document.addEventListener('fullscreenchange',markArenaResolutionDirty);
+document.addEventListener('webkitfullscreenchange',markArenaResolutionDirty);
+canvas.addEventListener('contextrestored',markArenaResolutionDirty);
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const cleanName=(value)=>String(value||'').trim().replace(/[<>]/g,'').slice(0,14)||'เพื่อนใหม่';
@@ -1472,12 +1475,19 @@ window.addEventListener('blur',()=>{
 // BOARD PARTY owns a session, not a seventh entry in the minigame registry.
 function boardRegistry(){return Object.fromEntries(Object.keys(ENGINES).map(id=>[id,gameEngine(id)]));}
 function beginBoard(){
+  const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt','PartyPlayerAvatar'];
+  if(required.some(name=>!window[name])){showToast('โหลด BOARD PARTY ไม่ครบ กรุณาโหลดหน้าใหม่',true);return;}
   if(!window.BoardMinigame.eligible(boardRegistry(),players.length).length){showToast('ไม่มีมินิเกมที่พร้อมเล่น',true);return;}
-  tournament=null;gameSelection=null;
-  boardSession=window.BoardParty.create(players);
-  players.forEach(p=>{p.active=true;});
-  window.PartyPlayerAvatar.preload(boardSession.players);
-  showBoard();requestHostFullscreen();
+  try{
+    tournament=null;gameSelection=null;
+    boardSession=window.BoardParty.create(players);
+    players.forEach(p=>{p.active=true;});
+    window.PartyPlayerAvatar.preload(boardSession.players);
+    showBoard();requestHostFullscreen();
+  }catch(error){
+    console.error('BOARD PARTY start failed',error);returnToLobby();
+    showToast('เริ่ม BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
+  }
 }
 function showBoard(){
   round={mode:'board',phase:'playing',paused:false,remaining:null,autoNextRemaining:0};
@@ -1486,7 +1496,11 @@ function showBoard(){
   $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.remove('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');$('gameBanner').textContent='';
   document.body.classList.add('board-playing');
-  setView('game');renderLeaderboard();broadcastRoster();
+  setView('game');
+  // Paint the order/result screen in the Start event itself. Safari can delay
+  // its first animation frame during fullscreen; old minigame clips must not survive.
+  canvas.width=canvas.width;markArenaResolutionDirty();drawGame(graphicsClock);
+  renderLeaderboard();broadcastRoster();
   remotePreviewClock=1.1;
   for(const conn of hostConnections)startHostVideoCall(conn);
 }
@@ -1507,7 +1521,8 @@ function updateBoard(dt){
   }
   if(s.phase==='finished'){if(s.time-s.phaseAt>=1.8)finishBoard();return;}
   boardStateClock+=dt;
-  if(boardStateToken!==s.turnId||boardStateClock>.2){broadcastBoardState();boardStateClock=0;boardStateToken=s.turnId;}
+  const stateKey=s.turnId+':'+s.phase+':'+window.BoardParty.remainingSteps(s,window.BoardParty.current(s)?.id);
+  if(boardStateToken!==stateKey||boardStateClock>.2){broadcastBoardState();boardStateClock=0;boardStateToken=stateKey;}
 }
 function broadcastBoardState(){
   if(!boardSession||round?.mode!=='board')return;

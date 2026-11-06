@@ -10,6 +10,10 @@ const tick=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds/.05);i++)P.update(s,.05
 const until=(s,pred,seconds=100)=>{for(let i=0;i<seconds/.05;i++){if(pred())return;P.update(s,.05);}assert.fail('Timeout '+s.phase+' at '+s.time);};
 function ready(n=3,seed=42){const s=game(n,seed);s.order=s.players.map(p=>p.id);P.startTurn(s);return s;}
 function press(s,p,key,extra={}){const send=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});send(extra);return send({...extra,action:key==='A',alt:key==='B'});}
+function steer(s,p,to=s.move?.to||s.map.nodes[p.currentNodeId].nextNodes[0]){
+ const a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position,d=Math.hypot(b.x-a.x,b.y-a.y);
+ press(s,p,null,{axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d});
+}
 const tests=[];function test(name,fn){fn();tests.push(name);console.log('PASS',name);}
 test('1,000 seeds: connected DAG, reciprocal edges, all branches finish',()=>{
  for(let seed=0;seed<1000;seed++){
@@ -23,6 +27,7 @@ test('1,000 seeds: connected DAG, reciprocal edges, all branches finish',()=>{
 test('1–12 players: simultaneous A/B order rolls, double-input protection and timeout',()=>{
  for(let n=1;n<=12;n++){
   const s=game(n);for(let i=0;i<n-1;i++)press(s,s.players[i],i%2?'A':'B');
+  assert.equal(P.remainingSteps(s,P.current(s)?.id),0,'initial order has no active walker');
   const first=plain(s.players[0].dice);if(n>1){press(s,s.players[0],'A');assert.deepEqual(plain(s.players[0].dice),first);}
   tick(s,17);assert.equal(s.order.length,n);assert.ok(s.players.every(p=>p.dice.length===2&&p.dice.every(v=>v>=1&&v<=6)));
   const sums=s.order.map(id=>s.players.find(p=>p.id===id).dice.reduce((a,b)=>a+b,0));assert.deepEqual([...sums].sort((a,b)=>b-a),plain(sums));
@@ -44,41 +49,62 @@ test('Two independent dice: all 36 combinations move the exact sum, landing effe
   const s=ready(),rolls=[a,b];s.rng=()=> (rolls.shift()-.5)/6;const p=s.players[0];
   for(const n of Object.values(s.map.nodes))if(!['start','finish'].includes(n.type))n.type='danger';
   press(s,p,'A');assert.deepEqual(plain(s.moveDice),[a,b]);assert.equal(s.die,a+b);let last='n0',steps=0;
-  until(s,()=>{if(p.currentNodeId!==last){assert.ok(s.map.nodes[last].nextNodes.includes(p.currentNodeId));steps++;last=p.currentNodeId;}if(['move_ready','branch'].includes(s.phase))press(s,p,'A');return s.phase==='effect';});
+  until(s,()=>{if(p.currentNodeId!==last){assert.ok(s.map.nodes[last].nextNodes.includes(p.currentNodeId));steps++;last=p.currentNodeId;}if(s.move){assert.equal(s.move.auto,false);steer(s,p);}return s.phase==='effect';});
   assert.equal(steps,a+b);assert.equal(p.hp,2);tick(s,.1);assert.equal(p.hp,2);
  }
 });
-test('Manual A steps: wait after rolling, count on arrival, ignore rapid/held/old commands',()=>{
+test('Directional walking: release stops mid-edge, A/B cannot move, counts only completed edges',()=>{
  const s=ready(),p=s.players[0];p.item='rocket';s.rng=()=>0;
  press(s,p,'A',{axisX:1});const oldToken=s.turnId;assert.equal(P.remainingSteps(s,p.id),0);
  tick(s,1);assert.equal(P.remainingSteps(s,p.id),2);until(s,()=>s.phase==='move_ready');
  tick(s,1);assert.equal(p.currentNodeId,'n0');assert.equal(P.remainingSteps(s,p.id),2);
- press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(s.phase,'move_ready');
- const actionId=(s.lastActions[p.id]??0)+1;
- assert.equal(P.input(s,p.id,{turnId:oldToken,actionId,keys:{action:true}}),false);
- press(s,p,'A');assert.equal(s.phase,'moving');press(s,p,'A');assert.equal(s.move.to,'n1');
- tick(s,.15);assert.equal(P.remainingSteps(s,p.id),2);assert.equal(p.currentNodeId,'n0');
- until(s,()=>s.phase==='move_ready');assert.equal(p.currentNodeId,'n1');assert.equal(P.remainingSteps(s,p.id),1);
- P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys:{action:true}});
- tick(s,.5);assert.equal(s.phase,'move_ready','held A never schedules another step');
- press(s,p,'A');until(s,()=>s.phase==='effect');assert.equal(p.currentNodeId,'n2');assert.equal(P.remainingSteps(s,p.id),0);
- assert.equal(P.remainingSteps(s,s.players[1].id),0);assert.equal(p.item,'rocket');
+ press(s,p,'A');press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(s.phase,'move_ready');
+ assert.equal(P.input(s,p.id,{turnId:oldToken,actionId:(s.lastActions[p.id]??0)+1,keys:{axisX:1}}),false);
+ const token=s.turnId;steer(s,p);tick(s,.2);assert.equal(s.phase,'moving');assert.equal(p.currentNodeId,'n0');assert.equal(P.remainingSteps(s,p.id),2);
+ const fraction=s.move.t,position=plain(I.position(s,p));assert.ok(fraction>0&&fraction<1);
+ press(s,p,null);tick(s,.5);assert.equal(s.move.t,fraction);assert.deepEqual(plain(I.position(s,p)),position);
+ for(let i=0;i<5;i++){press(s,p,'A');press(s,p,'B');tick(s,.05);}assert.equal(s.move.t,fraction);assert.equal(p.item,'rocket');
+ steer(s,p);until(s,()=>p.currentNodeId==='n1');assert.equal(P.remainingSteps(s,p.id),1);assert.equal(s.turnId,token);
+ tick(s,.05);assert.equal(s.phase,'moving','held direction continues across a node without A or a new token');
+ until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';});assert.equal(p.currentNodeId,'n2');assert.equal(P.remainingSteps(s,p.id),0);
+ assert.equal(P.remainingSteps(s,s.players[1].id),0);assert.equal(p.item,'rocket');assert.notEqual(s.turnId,token);
 });
-test('Manual analog follows arrows with fresh input; timeout completes an unattended turn',()=>{
+test('Direction buttons, reverse/sideways rejection, stale input stop and idle fallback',()=>{
  const s=ready(),p=s.players[0];P.beginMove(s,p,3);
- const axis=(from,to)=>{const a=s.map.nodes[from].position,b=s.map.nodes[to].position,d=Math.hypot(b.x-a.x,b.y-a.y);return{axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d};};
- const a=axis('n0','n1');press(s,p,null,{axisX:-a.axisX,axisY:-a.axisY});tick(s,.5);
- assert.equal(s.phase,'move_ready');assert.equal(p.currentNodeId,'n0','reverse stick cannot start a step');
- press(s,p,null,a);tick(s,.05);assert.equal(s.phase,'moving');until(s,()=>s.phase==='move_ready');
- tick(s,.5);assert.equal(p.currentNodeId,'n1','a previous phase stick packet cannot start the next step');
- press(s,p,null,axis('n1','n2'));tick(s,.05);until(s,()=>s.phase==='move_ready');assert.equal(P.remainingSteps(s,p.id),1);
- until(s,()=>P.current(s).id!==p.id,20);assert.equal(p.currentNodeId,'n3','idle timeout provides a forward fallback');
+ press(s,p,null,{left:true});tick(s,.5);assert.equal(s.phase,'move_ready');assert.equal(p.currentNodeId,'n0');
+ press(s,p,null,{right:true});tick(s,.2);assert.equal(s.phase,'moving');const fraction=s.move.t;
+ const a=s.map.nodes.n0.position,b=s.map.nodes.n1.position,dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+ press(s,p,null,{axisX:-dx/d,axisY:-dy/d});tick(s,.3);assert.equal(s.move.t,fraction,'cannot reverse during an edge');
+ press(s,p,null,{axisX:-dy/d,axisY:dx/d});tick(s,.3);assert.equal(s.move.t,fraction,'cannot steer off the side of a path');
+ steer(s,p);until(s,()=>p.currentNodeId==='n1');press(s,p,null);tick(s,.3);assert.equal(p.currentNodeId,'n1');
+ steer(s,p);tick(s,1.1);const stale=plain(I.position(s,p));tick(s,.5);assert.deepEqual(plain(I.position(s,p)),stale,'lost packets stop walking');
+ until(s,()=>P.current(s).id!==p.id,20);assert.equal(p.currentNodeId,'n3','idle timeout completes only remaining forward edges');
 });
-test('Branch analog selects only forward edges; step rejects reverse/invalid nodes',()=>{
+test('Joystick takes a forward branch without A; committed edge cannot be switched or skipped',()=>{
  const s=ready(),p=s.players[0];p.currentNodeId='n3';P.beginMove(s,p,2);assert.equal(s.phase,'branch');
- assert.equal(P.step(s,'n2'),false);assert.equal(P.step(s,'missing'),false);
- const to=s.map.nodes.b3_1.position,at=s.map.nodes.n3.position;
- press(s,p,null,{axisX:to.x-at.x,axisY:to.y-at.y});tick(s,.05);assert.equal(s.branch.selected,'b3_1');press(s,p,'A');until(s,()=>s.phase==='move_ready');assert.equal(P.remainingSteps(s,p.id),1);press(s,p,'A');until(s,()=>s.phase==='effect');assert.equal(p.currentNodeId,'b3_2');
+ assert.equal(P.step(s,'n2'),false);assert.equal(P.step(s,'n8'),false);assert.equal(P.step(s,'missing'),false);
+ steer(s,p,'b3_1');tick(s,.05);assert.equal(s.phase,'moving');assert.equal(s.move.to,'b3_1');
+ assert.equal(P.step(s,'n4'),false,'cannot replace an in-flight edge');
+ until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';});assert.equal(p.currentNodeId,'b3_2');
+});
+test('300 adversarial walks: no reverse, repeated/skipped nodes, off-path positions or extra steps',()=>{
+ for(let seed=0;seed<300;seed++){
+  const s=ready(3,seed),p=s.players[0],rng=M.random(seed+99),steps=2+seed%11;p.currentNodeId='n'+(seed%25);
+  P.beginMove(s,p,steps);let last=p.currentNodeId,edges=0,prevFraction=0,edge=null,visited=new Set([last]);
+  for(let frame=0;frame<10000&&!['effect','finished'].includes(s.phase);frame++){
+   if(frame%9<6)steer(s,p);else press(s,p,null,{axisX:rng()*2-1,axisY:rng()*2-1,action:true,alt:true});
+   P.update(s,.05);
+   if(p.currentNodeId!==last){assert.ok(s.map.nodes[last].nextNodes.includes(p.currentNodeId));assert.ok(!visited.has(p.currentNodeId));visited.add(p.currentNodeId);last=p.currentNodeId;edges++;}
+   if(s.move){
+    assert.equal(s.move.remaining,steps-edges);assert.ok(edges<=steps);
+    if(s.move.to){
+     const m=s.move;if(edge===m.from+'>'+m.to)assert.ok(m.t>=prevFraction);edge=m.from+'>'+m.to;prevFraction=m.t;
+     assert.ok(I.segmentDistance(I.position(s,p),m.startPosition,m.endPosition)<1e-7,'world hitbox stays on the committed segment');
+    }else{edge=null;prevFraction=0;}
+   }
+  }
+  assert.ok(['effect','finished'].includes(s.phase));assert.ok(edges<=steps);if(s.phase!=='finished')assert.equal(edges,steps);
+ }
 });
 test('HP cap, death keeps item/order, clears movement and awards no free roll',()=>{
  const s=ready(),p=s.players[0];p.currentNodeId='n1';p.hp=1;p.item='ufo';s.map.nodes.n2.type='danger';const order=plain(s.order);
