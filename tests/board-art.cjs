@@ -51,7 +51,7 @@ for(const n of [4,12]){
 const explore=game(17),walker=explore.players[0];
 explore.order=explore.players.map(p=>p.id);P.startTurn(explore);
 P.beginMove(explore,walker,4);
-explore.camera.x=870;explore.camera.y=720;
+explore.camera.zoom=1;explore.camera.x=870;explore.camera.y=720;
 assert.equal(A.canPan(explore),true);
 const before={x:explore.camera.x,y:explore.camera.y,node:walker.currentNodeId,steps:explore.move.remaining};
 assert.equal(A.pan(explore,120,-90),true);
@@ -62,7 +62,7 @@ assert.equal(A.canPan(explore),false);
 assert.equal(A.pan(explore,100,100),false);
 assert.match(artSource,/for\(const \[from,to\] of map\.bridges\)/,
  'the low-memory renderer must also paint bridge decks');
-const s=game(1);A.draw(g,0,s);assert.equal(surfaces.length,0,'initial order screen does not allocate the world');assert.ok(labels.includes('ทอยลูกเต๋าเพื่อจัดลำดับ'));
+const s=game(1);P.beginOrder(s);A.draw(g,0,s);assert.equal(surfaces.length,0,'dice order screen does not allocate the world');assert.ok(labels.includes('ทอยลูกเต๋าเพื่อจัดลำดับ'));
 s.order=s.players.map(p=>p.id);P.startTurn(s);A.draw(g,0,s);assert.equal(surfaces.length,1);const old=surfaces[0];
 assert.ok(old.width*old.height>1000000);
 ctx.window.BoardItems.add(s.players[0],'shield');
@@ -118,9 +118,8 @@ assert.ok(newTurn.some(x=>x.includes('เริ่มรอบที่ 2')),
 const lucky=game(2);
 lucky.order=lucky.players.map(p=>p.id);P.startTurn(lucky);
 const luckyPlayer=lucky.players[0],tile=lucky.map.luckyTileIds[0];
-luckyPlayer.currentNodeId='n'+(Number(tile.slice(1))-1);
-P.beginMove(lucky,luckyPlayer,1,'rocket');
-for(let i=0;i<90&&lucky.phase!=='lucky_roulette';i++)P.update(lucky,.05);
+luckyPlayer.currentNodeId=tile;
+P.land(lucky);
 assert.equal(lucky.phase,'lucky_roulette');
 const luckyItem=lucky.lucky.item;
 let luckyLabelStart=labels.length;A.draw(g,lucky.time,lucky);
