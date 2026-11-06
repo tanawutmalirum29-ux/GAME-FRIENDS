@@ -1624,7 +1624,7 @@ function broadcastBoardState(){
     send(conn,{t:'board-state',phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
       round:boardSession.roundNumber,hp:p.hp,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:p.shieldTurns||0,
       item:window.BoardItems.names[p.item]||'ไม่มีไอเทม',
-      bag:window.BoardItems.bag(p).slice(),bagOpen:!!p.bagOpen,bagIndex:p.bagIndex||0,bagMessage:p.bagMessage||'',
+      bag:window.BoardItems.bag(p).slice(),actionIndex:p.actionIndex||0,bagMessage:p.bagMessage||'',
       ...window.BoardParty.controls(boardSession,p.id)});
   }
 }
@@ -1647,33 +1647,28 @@ function renderPhoneBoard(){
  $('buttonA').setAttribute('aria-label','A '+(info.a||''));$('buttonB').setAttribute('aria-label','B '+(info.b||''));
  $('controllerHelp').textContent=info.help||'';
  $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing');
- const bag=Array.isArray(info.bag)?info.bag:[],open=!!info.bagOpen,selected=Number.isInteger(info.bagIndex)?info.bagIndex:0;
- $('controllerRole').textContent='HP '+info.hp+'/100 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • กระเป๋า '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
+ const bag=Array.isArray(info.bag)?info.bag:[],ready=info.boardPhase==='ready';
+ const selected=ready&&Number.isInteger(info.actionIndex)?info.actionIndex:0;
+ $('controllerRole').textContent='HP '+info.hp+'/100 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • ไอเทม '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
  const host=$('inventoryItem');host.classList.remove('pizza-order-icons','board-bag-icons');host.replaceChildren();
- host.classList.toggle('board-bag-icons',true);
- const svg=window.PartyUiArt;
- const doc=host.ownerDocument||document;
- for(let i=0;i<bag.length+(open?1:0);i++){
-   const id=i===bag.length?'close':bag[i];
-   const cell=doc.createElement('span');
-   cell.className='board-bag-item'+(open&&i===selected?' is-selected':'');
-   cell.innerHTML=svg?.svg(id)||'';
-   cell.title=id==='close'?'ปิดกระเป๋า':window.BoardItems.names[id]||id;
+ host.classList.add('board-bag-icons');
+ const svg=window.PartyUiArt,doc=host.ownerDocument||document;
+ const rollIcon='<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="7" width="22" height="22" rx="5" fill="#fff4dc" stroke="#d2a85b" stroke-width="2"/><rect x="24" y="18" width="20" height="20" rx="5" fill="#f9f5ec" stroke="#d2a85b" stroke-width="2"/><g fill="#4c5e73"><circle cx="10" cy="13" r="2.5"/><circle cx="20" cy="23" r="2.5"/><circle cx="30" cy="24" r="2.5"/><circle cx="38" cy="32" r="2.5"/></g></svg>';
+ const options=['roll',...bag];
+ for(let i=0;i<options.length;i++){
+   const id=options[i],cell=doc.createElement('span');
+   cell.className='board-bag-item'+(ready&&i===selected?' is-selected':'');
+   cell.innerHTML=id==='roll'?rollIcon:svg?.svg(id)||'';
+   cell.title=id==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[id]||id;
    cell.setAttribute('aria-label',cell.title);
    host.append(cell);
  }
- if(!bag.length&&!open){
-   const cell=doc.createElement('span');cell.className='board-bag-item';
-   cell.innerHTML=svg?.svg('bag')||'';
-   cell.title='กระเป๋าว่าง';host.append(cell);
- }
- // Keep the chosen item and the final Close slot visible on compact phones.
- if(open&&Number(host.clientWidth)>0)
+ if(ready&&Number(host.clientWidth)>0)
    host.scrollLeft=Math.max(0,selected*36-host.clientWidth/2+18);
  const guide=$('inventoryGuide');
- const slot=open?(selected>=bag.length?'ปิดกระเป๋า':window.BoardItems.names[bag[selected]]||''):null;
- guide.textContent=open?'เลือก: '+slot+' • A เลื่อน / B ยืนยัน'+(info.bagMessage?' • '+info.bagMessage:''):
-   'B เปิดกระเป๋า • สะสมไอเทมได้หลายชิ้น';
+ const slot=options[Math.min(Math.max(0,selected),options.length-1)];
+ guide.textContent=ready?'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[slot]||slot)+' • B เปลี่ยน / A ยืนยัน'+(info.bagMessage?' • '+info.bagMessage:''):
+   'รายการ: ทอยลูกเต๋า + ไอเทมที่ถือ';
  $('controllerState').textContent=info.help||'';
 }
 function finishBoard(){
