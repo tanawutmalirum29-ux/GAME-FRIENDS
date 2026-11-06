@@ -13,7 +13,7 @@ function route(s,from,to){
  return null;
 }
 function forwardTarget(s,p,maxSteps=Infinity){
- return s.players.filter(q=>q.id!==p.id&&!api.isProtected(s,q)&&q.currentNodeId!==s.map.finishId&&s.map.nodes[q.currentNodeId].progress>s.map.nodes[p.currentNodeId].progress)
+ return s.players.filter(q=>q.id!==p.id&&!window.BoardParty.isProtected(s,q)&&q.currentNodeId!==s.map.finishId&&s.map.nodes[q.currentNodeId].progress>s.map.nodes[p.currentNodeId].progress)
   .map(q=>({q,path:route(s,p.currentNodeId,q.currentNodeId)})).filter(v=>!Number.isFinite(maxSteps)||(v.path&&v.path.length-1<=maxSteps))
   .sort((a,b)=>Number.isFinite(maxSteps)?a.path.length-b.path.length:s.map.nodes[b.q.currentNodeId].progress-s.map.nodes[a.q.currentNodeId].progress)[0]?.q;
 }
