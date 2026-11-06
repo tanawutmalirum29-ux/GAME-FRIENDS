@@ -23,6 +23,27 @@ for(const name of ['board-map','board-dice','board-items','board-minigame','boar
 const {BoardParty:P,BoardArt:A}=ctx.window,g=brush(true);
 function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,name:'Player '+i,color:'#66aacc'})),{seed});}
 
+// Host overview starts at the full-board fitted zoom, with manual map
+// inspection and debug labels that never modify tile positions or HP.
+{
+ const s=game(17);assert.equal(s.phase,'overview');
+ A.overview(s);const fit=A.fitZoom(s);
+ assert.ok(Math.abs(s.camera.zoom-fit)<1e-7&&A.canPan(s));
+ assert.ok(fit<.3,'the entire 2800-unit world must fit in the viewport');
+ const original=JSON.stringify(s.players);
+ assert.equal(A.zoom(s,1.5),true);assert.ok(s.camera.zoom>fit);
+ assert.equal(A.toggleDebug(s),true);
+ const n=s.map.nodes.n0,top=145,viewH=452-top;
+ const x=480+(n.position.x-s.camera.x)*s.camera.zoom;
+ const y=top+viewH/2+(n.position.y-s.camera.y)*s.camera.zoom;
+ const info=A.inspect(s,x,y);
+ assert.ok(info&&info.id==='n0');assert.equal(info.type,'start');
+ assert.deepEqual(JSON.parse(JSON.stringify(info.next)),['n1']);
+ const start=labels.length;A.draw(g,s.time,s);
+ assert.ok(labels.slice(start).includes('n0')||labels.slice(start).includes('0'));
+ assert.equal(JSON.stringify(s.players),original,'debug selection cannot move or damage players');
+ assert.equal(A.toggleDebug(s),false);
+}
 // Rank labels must stay inside each card at both 2-column (4 players) and
 // compact 4-column (12 players) layouts. This catches badge overflow.
 for(const n of [4,12]){
