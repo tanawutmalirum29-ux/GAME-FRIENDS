@@ -34,10 +34,14 @@ function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,nam
  assert.equal(A.zoom(s,1.5),true);assert.ok(s.camera.zoom>fit);
  assert.equal(A.toggleDebug(s),true);
  const n=s.map.nodes.n35,top=94,viewH=452-top;
+ // Larger fixed archipelago: pan to the debug tile after zooming instead of inspecting off-screen.
+ s.camera.x=n.position.x;s.camera.y=n.position.y;
  const x=480+(n.position.x-s.camera.x)*s.camera.zoom;
  const y=top+viewH/2+(n.position.y-s.camera.y)*s.camera.zoom;
  const info=A.inspect(s,x,y);
  assert.ok(info&&info.id==='n35');assert.equal(info.type,n.type);
+ assert.equal(info.islandId,n.islandId,'debug inspector reports fixed island ID');
+ assert.equal(info.mapVersion,s.map.version,'debug inspector reports map version');
  assert.deepEqual(JSON.parse(JSON.stringify(info.next)),JSON.parse(JSON.stringify(n.nextNodes)));
  assert.equal(s.camera.selectedId,'n35','inspector stores selected visible node without changing game state');
  assert.equal(JSON.stringify(s.players),original,'debug selection cannot move or damage players');

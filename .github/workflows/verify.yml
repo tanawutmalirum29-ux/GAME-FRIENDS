@@ -42,6 +42,7 @@ jobs:
           node tests/board-dice-renderer.cjs
           node tests/board-christmas-svg.cjs
           node tests/board-layout.cjs
+          node tests/board-fixed.cjs
       - name: "Central character combat: 0.8-second stun and attacker-colored VFX"
         run: node tests/combat-motion.cjs
       - name: Runtime smoke test

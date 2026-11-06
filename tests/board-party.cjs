@@ -250,7 +250,7 @@ test('Directional walking: release stops mid-edge, A/B cannot move, counts only 
  const fraction=s.move.t,position=plain(I.position(s,p));assert.ok(fraction>0&&fraction<1);
  press(s,p,null);tick(s,.5);assert.equal(s.move.t,fraction);assert.deepEqual(plain(I.position(s,p)),position);
  for(let i=0;i<5;i++){press(s,p,'A');press(s,p,'B');tick(s,.05);}assert.equal(s.move.t,fraction);assert.equal(p.item,'rocket');
- steer(s,p);until(s,()=>p.currentNodeId==='n1');assert.equal(P.remainingSteps(s,p.id),1);assert.equal(s.turnId,token);
+ steer(s,p);until(s,()=>{if(s.move)steer(s,p);return p.currentNodeId==='n1';});assert.equal(P.remainingSteps(s,p.id),1);assert.equal(s.turnId,token);
  tick(s,.25);assert.equal(s.phase,'moving','held direction continues across a node without A or a new token');
  until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';});assert.equal(p.currentNodeId,'n2');assert.equal(P.remainingSteps(s,p.id),0);
  assert.equal(P.remainingSteps(s,s.players[1].id),0);assert.equal(p.item,'rocket');assert.notEqual(s.turnId,token);
@@ -270,7 +270,7 @@ test('Free 2D walking: reverse and sideways inputs are real movement, no acciden
  press(s,p,null,{axisX:-dx/d,axisY:-dy/d});tick(s,.3);
  assert.ok(s.phase==='move_ready'||s.move.t<fraction,'reversing must recover a slightly premature turn');
  assert.equal(s.move.remaining,remaining,'reversing cannot spend extra dice');
- steer(s,p);until(s,()=>p.currentNodeId==='n1');assert.equal(s.move.remaining,2);
+ steer(s,p);until(s,()=>{if(s.move)steer(s,p);return p.currentNodeId==='n1';});assert.equal(s.move.remaining,2);
  press(s,p,null);tick(s,.2);
  if(s.phase==='moving'&&!s.move.auto){
   const stale=plain(I.position(s,p));tick(s,.3);
@@ -411,11 +411,11 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
  assert.equal(s.move.remaining,1,'one graph edge consumes exactly one die step');
 });
 
-test('72-step board extends the map and retains two consecutive neutral sword tiles',()=>{
+test('120-step fixed board retains two consecutive linked sword tiles',()=>{
  for(const seed of [1,42,2026,999]){
   const map=M.create(seed);
-  assert.equal(map.length,72);assert.equal(map.finishId,'n72');
-  assert.ok(map.islands.length>=7&&map.width>3000&&map.height>2000,'72-step route spans seven islands across a broad world');
+  assert.equal(map.length,120);assert.equal(map.finishId,'n120');
+  assert.ok(map.islands.length>=7&&map.width>5000&&map.height>3000,'120-step route spans seven large islands across a broad world');
   assert.deepEqual(plain(M.SWORD_TILES),['n20','n21']);
   assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
   assert.equal(map.nodes.n20.ownerId,null);assert.equal(map.nodes.n21.ownerId,null);
@@ -427,7 +427,7 @@ test('72-step board extends the map and retains two consecutive neutral sword ti
 test('Lucky Star locations are reachable purple/gold reward tiles, spread across the larger board',()=>{
  for(let seed=0;seed<120;seed++){
   const map=M.create(seed),lucky=Object.values(map.nodes).filter(n=>n.type==='lucky');
-  assert.ok(lucky.length>=6&&lucky.length<=8,'6–8 separated Lucky Stars with long-route bonuses');
+  assert.ok(lucky.length>=8&&lucky.length<=14,'8–14 fixed separated Lucky Stars with long-route bonuses');
   assert.deepEqual(plain(lucky.map(n=>n.id).sort()),plain([...map.luckyTileIds].sort()));
   for(const node of lucky){assert.equal(node.effects.item,true);assert.ok(node.nextNodes.length);assert.ok(node.previousNodes.length);}
   assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
@@ -610,7 +610,7 @@ test('UFO clears stale mid-rocket edges on BOTH swapped players; walk rejects in
  assert.equal(q.pendingTraverse,undefined);
  assert.equal(s.move.from,'n20');
  assert.equal(s.move.to,null,'a stale edge must not be resumed after teleport');
- assert.equal(s.phase,'move_ready');
+ assert.ok(['move_ready','branch'].includes(s.phase),'rejoined walker may require a new fork choice');
 });
 test('250 UFO cases: real world hitboxes, stacked players, atomic swap, no landing effects',()=>{
  for(let seed=0;seed<250;seed++){
@@ -1025,7 +1025,7 @@ test('RC car drives backward on the same segment and backtracks previous nodes',
 test('Bots complete acute branch merges without steering backwards before the checkpoint',()=>{
  const s=ready(1,0),p=s.players[0];p.isBot=true;p.currentNodeId='b3_3';delete p.worldPosition;
  P.beginMove(s,p,1);
- until(s,()=>p.currentNodeId==='n8',5);
+ until(s,()=>p.currentNodeId==='n'+s.map.branches.find(b=>b.a===3).b,5);
  assert.equal(s.move?.remaining||0,0);
 });
 test('Bot recovers from failed UFO aim without a 12s forced roll',()=>{
