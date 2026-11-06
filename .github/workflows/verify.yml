@@ -33,6 +33,7 @@ jobs:
         run: |
           for source in board-*.js; do node --check "$source"; done
           node tests/board-party.cjs
+          node tests/board-art.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
       - name: COLOR SWITCH rules and 12-player stress

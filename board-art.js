@@ -2,7 +2,9 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2,colors={start:'#45c4d9',finish:'#ffca63',movement:'#36c9e7',healing:'#68cf93',danger:'#ef6981',event:'#aa83e9',key:'#efad63',milestone:'#edc45b',neutral:'#94acba'};
-const cache=new WeakMap();
+// Keep one bounded terrain surface. Replays explicitly release the old pixels
+// instead of waiting for mobile Safari to collect detached canvases.
+let terrain=null;
 function path(g,points,fill,stroke=null,width=2){g.beginPath();points.forEach((p,i)=>i?g.lineTo(...p):g.moveTo(...p));g.closePath();if(fill){g.fillStyle=fill;g.fill();}if(stroke){g.strokeStyle=stroke;g.lineWidth=width;g.stroke();}}
 function circle(g,x,y,r,fill,stroke=null,w=2){g.beginPath();g.arc(x,y,r,0,TAU);if(fill){g.fillStyle=fill;g.fill();}if(stroke){g.strokeStyle=stroke;g.lineWidth=w;g.stroke();}}
 function box(g,x,y,w,h,r,fill,stroke=null){g.beginPath();g.roundRect(x,y,w,h,r);g.fillStyle=fill;g.fill();if(stroke){g.strokeStyle=stroke;g.lineWidth=1;g.stroke();}}
@@ -84,12 +86,26 @@ function scenery(g,map){
  }
 }
 function ground(g,s){
- let layer=cache.get(s.map);
- if(!layer&&typeof document!=='undefined'){
-  const c=document.createElement('canvas');c.width=s.map.width*2;c.height=s.map.height*2;
-  const ctx=c.getContext('2d');ctx.scale(2,2);scenery(ctx,s.map);layer=c;cache.set(s.map,layer);
+ if(terrain?.map!==s.map){
+  if(terrain?.canvas){terrain.canvas.width=1;terrain.canvas.height=1;}
+  terrain={map:s.map,canvas:null};
+  if(typeof document!=='undefined'){
+   const c=document.createElement('canvas'),scale=Math.min(2,Math.sqrt(3500000/(s.map.width*s.map.height)));
+   try{
+    c.width=Math.floor(s.map.width*scale);c.height=Math.floor(s.map.height*scale);
+    const ctx=c.getContext('2d',{alpha:false});
+    if(ctx){ctx.scale(c.width/s.map.width,c.height/s.map.height);scenery(ctx,s.map);terrain.canvas=c;}
+   }catch(_){/* Direct vector drawing remains available under canvas memory pressure. */}
+   if(!terrain.canvas){c.width=1;c.height=1;}
+  }
  }
- if(layer)g.drawImage(layer,0,0,s.map.width,s.map.height);else scenery(g,s.map);
+ const layer=terrain.canvas;
+ if(layer){
+  const c=s.camera,halfW=480/c.zoom,halfH=(452-(s.players.length>6?145:94))/2/c.zoom;
+  const x=Math.max(0,c.x-halfW-2),y=Math.max(0,c.y-halfH-2),w=Math.min(s.map.width-x,halfW*2+4),h=Math.min(s.map.height-y,halfH*2+4);
+  const sx=layer.width/s.map.width,sy=layer.height/s.map.height;
+  g.drawImage(layer,x*sx,y*sy,w*sx,h*sy,x,y,w,h);
+ }else scenery(g,s.map);
 }
 function nodes(g,s){
  for(const n of Object.values(s.map.nodes))for(const id of n.nextNodes){const a=n.position,b=s.map.nodes[id].position;g.save();g.translate(a.x+(b.x-a.x)*.55,a.y+(b.y-a.y)*.55);g.rotate(Math.atan2(b.y-a.y,b.x-a.x));path(g,[[-5,-6],[3,0],[-5,6]],null,'#4b9db4',2);g.restore();}
@@ -106,7 +122,7 @@ function nodes(g,s){
  if(s.phase==='branch'||s.phase==='move_ready'){
   const p=window.BoardParty.current(s),a=s.map.nodes[p.currentNodeId].position;
   const choices=s.phase==='branch'?s.branch:{options:s.map.nodes[p.currentNodeId].nextNodes,selected:s.map.nodes[p.currentNodeId].nextNodes[0]};
-  for(const id of choices.options){const b=s.map.nodes[id].position,selected=id===choices.selected;line(g,a.x,a.y,b.x,b.y,selected?'#ffe38b':'#75acc4',selected?8:3);circle(g,b.x,b.y,34,null,selected?'#ffe59a':'#fff8',selected?5:2);label(g,selected?'A • ทางนี้':'เลือกทาง',b.x,b.y+48,13,'#173b53','center');}
+  for(const id of choices.options){const b=s.map.nodes[id].position,selected=id===choices.selected;line(g,a.x,a.y,b.x,b.y,selected?'#ffe38b':'#75acc4',selected?8:3);circle(g,b.x,b.y,34,null,selected?'#ffe59a':'#fff8',selected?5:2);label(g,s.move.kind==='walk'?'ชี้จอยทางนี้':selected?'A • ทางนี้':'เลือกทาง',b.x,b.y+48,13,'#173b53','center');}
  }
 }
 function actors(g,s,t){
@@ -119,7 +135,7 @@ function actors(g,s,t){
   if(dead){g.globalAlpha=Math.max(.1,1-(s.time-p.death.at)/1.2);g.translate(xy.x,xy.y);g.rotate((s.time-p.death.at)*2);g.translate(-xy.x,-xy.y);}
   const moving=s.move?.playerId===p.id&&s.move.to,from=moving?s.map.nodes[s.move.from].position:null,to=moving?s.map.nodes[s.move.to].position:null;
   const shake=p.hurtUntil>s.time?Math.sin(t*50)*3:0;
-  window.PartyPlayerAvatar.draw(g,{...p,x:xy.x+shake,y:xy.y,vx:moving?40:0,vy:0,dir:moving?{x:to.x-from.x,y:to.y-from.y}:{x:0,y:-1}},{time:t,scale:.86,label:false,holding:s.effect?.kind==='heal'&&s.effect.targets.includes(p.id)});
+  window.PartyPlayerAvatar.draw(g,{...p,x:xy.x+shake,y:xy.y,vx:moving&&(s.move.kind==='rocket'||s.move.walking)?40:0,vy:0,dir:moving?{x:to.x-from.x,y:to.y-from.y}:{x:0,y:-1}},{time:t,scale:.86,label:false,holding:s.effect?.kind==='heal'&&s.effect.targets.includes(p.id)});
   const crowded=s.players.filter(q=>q.currentNodeId===p.currentNodeId).length>1;
   if(!crowded||p.id===active?.id||p.id===s.skill?.targetId){box(g,xy.x-42,xy.y+25,84,18,7,'#15394cda');label(g,p.name,xy.x,xy.y+34,10,p.color,'center',700,78);}
   else {circle(g,xy.x+17,xy.y+16,8,'#15394c');label(g,(s.order.indexOf(p.id)+1)||s.players.indexOf(p)+1,xy.x+17,xy.y+16,9,p.color,'center');}
@@ -225,10 +241,14 @@ function turnDice(g,s){
  dice(g,s.moveDice?.[1],532,258,70,rolling,s.time+.23);
  label(g,'+',480,257,22,'#a9d8e8','center');
  label(g,settled?s.die+' ก้าว':rolling?'กำลังทอย…':'A • ทอยลูกเต๋า',480,321,24,'#ffe4a4','center');
- label(g,s.phase==='dice'?'ใช้อนาล็อกเดิน หรือกด A ทีละก้าว':'B • ใช้ไอเทมก่อนทอย',480,349,11,'#bcdfed','center',500);
+ label(g,s.phase==='dice'?'ลากจอยเพื่อเดินและเลี้ยว • ปล่อยเพื่อหยุด':'B • ใช้ไอเทมก่อนทอย',480,349,11,'#bcdfed','center',500);
 }
 
 function draw(g,t,s){
+ // The first screen must render without allocating or painting the world map.
+ if(['order','order_result','round_order','standings','rewards','returning'].includes(s.phase)){
+  g.fillStyle='#102e43';g.fillRect(0,0,960,540);overlay(g,s);return;
+ }
  const top=s.players.length>6?145:94,bottom=452,viewH=bottom-top;
  const p=window.BoardParty.current(s)||s.players[0],pos=s.skill||window.BoardItems.position(s,p);
  const wide=s.phase==='aim',zoom=wide?.65:s.phase==='branch'?.83:1;

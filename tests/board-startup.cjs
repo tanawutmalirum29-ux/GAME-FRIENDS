@@ -1,0 +1,74 @@
+/* Actual Start button + animation loop. Run with BOARD_BROWSER=webkit or chromium.
+   Requires Playwright and its selected browser; no PeerJS service is needed. */
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+const playwright=require('playwright'),root=path.resolve(__dirname,'..');
+const engine=process.env.BOARD_BROWSER||'chromium',out=process.env.BOARD_SCREENSHOTS||'/tmp/game-friends-board';
+const server=http.createServer((req,res)=>{
+ const url=new URL(req.url,'http://localhost'),file=path.resolve(root,'.'+(url.pathname==='/'?'/index.html':url.pathname));
+ if(!file.startsWith(root+path.sep)||!fs.existsSync(file)){res.writeHead(404).end();return;}
+ const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.json':'application/json'};
+ let data=fs.readFileSync(file);
+ if(file===path.join(root,'app.js'))data=data.toString().replace('requestAnimationFrame(animate);\n})();','window.__boardStartup={get board(){return boardSession},get view(){return currentView}};requestAnimationFrame(animate);\n})();');
+ res.writeHead(200,{'content-type':mime[path.extname(file)]||'application/octet-stream'});res.end(data);
+});
+async function main(){
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));fs.mkdirSync(out,{recursive:true});
+ const executablePath=engine==='chromium'?(process.env.CHROME_PATH||'/usr/bin/chromium'):undefined;
+ const browser=await playwright[engine].launch({headless:true,executablePath,args:engine==='chromium'?['--no-sandbox']:[]});
+ try{
+  for(const denyTerrain of [false,true]){
+   const context=await browser.newContext({viewport:{width:1280,height:740},deviceScaleFactor:2,hasTouch:true});
+   await context.route('https://**/*',r=>r.fulfill({body:'',contentType:'text/javascript'}));
+   await context.addInitScript(()=>{
+    // Emulate the delayed first rAF seen during mobile fullscreen transitions.
+    const raf=requestAnimationFrame;let pending;
+    window.__holdBoardFrame=true;
+    window.requestAnimationFrame=cb=>{if(window.__holdBoardFrame){pending=cb;return 0;}return raf(cb);};
+    window.__resumeBoardFrame=()=>{window.__holdBoardFrame=false;if(pending)raf(pending);};
+    const get=HTMLCanvasElement.prototype.getContext,fill=CanvasRenderingContext2D.prototype.fillText;
+    window.__terrainSizes=[];window.__drawnTexts=[];
+    HTMLCanvasElement.prototype.getContext=function(type,...args){
+     if(!this.id&&this.width*this.height>1000000){
+      window.__terrainSizes.push(this.width*this.height);
+      if(window.__denyTerrain||this.width*this.height>4000000)return null;
+     }
+     return get.call(this,type,...args);
+    };
+    CanvasRenderingContext2D.prototype.fillText=function(text,...args){if(this.canvas.id==='arena')window.__drawnTexts.push(text);return fill.call(this,text,...args);};
+   });
+   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));
+   page.on('console',m=>{if(m.type()==='error'&&m.text().includes('failed'))errors.push(m.text());});
+   await page.goto('http://127.0.0.1:'+server.address().port+'/?host=1');
+   await page.locator('#offlineBtn').click();if(denyTerrain)for(let i=0;i<10;i++)await page.locator('#addLocalBtn').click();
+   await page.locator('[data-session-mode="board"]').click();
+   await page.evaluate(deny=>{
+    window.__denyTerrain=deny;
+    // A previous renderer/context must not leave a clipping region on a new board.
+    const g=document.getElementById('arena').getContext('2d');g.beginPath();g.rect(0,0,0,0);g.clip();
+   },denyTerrain);
+   await page.locator('#startBtn').click();
+   const startup=await page.evaluate(()=>({time:__boardStartup.board.time,view:__boardStartup.view,texts:__drawnTexts,allocations:__terrainSizes,pixel:[...document.getElementById('arena').getContext('2d').getImageData(100,100,1,1).data]}));
+   assert.equal(startup.view,'game');assert.equal(startup.time,0);assert.equal(startup.pixel[3],255,'order screen is painted even before the first rAF');
+   assert.ok(startup.texts.includes('ทอยลูกเต๋าเพื่อจัดลำดับ'));assert.deepEqual(startup.allocations,[]);
+   await page.screenshot({path:path.join(out,engine+'-start-'+(denyTerrain?'fallback':'normal')+'.png')});
+   await page.evaluate(()=>window.__resumeBoardFrame());
+   await page.waitForFunction(()=>__boardStartup.board?.time>.05,{},{timeout:20000});
+   assert.equal(await page.evaluate(()=>__boardStartup.view),'game','initial order must also survive real animation frames');
+   await page.evaluate(()=>{
+    const s=__boardStartup.board;s.order=s.players.map(p=>p.id);s.players.forEach(p=>p.isBot=false);BoardParty.startTurn(s);
+    window.__drawnTexts=[];
+   });
+   await page.waitForFunction(()=>__drawnTexts.includes('A • ทอยลูกเต๋า'),{},{timeout:20000});
+   assert.equal(await page.evaluate(()=>__boardStartup.view),'game');
+   const sizes=await page.evaluate(()=>__terrainSizes);assert.equal(sizes.length,1);assert.ok(sizes[0]<=3500000);
+   await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseMenu').isVisible(),true);
+   await page.locator('#resumeBtn').click();assert.equal(await page.locator('#pauseMenu').isVisible(),false);
+   await page.screenshot({path:path.join(out,engine+'-terrain-'+(denyTerrain?'fallback':'normal')+'.png')});
+   await page.locator('#pauseBtn').click();await page.locator('#exitBtn').click();assert.equal(await page.locator('#hostLobby').isVisible(),true);
+   assert.deepEqual(errors,[]);await context.close();
+  }
+  console.log('STARTUP PASS ('+engine+'): actual Start, 2/12 players, DPR 2, delayed rAF, old clip reset, <=3.5MP terrain, allocation failure fallback, pause/resume/exit');
+ }finally{await browser.close();}
+}
+main().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>server.close());
