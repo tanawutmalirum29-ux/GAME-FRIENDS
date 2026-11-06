@@ -3854,3 +3854,166 @@ body.controller-playing #controller #controllerActive
 body.controller-playing #controller #controllerActive .controller-buttons{
   padding-right:max(0px,env(safe-area-inset-right,0px));
 }
+
+
+/* SIDEWAYS GAME ROULETTE — fast game reveal before first and next rounds.
+   The winning card settles directly beneath the fixed central frame. */
+#game #gameRoulette{
+  position:absolute;
+  inset:0;
+  z-index:22;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  pointer-events:auto;
+  background:radial-gradient(ellipse at 50% 44%,#172e50f7 0%,#081328f6 72%,#050b19f9 100%);
+  color:#f5faff;
+}
+#game #gameRoulette.hidden{display:none!important}
+#game #gameRoulette .roulette-panel{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  height:100%;
+  gap:clamp(6px,2dvh,17px);
+  padding:clamp(12px,4dvh,30px) 0;
+}
+#game #gameRoulette .roulette-eyebrow{
+  text-transform:uppercase;
+  letter-spacing:.32em;
+  font-size:clamp(10px,1.4vw,17px);
+  color:#7de1e8;
+  font-weight:950;
+}
+#game #gameRoulette .roulette-heading{
+  margin:0;
+  padding:0 12px;
+  color:#fff5df;
+  font-size:clamp(20px,3.9vw,40px);
+  font-weight:1000;
+  line-height:1.12;
+  text-align:center;
+  text-shadow:0 4px 20px #0b1528cc;
+}
+#game #gameRoulette .roulette-viewport{
+  position:relative;
+  height:clamp(122px,31dvh,244px);
+  width:100%;
+  max-width:100%;
+  overflow:hidden;
+  -webkit-mask-image:linear-gradient(to right,transparent 0%,#000 10%,#000 90%,transparent 100%);
+  mask-image:linear-gradient(to right,transparent 0%,#000 10%,#000 90%,transparent 100%);
+}
+#game #gameRoulette .roulette-track{
+  position:absolute;
+  top:50%;
+  left:50%;
+  display:flex;
+  align-items:center;
+  width:max-content;
+  height:100%;
+  gap:10px;
+  will-change:transform;
+  transform:translate3d(-100px,0,0);
+  pointer-events:none;
+}
+#game #gameRoulette .roulette-option{
+  flex:0 0 auto;
+  height:clamp(106px,27dvh,195px);
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:clamp(5px,1dvh,11px);
+  background:linear-gradient(145deg,#223e63,#142441);
+  border:2px solid #547796;
+  border-radius:clamp(11px,1.8vw,21px);
+  box-shadow:0 8px 24px #0008,inset 0 1px 0 #ffffff26;
+  padding:clamp(7px,1vw,13px);
+  transform:translateY(-50%);
+  transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
+  overflow:hidden;
+}
+#game #gameRoulette .roulette-option .mode-cover{
+  flex:0 1 auto;
+  display:flex;
+  width:100%;
+  max-width:175px;
+  height:auto;
+  min-height:0;
+  justify-content:center;
+  aspect-ratio:16/9;
+  margin:0;
+}
+#game #gameRoulette .roulette-option .mode-cover-svg{
+  display:block;
+  width:100%;
+  height:100%;
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+}
+#game #gameRoulette .roulette-option strong{
+  width:100%;
+  color:#f3faff;
+  font-size:clamp(10px,1.35vw,16px);
+  line-height:1.15;
+  text-align:center;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+#game #gameRoulette .roulette-center-mark{
+  position:absolute;
+  z-index:2;
+  top:0;
+  bottom:0;
+  left:50%;
+  width:clamp(132px,19.5vw,220px);
+  transform:translateX(-50%);
+  border:3px solid #83f5ca;
+  border-radius:clamp(13px,2vw,23px);
+  background:linear-gradient(180deg,#9ef8d019,transparent 55%,#8cebc514);
+  box-shadow:0 0 0 4px #57ffd01a,0 0 38px #65efb444;
+  pointer-events:none;
+}
+#game #gameRoulette .roulette-center-mark::before{
+  content:'';
+  position:absolute;
+  left:50%;
+  top:-13px;
+  transform:translateX(-50%);
+  border-left:11px solid transparent;
+  border-right:11px solid transparent;
+  border-top:13px solid #8af4c7;
+}
+#game #gameRoulette .roulette-option.is-selected{
+  background:linear-gradient(135deg,#356d75,#28466a);
+  border-color:#adffd8;
+  box-shadow:0 0 0 2px #90fed5,0 0 30px #84f3c478;
+}
+#game #gameRoulette .roulette-message{
+  min-height:1.3em;
+  text-align:center;
+  font-size:clamp(11px,1.8vw,19px);
+  font-weight:800;
+  color:#bcd2ee;
+}
+#game #gameRoulette.is-selected .roulette-message{color:#93efc6}
+@media (max-height:420px){
+  #game #gameRoulette .roulette-panel{gap:5px;padding:7px 0}
+  #game #gameRoulette .roulette-eyebrow{font-size:10px}
+  #game #gameRoulette .roulette-heading{font-size:clamp(16px,4.6dvh,25px)}
+  #game #gameRoulette .roulette-viewport{height:clamp(94px,34dvh,155px)}
+  #game #gameRoulette .roulette-option{height:clamp(82px,30dvh,139px)}
+  #game #gameRoulette .roulette-message{font-size:11px}
+}
