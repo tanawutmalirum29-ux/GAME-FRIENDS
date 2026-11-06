@@ -17,8 +17,11 @@ jobs:
           for source in app.js color-switch-mayan.js color-switch.js ghost-attack.js chickens.js fruit-memory.js shockwave.js; do
             node --check "$source"
           done
-      - name: BOARD PARTY order-card rendering regression
-        run: node tests/board-art.cjs
+      - name: BOARD PARTY geometry, camera and navigation regression
+        run: |
+          for source in board-*.js; do node --check "$source"; done
+          node tests/board-party.cjs
+          node tests/board-art.cjs
       - name: Test COLOR SWITCH core rules and stress
         run: node tests/color-switch.test.js
       - name: Mayan skull theme and 15 percent bot nerf

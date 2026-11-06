@@ -5,7 +5,7 @@ const M=()=>window.BoardMap,D=()=>window.BoardDice,I=()=>window.BoardItems;
 let serial=0;
 function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
- const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:3,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,results:[],pendingItems:{},winnerIds:[],camera:{x:480,y:320,zoom:1},lastMinigame:null};
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:3,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,results:[],pendingItems:{},winnerIds:[],camera:{x:480,y:320,zoom:1,explore:false},lastMinigame:null};
  phase(s,'order',12);return s;
 }
 function phase(s,name,duration=0){s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;s.turnId=s.id+':'+(++s.revision);}
@@ -19,7 +19,7 @@ const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
 function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
 function rollOrder(s,p){if(p.dice||s.phase!=='order')return false;p.dice=[D().roll(s.rng),D().roll(s.rng)];p.rollAt=s.time;return true;}
 function ready(s,extend=true){s.move=null;s.skill=null;for(const p of s.players)p.bagOpen=false;if(extend)s.readyDeadline=s.time+12;phase(s,'ready',Math.max(.1,s.readyDeadline-s.time));}
-function startTurn(s){s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
+function startTurn(s){s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
 function endTurn(s){
  if(s.phase==='finished')return;
  // Count the shield's owner's completed turns, regardless of round reordering.
@@ -34,7 +34,7 @@ function damage(s,p,amount){
  p.hp=Math.max(0,p.hp-amount);p.hurtUntil=s.time+1.2;
  if(p.hp)return false;
  p.death={at:s.time,position:I().position(s,p)};
- p.currentNodeId=s.map.startId;p.hp=3;p.shieldTurns=0;
+ p.currentNodeId=s.map.startId;delete p.worldPosition;p.hp=3;p.shieldTurns=0;
  // Inventory and turn order survive respawn. No movement credit survives death.
  if(current(s)?.id===p.id){s.move=null;s.skill=null;}
  return true;
@@ -45,7 +45,9 @@ function win(s,p){
  s.winnerIds=[p.id];s.move=null;s.skill=null;phase(s,'finished');
 }
 function land(s){
- const m=s.move,p=current(s);s.move=null;
+ const m=s.move,p=current(s);
+ if(m?.kind==='walk')p.worldPosition=I().position(s,p);
+ s.move=null;
  if(p.currentNodeId===s.map.finishId){win(s,p);return;}
  const n=s.map.nodes[p.currentNodeId];let dead=false,kind='land';
  if(n.type==='healing'){p.hp=Math.min(3,p.hp+1);kind='heal';}
@@ -54,9 +56,18 @@ function land(s){
  effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],next:!dead&&m?.kind==='rocket'?'ready':'end'},dead?1.5:.8);
 }
 function beginMove(s,p,steps,kind='walk'){
- s.move={playerId:p.id,kind,remaining:steps,total:steps,from:p.currentNodeId,to:null,t:0,lateral:0,nodeOffset:{x:0,y:0},intent:null,intentTime:0,visited:[p.currentNodeId],auto:false,expires:kind==='rocket'?s.time+4.5:Infinity};
- if(kind==='walk'&&s.inputs[p.id]){s.inputs[p.id].x=0;s.inputs[p.id].y=0;s.inputs[p.id].at=-Infinity;}
- phase(s,'move_ready',8);
+ // Preserve the existing real position at the pad, even across turns.
+ const position=I().position(s,p),origin=s.map.nodes[p.currentNodeId].position;
+ if(kind==='walk'&&!p.worldPosition)p.worldPosition={...position};
+ s.move={playerId:p.id,kind,remaining:steps,total:steps,from:p.currentNodeId,to:null,
+   t:0,lateral:0,nodeOffset:{x:position.x-origin.x,y:position.y-origin.y},
+   intent:null,intentTime:0,started:false,visited:[p.currentNodeId],auto:false,
+   expires:kind==='rocket'?s.time+4.5:Infinity};
+ s.camera.explore=kind==='walk'&&!p.isBot;
+ if(kind==='walk'&&s.inputs[p.id]){
+   s.inputs[p.id].x=0;s.inputs[p.id].y=0;s.inputs[p.id].at=-Infinity;
+ }
+ phase(s,'move_ready',kind==='walk'?15:8);
  nextStep(s);
 }
 function nextStep(s){
@@ -65,19 +76,30 @@ function nextStep(s){
  if(p.currentNodeId===s.map.finishId){win(s,p);return;}
  if(m.remaining<=0||m.stop||s.time>=m.expires||(m.kind==='rocket'&&m.expires-s.time<.48)){land(s);return;}
  const options=s.map.nodes[p.currentNodeId].nextNodes;
- if(options.length>1){s.branch={options:[...options],selected:options[0]};movePhase(s,'branch',Math.min(m.kind==='walk'&&!m.auto?8:4,m.expires-s.time));return;}
- if(m.kind==='walk'&&!m.auto){movePhase(s,'move_ready');return;}
+ if(options.length>1){s.branch={options:[...options],selected:options[0]};movePhase(s,'branch',Math.min(m.kind==='walk'&&!m.auto&&!m.started?15:8,m.expires-s.time));return;}
+ if(m.kind==='walk'&&!m.auto){movePhase(s,'move_ready',m.started?8:15);return;}
  step(s,options[0]);
 }
+const WALK_SPEED=240,LANE_RADIUS=18,NODE_RADIUS=18,TURN_DELAY=.16;
+const bound=(x,a,b)=>Math.max(a,Math.min(b,x));
 function step(s,to){
  const m=s.move,p=current(s);
  if(!m||m.to||!s.map.nodes[p.currentNodeId].nextNodes.includes(to)||m.visited.includes(to))return false;
- m.startPosition=I().position(s,p);m.endPosition=I().positionOnNode(s,p,to);
- m.from=p.currentNodeId;m.to=to;m.t=0;m.lateral=0;m.nodeOffset={x:0,y:0};m.intent=null;m.intentTime=0;
+ const pos=I().position(s,p),a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position;
+ m.from=p.currentNodeId;m.to=to;m.intent=null;m.intentTime=0;
+ if(m.kind==='walk'){
+  // Keep the exact world-space location; never retarget the sprite to a pad centre.
+  const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;
+  m.startPosition=a;m.endPosition=b;
+  m.t=((pos.x-a.x)*dx+(pos.y-a.y)*dy)/(d*d);
+  m.lateral=((pos.y-a.y)*dx-(pos.x-a.x)*dy)/d;
+ }else{
+  m.startPosition=pos;m.endPosition=I().positionOnNode(s,p,to);
+  m.t=0;m.lateral=0;
+ }
+ m.nodeOffset={x:0,y:0};
  movePhase(s,'moving');return true;
 }
-const WALK_SPEED=240,LANE_RADIUS=50,NODE_RADIUS=55,TURN_DELAY=.16;
-const bound=(x,a,b)=>Math.max(a,Math.min(b,x));
 function roamNode(s,p,dt){
  const m=s.move;if(!m)return;
  const a=axes(s,p.id),strength=Math.hypot(a.x,a.y);
@@ -86,6 +108,7 @@ function roamNode(s,p,dt){
   step(s,next);return;
  }
  if(strength>.11){
+  if(!m.started){m.started=true;s.camera.explore=false;}
   // Walk freely inside the plaza around each tile. An accidental touch does
   // not commit a branch: direction must be held for 160 milliseconds.
   const v=m.nodeOffset||{x:0,y:0};
@@ -101,7 +124,7 @@ function roamNode(s,p,dt){
   }else{m.intent=null;m.intentTime=0;}
  }else{m.intent=null;m.intentTime=0;}
  if(s.time>=s.deadline){
-  m.auto=true;
+  m.auto=true;m.started=true;s.camera.explore=false;
   step(s,s.phase==='branch'?s.branch.selected:s.map.nodes[p.currentNodeId].nextNodes[0]);
  }
 }
@@ -124,8 +147,9 @@ function walkEdge(s,p,dt){
     const vx=end.x-a.x,vy=end.y-a.y,len=Math.hypot(vx,vy)||1;
     const projected=((pos.x-a.x)*vx+(pos.y-a.y)*vy)/(len*len);
     const lateral=(-(pos.x-a.x)*vy+(pos.y-a.y)*vx)/len;
-    if(candidateDot>.55&&candidateDot>currentDot+.15&&Math.abs(lateral)<LANE_RADIUS+10){
-     m.to=candidate;m.endPosition=end;m.t=bound(projected,0,.75);m.lateral=bound(lateral,-LANE_RADIUS,LANE_RADIUS);
+    if(candidateDot>.55&&candidateDot>currentDot+.15&&
+      projected>=-NODE_RADIUS/len&&projected<.75&&Math.abs(lateral)<=LANE_RADIUS){
+     m.to=candidate;m.endPosition=s.map.nodes[candidate].position;m.t=projected;m.lateral=lateral;
      // The sprite retains its real position when the fork is reselected.
      return;
     }
@@ -137,7 +161,8 @@ function walkEdge(s,p,dt){
  const beforeT=m.t,beforeL=m.lateral||0;
  if(m.auto){
   m.t=Math.min(1,m.t+WALK_SPEED*dt/d);
-  m.lateral=beforeL*(1-Math.min(1,dt*5));
+  // Autowalk retains its lane instead of pulling the player to the pad centre.
+  m.lateral=beforeL;
  }else if(magnitude>.1){
   // Full 2D input: forwards, sideways and backwards are all allowed. The
   // walkable lane bounds prevent shortcuts while the dice still count nodes.
@@ -161,8 +186,11 @@ function walkEdge(s,p,dt){
   return;
  }
  if(m.t>=1){
+  const worldPos=I().position(s,p);
   p.currentNodeId=m.to;m.visited.push(m.to);m.to=null;m.remaining--;
-  m.lateral=0;m.nodeOffset={x:0,y:0};
+  p.worldPosition={...worldPos};
+  const node=s.map.nodes[p.currentNodeId].position;
+  m.nodeOffset={x:worldPos.x-node.x,y:worldPos.y-node.y};
   if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};
   nextStep(s);
  }else if(!m.auto&&s.time>=s.deadline)m.auto=true;
@@ -224,6 +252,10 @@ function action(s,id,button){
  if(s.phase==='ready'){
   if(p.bagOpen)return button==='A'?cycleBag(s,p):confirmBag(s,p);
   return button==='A'?roll(s):openBag(s,p);
+ }
+ if(s.move?.kind==='walk'&&s.camera.explore&&button==='A'&&
+   (s.phase==='move_ready'||s.phase==='branch')){
+   s.camera.explore=false;s.move.started=true;return true;
  }
  if(s.phase==='aim')return I().confirm(s,button,api);
  if(s.phase==='branch'&&s.move?.kind==='rocket'&&button==='A')return step(s,forwardInput(s,p)||s.branch.selected);
@@ -297,7 +329,7 @@ function update(s,dt){
   if(m.kind==='walk')walkEdge(s,p,dt);
   else{
    const advance=dt/.48;m.walking=advance>0;m.t=Math.min(1,m.t+advance);
-   if(m.t>=1){p.currentNodeId=m.to;m.visited.push(m.to);m.to=null;m.remaining--;if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};nextStep(s);}
+   if(m.t>=1){p.worldPosition=I().position(s,p);p.currentNodeId=m.to;m.visited.push(m.to);m.to=null;m.remaining--;if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};nextStep(s);}
   }
  }else if(s.phase==='aim'||s.phase==='car')I().update(s,dt,api);
  else if(s.phase==='effect'&&s.time>=s.deadline){const next=s.effect.next;s.effect=null;if(next==='ready')ready(s);else endTurn(s);}
@@ -322,7 +354,10 @@ function controls(s,id){
   }
   return{a:'ทอย 2 ลูก',b:'เปิดกระเป๋า',help:'A ทอย 2 ลูก • B เปิดกระเป๋า ('+I().bag(p).length+' ชิ้น)'};
  }
- if(s.move?.kind==='walk')return{a:'',b:'',help:(s.move.auto?'ช่วยเดินเมื่อหมดเวลา':'ลากจอยหรือปุ่มทิศทางเพื่อเดิน / ปล่อยเพื่อหยุด')+' • เหลือ '+s.move.remaining+' ก้าว'};
+ if(s.move?.kind==='walk')return{a:s.camera.explore?'เริ่มเดิน':'',b:'',
+   help:(s.camera.explore?'ลากหน้าจอหลักดูแผนที่ • A เริ่มเดิน หรือขยับจอยเพื่อล็อกกล้อง':
+     s.move.auto?'ช่วยเดินเมื่อหมดเวลา':'ลากจอยเพื่อเดิน / ปล่อยเพื่อหยุด')+
+     ' • เหลือ '+s.move.remaining+' ก้าว'};
  if(s.phase==='branch')return{a:'เลือกทาง',b:'',help:'อนาล็อกเลือกทางจรวด / A ยืนยัน'};
  if(s.phase==='aim')return{a:'ยืนยัน',b:s.skill.kind==='bomber'?'หมุน 45°':'',help:s.skill.kind==='ufo'?'เล็งให้สัมผัสตัวละคร / A สลับ':'เลื่อนแนวบิน / B หมุน / A โจมตี'};
  if(s.phase==='car')return{a:'',b:'',help:'อนาล็อกขับตามลูกศร • ระเบิดเมื่อชนหรือครบ 6 วินาที'};
