@@ -78,7 +78,7 @@ function land(s,applyTile=true){
  const n=s.map.nodes[p.currentNodeId];let dead=false,kind='land';
  if(!applyTile){
   effect(s,{kind:'land',points:[I().position(s,p)],targets:[p.id],
-   next:'end'},.5);return;
+   next:m?.kind==='rocket'?'ready':'end'},.5);return;
  }
  if(n.type==='lucky'){
   // Only a final landing is eligible; grant once per player turn. Stacked
@@ -89,7 +89,7 @@ function land(s,applyTile=true){
   if(s.luckyGrantKey===grantKey){
    // A defensive repeated landing must not leave phase=moving with move=null.
    if(s.phase==='moving')effect(s,{kind:'land',points:[n.position],targets:[p.id],
-     next:'end'},.8);
+     next:m?.kind==='rocket'?'ready':'end'},.8);
    return;
   }
   const pool=I().ids,index=Math.max(0,Math.min(pool.length-1,Math.floor(s.rng()*pool.length)));
@@ -97,7 +97,7 @@ function land(s,applyTile=true){
   if(!I().add(p,item))throw Error('Lucky Star reward not in item registry');
   s.luckyGrantKey=grantKey;
   s.lucky={playerId:p.id,item,at:s.time,spinDuration:LUCKY_SPIN_SECONDS,
-    holdDuration:LUCKY_HOLD_SECONDS,next:'end'};
+    holdDuration:LUCKY_HOLD_SECONDS,next:m?.kind==='rocket'?'ready':'end'};
   phase(s,'lucky_roulette',LUCKY_SPIN_SECONDS+LUCKY_HOLD_SECONDS);
   return;
  }
@@ -123,7 +123,7 @@ function land(s,applyTile=true){
  }
  effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],
   ownerColor:n.type==='sword'?s.players.find(q=>q.id===n.ownerId)?.color:null,
-  next:'end'},dead?1.5:.8);
+  next:!dead&&m?.kind==='rocket'?'ready':'end'},dead?1.5:.8);
 }
 function beginMove(s,p,steps,kind='walk'){
  // Preserve the existing real position at the pad, even across turns.
@@ -330,7 +330,7 @@ function forwardInput(s,p){
 // B skips empty item types and repeated rewards do not duplicate slots.
 function cycleAction(s,p){
  if(s.phase!=='ready'||s.rolled)return false;
- const slots=I().availableSlots(p);
+ const slots=I().availableSlots(p,s.roundNumber);
  const at=slots.indexOf(Number(p.actionIndex)||0);
  p.actionIndex=slots[(at+1)%slots.length];
  p.bagMessage='';
