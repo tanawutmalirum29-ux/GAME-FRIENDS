@@ -2438,9 +2438,9 @@ function beginGameSelection(mode){
   $('gameBanner').textContent='';
   round={mode,phase:'roulette',paused:false,remaining:null,autoNextRemaining:0};
   resetInputs();
-  gameSelection={mode,elapsed:0,spinDuration:1.45,holdDuration:.38,
+  gameSelection={mode,elapsed:0,spinDuration:1.45,holdDuration:1.18,
     initial,final,winningIndex,winner,track};
-  if(boardSession){gameSelection.spinDuration=2;gameSelection.holdDuration=.6;}
+  if(boardSession){gameSelection.spinDuration=2;gameSelection.holdDuration=1.4;}
   setView('game');
   // iOS fullscreen needs the original Start tap: request before the reel runs.
   requestHostFullscreen();
