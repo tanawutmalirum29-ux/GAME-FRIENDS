@@ -306,9 +306,9 @@ function roll(s){
  if(s.phase!=='ready'||s.rolled)return false;
  const p=current(s);if(p){p.bagOpen=false;p.bagMessage='';}
  s.rolled=true;s.moveDice=[D().roll(s.rng),D().roll(s.rng)];s.die=s.moveDice[0]+s.moveDice[1];
- phase(s,'dice',1.8);return true;
+ phase(s,'dice',D().TIMING.throw+D().TIMING.hold);return true;
 }
-function remainingSteps(s,id){if(!id)return 0;return s.move?.playerId===id?s.move.remaining:current(s)?.id===id&&s.phase==='dice'&&s.time-s.phaseAt>=.85?s.die:0;}
+function remainingSteps(s,id){if(!id)return 0;return s.move?.playerId===id?s.move.remaining:current(s)?.id===id&&s.phase==='dice'&&s.time-s.phaseAt>=D().TIMING.throw?s.die:0;}
 function forwardForce(s,p,toId){
  if(s.inputs[p.id]?.turnId!==s.turnId)return 0;
  const a=axes(s,p.id),strength=Math.hypot(a.x,a.y);if(strength<.25)return 0;
@@ -420,7 +420,7 @@ function update(s,dt){
  else if(s.phase==='intro_zoom'){if(s.time+1e-6>=s.deadline)beginOrder(s);}
  else if(s.phase==='order'){
   for(const p of s.players)if(!p.dice&&(s.time>=s.deadline||(p.isBot&&s.time-s.phaseAt>.6+s.players.indexOf(p)*.12)))rollOrder(s,p);
-  if(s.players.every(p=>p.dice&&s.time-p.rollAt>.85)){s.order=D().order(s.players,s.rng);phase(s,'order_result',3);}
+  if(s.players.every(p=>p.dice&&s.time-p.rollAt>=D().TIMING.throw+D().TIMING.hold/2)){s.order=D().order(s.players,s.rng);phase(s,'order_result',3);}
  }else if(s.phase==='order_result'&&s.time>=s.deadline)startTurn(s);
  else if(s.phase==='ready'&&s.time>=s.deadline)roll(s);
  else if(s.phase==='dice'&&s.time>=s.deadline)beginMove(s,current(s),s.die);

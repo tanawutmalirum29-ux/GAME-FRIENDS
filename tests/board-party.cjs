@@ -152,7 +152,8 @@ test('Two independent dice: all 36 combinations move the exact sum, landing effe
 test('Directional walking: release stops mid-edge, A/B cannot move, counts only completed edges',()=>{
  const s=ready(),p=s.players[0];p.item='rocket';s.rng=()=>0;
  press(s,p,'A',{axisX:1});const oldToken=s.turnId;assert.equal(P.remainingSteps(s,p.id),0);
- tick(s,1);assert.equal(P.remainingSteps(s,p.id),2);until(s,()=>s.phase==='move_ready');
+ tick(s,1);assert.equal(P.remainingSteps(s,p.id),0,'no early steps while dice still fly');
+  tick(s,.8);assert.equal(P.remainingSteps(s,p.id),2,'steps become visible after dice settle');until(s,()=>s.phase==='move_ready');
  tick(s,1);assert.equal(p.currentNodeId,'n0');assert.equal(P.remainingSteps(s,p.id),2);
  press(s,p,'A');press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(s.phase,'move_ready');
  assert.equal(P.input(s,p.id,{turnId:oldToken,actionId:(s.lastActions[p.id]??0)+1,keys:{axisX:1}}),false);
