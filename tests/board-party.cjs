@@ -68,12 +68,17 @@ test('Automatic intro: full board 2s, start zoom 1.5s, then dice order',()=>{
  assert.ok(s.players.every(p=>p.dice===null),'players roll only after intro completes');
  assert.equal(P.beginOrder(s),false,'intro cannot be triggered twice');
 });
-test('1–12 players: simultaneous A/B order rolls, double-input protection and timeout',()=>{
+test('1–12 players: manual A/B order rolls, no human timeout, double-input protection',()=>{
  for(let n=1;n<=12;n++){
   const s=game(n);for(let i=0;i<n-1;i++)press(s,s.players[i],i%2?'A':'B');
   assert.equal(P.remainingSteps(s,P.current(s)?.id),0,'initial order has no active walker');
   const first=plain(s.players[0].dice);if(n>1){press(s,s.players[0],'A');assert.deepEqual(plain(s.players[0].dice),first);}
-  tick(s,17);assert.equal(s.order.length,n);assert.ok(s.players.every(p=>p.dice.length===2&&p.dice.every(v=>v>=1&&v<=6)));
+  tick(s,17);
+  assert.equal(s.phase,'order','unrolled human must never be forced to throw after 12 seconds');
+  assert.equal(s.players[n-1].dice,null,'last human remains unrolled until input');
+  press(s,s.players[n-1],'A');tick(s,2.5);
+  assert.equal(s.order.length,n);
+  assert.ok(s.players.every(p=>p.dice.length===2&&p.dice.every(v=>v>=1&&v<=6)));
   const sums=s.order.map(id=>s.players.find(p=>p.id===id).dice.reduce((a,b)=>a+b,0));assert.deepEqual([...sums].sort((a,b)=>b-a),plain(sums));
  }
 });
@@ -124,7 +129,29 @@ test('Board clock uses true elapsed time with bounded steps even at low FPS',()=
  const start=s.time;
  for(let frame=0;frame<60;frame++)advance(s,.2);
  assert.ok(Math.abs(s.time-start-12)<.001,'5 FPS must advance twelve game seconds in twelve real seconds');
- assert.equal(s.players[0].dice.length,2,'order timeout must resolve even on low FPS');
+ assert.equal(s.phase,'order','real-time clock must not force human dice rolls');
+ assert.equal(s.players[0].dice,null,'human can wait past 12 seconds even at low FPS');
+ press(s,s.players[0],'A');tick(s,2.5);assert.equal(s.players[0].dice.length,2);
+});
+test('Human turn stays ready indefinitely; only a real action rolls dice',()=>{
+ const s=ready(3),p=s.players[0],original=s.players.map(v=>v.currentNodeId);
+ assert.equal(s.deadline,Infinity);
+ tick(s,75);
+ assert.equal(s.phase,'ready','no 12s forced roll even after 75s');
+ assert.equal(s.die,null);
+ assert.equal(s.moveDice,null);
+ assert.deepEqual(s.players.map(v=>v.currentNodeId),original);
+ assert.equal(P.controls(s,p.id).a,'ทอย');
+ assert.equal(P.action(s,p.id,'A'),true);
+ assert.equal(s.phase,'dice');
+ assert.equal(s.moveDice.length,2);
+});
+test('Bot order still progresses without human auto-roll timeout',()=>{
+ const s=game(4,1777,true);
+ assert.equal(s.phase,'order');
+ tick(s,3.5);
+ assert.ok(s.players.every(p=>p.dice&&p.dice.length===2));
+ assert.ok(s.order.length===4,'all bots determine their order by AI');
 });
 test('B cycles [Roll, inventory], A activates selected action; no bag popup',()=>{
  const s=ready(3),p=s.players[0];p.hp=1;
