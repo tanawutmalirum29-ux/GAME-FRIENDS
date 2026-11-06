@@ -253,7 +253,7 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  assert.ok(!texts.some(x=>x.includes('ลากจอยเพื่อเดิน')),
   'old instruction below the portrait is not drawn');
  assert.match(artSource,/clippedPlayerName\(g,p\.name,nameX/,'all top names use a measured clipping window');
- assert.match(artSource,/footsteps\(g,855,492/,'two vector footprints precede the step total');
+ assert.match(artSource,/footsteps\(g,855,footerY\+32/,'two vector footprints precede the step total');
  assert.match(artSource,/kinds=\['roll',\.\.\.window\.BoardItems\.ids\]/,
   'all fixed inventory types appear alongside the Roll slot');
 }
