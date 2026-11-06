@@ -24,7 +24,17 @@ const {BoardParty:P,BoardArt:A}=ctx.window,g=brush(true);
 function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,name:'Player '+i,color:'#66aacc'})),{seed});}
 const s=game(1);A.draw(g,0,s);assert.equal(surfaces.length,0,'initial order screen does not allocate the world');assert.ok(labels.includes('ทอยลูกเต๋าเพื่อจัดลำดับ'));
 s.order=s.players.map(p=>p.id);P.startTurn(s);A.draw(g,0,s);assert.equal(surfaces.length,1);const old=surfaces[0];
-assert.ok(old.width*old.height>1000000);const snapshot=JSON.stringify(s.players);
+assert.ok(old.width*old.height>1000000);
+ctx.window.BoardItems.add(s.players[0],'shield');
+ctx.window.BoardItems.add(s.players[0],'potion');
+P.action(s,s.players[0].id,'B');A.draw(g,0,s);
+assert.ok(labels.some(x=>String(x).includes('กระเป๋าไอเทม (2 ชิ้น)')),
+ 'backpack overlay must be visible on the main board');
+P.action(s,s.players[0].id,'A');A.draw(g,0,s);
+assert.ok(labels.some(x=>String(x).includes('Healing Potion')),
+ 'cycling selection draws the selected item name in the backpack');
+s.players[0].bagOpen=false;
+const snapshot=JSON.stringify(s.players);
 for(let i=0;i<60;i++)A.draw(g,i/60,s);assert.equal(surfaces.length,1,'terrain is reused');assert.equal(JSON.stringify(s.players),snapshot);
 const t=game(2);t.order=t.players.map(p=>p.id);P.startTurn(t);denyTerrain=true;A.draw(g,0,t);
 assert.equal(old.width,1);assert.equal(old.height,1,'previous match pixels are released');assert.equal(surfaces.length,2);
