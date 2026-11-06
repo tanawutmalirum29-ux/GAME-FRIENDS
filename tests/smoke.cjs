@@ -7,7 +7,7 @@ const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
 // production code or relying on internal globals.
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
-  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,getTournament:()=>tournament,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
+  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,pickRandomEndlessGame,beginGameSelection,updateGameSelection,startRound,getSelection:()=>gameSelection,getTournament:()=>tournament,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
@@ -751,6 +751,19 @@ for(const item of ['cloak','boost','stun','trap','slow']){
  assert.equal(c.ghost,true,'player-ghost infects when initial stun wears off');
  assert.equal(x.state.winnerId,b.id,'the last human wins');
 }
+
+// Finish the 1.45s horizontal reel plus 0.38s center reveal in the test
+// harness without wall-clock delays or accidental extra countdown ticks.
+function finishReel(ui){
+ const api=ui.scope.window.__ghostTest;
+ assert.ok(api.getSelection(),'a centered roulette must exist before the game starts');
+ for(let i=0;i<50&&api.getSelection();i++)api.updateGameSelection(.05);
+ assert.equal(api.getSelection(),null,'the reel must finish within two seconds');
+ assert.equal(ui.elements.get('gameRoulette').classList.contains('hidden'),true);
+ assert.equal(api.getRound().phase,'countdown','engine starts only after roulette settles');
+ return api.getRound();
+}
+
 
 const persistedNicknames=new Map();
 function setup(url='https://game.example/?host=1',portrait=false,savedSession=null,arenaViewport=null,browserProfile=null) {
