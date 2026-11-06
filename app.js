@@ -771,6 +771,7 @@ function resetInputs(){
   players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
 }
 function closeHost(){
+  releaseBotPossession();
   stopAllHostVideoCalls();
   for(const id of [...seatTimers.keys()])cancelSeat(id);
   deleteSession(HOST_SESSION);
@@ -1726,7 +1727,7 @@ function showBoard(){
   // Paint the order/result screen in the Start event itself. Safari can delay
   // its first animation frame during fullscreen; old minigame clips must not survive.
   canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
-  renderLeaderboard();broadcastRoster();
+  renderLeaderboard();broadcastRoster();renderBotTestPad();
   remotePreviewClock=1.1;
   for(const conn of hostConnections)startHostVideoCall(conn);
 }
@@ -1871,7 +1872,7 @@ function startRound(forcedMode=null){
   remotePreviewClock=1.1;
   stopAllHostVideoCalls();
   broadcast({t:'preview-reset'});
-  renderLeaderboard();broadcastRoster();
+  renderLeaderboard();broadcastRoster();renderBotTestPad();
   broadcastPlayerInventories();
   for(const conn of hostConnections)startHostVideoCall(conn);
 }
@@ -2535,6 +2536,7 @@ function animate(ts){
     updateGameSelection(boardSession?boardDt:dt);
    }else if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
+    if(possessedBotId)applyBotPadKeys();
     updateRound(round.mode==='board'?boardDt:dt);drawGame(graphicsClock);
     renderHostVideoFrames();
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
@@ -2542,6 +2544,8 @@ function animate(ts){
       if(round.autoNextRemaining===0)advanceParty();
       else renderResultVotes();
     }
+    botTestClock+=dt;
+    if(botTestClock>.2){botTestClock=0;renderBotTestPad();}
     hudClock+=dt;
     if(hudClock>.22){
       renderLeaderboard();hudClock=0;
@@ -2583,7 +2587,7 @@ function pauseGame(){
   if(currentView!=='game'||!round||gameSelection||round.phase==='results'||round.paused)return;
   renderPauseChoiceList();
   round.paused=true;
-  resetInputs();
+  resetInputs();clearBotPadKeys();
   if(round.mode==='board'&&boardSession){
     boardSession.camera.paused=true;
     $('pauseMenu').classList.add('hidden'); // Keep the frozen map touchable.
@@ -2605,6 +2609,7 @@ function resumeGame(){
   broadcastGameState();
 }
 function returnToLobby(){
+  releaseBotPossession();
   $('boardTools').classList.add('hidden');
   gameSelection=null;$('gameRoulette').classList.add('hidden');
   boardSession=null;boardStateToken=null;document.body.classList.remove('board-playing');
