@@ -36,6 +36,12 @@ const tests=[];function test(name,fn){fn();tests.push(name);console.log('PASS',n
 test('1,000 seeds: connected DAG, reciprocal edges, all branches finish',()=>{
  for(let seed=0;seed<1000;seed++){
   const map=M.create(seed);assert.equal(M.validate(map),true);
+  // This winter board keeps its topology, but never rolls legacy inactive
+  // event/key/neutral nodes. Other maps retain their support code.
+  assert.ok(Object.values(map.nodes).every(n=>!['event','key','neutral'].includes(n.type)),
+    'Winter map contains no unused tiles for seed '+seed);
+  assert.ok(Object.values(map.nodes).every(n=>['start','finish','movement','healing','danger','lucky','sword'].includes(n.type)),
+    'Every winter tile has a supported role for seed '+seed);
   for(const n of Object.values(map.nodes)){
    assert.ok(n.position&&n.effects&&n.type);let at=n,steps=0;
    while(at.id!==map.finishId){assert.ok(at.nextNodes.length);const next=map.nodes[at.nextNodes[seed%at.nextNodes.length]];assert.ok(next.progress>at.progress);at=next;assert.ok(++steps<map.length+10);}
