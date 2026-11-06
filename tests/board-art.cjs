@@ -47,6 +47,7 @@ function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,nam
 // compact 4-column (12 players) layouts. This catches badge overflow.
 for(const n of [4,12]){
  const ranked=P.create(Array.from({length:n},(_,i)=>({id:'r'+i,name:'Player '+i,color:'#66aacc'})),{seed:97+n});
+ P.beginOrder(ranked);
  ranked.players.forEach(p=>{p.dice=[4,3];p.rollAt=0;});
  ranked.order=ranked.players.map(p=>p.id);
  ranked.time=2;P.phase(ranked,'order_result',3);
@@ -77,13 +78,19 @@ const before={x:explore.camera.x,y:explore.camera.y,node:walker.currentNodeId,st
 assert.equal(A.pan(explore,120,-90),true);
 assert.ok(explore.camera.x<before.x&&explore.camera.y>before.y);
 assert.equal(explore.move.remaining,before.steps);assert.equal(walker.currentNodeId,before.node);
+assert.equal(A.zoom(explore,1.25),true);
+const chosenZoom=explore.camera.zoom,explorePlayers=JSON.stringify(explore.players);
+for(let i=0;i<30;i++)A.draw(g,i/60,explore);
+assert.equal(explore.camera.zoom,chosenZoom,'pre-walk manual zoom survives subsequent render frames');
+assert.equal(JSON.stringify(explore.players),explorePlayers);
 P.action(explore,walker.id,'A');
 assert.equal(A.canPan(explore),false);
 assert.equal(A.pan(explore,100,100),false);
 assert.match(artSource,/for\(const \[from,to\] of map\.bridges\)/,
  'the low-memory renderer must also paint bridge decks');
-const s=game(1);P.beginOrder(s);A.draw(g,0,s);assert.equal(surfaces.length,0,'dice order screen does not allocate the world');assert.ok(labels.includes('ทอยลูกเต๋าเพื่อจัดลำดับ'));
-s.order=s.players.map(p=>p.id);P.startTurn(s);A.draw(g,0,s);assert.equal(surfaces.length,1);const old=surfaces[0];
+const initialSurfaces=surfaces.length;
+const s=game(1);P.beginOrder(s);A.draw(g,0,s);assert.equal(surfaces.length,initialSurfaces,'dice order screen does not allocate the world');assert.ok(labels.includes('ทอยลูกเต๋าเพื่อจัดลำดับ'));
+s.order=s.players.map(p=>p.id);P.startTurn(s);A.draw(g,0,s);assert.equal(surfaces.length,initialSurfaces+1);const old=surfaces.at(-1);
 assert.ok(old.width*old.height>1000000);
 ctx.window.BoardItems.add(s.players[0],'shield');
 ctx.window.BoardItems.add(s.players[0],'potion');
@@ -95,15 +102,16 @@ assert.ok(labels.some(x=>String(x).includes('Healing Potion')),
  'cycling selection draws the selected item name in the backpack');
 s.players[0].bagOpen=false;
 const snapshot=JSON.stringify(s.players);
-for(let i=0;i<60;i++)A.draw(g,i/60,s);assert.equal(surfaces.length,1,'terrain is reused');assert.equal(JSON.stringify(s.players),snapshot);
+for(let i=0;i<60;i++)A.draw(g,i/60,s);assert.equal(surfaces.length,initialSurfaces+1,'terrain is reused');assert.equal(JSON.stringify(s.players),snapshot);
 const t=game(2);t.order=t.players.map(p=>p.id);P.startTurn(t);denyTerrain=true;A.draw(g,0,t);
-assert.equal(old.width,1);assert.equal(old.height,1,'previous match pixels are released');assert.equal(surfaces.length,2);
-assert.equal(surfaces[1].width,1,'failed allocation is released too');assert.ok(labels.includes('A • ทอยลูกเต๋า'));
-for(let i=0;i<10;i++)A.draw(g,i,t);assert.equal(surfaces.length,2,'allocation failure falls back without a retry loop');
+assert.equal(old.width,1);assert.equal(old.height,1,'previous match pixels are released');assert.equal(surfaces.length,initialSurfaces+2);
+assert.equal(surfaces.at(-1).width,1,'failed allocation is released too');assert.ok(labels.includes('A • ทอยลูกเต๋า'));
+for(let i=0;i<10;i++)A.draw(g,i,t);assert.equal(surfaces.length,initialSurfaces+2,'allocation failure falls back without a retry loop');
 // A BOARD minigame must show exactly one results/reward page. During return,
 // sprites and scores must not be presented as a second prize roll.
 const intermission=game(4);
 intermission.order=intermission.players.map(p=>p.id);
+P.startTurn(intermission);
 P.phase(intermission,'minigame_pending');
 assert.equal(P.minigameStarted(intermission,'chickens'),true);
 assert.equal(P.minigameEnded(intermission,intermission.players.map((p,i)=>({

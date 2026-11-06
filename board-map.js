@@ -11,40 +11,117 @@ function addType(n,type){
  n.type=type;n.effects=type==='healing'?{hp:20}:type==='danger'?{hp:-35}:type==='event'?{randomHp:true}:
   type==='lucky'?{item:true}:{};
 }
+// Seven authored regions form a horseshoe around the final summit. Geometry is
+// independent of the seeded tile distribution: changing art never changes rules.
+function arrange(map){
+ const regions=[
+  ['camp','SNOWFALL HARBOR',0,10,500,1850,40,270,400,310],
+  ['grove','LANTERN GROVE',11,18,480,750,90,345,360,330],
+  ['sword','SWORDKEEP',19,30,1490,450,165,375,430,290],
+  ['frost','FROSTFANG RIDGE',31,40,2550,750,195,430,390,310],
+  ['aurora','AURORA REACH',41,50,2870,1740,250,510,470,370],
+  ['lucky','STARFALL GARDEN',51,64,1810,2300,330,620,450,310],
+  ['crown','CROWN SUMMIT',65,72,1630,1350,90,350,370,300]
+ ];
+ const sample=(points,t)=>{
+  const lengths=points.slice(1).map((p,i)=>Math.hypot(p.x-points[i].x,p.y-points[i].y));
+  let remaining=lengths.reduce((a,b)=>a+b,0)*t;
+  for(let i=0;i<lengths.length;i++){if(remaining<=lengths[i]||i===lengths.length-1){const u=remaining/lengths[i];return{x:points[i].x+(points[i+1].x-points[i].x)*u,y:points[i].y+(points[i+1].y-points[i].y)*u};}remaining-=lengths[i];}
+ };
+ const sx=1.2,sy=.85,point=(x,y)=>({x:Math.round(x*sx),y:Math.round(y*sy)});
+ map.islands=regions.map(([theme,name,first,last,x,y,begin,end,rx,ry])=>{
+  const island={id:theme,name,theme,center:point(x,y),landmark:point(x,y),nodeIds:[],outline:[]};
+  const curve=Array.from({length:121},(_,j)=>{const a=(begin+(end-begin)*j/120)*Math.PI/180;return point(x+Math.cos(a)*rx,y+Math.sin(a)*ry);});
+  for(let i=first;i<=last;i++){
+   const n=map.nodes['n'+i];n.position=sample(curve,(i-first)/(last-first));n.islandId=theme;island.nodeIds.push(n.id);
+  }
+  island.radii={x:rx*sx,y:ry*sy};
+  return island;
+ });
+ for(const b of map.branches){
+  const a=map.nodes['n'+b.a],z=map.nodes['n'+b.b],island=map.islands.find(i=>i.id===a.islandId);
+  const dx=z.position.x-a.position.x,dy=z.position.y-a.position.y,d=Math.hypot(dx,dy);
+  const mx=(a.position.x+z.position.x)/2,my=(a.position.y+z.position.y)/2;
+  const sign=(-dy*(island.center.x-mx)+dx*(island.center.y-my))>=0?1:-1;
+  const depth=45;
+  b.kind=b.count>b.b-b.a?'scenic':'risky';b.islandId=island.id;
+  let detour=null;
+  if(b.kind==='scenic'){
+   const rx=island.radii.x,ry=island.radii.y,c=island.center;
+   const begin=Math.atan2((a.position.y-c.y)/ry,(a.position.x-c.x)/rx);
+   let end=Math.atan2((z.position.y-c.y)/ry,(z.position.x-c.x)/rx);while(end>=begin)end-=Math.PI*2;
+   const radius=b.a===24?.53:b.a===41?.65:.65;
+   detour=[a.position,...Array.from({length:101},(_,i)=>{const angle=begin+(end-begin)*i/100;return{x:c.x+Math.cos(angle)*rx*radius,y:c.y+Math.sin(angle)*ry*radius};}),z.position];
+  }
+  for(let j=1;j<=b.count;j++){
+   const t=j/(b.count+1),offset=Math.sin(Math.PI*t)*depth*sign,n=map.nodes['b'+b.a+'_'+j];
+   n.position=detour?sample(detour,t):{x:Math.round(a.position.x+dx*t-dy/d*offset),y:Math.round(a.position.y+dy*t+dx/d*offset)};
+   n.islandId=island.id;island.nodeIds.push(n.id);
+  }
+ }
+ // Buffered convex shorelines follow the authored paths, giving each island a
+ // different silhouette. All walkable segments remain on snow, not over water.
+ const cross=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
+ for(const island of map.islands){
+  const points=[...island.nodeIds.map(id=>map.nodes[id].position),island.center];
+  const cloud=points.flatMap((p,i)=>Array.from({length:12},(_,j)=>{
+   const a=j*Math.PI/6,r=110+9*Math.sin(i*1.7+j*2.1);return{x:p.x+Math.cos(a)*r,y:p.y+Math.sin(a)*r};
+  })).sort((a,b)=>a.x-b.x||a.y-b.y);
+  const lower=[],upper=[];
+  for(const p of cloud){while(lower.length>=2&&cross(lower.at(-2),lower.at(-1),p)<=0)lower.pop();lower.push(p);}
+  for(const p of [...cloud].reverse()){while(upper.length>=2&&cross(upper.at(-2),upper.at(-1),p)<=0)upper.pop();upper.push(p);}
+  island.outline=[...lower.slice(0,-1),...upper.slice(0,-1)];
+  const edges=island.nodeIds.flatMap(id=>map.nodes[id].nextNodes.filter(to=>map.nodes[to].islandId===island.id).map(to=>[map.nodes[id].position,map.nodes[to].position]));
+  const distance=(p,a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy)));return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);};
+  let clearance=-1;
+  for(let dx=-170;dx<=170;dx+=34)for(let dy=-140;dy<=140;dy+=28){
+   const p={x:island.center.x+dx,y:island.center.y+dy},d=Math.min(...edges.map(([a,b])=>distance(p,a,b)));
+   if(d>clearance){clearance=d;island.landmark=p;}
+  }
+  island.landmark.clearance=clearance;
+ }
+ map.bridges=[];map.bridgeStyles={};
+ const materials=['wood','stone','ice','wood','ice','stone'];let k=0;
+ for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
+  if(n.islandId===map.nodes[id].islandId)continue;
+  map.bridges.push([n.id,id]);map.bridgeStyles[n.id+'>'+id]=materials[k++%materials.length];
+ }
+ const shores=map.islands.flatMap(i=>i.outline);
+ map.bounds={minX:Math.max(0,Math.min(...shores.map(p=>p.x))-65),minY:Math.max(0,Math.min(...shores.map(p=>p.y))-65),
+  maxX:Math.max(...shores.map(p=>p.x))+65,maxY:Math.max(...shores.map(p=>p.y))+85};
+ map.width=Math.ceil(map.bounds.maxX+55);map.height=Math.ceil(map.bounds.maxY+55);map.rows=map.islands.length;
+}
 function create(seed=Date.now()){
  const rng=random(seed),nodes={},bridges=[];
- const nodesByZone=[[],[],[],[]];
  function add(id,x,y,progress,type='movement'){
   const node={id,position:{x,y},type,nextNodes:[],previousNodes:[],progress,effects:{}};
-  addType(node,type);nodes[id]=node;nodesByZone[Math.min(3,Math.floor(progress/(MAIN_LENGTH/4)))].push(id);
+  addType(node,type);nodes[id]=node;
  }
- function link(a,b,bridge=false){nodes[a].nextNodes.push(b);nodes[b].previousNodes.push(a);if(bridge)bridges.push([a,b]);}
+ function link(a,b){nodes[a].nextNodes.push(b);nodes[b].previousNodes.push(a);}
  for(let i=0;i<=MAIN_LENGTH;i++){
-  const row=Math.floor(i/10),col=i%10;
   const type=i===0?'start':i===MAIN_LENGTH?'finish':SWORD_TILES.includes('n'+i)?'sword':weighted[Math.floor(rng()*weighted.length)];
-  add('n'+i,220+(row%2?9-col:col)*145,300+row*310+Math.sin(col*.75)*48,i,type);
-  if(i)link('n'+(i-1),'n'+i,i%10===0);
+  add('n'+i,0,0,i,type);
+  if(i)link('n'+(i-1),'n'+i);
  }
  // Alternatives preserve old node IDs. Longer routes deliberately contain
  // beneficial spaces as compensation for their extra distance.
  const branches=[
-  {a:3,b:8,count:3,offset:-160},
-  {a:13,b:18,count:3,offset:165},
-  {a:24,b:28,count:6,offset:165},
-  {a:41,b:47,count:8,offset:-160},
-  {a:58,b:64,count:8,offset:165}
+  {a:3,b:8,count:3},
+  {a:13,b:18,count:3},
+  {a:24,b:28,count:6},
+  {a:41,b:47,count:8},
+  {a:58,b:64,count:8}
  ];
  for(const b of branches){
   let previous='n'+b.a;
   for(let j=1;j<=b.count;j++){
-   const t=j/(b.count+1),from=nodes['n'+b.a].position,to=nodes['n'+b.b].position;
+   const t=j/(b.count+1);
    const id='b'+b.a+'_'+j;
    // Color variants may change below, but every branch stays connected.
-   add(id,from.x+(to.x-from.x)*t,from.y+(to.y-from.y)*t+Math.sin(Math.PI*t)*b.offset,
-    b.a+(b.b-b.a)*t,'movement');
-   link(previous,id,j===1);previous=id;
+   add(id,0,0,b.a+(b.b-b.a)*t,'movement');
+   link(previous,id);previous=id;
   }
-  link(previous,'n'+b.b,true);
+  link(previous,'n'+b.b);
   // Long routes pay the player back for added travel. Shortcuts have risk.
   const slots=Array.from({length:b.count},(_,i)=>nodes['b'+b.a+'_'+(i+1)]);
   const layout=b.count>b.b-b.a?
@@ -52,8 +129,8 @@ function create(seed=Date.now()){
    ['danger','movement','event'];
   for(let i=0;i<slots.length;i++)addType(slots[i],layout[i%layout.length]);
  }
- const map={seed,nodes,startId:'n0',finishId:'n'+MAIN_LENGTH,length:MAIN_LENGTH,width:1800,
-  height:2800,rows:Math.ceil((MAIN_LENGTH+1)/10),bridges,branches,
+ const map={seed,nodes,startId:'n0',finishId:'n'+MAIN_LENGTH,length:MAIN_LENGTH,width:0,
+  height:0,rows:0,bridges,branches,
   territories:{[TERRITORY_ID]:{id:TERRITORY_ID,nodeIds:[...SWORD_TILES],ownerId:null}},luckyTileIds:[]};
  for(const id of SWORD_TILES){addType(nodes[id],'sword');nodes[id].territoryId=TERRITORY_ID;nodes[id].ownerId=null;}
  // Six seed-varying core Lucky Stars, distributed across the map, never
@@ -92,7 +169,7 @@ function create(seed=Date.now()){
   }
  }
  map.luckyTileIds=Object.values(nodes).filter(n=>n.type==='lucky').map(n=>n.id);
- validate(map);return map;
+ arrange(map);validate(map);return map;
 }
 function validate(map){
  const visiting=new Set(),done=new Set();
@@ -111,6 +188,14 @@ function validate(map){
  }
  visit(map.startId);
  if(done.size!==Object.keys(map.nodes).length||!done.has(map.finishId))throw Error('Unreachable board node');
+ const regions=new Map(map.islands.map(i=>[i.id,i])),bridgeKeys=new Set(map.bridges.map(([a,b])=>a+'>'+b));
+ for(const node of Object.values(map.nodes)){
+  const region=regions.get(node.islandId),p=node.position;
+  if(!region?.nodeIds.includes(node.id)||!Number.isFinite(p.x)||!Number.isFinite(p.y)||p.x<0||p.x>map.width||p.y<0||p.y>map.height)throw Error('Invalid island placement '+node.id);
+  for(const next of node.nextNodes){const crosses=node.islandId!==map.nodes[next].islandId,key=node.id+'>'+next;
+   if(crosses!==bridgeKeys.has(key)||(crosses&&!map.bridgeStyles[key]))throw Error('Missing island connector '+key);
+  }
+ }
  for(const node of Object.values(map.nodes)){
   if(node.type==='milestone')throw Error('Deprecated trophy tile '+node.id);
   if(['lucky','healing'].includes(node.type)&&adjacentType(map,node.id,node.type))

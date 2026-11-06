@@ -148,12 +148,12 @@ test('Directional walking: release stops mid-edge, A/B cannot move, counts only 
 test('Free 2D walking: reverse and sideways inputs are real movement, no accidental spent steps',()=>{
  const s=ready(),p=s.players[0];P.beginMove(s,p,3);
  const start=plain(I.position(s,p));
- press(s,p,null,{left:true});tick(s,.5);assert.equal(s.phase,'move_ready');
- assert.ok(Math.hypot(I.position(s,p).x-start.x,I.position(s,p).y-start.y)>5,'can roam at a node');
- press(s,p,null,{right:true});tick(s,.25);assert.equal(s.phase,'moving');
- const fraction=s.move.t,remaining=s.move.remaining;
  const from=s.map.nodes.n0.position,to=s.map.nodes.n1.position;
  const dx=to.x-from.x,dy=to.y-from.y,d=Math.hypot(dx,dy);
+ press(s,p,null,{axisX:-dx/d,axisY:-dy/d});tick(s,.5);assert.equal(s.phase,'move_ready');
+ assert.ok(Math.hypot(I.position(s,p).x-start.x,I.position(s,p).y-start.y)>5,'can roam at a node');
+ press(s,p,null,{axisX:dx/d,axisY:dy/d});tick(s,.25);assert.equal(s.phase,'moving');
+ const fraction=s.move.t,remaining=s.move.remaining;
  press(s,p,null,{axisX:-dy/d,axisY:dx/d});tick(s,.2);
  assert.ok(Math.abs(s.move.lateral)>2,'can walk sideways within a bounded lane');
  assert.equal(s.move.remaining,remaining);
@@ -268,9 +268,10 @@ test('After the dice roll, camera can explore until A or first walking input',()
  assert.equal(t.camera.explore,false,'first joystick walk should relock the camera');
 });
 test('Walking on a water bridge remains inside its deck and does not snap to the checkpoint centre',()=>{
- const s=ready(3,512),p=s.players[0];p.currentNodeId='n9';
- const a=s.map.nodes.n9.position,b=s.map.nodes.n10.position;
- assert.ok(s.map.bridges.some(pair=>pair[0]==='n9'&&pair[1]==='n10'));
+ const s=ready(3,512),p=s.players[0];
+ const [fromId,toId]=s.map.bridges[0];p.currentNodeId=fromId;
+ const a=s.map.nodes[fromId].position,b=s.map.nodes[toId].position;
+ assert.notEqual(s.map.nodes[fromId].islandId,s.map.nodes[toId].islandId,'bridge crosses between islands');
  P.beginMove(s,p,2);
  const d=Math.hypot(b.x-a.x,b.y-a.y),forward={x:(b.x-a.x)/d,y:(b.y-a.y)/d};
  press(s,p,null,{axisX:forward.x,axisY:forward.y});until(s,()=>s.phase==='moving',3);
@@ -286,11 +287,11 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
   P.update(s,.05);
   const pos=I.position(s,p);
   assert.ok(Math.hypot(pos.x-last.x,pos.y-last.y)<25,'must not teleport toward pad centre');
-  if(p.currentNodeId==='n9'){
+  if(p.currentNodeId===fromId){
    assert.ok(I.segmentDistance(pos,a,b)<=18.001,'cannot step out onto the water');
   }else{
    crossed=true;
-   assert.equal(p.currentNodeId,'n10');
+   assert.equal(p.currentNodeId,toId);
    assert.ok(Math.abs(pos.x-b.x)+Math.abs(pos.y-b.y)>5,'crossing a checkpoint retains side offset');
    assert.ok(Math.abs(Math.hypot(pos.x-b.x,pos.y-b.y)-Math.abs(lateral))<2,'side offset survives');
   }
@@ -304,7 +305,7 @@ test('72-step board extends the map and retains two consecutive neutral sword ti
  for(const seed of [1,42,2026,999]){
   const map=M.create(seed);
   assert.equal(map.length,72);assert.equal(map.finishId,'n72');
-  assert.ok(map.height>=2750&&map.rows>=8,'snow map must extend far enough for eight rows');
+  assert.ok(map.islands.length>=7&&map.width>3000&&map.height>2000,'72-step route spans seven islands across a broad world');
   assert.deepEqual(plain(M.SWORD_TILES),['n20','n21']);
   assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
   assert.equal(map.nodes.n20.ownerId,null);assert.equal(map.nodes.n21.ownerId,null);
@@ -628,7 +629,9 @@ test('Stationary rocket times out after 5s without re-triggering the pad reward'
  until(s,()=>s.phase==='ready',2);assert.equal(s.turnIndex,0);
 });
 test('RC car runs for 6 seconds, moves along forward paths and cannot reverse',()=>{
- const s=ready(2,55),p=s.players[0];I.add(p,'car');
+ const s=ready(2,55),p=s.players[0];
+ // This checks the timer and steering; swept-hit tests cover immediate opponents.
+ s.players[1].currentNodeId='n60';I.add(p,'car');
  assert.equal(I.begin(s,p,P,'car'),true);
  const begin={x:s.skill.x,y:s.skill.y};
  const a=s.map.nodes.n0.position,b=s.map.nodes.n1.position;
@@ -642,6 +645,12 @@ test('RC car runs for 6 seconds, moves along forward paths and cannot reverse',(
    'reverse input must not backtrack');
  until(s,()=>s.phase==='effect',7);assert.equal(s.effect.kind,'car');
  assert.equal(s.effect.next,'end');assert.equal(s.skill,null);
+});
+test('Bots complete acute branch merges without steering backwards before the checkpoint',()=>{
+ const s=ready(1,0),p=s.players[0];p.isBot=true;p.currentNodeId='b3_3';delete p.worldPosition;
+ P.beginMove(s,p,1);
+ until(s,()=>p.currentNodeId==='n8',5);
+ assert.equal(s.move?.remaining||0,0);
 });
 test('Full-session stress: 1–12 bots, 20 seeds each, minigame rewards and finish',()=>{
  let games=0,rounds=0,used=new Set();

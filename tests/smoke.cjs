@@ -2061,9 +2061,14 @@ for(const count of [1,12]){
  assert.ok(beforeFinish,'finish has a traversable main-route predecessor');
  p.currentNodeId=beforeFinish;delete p.worldPosition;P.beginMove(s,p,1);
  const from=s.map.nodes[beforeFinish].position,to=s.map.nodes[s.map.finishId].position,d=Math.hypot(to.x-from.x,to.y-from.y);
- P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys:{axisX:(to.x-from.x)/d,axisY:(to.y-from.y)/d}});
- for(let i=0;i<80&&api.getRound().phase!=='results';i++)api.updateBoard(.05);
+ // Real phones refresh held direction; a single packet expires after .9s.
+ for(let i=0;i<Math.ceil(d/240/.05)+160&&api.getRound().phase!=='results';i++){
+  P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys:{axisX:(to.x-from.x)/d,axisY:(to.y-from.y)/d}});
+  api.updateBoard(.05);
+ }
  assert.equal(s.phase,'finished');assert.equal(api.getRound().phase,'results');
+ const winnerNote=ui.elements.get('resultList').children[0].children[1].textContent;
+ assert.equal(winnerNote,'100% • HP '+p.hp+'/100','finish summary uses current map length and HP maximum');
  assert.ok(api.resultVoteSnapshot());ui.click('replayBtn');
  assert.notEqual(api.getBoard(),s);assert.notEqual(api.getBoard().map,map);assert.equal(api.getBoard().phase,'overview');assert.equal(api.getPlayers().length,count);
  ui.click('exitBtn');assert.equal(api.getBoard(),null);
@@ -2093,15 +2098,18 @@ for(const count of [1,12]){
  const movementTotal=s.die;assert.equal(s.moveDice.length,2);
  for(let i=0;i<40;i++)api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
  assert.equal(state.stepsRemaining,movementTotal);assert.equal(state.boardPhase,'move_ready');assert.equal(state.a,'เริ่มเดิน');assert.match(state.help,/ดูแผนที่/);
- replacement.fire('data',{t:'input',turnId:s.turnId,actionId:2,keys:{}});
- replacement.fire('data',{t:'input',turnId:s.turnId,actionId:3,keys:{right:true}});
- for(let i=0;i<20;i++)api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
+ const sendBoard=keys=>replacement.fire('data',{t:'input',turnId:s.turnId,actionId:(s.lastActions[id]??0)+1,keys});
+ const a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes.n1.position,d=Math.hypot(b.x-a.x,b.y-a.y);
+ sendBoard({});
+ for(let i=0;i<200&&p.currentNodeId!=='n1';i++){
+  sendBoard({axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d});api.updateBoard(.05);
+ }
+ state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
  assert.equal(state.stepsRemaining,movementTotal-1);assert.equal(p.currentNodeId,'n1');
  P.startTurn(s);p.bag=['shield'];p.item='shield';p.bagIndex=0;p.usedRound=0;
- replacement.fire('data',{t:'input',turnId:s.turnId,actionId:4,keys:{alt:true}});
+ sendBoard({alt:true});
  assert.equal(p.bagOpen,true,'B opens the backpack rather than instantly using an item');
- replacement.fire('data',{t:'input',turnId:s.turnId,actionId:5,keys:{}});
- replacement.fire('data',{t:'input',turnId:s.turnId,actionId:6,keys:{alt:true}});
+ sendBoard({});sendBoard({alt:true});
  api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
  assert.equal(state.shieldTurns,2);assert.equal(p.item,null);assert.equal(p.bag.length,0);
 }
