@@ -2033,6 +2033,9 @@ for(const count of [1,12]){
  ui.sessionButtons[2].fire('click');ui.click('startBtn');
  const s=api.getBoard(),map=s.map;
  assert.equal(api.getRound().mode,'board');assert.equal(s.players.length,count);
+ assert.equal(s.phase,'overview');api.updateBoard(2);
+ assert.equal(s.phase,'overview','no automatic order before host button');
+ ui.click('boardStartDiceBtn');assert.equal(s.phase,'order');
  for(let i=0;i<10000&&s.phase!=='minigame';i++)api.updateBoard(.05);
  assert.equal(s.phase,'minigame','every turn completes and starts the reel');
  assert.ok(api.getSelection());
@@ -2062,7 +2065,7 @@ for(const count of [1,12]){
  for(let i=0;i<80&&api.getRound().phase!=='results';i++)api.updateBoard(.05);
  assert.equal(s.phase,'finished');assert.equal(api.getRound().phase,'results');
  assert.ok(api.resultVoteSnapshot());ui.click('replayBtn');
- assert.notEqual(api.getBoard(),s);assert.notEqual(api.getBoard().map,map);assert.equal(api.getBoard().phase,'order');assert.equal(api.getPlayers().length,count);
+ assert.notEqual(api.getBoard(),s);assert.notEqual(api.getBoard().map,map);assert.equal(api.getBoard().phase,'overview');assert.equal(api.getPlayers().length,count);
  ui.click('exitBtn');assert.equal(api.getBoard(),null);
  ui.sessionButtons[1].fire('click');ui.click('startBtn');finishReel(ui);assert.notEqual(api.getRound().mode,'board');assert.ok(api.getTournament().endless);
 }
@@ -2072,8 +2075,12 @@ for(const count of [1,12]){
  const api=ui.scope.window.__ghostTest,P=ui.scope.window.BoardParty;
  ui.sessionButtons[2].fire('click');assert.equal(ui.elements.get('startBtn').disabled,false,'no minigame nomination needed');ui.click('startBtn');
  const s=api.getBoard(),p=s.players[0];let state=conn.sent.filter(p=>p.t==='board-state').at(-1);
- conn.fire('data',{t:'input',turnId:state.turnId,actionId:1,keys:{alt:true}});assert.ok(p.dice,'B can roll order');
- const dice=JSON.stringify(p.dice);conn.fire('data',{t:'input',turnId:state.turnId,actionId:1,keys:{alt:true}});assert.equal(JSON.stringify(p.dice),dice);
+ assert.equal(s.phase,'overview');
+ conn.fire('data',{t:'input',turnId:state.turnId,actionId:1,keys:{alt:true}});
+ assert.equal(p.dice,null,'no order roll until host approves');
+ ui.click('boardStartDiceBtn');state=conn.sent.filter(p=>p.t==='board-state').at(-1);
+ conn.fire('data',{t:'input',turnId:state.turnId,actionId:2,keys:{alt:true}});assert.ok(p.dice,'B can roll order');
+ const dice=JSON.stringify(p.dice);conn.fire('data',{t:'input',turnId:state.turnId,actionId:2,keys:{alt:true}});assert.equal(JSON.stringify(p.dice),dice);
  for(let i=0;i<100;i++)api.updateBoard(.05);assert.equal(s.phase,'ready');
  conn.fire('data',{t:'input',turnId:state.turnId,actionId:2,keys:{action:true}});assert.equal(s.phase,'ready','old turn packet rejected');
  state=conn.sent.filter(p=>p.t==='board-state').at(-1);conn.fire('data',{t:'input',turnId:state.turnId,actionId:3,keys:{action:true}});assert.equal(s.phase,'dice');
