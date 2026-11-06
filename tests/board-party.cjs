@@ -435,7 +435,7 @@ test('Shield blocks danger and events without reducing HP or losing turns',()=>{
 });
 test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected neighbours only',()=>{
  for(let seed=0;seed<100;seed++)for(const kind of ['ufo','bomber','car']){
-  const s=ready(3,seed),[p,q,r]=s.players;p.item=kind;q.hp=1;q.shieldTurns=1;q.currentNodeId='n1';r.currentNodeId='n1';
+  const s=ready(3,seed),[p,q,r]=s.players;p.item=kind;q.hp=1;q.shieldTurns=1;q.currentNodeId='n1';r.currentNodeId=kind==='car'?'n0':'n1';
   press(s,p,'B');
   if(kind==='ufo'){
    Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(s.phase,'aim');assert.equal(p.item,'ufo');assert.equal(p.currentNodeId,'n0');assert.equal(q.currentNodeId,'n1');assert.equal(p.usedRound,0);
