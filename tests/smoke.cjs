@@ -147,6 +147,10 @@ assert.match(html,/<div class="gamepad-hud">[\s\S]*?<div id="controllerInventory
 assert.equal([...html.matchAll(/id="controllerInventory"/g)].length,1);
 assert.match(html,/<button[^>]*data-control="alt"[^>]*>[\s\S]*?<span class="face-button-letter">B<\/span><span id="buttonBLabel" class="face-caption">/);
 assert.match(html,/<button[^>]*data-control="action"[^>]*>[\s\S]*?<span class="face-button-letter">A<\/span><span id="buttonALabel" class="face-caption">/);
+assert.match(html,/<button[^>]*data-control="cancel"[^>]*>[\s\S]*?<span class="face-button-letter">C<\/span><span id="buttonCLabel" class="face-caption">/);
+assert.ok(html.indexOf('class="face-button-wrap face-c"')>html.indexOf('class="face-button-wrap face-b"'),'C is after B in the phone controller');
+assert.match(css,/\.controller-buttons\.board-bomber-aim:not\(\.shockwave-mode\) \.gamepad-face-buttons\{/);
+assert.match(css,/\.gamepad-face-buttons \.face-c\{[\s\S]*?grid-row:3;/);
 assert.match(css,/#controller #controllerActive #controllerInventory\.hidden\{\s*display:none!important/);
 assert.match(css,/#controller #controllerActive \.gamepad-preview-column\{\s*transform:translateX\(clamp\(18px,3\.15vw,56px\)\)/,
   'preview is translated to the right without changing width or height');
@@ -902,7 +906,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   const pickButtons=[...html.matchAll(/data-pick="([^"]+)"/g)].map(([,game])=>{
     const button=makeElement('pick-'+game);button.dataset.pick=game;return button;
   });
-  const padButtons=Object.fromEntries(['action','alt'].map(key=>{
+  const padButtons=Object.fromEntries(['action','alt','cancel'].map(key=>{
     const button=makeElement('pad-'+key);button.dataset.control=key;return [key,button];
   }));
   // Simulate the real DOM: a small visible button is nested in the enlarged
@@ -1936,6 +1940,34 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.equal(phone.padButtons.action.classList.contains('pressed'),false);
 }
 
+// BOARD PARTY bomber: C appears below B only while the aiming preview is
+// active; touch events send a separate cancel key and never mean A or B.
+{
+ const phone=setup('https://game.example/?join=BOMBER');
+ phone.elements.get('nick').value='Pilot';
+ phone.click('joinBtn');phone.instances[0].fire('open');
+ const conn=phone.instances[0].conn;conn.fire('open');
+ conn.fire('data',{t:'welcome',id:'pilot',name:'Pilot',color:'#ff628c',
+  mode:'board',phase:'playing'});
+ const frame={t:'board-state',phase:'playing',boardPhase:'aim',turnId:'aim-1',
+  round:1,hp:100,stepsRemaining:0,bag:['bomber'],actionIndex:0,
+  a:'โจมตี',b:'หมุน 45°',c:'ยกเลิก',help:'กำลังเล็งเครื่องบิน'};
+ conn.fire('data',frame);
+ assert.equal(phone.elements.get('controllerButtons').classList.contains('board-bomber-aim'),true);
+ assert.equal(phone.elements.get('buttonC').disabled,false);
+ assert.equal(phone.elements.get('buttonCLabel').textContent,'ยกเลิก');
+ const last=()=>conn.sent.filter(m=>m.t==='input').at(-1).keys;
+ phone.padZones.cancel.fire('pointerdown',{pointerId:311});
+ assert.equal(last().cancel,true,'C sends its own cancellation key');
+ assert.equal(last().alt,false,'C is independent from B rotation');
+ assert.equal(last().action,false,'C never fires the bomber');
+ phone.padZones.cancel.fire('pointerup',{pointerId:311});
+ assert.equal(last().cancel,false,'releasing C clears the input');
+ conn.fire('data',{...frame,boardPhase:'ready',turnId:'ready-2',
+  c:'',a:'เรียกเครื่องบิน',b:'เปลี่ยนตัวเลือก'});
+ assert.equal(phone.elements.get('controllerButtons').classList.contains('board-bomber-aim'),false);
+ assert.equal(phone.elements.get('buttonC').disabled,true);
+}
 // Full room-preserving page refresh: same room, seat token, choice and color.
 {
  const hostA=setup();
