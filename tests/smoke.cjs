@@ -1973,7 +1973,7 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.equal(phone.elements.get('controllerButtons').classList.contains('board-bomber-aim'),true);
  assert.equal(phone.elements.get('buttonC').disabled,false,'C is visible for UFO aiming');
  assert.equal(phone.elements.get('buttonCLabel').textContent,'ยกเลิก');
- assert.match(phone.elements.get('buttonC').getAttribute('aria-label'),/เล็งไอเทม/);
+ assert.match(phone.elements.get('buttonC').attributes['aria-label'],/เล็งไอเทม/);
  phone.padZones.cancel.fire('pointerdown',{pointerId:312});
  assert.equal(last().cancel,true,'UFO C sends cancel, not attack');
  assert.equal(last().action,false);
