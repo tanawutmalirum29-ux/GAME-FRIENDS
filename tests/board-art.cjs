@@ -40,6 +40,8 @@ function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,nam
  const y=top+viewH/2+(n.position.y-s.camera.y)*s.camera.zoom;
  const info=A.inspect(s,x,y);
  assert.ok(info&&info.id==='n35');assert.equal(info.type,n.type);
+ assert.equal(info.islandId,n.islandId,'debug inspector reports fixed island ID');
+ assert.equal(info.mapVersion,s.map.version,'debug inspector reports map version');
  assert.deepEqual(JSON.parse(JSON.stringify(info.next)),JSON.parse(JSON.stringify(n.nextNodes)));
  assert.equal(s.camera.selectedId,'n35','inspector stores selected visible node without changing game state');
  assert.equal(JSON.stringify(s.players),original,'debug selection cannot move or damage players');
