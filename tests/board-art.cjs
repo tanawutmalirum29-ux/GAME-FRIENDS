@@ -34,6 +34,8 @@ function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,nam
  assert.equal(A.zoom(s,1.5),true);assert.ok(s.camera.zoom>fit);
  assert.equal(A.toggleDebug(s),true);
  const n=s.map.nodes.n35,top=94,viewH=452-top;
+ // Larger fixed archipelago: pan to the debug tile after zooming instead of inspecting off-screen.
+ s.camera.x=n.position.x;s.camera.y=n.position.y;
  const x=480+(n.position.x-s.camera.x)*s.camera.zoom;
  const y=top+viewH/2+(n.position.y-s.camera.y)*s.camera.zoom;
  const info=A.inspect(s,x,y);
