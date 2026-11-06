@@ -8,6 +8,16 @@ function bag(p){
  if(p.item&&(!p.bag.length||!p.bag.includes(p.item)))p.bag.unshift(p.item);
  return p.bag;
 }
+// Fixed HUD slots: Roll first, then each item type exactly once.
+function counts(p){
+ const held=bag(p),totals=Object.fromEntries(ids.map(id=>[id,0]));
+ for(const id of held)if(Object.hasOwn(totals,id))totals[id]++;
+ return totals;
+}
+function availableSlots(p){
+ const stock=counts(p);
+ return [0,...ids.flatMap((id,i)=>stock[id]>0?[i+1]:[])];
+}
 function add(p,kind){
  if(!ids.includes(kind))return false;
  bag(p).push(kind);p.item=p.bag[0]||null;return true;
@@ -151,5 +161,5 @@ function update(s,dt,api){
 
  }
 }
-window.BoardItems=Object.freeze({names,ids,radius,blastRadius,bag,add,position,positionOnNode,target,bombs,victims,begin,confirm,update,segmentDistance});
+window.BoardItems=Object.freeze({names,ids,radius,blastRadius,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,victims,begin,confirm,update,segmentDistance});
 })();
