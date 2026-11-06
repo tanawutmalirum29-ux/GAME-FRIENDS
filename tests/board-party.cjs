@@ -734,6 +734,19 @@ test('Bots complete acute branch merges without steering backwards before the ch
  until(s,()=>p.currentNodeId==='n8',5);
  assert.equal(s.move?.remaining||0,0);
 });
+test('Bot recovers from failed UFO aim without a 12s forced roll',()=>{
+ const s=ready(2,2790),p=s.players[0],q=s.players[1];
+ p.isBot=true;p.item='ufo';q.currentNodeId='n10';
+ tick(s,1);
+ assert.equal(s.phase,'aim','bot should attempt available UFO once');
+ assert.equal(p.botItemAttemptKey,s.roundNumber+':'+s.turnIndex);
+ q.shieldTurns=1; // Target becomes invalid while the bot is aiming.
+ tick(s,9.5);
+ assert.equal(p.item,'ufo','a failed aim must not consume the item');
+ assert.ok(['dice','move_ready','moving','branch','effect'].includes(s.phase),
+  'bot chooses Roll after failed aim instead of looping the same item forever');
+ assert.ok(s.moveDice&&s.moveDice.length===2,'AI can roll using the original dice rules');
+});
 test('Full-session stress: 1–12 bots, 20 seeds each, minigame rewards and finish',()=>{
  let games=0,rounds=0,used=new Set();
  for(let n=1;n<=12;n++)for(let seed=0;seed<20;seed++){
