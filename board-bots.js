@@ -29,13 +29,11 @@ function update(s,dt,api){
    kind==='car'?!!forwardTarget(s,p):
    s.players.some(q=>q.id!==p.id&&!q.shieldTurns));
   const target=bag.find(canUse);
-  if(p.bagOpen){
-   const index=p.bagIndex||0;
-   if(!target){
-    // Close at the final slot, then roll normally.
-    send(s,p,api,0,0,index>=bag.length?'B':'A');
-   }else send(s,p,api,0,0,bag[index]===target?'B':'A');
-  }else send(s,p,api,0,0,target?'B':'A');
+  const desiredIndex=target?bag.indexOf(target)+1:0;
+  const currentIndex=Math.min(bag.length,Math.max(0,Math.trunc(p.actionIndex||0)));
+  // The bot uses exactly the same Roll-first list as human controllers:
+  // B advances one slot, A confirms, including when nothing is usable.
+  send(s,p,api,0,0,currentIndex===desiredIndex?'A':'B');
  }else if(s.phase==='move_ready'||(s.phase==='moving'&&s.move?.kind==='walk')){
   const m=s.move,from=window.BoardItems.position(s,p),
    goal=s.map.nodes[m.to||s.map.nodes[p.currentNodeId].nextNodes[0]]?.position;
