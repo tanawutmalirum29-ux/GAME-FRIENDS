@@ -4427,3 +4427,11 @@ body:has(#home:not(.hidden)) footer{
   #game #resultList>.result-player{animation:none}
 }
 @keyframes gf-rank-enter{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
+
+/* Controller's identity portrait uses the exact same hatless mask as results. */
+#controller .gamepad-avatar{
+  display:grid;place-items:center;overflow:hidden;
+  border:2px solid #ffdc81;border-radius:50%;
+  box-shadow:0 0 7px #ffd36c75;
+}
+#controller .gamepad-avatar svg{width:100%;height:100%;display:block}
