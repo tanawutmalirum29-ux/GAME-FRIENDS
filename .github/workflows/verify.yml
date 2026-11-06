@@ -29,6 +29,10 @@ jobs:
           node --check tests/chickens.cjs
           node --check auto-update.js
           node --check scripts/build-static.cjs
+      - name: BOARD PARTY rules and simulations
+        run: |
+          for source in board-*.js; do node --check "$source"; done
+          node tests/board-party.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
       - name: COLOR SWITCH rules and 12-player stress
