@@ -545,6 +545,7 @@ function draw(ctx,time,round,ps){
   ctx.restore();
  }
  ctx.restore();
+ ctx.save();
  // Screen-space HUD is independent of world size and leaves the arena visible.
  ctx.fillStyle='#1f2e3ee5';ctx.fillRect(12,10,234,57);
  ctx.fillStyle='#fff2dc';ctx.font='900 19px system-ui';ctx.textAlign='left';
