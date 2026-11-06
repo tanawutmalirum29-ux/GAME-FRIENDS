@@ -27,6 +27,38 @@ const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
 const hostLauncher=fs.readFileSync('host.html','utf8');
 
+// Cover/social assets are checked into GitHub: no external hotlink or
+// missing favicon fallback that browsers would otherwise show as a globe.
+assert.match(html,/<link rel="icon" type="image\/svg\+xml" sizes="any" href="\.\/assets\/game-friends-icon\.svg">/);
+assert.match(html,/<link rel="apple-touch-icon" sizes="180x180" href="\.\/assets\/game-friends-touch-icon\.png">/);
+assert.match(html,/<link rel="manifest" href="\.\/manifest\.webmanifest">/);
+assert.match(html,/<meta property="og:image" content="https:\/\/raw\.githubusercontent\.com\/tanawutmalirum29-ux\/GAME-FRIENDS\/main\/assets\/game-friends-social\.png">/);
+assert.match(html,/<meta property="og:image:width" content="1200">/);
+assert.match(html,/<meta property="og:image:height" content="630">/);
+assert.match(html,/name="twitter:card" content="summary_large_image"/);
+assert.match(html,/<img class="hero-cover" src="\.\/assets\/game-friends-cover\.svg"/);
+assert.match(css,/#home \.hero-cover\{/);
+const coverSvg=fs.readFileSync('assets/game-friends-cover.svg','utf8');
+const iconSvg=fs.readFileSync('assets/game-friends-icon.svg','utf8');
+assert.match(coverSvg,/<svg[^>]*viewBox="0 0 1200 630"/);
+assert.match(coverSvg,/GAME FRIENDS/);
+assert.match(coverSvg,/FRUIT MEMORY/);
+assert.match(coverSvg,/COLOR SWITCH/);
+assert.match(coverSvg,/PIZZA TIME/);
+assert.match(iconSvg,/<svg[^>]*viewBox="0 0 64 64"/);
+const sharePng=fs.readFileSync('assets/game-friends-social.png');
+assert.equal(sharePng.subarray(0,8).toString('hex'),'89504e470d0a1a0a','social preview must be valid PNG');
+assert.equal(sharePng.readUInt32BE(16),1200,'social preview has 1200px width');
+assert.equal(sharePng.readUInt32BE(20),630,'social preview has 630px height');
+const touchPng=fs.readFileSync('assets/game-friends-touch-icon.png');
+assert.equal(touchPng.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+assert.equal(touchPng.readUInt32BE(16),180);
+assert.equal(touchPng.readUInt32BE(20),180);
+const appManifest=JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));
+assert.equal(appManifest.short_name,'GAME FRIENDS');
+assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-icon.svg'));
+assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-touch-icon.png'));
+
 // Game catalog retains Ghost Attack and now adds CHICKENS as game two.
 assert.match(html,/data-pick="ghost"/);
 assert.equal([...html.matchAll(/data-pick="/g)].length,6);
@@ -58,7 +90,7 @@ assert.match(html,/data-session-mode="queue"/);
 assert.match(html,/data-session-mode="endless"/);
 assert.match(html,/เล่นทุกเกมไปเรื่อยๆ/);
 assert.match(html,/id="cycleAllBotsBtn"/);
-assert.doesNotMatch(html,/id="iosFullscreenBtn"|manifest\.webmanifest|apple-mobile-web-app-capable/);
+assert.doesNotMatch(html,/id="iosFullscreenBtn"|apple-mobile-web-app-capable/);
 assert.doesNotMatch(source,/avoidIOSNativeFullscreen|canUseNativeHostFullscreen|iosNativeFullscreenEnabled|IOS_FULLSCREEN_PREF/);
 assert.match(css,/#hostLobby \.lobby-section-title \.bulk-bot-switch\{/);
 assert.match(html,/id="uiModal"/);
