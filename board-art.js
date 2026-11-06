@@ -341,7 +341,7 @@ function effects(g,s,t){
    for(const p of I.bombs(sk)){circle(g,p.x,p.y,I.blastRadius,'#f36b7a25','#ec6679',2);circle(g,p.x,p.y,5,'#f26c81');}
    g.save();g.translate(sk.x,sk.y);g.rotate(sk.angle+Math.PI/2);icon(g,'bomber',0,0,29);g.restore();
   }else if(sk.kind==='ufo'){
-   circle(g,sk.x,sk.y,26,'#9beef326',sk.targetId?'#b5ffb8':'#9eefff',3);icon(g,'ufo',sk.x,sk.y-33,33);
+   circle(g,sk.x,sk.y,I.ufoRadius+I.radius,'#9beef32b',sk.targetId?'#b5ffb8':'#9eefff',3);icon(g,'ufo',sk.x,sk.y-38,33);
    if(sk.targetId){const p=s.players.find(p=>p.id===sk.targetId);label(g,p.shieldTurns?'โล่ป้องกัน • '+p.name:'A • '+p.name,sk.x,sk.y+46,16,'#163c53','center');}
   }else {
    const n=s.map.nodes[sk.nodeId];if(!sk.step&&n.nextNodes.length>1)for(const id of n.nextNodes){const q=s.map.nodes[id].position;line(g,n.position.x,n.position.y,q.x,q.y,id===sk.selectedNext?'#ffe1a0':'#91b8c7',id===sk.selectedNext?6:2);}

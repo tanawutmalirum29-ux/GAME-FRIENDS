@@ -78,7 +78,7 @@ function land(s,applyTile=true){
  const n=s.map.nodes[p.currentNodeId];let dead=false,kind='land';
  if(!applyTile){
   effect(s,{kind:'land',points:[I().position(s,p)],targets:[p.id],
-   next:m?.kind==='rocket'?'ready':'end'},.5);return;
+   next:'end'},.5);return;
  }
  if(n.type==='lucky'){
   // Only a final landing is eligible; grant once per player turn. Stacked
@@ -89,7 +89,7 @@ function land(s,applyTile=true){
   if(s.luckyGrantKey===grantKey){
    // A defensive repeated landing must not leave phase=moving with move=null.
    if(s.phase==='moving')effect(s,{kind:'land',points:[n.position],targets:[p.id],
-     next:m?.kind==='rocket'?'ready':'end'},.8);
+     next:'end'},.8);
    return;
   }
   const pool=I().ids,index=Math.max(0,Math.min(pool.length-1,Math.floor(s.rng()*pool.length)));
@@ -97,7 +97,7 @@ function land(s,applyTile=true){
   if(!I().add(p,item))throw Error('Lucky Star reward not in item registry');
   s.luckyGrantKey=grantKey;
   s.lucky={playerId:p.id,item,at:s.time,spinDuration:LUCKY_SPIN_SECONDS,
-    holdDuration:LUCKY_HOLD_SECONDS,next:m?.kind==='rocket'?'ready':'end'};
+    holdDuration:LUCKY_HOLD_SECONDS,next:'end'};
   phase(s,'lucky_roulette',LUCKY_SPIN_SECONDS+LUCKY_HOLD_SECONDS);
   return;
  }
@@ -123,7 +123,7 @@ function land(s,applyTile=true){
  }
  effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],
   ownerColor:n.type==='sword'?s.players.find(q=>q.id===n.ownerId)?.color:null,
-  next:!dead&&m?.kind==='rocket'?'ready':'end'},dead?1.5:.8);
+  next:'end'},dead?1.5:.8);
 }
 function beginMove(s,p,steps,kind='walk'){
  // Preserve the existing real position at the pad, even across turns.
@@ -143,10 +143,15 @@ function beginMove(s,p,steps,kind='walk'){
  }
  if(p.pendingTraverse){
   const pending=p.pendingTraverse;delete p.pendingTraverse;
-  s.move.from=pending.from;s.move.to=pending.to;
-  s.move.startPosition=pending.startPosition;s.move.endPosition=pending.endPosition;
-  s.move.t=pending.t;s.move.lateral=pending.lateral||0;
-  s.move.nodeOffset={x:0,y:0};movePhase(s,'moving');return;
+  // Never resume a stored edge after a UFO swap or any other node teleport.
+  // The stale edge can point backwards into an already-visited tile and strand
+  // bot/human movement. Valid mid-edge rocket position remains resumable.
+  if(pending.from===p.currentNodeId&&s.map.nodes[pending.from]?.nextNodes.includes(pending.to)){
+   s.move.from=pending.from;s.move.to=pending.to;
+   s.move.startPosition=pending.startPosition;s.move.endPosition=pending.endPosition;
+   s.move.t=pending.t;s.move.lateral=pending.lateral||0;
+   s.move.nodeOffset={x:0,y:0};movePhase(s,'moving');return;
+  }
  }
  phase(s,'move_ready',15);nextStep(s);
 }
@@ -342,7 +347,7 @@ function confirmAction(s,p){
  if(selected===0)return roll(s);
  const kind=I().ids[selected-1];
  if(!I().bag(p).includes(kind)){p.actionIndex=0;p.bagMessage='ไม่มีไอเทมนี้';return false;}
- if(!p.debugUnlimitedItems&&p.usedRound===s.roundNumber){p.bagMessage='ใช้ไอเทมในรอบนี้แล้ว';return false;}
+ if(p.usedRound===s.roundNumber){p.bagMessage='ใช้ไอเทมในรอบนี้แล้ว';return false;}
  if(!I().begin(s,p,api,kind)){
   p.bagMessage=kind==='potion'?'HP เต็มแล้ว':kind==='shield'?'โล่ยังทำงานอยู่':'ยังใช้ไอเทมนี้ไม่ได้';
   return false;

@@ -2089,18 +2089,22 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.equal(ui.elements.get('botUnlimitedBtn').attributes['aria-pressed'],'true');
  assert.deepEqual(Array.from(new Set(possessed.bag)),Array.from(I.ids),'debug bot has all six items without a huge inventory');
  assert.equal(board.players[0].debugUnlimitedItems,undefined,'other bot inventory is never modified');
- // Repeat the same item through the real A confirmation path in one round.
+ // Infinite *stock* still obeys the one-item-per-round rule. Each
+ // successful item use ends the turn without a bonus die roll.
  board.order=[possessed.id,...board.players.filter(p=>p.id!==possessed.id).map(p=>p.id)];
- board.turnIndex=0;P.startTurn(board);
+ const initialRound=board.roundNumber;
  for(let k=0;k<2;k++){
+  board.roundNumber=initialRound+k;board.turnIndex=0;P.startTurn(board);
   possessed.hp=20;
-  possessed.actionIndex=possessed.bag.indexOf('potion')+1;
-  assert.equal(P.action(board,possessed.id,'A'),true,'debug potion may be used repeatedly');
+  possessed.actionIndex=I.ids.indexOf('potion')+1;
+  assert.equal(P.action(board,possessed.id,'A'),true,'debug potion works in a new round');
   assert.equal(possessed.hp,70);
-  assert.equal(possessed.bag.length,I.ids.length,'consumed infinite item stays in the list');
-  assert.notEqual(possessed.usedRound,board.roundNumber,'infinity bypasses one-item-per-round gating only for test bot');
+  assert.equal(possessed.bag.length,I.ids.length,'unlimited debug stock is not consumed');
+  assert.equal(possessed.usedRound,board.roundNumber,'debug stock still respects one item per round');
   for(let t=0;t<22&&board.phase!=='ready';t++)P.update(board,.05);
   assert.equal(board.phase,'ready');
+  assert.notEqual(P.current(board).id,possessed.id,'item effect passes the turn');
+  assert.equal(board.moveDice,null,'no extra roll after using a debug item');
  }
  ui.click('botUnlimitedBtn');
  assert.equal(possessed.debugUnlimitedItems,false);
