@@ -2141,10 +2141,11 @@ for(const count of [1,12]){
  }
  state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
  assert.equal(state.stepsRemaining,movementTotal-1);assert.equal(p.currentNodeId,'n1');
- P.startTurn(s);p.bag=['shield'];p.item='shield';p.bagIndex=0;p.usedRound=0;
+ P.startTurn(s);p.bag=['shield'];p.item='shield';p.actionIndex=0;p.usedRound=0;
  sendBoard({alt:true});
- assert.equal(p.bagOpen,true,'B opens the backpack rather than instantly using an item');
- sendBoard({});sendBoard({alt:true});
+ assert.equal(p.actionIndex,1,'B selects shield after the Roll slot');
+ assert.equal(p.bagOpen,false,'there is no popup bag');
+ sendBoard({});sendBoard({action:true});
  api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
  assert.equal(state.shieldTurns,2);assert.equal(p.item,null);assert.equal(p.bag.length,0);
 }
@@ -2158,11 +2159,11 @@ for(const count of [1,12]){
  const forward=()=>{for(const msg of conn.sent.slice(sent))if(msg.t==='input')P.input(s,'p1',msg);sent=conn.sent.length;};
  const state=()=>conn.fire('data',{t:'board-state',phase:'playing',turnId:s.turnId,boardPhase:s.phase,round:1,hp:3,item:'Bomber Aircraft',stepsRemaining:0,shieldTurns:0,...P.controls(s,'p1')});
  state();forward();ui.padZones.alt.fire('pointerdown',{pointerId:1});forward();
- assert.equal(s.phase,'ready');assert.equal(s.players[0].bagOpen,true,'first B opens inventory');
+ assert.equal(s.phase,'ready');assert.equal(s.players[0].actionIndex,1,'B selects bomber in inline inventory');
  ui.padZones.alt.fire('pointerup',{pointerId:1});forward();
- ui.padZones.alt.fire('pointerdown',{pointerId:2});forward();assert.equal(s.phase,'aim','second B uses selected bomber');
- ui.padZones.alt.fire('pointerup',{pointerId:2});forward();assert.equal(s.inputs.p1.b,true,'old-token release is rejected');
- state();forward();assert.equal(s.inputs.p1.b,false,'fresh token immediately resends physical release');
+ ui.padZones.action.fire('pointerdown',{pointerId:2});forward();assert.equal(s.phase,'aim','A uses selected bomber');
+ ui.padZones.action.fire('pointerup',{pointerId:2});forward();assert.equal(s.inputs.p1.a,true,'old-token release is rejected');
+ state();forward();assert.equal(s.inputs.p1.a,false,'fresh token immediately resends physical release');
  const count=conn.sent.length;state();assert.equal(conn.sent.length,count,'unchanged token does not echo inputs unnecessarily');
  ui.padZones.alt.fire('pointerdown',{pointerId:3});forward();assert.equal(s.skill.angle,Math.PI/4,'next B press rotates without waiting for a heartbeat');
 }
