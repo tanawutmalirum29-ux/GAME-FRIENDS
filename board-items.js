@@ -2,6 +2,16 @@
 'use strict';
 const names={potion:'Healing Potion',ufo:'UFO Position Swap',rocket:'Rocket Ride',bomber:'Bomber Aircraft',car:'RC Bomb Car',shield:'Protection Shield'};
 const ids=Object.keys(names),radius=18,blastRadius=72;
+function bag(p){
+ if(!Array.isArray(p.bag))p.bag=[];
+ // Accept older single-slot session data without losing a previously held item.
+ if(p.item&&(!p.bag.length||!p.bag.includes(p.item)))p.bag.unshift(p.item);
+ return p.bag;
+}
+function add(p,kind){
+ if(!ids.includes(kind))return false;
+ bag(p).push(kind);p.item=p.bag[0]||null;return true;
+}
 function positionOnNode(s,p,nodeId=p.currentNodeId){
  const n=s.map.nodes[nodeId].position;
  const group=s.players.filter(q=>q.id===p.id||q.currentNodeId===nodeId),i=group.findIndex(q=>q.id===p.id);
@@ -18,21 +28,27 @@ function position(s,p){
 function target(s,point,user){return s.players.filter(p=>p.id!==user.id&&p.currentNodeId!==s.map.finishId).map(p=>({p,d:Math.hypot(position(s,p).x-point.x,position(s,p).y-point.y)})).filter(q=>q.d<=radius+8).sort((a,b)=>a.d-b.d||String(a.p.id).localeCompare(String(b.p.id)))[0]?.p||null;}
 function bombs(aim){return Array.from({length:5},(_,i)=>({x:aim.x+Math.cos(aim.angle)*(i-2)*90,y:aim.y+Math.sin(aim.angle)*(i-2)*90}));}
 function victims(s,points,user){return s.players.filter(p=>p.id!==user.id&&points.some(q=>Math.hypot(position(s,p).x-q.x,position(s,p).y-q.y)<=blastRadius+radius));}
-function consume(s,p){p.item=null;p.usedRound=s.roundNumber;}
-function begin(s,p,api){
- if(s.phase!=='ready'||!p.item||p.usedRound===s.roundNumber||s.rolled||s.time>=s.readyDeadline)return false;
- const kind=p.item;
+function consume(s,p,kind){
+ const items=bag(p),index=items.indexOf(kind);
+ if(index>=0)items.splice(index,1);
+ p.item=items[0]||null;
+ p.bagIndex=Math.min(p.bagIndex||0,items.length);
+ p.bagOpen=false;p.usedRound=s.roundNumber;
+}
+function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
+ if(s.phase!=='ready'||!kind||!bag(p).includes(kind)||
+   p.usedRound===s.roundNumber||s.rolled||s.time>=s.readyDeadline)return false;
  if(kind==='potion'){
-  if(p.hp>=3)return false;consume(s,p);p.hp++;api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
+  if(p.hp>=3)return false;consume(s,p,kind);p.hp++;api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
  }
  if(kind==='shield'){
   // Two own turns: the activation turn and the owner's next turn, inclusive.
-  if(p.shieldTurns>0)return false;consume(s,p);p.shieldTurns=2;
+  if(p.shieldTurns>0)return false;consume(s,p,kind);p.shieldTurns=2;
   api.effect(s,{kind:'shield',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
  }
- if(kind==='rocket'){consume(s,p);api.beginMove(s,p,5,'rocket');return true;}
+ if(kind==='rocket'){consume(s,p,kind);api.beginMove(s,p,5,'rocket');return true;}
  if(kind==='car'){
-  consume(s,p);s.skill={kind,nodeId:p.currentNodeId,visited:[p.currentNodeId],...s.map.nodes[p.currentNodeId].position,remaining:6,launchUntil:s.time+.55,step:null};api.phase(s,'car',6);return true;
+  consume(s,p,kind);s.skill={kind,nodeId:p.currentNodeId,visited:[p.currentNodeId],...s.map.nodes[p.currentNodeId].position,remaining:6,launchUntil:s.time+.55,step:null};api.phase(s,'car',6);return true;
  }
  if(kind==='ufo'||kind==='bomber'){
   s.skill={kind,...position(s,p),angle:0,targetId:null};api.phase(s,'aim',Math.min(8,s.readyDeadline-s.time));return true;
@@ -50,11 +66,11 @@ function confirm(s,button,api){
   const points=[position(s,p),position(s,q)],a=p.currentNodeId,b=q.currentNodeId;
   // Validate first, then commit both node IDs in the same host action.
   if(b===s.map.finishId||a===s.map.finishId)return false;
-  p.currentNodeId=b;q.currentNodeId=a;consume(s,p);s.skill=null;
+  p.currentNodeId=b;q.currentNodeId=a;consume(s,p,skill.kind);s.skill=null;
   api.effect(s,{kind:'ufo',points,targets:[p.id,q.id],next:'end'},1.25);return true;
  }
  if(skill.kind==='bomber'){
-  const points=bombs(skill);consume(s,p);s.skill=null;
+  const points=bombs(skill);consume(s,p,skill.kind);s.skill=null;
   // Freeze the preview geometry for BOTH animation and damage resolution.
   const hit=victims(s,points,p);for(const q of hit)api.damage(s,q,1);
   api.effect(s,{kind:'bomber',points,targets:hit.map(q=>q.id),next:'end'},1.6);return true;
@@ -99,5 +115,5 @@ function update(s,dt,api){
   if(collision||skill.remaining<=0)explode(s,api);
  }
 }
-window.BoardItems=Object.freeze({names,ids,radius,blastRadius,position,positionOnNode,target,bombs,victims,begin,confirm,update,segmentDistance});
+window.BoardItems=Object.freeze({names,ids,radius,blastRadius,bag,add,position,positionOnNode,target,bombs,victims,begin,confirm,update,segmentDistance});
 })();
