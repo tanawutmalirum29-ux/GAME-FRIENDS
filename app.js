@@ -2207,7 +2207,8 @@ function animate(ts){
   frameLast=ts;
   try{
    if(currentView==='game'&&gameSelection){
-    updateGameSelection(dt);
+    // Board-to-minigame roulette also follows wall-clock time on slow devices.
+    updateGameSelection(boardSession?boardDt:dt);
    }else if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
     updateRound(round.mode==='board'?boardDt:dt);drawGame(graphicsClock);
