@@ -1128,6 +1128,7 @@ function joinRoom(recovery=false){
         $('leaveConfirm').classList.add('hidden');
         resetPhonePreview();
         $('controllerName').textContent=data.name;$('controllerAvatar').style.background=data.color;
+     $('controllerAvatar').innerHTML=window.PartyPlayerAvatar?.svgForFront(data.color)||'';
         $('joinForm').classList.add('hidden');$('controllerActive').classList.remove('hidden');
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
         $('controllerInventory').classList.remove('is-ghost');
@@ -1834,14 +1835,14 @@ function renderResultVotes(sendUpdate=false){
 }
 
 function layoutFinalResults(){
-  // All occupied seats must remain visible at once, including 12 bots when
-  // no remote controllers are connected (0/0 votes).
+  // Keep legacy label/score nodes first: voting, accessibility and game engines
+  // consume those. The new vector portrait and rank plaque are decorative.
   const list=$('resultList');
   const children=Array.from(list.children);
   const rows=children.filter(el=>String(el.className||'').split(/\s+/).includes('result-player'));
   const hasHeading=children.some(el=>String(el.className||'').split(/\s+/).includes('tournament-header'));
   const width=Number(window.innerWidth)||960;
-  const maxColumns=width>=1060?4:width>=620?3:2;
+  const maxColumns=rows.length<=4?1:width>=1060?4:width>=620?3:2;
   const columns=Math.max(1,Math.min(rows.length||1,maxColumns));
   const lines=Math.max(1,Math.ceil(rows.length/columns));
   list.style.setProperty('--result-cols',String(columns));
@@ -1849,15 +1850,39 @@ function layoutFinalResults(){
   list.dataset.count=String(rows.length);
   list.dataset.cols=String(columns);
   list.classList.toggle('has-heading',hasHeading);
-  rows.forEach(row=>{
-    const label=row.children[0];
-    const color=label?.style?.color||'#9fb9da';
-    row.style.setProperty('--result-accent',color);
+  const roster=round?.mode==='board'&&boardSession?boardSession.players:players;
+  rows.forEach((row,index)=>{
+    const label=row.children[0],detail=row.children[1];
     const name=String(label?.textContent||'');
+    const color=label?.style?.color||'#9fb9da';
     const match=name.match(/อันดับ\s*(\d+)|(?:^|\s)(\d+)\.\s*/);
-    const rank=Number(match?.[1]||match?.[2]||0);
-    if(rank>0)row.dataset.rank=String(rank);
+    const rank=Number(match?.[1]||match?.[2]||index+1);
+    row.dataset.rank=String(rank);
     row.classList.toggle('is-winner',rank===1);
+    row.classList.toggle('is-podium',rank<=3);
+    row.style.setProperty('--result-accent',color);
+    // Distinct player-owned banner colors, NEVER fixed purple/silver/green by rank.
+    const playerName=name.split(' • ').pop().trim();
+    const p=roster.find(q=>q.name===playerName&&q.color===color)||
+      roster.find(q=>q.name===playerName)||{color};
+    row.dataset.playerId=String(p.id||'');
+    let portrait=Array.from(row.children).find(x=>x.className==='result-avatar');
+    if(!portrait){
+      portrait=document.createElement('div');
+      portrait.className='result-avatar';portrait.setAttribute('aria-hidden','true');
+      row.append(portrait);
+    }
+    // The SVG is locally authored, colors strictly match the validated player.
+    portrait.innerHTML=window.PartyPlayerAvatar?.svgForFront(p.color)||'';
+    let badge=Array.from(row.children).find(x=>x.className==='result-ordinal');
+    if(!badge){
+      badge=document.createElement('div');
+      badge.className='result-ordinal';badge.setAttribute('aria-hidden','true');
+      row.append(badge);
+    }
+    const suffix=rank%100>=11&&rank%100<=13?'TH':rank%10===1?'ST':rank%10===2?'ND':rank%10===3?'RD':'TH';
+    badge.textContent=String(rank)+suffix;
+    row.title=name+' • '+(detail?.textContent||'');
   });
 }
 

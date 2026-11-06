@@ -452,40 +452,63 @@ function overlay(g,s){
  label(g,order?(s.phase==='order'?'ทอยลูกเต๋าเพื่อจัดลำดับ':'ลำดับการเดินพร้อมแล้ว'):'สรุปผลมินิเกมและรางวัล',480,63,25,'#eefbff','center');
  label(g,order?'A หรือ B • ทอย 2 ลูก • คะแนนมากเริ่มก่อน':'อันดับการแข่งขันและสิทธิ์รางวัล • ไอเทมเข้ากระเป๋าอัตโนมัติ • ไม่สุ่มซ้ำ',480,96,12,'#adccdc','center',500);
  const ids=order?(s.phase!=='order'?s.order:s.players.map(p=>p.id)):s.results.map(r=>r.id);
- const cols=ids.length<=4?2:4,rows=Math.ceil(ids.length/cols),w=cols===2?392:211,h=Math.min(108,310/rows),left=(960-(cols*w+(cols-1)*12))/2;
+ const cols=order?(ids.length<=4?2:4):ids.length<=4?1:ids.length<=8?2:3;
+ const rows=Math.ceil(ids.length/cols),w=cols===1?700:cols===2?392:cols===3?286:211;
+ const h=Math.min(108,310/rows),left=(960-(cols*w+(cols-1)*12))/2;
  ids.forEach((id,i)=>{
-  const p=s.players.find(p=>p.id===id),x=left+(i%cols)*(w+12),y=127+Math.floor(i/cols)*(h+10),r=s.results.find(r=>r.id===id);
-  box(g,x,y,w,h,12,'#203f55',p.color+'99');box(g,x,y,4,h,3,p.color);
-  window.PartyPlayerAvatar.draw(g,{...p,x:x+27,y:y+29},{scale:.72,label:false});label(g,p.name,x+53,y+23,13,p.color,'left',700,w-108);
-  if(s.phase==='round_order'){
-   label(g,'ตาที่ '+(i+1),x+15,y+66,25,'#ffe3a1','left',800,88);
-   const tied=s.results.filter(q=>q.rank===r.rank).length>1;
-   label(g,'อันดับ '+r.rank+(tied?' ร่วม':''),x+112,y+59,12,'#cee5f2','left',700,w-125);label(g,r.label,x+112,y+80,10,'#a8cfdf','left',500,w-125);
-  }else if(order){
+  const p=s.players.find(p=>p.id===id);
+  const x=left+(i%cols)*(w+12),y=127+Math.floor(i/cols)*(h+10),r=s.results.find(q=>q.id===id);
+  if(!p)return;
+  if(order){
+   box(g,x,y,w,h,12,'#203f55',p.color+'99');
+   box(g,x,y,4,h,3,p.color);
+   window.PartyPlayerAvatar.draw(g,{...p,x:x+27,y:y+29},{scale:.72,label:false});
+   label(g,p.name,x+53,y+23,13,p.color,'left',700,w-108);
    const elapsed=p.dice?Math.max(0,s.time-p.rollAt):Infinity;
-    const rolled=p.dice&&elapsed>=window.BoardDice.TIMING.throw;
+   const rolled=p.dice&&elapsed>=window.BoardDice.TIMING.throw;
    dice(g,p.dice?.[0],x+57,y+72,30,!!p.dice,elapsed,0,s.camera.lowDetail);
-    dice(g,p.dice?.[1],x+98,y+72,30,!!p.dice,elapsed,1,s.camera.lowDetail);
-   label(g,rolled?'= '+p.dice.reduce((a,b)=>a+b,0):p.dice?'กำลังทอย':'รอทอย',x+127,y+61,16,'#f3e2b7','left',700,80);
-   // Show rank/status inside the bottom-right corner, away from names and dice.
-   // Clip the text to the badge so it cannot spill into the next player card.
+   dice(g,p.dice?.[1],x+98,y+72,30,!!p.dice,elapsed,1,s.camera.lowDetail);
+   label(g,rolled?'= '+p.dice.reduce((a,b)=>a+b,0):p.dice?'กำลังทอย':'รอทอย',
+     x+127,y+61,16,'#f3e2b7','left',700,80);
    const badgeW=88,badgeH=20,badgeX=x+w-badgeW-10,badgeY=y+h-badgeH-9;
    box(g,badgeX,badgeY,badgeW,badgeH,6,s.phase==='order_result'?'#355266':'#17384c');
-   g.save();
-   g.beginPath();g.rect(badgeX+4,badgeY+2,badgeW-8,badgeH-4);g.clip();
+   g.save();g.beginPath();g.rect(badgeX+4,badgeY+2,badgeW-8,badgeH-4);g.clip();
    label(g,s.phase==='order_result'?'ลำดับ '+(i+1):p.dice?'ทอยแล้ว':'A / B',
      badgeX+8,badgeY+badgeH/2,10,'#d5e9f3','left',700,badgeW-16);
    g.restore();
+   return;
+  }
+  // Result banner is the player's actual color regardless of finishing rank.
+  const tint=g.createLinearGradient(x,y,x+w,y+h);
+  tint.addColorStop(0,p.color);tint.addColorStop(.65,p.color);
+  tint.addColorStop(1,'#29264a');
+  box(g,x,y,w,h,12,tint,r.rank===1?'#ffe5a5':'#fff7');
+  g.save();
+  g.shadowColor='#ffe5a3';g.shadowBlur=8;
+  g.beginPath();g.arc(x+41,y+Math.min(46,h/2),32,0,Math.PI*2);
+  g.fillStyle='#ffda79';g.fill();
+  g.shadowBlur=0;g.lineWidth=2;g.strokeStyle='#fff0b8';g.stroke();
+  g.beginPath();g.arc(x+41,y+Math.min(46,h/2),27,0,Math.PI*2);
+  g.fillStyle='#86cfee';g.fill();
+  g.restore();
+  window.PartyPlayerAvatar.drawFront(g,p,x+41,y+Math.min(46,h/2),54);
+  const rank=r.rank,suffix=rank%100>=11&&rank%100<=13?'TH':rank%10===1?'ST':rank%10===2?'ND':rank%10===3?'RD':'TH';
+  const medal=rank===1?'#ffdf72':rank===2?'#eff5ff':rank===3?'#ffac69':'#ffe0b2';
+  const tied=s.results.filter(q=>q.rank===rank).length>1;
+  label(g,rank+suffix,x+w-12,y+Math.min(54,h*.64),cols===2?32:24,medal,'right',900,cols===2?100:61);
+  label(g,p.name,x+83,y+24,cols===2?16:13,'#ffffff','left',900,w-(cols===2?190:155));
+  label(g,r.label+(tied?' • อันดับร่วม':''),x+83,y+48,cols===2?12:10,'#ffffff','left',700,w-(cols===2?190:155));
+  if(r.reward){
+   // The reward was assigned ONCE by BoardParty.minigameEnded.
+   // Never cycle fake item icons or hide the actual reward until another phase.
+   const ry=y+Math.min(h-12,76);
+   icon(g,r.reward,x+94,ry,19);
+   label(g,'ได้รับ: '+IName(r.reward),x+110,ry,cols===2?12:10,'#fff4be','left',800,w-(cols===2?220:160));
   }else{
-   const tied=s.results.filter(q=>q.rank===r.rank).length>1;
-   label(g,'#'+r.rank+(tied?' ร่วม':''),x+13,y+61,22,'#ffe2a1');label(g,r.label,x+90,y+51,11,'#cce5f3');
-   if(r.reward&&s.phase!=='standings'){
-    const pending=s.pendingItems[id],rolling=s.time-s.phaseAt<1.1;icon(g,rolling?window.BoardItems.ids[Math.floor(s.time*15)%window.BoardItems.ids.length]:r.reward,pending?x+w-25:x+103,y+78,15);
-    if(pending)label(g,IName(r.reward),x+13,y+89,9,'#ffe3a2');
-    else label(g,rolling?'กำลังสุ่ม...':IName(r.reward)+' • เข้ากระเป๋า',x+125,y+79,9,'#f9dda6');
-   }else label(g,r.reward?'ได้รับสิทธิ์ไอเทม':'ไม่ได้รับไอเทม',x+90,y+77,10,r.reward?'#8de4c4':'#8faebf');
+   label(g,'ไม่มีไอเทมรางวัล',x+85,y+Math.min(h-12,76),10,'#ffffff','left',600,w-163);
   }
  });
+
  label(g,Math.max(0,Math.ceil(s.deadline-s.time))+' วินาที • ดำเนินต่ออัตโนมัติ',480,503,13,'#b8dce9','center',500);
 }
 // SVG-only backpack selector, drawn above the dice until the owner closes it.
