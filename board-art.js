@@ -61,9 +61,9 @@ function island(g,x,y,w,h){
 }
 function bridge(g,a,b){
  const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy),angle=Math.atan2(dy,dx);
- g.save();g.translate(a.x,a.y);g.rotate(angle);line(g,0,-40,len,-40,'#6b5751',5);line(g,0,40,len,40,'#6b5751',5);
- for(let x=0;x<len;x+=14)box(g,x,-38,12,76,2,x%28?'#bc9976':'#c8ac86','#9a7b64');
- for(let x=0;x<=len;x+=50){line(g,x,-43,x,-34,'#786053',6);line(g,x,34,x,43,'#786053',6);}g.restore();
+ g.save();g.translate(a.x,a.y);g.rotate(angle);line(g,0,-47,len,-47,'#6b5751',5);line(g,0,47,len,47,'#6b5751',5);
+ for(let x=0;x<len;x+=14)box(g,x,-44,12,88,2,x%28?'#bc9976':'#c8ac86','#9a7b64');
+ for(let x=0;x<=len;x+=50){line(g,x,-50,x,-40,'#786053',6);line(g,x,40,x,50,'#786053',6);}g.restore();
 }
 function scenery(g,map){
  const grad=g.createLinearGradient(0,0,900,1450);grad.addColorStop(0,'#23647f');grad.addColorStop(1,'#10344f');g.fillStyle=grad;g.fillRect(0,0,map.width,map.height);
@@ -71,7 +71,7 @@ function scenery(g,map){
  for(let i=0;i<100;i++){const x=rng()*1800,y=rng()*1450;line(g,x,y,x+25,y-7,'#8cd4e719',2);}
  for(let row=0;row<4;row++)island(g,865,320+row*310,1580,245);
  for(const id of Object.keys(map.nodes).filter(id=>id[0]==='b')){const p=map.nodes[id].position;island(g,p.x,p.y,170,130);}
- for(const n of Object.values(map.nodes))for(const id of n.nextNodes){const p=map.nodes[id].position;line(g,n.position.x,n.position.y,p.x,p.y,'#a5dce9',84);line(g,n.position.x,n.position.y,p.x,p.y,'#e8faff',76);}
+ for(const n of Object.values(map.nodes))for(const id of n.nextNodes){const p=map.nodes[id].position;line(g,n.position.x,n.position.y,p.x,p.y,'#a5dce9',100);line(g,n.position.x,n.position.y,p.x,p.y,'#e8faff',92);}
  for(const [a,b]of map.bridges)bridge(g,map.nodes[a].position,map.nodes[b].position);
  // Props are placed away from all path segments and avatar centres.
  const edges=Object.values(map.nodes).flatMap(n=>n.nextNodes.map(id=>[n.position,map.nodes[id].position]));
@@ -107,8 +107,8 @@ function sceneryLite(g,s){
  for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
    const a=n.position,b=map.nodes[id].position;
    if(!intersects(a,b))continue;
-   line(g,a.x,a.y,b.x,b.y,'#a5dce9',84);
-   line(g,a.x,a.y,b.x,b.y,'#e8faff',76);
+   line(g,a.x,a.y,b.x,b.y,'#a5dce9',100);
+   line(g,a.x,a.y,b.x,b.y,'#e8faff',92);
  }
  // Draw the same wooden bridge in the low-memory vector fallback.
  for(const [from,to] of map.bridges){
@@ -154,7 +154,7 @@ function nodes(g,s){
  for(const n of Object.values(s.map.nodes)){
   const {x,y}=n.position;
   if(!visible(x,y,75))continue;
-  const c=colors[n.type];circle(g,x,y+5,28,'#407b9355');circle(g,x,y,27,c,'#fff6',3);circle(g,x,y-2,23,null,'#ffffff60',1);
+  const c=colors[n.type];circle(g,x,y+5,45,'#407b9355');circle(g,x,y,44,c,'#fff6',3);circle(g,x,y-2,39,null,'#ffffff60',1);
   g.save();g.translate(x,y);
   if(n.type==='movement'||n.type==='start'){const q=s.map.nodes[n.nextNodes[0]];if(q)g.rotate(Math.atan2(q.position.y-y,q.position.x-x));}
   icon(g,n.type,0,0,17,'#f3fdff');g.restore();
