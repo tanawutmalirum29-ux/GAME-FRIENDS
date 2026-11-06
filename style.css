@@ -3753,3 +3753,104 @@ body.controller-playing.pizza-controller-game #controller #controllerActive #inv
     font-size:clamp(11px,2.7dvh,14px);
   }
 }
+
+
+/* BLIND-PLAY FACE TOUCH ZONES
+   Invisible hit areas fill the controller's entire RIGHT column. A occupies
+   the upper half and B the lower half; their hitboxes never overlap.
+   Visual circular buttons stay the same size. The ghost slow-target arrows
+   have their own third row and are never covered by B. */
+body.controller-playing #controller #controllerActive
+.controller-buttons:not(.shockwave-mode) .gamepad-face-buttons{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:repeat(2,minmax(0,1fr));
+  align-items:stretch!important;
+  justify-items:stretch!important;
+  align-content:stretch!important;
+  justify-content:stretch!important;
+  gap:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0;
+  min-height:0;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  pointer-events:none;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons.has-target:not(.shockwave-mode) .gamepad-face-buttons{
+  /* Keep the slow-target selection arrows outside both A/B zones. */
+  grid-template-rows:minmax(0,1fr) minmax(0,1fr) auto;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons:not(.shockwave-mode) .gamepad-face-buttons .face-a,
+body.controller-playing #controller #controllerActive
+.controller-buttons:not(.shockwave-mode) .gamepad-face-buttons .face-b{
+  position:relative!important;
+  inset:auto!important;
+  display:flex!important;
+  flex-direction:column;
+  align-items:center!important;
+  justify-content:center!important;
+  justify-self:stretch;
+  align-self:stretch;
+  grid-column:1;
+  width:100%!important;
+  height:100%!important;
+  min-width:0;
+  min-height:0;
+  margin:0!important;
+  padding:0;
+  border:0;
+  pointer-events:auto!important;
+  touch-action:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior:contain;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons:not(.shockwave-mode) .gamepad-face-buttons .face-a{
+  grid-row:1;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons:not(.shockwave-mode) .gamepad-face-buttons .face-b{
+  grid-row:2;
+}
+/* A/B still disappear in modes that have no B action. Results remove those
+   mode classes, so both hit zones return for A/B result voting. */
+body.controller-playing #controller #controllerActive
+.controller-buttons.chickens-mode .gamepad-face-buttons .face-b,
+body.controller-playing #controller #controllerActive
+.controller-buttons.fruit-memory-mode .gamepad-face-buttons .face-b{
+  display:none!important;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons:not(.shockwave-mode) .gamepad-face-buttons .face-button{
+  flex:0 0 auto;
+  /* All pointer events are handled by the containing, full-size hit zone. */
+  pointer-events:none!important;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons.has-target:not(.shockwave-mode) .gamepad-face-buttons .target-cycle-controls{
+  position:relative!important;
+  inset:auto!important;
+  grid-row:3;
+  grid-column:1;
+  z-index:14;
+  justify-self:stretch;
+  align-self:end;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  box-sizing:border-box;
+  pointer-events:auto!important;
+}
+/* Do not leave a dead strip at the RIGHT safe edge: the hitboxes extend
+   to the full controller column while respecting iOS screen safe areas. */
+body.controller-playing #controller #controllerActive .controller-buttons{
+  padding-right:max(0px,env(safe-area-inset-right,0px));
+}
