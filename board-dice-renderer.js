@@ -2,7 +2,7 @@
  * Input results and elapsed time are supplied by the host-authoritative game state. */
 (() => {
 'use strict';
-const PI=Math.PI,TAU=PI*2,DURATION=1.75,HOLD=.4;
+const PI=Math.PI,TAU=PI*2,DURATION=window.BoardDice.TIMING.throw,HOLD=window.BoardDice.TIMING.hold;
 const PIPS=Object.freeze({
   1:[[0,0]],2:[[-1,-1],[1,1]],3:[[-1,-1],[0,0],[1,1]],
   4:[[-1,-1],[1,-1],[-1,1],[1,1]],
