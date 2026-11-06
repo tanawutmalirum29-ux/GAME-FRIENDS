@@ -4077,6 +4077,12 @@ body:has(#home:not(.hidden)) footer{
   min-height:0;
   min-width:0;
   max-width:1400px;
+  /* The original .layout rule uses align-content:start. With an implicit
+     auto-sized row it kept the whole hero at content height and left a huge
+     unused area ABOVE the footer even when the page was one viewport high. */
+  grid-template-rows:minmax(0,1fr);
+  align-content:stretch;
+  align-items:stretch;
   padding:clamp(5px,1dvh,13px) 0;
   overflow:hidden!important;
 }
@@ -4247,5 +4253,13 @@ body:has(#home:not(.hidden)) footer{
   #home.party-entry .hero .hero-content .button-group{
     grid-template-columns:minmax(0,1fr);
     gap:3px;
+  }
+}
+
+/* On roomy landscape screens, use the newly claimed height to make the
+   complete illustration larger, not to leave an undersized centered card. */
+@media (min-width:1120px) and (min-height:580px){
+  #home.party-entry .hero:has(.hero-cover){
+    grid-template-columns:minmax(0,.81fr) minmax(0,1.29fr);
   }
 }
