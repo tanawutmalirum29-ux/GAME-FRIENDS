@@ -23,7 +23,7 @@ function game(count=2,theme='mayan'){
  eq(a.s.theme,'mayan','forced Mayan');eq(normal.s.theme,'classic','classic preserved');
  eq(normal.s.mayan,null,'classic contains no skull state');
  eq(a.s.mayan.skulls.length,9,'9-row skull wall');
- eq(b.s.mayan.skulls.length,10,'10-row skull wall');
+ eq(b.s.mayan.skulls.length,11,'expanded 11-row skull wall');
  for(const {s} of [a,b]){
   ok(s.mayan.skulls.every(c=>c.side===(c.row%2===0?'left':'right')),'skulls alternate row positions');
   ok(s.mayan.skulls.every(c=>c.x<s.board.x||c.x>s.board.x+s.board.w),'skulls outside play field');
