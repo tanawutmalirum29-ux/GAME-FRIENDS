@@ -15,6 +15,7 @@ const characterSource=fs.readFileSync('character-system.js','utf8');
 const uiArtSource=fs.readFileSync('party-ui-art.js','utf8');
 const pizzaArtSource=fs.readFileSync('pizza-ingredient-art.js','utf8');
 const pizzaSource=fs.readFileSync('pizza-time.js','utf8');
+const knightSource=fs.readFileSync('knight-match.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const chickensSource=fs.readFileSync('chickens.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
@@ -86,7 +87,7 @@ assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-touch-i
 
 // Game catalog retains Ghost Attack and now adds CHICKENS as game two.
 assert.match(html,/data-pick="ghost"/);
-assert.equal([...html.matchAll(/data-pick="/g)].length,6);
+assert.equal([...html.matchAll(/data-pick="/g)].length,7);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
 assert.match(html,/src=".\/ghost-attack\.js"/);
 assert.match(html,/src=".\/chickens\.js"/);
@@ -99,6 +100,8 @@ assert.match(html,/data-pick="color_switch"/);
 assert.match(html,/src="\.\/pizza-ingredient-art\.js"/);
 assert.match(html,/src="\.\/party-ui-art\.js"/);
 assert.match(html,/src="\.\/pizza-time\.js"/);
+assert.match(html,/src="\.\/knight-match\.js"/);
+assert.match(html,/data-pick="knight_match"/);
 assert.match(html,/src=".\/color-switch\.js"/);
 assert.match(html,/src=".\/color-switch-mayan\.js"/);
 assert.match(html,/src="\.\/graveyard-art\.js"/);
@@ -108,7 +111,7 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME'\}/);
+assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
@@ -1030,6 +1033,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(colorSwitchSource,scope,{filename:'color-switch.js'});
   vm.runInContext(pizzaArtSource,scope,{filename:'pizza-ingredient-art.js'});
   vm.runInContext(pizzaSource,scope,{filename:'pizza-time.js'});
+  vm.runInContext(knightSource,scope,{filename:'knight-match.js'});
   for(const name of ['board-map','board-dice','board-items','board-bots','board-minigame','board-party','board-art'])
     vm.runInContext(fs.readFileSync(name+'.js','utf8'),scope,{filename:name+'.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
@@ -1224,7 +1228,9 @@ assert.equal(online.scope.document.fullscreenExits,0);
   bulk.click('cycleAllBotsBtn');
   assert.ok(local.every(p=>p.choice==='pizza_time'),'sixth game is PIZZA TIME');
   bulk.click('cycleAllBotsBtn');
-  assert.ok(local.every(p=>p.choice==='ghost'),'sixth game wraps back to ghost');
+  assert.ok(local.every(p=>p.choice==='knight_match'),'seventh game is KNIGHT MATCH');
+  bulk.click('cycleAllBotsBtn');
+  assert.ok(local.every(p=>p.choice==='ghost'),'seventh game wraps back to ghost');
  // Individual selection remains independent; bulk applies the NEXT
  // game of the first bot, synchronizing any mixed bot choices.
  const choice=bulk.elements.get('roster').children[0].children[3];
@@ -1439,11 +1445,11 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  assert.equal(api.pickRandomEndlessGame(null,()=>0),'ghost');
  assert.equal(api.pickRandomEndlessGame('ghost',()=>0),'chickens',
    'previous game is excluded, not replayed at next spin');
- assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'pizza_time',
+ assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'knight_match',
    'new random value changes the game instead of following fixed order');
  ui.click('startBtn');
  assert.equal(api.getTournament().endless,true);
- assert.equal(api.getTournament().schedule.length,6);
+ assert.equal(api.getTournament().schedule.length,7);
  const first=api.getSelection();
  assert.ok(first,'roulette appears immediately on start, before game engine');
  assert.equal(api.getRound().phase,'roulette');
@@ -1457,7 +1463,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  api.updateGameSelection(1.45);
  assert.equal(ui.elements.get('rouletteHeading').textContent,
    ({ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',
-     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME'})[first.mode]);
+     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH'})[first.mode]);
  assert.ok(first.winner.classList.contains('is-selected'));
  assert.equal(first.track.style.transform,'translate3d(-'+first.final.toFixed(2)+'px,0,0)',
    'winning card stops precisely in the middle');
@@ -1711,9 +1717,10 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,6);
+assert.equal(phone.pickButtons.length,7);
 assert.equal(phone.pickButtons[4].dataset.pick,'color_switch');
 assert.equal(phone.pickButtons[5].dataset.pick,'pizza_time');
+assert.equal(phone.pickButtons[6].dataset.pick,'knight_match');
 assert.match(phone.pickButtons[4].children[0].innerHTML,/<svg[\s>]/);
 assert.equal(phone.pickButtons[4].children[1].textContent,'COLOR SWITCH');
 assert.equal(phone.pickButtons[2].dataset.pick,'fruit_memory');
@@ -2032,7 +2039,7 @@ for(const count of [1,12]){
  api.updateGameSelection(3.5); // BOARD reel: 2s spin + 1.4s result hold
  assert.equal(api.getSelection(),null);assert.notEqual(api.getRound().mode,'board');
  const saved=JSON.stringify(P.snapshot(s));
- for(const mode of ['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time']){
+ for(const mode of ['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time','knight_match']){
   P.phase(s,'minigame');api.startRound(mode);
   for(let i=0;i<30000&&api.getRound().mode!=='board';i++)api.updateRound(.05);
   assert.equal(api.getRound().mode,'board',mode+' must finish via the normal engine outcome');

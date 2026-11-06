@@ -22,6 +22,8 @@ jobs:
           node --check shockwave.js
           node --check color-switch-mayan.js
           node --check color-switch.js
+          node --check knight-match.js
+          node --check tests/knight-match.cjs
           node --check tests/color-switch.test.js
           node --check tests/avatar-topdown.cjs
           node --check tests/shockwave.cjs
@@ -30,6 +32,8 @@ jobs:
           node --check tests/combat-motion.cjs
           node --check auto-update.js
           node --check scripts/build-static.cjs
+      - name: KNIGHT MATCH balloon lifecycle and 1–12 player regressions
+        run: node tests/knight-match.cjs
       - name: BOARD PARTY rules and simulations
         run: |
           for source in board-*.js; do node --check "$source"; done
