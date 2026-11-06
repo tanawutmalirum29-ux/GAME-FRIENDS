@@ -1,7 +1,7 @@
 /* Original vector winter scenery: ground, scenery, paths, actors, FX, then HUD. */
 (() => {
 'use strict';
-const TAU=Math.PI*2,colors={start:'#45c4d9',finish:'#ffca63',movement:'#36c9e7',healing:'#68cf93',danger:'#ef6981',event:'#aa83e9',key:'#efad63',milestone:'#edc45b',neutral:'#94acba'};
+const TAU=Math.PI*2,colors={start:'#45c4d9',finish:'#ffca63',movement:'#36c9e7',healing:'#68cf93',danger:'#ef6981',event:'#aa83e9',key:'#efad63',milestone:'#edc45b',neutral:'#94acba',sword:'#7b8997'};
 // Keep one bounded terrain surface. Replays explicitly release the old pixels
 // instead of waiting for mobile Safari to collect detached canvases.
 let terrain=null;
@@ -17,6 +17,14 @@ function icon(g,kind,x,y,size=20,color='#fff'){
  else if(kind==='healing'||kind==='potion'){
   if(kind==='potion'){box(g,-10,-10,20,26,6,'#aaf0df','#fff');box(g,-5,-17,10,7,2,'#d09c65');}
   line(g,-7,0,7,0,color,4);line(g,0,-7,0,7,color,4);
+ }else if(kind==='sword'){
+  // Two intersecting blades visible while unclaimed (grey) and owned (player color).
+  for(const tilt of [-Math.PI/4,Math.PI/4]){
+   g.save();g.rotate(tilt);
+   path(g,[[-3,-17],[3,-17],[4,5],[-4,5]],color,'#34475a',1.4);
+   line(g,-9,6,9,6,'#eddfb6',3);line(g,0,6,0,14,'#eddfb6',3);
+   circle(g,0,15,2,'#ffebb0');g.restore();
+  }
  }else if(kind==='danger'){
   circle(g,0,-3,10,color);box(g,-6,2,12,9,2,color);circle(g,-4,-3,2.7,'#924454');circle(g,4,-3,2.7,'#924454');line(g,-2,7,-2,11,'#924454');line(g,3,7,3,11,'#924454');
  }else if(kind==='event')star(g,0,0,12,color);
@@ -66,21 +74,21 @@ function bridge(g,a,b){
  for(let x=0;x<=len;x+=50){line(g,x,-50,x,-40,'#786053',6);line(g,x,40,x,50,'#786053',6);}g.restore();
 }
 function scenery(g,map){
- const grad=g.createLinearGradient(0,0,900,1450);grad.addColorStop(0,'#23647f');grad.addColorStop(1,'#10344f');g.fillStyle=grad;g.fillRect(0,0,map.width,map.height);
+ const grad=g.createLinearGradient(0,0,900,map.height);grad.addColorStop(0,'#23647f');grad.addColorStop(1,'#10344f');g.fillStyle=grad;g.fillRect(0,0,map.width,map.height);
  const rng=window.BoardMap.random(map.seed+47);
- for(let i=0;i<100;i++){const x=rng()*1800,y=rng()*1450;line(g,x,y,x+25,y-7,'#8cd4e719',2);}
- for(let row=0;row<4;row++)island(g,865,320+row*310,1580,245);
+ for(let i=0;i<Math.round(100*map.height/1450);i++){const x=rng()*map.width,y=rng()*map.height;line(g,x,y,x+25,y-7,'#8cd4e719',2);}
+ for(let row=0;row<map.rows;row++)island(g,865,320+row*310,1580,245);
  for(const id of Object.keys(map.nodes).filter(id=>id[0]==='b')){const p=map.nodes[id].position;island(g,p.x,p.y,170,130);}
  for(const n of Object.values(map.nodes))for(const id of n.nextNodes){const p=map.nodes[id].position;line(g,n.position.x,n.position.y,p.x,p.y,'#a5dce9',100);line(g,n.position.x,n.position.y,p.x,p.y,'#e8faff',92);}
  for(const [a,b]of map.bridges)bridge(g,map.nodes[a].position,map.nodes[b].position);
  // Props are placed away from all path segments and avatar centres.
  const edges=Object.values(map.nodes).flatMap(n=>n.nextNodes.map(id=>[n.position,map.nodes[id].position]));
- for(let i=0;i<155;i++){
-  const x=130+rng()*1500,y=155+rng()*1180,p={x,y};
-  if(Math.min(...[0,1,2,3].map(row=>Math.abs(y-(320+row*310))))>105||edges.some(([a,b])=>window.BoardItems.segmentDistance(p,a,b)<85))continue;
+ for(let i=0;i<Math.round(155*map.height/1450);i++){
+  const x=130+rng()*(map.width-300),y=155+rng()*(map.height-300),p={x,y};
+  if(Math.min(...Array.from({length:map.rows},(_,row)=>Math.abs(y-(320+row*310))))>105||edges.some(([a,b])=>window.BoardItems.segmentDistance(p,a,b)<85))continue;
   if(i%5===0)rock(g,x,y,.6+rng()*.5);else if(i%5===1)gift(g,x,y,.7);else pine(g,x,y,.55+rng()*.45,i%3===0);
  }
- for(let r=0;r<4;r++)for(let i=0;i<4;i++){
+ for(let r=0;r<map.rows;r++)for(let i=0;i<4;i++){
   const x=390+i*270,y=425+r*310;
   if(edges.some(([a,b])=>window.BoardItems.segmentDistance({x,y},a,b)<60))continue;
   line(g,x,y,x+75,y-8,'#91766a',7);for(const k of [0,38,75]){line(g,x+k,y+5,x+k,y-18,'#80695e',7);line(g,x+k-3,y-18,x+k+3,y-18,'#f1fcff',5);}
@@ -95,7 +103,7 @@ function sceneryLite(g,s){
  const intersects=(a,b)=>Math.max(a.x,b.x)>=c.x-width&&Math.min(a.x,b.x)<=c.x+width&&
    Math.max(a.y,b.y)>=c.y-height&&Math.min(a.y,b.y)<=c.y+height;
  g.fillStyle='#23647f';g.fillRect(0,0,map.width,map.height);
- for(let row=0;row<4;row++){
+ for(let row=0;row<map.rows;row++){
    const y=320+row*310;
    if(Math.abs(y-c.y)<height+125)island(g,865,y,1580,245);
  }
@@ -154,10 +162,14 @@ function nodes(g,s){
  for(const n of Object.values(s.map.nodes)){
   const {x,y}=n.position;
   if(!visible(x,y,75))continue;
-  const c=colors[n.type];circle(g,x,y+5,45,'#407b9355');circle(g,x,y,44,c,'#fff6',3);circle(g,x,y-2,39,null,'#ffffff60',1);
+  const owner=n.type==='sword'?s.players.find(p=>p.id===n.ownerId):null;
+  const tileColor=owner?.color||colors[n.type]||colors.neutral;
+  circle(g,x,y+5,45,'#407b9355');circle(g,x,y,44,tileColor,'#fff6',3);
+  circle(g,x,y-2,39,null,owner?'#ffe7a4':'#ffffff60',owner?3:1);
   g.save();g.translate(x,y);
   if(n.type==='movement'||n.type==='start'){const q=s.map.nodes[n.nextNodes[0]];if(q)g.rotate(Math.atan2(q.position.y-y,q.position.x-x));}
-  icon(g,n.type,0,0,17,'#f3fdff');g.restore();
+  icon(g,n.type,0,0,n.type==='sword'?22:17,'#f3fdff');g.restore();
+  if(owner){box(g,x-38,y+27,76,16,7,'#173b50e6');label(g,owner.name,x,y+35,10,owner.color,'center',800,68);}
   if(n.type==='start'||n.type==='finish'){
    box(g,x-56,y-72,112,25,9,'#163b54');label(g,n.type==='start'?'START':'FINISH',x,y-59,12,'#fff','center');
    if(n.type==='finish'){line(g,x-40,y-45,x-40,y+10,'#eefaff',5);line(g,x+40,y-45,x+40,y+10,'#eefaff',5);box(g,x-43,y-50,86,14,3,'#fff');for(let j=0;j<8;j++)box(g,x-40+j*10,y-49+(j%2)*7,10,7,0,'#234d62');}
@@ -211,9 +223,19 @@ function effects(g,s,t){
    else if(fx.kind==='ufo'){path(g,[[p.x-36,p.y],[p.x+36,p.y],[p.x+12,p.y-120],[p.x-12,p.y-120]],'#b0f4ff66');icon(g,'ufo',p.x,p.y-120,32);}
    else if(fx.kind==='shield'){circle(g,p.x,p.y,25+f*35,null,'#a2e8ff',4);icon(g,'shield',p.x,p.y-40-f*20,23);}
    else if(fx.kind==='heal'){circle(g,p.x,p.y,25+f*35,null,'#73e4b5',4);icon(g,'healing',p.x,p.y-35-f*30,18,'#3fbd8b');}
-   else if(fx.kind==='hurt'||fx.kind==='death')circle(g,p.x,p.y,30+f*35,null,'#ee6c88',4);
+   else if(fx.kind==='hurt'||fx.kind==='swordHit'||fx.kind==='death')circle(g,p.x,p.y,30+f*35,null,'#ee6c88',4);
+   else if(fx.kind==='swordClaim'||fx.kind==='swordSafe'){
+    circle(g,p.x,p.y,32+f*26,null,fx.ownerColor||'#fce2ae',4);
+    icon(g,'sword',p.x,p.y-55-f*24,27,'#fff8da');
+    label(g,fx.kind==='swordClaim'?'ยึดพื้นที่!':'พื้นที่ของคุณ',p.x,p.y-90-f*20,16,'#fff5cb','center',900,160);
+   }
   }
   if(fx.kind==='bomber'){const a=fx.points[0],b=fx.points[4];g.save();g.translate(a.x+(b.x-a.x)*f,a.y+(b.y-a.y)*f-45);g.rotate(Math.atan2(b.y-a.y,b.x-a.x)+Math.PI/2);icon(g,'bomber',0,0,34);g.restore();}
+ }
+ for(const hit of s.hits||[]){
+  const age=s.time-hit.at;
+  if(age<0||age>1.25)continue;
+  label(g,'-'+hit.amount,hit.position.x,hit.position.y-55-age*33,22,'#ffe6e7','center',900,65);
  }
  if(s.phase==='finished'){const p=s.map.nodes[s.map.finishId].position;icon(g,'milestone',p.x,p.y-65,40,'#f8d884');for(let i=0;i<40;i++){const a=i*2.4,r=(s.time-s.phaseAt)*80;circle(g,p.x+Math.cos(a)*r,p.y-30+Math.sin(a)*r,3,i%2?'#fce2a1':'#78d9e8');}}
  if(s.milestone&&s.time-s.milestone.at<1.5){const p=s.milestone.position;icon(g,'milestone',p.x,p.y-50-(s.time-s.milestone.at)*20,24,'#eebf4e');}
@@ -229,9 +251,9 @@ function hud(g,s){
   label(g,(i+1)+'. '+p.name,x+10,y+12,11,p.color,'left',700,w-38);
   const bagItems=p.bag||[];
   if(bagItems.length){icon(g,'bag',x+w-20,y+13,11);label(g,String(bagItems.length),x+w-6,y+14,9,'#ffe1a3','right');}
-  box(g,x+10,y+26,w-53,5,2,'#0b2537');box(g,x+10,y+26,(w-53)*p.hp/3,5,2,p.color);
-  label(g,p.hp+'/3',x+w-12,y+29,10,'#d6eef7','right',500);
-  label(g,turn?'เหลือ '+window.BoardParty.remainingSteps(s,p.id)+' ก้าว':Math.round(s.map.nodes[p.currentNodeId].progress/36*100)+'% • รอ',x+10,y+39,9,turn?'#ffe3a1':'#b9d9e7','left',turn?800:500);
+  box(g,x+10,y+26,w-53,5,2,'#0b2537');box(g,x+10,y+26,(w-53)*p.hp/window.BoardParty.MAX_HP,5,2,p.color);
+  label(g,p.hp+'/'+window.BoardParty.MAX_HP,x+w-12,y+29,10,'#d6eef7','right',500);
+  label(g,turn?'เหลือ '+window.BoardParty.remainingSteps(s,p.id)+' ก้าว':Math.round(s.map.nodes[p.currentNodeId].progress/s.map.length*100)+'% • รอ',x+10,y+39,9,turn?'#ffe3a1':'#b9d9e7','left',turn?800:500);
   if(p.shieldTurns>0){icon(g,'shield',x+w-15,y+39,7);label(g,'โล่ '+p.shieldTurns+' ตา',x+w-26,y+39,7,'#9de6fc','right');}
  });
  box(g,12,460,936,68,16,'#102e44f5','#53758a');

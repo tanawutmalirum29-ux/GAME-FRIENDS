@@ -51,7 +51,7 @@ function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
  if(s.phase!=='ready'||!kind||!bag(p).includes(kind)||
    p.usedRound===s.roundNumber||s.rolled||s.time>=s.readyDeadline)return false;
  if(kind==='potion'){
-  if(p.hp>=3)return false;consume(s,p,kind);p.hp++;api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
+  if(p.hp>=api.MAX_HP)return false;consume(s,p,kind);p.hp=Math.min(api.MAX_HP,p.hp+api.HEAL.potion);api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
  }
  if(kind==='shield'){
   // Two own turns: the activation turn and the owner's next turn, inclusive.
@@ -84,7 +84,7 @@ function confirm(s,button,api){
  if(skill.kind==='bomber'){
   const points=bombs(skill);consume(s,p,skill.kind);s.skill=null;
   // Freeze the preview geometry for BOTH animation and damage resolution.
-  const hit=victims(s,points,p);for(const q of hit)api.damage(s,q,1);
+  const hit=victims(s,points,p);for(const q of hit)api.damage(s,q,api.DAMAGE.bomber);
   api.effect(s,{kind:'bomber',points,targets:hit.map(q=>q.id),next:'end'},1.6);return true;
  }
  return false;
@@ -92,7 +92,7 @@ function confirm(s,button,api){
 function segmentDistance(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));return Math.hypot(p.x-a.x-dx*t,p.y-a.y-dy*t);}
 function explode(s,api){
  const skill=s.skill,p=api.current(s),points=[{x:skill.x,y:skill.y}],hit=victims(s,points,p);
- for(const q of hit)api.damage(s,q,1);s.skill=null;
+ for(const q of hit)api.damage(s,q,api.DAMAGE.car);s.skill=null;
  api.effect(s,{kind:'car',points,targets:hit.map(q=>q.id),next:'end'},1.2);
 }
 function update(s,dt,api){
