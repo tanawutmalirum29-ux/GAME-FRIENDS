@@ -81,15 +81,30 @@ function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
   api.phase(s,'car',6);return true;
  }
  if(kind==='ufo'||kind==='bomber'){
-  s.skill={kind,...position(s,p),angle:0,targetId:null};api.phase(s,'aim',Math.min(8,s.readyDeadline-s.time));return true;
+  // The FIRST A only opens the targeting preview. A fresh release followed by
+  // a SECOND A is required for a bomber attack, even across network turn tokens.
+  s.skill={kind,...position(s,p),angle:0,targetId:null,requiresConfirmRelease:kind==='bomber'};
+  api.phase(s,'aim',kind==='bomber'?Infinity:8);return true;
  }
  return false;
 }
 function confirm(s,button,api){
  if(s.phase!=='aim')return false;
  const skill=s.skill,p=api.current(s);
- if(button==='B'&&skill.kind==='bomber'){skill.angle=(skill.angle+Math.PI/4)%(2*Math.PI);return true;}
+ if(!skill||!p)return false;
+ if(skill.kind==='bomber'&&button==='C'){
+  // Abort the aircraft preview without consuming stock, dealing damage,
+  // or changing the player's movement/roll state.
+  api.ready(s);p.actionIndex=ids.indexOf('bomber')+1;
+  p.bagMessage='ยกเลิกการใช้เครื่องบิน • ไอเทมยังอยู่';
+  return true;
+ }
+ if(button==='B'&&skill.kind==='bomber'){
+  skill.angle=Math.round((skill.angle+Math.PI/4)/(Math.PI/4))%8*(Math.PI/4);
+  return true;
+ }
  if(button!=='A')return false;
+ if(skill.kind==='bomber'&&skill.requiresConfirmRelease)return false;
  if(skill.kind==='ufo'){
   const q=target(s,skill,p);if(!q)return false;
   if(q.shieldTurns>0){q.blockedUntil=s.time+1.2;return false;}
