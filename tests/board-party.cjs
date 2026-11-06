@@ -540,7 +540,7 @@ test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected ne
    Object.assign(s.skill,I.position(s,r));press(s,p,'A');assert.equal(p.currentNodeId,'n1');assert.equal(r.currentNodeId,'n0');
   }else{
    if(kind==='bomber'){Object.assign(s.skill,I.position(s,q));press(s,p,'A');}else until(s,()=>s.phase==='effect');
-   assert.equal(r.hp,kind==='bomber'?74:82);assert.equal(p.item,null);assert.equal(s.effect.next,'end');
+   assert.equal(r.hp,kind==='bomber'?74:82);assert.equal(p.item,null);assert.equal(s.effect.next,'ready');
   }
   assert.equal(q.hp,1);assert.equal(q.currentNodeId,'n1');assert.equal(q.shieldTurns,1);
  }
@@ -678,14 +678,14 @@ test('250 Bomber attacks: 45-degree rotations, frozen preview, one hit per volle
   const s=ready(12,seed),p=s.players[0];p.item='bomber';for(const q of s.players.slice(1))q.currentNodeId='n10';
   press(s,p,'B');Object.assign(s.skill,s.map.nodes.n10.position);const before=s.skill.angle;press(s,p,'B');assert.equal(s.skill.angle,before+Math.PI/4);assert.equal(p.item,'bomber');
   const preview=plain(I.bombs(s.skill)),expected=I.victims(s,preview,p).map(p=>p.id);press(s,p,'A');assert.deepEqual(plain(s.effect.points),preview);
-  for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?74:100);assert.equal(p.hp,100);assert.equal(s.effect.next,'end');tick(s,.5);for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?74:100);
+  for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?74:100);assert.equal(p.hp,100);assert.equal(s.effect.next,'ready');tick(s,.5);for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?74:100);
  }
 });
 test('250 RC cars: backward input cannot reverse, no repeated node, swept hit detection',()=>{
  for(let seed=0;seed<250;seed++){
   const s=ready(3,seed),p=s.players[0];p.item='car';p.currentNodeId='n'+(seed%30);s.players[1].currentNodeId='n35';s.players[2].currentNodeId='n34';press(s,p,'B');
   let visited=[p.currentNodeId];until(s,()=>{if(s.skill){press(s,p,null,{axisX:-1,axisY:-1});visited=plain(s.skill.visited);}return s.phase==='effect';},10);
-  for(let i=1;i<visited.length;i++)assert.ok(M.neighbors(s.map,visited[i-1]).includes(visited[i]),'RC route stays on bidirectional connected roads');assert.equal(s.effect.next,'end');assert.equal(p.item,null);
+  for(let i=1;i<visited.length;i++)assert.ok(M.neighbors(s.map,visited[i-1]).includes(visited[i]),'RC route stays on bidirectional connected roads');assert.equal(s.effect.next,'ready');assert.equal(p.item,null);
  }
  assert.equal(I.segmentDistance({x:50,y:0},{x:0,y:0},{x:100,y:0}),0);
  const s=ready(),p=s.players[0],q=s.players[1];p.item='car';q.currentNodeId='n1';q.hp=1;q.worldPosition={...I.position(s,p)};s.players[2].currentNodeId='n20';press(s,p,'B');until(s,()=>s.phase==='effect');assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,100);
@@ -905,7 +905,7 @@ test('RC car drives backward on the same segment and backtracks previous nodes',
  assert.ok(s.skill.visited.filter(id=>id==='n0').length>=2);
  assert.equal(p.currentNodeId,'n0','RC travel cannot move the owner');
  until(s,()=>s.phase==='effect',7);
- assert.equal(s.effect.kind,'car');assert.equal(s.effect.next,'end');
+ assert.equal(s.effect.kind,'car');assert.equal(s.effect.next,'ready');
 });
 test('Bots complete acute branch merges without steering backwards before the checkpoint',()=>{
  const s=ready(1,0),p=s.players[0];p.isBot=true;p.currentNodeId='b3_3';delete p.worldPosition;
