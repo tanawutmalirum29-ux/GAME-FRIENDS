@@ -148,8 +148,8 @@ function update(s,dt,api){
   if(strength>.12){
    const stick={x:input.x/strength,y:input.y/strength};
    if(!skill.step){
-    const node=s.map.nodes[skill.nodeId];
-    const paths=[...new Set([...node.nextNodes,...node.previousNodes])];
+    const currentNode=s.map.nodes[skill.nodeId];
+    const paths=[...new Set([...currentNode.nextNodes,...currentNode.previousNodes])];
     if(!paths.length)return;
     const to=window.BoardMap.choose(s.map,skill.nodeId,stick.x,stick.y,paths);
     const node=s.map.nodes[skill.nodeId].position,target=s.map.nodes[to].position;
