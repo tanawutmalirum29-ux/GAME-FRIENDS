@@ -5,12 +5,17 @@ const M=()=>window.BoardMap,D=()=>window.BoardDice,I=()=>window.BoardItems;
 const MAX_HP=100;
 const LUCKY_SPIN_SECONDS=2,LUCKY_HOLD_SECONDS=1.4; // Previous .6-second result hold + .8 seconds.
 const DAMAGE=Object.freeze({sword:12,car:18,bomber:26,skull:35,event:14});
-const HEAL=Object.freeze({tile:20,event:15,potion:30});
+const HEAL=Object.freeze({tile:20,event:15,potion:50});
 let serial=0;
 function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
- const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],camera:{x:480,y:320,zoom:1,explore:false},lastMinigame:null};
- phase(s,'order',12);return s;
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
+ phase(s,'overview',Infinity);return s;
+}
+function beginOrder(s){
+ if(s.phase!=='overview')return false;
+ s.camera.overview=false;s.camera.explore=false;
+ phase(s,'order',12);return true;
 }
 function phase(s,name,duration=0){s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;s.turnId=s.id+':'+(++s.revision);}
 // A continuous walk owns one input token until it lands; holding the stick
@@ -24,7 +29,7 @@ const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
 function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
 function rollOrder(s,p){if(p.dice||s.phase!=='order')return false;p.dice=[D().roll(s.rng),D().roll(s.rng)];p.rollAt=s.time;return true;}
 function ready(s,extend=true){s.move=null;s.skill=null;for(const p of s.players)p.bagOpen=false;if(extend)s.readyDeadline=s.time+12;phase(s,'ready',Math.max(.1,s.readyDeadline-s.time));}
-function startTurn(s){s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
+function startTurn(s){s.camera.overview=false;s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
 function endTurn(s){
  if(s.phase==='finished')return;
  // Count the shield's owner's completed turns, regardless of round reordering.
@@ -54,12 +59,16 @@ function win(s,p){
  if(s.phase==='finished'){if(s.time===s.phaseAt&&!s.winnerIds.includes(p.id))s.winnerIds.push(p.id);return;}
  s.winnerIds=[p.id];s.move=null;s.skill=null;phase(s,'finished');
 }
-function land(s){
+function land(s,applyTile=true){
  const m=s.move,p=current(s);
  if(m?.kind==='walk')p.worldPosition=I().position(s,p);
  s.move=null;
  if(p.currentNodeId===s.map.finishId){win(s,p);return;}
  const n=s.map.nodes[p.currentNodeId];let dead=false,kind='land';
+ if(!applyTile){
+  effect(s,{kind:'land',points:[I().position(s,p)],targets:[p.id],
+   next:m?.kind==='rocket'?'ready':'end'},.5);return;
+ }
  if(n.type==='lucky'){
   // Only a final landing is eligible; grant once per player turn. Stacked
   // duplicates are legitimate backpack entries, never replacements.
@@ -81,15 +90,24 @@ function land(s){
   phase(s,'lucky_roulette',LUCKY_SPIN_SECONDS+LUCKY_HOLD_SECONDS);
   return;
  }
- if(n.type==='healing'){p.hp=Math.min(MAX_HP,p.hp+HEAL.tile);kind='heal';}
+ if(n.type==='healing'){
+   const gained=Math.min(MAX_HP-p.hp,HEAL.tile);p.hp+=gained;
+   s.heals.push({id:p.id,amount:gained,at:s.time,position:I().position(s,p)});
+   kind='heal';
+ }
  if(n.type==='danger'){dead=damage(s,p,DAMAGE.skull);kind=p.shieldTurns>0?'shield':'hurt';}
  if(n.type==='event'){
   if(s.rng()<.5){p.hp=Math.min(MAX_HP,p.hp+HEAL.event);kind='heal';}
   else{dead=damage(s,p,DAMAGE.event);kind=p.shieldTurns>0?'shield':'hurt';}
  }
  if(n.type==='sword'){
-  if(n.ownerId==null){n.ownerId=p.id;kind='swordClaim';}
-  else if(n.ownerId===p.id){kind='swordSafe';}
+  const territory=s.map.territories[n.territoryId];
+  if(!territory)throw Error('Missing sword territory');
+  if(territory.ownerId==null){
+   territory.ownerId=p.id;
+   for(const id of territory.nodeIds)s.map.nodes[id].ownerId=p.id;
+   kind='swordClaim';
+  }else if(territory.ownerId===p.id)kind='swordSafe';
   else{dead=damage(s,p,DAMAGE.sword);kind=p.shieldTurns>0?'shield':'swordHit';}
  }
  effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],
@@ -399,6 +417,6 @@ function controls(s,id){
  if(s.phase==='moving'&&s.move?.kind==='rocket')return{a:'ลงช่องถัดไป',b:'',help:'จรวดไปข้างหน้า / A ลงจอด'};
  return{a:'',b:'',help:'กำลังดำเนินตา'};
 }
-const api={create,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
+const api={create,beginOrder,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
 window.BoardParty=Object.freeze(api);
 })();
