@@ -24,9 +24,9 @@ function update(s,dt,api){
  if(s.phase==='ready'){
   const bag=window.BoardItems.bag(p);
   const canUse=kind=>p.usedRound!==s.roundNumber&&(
-   kind==='potion'?p.hp<3:kind==='shield'?!p.shieldTurns:
+   kind==='potion'?p.hp<70:kind==='shield'?!p.shieldTurns:
    kind==='rocket'?true:kind==='ufo'?!!forwardTarget(s,p):
-   kind==='car'?!!forwardTarget(s,p,6):
+   kind==='car'?!!forwardTarget(s,p):
    s.players.some(q=>q.id!==p.id&&!q.shieldTurns));
   const target=bag.find(canUse);
   if(p.bagOpen){
@@ -37,8 +37,27 @@ function update(s,dt,api){
    }else send(s,p,api,0,0,bag[index]===target?'B':'A');
   }else send(s,p,api,0,0,target?'B':'A');
  }else if(s.phase==='move_ready'||(s.phase==='moving'&&s.move?.kind==='walk')){
-  const from=s.map.nodes[p.currentNodeId].position,to=s.map.nodes[s.move.to||s.map.nodes[p.currentNodeId].nextNodes[0]].position,d=Math.hypot(to.x-from.x,to.y-from.y);
-  send(s,p,api,(to.x-from.x)/d,(to.y-from.y)/d);
+  const m=s.move,from=window.BoardItems.position(s,p),
+   goal=s.map.nodes[m.to||s.map.nodes[p.currentNodeId].nextNodes[0]]?.position;
+  if(!goal)return;
+  // Predict a soft turn before a corner; the actual joystick remains subject to
+  // exactly the same node/lane collision, speed and dice limits as a human.
+  let dx=goal.x-from.x,dy=goal.y-from.y;
+  if(m.to&&m.t>.65){
+   const next=s.map.nodes[m.to].nextNodes[0];
+   if(next){const nextP=s.map.nodes[next].position;
+    dx=dx*.85+(nextP.x-goal.x)*.15;dy=dy*.85+(nextP.y-goal.y)*.15;}
+  }
+  const d=Math.hypot(dx,dy)||1;
+  send(s,p,api,dx/d,dy/d);
+ }else if(s.phase==='rocket'){
+  const m=s.move,at=window.BoardItems.position(s,p),base=m.to||p.currentNodeId;
+  const next=m.to?s.map.nodes[m.to]:s.map.nodes[p.currentNodeId];
+  const goal=m.to?next?.position:s.map.nodes[base].nextNodes
+   .map(id=>s.map.nodes[id]).sort((a,b)=>b.progress-a.progress)[0]?.position;
+  if(!goal)return;
+  const dx=goal.x-at.x,dy=goal.y-at.y,d=Math.hypot(dx,dy)||1;
+  send(s,p,api,dx/d,dy/d);
  }else if(s.phase==='branch'){
   const opts=s.branch.options;
   const cost=id=>{const n=s.map.nodes[id];return n.progress-s.map.nodes[p.currentNodeId].progress-(p.hp<2&&n.type==='danger'?4:0)+(p.hp<3&&n.type==='healing'?2:0);};
@@ -52,10 +71,14 @@ function update(s,dt,api){
   const pos=window.BoardItems.position(s,q),dx=pos.x-skill.x,dy=pos.y-skill.y,d=Math.hypot(dx,dy);
   if(d<10)send(s,p,api,0,0,'A');else send(s,p,api,dx/d,dy/d);
  }else if(s.phase==='car'){
-  const sk=s.skill,q=forwardTarget(s,p,6);if(!q)return;
-  const path=route(s,sk.nodeId,q.currentNodeId);if(!path||path.length<2)return;
-  const at=s.map.nodes[sk.nodeId].position,to=s.map.nodes[path[1]].position,d=Math.hypot(to.x-at.x,to.y-at.y)||1;
-  send(s,p,api,(to.x-at.x)/d,(to.y-at.y)/d);
+  const sk=s.skill,q=forwardTarget(s,p);
+  const choices=s.map.nodes[sk.step?.to||sk.nodeId].nextNodes;
+  const path=q?route(s,sk.nodeId,q.currentNodeId):null;
+  const toId=sk.step?.to||path?.[1]||choices[0];
+  if(!toId)return;
+  const at={x:sk.x,y:sk.y},to=s.map.nodes[toId].position;
+  const dx=to.x-at.x,dy=to.y-at.y,d=Math.hypot(dx,dy)||1;
+  send(s,p,api,dx/d,dy/d);
  }
 }
 window.BoardBots=Object.freeze({update});
