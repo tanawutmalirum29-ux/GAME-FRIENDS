@@ -1,0 +1,144 @@
+/* Host-authoritative session state, separate from every minigame's player data. */
+(() => {
+'use strict';
+const M=()=>window.BoardMap,D=()=>window.BoardDice,I=()=>window.BoardItems;
+let serial=0;
+function create(roster,{seed=Date.now(),rng=Math.random}={}){
+ if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:3,item:null,usedRound:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,results:[],pendingItems:{},winnerIds:[],camera:{x:480,y:320,zoom:1},lastMinigame:null};
+ phase(s,'order',12);return s;
+}
+function phase(s,name,duration=0){s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;s.turnId=s.id+':'+(++s.revision);}
+const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
+function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
+function rollOrder(s,p){if(p.dice||s.phase!=='order')return false;p.dice=[D().roll(s.rng),D().roll(s.rng)];p.rollAt=s.time;return true;}
+function ready(s,extend=true){s.move=null;s.skill=null;if(extend)s.readyDeadline=s.time+12;phase(s,'ready',Math.max(.1,s.readyDeadline-s.time));}
+function startTurn(s){s.rolled=false;s.die=null;s.move=null;s.skill=null;ready(s);}
+function endTurn(s){
+ if(s.phase==='finished')return;
+ s.move=null;s.skill=null;s.effect=null;s.turnIndex++;
+ if(s.turnIndex>=s.order.length){phase(s,'minigame_pending');return;}
+ startTurn(s);
+}
+function effect(s,fx,duration){s.effect={...fx,duration,at:s.time};phase(s,'effect',duration);}
+function damage(s,p,amount){
+ p.hp=Math.max(0,p.hp-amount);p.hurtUntil=s.time+1.2;
+ if(p.hp)return false;
+ p.death={at:s.time,position:I().position(s,p)};
+ p.currentNodeId=s.map.startId;p.hp=3;
+ // Inventory and turn order survive respawn. No movement credit survives death.
+ if(current(s)?.id===p.id){s.move=null;s.skill=null;}
+ return true;
+}
+function win(s,p){
+ if(p.currentNodeId!==s.map.finishId)return;
+ if(s.phase==='finished'){if(s.time===s.phaseAt&&!s.winnerIds.includes(p.id))s.winnerIds.push(p.id);return;}
+ s.winnerIds=[p.id];s.move=null;s.skill=null;phase(s,'finished');
+}
+function land(s){
+ const m=s.move,p=current(s);s.move=null;
+ if(p.currentNodeId===s.map.finishId){win(s,p);return;}
+ const n=s.map.nodes[p.currentNodeId];let dead=false,kind='land';
+ if(n.type==='healing'){p.hp=Math.min(3,p.hp+1);kind='heal';}
+ if(n.type==='danger'){dead=damage(s,p,1);kind='hurt';}
+ if(n.type==='event'){if(s.rng()<.5){p.hp=Math.min(3,p.hp+1);kind='heal';}else{dead=damage(s,p,1);kind='hurt';}}
+ effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],next:!dead&&m?.kind==='rocket'?'ready':'end'},dead?1.5:.8);
+}
+function beginMove(s,p,steps,kind='walk'){
+ s.move={playerId:p.id,kind,remaining:steps,total:steps,from:p.currentNodeId,to:null,t:0,visited:[p.currentNodeId],expires:kind==='rocket'?s.time+4.5:Infinity};
+ phase(s,'moving');nextStep(s);
+}
+function nextStep(s){
+ const m=s.move,p=current(s);
+ if(!m)return;
+ if(p.currentNodeId===s.map.finishId){win(s,p);return;}
+ if(m.remaining<=0||m.stop||s.time>=m.expires||(m.kind==='rocket'&&m.expires-s.time<.48)){land(s);return;}
+ const options=s.map.nodes[p.currentNodeId].nextNodes;
+ if(options.length>1){s.branch={options:[...options],selected:options[0]};phase(s,'branch',Math.min(4,m.expires-s.time));return;}
+ step(s,options[0]);
+}
+function step(s,to){
+ const m=s.move,p=current(s);
+ if(!m||!s.map.nodes[p.currentNodeId].nextNodes.includes(to)||m.visited.includes(to))return false;
+ m.startPosition=I().position(s,p);m.endPosition=I().positionOnNode(s,p,to);
+ m.from=p.currentNodeId;m.to=to;m.t=0;phase(s,'moving');return true;
+}
+function roll(s){if(s.phase!=='ready'||s.rolled)return false;s.rolled=true;s.die=D().roll(s.rng);phase(s,'dice',.85);return true;}
+function action(s,id,button){
+ const p=s.players.find(p=>p.id===id);if(!p||!['A','B'].includes(button))return false;
+ if(s.phase==='order')return rollOrder(s,p);
+ if(s.phase==='rewards'){
+  const pending=s.pendingItems[id];if(!pending||button!=='A')return false;
+  if(pending.replace)p.item=pending.item;delete s.pendingItems[id];return true;
+ }
+ if(p.id!==current(s)?.id)return false;
+ if(s.phase==='ready')return button==='A'?roll(s):I().begin(s,p,api);
+ if(s.phase==='aim')return I().confirm(s,button,api);
+ if(s.phase==='branch'&&button==='A')return step(s,s.branch.selected);
+ if(s.phase==='moving'&&s.move?.kind==='rocket'&&button==='A'){s.move.stop=true;return true;}
+ return false;
+}
+function input(s,id,packet){
+ // Turn tokens change at every control boundary, including returning from a game.
+ if(packet.turnId!==s.turnId||!Number.isSafeInteger(packet.actionId)||packet.actionId<0||packet.actionId<=(s.lastActions[id]??-1))return false;
+ const p=s.players.find(p=>p.id===id);if(!p||s.phase==='finished'||s.phase==='minigame')return false;
+ s.lastActions[id]=packet.actionId;
+ const old=s.inputs[id]||{},k=packet.keys||{};
+ const x=Number.isFinite(k.axisX)?Math.max(-1,Math.min(1,k.axisX)):0,y=Number.isFinite(k.axisY)?Math.max(-1,Math.min(1,k.axisY)):0;
+ const a=k.action===true,b=k.alt===true;
+ s.inputs[id]={x,y,a,b,at:s.time};
+ if(a&&!old.a)action(s,id,'A');else if(b&&!old.b)action(s,id,'B');
+ return true;
+}
+function minigameStarted(s,mode){if(s.phase!=='minigame_pending')return false;s.lastMinigame=mode;phase(s,'minigame');return true;}
+function minigameEnded(s,ranking){
+ if(s.phase!=='minigame')return false;
+ // Reject incomplete/duplicate outcomes rather than award arbitrary array order.
+ if(ranking.length!==s.players.length||new Set(ranking.map(r=>r.id)).size!==s.players.length||ranking.some(r=>!s.players.some(p=>p.id===r.id)))throw Error('Incomplete BOARD PARTY outcome');
+ const rewarded=window.BoardMinigame.rewards(ranking,s.players.length,s.rng);
+ s.results=ranking.map(r=>({...r,reward:rewarded.includes(r.id)?I().ids[Math.floor(s.rng()*I().ids.length)]:null}));
+ s.pendingItems={};phase(s,'standings',4);return true;
+}
+function grant(s){
+ for(const r of s.results){if(!r.reward)continue;const p=s.players.find(p=>p.id===r.id);if(p.item)s.pendingItems[p.id]={item:r.reward,replace:false};else p.item=r.reward;}
+ phase(s,'rewards',9);
+}
+function update(s,dt){
+ if(!Number.isFinite(dt)||dt<=0)return;dt=Math.min(dt,.1);s.time+=dt;
+ if(s.phase==='order'){
+  for(const p of s.players)if(!p.dice&&(s.time>=s.deadline||(p.isBot&&s.time-s.phaseAt>.6+s.players.indexOf(p)*.12)))rollOrder(s,p);
+  if(s.players.every(p=>p.dice&&s.time-p.rollAt>.85)){s.order=D().order(s.players,s.rng);phase(s,'order_result',3);}
+ }else if(s.phase==='order_result'&&s.time>=s.deadline)startTurn(s);
+ else if(s.phase==='ready'&&s.time>=s.deadline)roll(s);
+ else if(s.phase==='dice'&&s.time>=s.deadline)beginMove(s,current(s),s.die);
+ else if(s.phase==='branch'){
+  const a=axes(s,current(s).id);if(Math.hypot(a.x,a.y)>.25)s.branch.selected=M().choose(s.map,current(s).currentNodeId,a.x,a.y);
+  if(s.time>=s.deadline){if(s.time>=s.move.expires)land(s);else step(s,s.branch.selected);}
+ }else if(s.phase==='moving'){
+  const m=s.move,p=current(s);m.t=Math.min(1,m.t+dt/(m.kind==='rocket'?.48:.34));
+  if(m.t>=1){p.currentNodeId=m.to;m.visited.push(m.to);m.to=null;m.remaining--;if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};nextStep(s);}
+ }else if(s.phase==='aim'||s.phase==='car')I().update(s,dt,api);
+ else if(s.phase==='effect'&&s.time>=s.deadline){const next=s.effect.next;s.effect=null;if(next==='ready')ready(s);else endTurn(s);}
+ else if(s.phase==='standings'&&s.time>=s.deadline)grant(s);
+ else if(s.phase==='rewards'){
+  for(const p of s.players){const pending=s.pendingItems[p.id];if(!pending)continue;const a=axes(s,p.id);if(a.x>.4)pending.replace=true;else if(a.x<-.4)pending.replace=false;}
+  if(s.time>=s.deadline||(!Object.keys(s.pendingItems).length&&s.time-s.phaseAt>3)){s.pendingItems={};phase(s,'returning',1.5);}
+ }else if(s.phase==='returning'&&s.time>=s.deadline){s.roundNumber++;s.turnIndex=0;startTurn(s);}
+ window.BoardBots?.update(s,dt,api);
+}
+function snapshot(s){return JSON.parse(JSON.stringify({map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}
+function controls(s,id){
+ const p=s.players.find(p=>p.id===id),mine=current(s)?.id===id;
+ if(s.phase==='order')return{a:'ทอย 2 ลูก',b:'ทอย 2 ลูก',help:p?.dice?'ทอยแล้ว • รอเพื่อน':'A หรือ B ทอยลำดับ'};
+ if(s.phase==='rewards'&&s.pendingItems[id])return{a:'ยืนยัน',b:'',help:'ซ้าย เก็บเดิม / ขวา รับ '+I().names[s.pendingItems[id].item]};
+ if(!mine)return{a:'',b:'',help:'รอตาของคุณ • '+(current(s)?.name||'สรุปผล')};
+ if(s.phase==='ready')return{a:'ทอยลูกเต๋า',b:p.item&&p.usedRound!==s.roundNumber?'ใช้ไอเทม':'',help:'A ทอย / B ใช้ไอเทมก่อนทอย'};
+ if(s.phase==='branch')return{a:'เลือกทาง',b:'',help:'อนาล็อกเลือกทาง / A ยืนยัน'};
+ if(s.phase==='aim')return{a:'ยืนยัน',b:s.skill.kind==='bomber'?'หมุน 45°':'',help:s.skill.kind==='ufo'?'เล็งให้สัมผัสตัวละคร / A สลับ':'เลื่อนแนวบิน / B หมุน / A โจมตี'};
+ if(s.phase==='car')return{a:'',b:'',help:'อนาล็อกขับตามลูกศร • ระเบิดเมื่อชนหรือครบ 6 วินาที'};
+ if(s.phase==='moving'&&s.move?.kind==='rocket')return{a:'ลงช่องถัดไป',b:'',help:'จรวดไปข้างหน้า / A ลงจอด'};
+ return{a:'',b:'',help:'กำลังดำเนินตา'};
+}
+const api={create,phase,current,axes,ready,startTurn,endTurn,effect,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls};
+window.BoardParty=Object.freeze(api);
+})();

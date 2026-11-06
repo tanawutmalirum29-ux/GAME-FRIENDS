@@ -7,7 +7,7 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const files=['index.html','app.js','style.css','ghost-attack.js','chickens.js',
  'fruit-memory.js','shockwave.js','color-switch.js','color-switch-mayan.js',
- 'pizza-time.js','pizza-ingredient-art.js','party-ui-art.js'];
+ 'pizza-time.js','pizza-ingredient-art.js','party-ui-art.js','board-art.js','board-party.js','board-items.js'];
 const emoji=/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
 for(const name of files){
  const body=fs.readFileSync(path.join(root,name),'utf8');

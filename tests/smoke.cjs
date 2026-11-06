@@ -7,7 +7,7 @@ const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
 // production code or relying on internal globals.
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
-  'window.__ghostTest={getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,pickRandomEndlessGame,beginGameSelection,updateGameSelection,startRound,getSelection:()=>gameSelection,getTournament:()=>tournament,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
+  'window.__ghostTest={getBoard:()=>boardSession,updateBoard,updateRound,beginBoard,showBoard,finishBoard,returnToLobby,getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,pickRandomEndlessGame,beginGameSelection,updateGameSelection,startRound,getSelection:()=>gameSelection,getTournament:()=>tournament,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
@@ -888,7 +888,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   });
   for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,makeElement(id));
   elements.get('autoNext').checked=true;
-  const sessionButtons=['queue','endless'].map(mode=>{
+  const sessionButtons=['queue','endless','board'].map(mode=>{
     const btn=makeElement('session-'+mode);btn.dataset.sessionMode=mode;return btn;
   });
   const pickButtons=[...html.matchAll(/data-pick="([^"]+)"/g)].map(([,game])=>{
@@ -1030,6 +1030,8 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(colorSwitchSource,scope,{filename:'color-switch.js'});
   vm.runInContext(pizzaArtSource,scope,{filename:'pizza-ingredient-art.js'});
   vm.runInContext(pizzaSource,scope,{filename:'pizza-time.js'});
+  for(const name of ['board-map','board-dice','board-items','board-bots','board-minigame','board-party','board-art'])
+    vm.runInContext(fs.readFileSync(name+'.js','utf8'),scope,{filename:name+'.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
   return {elements,pickButtons,sessionButtons,padButtons,padZones,instances,scope,sessionData,timers,canvasTransforms,
     mediaCall(peer){return new FakeMediaCall(peer);},
@@ -2006,3 +2008,59 @@ console.log('SMOKE PASS: 12-player cap, host/controller reconnect, and Retina 2x
 // All chicken gameplay rules run alongside the existing GHOST ATTACK regression suite.
 require('./chickens.cjs');
 require('./shockwave.cjs');
+
+
+// BOARD PARTY integration uses the real app dispatcher and all six real engines.
+for(const count of [1,12]){
+ const ui=setup();ui.click('offlineBtn');
+ const api=ui.scope.window.__ghostTest,P=ui.scope.window.BoardParty;
+ while(api.getPlayers().length<count)ui.click('addLocalBtn');
+ if(count===1)api.getPlayers().splice(1);
+ ui.sessionButtons[2].fire('click');ui.click('startBtn');
+ const s=api.getBoard(),map=s.map;
+ assert.equal(api.getRound().mode,'board');assert.equal(s.players.length,count);
+ for(let i=0;i<10000&&s.phase!=='minigame';i++)api.updateBoard(.05);
+ assert.equal(s.phase,'minigame','every turn completes and starts the reel');
+ assert.ok(api.getSelection());
+ api.updateGameSelection(3);
+ assert.equal(api.getSelection(),null);assert.notEqual(api.getRound().mode,'board');
+ const saved=JSON.stringify(P.snapshot(s));
+ for(const mode of ['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time']){
+  P.phase(s,'minigame');api.startRound(mode);
+  for(let i=0;i<30000&&api.getRound().mode!=='board';i++)api.updateRound(.05);
+  assert.equal(api.getRound().mode,'board',mode+' must finish via the normal engine outcome');
+  assert.equal(s.phase,'standings');assert.equal(s.results.length,count);
+  assert.equal(JSON.stringify(P.snapshot(s)),saved,mode+' cannot change board data');
+  assert.equal(s.map,map);assert.equal(ui.elements.get('results').classList.contains('hidden'),true);
+  assert.equal(api.resultVoteSnapshot(),null,'no NORMAL result vote in a board intermission');
+ }
+ // Complete results -> inventory -> original board, then real finish and replay.
+ for(let i=0;i<400&&s.phase!=='ready';i++)api.updateBoard(.05);
+ assert.equal(s.phase,'ready');assert.equal(s.roundNumber,2);assert.equal(s.map,map);
+ const p=P.current(s);p.isBot=false;p.currentNodeId='n35';P.beginMove(s,p,1);
+ for(let i=0;i<80&&api.getRound().phase!=='results';i++)api.updateBoard(.05);
+ assert.equal(s.phase,'finished');assert.equal(api.getRound().phase,'results');
+ assert.ok(api.resultVoteSnapshot());ui.click('replayBtn');
+ assert.notEqual(api.getBoard(),s);assert.notEqual(api.getBoard().map,map);assert.equal(api.getBoard().phase,'order');assert.equal(api.getPlayers().length,count);
+ ui.click('exitBtn');assert.equal(api.getBoard(),null);
+ ui.sessionButtons[1].fire('click');ui.click('startBtn');finishReel(ui);assert.notEqual(api.getRound().mode,'board');assert.ok(api.getTournament().endless);
+}
+{
+ const ui=setup();ui.click('hostBtn');ui.instances[0].fire('open');const peer=ui.instances[0];
+ const conn=peer.connect();peer.fire('connection',conn);conn.fire('data',{t:'join',name:'Board phone',clientToken:'stable-board-token'});
+ const api=ui.scope.window.__ghostTest,P=ui.scope.window.BoardParty;
+ ui.sessionButtons[2].fire('click');assert.equal(ui.elements.get('startBtn').disabled,false,'no minigame nomination needed');ui.click('startBtn');
+ const s=api.getBoard(),p=s.players[0];let state=conn.sent.filter(p=>p.t==='board-state').at(-1);
+ conn.fire('data',{t:'input',turnId:state.turnId,actionId:1,keys:{alt:true}});assert.ok(p.dice,'B can roll order');
+ const dice=JSON.stringify(p.dice);conn.fire('data',{t:'input',turnId:state.turnId,actionId:1,keys:{alt:true}});assert.equal(JSON.stringify(p.dice),dice);
+ for(let i=0;i<100;i++)api.updateBoard(.05);assert.equal(s.phase,'ready');
+ conn.fire('data',{t:'input',turnId:state.turnId,actionId:2,keys:{action:true}});assert.equal(s.phase,'ready','old turn packet rejected');
+ state=conn.sent.filter(p=>p.t==='board-state').at(-1);conn.fire('data',{t:'input',turnId:state.turnId,actionId:3,keys:{action:true}});assert.equal(s.phase,'dice');
+ const id=p.id,node=p.currentNodeId;conn.close();
+ const seat=ui.timers.findLast(t=>t.ms===60000&&!t.cancelled);assert.ok(seat);seat.fn();assert.equal(api.getPlayers().length,1);assert.equal(p.isBot,true);assert.equal(p.currentNodeId,node);
+ const replacement=peer.connect();peer.fire('connection',replacement);replacement.fire('data',{t:'join',name:'Board phone',clientToken:'stable-board-token'});
+ assert.equal(api.getPlayers()[0].id,id);assert.equal(p.isBot,false);assert.equal(p.currentNodeId,node);
+ s.order=[id];P.startTurn(s);conn.fire('data',{t:'input',turnId:s.turnId,actionId:9999,keys:{action:true}});assert.equal(s.phase,'ready','superseded connection cannot inject commands');
+ replacement.fire('data',{t:'input',turnId:s.turnId,actionId:1,keys:{action:true}});assert.equal(s.phase,'dice','reconnected phone has a fresh input sequence');
+}
+console.log('BOARD INTEGRATION PASS: all six actual engines at 1/12 players, return, finish/replay, normal regression, remote tokens and reconnect');

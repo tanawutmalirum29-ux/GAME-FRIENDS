@@ -4263,3 +4263,13 @@ body:has(#home:not(.hidden)) footer{
     grid-template-columns:minmax(0,.81fr) minmax(0,1.29fr);
   }
 }
+
+/* BOARD PARTY has its own canvas HUD; the minigame toolbar is restored on entry. */
+.board-playing #game .game-center-hud{display:none!important}
+.board-playing #game .game-pause-btn{position:fixed;right:12px;top:29%;opacity:.85;min-width:28px;padding:6px}
+.board-playing #game .game-pause-btn span{display:none}
+.board-lobby .lobby-hint,.board-lobby .auto-next-control{display:none!important}
+.board-lobby-note{font-size:12px;color:#bbdce9;margin:4px 0 8px;line-height:1.5}
+.board-lobby [data-session-mode="board"].active{background:#d6f3fb;color:#173d55;border-color:#89d6e9}
+#sessionMode{flex-wrap:wrap}
+#sessionMode .seg-option{font-size:clamp(9px,1vw,12px)}
