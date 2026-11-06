@@ -590,6 +590,59 @@ test('Finish stops new actions and supports genuinely simultaneous finishers',()
  const s=ready(),a=s.players[0],b=s.players[1];a.currentNodeId=s.map.finishId;b.currentNodeId=s.map.finishId;
  P.win(s,a);P.win(s,b);assert.deepEqual(plain(s.winnerIds),[a.id,b.id]);a.item='bomber';press(s,a,'B');assert.equal(a.item,'bomber');assert.equal(s.phase,'finished');
 });
+test('1,000 generated boards contain no trophy or graph-adjacent heal/Lucky spaces',()=>{
+ for(let seed=0;seed<1000;seed++){
+  const map=M.create(seed);
+  assert.ok(Object.values(map.nodes).every(n=>n.type!=='milestone'));
+  for(const n of Object.values(map.nodes)){
+   if(!['healing','lucky'].includes(n.type))continue;
+   for(const otherId of M.neighbors(map,n.id)){
+    assert.notEqual(map.nodes[otherId].type,n.type,
+      'same-type tiles touch through graph edge '+n.id+' / '+otherId);
+   }
+  }
+  for(const b of map.branches.filter(b=>b.count>b.b-b.a-1)){
+   const long=Array.from({length:b.count},(_,j)=>map.nodes['b'+b.a+'_'+(j+1)]);
+   assert.ok(long.some(n=>n.type==='healing'||n.type==='lucky'),
+    'longer path must provide a meaningful benefit');
+  }
+ }
+});
+test('Green heal +20 and potion +50 change real HP without exceeding 100',()=>{
+ const s=ready(3,47),p=s.players[0],node='n10';
+ p.currentNodeId=node;s.map.nodes[node].type='healing';
+ p.hp=60;P.land(s);assert.equal(p.hp,80);
+ assert.equal(s.heals.at(-1).amount,20);
+ P.ready(s);p.hp=95;P.land(s);assert.equal(p.hp,100);
+ assert.equal(s.heals.at(-1).amount,5);
+ P.ready(s);p.hp=10;I.add(p,'potion');
+ assert.equal(I.begin(s,p,P,'potion'),true);assert.equal(p.hp,60);
+ assert.equal(s.heals.at(-1).amount,50);
+ assert.equal(I.bag(p).includes('potion'),false);
+});
+test('Stationary rocket times out after 5s without re-triggering the pad reward',()=>{
+ const s=ready(2,42),p=s.players[0];p.currentNodeId=s.map.luckyTileIds[0];
+ const before=I.bag(p).length;P.beginMove(s,p,Infinity,'rocket');
+ tick(s,5.2);assert.equal(s.phase,'effect');assert.equal(I.bag(p).length,before);
+ assert.equal(s.effect.kind,'land');
+ until(s,()=>s.phase==='ready',2);assert.equal(s.turnIndex,0);
+});
+test('RC car runs for 6 seconds, moves along forward paths and cannot reverse',()=>{
+ const s=ready(2,55),p=s.players[0];I.add(p,'car');
+ assert.equal(I.begin(s,p,P,'car'),true);
+ const begin={x:s.skill.x,y:s.skill.y};
+ const a=s.map.nodes.n0.position,b=s.map.nodes.n1.position;
+ const d=Math.hypot(b.x-a.x,b.y-a.y);
+ const keys={turnId:s.turnId,actionId:1,keys:{axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d}};
+ P.input(s,p.id,keys);tick(s,.3);
+ assert.ok(Math.hypot(s.skill.x-begin.x,s.skill.y-begin.y)>10);
+ const traversed=s.skill.visited.slice();
+ P.input(s,p.id,{turnId:s.turnId,actionId:2,keys:{axisX:-(b.x-a.x)/d,axisY:-(b.y-a.y)/d}});
+ tick(s,.3);assert.deepEqual(plain(s.skill.visited),plain(traversed),
+   'reverse input must not backtrack');
+ until(s,()=>s.phase==='effect',7);assert.equal(s.effect.kind,'car');
+ assert.equal(s.effect.next,'end');assert.equal(s.skill,null);
+});
 test('Full-session stress: 1–12 bots, 20 seeds each, minigame rewards and finish',()=>{
  let games=0,rounds=0,used=new Set();
  for(let n=1;n<=12;n++)for(let seed=0;seed<20;seed++){
