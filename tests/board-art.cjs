@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const surfaces=[],labels=[];let denyTerrain=false;
+const surfaces=[],labels=[],labelDraws=[];let denyTerrain=false;
 const artSource=fs.readFileSync('board-art.js','utf8');
 assert.match(artSource,/else sceneryLite\(g,s\)/,
  'low-memory renderer must avoid repainting full scenery every frame');
@@ -10,7 +10,7 @@ assert.match(artSource,/if\(!visible\(x,y,75\)\)continue/,
 function brush(main=false){return new Proxy({globalAlpha:1},{get(target,key){
  if(key in target)return target[key];
  if(key==='createLinearGradient')return()=>({addColorStop(){}});
- if(key==='fillText')return text=>{if(main)labels.push(text);};
+ if(key==='fillText')return (text,x,y,maxWidth)=>{if(main){labels.push(text);labelDraws.push({text:String(text),x,y,maxWidth,align:target.textAlign});}};
  return()=>{};
 },set(target,key,value){target[key]=value;return true;}});}
 const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(){},costumeFor(){return 'crown';}}},console,document:{createElement(tag){
@@ -22,6 +22,30 @@ const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(){},costumeFor(){ret
 for(const name of ['board-map','board-dice','board-items','board-minigame','board-party','board-art'])vm.runInContext(fs.readFileSync(name+'.js','utf8'),ctx,{filename:name+'.js'});
 const {BoardParty:P,BoardArt:A}=ctx.window,g=brush(true);
 function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,name:'Player '+i,color:'#66aacc'})),{seed});}
+
+// Rank labels must stay inside each card at both 2-column (4 players) and
+// compact 4-column (12 players) layouts. This catches badge overflow.
+for(const n of [4,12]){
+ const ranked=P.create(Array.from({length:n},(_,i)=>({id:'r'+i,name:'Player '+i,color:'#66aacc'})),{seed:97+n});
+ ranked.players.forEach(p=>{p.dice=[4,3];p.rollAt=0;});
+ ranked.order=ranked.players.map(p=>p.id);
+ ranked.time=2;P.phase(ranked,'order_result',3);
+ labelDraws.length=0;
+ A.draw(g,ranked.time,ranked);
+ const ranks=labelDraws.filter(v=>v.text.startsWith('ลำดับ '));
+ assert.equal(ranks.length,n,'every player rank must be visible');
+ const cols=n<=4?2:4,w=cols===2?392:211,h=Math.min(108,310/Math.ceil(n/cols));
+ const left=(960-(cols*w+(cols-1)*12))/2;
+ ranks.forEach((rank,i)=>{
+  const cardX=left+(i%cols)*(w+12),cardY=127+Math.floor(i/cols)*(h+10);
+  assert.equal(rank.align,'left','rank text must use a stable left-aligned badge anchor');
+  assert.ok(rank.maxWidth>0,'rank text width must be bounded');
+  assert.ok(rank.x>=cardX+8&&rank.x+rank.maxWidth<=cardX+w-8,
+    'rank must fit within the card horizontally');
+  assert.ok(rank.y>cardY+68&&rank.y<=cardY+h-5,
+    'rank must sit below dice/score and inside the card vertically');
+ });
+}
 const s=game(1);A.draw(g,0,s);assert.equal(surfaces.length,0,'initial order screen does not allocate the world');assert.ok(labels.includes('ทอยลูกเต๋าเพื่อจัดลำดับ'));
 s.order=s.players.map(p=>p.id);P.startTurn(s);A.draw(g,0,s);assert.equal(surfaces.length,1);const old=surfaces[0];
 assert.ok(old.width*old.height>1000000);
