@@ -659,6 +659,41 @@ function overlay(g,s){
 
  label(g,order?'รอผู้เล่นทุกคนกด A หรือ B เพื่อทอย':Math.max(0,Math.ceil(s.deadline-s.time))+' วินาที • ดำเนินต่ออัตโนมัติ',480,sceneHeight(s)-37,13,'#b8dce9','center',500);
 }
+// Clear, color-coded controller hints. These are drawn in game-space rather
+// than relying on external HTML labels, so split-screen/iPhone layouts share
+// the same touch-free HUD and text remains legible on large stages.
+function controlBadge(g,x,y,code,caption,color,boxWidth=153){
+ box(g,x,y,boxWidth,37,9,'#16384be9','#67899b');
+ box(g,x+5,y+4,29,29,8,color,'#e8eff1');
+ label(g,code,x+19.5,y+18.5,16,'#fffdfa','center',900);
+ label(g,caption,x+40,y+18.5,13,'#eefaff','left',800,boxWidth-45);
+}
+function aimControls(g,s){
+ if(s.phase!=='aim'||!s.skill||!['bomber','ufo'].includes(s.skill.kind))return;
+ const bomber=s.skill.kind==='bomber',x=14,y=100,w=294,h=162;
+ box(g,x,y,w,h,12,'#102b41f5','#d9c890');
+ box(g,x+9,y+8,w-18,26,7,'#21485b','#688ea1');
+ label(g,bomber?'เล็งเป้า • เครื่องบินรบ':'เล็งเป้า • UFO',x+17,y+21,15,'#ffedb7','left',850,w-35);
+ const rows=bomber?[
+  ['A','ยืนยันโจมตี','#318268'],
+  ['B','หมุนทิศ 45° • 8 ทิศ','#427bb4'],
+  ['C','ยกเลิกการใช้','#b34e5d']
+ ]:[
+  ['A','ยืนยันสลับตำแหน่ง','#318268'],
+  ['B','ไม่ใช้ในโหมดนี้','#49677d'],
+  ['C','ยกเลิกการใช้','#b34e5d']
+ ];
+ rows.forEach(([key,description,color],i)=>{
+  const yy=y+41+i*31;
+  box(g,x+9,yy,w-18,28,6,'#214258ed','#486c81');
+  box(g,x+15,yy+3,25,22,6,color,'#adc3c4');
+  label(g,key,x+27.5,yy+14,13,'#ffffff','center',900);
+  label(g,description,x+48,yy+14,13,'#ecf7ff','left',800,w-65);
+ });
+ label(g,bomber?
+  'B หมุนทิศได้ 8 แบบ • A ยิงจริง':
+  'ขยับจอยเพื่อเล็งก่อนกด A',x+14,y+148,11,'#b6def0','left',700,w-27);
+}
 function turnDice(g,s){
  if(!['ready','dice'].includes(s.phase))return;
  const p=window.BoardParty.current(s);if(!p)return;
@@ -674,7 +709,9 @@ function turnDice(g,s){
   if(item){
    icon(g,item,cx,top+102,53);
    label(g,IName(item),cx,top+162,17,'#ffe7a8','center',800,width-30);
-   label(g,'A ใช้ไอเทม   •   B เปลี่ยน',cx,top+204,12,'#c2e6f5','center',650,width-25);
+   const aimItem=item==='bomber'||item==='ufo';
+   controlBadge(g,left+14,top+185,'A',aimItem?'เล็งเป้า':'ใช้ไอเทม','#2d906e',154);
+   controlBadge(g,left+178,top+185,'B','เปลี่ยนไอเทม','#4583ba',156);
   }
  }else{
   const distance=59;
@@ -684,8 +721,15 @@ function turnDice(g,s){
   const a=s.moveDice?.[0],b=s.moveDice?.[1];
   label(g,settled?a+' + '+b+' = '+s.die+' ก้าว':active?'กำลังทอย…':'ทอยลูกเต๋า',
     cx,top+175,22,'#ffe8b5','center',800,width-24);
-  label(g,active?(settled?'ผลทอยพร้อมแล้ว • เตรียมเดิน':'รอลูกเต๋าหยุดก่อนเริ่มเดิน'):
-    'A ทอย   •   B เปลี่ยนตัวเลือก',cx,top+204,12,'#c2e6f5','center',650,width-25);
+  if(active){
+   label(g,settled?'ผลทอยพร้อมแล้ว • เตรียมเดิน':'รอลูกเต๋าหยุดก่อนเริ่มเดิน',
+     cx,top+204,13,'#c9e9f6','center',750,width-25);
+  }else{
+   controlBadge(g,left+14,top+185,'A','ทอยลูกเต๋า','#2d906e',154);
+   controlBadge(g,left+178,top+185,'B',
+     p.usedRound===s.roundNumber?'ใช้ไอเทมครบแล้ว':'เปลี่ยนไอเทม',
+     '#4583ba',156);
+  }
  }
  g.restore();
 }
@@ -780,7 +824,14 @@ function draw(g,t,s){
  ground(g,s);if(typeof ambience==='function'&&!c.lowDetail)ambience(g,s,t);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<(c.lowDetail?0:35);i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
- hud(g,s);if(!overviewMode&&!c.paused){g.save();g.translate(0,sceneOffset(s));turnDice(g,s);intermissionNotice(g,s);luckyRoulette(g,s);g.restore();overlay(g,s);}
+ hud(g,s);
+ if(!overviewMode&&!c.paused){
+  // The A/B/C guide sits directly below scoreboard player #1 on the left.
+  aimControls(g,s);
+  g.save();g.translate(0,sceneOffset(s));
+  turnDice(g,s);intermissionNotice(g,s);luckyRoulette(g,s);
+  g.restore();overlay(g,s);
+ }
  if(s.camera.debugNodes&&s.camera.selectedId){
   const n=s.map.nodes[s.camera.selectedId],t=s.map.territories[n.territoryId];
   box(g,207,bottom-49,546,57,8,'#0a2a43f5','#91cde7');

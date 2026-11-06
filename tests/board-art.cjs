@@ -132,7 +132,9 @@ const snapshot=JSON.stringify(s.players);
 for(let i=0;i<60;i++)A.draw(g,i/60,s);assert.equal(surfaces.length,initialSurfaces+1,'terrain is reused');assert.equal(JSON.stringify(s.players),snapshot);
 const t=game(2);t.order=t.players.map(p=>p.id);P.startTurn(t);denyTerrain=true;A.draw(g,0,t);
 assert.equal(old.width,1);assert.equal(old.height,1,'previous match pixels are released');assert.equal(surfaces.length,initialSurfaces+2);
-assert.equal(surfaces.at(-1).width,1,'failed allocation is released too');assert.ok(labels.some(x=>String(x).includes('A ทอย')));
+assert.equal(surfaces.at(-1).width,1,'failed allocation is released too');
+assert.ok(labels.includes('A')&&labels.includes('ทอยลูกเต๋า'),
+ 'fallback rendering still shows the clear A roll badge');
 for(let i=0;i<10;i++)A.draw(g,i,t);assert.equal(surfaces.length,initialSurfaces+2,'allocation failure falls back without a retry loop');
 // A BOARD minigame must show exactly one results/reward page. During return,
 // sprites and scores must not be presented as a second prize roll.
@@ -228,8 +230,10 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  const frame=labelDraws.slice(start);
  assert.ok(frame.some(x=>x.text===p.name&&x.align==='center'&&x.x===480),
    'the full player title is anchored on the dice panel center');
- assert.ok(frame.some(x=>x.text.includes('B เปลี่ยนตัวเลือก')&&x.x===480),
-   'instruction sits below the dice without drifting right');
+ assert.ok(frame.some(x=>x.text==='ทอยลูกเต๋า'&&x.x===360&&x.y===371.5),
+   'A visibly explains the roll action in its own control badge');
+ assert.ok(frame.some(x=>x.text==='เปลี่ยนไอเทม'&&x.x===524&&x.y===371.5),
+   'B visibly explains switching items in its own control badge');
  assert.doesNotMatch(artSource,/% • รอ|backpackOverlay\(g,s\)/,
    'progress percentages and popup bag are gone from the board renderer');
 }
@@ -256,6 +260,47 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  assert.match(artSource,/footsteps\(g,855,footerY\+32/,'two vector footprints precede the step total');
  assert.match(artSource,/kinds=\['roll',\.\.\.window\.BoardItems\.ids\]/,
   'all fixed inventory types appear alongside the Roll slot');
+}
+
+// Contextual control badges are easy to read, while aiming guidance is
+// anchored just BELOW scoreboard player #1 in three stable A/B/C rows.
+{
+ const I=ctx.window.BoardItems,s=game(338),p=s.players[0];
+ s.order=s.players.map(player=>player.id);P.startTurn(s);
+ const capture=()=>{const before=labelDraws.length;A.draw(g,s.time,s);return labelDraws.slice(before);};
+ p.item='shield';p.actionIndex=I.ids.indexOf('shield')+1;
+ let view=capture();
+ assert.ok(view.some(v=>v.text==='ใช้ไอเทม'&&v.x===360&&v.y===371.5),
+  'A prominently states the use-item action on the dice popup');
+ assert.ok(view.some(v=>v.text==='เปลี่ยนไอเทม'&&v.x===524));
+ p.item='bomber';p.actionIndex=I.ids.indexOf('bomber')+1;
+ view=capture();
+ assert.ok(view.some(v=>v.text==='เล็งเป้า'&&v.x===360),
+  'A prompts aiming instead of firing immediately for bomber');
+ assert.equal(P.action(s,p.id,'A'),true);
+ assert.equal(s.phase,'aim');
+ view=capture();
+ for(const title of ['เล็งเป้า • เครื่องบินรบ','ยืนยันโจมตี','หมุนทิศ 45° • 8 ทิศ','ยกเลิกการใช้']){
+  assert.ok(view.some(v=>v.text===title),'aircraft targeting guide includes: '+title);
+ }
+ const keys=['A','B','C'].map(key=>view.find(v=>v.text===key&&v.x===41.5));
+ assert.deepEqual(keys.map(v=>v?.y),[155,186,217],
+  'A/B/C appear as three distinct rows under player number one');
+ assert.ok(view.find(v=>v.text==='เล็งเป้า • เครื่องบินรบ').x<100,
+  'aim legend is upper-left, not over the center dice popup');
+ assert.equal(P.action(s,p.id,'C'),true);
+ p.item='ufo';p.actionIndex=I.ids.indexOf('ufo')+1;
+ view=capture();assert.ok(view.some(v=>v.text==='เล็งเป้า'&&v.x===360));
+ assert.equal(P.action(s,p.id,'A'),true);
+ view=capture();
+ for(const title of ['เล็งเป้า • UFO','ยืนยันสลับตำแหน่ง','ไม่ใช้ในโหมดนี้','ยกเลิกการใช้',
+  'ขยับจอยเพื่อเล็งก่อนกด A']){
+  assert.ok(view.some(v=>v.text===title),'UFO aiming legend includes: '+title);
+ }
+ assert.equal(P.action(s,p.id,'C'),true);
+ view=capture();
+ assert.ok(!view.some(v=>v.text==='เล็งเป้า • UFO'),
+  'left A/B/C aiming legend disappears on cancel');
 }
 
 // 12 players fit into one row at y=37. The bottom active card includes HP.
@@ -336,7 +381,10 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  const panel=labelDraws.slice(first);
  expectCenteredThai(panel,'บอท 4');
  expectCenteredThai(panel,'ทอยลูกเต๋า');
- expectCenteredThai(panel,'A ทอย   •   B เปลี่ยนตัวเลือก');
+ assert.ok(panel.some(x=>x.text==='ทอยลูกเต๋า'&&x.x===360&&x.align==='left'),
+  'the dice dialog has a separate A action badge');
+ assert.ok(panel.some(x=>x.text==='เปลี่ยนไอเทม'&&x.x===524&&x.align==='left'),
+  'the dice dialog has a separate B action badge');
  // The second screenshot shows Lucky Star copy above and below the reel.
  const lucky=game(902);lucky.order=lucky.players.map(p=>p.id);
  P.startTurn(lucky);
