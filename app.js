@@ -1830,11 +1830,13 @@ function renderPhoneBoard(){
  const info=controllerBoard;if(!info||controllerGameMode!=='board')return;
  $('buttonA').disabled=false;$('buttonB').disabled=false;
  for(const cls of ['chickens-mode','fruit-memory-mode','color-switch-mode','shockwave-mode','has-target'])$('controllerButtons').classList.remove(cls);
- const bomberAim=info.boardPhase==='aim'&&info.c==='ยกเลิก';
- $('controllerButtons').classList.toggle('board-bomber-aim',bomberAim);
- $('buttonC').disabled=!bomberAim;
- $('buttonCLabel').textContent=bomberAim?'ยกเลิก':'';
- $('buttonC').setAttribute('aria-label',bomberAim?'C ยกเลิกการเล็งเครื่องบิน':'C');
+ // The existing on-screen C button cancels either UFO or bomber targeting.
+ // Reuse the aim-layout class so the control stays visible on narrow phones.
+ const itemAim=info.boardPhase==='aim'&&info.c==='ยกเลิก';
+ $('controllerButtons').classList.toggle('board-bomber-aim',itemAim);
+ $('buttonC').disabled=!itemAim;
+ $('buttonCLabel').textContent=itemAim?'ยกเลิก':'';
+ $('buttonC').setAttribute('aria-label',itemAim?'C ยกเลิกการเล็งไอเทม':'C');
  $('targetCycleControls').classList.add('hidden');
  for(const id of ['buttonA','buttonB']){$(id).classList.remove('cooldown-active','color-boost-ready');$(id).style.removeProperty('--cooldown-sweep');}
  $('controllerModeName').textContent='BOARD PARTY • ROUND '+info.round;
