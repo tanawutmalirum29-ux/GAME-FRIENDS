@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const names={potion:'Healing Potion',ufo:'UFO Position Swap',rocket:'Rocket Ride',bomber:'Bomber Aircraft',car:'RC Bomb Car',shield:'Protection Shield'};
-const ids=Object.keys(names),radius=18,blastRadius=72;
+const ids=Object.keys(names),radius=18,ufoRadius=48,blastRadius=72;
 function bag(p){
  if(!Array.isArray(p.bag))p.bag=[];
  // Accept older single-slot session data without losing a previously held item.
@@ -47,7 +47,7 @@ function position(s,p){
  }
  return positionOnNode(s,p);
 }
-function target(s,point,user){return s.players.filter(p=>p.id!==user.id&&p.currentNodeId!==s.map.finishId).map(p=>({p,d:Math.hypot(position(s,p).x-point.x,position(s,p).y-point.y)})).filter(q=>q.d<=radius+8).sort((a,b)=>a.d-b.d||String(a.p.id).localeCompare(String(b.p.id)))[0]?.p||null;}
+function target(s,point,user){return s.players.filter(p=>p.id!==user.id&&p.currentNodeId!==s.map.finishId).map(p=>({p,d:Math.hypot(position(s,p).x-point.x,position(s,p).y-point.y)})).filter(q=>q.d<=ufoRadius+radius).sort((a,b)=>a.d-b.d||String(a.p.id).localeCompare(String(b.p.id)))[0]?.p||null;}
 function bombs(aim){return Array.from({length:5},(_,i)=>({x:aim.x+Math.cos(aim.angle)*(i-2)*90,y:aim.y+Math.sin(aim.angle)*(i-2)*90}));}
 function victims(s,points,user){return s.players.filter(p=>p.id!==user.id&&points.some(q=>Math.hypot(position(s,p).x-q.x,position(s,p).y-q.y)<=blastRadius+radius));}
 function consume(s,p,kind){
@@ -56,22 +56,22 @@ function consume(s,p,kind){
  if(index>=0&&!p.debugUnlimitedItems)items.splice(index,1);
  p.item=items[0]||null;
  p.bagIndex=Math.min(p.bagIndex||0,items.length);
- p.bagOpen=false;if(!p.debugUnlimitedItems)p.usedRound=s.roundNumber;
+ p.bagOpen=false;p.usedRound=s.roundNumber;
 }
 function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
  if(s.phase!=='ready'||!kind||!bag(p).includes(kind)||
-   (!p.debugUnlimitedItems&&p.usedRound===s.roundNumber)||s.rolled||s.time>=s.readyDeadline)return false;
+   p.usedRound===s.roundNumber||s.rolled||s.time>=s.readyDeadline)return false;
  if(kind==='potion'){
   if(p.hp>=api.MAX_HP)return false;
   const gained=Math.min(api.MAX_HP-p.hp,api.HEAL.potion);
   consume(s,p,kind);p.hp+=gained;
   s.heals.push({id:p.id,amount:gained,at:s.time,position:position(s,p)});
-  api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
+  api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:'end'},.85);return true;
  }
  if(kind==='shield'){
   // Two own turns: the activation turn and the owner's next turn, inclusive.
   if(p.shieldTurns>0)return false;consume(s,p,kind);p.shieldTurns=2;
-  api.effect(s,{kind:'shield',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
+  api.effect(s,{kind:'shield',points:[position(s,p)],targets:[p.id],next:'end'},.85);return true;
  }
  if(kind==='rocket'){consume(s,p,kind);api.beginMove(s,p,Infinity,'rocket');return true;}
  if(kind==='car'){
@@ -143,14 +143,15 @@ function update(s,dt,api){
   skill.remaining=Math.max(0,skill.remaining-dt);
   if(skill.remaining<=0){explode(s,api);return;}
   const strength=Math.hypot(input.x,input.y);
-  // No synthetic node-choice hold: joystick steers continuously along the
-  // drivable forward network. Reverse thrust cannot revisit an old edge.
+  // RC car can freely reverse on the same segment and drive BOTH
+  // directions on connected road edges; this never moves its owner.
   if(strength>.12){
    const stick={x:input.x/strength,y:input.y/strength};
    if(!skill.step){
-    const next=s.map.nodes[skill.nodeId].nextNodes.filter(n=>!skill.visited.includes(n));
-    if(!next.length){explode(s,api);return;}
-    const to=window.BoardMap.choose(s.map,skill.nodeId,stick.x,stick.y,next);
+    const node=s.map.nodes[skill.nodeId];
+    const paths=[...new Set([...node.nextNodes,...node.previousNodes])];
+    if(!paths.length)return;
+    const to=window.BoardMap.choose(s.map,skill.nodeId,stick.x,stick.y,paths);
     const node=s.map.nodes[skill.nodeId].position,target=s.map.nodes[to].position;
     const len=Math.hypot(target.x-node.x,target.y-node.y)||1;
     const dot=(stick.x*(target.x-node.x)+stick.y*(target.y-node.y))/len;
@@ -160,10 +161,10 @@ function update(s,dt,api){
    if(skill.step){
     const m=skill.step,a=m.startPosition,b=m.endPosition;
     const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1,nx=dx/len,ny=dy/len;
-    const forward=Math.max(0,stick.x*nx+stick.y*ny);
+    const forward=stick.x*nx+stick.y*ny;
     const lateral=-stick.x*ny+stick.y*nx;
     const old={x:skill.x,y:skill.y};
-    m.t=Math.min(1,m.t+forward*345*dt/len);
+    m.t=Math.max(0,Math.min(1,m.t+forward*345*dt/len));
     m.lateral=Math.max(-15,Math.min(15,m.lateral+lateral*345*dt));
     skill.x=a.x+dx*m.t-ny*m.lateral;
     skill.y=a.y+dy*m.t+nx*m.lateral;
@@ -172,11 +173,16 @@ function update(s,dt,api){
       segmentDistance(position(s,q),old,skill)<=radius+12);
     if(collision){explode(s,api);return;}
     if(m.t>=1){skill.nodeId=m.to;skill.visited.push(m.to);
-      skill.step=null;}
+      skill.step=null;
+    }else if(m.t<=0&&forward<-.05){
+      // Return to the origin pad without teleporting or triggering an item.
+      skill.nodeId=m.from;skill.visited.push(m.from);
+      skill.step=null;
+    }
    }
   }
 
  }
 }
-window.BoardItems=Object.freeze({names,ids,radius,blastRadius,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,victims,begin,confirm,update,segmentDistance});
+window.BoardItems=Object.freeze({names,ids,radius,ufoRadius,blastRadius,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,victims,begin,confirm,update,segmentDistance});
 })();
