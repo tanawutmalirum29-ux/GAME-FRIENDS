@@ -9,7 +9,7 @@ function ranking(round,players){
    case 'ghost':return !p.ghost?Infinity:Math.floor((Number.isFinite(p.infectedAt)?p.infectedAt:p.survival||0)*10+1e-7);
    case 'fruit_memory':return p.id===round.fruitMemory.winnerId?Infinity:(p.fruitEliminatedRound||p.fruitRounds||0);
    case 'shockwave':return p.id===round.shockwave.winnerId?Infinity:(p.shockEliminatedAt||0);
-   case 'color_switch':case 'chickens':case 'pizza_time':return Number(p.score)||0;
+   case 'color_switch':case 'chickens':case 'pizza_time':case 'knight_match':return Number(p.score)||0;
    default:throw Error('Missing result adapter for '+round.mode);
   }
  };
