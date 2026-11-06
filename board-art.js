@@ -181,7 +181,7 @@ function scenery(g,map){
 // Allocation failure keeps the same island silhouette and walkable connections;
 // only ornamentation is omitted. Visible-region culling bounds per-frame work.
 function sceneryLite(g,s){
- const map=s.map,c=s.camera,zoom=Math.max(.06,c.zoom||1),width=480/zoom+220,height=(mapBottom(s)-(s.players.length>6?145:94))/2/zoom+220;
+ const map=s.map,c=s.camera,zoom=Math.max(.06,c.zoom||1),width=480/zoom+220,height=(mapBottom(s)-(94))/2/zoom+220;
  const intersects=(a,b)=>Math.max(a.x,b.x)>=c.x-width&&Math.min(a.x,b.x)<=c.x+width&&Math.max(a.y,b.y)>=c.y-height&&Math.min(a.y,b.y)<=c.y+height;
  g.fillStyle='#183e5d';g.fillRect(0,0,map.width,map.height);
  for(const zone of map.islands||[]){const p=zone.outline;if(intersects({x:Math.min(...p.map(v=>v.x)),y:Math.min(...p.map(v=>v.y))},{x:Math.max(...p.map(v=>v.x)),y:Math.max(...p.map(v=>v.y))}))island(g,zone,true);}
@@ -191,7 +191,7 @@ function sceneryLite(g,s){
 }
 function ambience(g,s,t){
  if(s.camera.lowDetail)return;
- for(const zone of s.map.islands||[]){const p=zone.landmark;if(!p||Math.abs(p.x-s.camera.x)>550/s.camera.zoom||Math.abs(p.y-s.camera.y)>(mapBottom(s)-(s.players.length>6?145:94))/2/s.camera.zoom)continue;
+ for(const zone of s.map.islands||[]){const p=zone.landmark;if(!p||Math.abs(p.x-s.camera.x)>550/s.camera.zoom||Math.abs(p.y-s.camera.y)>(mapBottom(s)-(94))/2/s.camera.zoom)continue;
   const shimmer=.35+.35*Math.sin(t*1.7+zone.center.x);g.save();g.globalAlpha=shimmer;star(g,p.x+72,p.y-95,5,'#e7faff');star(g,p.x-84,p.y-22,3,'#ffe7a4');g.restore();
  }
 }
@@ -211,7 +211,7 @@ function ground(g,s){
  }
  const layer=terrain.canvas;
  if(layer){
-  const c=s.camera,halfW=480/c.zoom,halfH=(mapBottom(s)-(s.players.length>6?145:94))/2/c.zoom;
+  const c=s.camera,halfW=480/c.zoom,halfH=(mapBottom(s)-(94))/2/c.zoom;
   const x=Math.max(0,c.x-halfW-2),y=Math.max(0,c.y-halfH-2),w=Math.min(s.map.width-x,halfW*2+4),h=Math.min(s.map.height-y,halfH*2+4);
   const sx=layer.width/s.map.width,sy=layer.height/s.map.height;
   g.drawImage(layer,x*sx,y*sy,w*sx,h*sy,x,y,w,h);
@@ -257,7 +257,7 @@ function nodes(g,s){
  // to reduce Canvas calls substantially on low-FPS phones/tablets.
  const c=s.camera,zoom=Math.max(.06,c.zoom||1);
  const halfW=480/zoom+95;
- const halfH=(mapBottom(s)-(s.players.length>6?145:94))/2/zoom+95;
+ const halfH=(mapBottom(s)-(94))/2/zoom+95;
  const visible=(x,y,r=0)=>Math.abs(x-c.x)<=halfW+r&&Math.abs(y-c.y)<=halfH+r;
  const edgeVisible=(a,b)=>Math.max(a.x,b.x)>=c.x-halfW&&
    Math.min(a.x,b.x)<=c.x+halfW&&Math.max(a.y,b.y)>=c.y-halfH&&
@@ -409,27 +409,27 @@ function footsteps(g,x,y,size=36,color='#79c8f5'){
  g.restore();
 }
 function hud(g,s){
- const n=s.players.length,cols=n>4?6:n,w=(932-(cols-1)*6)/cols,active=window.BoardParty.current(s);
- box(g,0,0,960,n>6?145:94,0,'#102d43f2');
+ // A single compact rail fits every player from 1 through 12 on ONE row.
+ const n=s.players.length,cols=n,gap=n>=10?3:5,w=(936-gap*(cols-1))/cols,active=window.BoardParty.current(s);
+ box(g,0,0,960,94,0,'#102d43f2');
  label(g,'BOARD PARTY',16,19,13,'#e9faff');label(g,'WINTER ISLANDS',142,19,8,'#8bbccc','left',500);
  label(g,'ROUND '+String(s.roundNumber).padStart(2,'0'),325,19,10,'#ffdf9d','right');
  const ids=s.order.length?s.order:s.players.map(p=>p.id);
  ids.forEach((id,i)=>{
   const p=s.players.find(q=>q.id===id);
   if(!p)return;
-  const x=14+(i%cols)*(w+6),y=36+Math.floor(i/cols)*51,turn=p.id===active?.id;
-  box(g,x,y,w,45,8,turn?'#2e5267':'#1b3a50',turn?'#edce82':'#33566a');
-  box(g,x,y,3,45,2,p.color);
-  label(g,(i+1)+'.',x+9,y+13,11,p.color,'left',700,23);
-  const nameX=x+30,limit=Math.max(10,Math.min(w-66,nameWidth(g,11)));
-  clippedPlayerName(g,p.name,nameX,y+13,11,p.color,limit);
-  // No numeric HP, unnecessary status, or second progress row in player cards.
+  const x=12+i*(w+gap),y=37,turn=p.id===active?.id,compact=n>=9;
+  box(g,x,y,w,42,6,turn?'#2e5267':'#1b3a50',turn?'#edce82':'#33566a');
+  box(g,x,y,3,42,2,p.color);
+  const fontSize=compact?9:11,rankW=i>=9?23:18,nameX=x+rankW;
+  label(g,(i+1)+'.',x+5,y+14,compact?9:10,p.color,'left',700,rankW-5);
+  const limit=Math.max(8,Math.min(w-rankW-5,nameWidth(g,fontSize)));
+  clippedPlayerName(g,p.name,nameX,y+14,fontSize,p.color,limit);
   const hpRatio=Math.max(0,Math.min(1,p.hp/window.BoardParty.MAX_HP));
-  box(g,nameX,y+27,limit,6,3,'#0b2537');
-  if(hpRatio>0)box(g,nameX,y+27,limit*hpRatio,6,3,p.color);
-  const bagItems=p.bag||[];
-  if(bagItems.length){icon(g,'bag',x+w-21,y+14,11);label(g,String(bagItems.length),x+w-6,y+14,9,'#ffe1a3','right');}
-  if(p.shieldTurns>0)icon(g,'shield',x+w-15,y+35,10);
+  const hpX=x+7,hpW=Math.min(w-16,nameWidth(g,fontSize));
+  box(g,hpX,y+29,hpW,6,3,'#0b2537');
+  if(hpRatio>0)box(g,hpX,y+29,hpW*hpRatio,6,3,p.color);
+  if(p.shieldTurns>0)icon(g,'shield',x+w-10,y+31,8);
  });
  const footerY=sceneHeight(s)-80;
  box(g,12,footerY,936,68,16,'#102e44f5','#53758a');
@@ -441,7 +441,12 @@ function hud(g,s){
   legend.forEach(([type,name],i)=>{const x=410+i*135;circle(g,x,footerY+22,12,colors[type]);icon(g,type,x,footerY+22,type==='sword'?9:8);label(g,name,x,footerY+48,9,'#d6eaf2','center',600,100);});
  }else if(p){
   window.PartyPlayerAvatar.drawFront(g,p,48,footerY+34,44);
-  clippedPlayerName(g,p.name,82,footerY+34,16,p.color,nameWidth(g,16));
+  clippedPlayerName(g,p.name,82,footerY+19,16,p.color,nameWidth(g,16));
+  // Numeric HP is intentionally shown on the active player's lower card only.
+  const hpWidth=162,hpRatio=Math.max(0,Math.min(1,p.hp/window.BoardParty.MAX_HP));
+  label(g,p.hp+'/'+window.BoardParty.MAX_HP,82,footerY+41,11,'#cce6f5','left',800,100);
+  box(g,82,footerY+53,hpWidth,6,3,'#0a2539');
+  if(hpRatio>0)box(g,82,footerY+53,hpWidth*hpRatio,6,3,p.color);
   const stock=window.BoardItems.counts(p),kinds=['roll',...window.BoardItems.ids];
   const selected=Math.max(0,Math.min(kinds.length-1,Math.trunc(p.actionIndex||0)));
   const canSelect=s.phase==='ready';
@@ -476,7 +481,7 @@ function hud(g,s){
   footsteps(g,855,footerY+32,35,'#86d3f5');
   label(g,window.BoardParty.remainingSteps(s,p.id),916,footerY+32,29,'#ffe3a1','right',900,36);
  }
- const timed=['ready','aim','car','rocket'].includes(s.phase)||(['move_ready','branch'].includes(s.phase)&&s.move?.kind!=='walk');
+ const timed=Number.isFinite(s.deadline)&&(['aim','car','rocket'].includes(s.phase)||(['move_ready','branch'].includes(s.phase)&&s.move?.kind!=='walk'));
  if(timed){box(g,886,footerY-32,60,25,8,'#173c53e8');label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,footerY-19,12,'#e4f5fc','right');}
 }
 
@@ -582,7 +587,7 @@ function overlay(g,s){
   g.restore(); // outer result-card clipping scope
  });
 
- label(g,Math.max(0,Math.ceil(s.deadline-s.time))+' วินาที • ดำเนินต่ออัตโนมัติ',480,sceneHeight(s)-37,13,'#b8dce9','center',500);
+ label(g,order?'รอผู้เล่นทุกคนกด A หรือ B เพื่อทอย':Math.max(0,Math.ceil(s.deadline-s.time))+' วินาที • ดำเนินต่ออัตโนมัติ',480,sceneHeight(s)-37,13,'#b8dce9','center',500);
 }
 function turnDice(g,s){
  if(!['ready','dice'].includes(s.phase))return;
@@ -631,14 +636,14 @@ function canPan(s){
 }
 function pan(s,dx,dy){
  if(!canPan(s)||!Number.isFinite(dx)||!Number.isFinite(dy))return false;
- const c=s.camera,top=s.players.length>6?145:94,halfW=480/c.zoom,halfH=(mapBottom(s)-top)/2/c.zoom,b=bounds(s);
+ const c=s.camera,top=94,halfW=480/c.zoom,halfH=(mapBottom(s)-top)/2/c.zoom,b=bounds(s);
  c.x=clampCamera(c.x-dx/c.zoom,halfW,b.minX,b.maxX);
  c.y=clampCamera(c.y-dy/c.zoom,halfH,b.minY,b.maxY);c.panned=true;
  return true;
 }
 function bounds(s){return s.map.bounds||{minX:0,minY:0,maxX:s.map.width,maxY:s.map.height};}
 function clampCamera(value,half,min,max){return half>=(max-min)/2?(min+max)/2:Math.max(min+half,Math.min(max-half,value));}
-function fitZoom(s){const h=mapBottom(s)-(s.players.length>6?145:94),b=bounds(s);return Math.min(916/(b.maxX-b.minX),(h-22)/(b.maxY-b.minY));}
+function fitZoom(s){const h=mapBottom(s)-(94),b=bounds(s);return Math.min(916/(b.maxX-b.minX),(h-22)/(b.maxY-b.minY));}
 function overview(s){const c=s.camera,b=bounds(s);c.overview=true;c.explore=true;c.manualZoom=fitZoom(s);
  c.zoom=c.manualZoom;c.x=(b.minX+b.maxX)/2;c.y=(b.minY+b.maxY)/2;c.panned=false;return true;}
 function follow(s){if(s.phase==='overview')return false;const c=s.camera;c.overview=false;c.explore=false;c.manualZoom=null;c.panned=false;return true;}
@@ -646,13 +651,13 @@ function zoom(s,scale){
  if(!canPan(s)||!Number.isFinite(scale)||scale<=0)return false;
  const c=s.camera,b=bounds(s);c.zoom=Math.max(fitZoom(s),Math.min(2.2,c.zoom*scale));
  c.x=clampCamera(c.x,480/c.zoom,b.minX,b.maxX);
- c.y=clampCamera(c.y,(mapBottom(s)-(s.players.length>6?145:94))/2/c.zoom,b.minY,b.maxY);
+ c.y=clampCamera(c.y,(mapBottom(s)-(94))/2/c.zoom,b.minY,b.maxY);
  c.manualZoom=c.zoom;c.panned=true;return true;
 }
 function toggleDebug(s){s.camera.debugNodes=!s.camera.debugNodes;return s.camera.debugNodes;}
 function inspect(s,x,y){
  if(!s.camera.debugNodes)return null;
- const top=s.players.length>6?145:94,viewH=mapBottom(s)-top,c=s.camera;
+ const top=94,viewH=mapBottom(s)-top,c=s.camera;
  if(y<top||y>mapBottom(s))return null;
  const wx=c.x+(x-480)/c.zoom,wy=c.y+(y-(top+viewH/2))/c.zoom;
  let best=null,distance=Infinity;
@@ -671,7 +676,7 @@ function draw(g,t,s){
  if(['order','order_result','standings','rewards'].includes(s.phase)&&!s.camera.overview){
   g.fillStyle='#102e43';g.fillRect(0,0,960,sceneHeight(s));overlay(g,s);return;
  }
- const top=s.players.length>6?145:94,bottom=mapBottom(s),viewH=bottom-top;
+ const top=94,bottom=mapBottom(s),viewH=bottom-top;
  const p=window.BoardParty.current(s)||s.players[0],pos=s.skill||window.BoardItems.position(s,p);
  const wide=s.phase==='aim',overviewMode=s.phase==='overview'||s.camera.overview;
  const introZoom=s.phase==='intro_zoom';

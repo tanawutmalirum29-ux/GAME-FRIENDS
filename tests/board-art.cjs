@@ -33,7 +33,7 @@ function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,nam
  const original=JSON.stringify(s.players);
  assert.equal(A.zoom(s,1.5),true);assert.ok(s.camera.zoom>fit);
  assert.equal(A.toggleDebug(s),true);
- const n=s.map.nodes.n35,top=145,viewH=452-top;
+ const n=s.map.nodes.n35,top=94,viewH=452-top;
  const x=480+(n.position.x-s.camera.x)*s.camera.zoom;
  const y=top+viewH/2+(n.position.y-s.camera.y)*s.camera.zoom;
  const info=A.inspect(s,x,y);
@@ -247,7 +247,7 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  assert.ok(texts.includes('2'),'duplicate potion quantity appears in one slot');
  assert.ok(texts.includes('1'),'shield quantity appears in one slot');
  assert.ok(texts.filter(x=>x==='0').length>=4,'all unavailable types display zero badges');
- assert.ok(!texts.some(x=>/\/100$/.test(x)),'numerical HP labels are removed from player rail');
+ assert.deepEqual(texts.filter(x=>/\/100$/.test(x)),['72/100'],'only the active player footer displays a numerical HP fraction');
  assert.ok(!texts.includes('ก้าวที่เหลือ')&&!texts.includes('รอ'),
   'unnecessary top status and bottom caption are gone');
  assert.ok(!texts.some(x=>x.includes('ลากจอยเพื่อเดิน')),
@@ -256,6 +256,24 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  assert.match(artSource,/footsteps\(g,855,footerY\+32/,'two vector footprints precede the step total');
  assert.match(artSource,/kinds=\['roll',\.\.\.window\.BoardItems\.ids\]/,
   'all fixed inventory types appear alongside the Roll slot');
+}
+
+// 12 players fit into one row at y=37. The bottom active card includes HP.
+{
+ const s=game(401),p=s.players[0];s.order=s.players.map(v=>v.id);P.startTurn(s);
+ p.hp=43;
+ const rects=[],old=g.roundRect;g.roundRect=(...r)=>{rects.push(r);old(...r);};
+ const before=labelDraws.length;A.draw(g,0,s);
+ g.roundRect=old;
+ const badges=rects.filter(([x,y,w,h])=>y===37&&h===42&&w>20);
+ assert.equal(badges.length,12,'all twelve scoreboard cards fit one top row');
+ assert.ok(badges.every((r,i)=>i===0||r[0]>badges[i-1][0]));
+ assert.ok(badges.at(-1)[0]+badges.at(-1)[2]<=960);
+ assert.ok(rects.some(([x,y,w,h])=>x===82&&y===513&&w===162&&h===6),
+  'active-player health bar is located below the name in the footer');
+ const health=labelDraws.slice(before).filter(v=>v.text.endsWith('/100'));
+ assert.deepEqual(health.map(v=>v.text),['43/100']);
+ assert.equal(health[0].y,501,'numeric HP remains beneath the active player name');
 }
 
 // BOARD PARTY tall / split-screen views must GAIN scene area, not stretch
@@ -273,7 +291,7 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  g.fillRect=(...params)=>{fills.push(params);oldFill(...params);};
  const initial=JSON.stringify(session.players);
  A.draw(g,0,session);
- assert.ok(fills.some(([x,y,w,h])=>x===0&&y===145&&w===960&&h===487),
+ assert.ok(fills.some(([x,y,w,h])=>x===0&&y===94&&w===960&&h===538),
   'world is painted through all available height before the 80px footer');
  assert.ok(rects.some(([x,y,w,h])=>x===12&&y===640&&w===936&&h===68),
   'HUD footer is pinned 80 logical pixels above the real bottom');
@@ -283,7 +301,7 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  const center=session.map.nodes.n35.position;
  session.camera.x=center.x;session.camera.y=center.y;
  A.toggleDebug(session);
- assert.equal(A.inspect(session,480,145+487/2)?.id,'n35',
+ assert.equal(A.inspect(session,480,94+538/2)?.id,'n35',
   'map inspection uses the taller viewport center');
  g.roundRect=oldRect;g.fillRect=oldFill;
  // 1:1 Split View adds another 240 logical pixels; do not hardcode 16:9.

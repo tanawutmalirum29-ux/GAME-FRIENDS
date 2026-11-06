@@ -18,7 +18,7 @@ function beginOrder(s){
  if(s.phase!=='intro_zoom'||s.time+1e-6<s.deadline)return false;
  s.camera.overview=false;s.camera.explore=false;
  s.camera.introFrom=null;
- phase(s,'order',12);return true;
+ phase(s,'order',Infinity);return true;
 }
 function beginIntroZoom(s){
  if(s.phase!=='overview')return false;
@@ -39,7 +39,7 @@ function movePhase(s,name,duration=8){
 const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
 function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
 function rollOrder(s,p){if(p.dice||s.phase!=='order')return false;p.dice=[D().roll(s.rng),D().roll(s.rng)];p.rollAt=s.time;return true;}
-function ready(s,extend=true){s.move=null;s.skill=null;for(const p of s.players){p.bagOpen=false;if(p.id===current(s)?.id){p.actionIndex=0;p.bagMessage='';}}if(extend)s.readyDeadline=s.time+12;phase(s,'ready',Math.max(.1,s.readyDeadline-s.time));}
+function ready(s){s.move=null;s.skill=null;for(const p of s.players){p.bagOpen=false;if(p.id===current(s)?.id){p.actionIndex=0;p.bagMessage='';}}s.readyDeadline=Infinity;phase(s,'ready',Infinity);}
 function startTurn(s){s.camera.overview=false;s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
 function endTurn(s){
  if(s.phase==='finished')return;
@@ -417,10 +417,9 @@ function update(s,dt){
  if(s.phase==='overview'){if(s.time+1e-6>=s.deadline)beginIntroZoom(s);}
  else if(s.phase==='intro_zoom'){if(s.time+1e-6>=s.deadline)beginOrder(s);}
  else if(s.phase==='order'){
-  for(const p of s.players)if(!p.dice&&(s.time>=s.deadline||(p.isBot&&s.time-s.phaseAt>.6+s.players.indexOf(p)*.12)))rollOrder(s,p);
+  for(const p of s.players)if(!p.dice&&p.isBot&&s.time-s.phaseAt>.6+s.players.indexOf(p)*.12)rollOrder(s,p);
   if(s.players.every(p=>p.dice&&s.time-p.rollAt>=D().TIMING.throw+D().TIMING.hold/2)){s.order=D().order(s.players,s.rng);phase(s,'order_result',3);}
  }else if(s.phase==='order_result'&&s.time>=s.deadline)startTurn(s);
- else if(s.phase==='ready'&&s.time>=s.deadline)roll(s);
  else if(s.phase==='dice'&&s.time>=s.deadline)beginMove(s,current(s),s.die);
  else if(s.phase==='rocket')updateRocket(s,dt);
   else if(s.phase==='move_ready'){

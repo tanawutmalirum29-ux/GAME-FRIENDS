@@ -68,12 +68,17 @@ test('Automatic intro: full board 2s, start zoom 1.5s, then dice order',()=>{
  assert.ok(s.players.every(p=>p.dice===null),'players roll only after intro completes');
  assert.equal(P.beginOrder(s),false,'intro cannot be triggered twice');
 });
-test('1–12 players: simultaneous A/B order rolls, double-input protection and timeout',()=>{
+test('1–12 players: manual A/B order rolls, no human timeout, double-input protection',()=>{
  for(let n=1;n<=12;n++){
   const s=game(n);for(let i=0;i<n-1;i++)press(s,s.players[i],i%2?'A':'B');
   assert.equal(P.remainingSteps(s,P.current(s)?.id),0,'initial order has no active walker');
   const first=plain(s.players[0].dice);if(n>1){press(s,s.players[0],'A');assert.deepEqual(plain(s.players[0].dice),first);}
-  tick(s,17);assert.equal(s.order.length,n);assert.ok(s.players.every(p=>p.dice.length===2&&p.dice.every(v=>v>=1&&v<=6)));
+  tick(s,17);
+  assert.equal(s.phase,'order','unrolled human must never be forced to throw after 12 seconds');
+  assert.equal(s.players[n-1].dice,null,'last human remains unrolled until input');
+  press(s,s.players[n-1],'A');tick(s,2.5);
+  assert.equal(s.order.length,n);
+  assert.ok(s.players.every(p=>p.dice.length===2&&p.dice.every(v=>v>=1&&v<=6)));
   const sums=s.order.map(id=>s.players.find(p=>p.id===id).dice.reduce((a,b)=>a+b,0));assert.deepEqual([...sums].sort((a,b)=>b-a),plain(sums));
  }
 });
@@ -124,7 +129,29 @@ test('Board clock uses true elapsed time with bounded steps even at low FPS',()=
  const start=s.time;
  for(let frame=0;frame<60;frame++)advance(s,.2);
  assert.ok(Math.abs(s.time-start-12)<.001,'5 FPS must advance twelve game seconds in twelve real seconds');
- assert.equal(s.players[0].dice.length,2,'order timeout must resolve even on low FPS');
+ assert.equal(s.phase,'order','real-time clock must not force human dice rolls');
+ assert.equal(s.players[0].dice,null,'human can wait past 12 seconds even at low FPS');
+ press(s,s.players[0],'A');tick(s,2.5);assert.equal(s.players[0].dice.length,2);
+});
+test('Human turn stays ready indefinitely; only a real action rolls dice',()=>{
+ const s=ready(3),p=s.players[0],original=s.players.map(v=>v.currentNodeId);
+ assert.equal(s.deadline,Infinity);
+ tick(s,75);
+ assert.equal(s.phase,'ready','no 12s forced roll even after 75s');
+ assert.equal(s.die,null);
+ assert.equal(s.moveDice,null);
+ assert.deepEqual(s.players.map(v=>v.currentNodeId),original);
+ assert.equal(P.controls(s,p.id).a,'ทอย');
+ assert.equal(P.action(s,p.id,'A'),true);
+ assert.equal(s.phase,'dice');
+ assert.equal(s.moveDice.length,2);
+});
+test('Bot order still progresses without human auto-roll timeout',()=>{
+ const s=game(4,1777,true);
+ assert.equal(s.phase,'order');
+ tick(s,3.5);
+ assert.ok(s.players.every(p=>p.dice&&p.dice.length===2));
+ assert.ok(s.order.length===4,'all bots determine their order by AI');
 });
 test('B cycles [Roll, inventory], A activates selected action; no bag popup',()=>{
  const s=ready(3),p=s.players[0];p.hp=1;
@@ -513,8 +540,15 @@ test('250 UFO cases: real world hitboxes, stacked players, atomic swap, no landi
  }
  const s=ready(),p=s.players[0],q=s.players[1];p.item='ufo';q.currentNodeId=s.map.finishId;press(s,p,'B');Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(p.item,'ufo');tick(s,8.1);assert.equal(p.item,'ufo');assert.equal(s.phase,'ready');assert.equal(p.usedRound,0);
 });
-test('Repeated aim cancellation cannot extend a human turn indefinitely',()=>{
- const s=ready(),p=s.players[0];p.item='ufo';press(s,p,'B');tick(s,8.05);assert.equal(s.phase,'ready');press(s,p,'B');tick(s,4.1);press(s,p,'B');tick(s,.2);assert.equal(s.phase,'dice');assert.equal(p.item,'ufo');assert.equal(p.usedRound,0);
+test('Repeated aim cancellation never forces a human dice roll',()=>{
+ const s=ready(),p=s.players[0];p.item='ufo';
+ press(s,p,'B');tick(s,8.05);assert.equal(s.phase,'ready');
+ press(s,p,'B');tick(s,4.1);press(s,p,'B');tick(s,.2);
+ assert.equal(s.phase,'aim','aiming is not interrupted by a 12s turn deadline');
+ tick(s,8.1);assert.equal(s.phase,'ready');
+ tick(s,30);assert.equal(s.phase,'ready','player may wait to roll after cancelling aim');
+ assert.equal(p.item,'ufo');assert.equal(p.usedRound,0);
+ press(s,p,'A');assert.equal(s.phase,'dice','A still starts the actual dice roll');
 });
 test('5-second rocket: continuous steering, no five-node cap and preserved mid-edge landing',()=>{
  let multiple=0;
@@ -699,6 +733,19 @@ test('Bots complete acute branch merges without steering backwards before the ch
  P.beginMove(s,p,1);
  until(s,()=>p.currentNodeId==='n8',5);
  assert.equal(s.move?.remaining||0,0);
+});
+test('Bot recovers from failed UFO aim without a 12s forced roll',()=>{
+ const s=ready(2,2790),p=s.players[0],q=s.players[1];
+ p.isBot=true;p.item='ufo';q.currentNodeId='n10';
+ tick(s,1);
+ assert.equal(s.phase,'aim','bot should attempt available UFO once');
+ assert.equal(p.botItemAttemptKey,s.roundNumber+':'+s.turnIndex);
+ q.shieldTurns=1; // Target becomes invalid while the bot is aiming.
+ tick(s,9.5);
+ assert.equal(p.item,'ufo','a failed aim must not consume the item');
+ assert.ok(['dice','move_ready','moving','branch','effect'].includes(s.phase),
+  'bot chooses Roll after failed aim instead of looping the same item forever');
+ assert.ok(s.moveDice&&s.moveDice.length===2,'AI can roll using the original dice rules');
 });
 test('Full-session stress: 1–12 bots, 20 seeds each, minigame rewards and finish',()=>{
  let games=0,rounds=0,used=new Set();

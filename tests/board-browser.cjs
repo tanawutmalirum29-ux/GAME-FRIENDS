@@ -84,7 +84,7 @@ async function main(){
   const afterPan=await host.evaluate(()=>({...__boardTest.board.camera}));
   assert.ok(afterPan.x!==beforePan.x||afterPan.y!==beforePan.y,'real canvas drag pans while paused');
   const target=await host.evaluate(()=>{
-   const s=__boardTest.board,c=s.camera,top=s.players.length>6?145:94;
+   const s=__boardTest.board,c=s.camera,top=94;
    return Object.values(s.map.nodes).map(n=>({id:n.id,x:480+(n.position.x-c.x)*c.zoom,y:(top+452)/2+(n.position.y-c.y)*c.zoom})).find(n=>n.x>100&&n.x<860&&n.y>top+40&&n.y<410);
   });
   assert.ok(target,'zoomed map has an inspectable node');
