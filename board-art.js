@@ -61,9 +61,9 @@ function island(g,x,y,w,h){
 }
 function bridge(g,a,b){
  const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy),angle=Math.atan2(dy,dx);
- g.save();g.translate(a.x,a.y);g.rotate(angle);line(g,0,-30,len,-30,'#6b5751',5);line(g,0,30,len,30,'#6b5751',5);
- for(let x=0;x<len;x+=14)box(g,x,-27,12,54,2,x%28?'#bc9976':'#c8ac86','#9a7b64');
- for(let x=0;x<=len;x+=50){line(g,x,-34,x,-24,'#786053',6);line(g,x,24,x,34,'#786053',6);}g.restore();
+ g.save();g.translate(a.x,a.y);g.rotate(angle);line(g,0,-40,len,-40,'#6b5751',5);line(g,0,40,len,40,'#6b5751',5);
+ for(let x=0;x<len;x+=14)box(g,x,-38,12,76,2,x%28?'#bc9976':'#c8ac86','#9a7b64');
+ for(let x=0;x<=len;x+=50){line(g,x,-43,x,-34,'#786053',6);line(g,x,34,x,43,'#786053',6);}g.restore();
 }
 function scenery(g,map){
  const grad=g.createLinearGradient(0,0,900,1450);grad.addColorStop(0,'#23647f');grad.addColorStop(1,'#10344f');g.fillStyle=grad;g.fillRect(0,0,map.width,map.height);
@@ -71,7 +71,7 @@ function scenery(g,map){
  for(let i=0;i<100;i++){const x=rng()*1800,y=rng()*1450;line(g,x,y,x+25,y-7,'#8cd4e719',2);}
  for(let row=0;row<4;row++)island(g,865,320+row*310,1580,245);
  for(const id of Object.keys(map.nodes).filter(id=>id[0]==='b')){const p=map.nodes[id].position;island(g,p.x,p.y,170,130);}
- for(const n of Object.values(map.nodes))for(const id of n.nextNodes){const p=map.nodes[id].position;line(g,n.position.x,n.position.y,p.x,p.y,'#a5dce9',50);line(g,n.position.x,n.position.y,p.x,p.y,'#e8faff',40);}
+ for(const n of Object.values(map.nodes))for(const id of n.nextNodes){const p=map.nodes[id].position;line(g,n.position.x,n.position.y,p.x,p.y,'#a5dce9',84);line(g,n.position.x,n.position.y,p.x,p.y,'#e8faff',76);}
  for(const [a,b]of map.bridges)bridge(g,map.nodes[a].position,map.nodes[b].position);
  // Props are placed away from all path segments and avatar centres.
  const edges=Object.values(map.nodes).flatMap(n=>n.nextNodes.map(id=>[n.position,map.nodes[id].position]));
@@ -107,8 +107,13 @@ function sceneryLite(g,s){
  for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
    const a=n.position,b=map.nodes[id].position;
    if(!intersects(a,b))continue;
-   line(g,a.x,a.y,b.x,b.y,'#a5dce9',50);
-   line(g,a.x,a.y,b.x,b.y,'#e8faff',40);
+   line(g,a.x,a.y,b.x,b.y,'#a5dce9',84);
+   line(g,a.x,a.y,b.x,b.y,'#e8faff',76);
+ }
+ // Draw the same wooden bridge in the low-memory vector fallback.
+ for(const [from,to] of map.bridges){
+  const a=map.nodes[from].position,b=map.nodes[to].position;
+  if(intersects(a,b))bridge(g,a,b);
  }
 }
 function ground(g,s){
@@ -333,6 +338,17 @@ function intermissionNotice(g,s){
  label(g,title,480,201,19,'#fff3c8','center',800,480);
  label(g,detail,480,230,12,'#cbebf4','center',500,475);
 }
+function canPan(s){
+ return !!(s?.camera?.explore&&s.move?.kind==='walk'&&!s.move.started&&
+  !s.move.to&&['move_ready','branch'].includes(s.phase));
+}
+function pan(s,dx,dy){
+ if(!canPan(s)||!Number.isFinite(dx)||!Number.isFinite(dy))return false;
+ const c=s.camera,top=s.players.length>6?145:94,halfW=480/c.zoom,halfH=(452-top)/2/c.zoom;
+ c.x=Math.max(halfW,Math.min(s.map.width-halfW,c.x-dx/c.zoom));
+ c.y=Math.max(halfH,Math.min(s.map.height-halfH,c.y-dy/c.zoom));
+ return true;
+}
 function draw(g,t,s){
  // The first screen must render without allocating or painting the world map.
  if(['order','order_result','standings','rewards'].includes(s.phase)){
@@ -340,18 +356,24 @@ function draw(g,t,s){
  }
  const top=s.players.length>6?145:94,bottom=452,viewH=bottom-top;
  const p=window.BoardParty.current(s)||s.players[0],pos=s.skill||window.BoardItems.position(s,p);
- const wide=s.phase==='aim',zoom=wide?.65:s.phase==='branch'?.83:1;
+ const wide=s.phase==='aim',zoom=canPan(s)?.65:wide?.65:s.phase==='branch'?.83:1;
  const c=s.camera,dt=Math.min(.05,Math.max(.001,s.time-(c.lastTime||0)));c.lastTime=s.time;
  c.zoom+=(zoom-c.zoom)*(1-Math.exp(-dt*5));
  const halfW=480/c.zoom,halfH=viewH/2/c.zoom;
- const targetX=Math.max(halfW,Math.min(s.map.width-halfW,pos.x)),targetY=Math.max(halfH,Math.min(s.map.height-halfH,pos.y));
- c.x+=(targetX-c.x)*(1-Math.exp(-dt*6));c.y+=(targetY-c.y)*(1-Math.exp(-dt*6));
+ if(!canPan(s)){
+  const targetX=Math.max(halfW,Math.min(s.map.width-halfW,pos.x)),targetY=Math.max(halfH,Math.min(s.map.height-halfH,pos.y));
+  c.x+=(targetX-c.x)*(1-Math.exp(-dt*6));c.y+=(targetY-c.y)*(1-Math.exp(-dt*6));
+ }
  c.x=Math.max(halfW,Math.min(s.map.width-halfW,c.x));c.y=Math.max(halfH,Math.min(s.map.height-halfH,c.y));
  g.clearRect(0,0,960,540);g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();g.translate(480,top+viewH/2);g.scale(c.zoom,c.zoom);g.translate(-c.x,-c.y);
  ground(g,s);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<55;i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
  hud(g,s);turnDice(g,s);backpackOverlay(g,s);intermissionNotice(g,s);overlay(g,s);
+ if(canPan(s)){
+  box(g,305,423,350,30,9,'#133b50d9','#6cafc3');
+  label(g,'ลากจอสำรวจแผนที่ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,439,11,'#e9faff','center',700,335);
+ }
 }
-window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice});
+window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan});
 })();
