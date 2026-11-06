@@ -108,9 +108,22 @@ function ground(g,s){
  }else scenery(g,s.map);
 }
 function nodes(g,s){
- for(const n of Object.values(s.map.nodes))for(const id of n.nextNodes){const a=n.position,b=s.map.nodes[id].position;g.save();g.translate(a.x+(b.x-a.x)*.55,a.y+(b.y-a.y)*.55);g.rotate(Math.atan2(b.y-a.y,b.x-a.x));path(g,[[-5,-6],[3,0],[-5,6]],null,'#4b9db4',2);g.restore();}
+ // Most of the 47+ tiles are off-screen. Skip both far-away nodes and paths
+ // to reduce Canvas calls substantially on low-FPS phones/tablets.
+ const c=s.camera,zoom=Math.max(.35,c.zoom||1);
+ const halfW=480/zoom+95;
+ const halfH=(452-(s.players.length>6?145:94))/2/zoom+95;
+ const visible=(x,y,r=0)=>Math.abs(x-c.x)<=halfW+r&&Math.abs(y-c.y)<=halfH+r;
+ const edgeVisible=(a,b)=>Math.max(a.x,b.x)>=c.x-halfW&&
+   Math.min(a.x,b.x)<=c.x+halfW&&Math.max(a.y,b.y)>=c.y-halfH&&
+   Math.min(a.y,b.y)<=c.y+halfH;
+ for(const n of Object.values(s.map.nodes))for(const id of n.nextNodes){const a=n.position,b=s.map.nodes[id].position;
+  if(!edgeVisible(a,b))continue;
+  g.save();g.translate(a.x+(b.x-a.x)*.55,a.y+(b.y-a.y)*.55);g.rotate(Math.atan2(b.y-a.y,b.x-a.x));path(g,[[-5,-6],[3,0],[-5,6]],null,'#4b9db4',2);g.restore();}
  for(const n of Object.values(s.map.nodes)){
-  const {x,y}=n.position,c=colors[n.type];circle(g,x,y+5,28,'#407b9355');circle(g,x,y,27,c,'#fff6',3);circle(g,x,y-2,23,null,'#ffffff60',1);
+  const {x,y}=n.position;
+  if(!visible(x,y,75))continue;
+  const c=colors[n.type];circle(g,x,y+5,28,'#407b9355');circle(g,x,y,27,c,'#fff6',3);circle(g,x,y-2,23,null,'#ffffff60',1);
   g.save();g.translate(x,y);
   if(n.type==='movement'||n.type==='start'){const q=s.map.nodes[n.nextNodes[0]];if(q)g.rotate(Math.atan2(q.position.y-y,q.position.x-x));}
   icon(g,n.type,0,0,17,'#f3fdff');g.restore();
