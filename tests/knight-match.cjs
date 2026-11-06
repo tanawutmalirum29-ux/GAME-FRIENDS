@@ -293,4 +293,19 @@ test('Rainbow gradient covers full clipped body; top-center HUD appears only whe
  assert.ok(!s.obstacles,'scenery has no invisible gameplay colliders');
 });
 
+test('Bot-controlled knight approaches a target and pierces one balloon with real lance geometry',()=>{
+ const {ps,round,s}=game(2,314),bot=ps[0];
+ bot.isBot=true;bot.km.angle=0;
+ const target=normal(s).find(b=>b.baseOwnerId===bot.id);
+ assert.ok(target);
+ s.balloons=[target];
+ target.x=bot.x+58;target.y=bot.y;
+ const before=bot.x;
+ K.step(1/60,round,ps);
+ assert.ok(bot.x>before,'bot obeys the same dt-driven movement');
+ assert.equal(bot.km.attackId,1,'bot initiated A joust autonomously');
+ assert.equal(target.state,'popped','the visible spear tip hits its intended balloon');
+ assert.equal(bot.score,1);
+});
+
 console.log('KNIGHT MATCH:',tests.length,'suites passed');
