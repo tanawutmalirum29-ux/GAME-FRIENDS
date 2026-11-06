@@ -84,7 +84,9 @@ function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
   // The FIRST A only opens the targeting preview. A fresh release followed by
   // a SECOND A is required for a bomber attack, even across network turn tokens.
   s.skill={kind,...position(s,p),angle:0,targetId:null,requiresConfirmRelease:kind==='bomber'};
-  api.phase(s,'aim',kind==='bomber'?Infinity:8);return true;
+  // Humans decide when to confirm/cancel. Bots retain an 8-second
+  // failsafe so an unreachable target cannot stall an all-bot session.
+  api.phase(s,'aim',kind==='bomber'&&!p.isBot?Infinity:8);return true;
  }
  return false;
 }
