@@ -7,7 +7,7 @@ const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
 // production code or relying on internal globals.
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
-  'window.__ghostTest={getBoard:()=>boardSession,updateBoard,updateRound,beginBoard,showBoard,finishBoard,returnToLobby,getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,pickRandomEndlessGame,beginGameSelection,updateGameSelection,startRound,getSelection:()=>gameSelection,getTournament:()=>tournament,setRound:r=>{round=r;}};\nrequestAnimationFrame(animate);\n})();');
+  'window.__ghostTest={getBoard:()=>boardSession,updateBoard,updateRound,beginBoard,showBoard,finishBoard,returnToLobby,getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,pickRandomEndlessGame,beginGameSelection,updateGameSelection,startRound,getSelection:()=>gameSelection,getTournament:()=>tournament,setRound:r=>{round=r;},possessBot,releaseBotPossession,toggleInfiniteBotItems,renderBotTestPad};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
@@ -1980,6 +1980,73 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.equal(offlineB.scope.window.__ghostTest.getPlayers().length,oldBotCount);
  assert.equal(offlineB.scope.window.GAME_CAN_AUTO_RELOAD(),true);
 }
+// Host-only possession must NOT create a new player or touch other bot AI.
+{
+ const ui=setup();ui.click('offlineBtn');ui.click('addLocalBtn');
+ ui.sessionButtons[2].fire('click');ui.click('startBtn');
+ const api=ui.scope.window.__ghostTest,board=api.getBoard(),I=ui.scope.window.BoardItems,P=ui.scope.window.BoardParty;
+ const bots=api.getPlayers(),count=bots.length,first=bots[0],second=bots[1];
+ assert.equal(ui.elements.get('botTestPad').classList.contains('hidden'),false,'bots-only room shows a small host test control');
+ ui.click('botPossessBtn');
+ assert.equal(first.isBot,false);assert.equal(board.players[0].isBot,false);
+ assert.equal(second.isBot,true,'only one bot is replaced by human controls');
+ assert.equal(api.getPlayers().length,count,'possession never inserts another seat');
+ const stick=ui.elements.get('botTestStick');
+ stick.fire('pointerdown',{pointerId:17,clientX:135,clientY:100});
+ assert.ok(first.input.axisX>.15,'touch joystick sends analog X instead of keyboard-only input');
+ stick.fire('pointerup',{pointerId:17});
+ assert.equal(first.input.axisX,0,'joystick pointer release does not drift');
+ ui.elements.get('botTestA').fire('pointerdown',{pointerId:18});
+ assert.equal(first.input.action,true,'A works while the stick can be held separately');
+ ui.elements.get('botTestB').fire('pointerdown',{pointerId:19});
+ assert.equal(first.input.alt,true,'A and B support simultaneous touches');
+ ui.elements.get('botTestA').fire('pointerup',{pointerId:18});
+ ui.elements.get('botTestB').fire('pointerup',{pointerId:19});
+ assert.equal(first.input.action,false);assert.equal(first.input.alt,false);
+ ui.click('botNextBtn');
+ assert.equal(first.isBot,true,'previous bot returns to normal AI on switch');
+ assert.equal(second.isBot,false,'next bot becomes the only player-controlled bot');
+ assert.equal(board.players[0].isBot,true);assert.equal(board.players[1].isBot,false);
+ ui.click('botUnlimitedBtn');
+ let possessed=board.players[1];
+ assert.equal(possessed.debugUnlimitedItems,true,'infinity is restricted to the possessed board bot');
+ assert.equal(ui.elements.get('botUnlimitedBtn').attributes['aria-pressed'],'true');
+ assert.deepEqual(Array.from(new Set(possessed.bag)),Array.from(I.ids),'debug bot has all six items without a huge inventory');
+ assert.equal(board.players[0].debugUnlimitedItems,undefined,'other bot inventory is never modified');
+ // Repeat the same item through the real A confirmation path in one round.
+ board.order=[possessed.id,...board.players.filter(p=>p.id!==possessed.id).map(p=>p.id)];
+ board.turnIndex=0;P.startTurn(board);
+ for(let k=0;k<2;k++){
+  possessed.hp=20;
+  possessed.actionIndex=possessed.bag.indexOf('potion')+1;
+  assert.equal(P.action(board,possessed.id,'A'),true,'debug potion may be used repeatedly');
+  assert.equal(possessed.hp,70);
+  assert.equal(possessed.bag.length,I.ids.length,'consumed infinite item stays in the list');
+  assert.notEqual(possessed.usedRound,board.roundNumber,'infinity bypasses one-item-per-round gating only for test bot');
+  for(let t=0;t<22&&board.phase!=='ready';t++)P.update(board,.05);
+  assert.equal(board.phase,'ready');
+ }
+ ui.click('botUnlimitedBtn');
+ assert.equal(possessed.debugUnlimitedItems,false);
+ assert.deepEqual(Array.from(possessed.bag),[],'turning off infinity restores original inventory');
+ assert.equal(possessed.usedRound,0);
+ ui.click('botReleaseBtn');
+ assert.equal(first.isBot,true);assert.equal(second.isBot,true);
+ assert.equal(board.players[1].isBot,true);
+ assert.equal(ui.elements.get('botTestControls').classList.contains('hidden'),true);
+ assert.equal(api.getPlayers().length,count);
+ ui.click('exitBtn');
+ assert.equal(ui.elements.get('botTestPad').classList.contains('hidden'),true,'pad is removed when returning to lobby');
+}
+// Rooms with a real remote player must not expose the host possession control.
+{
+ const ui=setup();ui.click('hostBtn');ui.instances[0].fire('open');
+ const c=ui.instances[0].connect();ui.instances[0].fire('connection',c);
+ c.fire('data',{t:'join',name:'Human'});c.fire('data',{t:'pick',mode:'chickens'});
+ ui.click('startBtn');finishReel(ui);
+ assert.equal(ui.elements.get('botTestPad').classList.contains('hidden'),true,'public rooms with a phone stay unaffected');
+}
+
 // Retina host-canvas regression. The CSS size, world coordinates and
 // video-stream canvas remain unchanged while the backing bitmap gets sharper.
 {

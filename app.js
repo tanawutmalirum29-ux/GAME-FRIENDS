@@ -625,10 +625,153 @@ function addLocal(){
   let number=1;while(players.some(p=>p.name==='บอท '+number))number++;
   makePlayer('บอท '+number,'local');broadcastRoster();
 }
+// On-host test pad: a local bot can be temporarily piloted without adding a seat.
+// Minigames already honor p.isBot; BOARD PARTY has a distinct copied bot flag.
+let possessedBotId=null,botUnlimitedBackup=null,botTestClock=0;
+const botPadKeys={axisX:0,axisY:0,action:false,alt:false};
+function canUseBotTest(){
+ return players.length>0&&players.every(p=>p.type==='local'&&(p.isBot||p.id===possessedBotId));
+}
+function botBoardPlayer(id=possessedBotId){
+ return boardSession?.players.find(p=>p.id===id)||null;
+}
+function applyBotPadKeys(){
+ const p=players.find(p=>p.id===possessedBotId);
+ if(!p||p.isBot)return;
+ p.input=p.input||blankInput();
+ p.input.axisX=botPadKeys.axisX;p.input.axisY=botPadKeys.axisY;
+ p.input.left=botPadKeys.axisX<-.3;p.input.right=botPadKeys.axisX>.3;
+ p.input.jump=botPadKeys.axisY<-.3;p.input.down=botPadKeys.axisY>.3;
+ p.input.action=botPadKeys.action;p.input.alt=botPadKeys.alt;
+}
+function clearBotPadKeys(){
+ botPadKeys.axisX=0;botPadKeys.axisY=0;botPadKeys.action=false;botPadKeys.alt=false;
+ const knob=$('botTestKnob');if(knob)knob.style.transform='translate(-50%,-50%)';
+ for(const id of ['botTestA','botTestB'])$(id).classList.remove('pressed');
+ applyBotPadKeys();
+}
+function disableInfiniteBotItems(){
+ if(!botUnlimitedBackup)return;
+ const bp=botBoardPlayer(botUnlimitedBackup.id);
+ if(bp){
+  bp.debugUnlimitedItems=false;
+  // Test-only injected rewards never permanently leak into ordinary gameplay.
+  bp.bag=[...botUnlimitedBackup.bag];
+  bp.item=botUnlimitedBackup.item;
+  bp.usedRound=botUnlimitedBackup.usedRound;
+  bp.actionIndex=0;bp.bagMessage='';
+ }
+ botUnlimitedBackup=null;
+}
+function releaseBotPossession(){
+ if(!possessedBotId)return;
+ clearBotPadKeys();
+ disableInfiniteBotItems();
+ const id=possessedBotId,p=players.find(p=>p.id===id),bp=botBoardPlayer(id);
+ if(p){p.isBot=true;p.input=blankInput();}
+ if(bp){bp.isBot=true;delete boardSession.inputs[id];}
+ possessedBotId=null;
+ renderBotTestPad();
+}
+function possessBot(id){
+ if(!round||currentView!=='game'||!canUseBotTest())return false;
+ const p=players.find(q=>q.id===id&&q.type==='local');
+ if(!p||(p.id!==possessedBotId&&!p.isBot))return false;
+ if(possessedBotId&&possessedBotId!==id)releaseBotPossession();
+ possessedBotId=id;p.isBot=false;p.input=blankInput();
+ const bp=botBoardPlayer(id);if(bp){bp.isBot=false;delete boardSession.inputs[id];}
+ clearBotPadKeys();renderBotTestPad();return true;
+}
+function toggleInfiniteBotItems(){
+ if(!possessedBotId||round?.mode!=='board'||!boardSession||round.phase!=='playing')return false;
+ const bp=botBoardPlayer();
+ if(!bp||bp.isBot)return false;
+ if(botUnlimitedBackup){disableInfiniteBotItems();renderBotTestPad();return true;}
+ const inventory=window.BoardItems.bag(bp);
+ botUnlimitedBackup={id:bp.id,bag:[...inventory],item:bp.item,usedRound:bp.usedRound};
+ for(const item of window.BoardItems.ids)if(!inventory.includes(item))window.BoardItems.add(bp,item);
+ bp.debugUnlimitedItems=true;bp.actionIndex=0;bp.bagMessage='';
+ renderBotTestPad();return true;
+}
+function renderBotTestPad(){
+ const el=$('botTestPad');if(!el)return;
+ const eligible=canUseBotTest(),active=eligible&&!!possessedBotId&&!!players.find(p=>p.id===possessedBotId);
+ if(!eligible&&possessedBotId){releaseBotPossession();return;}
+ const visible=eligible&&currentView==='game'&&!!round&&!gameSelection&&
+  !['results','summary'].includes(round.phase);
+ el.classList.toggle('hidden',!visible);
+ $('botPossessBtn').classList.toggle('hidden',active);
+ $('botTestControls').classList.toggle('hidden',!active);
+ $('botTestName').classList.toggle('hidden',!active);
+ $('botNextBtn').classList.toggle('hidden',!active||players.length<2);
+ $('botReleaseBtn').classList.toggle('hidden',!active);
+ const board=round?.mode==='board'&&!!boardSession;
+ $('botUnlimitedBtn').classList.toggle('hidden',!active||!board);
+ $('botUnlimitedBtn').setAttribute('aria-pressed',String(!!botUnlimitedBackup));
+ $('botUnlimitedBtn').disabled=board&&round?.phase!=='playing';
+ $('botTestName').textContent=players.find(p=>p.id===possessedBotId)?.name||'';
+}
+function bindHostBotPad(){
+ $('botPossessBtn').addEventListener('click',()=>{
+  const first=players.find(p=>p.type==='local'&&p.isBot);
+  if(first)possessBot(first.id);
+ });
+ $('botNextBtn').addEventListener('click',()=>{
+  const list=players.filter(p=>p.type==='local');
+  const index=list.findIndex(p=>p.id===possessedBotId);
+  if(index>=0)possessBot(list[(index+1)%list.length].id);
+ });
+ $('botReleaseBtn').addEventListener('click',releaseBotPossession);
+ $('botUnlimitedBtn').addEventListener('click',toggleInfiniteBotItems);
+ const stick=$('botTestStick'),knob=$('botTestKnob');let pointer=null;
+ const update=e=>{
+  const rect=stick.getBoundingClientRect(),cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+  const max=Math.max(22,Math.min(rect.width,rect.height)*.37);
+  let dx=(e.clientX-cx)/max,dy=(e.clientY-cy)/max;
+  const len=Math.hypot(dx,dy);if(len>1){dx/=len;dy/=len;}
+  if(len<.12)dx=dy=0;
+  botPadKeys.axisX=Math.round(dx*100)/100;botPadKeys.axisY=Math.round(dy*100)/100;
+  knob.style.transform='translate(calc(-50% + '+Math.round(dx*max*.8)+'px),calc(-50% + '+Math.round(dy*max*.8)+'px))';
+  applyBotPadKeys();
+ };
+ const release=e=>{
+  if(pointer===null||e.pointerId!==pointer)return;
+  pointer=null;botPadKeys.axisX=0;botPadKeys.axisY=0;
+  knob.style.transform='translate(-50%,-50%)';applyBotPadKeys();
+ };
+ stick.addEventListener('pointerdown',e=>{
+  if(!possessedBotId||pointer!==null)return;
+  e.preventDefault();pointer=e.pointerId;
+  try{stick.setPointerCapture(pointer);}catch(_){}
+  update(e);
+ });
+ stick.addEventListener('pointermove',e=>{if(e.pointerId===pointer){e.preventDefault();update(e);}});
+ for(const evt of ['pointerup','pointercancel','lostpointercapture'])stick.addEventListener(evt,release);
+ stick.addEventListener('contextmenu',e=>e.preventDefault());
+ for(const [id,key] of [['botTestA','action'],['botTestB','alt']]){
+  const btn=$(id),ids=new Set();
+  btn.addEventListener('pointerdown',e=>{
+   if(!possessedBotId)return;
+   e.preventDefault();ids.add(e.pointerId);
+   try{btn.setPointerCapture(e.pointerId);}catch(_){}
+   botPadKeys[key]=true;btn.classList.add('pressed');applyBotPadKeys();
+  });
+  const releaseButton=e=>{
+   if(!ids.delete(e.pointerId))return;
+   e.preventDefault?.();botPadKeys[key]=ids.size>0;
+   btn.classList.toggle('pressed',botPadKeys[key]);applyBotPadKeys();
+  };
+  for(const evt of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(evt,releaseButton);
+  btn.addEventListener('contextmenu',e=>e.preventDefault());
+ }
+ window.addEventListener('blur',clearBotPadKeys);
+}
+bindHostBotPad();
 function resetInputs(){
   players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
 }
 function closeHost(){
+  releaseBotPossession();
   stopAllHostVideoCalls();
   for(const id of [...seatTimers.keys()])cancelSeat(id);
   deleteSession(HOST_SESSION);
@@ -1584,7 +1727,7 @@ function showBoard(){
   // Paint the order/result screen in the Start event itself. Safari can delay
   // its first animation frame during fullscreen; old minigame clips must not survive.
   canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
-  renderLeaderboard();broadcastRoster();
+  renderLeaderboard();broadcastRoster();renderBotTestPad();
   remotePreviewClock=1.1;
   for(const conn of hostConnections)startHostVideoCall(conn);
 }
@@ -1672,7 +1815,7 @@ function renderPhoneBoard(){
  $('controllerState').textContent=info.help||'';
 }
 function finishBoard(){
-  round.phase='results';round.paused=false;resetInputs();
+  round.phase='results';round.paused=false;resetInputs();renderBotTestPad();
   $('pauseBtn').classList.add('hidden');
   const s=boardSession,ranked=[...s.players].sort((a,b)=>s.map.nodes[b.currentNodeId].progress-s.map.nodes[a.currentNodeId].progress);
   $('results').querySelector('.eyebrow').textContent='BOARD PARTY • FINISH';
@@ -1729,7 +1872,7 @@ function startRound(forcedMode=null){
   remotePreviewClock=1.1;
   stopAllHostVideoCalls();
   broadcast({t:'preview-reset'});
-  renderLeaderboard();broadcastRoster();
+  renderLeaderboard();broadcastRoster();renderBotTestPad();
   broadcastPlayerInventories();
   for(const conn of hostConnections)startHostVideoCall(conn);
 }
@@ -2393,6 +2536,7 @@ function animate(ts){
     updateGameSelection(boardSession?boardDt:dt);
    }else if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
+    if(possessedBotId)applyBotPadKeys();
     updateRound(round.mode==='board'?boardDt:dt);drawGame(graphicsClock);
     renderHostVideoFrames();
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
@@ -2400,6 +2544,8 @@ function animate(ts){
       if(round.autoNextRemaining===0)advanceParty();
       else renderResultVotes();
     }
+    botTestClock+=dt;
+    if(botTestClock>.2){botTestClock=0;renderBotTestPad();}
     hudClock+=dt;
     if(hudClock>.22){
       renderLeaderboard();hudClock=0;
@@ -2441,7 +2587,7 @@ function pauseGame(){
   if(currentView!=='game'||!round||gameSelection||round.phase==='results'||round.paused)return;
   renderPauseChoiceList();
   round.paused=true;
-  resetInputs();
+  resetInputs();clearBotPadKeys();
   if(round.mode==='board'&&boardSession){
     boardSession.camera.paused=true;
     $('pauseMenu').classList.add('hidden'); // Keep the frozen map touchable.
@@ -2463,6 +2609,7 @@ function resumeGame(){
   broadcastGameState();
 }
 function returnToLobby(){
+  releaseBotPossession();
   $('boardTools').classList.add('hidden');
   gameSelection=null;$('gameRoulette').classList.add('hidden');
   boardSession=null;boardStateToken=null;document.body.classList.remove('board-playing');
@@ -2473,7 +2620,7 @@ function returnToLobby(){
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
   // Keep document-root fullscreen during lobby/round transitions.
-  setView('hostLobby');renderRoster();broadcastRoster();
+  setView('hostLobby');renderRoster();broadcastRoster();renderBotTestPad();
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
 $('boardOverviewBtn').addEventListener('click',()=>{

@@ -143,6 +143,26 @@
           <div id="rouletteMessage" class="roulette-message">เลือกเกมสำหรับรอบนี้</div>
         </div>
       </div>
+      <!-- Host-only bot test controller. Hidden for rooms with human phones. -->
+      <div id="botTestPad" class="bot-test-pad hidden" aria-label="ทดสอบสิงบอทด้วยจอยบนจอหลัก">
+        <div class="bot-test-header">
+          <button type="button" id="botPossessBtn" class="bot-test-trigger">สิงบอท</button>
+          <strong id="botTestName" class="bot-test-name hidden"></strong>
+          <button type="button" id="botNextBtn" class="bot-test-tool hidden" aria-label="สิงบอทตัวถัดไป">ตัวถัดไป</button>
+          <button type="button" id="botUnlimitedBtn" class="bot-test-tool hidden" aria-pressed="false" aria-label="เปิดหรือปิดไอเทมไม่จำกัดสำหรับบอททดสอบ">ไอเทม ∞</button>
+          <button type="button" id="botReleaseBtn" class="bot-test-tool hidden" aria-label="คืนบอทให้ AI ควบคุม">คืนบอท</button>
+        </div>
+        <div id="botTestControls" class="bot-test-controls hidden">
+          <div id="botTestStick" class="bot-test-stick" role="group" aria-label="อนาล็อกสำหรับบอทที่สิงอยู่">
+            <span class="bot-test-stick-ring"></span>
+            <span id="botTestKnob" class="bot-test-knob"></span>
+          </div>
+          <div class="bot-test-keys">
+            <button type="button" id="botTestA" class="bot-test-face bot-test-a" aria-label="ปุ่ม A">A</button>
+            <button type="button" id="botTestB" class="bot-test-face bot-test-b" aria-label="ปุ่ม B">B</button>
+          </div>
+        </div>
+      </div>
       <div class="game-toolbar">
         <div id="boardTools" class="board-tools hidden" aria-label="เครื่องมือสำรวจ BOARD PARTY">
           <button type="button" id="boardOverviewBtn" class="board-tool">ภาพรวม</button>
