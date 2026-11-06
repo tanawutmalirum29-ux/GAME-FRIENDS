@@ -158,7 +158,7 @@ function arenaContentRect(rect){
    return {x:(e.clientX-rect.left)/rect.scale,y:(e.clientY-rect.top)/rect.scale};};
  canvas.addEventListener('pointerdown',e=>{
   if(!enabled())return;
-  const pt=coords(e),top=boardSession.players.length>6?145:94;
+  const pt=coords(e),top=94;
   if(pt.x<0||pt.x>960||pt.y<top||pt.y>452)return;
   e.preventDefault();pointers.set(e.pointerId,pt);
   if(pointers.size===1){downAt=pt;gestureMoved=false;pinchDistance=0;}
