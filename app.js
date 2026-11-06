@@ -1532,6 +1532,7 @@ function beginBoard(){
   try{
     tournament=null;gameSelection=null;
     boardSession=window.BoardParty.create(players);
+    window.BoardArt.overview(boardSession);
     players.forEach(p=>{p.active=true;});
     window.PartyPlayerAvatar.preload(boardSession.players);
     showBoard();requestHostFullscreen();
@@ -1539,6 +1540,17 @@ function beginBoard(){
     console.error('BOARD PARTY start failed',error);returnToLobby();
     showToast('เริ่ม BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
   }
+}
+function refreshBoardTools(){
+ const active=round?.mode==='board'&&!!boardSession;
+ $('boardTools').classList.toggle('hidden',!active);
+ $('boardStartDiceBtn').classList.toggle('hidden',!active||boardSession.phase!=='overview');
+ if(active)$('boardNodeDebugBtn').setAttribute('aria-pressed',String(!!boardSession.camera.debugNodes));
+ if(active&&round.paused){
+  $('pauseBtn').title='เล่นต่อ';$('pauseBtn').setAttribute('aria-label','เล่นต่อ');
+ }else{
+  $('pauseBtn').title='หยุดเกม';$('pauseBtn').setAttribute('aria-label','หยุดเกม');
+ }
 }
 function showBoard(){
   round={mode:'board',phase:'playing',paused:false,remaining:null,autoNextRemaining:0};
@@ -1550,7 +1562,7 @@ function showBoard(){
   setView('game');
   // Paint the order/result screen in the Start event itself. Safari can delay
   // its first animation frame during fullscreen; old minigame clips must not survive.
-  canvas.width=canvas.width;markArenaResolutionDirty();drawGame(graphicsClock);
+  canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
   renderLeaderboard();broadcastRoster();
   remotePreviewClock=1.1;
   for(const conn of hostConnections)startHostVideoCall(conn);
@@ -1571,7 +1583,8 @@ function updateBoard(dt){
     pending-=step;
     if(s.phase==='minigame_pending'||s.phase==='minigame'||s.phase==='finished')break;
   }
-  if(s.phase==='minigame_pending'){
+  refreshBoardTools();
+   if(s.phase==='minigame_pending'){
     const mode=window.BoardMinigame.pick(boardRegistry(),s.players.length,s.lastMinigame,s.rng);
     if(!mode)throw Error('No compatible minigame');
     s.savedBoard=window.BoardParty.snapshot(s);
@@ -1614,7 +1627,7 @@ function renderPhoneBoard(){
  $('controllerHelp').textContent=info.help||'';
  $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing');
  const bag=Array.isArray(info.bag)?info.bag:[],open=!!info.bagOpen,selected=Number.isInteger(info.bagIndex)?info.bagIndex:0;
- $('controllerRole').textContent='HP '+info.hp+'/3 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • กระเป๋า '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
+ $('controllerRole').textContent='HP '+info.hp+'/100 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • กระเป๋า '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
  const host=$('inventoryItem');host.classList.remove('pizza-order-icons','board-bag-icons');host.replaceChildren();
  host.classList.toggle('board-bag-icons',true);
  const svg=window.PartyUiArt;
@@ -2389,8 +2402,12 @@ function pauseGame(){
   renderPauseChoiceList();
   round.paused=true;
   resetInputs();
-  $('pauseMenu').classList.remove('hidden');
-  $('pauseBtn').setAttribute('aria-expanded','true');
+  if(round.mode==='board'&&boardSession){
+    boardSession.camera.paused=true;
+    $('pauseMenu').classList.add('hidden'); // Keep the frozen map touchable.
+  }else $('pauseMenu').classList.remove('hidden');
+  $('pauseBtn').setAttribute('aria-expanded',String(round.mode!=='board'));
+  refreshBoardTools();
   broadcastRoster();
   broadcastGameState();
 }
@@ -2398,13 +2415,15 @@ function resumeGame(){
   if(!round||!round.paused)return;
   resetInputs();
   round.paused=false;
-  if(round.mode==='board'&&boardSession){const s=boardSession;window.BoardParty.phase(s,s.phase,Math.max(0,s.deadline-s.time));s.inputs={};}
+  if(round.mode==='board'&&boardSession){const s=boardSession;s.camera.paused=false;s.camera.overview=false;s.camera.manualZoom=null;s.inputs={};}
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
+  refreshBoardTools();
   broadcastRoster();
   broadcastGameState();
 }
 function returnToLobby(){
+  $('boardTools').classList.add('hidden');
   gameSelection=null;$('gameRoulette').classList.add('hidden');
   boardSession=null;boardStateToken=null;document.body.classList.remove('board-playing');
   tournament=null;round=null;resetInputs();
@@ -2415,7 +2434,15 @@ function returnToLobby(){
   // Keep document-root fullscreen during lobby/round transitions.
   setView('hostLobby');renderRoster();broadcastRoster();
 }
-$('pauseBtn').addEventListener('click',pauseGame);
+$('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
+$('boardStartDiceBtn').addEventListener('click',()=>{
+ if(!boardSession||round?.mode!=='board'||round.paused)return;
+ if(window.BoardParty.beginOrder(boardSession)){boardSession.camera.manualZoom=null;refreshBoardTools();broadcastBoardState();}
+});
+$('boardOverviewBtn').addEventListener('click',()=>{if(round?.mode==='board'&&boardSession)window.BoardArt.overview(boardSession);});
+$('boardZoomInBtn').addEventListener('click',()=>{if(boardSession)window.BoardArt.zoom(boardSession,1.25);});
+$('boardZoomOutBtn').addEventListener('click',()=>{if(boardSession)window.BoardArt.zoom(boardSession,.8);});
+$('boardNodeDebugBtn').addEventListener('click',()=>{if(boardSession){window.BoardArt.toggleDebug(boardSession);refreshBoardTools();}});
 $('resumeBtn').addEventListener('click',resumeGame);
 document.addEventListener('keydown',e=>{
   if(currentView==='game'&&(e.code==='Escape'||e.code==='KeyP')){
