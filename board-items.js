@@ -97,8 +97,10 @@ function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
   api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:afterUse(kind)},.85);return true;
  }
  if(kind==='shield'){
-  // Two own turns: the activation turn and the owner's next turn, inclusive.
-  if(p.shieldTurns>0)return false;consume(s,p,kind);p.shieldTurns=2;
+  // NEVER auto-equip on pickup: only the explicitly selected shield's A
+  // action consumes it. This round's shield blocks every hostile effect.
+  if(api.isProtected(s,p))return false;
+  consume(s,p,kind);p.shieldTurns=1;p.shieldRound=s.roundNumber;
   api.effect(s,{kind:'shield',points:[position(s,p)],targets:[p.id],next:afterUse(kind)},.85);return true;
  }
  if(kind==='rocket'){consume(s,p,kind);api.beginMove(s,p,Infinity,'rocket');return true;}
@@ -141,7 +143,7 @@ function confirm(s,button,api){
   // Only a visibly highlighted player chosen AFTER steering may be swapped.
   if((skill.aimTravel||0)<UFO_AIM_TRAVEL_MIN||!skill.targetId)return false;
   const q=target(s,skill,p);if(!q||q.id!==skill.targetId)return false;
-  if(q.shieldTurns>0){q.blockedUntil=s.time+1.2;return false;}
+  if(api.blockHarm(s,q))return false;
   const points=[position(s,p),position(s,q)],a=p.currentNodeId,b=q.currentNodeId;
   // Validate first, then commit both node IDs in the same host action.
   if(b===s.map.finishId||a===s.map.finishId)return false;
