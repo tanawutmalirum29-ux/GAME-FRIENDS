@@ -154,8 +154,14 @@ test('Free 2D walking: reverse and sideways inputs are real movement, no acciden
   const stale=plain(I.position(s,p));tick(s,.3);
   assert.deepEqual(plain(I.position(s,p)),stale,'released stick stops mid-edge');
  }
- until(s,()=>P.current(s).id!==p.id,30);
- assert.equal(p.currentNodeId,'n3','idle fallback must complete only remaining legal nodes');
+ const parked=plain(I.position(s,p)),steps=s.move.remaining,phase=s.phase;
+ tick(s,35);
+ assert.equal(s.phase,phase,'idle player must remain in the same movement phase indefinitely');
+ assert.equal(s.move.remaining,steps,'idle player must not spend dice steps');
+ assert.deepEqual(plain(I.position(s,p)),parked,'no automatic movement after 35 seconds');
+ assert.equal(s.move.auto,false,'no assisted walk may be enabled');
+ until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';},30);
+ assert.equal(p.currentNodeId,'n3','resuming the joystick completes only manual steps');
 });
 test('Early fork can be changed without consuming a die step or jumping over nodes',()=>{
  const s=ready(),p=s.players[0];p.currentNodeId='n3';P.beginMove(s,p,2);assert.equal(s.phase,'branch');
@@ -197,6 +203,40 @@ test('300 adversarial 2D walks: legal graph edges, finite positions, bounded pat
   assert.ok(['effect','finished'].includes(s.phase),'every walk finishes even if stick is abandoned');
   assert.ok(edges<=steps);if(s.phase!=='finished')assert.equal(edges,steps);
  }
+});
+test('No auto walk after 90 seconds before the first step or at a fork',()=>{
+ for(const id of ['n0','n3']){
+  const s=ready(3,id==='n0'?785:786),p=s.players[0];
+  p.currentNodeId=id;
+  P.beginMove(s,p,3);
+  const before=plain(I.position(s,p)),turn=s.turnId;
+  assert.ok(['move_ready','branch'].includes(s.phase));
+  tick(s,90);
+  assert.equal(p.currentNodeId,id);
+  assert.deepEqual(plain(I.position(s,p)),before);
+  assert.equal(s.move.remaining,3);
+  assert.equal(s.move.auto,false);
+  assert.equal(s.camera.explore,true,'map exploration must stay available without a timer');
+  assert.equal(s.turnId,turn,'idle movement must not invalidate the current turn token');
+  assert.equal(s.deadline,Infinity,'manual walk has no deadline');
+  assert.equal(P.controls(s,p.id).a,'เริ่มเดิน');
+ }
+});
+test('No auto walk after joystick packets expire in the middle of a bridge',()=>{
+ const s=ready(3,787),p=s.players[0];p.currentNodeId='n9';
+ P.beginMove(s,p,2);
+ steer(s,p,'n10');
+ until(s,()=>s.phase==='moving',2);
+ for(let i=0;i<4;i++)P.update(s,.05);
+ press(s,p,null);
+ const stopped=plain(I.position(s,p)),progress=s.move.t,steps=s.move.remaining,turn=s.turnId;
+ tick(s,90);
+ assert.equal(s.phase,'moving');
+ assert.deepEqual(plain(I.position(s,p)),stopped);
+ assert.equal(s.move.t,progress);
+ assert.equal(s.move.remaining,steps);
+ assert.equal(s.turnId,turn);
+ assert.equal(s.move.auto,false);
 });
 test('After the dice roll, camera can explore until A or first walking input',()=>{
  const s=ready(3,510),p=s.players[0];
