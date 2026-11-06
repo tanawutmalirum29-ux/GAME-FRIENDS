@@ -1511,7 +1511,15 @@ function updateBoard(dt){
     const keys={...p.input,axisX:p.input.axisX||Number(p.input.right)-Number(p.input.left),axisY:p.input.axisY||Number(p.input.down)-Number(p.input.jump)};
     window.BoardParty.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
   }
-  window.BoardParty.update(s,dt);
+  // Board is turn-based: catch up to elapsed wall-clock time in short,
+  // bounded steps. Never let low FPS stretch control timeouts indefinitely.
+  let pending=Math.max(0,Math.min(1,Number(dt)||0));
+  for(let ticks=0;ticks<20&&pending>1e-6;ticks++){
+    const step=Math.min(.05,pending);
+    window.BoardParty.update(s,step);
+    pending-=step;
+    if(s.phase==='minigame_pending'||s.phase==='minigame'||s.phase==='finished')break;
+  }
   if(s.phase==='minigame_pending'){
     const mode=window.BoardMinigame.pick(boardRegistry(),s.players.length,s.lastMinigame,s.rng);
     if(!mode)throw Error('No compatible minigame');
@@ -2192,13 +2200,17 @@ function drawGame(t){
   gameEngine(round.mode).draw(g,t,round,players);
 }
 function animate(ts){
-  const dt=Math.min(.045,Math.max(0,(ts-frameLast)/1000||.016));frameLast=ts;
+  const elapsed=Math.max(0,(ts-frameLast)/1000||.016);
+  const dt=Math.min(.045,elapsed);
+  // Minigame physics remain unchanged; only BOARD PARTY uses real elapsed time.
+  const boardDt=Math.min(1,elapsed);
+  frameLast=ts;
   try{
    if(currentView==='game'&&gameSelection){
     updateGameSelection(dt);
    }else if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
-    updateRound(dt);drawGame(graphicsClock);
+    updateRound(round.mode==='board'?boardDt:dt);drawGame(graphicsClock);
     renderHostVideoFrames();
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
