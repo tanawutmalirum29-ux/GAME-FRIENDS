@@ -122,13 +122,11 @@ assert.ok(old.width*old.height>1000000);
 ctx.window.BoardItems.add(s.players[0],'shield');
 ctx.window.BoardItems.add(s.players[0],'potion');
 P.action(s,s.players[0].id,'B');A.draw(g,0,s);
-assert.equal(s.players[0].actionIndex,1,'B selects the first item without a popup');
-assert.ok(labels.some(x=>String(x).includes('เลือก: Protection Shield')),
- 'selected item is identified in the always-visible footer');
+assert.equal(s.players[0].actionIndex,1,'B selects the stocked potion slot without a popup');
+assert.ok(labels.includes('ยา'),'permanent grid labels the potion slot, without verbose footer instructions');
 P.action(s,s.players[0].id,'B');A.draw(g,0,s);
-assert.equal(s.players[0].actionIndex,2);
-assert.ok(labels.some(x=>String(x).includes('เลือก: Healing Potion')),
- 'second B selects the next item without opening a bag');
+assert.equal(s.players[0].actionIndex,6,'second B skips empty slots to shield');
+assert.ok(labels.includes('โล่'),'permanent grid includes shield, regardless of selection');
 s.players[0].actionIndex=0;
 const snapshot=JSON.stringify(s.players);
 for(let i=0;i<60;i++)A.draw(g,i/60,s);assert.equal(surfaces.length,initialSurfaces+1,'terrain is reused');assert.equal(JSON.stringify(s.players),snapshot);
@@ -234,4 +232,28 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
    'instruction sits below the dice without drifting right');
  assert.doesNotMatch(artSource,/% • รอ|backpackOverlay\(g,s\)/,
    'progress percentages and popup bag are gone from the board renderer');
+}
+
+
+// Compact BOARD HUD: no numeric HP/status captions, 7 inventory types + Roll,
+// zero-stock badges, duplicate counts, and fixed-width visible names.
+{
+ const s=game(2026),p=s.players[0];s.order=s.players.map(v=>v.id);P.startTurn(s);
+ p.name='บอทยาวมากกว่าบอท 12 เพื่อทดสอบการตัดชื่อบน HUD';
+ p.bag=['potion','potion','shield'];p.item='potion';p.actionIndex=6;p.hp=72;
+ const start=labelDraws.length;A.draw(g,0,s);
+ const frame=labelDraws.slice(start);
+ const texts=frame.map(x=>x.text);
+ assert.ok(texts.includes('2'),'duplicate potion quantity appears in one slot');
+ assert.ok(texts.includes('1'),'shield quantity appears in one slot');
+ assert.ok(texts.filter(x=>x==='0').length>=4,'all unavailable types display zero badges');
+ assert.ok(!texts.some(x=>/\/100$/.test(x)),'numerical HP labels are removed from player rail');
+ assert.ok(!texts.includes('ก้าวที่เหลือ')&&!texts.includes('รอ'),
+  'unnecessary top status and bottom caption are gone');
+ assert.ok(!texts.some(x=>x.includes('ลากจอยเพื่อเดิน')),
+  'old instruction below the portrait is not drawn');
+ assert.match(artSource,/clippedPlayerName\(g,p\.name,nameX/,'all top names use a measured clipping window');
+ assert.match(artSource,/footsteps\(g,855,492/,'two vector footprints precede the step total');
+ assert.match(artSource,/kinds=\['roll',\.\.\.window\.BoardItems\.ids\]/,
+  'all fixed inventory types appear alongside the Roll slot');
 }

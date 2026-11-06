@@ -4276,21 +4276,36 @@ body:has(#home:not(.hidden)) footer{
 
 /* BOARD PARTY backpack selector: original SVG artwork, compact phone layout. */
 #controllerInventory .board-bag-icons{
- display:flex;align-items:center;gap:5px;max-width:100%;min-width:0;
- overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;
- -webkit-overflow-scrolling:touch;
+ display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr));
+ align-items:center;gap:4px;min-width:0;width:min(100%,292px);
+ height:35px;overflow:visible;flex:1 1 210px;
 }
 #controllerInventory .board-bag-item{
- flex:0 0 31px;width:31px;height:30px;display:inline-flex;
+ position:relative;min-width:0;height:30px;display:inline-flex;
  align-items:center;justify-content:center;box-sizing:border-box;
  background:#163f55;border:1px solid #54758d;border-radius:7px;
+ transform-origin:center;transition:transform .14s ease,box-shadow .14s ease;
 }
+#controllerInventory .board-bag-item.is-empty{
+ background:#1e2e38;border-color:#3c4d59;
+}
+#controllerInventory .board-bag-item.is-empty svg{opacity:.32;filter:grayscale(1)}
 #controllerInventory .board-bag-item.is-selected{
- border:2px solid #ffdc79;background:#2c6473;
- box-shadow:0 0 0 1px #ffe7ae70 inset;
+ z-index:1;border:2px solid #ffdf88;background:#305b6c;
+ box-shadow:0 0 9px 2px #ffcf777a,0 0 0 1px #fff1b580 inset;
+ transform:scale(1.07);
 }
 #controllerInventory .board-bag-item svg{
- width:23px;height:23px;display:block;flex-shrink:0;
+ width:min(22px,90%);height:22px;display:block;flex-shrink:1;
+}
+#controllerInventory .board-item-count{
+ position:absolute;right:-2px;bottom:-2px;min-width:13px;height:13px;
+ padding:0 2px;box-sizing:border-box;border-radius:5px;
+ display:grid;place-items:center;font-size:9px;line-height:1;
+ font-weight:900;color:#342819;background:#f3d58e;border:1px solid #fff1be;
+}
+#controllerInventory .board-bag-item.is-empty .board-item-count{
+ color:#a8b5c0;background:#374753;border-color:#566675;
 }
 
 /* BOARD PARTY map tools remain on the host, never rendered on controllers. */

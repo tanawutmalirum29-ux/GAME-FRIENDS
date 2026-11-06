@@ -134,18 +134,35 @@ test('B cycles [Roll, inventory], A activates selected action; no bag popup',()=
  assert.equal(p.actionIndex,0);
  assert.equal(P.controls(s,p.id).a,'ทอย');
  assert.equal(P.controls(s,p.id).b,'เปลี่ยนตัวเลือก');
- tap('B');assert.equal(p.actionIndex,1,'the first B selects first item after Roll');
- tap('B');assert.equal(p.actionIndex,2);assert.equal(I.bag(p)[p.actionIndex-1],'potion');
+ tap('B');assert.equal(p.actionIndex,1,'the first B selects potion in fixed type order');
+ assert.equal(I.ids[p.actionIndex-1],'potion');
  assert.match(P.controls(s,p.id).help,/Healing Potion/);
  tap('A');assert.equal(p.hp,51);assert.equal(p.usedRound,1);
  assert.deepEqual(plain(p.bag),['shield','rocket']);assert.equal(s.phase,'effect');
  until(s,()=>s.phase==='ready');
  assert.equal(p.actionIndex,0,'after effect, next command resets to Roll');
- tap('B');assert.equal(p.actionIndex,1);
- tap('B');assert.equal(p.actionIndex,2);
- tap('B');assert.equal(p.actionIndex,0,'last item wraps to Roll; no close slot');
+ tap('B');assert.equal(p.actionIndex,3,'rocket stays in its canonical slot');
+ tap('B');assert.equal(p.actionIndex,6,'shield stays in its canonical slot');
+ tap('B');assert.equal(p.actionIndex,0,'B wraps past stocked item types to Roll');
  tap('A');assert.equal(s.phase,'dice');assert.equal(s.moveDice.length,2);
  assert.equal(p.bagOpen,false,'popup is never opened');
+});
+test('Fixed seven-slot item grid counts duplicates and skips zero-stock types',()=>{
+ const s=ready(3),p=s.players[0];
+ assert.deepEqual(plain(I.availableSlots(p)),[0]);
+ assert.deepEqual(plain(I.counts(p)),{potion:0,ufo:0,rocket:0,bomber:0,car:0,shield:0});
+ I.add(p,'rocket');I.add(p,'rocket');I.add(p,'shield');I.add(p,'potion');
+ assert.deepEqual(plain(I.counts(p)),{potion:1,ufo:0,rocket:2,bomber:0,car:0,shield:1});
+ assert.deepEqual(plain(I.availableSlots(p)),[0,1,3,6]);
+ assert.equal(P.action(s,p.id,'B'),true);assert.equal(p.actionIndex,1);
+ assert.equal(P.action(s,p.id,'B'),true);assert.equal(p.actionIndex,3);
+ assert.equal(P.action(s,p.id,'B'),true);assert.equal(p.actionIndex,6);
+ assert.equal(P.action(s,p.id,'B'),true);assert.equal(p.actionIndex,0);
+ // An out-of-date reconnect cannot activate an empty slot.
+ p.actionIndex=2;assert.equal(P.action(s,p.id,'A'),false);
+ assert.equal(p.actionIndex,0);assert.match(p.bagMessage,/ไม่มีไอเทม/);
+ p.actionIndex=3;assert.equal(P.controls(s,p.id).a,'ใช้ไอเทม');
+ const count=I.counts(p).rocket;assert.equal(count,2);
 });
 test('Two independent dice: all 36 combinations move the exact sum, landing effect once',()=>{
  for(let a=1;a<=6;a++)for(let b=1;b<=6;b++){
@@ -440,7 +457,7 @@ test('Potion only activates with missing HP; rejected item keeps selection',()=>
  assert.match(p.bagMessage,/HP เต็ม/);
  p.hp=1;tap('A');assert.equal(p.hp,51);assert.equal(p.item,null);
  until(s,()=>s.phase==='ready');p.item='rocket';
- tap('B');assert.equal(p.actionIndex,1,'one item immediately follows Roll');
+ tap('B');assert.equal(p.actionIndex,3,'rocket is slot three even when it is the only item');
  tap('B');assert.equal(p.actionIndex,0,'B wraps without an inventory popup');
  tap('A');assert.equal(s.phase,'dice');
 });

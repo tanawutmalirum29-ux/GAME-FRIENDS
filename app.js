@@ -1791,27 +1791,31 @@ function renderPhoneBoard(){
  $('controllerHelp').textContent=info.help||'';
  $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing');
  const bag=Array.isArray(info.bag)?info.bag:[],ready=info.boardPhase==='ready';
- const selected=ready&&Number.isInteger(info.actionIndex)?info.actionIndex:0;
+ const options=['roll',...window.BoardItems.ids],stock=Object.fromEntries(window.BoardItems.ids.map(id=>[id,0]));
+ for(const id of bag)if(Object.hasOwn(stock,id))stock[id]++;
+ const selected=ready&&Number.isInteger(info.actionIndex)?Math.max(0,Math.min(options.length-1,info.actionIndex)):0;
  $('controllerRole').textContent='HP '+info.hp+'/100 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • ไอเทม '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
  const host=$('inventoryItem');host.classList.remove('pizza-order-icons','board-bag-icons');host.replaceChildren();
  host.classList.add('board-bag-icons');
  const svg=window.PartyUiArt,doc=host.ownerDocument||document;
  const rollIcon='<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="7" width="22" height="22" rx="5" fill="#fff4dc" stroke="#d2a85b" stroke-width="2"/><rect x="24" y="18" width="20" height="20" rx="5" fill="#f9f5ec" stroke="#d2a85b" stroke-width="2"/><g fill="#4c5e73"><circle cx="10" cy="13" r="2.5"/><circle cx="20" cy="23" r="2.5"/><circle cx="30" cy="24" r="2.5"/><circle cx="38" cy="32" r="2.5"/></g></svg>';
- const options=['roll',...bag];
  for(let i=0;i<options.length;i++){
-   const id=options[i],cell=doc.createElement('span');
-   cell.className='board-bag-item'+(ready&&i===selected?' is-selected':'');
+   const id=options[i],qty=id==='roll'?null:stock[id],cell=doc.createElement('span');
+   cell.className='board-bag-item'+(qty===0?' is-empty':'')+(ready&&i===selected?' is-selected':'');
    cell.innerHTML=id==='roll'?rollIcon:svg?.svg(id)||'';
    cell.title=id==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[id]||id;
-   cell.setAttribute('aria-label',cell.title);
+   cell.setAttribute('aria-label',cell.title+(qty===null?'':' จำนวน '+qty));
+   if(qty!==null){
+     const badge=doc.createElement('span');
+     badge.className='board-item-count';badge.textContent=String(qty);
+     cell.append(badge);
+   }
    host.append(cell);
  }
- if(ready&&Number(host.clientWidth)>0)
-   host.scrollLeft=Math.max(0,selected*36-host.clientWidth/2+18);
  const guide=$('inventoryGuide');
- const slot=options[Math.min(Math.max(0,selected),options.length-1)];
+ const slot=options[selected]||'roll';
  guide.textContent=ready?'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[slot]||slot)+' • B เปลี่ยน / A ยืนยัน'+(info.bagMessage?' • '+info.bagMessage:''):
-   'รายการ: ทอยลูกเต๋า + ไอเทมที่ถือ';
+   'ทอยลูกเต๋า + ไอเทมทั้ง 6 ชนิด';
  $('controllerState').textContent=info.help||'';
 }
 function finishBoard(){
