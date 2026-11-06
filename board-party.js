@@ -351,12 +351,12 @@ function confirmAction(s,p){
  return true;
 }
 function action(s,id,button){
- const p=s.players.find(p=>p.id===id);if(!p||!['A','B'].includes(button))return false;
- if(s.phase==='order')return rollOrder(s,p);
+ const p=s.players.find(p=>p.id===id);if(!p||!['A','B','C'].includes(button))return false;
+ if(s.phase==='order')return button!=='C'&&rollOrder(s,p);
 
  if(p.id!==current(s)?.id)return false;
  if(s.phase==='ready'){
-  return button==='A'?confirmAction(s,p):cycleAction(s,p);
+  return button==='A'?confirmAction(s,p):button==='B'?cycleAction(s,p):false;
  }
  if(s.move?.kind==='walk'&&s.camera.explore&&button==='A'&&
    (s.phase==='move_ready'||s.phase==='branch')){
@@ -379,9 +379,16 @@ function input(s,id,packet){
  const k=packet.keys||{};
  const x=Number.isFinite(k.axisX)&&k.axisX!==0?Math.max(-1,Math.min(1,k.axisX)):Number(k.right===true)-Number(k.left===true);
  const y=Number.isFinite(k.axisY)&&k.axisY!==0?Math.max(-1,Math.min(1,k.axisY)):Number(k.down===true)-Number(k.jump===true);
- const a=k.action===true,b=k.alt===true;
- s.inputs[id]={x,y,a,b,at:s.time,turnId:packet.turnId};
- if(a&&!old.a)action(s,id,'A');else if(b&&!old.b)action(s,id,'B');
+ const a=k.action===true,b=k.alt===true,c=k.cancel===true;
+ s.inputs[id]={x,y,a,b,c,at:s.time,turnId:packet.turnId};
+ // After the first A enters bomber aiming, the phone may resend its held A
+ // with a NEW phase token before pointerup arrives. Never interpret that
+ // replay as the second confirmation; require observing A released first.
+ if(s.phase==='aim'&&s.skill?.kind==='bomber'&&!a)
+  s.skill.requiresConfirmRelease=false;
+ if(c&&!old.c)action(s,id,'C');
+ else if(a&&!old.a)action(s,id,'A');
+ else if(b&&!old.b)action(s,id,'B');
  return true;
 }
 function minigameStarted(s,mode){if(s.phase!=='minigame_pending')return false;s.lastMinigame=mode;phase(s,'minigame');return true;}
@@ -463,7 +470,7 @@ function controls(s,id){
  if(s.phase==='ready'){
   const selected=Math.min(I().ids.length,Math.max(0,Math.trunc(p.actionIndex||0)));
   const name=selected===0?'ทอยลูกเต๋า':I().names[I().ids[selected-1]];
-  return{a:selected===0?'ทอย':'ใช้ไอเทม',b:'เปลี่ยนตัวเลือก',
+  return{a:selected===0?'ทอย':I().ids[selected-1]==='bomber'?'เรียกเครื่องบิน':'ใช้ไอเทม',b:'เปลี่ยนตัวเลือก',c:'',
    help:'เลือก: '+name+(p.bagMessage?' • '+p.bagMessage:'')+' • B เปลี่ยน / A ยืนยัน'};
  }
  if(s.move?.kind==='walk')return{a:s.camera.explore?'เริ่มเดิน':'',b:'',
@@ -472,7 +479,9 @@ function controls(s,id){
      ' • เหลือ '+s.move.remaining+' ก้าว'};
  if(s.phase==='rocket')return{a:'',b:'',help:'จรวด '+Math.max(0,s.move.expires-s.time).toFixed(1)+'s • คุมอนาล็อกไปข้างหน้า ไม่มีจำกัดช่อง'};
   if(s.phase==='branch')return{a:'',b:'',help:'ชี้ทิศทางที่แยกด้วยอนาล็อก'};
- if(s.phase==='aim')return{a:'ยืนยัน',b:s.skill.kind==='bomber'?'หมุน 45°':'',help:s.skill.kind==='ufo'?'เล็งให้สัมผัสตัวละคร / A สลับ':'เลื่อนแนวบิน / B หมุน / A โจมตี'};
+ if(s.phase==='aim')return s.skill.kind==='bomber'?
+  {a:'โจมตี',b:'หมุน 45°',c:'ยกเลิก',help:'กำลังเล็งเครื่องบิน • ทิศ '+(Math.round(s.skill.angle/(Math.PI/4))%8+1)+'/8 • B หมุน / A โจมตี / C ยกเลิก'}:
+  {a:'ยืนยัน',b:'',c:'',help:'เล็งให้สัมผัสตัวละคร / A สลับ'};
  if(s.phase==='car')return{a:'',b:'',help:'อนาล็อกขับตามลูกศร • ระเบิดเมื่อชนหรือครบ 6 วินาที'};
  
  return{a:'',b:'',help:'กำลังดำเนินตา'};

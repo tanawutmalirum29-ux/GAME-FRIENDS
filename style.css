@@ -4616,3 +4616,82 @@ body.controller-playing #controller #controllerActive
     --gf-face-diameter:clamp(68px,25dvh,95px);
   }
 }
+
+/* BOARD PARTY bomber: A starts preview, B rotates 45 degrees across 8
+   directions, A confirms, C cancels. C exists directly BELOW B and only
+   claims its own third touch row during the bomber aim phase. */
+body.controller-playing #controller #controllerActive
+.controller-buttons .gamepad-face-buttons .face-c{
+  display:none!important;
+  pointer-events:none!important;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons.board-bomber-aim:not(.shockwave-mode) .gamepad-face-buttons{
+  grid-template-rows:minmax(0,1fr) minmax(0,1fr) clamp(38px,12dvh,48px)!important;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons.board-bomber-aim:not(.shockwave-mode) .gamepad-face-buttons .face-c{
+  display:flex!important;
+  position:relative!important;
+  inset:auto!important;
+  grid-column:1;
+  grid-row:3;
+  order:2;
+  align-self:stretch;
+  justify-self:stretch;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+  min-height:0;
+  width:100%!important;
+  height:100%!important;
+  margin:0!important;
+  border:0;
+  box-sizing:border-box;
+  touch-action:none;
+  pointer-events:auto!important;
+  -webkit-tap-highlight-color:transparent;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons.board-bomber-aim .gamepad-face-buttons .face-c .face-button{
+  display:flex!important;
+  flex-direction:row;
+  gap:5px;
+  align-items:center;
+  justify-content:center;
+  width:min(95%,108px)!important;
+  height:clamp(32px,10dvh,42px)!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  aspect-ratio:auto;
+  min-width:0;
+  min-height:0;
+  border-radius:12px;
+  border:2px solid #e6ac7d;
+  background:linear-gradient(155deg,#704458,#47273b);
+  box-shadow:0 2px 10px #080c1c9c;
+  padding:1px 4px;
+  box-sizing:border-box;
+  pointer-events:none!important;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons.board-bomber-aim .gamepad-face-buttons .face-c .face-button-letter{
+  font-size:clamp(17px,4dvh,24px)!important;
+  line-height:1;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons.board-bomber-aim .gamepad-face-buttons .face-c .face-caption{
+  font-size:clamp(9px,2.7dvh,12px)!important;
+  margin:0!important;
+  width:auto;
+  white-space:nowrap;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons.board-bomber-aim .gamepad-face-buttons .face-c:active .face-button,
+body.controller-playing #controller #controllerActive
+.controller-buttons.board-bomber-aim .gamepad-face-buttons .face-c .face-button.pressed{
+  background:#94546c;
+  border-color:#ffd7ae;
+}
+/* Maintain the third-row cancellation target on the rotated iPhone fallback
+   while leaving the existing ghost target arrows and other minigames alone. */
