@@ -1128,6 +1128,7 @@ function joinRoom(recovery=false){
         $('leaveConfirm').classList.add('hidden');
         resetPhonePreview();
         $('controllerName').textContent=data.name;$('controllerAvatar').style.background=data.color;
+     $('controllerAvatar').innerHTML=window.PartyPlayerAvatar?.svgForFront(data.color)||'';
         $('joinForm').classList.add('hidden');$('controllerActive').classList.remove('hidden');
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
         $('controllerInventory').classList.remove('is-ghost');
@@ -1849,7 +1850,7 @@ function layoutFinalResults(){
   list.dataset.count=String(rows.length);
   list.dataset.cols=String(columns);
   list.classList.toggle('has-heading',hasHeading);
-  const roster=boardSession?.players||players;
+  const roster=round?.mode==='board'&&boardSession?boardSession.players:players;
   rows.forEach((row,index)=>{
     const label=row.children[0],detail=row.children[1];
     const name=String(label?.textContent||'');
