@@ -4,6 +4,7 @@
 (() => {
 'use strict';
 const ATTACK=Object.freeze({windup:.18,active:.1,recovery:.2,cooldown:1.05});
+const NORMAL_STUN=.8;
 const TOTAL=ATTACK.windup+ATTACK.active+ATTACK.recovery;
 const TAU=Math.PI*2;
 function reset(entity){
@@ -32,11 +33,57 @@ function stepAttack(entity,dt,onImpact){
   return true; // The attacker stays planted for the whole animation.
 }
 function isAttacking(entity){return !!entity&&entity.attackRemaining>0;}
+function cancelAttack(entity){
+  if(!entity)return;
+  entity.attackRemaining=0;entity.attackHit=false;
+}
 function applyStun(entity,seconds,color='#ffe28a'){
-  if(!entity||seconds<=0)return;
+  if(!entity||seconds<=0)return false;
   entity.stun=Math.max(entity.stun||0,seconds);
   entity.stunColor=color;
-  entity.attackRemaining=0;entity.attackHit=false;
+  cancelAttack(entity);
+  return true;
+}
+// Only this module decides what a NORMAL punch means: one 0.8-second
+// stun, colored after the attacker, and a cancelled windup for the victim.
+// Game-specific boosts, traps and hazards may still have their own durations.
+function applyNormalPunch(victim,attacker,opts={}){
+  if(!victim||!attacker||victim===attacker||victim.id===attacker.id)return false;
+  if(typeof opts.canHit==='function'&&!opts.canHit(victim))return false;
+  const color=attacker.color||'#ffe28a';
+  applyStun(victim,NORMAL_STUN,color);
+  if(victim.cs){
+    victim.cs.stunRemaining=Math.max(victim.cs.stunRemaining||0,NORMAL_STUN);
+    victim.cs.punchState=null;
+  }
+  if('fruitStun' in victim){
+    victim.fruitStun=Math.max(victim.fruitStun||0,NORMAL_STUN);
+    victim.fruitAttack=null;
+    victim.fruitHitFlash=Math.max(victim.fruitHitFlash||0,.3);
+  }
+  if(typeof opts.onHit==='function')opts.onHit(victim,attacker);
+  return true;
+}
+function hitPlayers(attacker,players,opts={}){
+  if(!attacker||!attacker.active)return [];
+  const facing=attacker.attackFacing||attacker.dir||{x:1,y:0};
+  const n=Math.hypot(facing.x||0,facing.y||0)||1;
+  const range=Number.isFinite(opts.range)?opts.range:53;
+  const coneCos=Number.isFinite(opts.coneCos)?opts.coneCos:.45;
+  const maxHits=Number.isFinite(opts.maxHits)?Math.max(0,opts.maxHits):Infinity;
+  const hits=(players||[]).filter(p=>p&&p.active&&p!==attacker&&p.id!==attacker.id)
+    .map(p=>{
+      const dx=p.x-attacker.x,dy=p.y-attacker.y,d=Math.hypot(dx,dy);
+      return {player:p,distance:d,forward:d>0?(dx*facing.x+dy*facing.y)/(d*n):1};
+    })
+    .filter(q=>q.distance>0&&q.distance<=range&&q.forward>=coneCos)
+    .sort((a,b)=>a.distance-b.distance||String(a.player.id).localeCompare(String(b.player.id)));
+  const struck=[];
+  for(const candidate of hits){
+    if(struck.length>=maxHits)break;
+    if(applyNormalPunch(candidate.player,attacker,opts))struck.push(candidate.player);
+  }
+  return struck;
 }
 function star(ctx,x,y,r,color,rotation=0){
   ctx.beginPath();
@@ -48,19 +95,36 @@ function star(ctx,x,y,r,color,rotation=0){
   }
   ctx.closePath();ctx.fillStyle=color;ctx.fill();
 }
-function drawStun(ctx,entity,time){
-  if(!(entity.stun>0))return;
+function stunTime(entity){
+  if(!entity)return 0;
+  if(entity.cs)return entity.cs.stunRemaining||0;
+  if('fruitStun' in entity)return entity.fruitStun||0;
+  return entity.stun||0;
+}
+function drawStun(ctx,entity,time,opts={}){
+  if(!(stunTime(entity)>0))return;
   const color=entity.stunColor||'#ffe28a';
+  const x0=opts.local?0:entity.x,y0=opts.local?0:entity.y;
+  const t=Number.isFinite(time)?time:0;
   ctx.save();
-  ctx.shadowBlur=8;ctx.shadowColor=color;
-  // Orbit above the head; use attacker color for stars and trailing sparkles.
+  ctx.shadowBlur=12;ctx.shadowColor=color;
+  // Colored shimmer/halo above the head, with the same attacker-colored
+  // rotating stars and sparkles in EVERY minigame.
+  ctx.globalAlpha=.65+.25*Math.sin(t*9);
+  ctx.strokeStyle=color;ctx.lineWidth=2.2;
+  ctx.beginPath();ctx.ellipse(x0,y0-43,15+Math.sin(t*8)*2,5,0,0,TAU);ctx.stroke();
+  ctx.globalAlpha=1;
   for(let i=0;i<3;i++){
-    const a=time*5+i*TAU/3;
-    const x=entity.x+Math.cos(a)*22;
-    const y=entity.y-47+Math.sin(a)*7;
-    star(ctx,x,y,4.8,color,a);
-    ctx.beginPath();ctx.arc(x-Math.cos(a)*7,y-Math.sin(a)*4,1.5,0,TAU);
+    const a=t*6+i*TAU/3;
+    const x=x0+Math.cos(a)*22,y=y0-46+Math.sin(a)*8;
+    star(ctx,x,y,5.8,color,a);
+    ctx.beginPath();ctx.arc(x-Math.cos(a)*7,y-Math.sin(a)*4,2,0,TAU);
     ctx.fillStyle=color;ctx.fill();
+    // Four-point sparkle flashes around the star orbit, tinted by hitter.
+    const sx=x0+Math.cos(a+1.1)*12,sy=y0-45+Math.sin(a+1.1)*10;
+    ctx.strokeStyle=color;ctx.lineWidth=1.4;ctx.beginPath();
+    ctx.moveTo(sx-3,sy);ctx.lineTo(sx+3,sy);
+    ctx.moveTo(sx,sy-3);ctx.lineTo(sx,sy+3);ctx.stroke();
   }
   ctx.restore();
 }
@@ -84,6 +148,6 @@ function drawAttack(ctx,entity){
   }
   ctx.restore();
 }
-window.PartyCombatMotion=Object.freeze({ATTACK,TOTAL,reset,startAttack,stepAttack,
-  isAttacking,applyStun,drawAttack,drawStun});
+window.PartyCombatMotion=Object.freeze({ATTACK,TOTAL,NORMAL_STUN,reset,startAttack,stepAttack,
+  isAttacking,cancelAttack,applyStun,applyNormalPunch,hitPlayers,stunTime,drawAttack,drawStun});
 })();
