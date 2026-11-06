@@ -381,6 +381,33 @@ function effects(g,s,t){
  if(s.phase==='finished'){const p=s.map.nodes[s.map.finishId].position;icon(g,'milestone',p.x,p.y-65,40,'#f8d884');for(let i=0;i<40;i++){const a=i*2.4,r=(s.time-s.phaseAt)*80;circle(g,p.x+Math.cos(a)*r,p.y-30+Math.sin(a)*r,3,i%2?'#fce2a1':'#78d9e8');}}
  // No trophy milestone cells or special reward displays.
 }
+// The name's VISIBLE span and its HP bar share the exact same reference width.
+// Clipping never changes the name stored in player/game/network state.
+function nameWidth(g,fontSize=11){
+ g.save();g.font='700 '+fontSize+'px "Noto Sans Thai", sans-serif';
+ const measured=g.measureText('บอท 12')?.width;
+ g.restore();
+ return Number.isFinite(measured)&&measured>0?measured:fontSize*3.8;
+}
+function clippedPlayerName(g,name,x,y,fontSize,color,maxWidth){
+ g.save();g.beginPath();g.rect(x,y-fontSize*.7,maxWidth,fontSize*1.65);g.clip();
+ label(g,name,x,y,fontSize,color,'left',800);
+ g.restore();
+}
+// Two vector footprints; the alternating heights show two actual walking steps.
+function footsteps(g,x,y,size=36,color='#79c8f5'){
+ g.save();g.translate(x,y);g.scale(size/36,size/36);g.fillStyle=color;
+ for(const [dx,dy,a] of [[-8,7,-.24],[8,-5,.24]]){
+  g.save();g.translate(dx,dy);g.rotate(a);
+  g.beginPath();g.ellipse(0,4,5.7,9.1,0,0,TAU);g.fill();
+  for(let i=0;i<4;i++){
+   const a=i*Math.PI/4-.82;
+   circle(g,Math.sin(a)*5.6,-7.4-Math.cos(a)*2.6,2.3-i*.22,color);
+  }
+  g.restore();
+ }
+ g.restore();
+}
 function hud(g,s){
  const n=s.players.length,cols=n>4?6:n,w=(932-(cols-1)*6)/cols,active=window.BoardParty.current(s);
  box(g,0,0,960,n>6?145:94,0,'#102d43f2');
@@ -393,19 +420,19 @@ function hud(g,s){
   const x=14+(i%cols)*(w+6),y=36+Math.floor(i/cols)*51,turn=p.id===active?.id;
   box(g,x,y,w,45,8,turn?'#2e5267':'#1b3a50',turn?'#edce82':'#33566a');
   box(g,x,y,3,45,2,p.color);
-  label(g,(i+1)+'. '+p.name,x+10,y+12,11,p.color,'left',700,w-38);
+  label(g,(i+1)+'.',x+9,y+13,11,p.color,'left',700,23);
+  const nameX=x+30,limit=Math.max(10,Math.min(w-66,nameWidth(g,11)));
+  clippedPlayerName(g,p.name,nameX,y+13,11,p.color,limit);
+  // No numeric HP, unnecessary status, or second progress row in player cards.
+  const hpRatio=Math.max(0,Math.min(1,p.hp/window.BoardParty.MAX_HP));
+  box(g,nameX,y+27,limit,6,3,'#0b2537');
+  if(hpRatio>0)box(g,nameX,y+27,limit*hpRatio,6,3,p.color);
   const bagItems=p.bag||[];
-  if(bagItems.length){icon(g,'bag',x+w-20,y+13,11);label(g,String(bagItems.length),x+w-6,y+14,9,'#ffe1a3','right');}
-  box(g,x+10,y+26,w-73,5,2,'#0b2537');
-  box(g,x+10,y+26,(w-73)*p.hp/window.BoardParty.MAX_HP,5,2,p.color);
-  label(g,p.hp+'/'+window.BoardParty.MAX_HP,x+w-12,y+29,10,'#d6eef7','right',500);
-  // No percentage of map completion: show only active turn state.
-  const state=turn?(['ready','dice'].includes(s.phase)?'เลือกคำสั่ง':'เหลือ '+window.BoardParty.remainingSteps(s,p.id)+' ก้าว'):'รอ';
-  label(g,state,x+10,y+39,9,turn?'#ffe3a1':'#b9d9e7','left',turn?800:500,Math.max(22,w-30));
-  if(p.shieldTurns>0){icon(g,'shield',x+w-15,y+39,7);}
+  if(bagItems.length){icon(g,'bag',x+w-21,y+14,11);label(g,String(bagItems.length),x+w-6,y+14,9,'#ffe1a3','right');}
+  if(p.shieldTurns>0)icon(g,'shield',x+w-15,y+35,10);
  });
  box(g,12,460,936,68,16,'#102e44f5','#53758a');
- const p=active,c=p?window.BoardParty.controls(s,p.id):{help:'เตรียมการแข่งขัน'};
+ const p=active;
  if(s.phase==='overview'||s.camera.overview){
   label(g,'WINTER ISLANDS',30,478,14,'#ffe4a5');
   label(g,(s.map.islands?.length||7)+' เกาะ • เดินตามลูกศร • เลือกทางที่ทางแยก',30,500,10,'#b9d9e7','left',500,302);
@@ -413,36 +440,45 @@ function hud(g,s){
   legend.forEach(([type,name],i)=>{const x=410+i*135;circle(g,x,482,12,colors[type]);icon(g,type,x,482,type==='sword'?9:8);label(g,name,x,508,9,'#d6eaf2','center',600,100);});
  }else if(p){
   window.PartyPlayerAvatar.drawFront(g,p,48,494,44);
-  label(g,p.name,81,481,16,p.color,'left',800,192);
-  const items=window.BoardItems.bag(p),selected=Math.min(items.length,Math.max(0,Math.trunc(p.actionIndex||0)));
+  clippedPlayerName(g,p.name,82,494,16,p.color,nameWidth(g,16));
+  const stock=window.BoardItems.counts(p),kinds=['roll',...window.BoardItems.ids];
+  const selected=Math.max(0,Math.min(kinds.length-1,Math.trunc(p.actionIndex||0)));
   const canSelect=s.phase==='ready';
-  const chosen=selected===0?'ทอยลูกเต๋า':IName(items[selected-1]);
-  label(g,p.bagMessage|| (canSelect?'เลือก: '+chosen:c.help),81,506,10,
-    p.bagMessage?'#ffb2a7':'#c6e5f2','left',600,196);
-  // Inline toolbar: roll is ALWAYS the first card. Inventory follows in order.
-  // Keep roll pinned when the item collection exceeds the available width.
-  const itemCount=Math.min(4,items.length),firstItem=Math.max(0,Math.min(items.length-itemCount,selected<=itemCount?0:selected-itemCount));
-  const options=[{kind:'roll',index:0},...Array.from({length:itemCount},(_,i)=>({kind:items[firstItem+i],index:firstItem+i+1}))];
-  const stripX=286,stripW=538,gap=7,cardW=(stripW-gap*(options.length-1))/options.length,cardY=466,cardH=56;
-  options.forEach(({kind,index},i)=>{
-   const x=stripX+i*(cardW+gap),chosenNow=canSelect&&selected===index;
-   box(g,x,cardY,cardW,cardH,9,chosenNow?'#32637d':'#1b4058',chosenNow?'#ffe38f':'#4c778c');
-   if(chosenNow){g.save();g.strokeStyle='#ffe38f';g.lineWidth=1.7;g.strokeRect(x+2,cardY+2,cardW-4,cardH-4);g.restore();}
+  const stripX=274,stripW=554,gap=8,cardW=(stripW-gap*(kinds.length-1))/kinds.length,cardY=466,cardH=56;
+  kinds.forEach((kind,i)=>{
+   const x=stripX+i*(cardW+gap),chosen=canSelect&&selected===i,amount=kind==='roll'?null:stock[kind]||0;
+   const empty=amount===0;
+   g.save();g.translate(x+cardW/2,cardY+cardH/2);
+   if(chosen)g.scale(1.055,1.065);
+   if(chosen){g.shadowColor='#ffe29a';g.shadowBlur=12;}
+   box(g,-cardW/2,-cardH/2,cardW,cardH,9,
+    chosen?'#3f5a6a':empty?'#202d39':'#1c435b',
+    chosen?'#ffe0a1':empty?'#43515e':'#527c91');
+   g.shadowBlur=0;
+   if(chosen){g.strokeStyle='#ffd777';g.lineWidth=1.7;g.strokeRect(-cardW/2+2,-cardH/2+2,cardW-4,cardH-4);}
+   if(empty)g.globalAlpha=.34;
    if(kind==='roll'){
-    dice(g,1,x+cardW/2-9,cardY+23,21,false,0,0,true);
-    dice(g,2,x+cardW/2+10,cardY+23,21,false,0,1,true);
-   }else icon(g,kind,x+cardW/2,cardY+22,17);
+    dice(g,1,-10,-10,20,false,0,0,true);
+    dice(g,2,11,-10,20,false,0,1,true);
+   }else icon(g,kind,0,-9,20);
+   g.globalAlpha=1;
    const shortName=kind==='roll'?'ทอย':{potion:'ยา',ufo:'UFO',rocket:'จรวด',bomber:'เครื่องบิน',car:'รถระเบิด',shield:'โล่'}[kind]||kind;
-   label(g,shortName,x+cardW/2,cardY+44,11,chosenNow?'#ffe9a5':'#e1f2fa','center',800,cardW-7);
+   label(g,shortName,-4,16,10,empty?'#6f8491':chosen?'#ffe9b0':'#e4f2fa','center',800,cardW-26);
+   if(amount!==null){
+    box(g,cardW/2-18,cardH/2-18,15,15,5,
+      empty?'#394550':'#e4c77c',empty?'#596674':'#fff1bc');
+    label(g,String(amount),cardW/2-10.5,cardH/2-10.5,10,empty?'#93a1ad':'#3e3023','center',900,12);
+   }
+   g.restore();
   });
-  // Player may hold many rewards: the last visible item scrolls logically as B advances.
-  if(items.length>itemCount)label(g,selected+'/'+items.length,stripX+stripW-5,458,9,'#c6e6f2','right');
-  label(g,window.BoardParty.remainingSteps(s,p.id),885,485,29,'#ffe3a1','center');
-  label(g,canSelect?'B เปลี่ยน • A ยืนยัน':'ก้าวที่เหลือ',885,510,9,'#c8e6f3','center',600,112);
+  // Replace the old "steps remaining" caption with two small footprint glyphs.
+  footsteps(g,855,492,35,'#86d3f5');
+  label(g,window.BoardParty.remainingSteps(s,p.id),916,492,29,'#ffe3a1','right',900,36);
  }
  const timed=['ready','aim','car','rocket'].includes(s.phase)||(['move_ready','branch'].includes(s.phase)&&s.move?.kind!=='walk');
  if(timed){box(g,886,428,60,25,8,'#173c53e8');label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,441,12,'#e4f5fc','right');}
 }
+
 const IName=id=>window.BoardItems.names[id]||'ไม่มีไอเทม';
 // Same eased horizontal item carousel as the normal minigame roulette.
 function luckyRoulette(g,s){
