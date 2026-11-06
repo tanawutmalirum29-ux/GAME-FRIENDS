@@ -1,24 +1,59 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const ctx=vm.createContext({window:{},console});
-vm.runInContext(fs.readFileSync('board-map.js','utf8'),ctx,{filename:'board-map.js'});
-const M=ctx.window.BoardMap;
-const normalize=map=>{const copy=JSON.parse(JSON.stringify(map));delete copy.seed;return JSON.stringify(copy);};
-const expected=normalize(M.create(0));
-assert.equal(M.MAIN_LENGTH,120);assert.equal(M.MAP_VERSION,'winter-fixed-120-v2');
-for(let seed=1;seed<=1000;seed++){const map=M.create(seed);assert.equal(normalize(map),expected,'Fixed geometry and tile types must ignore seed '+seed);}
-const map=M.create(1001),nodes=Object.values(map.nodes);
-assert.ok(nodes.length>=150,'At least 150 uniquely authored nodes');
+const source=fs.readFileSync('board-map.js','utf8'),ctx=vm.createContext({window:{},console});
+vm.runInContext(source,ctx,{filename:'board-map.js'});
+const M=ctx.window.BoardMap,plain=x=>JSON.parse(JSON.stringify(x));
+const normalize=map=>{const copy=plain(map);delete copy.seed;return JSON.stringify(copy);};
+const map=M.create(0),expected=normalize(map),nodes=Object.values(map.nodes);
+assert.equal(M.MAIN_LENGTH,152);assert.equal(M.MAP_VERSION,'winter-expedition-152-v3');
+for(let seed=1;seed<=1000;seed++)assert.equal(normalize(M.create(seed)),expected,'Full definition, including scenery, must ignore seed '+seed);
+const fresh=vm.createContext({window:{},console});vm.runInContext(source,fresh);
+assert.equal(normalize(fresh.window.BoardMap.create(9987)),expected,'reload recreates identical geometry and tile effects');
+assert.equal(nodes.length,212);assert.equal(map.islands.length,9);
+assert.ok(map.islands.filter(i=>i.nodeIds.length>=25).length>=4);
+assert.ok(nodes.some(n=>n.nextNodes.length===3),'three-way fork exists');
 assert.equal(new Set(nodes.map(n=>n.id)).size,nodes.length);
-assert.ok(map.islands.filter(i=>i.nodeIds.length>=20).length>=3,'At least three large multi-turn islands');
-assert.ok(map.bridges.length>=8,'Bridge routes include the Crown Island return detour');
-assert.equal(map.nodes.b38_3.islandId,'sword');
-assert.equal(map.nodes.b38_4.islandId,'crown');
-assert.equal(map.nodes.b38_6.islandId,'crown');
-assert.equal(map.nodes.b38_7.islandId,'sword');
-assert.ok(map.bridges.some(([a,b])=>a==='b38_3'&&b==='b38_4'));
-assert.ok(map.bridges.some(([a,b])=>a==='b38_6'&&b==='b38_7'));
-for(let i=0;i<120;i++)assert.ok(map.nodes['n'+i].nextNodes.includes('n'+(i+1)),'Main route '+i+' must remain directed');
-for(const n of nodes){assert.ok(n.position&&Number.isFinite(n.position.x)&&Number.isFinite(n.position.y));for(const to of n.nextNodes)assert.ok(map.nodes[to].previousNodes.includes(n.id));}
+let at=map.startId,mainEdges=0,previousIsland=null,visitedIslands=new Set(),returns=0;
+while(at!==map.finishId){
+ const n=map.nodes[at];
+ if(n.islandId&&n.islandId!==previousIsland){if(visitedIslands.has(n.islandId))returns++;visitedIslands.add(n.islandId);previousIsland=n.islandId;}
+ assert.equal(n.nextNodes[0],'n'+(++mainEdges));at=n.nextNodes[0];
+}
+assert.equal(mainEdges,152,'count actual main-route edges, not branch nodes');
+assert.equal(returns,2,'the MAIN route revisits village and lake through new nodes');
+assert.equal(map.nodes.n0.remainingSteps,140,'shortcuts do not skip most of the expedition');
+assert.equal(map.nodes.n0.longestRemainingSteps,174);
+for(const n of nodes){
+ assert.ok(Number.isFinite(n.position.x)&&Number.isFinite(n.position.y));
+ for(const to of n.nextNodes){assert.ok(map.nodes[to].previousNodes.includes(n.id));assert.ok(map.nodes[to].progress>n.progress);}
+ const seen=new Set();function walk(id){if(seen.has(id))return;seen.add(id);const q=map.nodes[id];if(!q.nextNodes.length)assert.equal(id,map.finishId);for(const next of q.nextNodes)walk(next);}
+ walk(n.id);assert.ok(seen.has(map.finishId),'every branch and checkpoint reaches finish');
+}
+assert.equal(new Set(map.bridgeRoutes.map(b=>b.style)).size,5);
+for(const r of map.bridgeRoutes){
+ assert.ok(r.nodeIds.length>=3,'bridges contain actual stepping nodes');
+ for(let i=1;i<r.nodeIds.length;i++)assert.ok(map.nodes[r.nodeIds[i-1]].nextNodes.includes(r.nodeIds[i]));
+}
 assert.equal(M.validate(map),true);
-console.log('FIXED MAP PASS: 1,000 seeds identical, 120 main edges, '+nodes.length+' fixed nodes, '+map.bridges.length+' bridges and '+map.islands.length+' islands');
+// Mutations must be diagnosed rather than silently accepted as old IDs on new geography.
+function invalid(edit,re){const bad=plain(map);edit(bad);assert.throws(()=>M.validate(bad),re);}
+invalid(m=>m.version='winter-fixed-120-v2',/Incompatible/);
+invalid(m=>delete m.version,/Incompatible/);
+invalid(m=>m.nodes.n1.id='n0',/ID/);
+invalid(m=>m.nodes.n1.position.x=NaN,/position/);
+invalid(m=>m.nodes.n1.nextNodes=[],/Dead end/);
+invalid(m=>m.nodes.n152.nextNodes=['n0'],/endpoints/);
+invalid(m=>m.nodes.n1.nextNodes=['n0'],/forward edge|cycle/);
+invalid(m=>m.nodes.n1.previousNodes.push('n10'),/previous edge/);
+invalid(m=>m.nodes.n1.remainingSteps=0,/graph distance/);
+invalid(m=>m.nodes.ghost={...m.nodes.n1,id:'ghost'},/Unreachable/);
+invalid(m=>m.bridges.push(['n1','n9']),/Orphan/);
+invalid(m=>m.bridgeRoutes[0].nodeIds[1]='n100',/bridge edge/);
+invalid(m=>m.nodes.n26.bridgeId='missing',/bridge checkpoint/);
+invalid(m=>m.islands[0].nodeIds.push('n1'),/membership/);
+invalid(m=>m.nodes.n20.ownerId='p1',/swords/);
+// Session ownership cannot contaminate the literal or another game.
+map.nodes.n20.ownerId='p1';map.nodes.n21.ownerId='p1';map.territories[M.TERRITORY_ID].ownerId='p1';
+map.islands[0].decorations[0].x=-10;
+assert.equal(normalize(M.create(0)),expected);
+console.log('FIXED MAP PASS: 1,000 full-data seed comparisons, fresh reload, 152 main edges / 212 nodes / 9 islands, 140–174 route steps, two main-route island returns, validator mutation checks');

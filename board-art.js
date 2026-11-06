@@ -89,7 +89,7 @@ const regionPalette={
  reward:['#ecfff9','#b3e2da','#619e9b'],final:['#fffaf0','#dcdfd6','#8e9eaa'],
  finish:['#fffaf0','#dcdfd6','#8e9eaa']
 };
-const themeAliases={camp:'start',grove:'crossroads',frost:'risk',aurora:'crossroads',lucky:'reward',crown:'finish'};
+const themeAliases={camp:'start',grove:'crossroads',frost:'risk',aurora:'crossroads',lucky:'reward',crown:'finish',village:'start',comet:'reward'};
 function regionTheme(zone){return themeAliases[zone.theme]||zone.theme;}
 function regionColors(zone){return regionPalette[regionTheme(zone)]||regionPalette.crossroads;}
 function contour(g,points,dy=0,inset=1,center={x:0,y:0}){
@@ -129,15 +129,21 @@ function bridge(g,a,b,kind='wood'){
   line(g,0,0,len,0,'#508ca9',102);line(g,0,0,len,0,'#c3f4fb',90);
   for(let x=10;x<len;x+=45){path(g,[[x,-38],[Math.min(x+35,len),-30],[Math.min(x+12,len),31]],'#eaffff88');line(g,x,-41,Math.min(x+22,len),40,'#73bdce',2);}
   line(g,0,-44,len,-44,'#e7ffff',4);line(g,0,44,len,44,'#89d6e6',4);
- }else if(kind==='stone'){
+ }else if(kind==='stone'||kind==='arched'){
   line(g,0,0,len,0,'#526d83',108);line(g,0,0,len,0,'#a7bdcc',90);
   for(let x=0;x<len;x+=30){line(g,x,-44,x,44,'#6d8b9f',2);line(g,x,-40,Math.min(x+25,len),-40,'#e1f2f5',4);}
   line(g,0,-50,len,-50,'#dfebee',12);line(g,0,50,len,50,'#768d9d',12);
+  if(kind==='arched')for(let x=35;x<len-35;x+=100){g.beginPath();g.arc(x,53,27,0,Math.PI);g.strokeStyle='#22445a';g.lineWidth=9;g.stroke();}
   for(let x=0;x<=len;x+=76){box(g,x-7,-60,14,21,3,'#dcebef','#687f95');box(g,x-7,39,14,21,3,'#b6d2dc','#687f95');}
  }else{
   line(g,0,-34,len,-34,'#573d38',13);line(g,0,34,len,34,'#573d38',13);
   for(let x=0;x<len;x+=17){box(g,x,-43,Math.min(15,len-x),86,2,Math.floor(x/17)%2?'#bc9773':'#c8aa86','#735847');line(g,x+3,-36,x+3,35,'#e1c6a022',1);}
-  for(const y of [-50,50]){line(g,0,y,len,y,'#674c42',4);line(g,0,y-4,len,y-4,'#e1c49b',2);}
+  for(const y of [-50,50]){
+   if(kind==='rope'){
+    g.beginPath();g.moveTo(0,y);g.quadraticCurveTo(len/2,y+Math.sign(y)*20,len,y);
+    g.strokeStyle='#e6cf9e';g.lineWidth=5;g.stroke();
+   }else{line(g,0,y,len,y,'#674c42',4);line(g,0,y-4,len,y-4,'#e1c49b',2);}
+  }
   for(let x=0;x<=len;x+=60){for(const y of [-49,49]){box(g,x-4,y-9,8,18,2,'#70554a');line(g,x-5,y-9,x+5,y-9,'#effaff',3);}}
  }
  g.restore();
@@ -166,6 +172,14 @@ function landmark(g,zone){
  }else if(theme==='reward'){
   pine(g,0,0,1.05,true);gift(g,-48,22,1.4);gift(g,51,24,1);lantern(g,84,20,1);
  }else if(theme==='finish'||theme==='final'){
+  box(g,-63,-90,126,110,5,'#c8e2ec','#7e9db2');
+  for(const xx of [-84,0,84]){
+   box(g,xx-19,-128,38,145,4,'#b9d8e7','#6e91a9');
+   path(g,[[xx-27,-126],[xx,-176],[xx+27,-126]],'#eafaff','#7da8c0',3);
+   box(g,xx-7,-105,14,23,5,'#547e9b');
+   line(g,xx,-172,xx,-198,'#738eab',3);path(g,[[xx,-198],[xx+29,-190],[xx,-181]],'#dca8bc');
+  }
+  box(g,-16,-28,32,48,13,'#365b78','#fbebbc');
   for(const xx of [-64,64]){box(g,xx-12,-85,24,107,5,'#b6cbd7','#728ca1');box(g,xx-17,-91,34,13,4,'#fff7db','#bcac7b');}
   path(g,[[-83,-93],[0,-132],[83,-93],[72,-78],[0,-109],[-72,-78]],'#f4d78a','#9b8b66',3);
   icon(g,'finish',0,-76,36,'#be9758');box(g,-68,15,136,14,4,'#ebf4f7','#9bb6c4');
@@ -177,29 +191,52 @@ function landmark(g,zone){
  }
  g.restore();
 }
-function scenery(g,map){
- g.fillStyle='#183e5d';g.fillRect(0,0,map.width,map.height);
- const rng=window.BoardMap.random(map.seed+47);
- for(let i=0;i<160;i++){const x=rng()*map.width,y=rng()*map.height;line(g,x,y,x+28+rng()*52,y-5,'#81d9df16',2);}
- for(const zone of map.islands||[])island(g,zone);
- const bridgeKeys=new Set(map.bridges.map(([a,b])=>a+'>'+b));
- for(const n of Object.values(map.nodes))for(const id of n.nextNodes){if(bridgeKeys.has(n.id+'>'+id))continue;const p=map.nodes[id].position;line(g,n.position.x,n.position.y,p.x,p.y,'#7da9b733',101);line(g,n.position.x,n.position.y,p.x,p.y,'#f9ffff',92);line(g,n.position.x,n.position.y,p.x,p.y,'#bdd9df',68);line(g,n.position.x,n.position.y,p.x,p.y,'#dbeef0',61);}
- for(const [a,b]of map.bridges)bridge(g,map.nodes[a].position,map.nodes[b].position,map.bridgeStyles?.[a+'>'+b]||'wood');
- const edges=Object.values(map.nodes).flatMap(n=>n.nextNodes.map(id=>[n.position,map.nodes[id].position]));
- for(const zone of map.islands||[]){
-  const xs=zone.outline.map(p=>p.x),ys=zone.outline.map(p=>p.y),loX=Math.min(...xs),hiX=Math.max(...xs),loY=Math.min(...ys),hiY=Math.max(...ys);
-  const placements=[];
-  for(let i=0;i<110;i++){
-   const x=loX+rng()*(hiX-loX),y=loY+rng()*(hiY-loY),p={x,y};
-   if(!inside(p,zone.outline)||!inside({x:x-47,y:y-80},zone.outline)||!inside({x:x+47,y:y+24},zone.outline)||edges.some(([a,b])=>window.BoardItems.segmentDistance(p,a,b)<145)||placements.some(q=>Math.hypot(q.x-x,q.y-y)<95)||zone.landmark&&Math.hypot(zone.landmark.x-x,zone.landmark.y-y)<140)continue;
-   placements.push(p);
-   if(i%8===0)fence(g,x,y);else if(i%6===0)lantern(g,x,y,.8);else if(i%5===0)gift(g,x,y,.8);else if(i%4===0)rock(g,x,y,.65+rng()*.3);else pine(g,x,y,.6+rng()*.4,regionTheme(zone)==='reward'&&i%3===0);
-  }
-  landmark(g,zone);
+function decoration(g,d){
+ const {kind,x,y,scale:s=1}=d;
+ if(kind==='pine')return pine(g,x,y,s,true);
+ if(kind==='gift')return gift(g,x,y,s);
+ if(kind==='rock')return rock(g,x,y,s);
+ if(kind==='lantern')return lantern(g,x,y,s);
+ if(kind==='fence')return fence(g,x,y);
+ g.save();g.translate(x,y);g.scale(s,s);
+ if(kind==='house')landmark(g,{theme:'camp',landmark:{x:0,y:0}});
+ else if(kind==='mountain'){
+  path(g,[[-100,25],[-65,-55],[-15,-160],[35,-77],[105,25]],'#78a5bc','#547e99',4);
+  path(g,[[-15,-160],[35,-77],[12,-88],[-2,-65],[-22,-98],[-45,-84]],'#f4ffff');
+  path(g,[[-15,-147],[-8,25],[105,25],[35,-77]],'#adcfdc');
+  path(g,[[-15,-147],[35,-77],[12,-88],[-2,-65]],'#fff');
+ }else if(kind==='cave'){
+  path(g,[[-65,24],[-50,-38],[0,-75],[50,-38],[65,24]],'#a0cbd9','#58869d',3);
+  g.beginPath();g.ellipse(0,14,29,40,0,Math.PI,TAU);g.fillStyle='#1c4964';g.fill();
+  for(const x of [-20,0,20])path(g,[[x-7,-26],[x+7,-26],[x,-3]],'#e4ffff');
+ }else if(kind==='lake'){
+  g.beginPath();g.ellipse(0,0,135,95,-.2,0,TAU);g.fillStyle='#81bacf';g.fill();g.strokeStyle='#f9ffff';g.lineWidth=14;g.stroke();
+  g.beginPath();g.ellipse(0,-5,120,78,-.2,0,TAU);g.fillStyle='#afdfeb';g.fill();
+  line(g,-75,-23,65,-42,'#e7ffff',6);line(g,-45,21,87,0,'#d7f8ff',4);
+  path(g,[[-100,15],[-50,5],[-25,22],[20,13]],null,'#72b6cc',2);
+ }
+ g.restore();
+}
+function decorations(g,s){
+ const c=s.camera,z=Math.max(.04,c.zoom),halfW=480/z+300,halfH=(mapBottom(s)-94)/2/z+300;
+ const visible=p=>Math.abs(p.x-c.x)<halfW&&Math.abs(p.y-c.y)<halfH;
+ // Authored placements, drawn sharply at follow zoom; no seed and no spawning.
+ for(const zone of s.map.islands){
+  for(const d of zone.decorations)if(visible(d))decoration(g,d);
+  if(visible(zone.landmark))landmark(g,zone);
  }
 }
+function scenery(g,map){
+ g.fillStyle='#183e5d';g.fillRect(0,0,map.width,map.height);
+ // Ocean texture is fixed too; gameplay RNG never enters the renderer.
+ for(let i=0;i<160;i++){const x=(i*977+143)%map.width,y=(i*661+71)%map.height;line(g,x,y,x+52,y-5,'#81d9df16',2);}
+ for(const zone of map.islands)island(g,zone);
+ const bridgeKeys=new Set(map.bridges.map(([a,b])=>a+'>'+b));
+ for(const n of Object.values(map.nodes))for(const id of n.nextNodes){if(bridgeKeys.has(n.id+'>'+id))continue;const p=map.nodes[id].position;line(g,n.position.x,n.position.y,p.x,p.y,'#7da9b733',101);line(g,n.position.x,n.position.y,p.x,p.y,'#f9ffff',92);line(g,n.position.x,n.position.y,p.x,p.y,'#bdd9df',68);line(g,n.position.x,n.position.y,p.x,p.y,'#dbeef0',61);}
+ for(const [a,b]of map.bridges)bridge(g,map.nodes[a].position,map.nodes[b].position,map.bridgeStyles[a+'>'+b]);
+}
 // Allocation failure keeps the same island silhouette and walkable connections;
-// only ornamentation is omitted. Visible-region culling bounds per-frame work.
+// ornaments share the same culled vector pass. Memory stays bounded.
 function sceneryLite(g,s){
  const map=s.map,c=s.camera,zoom=Math.max(.06,c.zoom||1),width=480/zoom+220,height=(mapBottom(s)-(94))/2/zoom+220;
  const intersects=(a,b)=>Math.max(a.x,b.x)>=c.x-width&&Math.min(a.x,b.x)<=c.x+width&&Math.max(a.y,b.y)>=c.y-height&&Math.min(a.y,b.y)<=c.y+height;
@@ -267,7 +304,7 @@ function regionLabels(g,s){
   box(g,-65,-13,130,27,7,'#173c53ed','#92b7c4');
   const theme=regionTheme(zone),kind=theme==='sword'?'sword':theme==='risk'?'danger':theme==='reward'?'lucky':theme==='finish'?'finish':'movement';
   icon(g,kind,-51,0,8,theme==='finish'?'#ffe0a0':'#b9e5ee');
-  const title=c.zoom<.4?(zone.theme==='camp'?'START • SNOWFALL':zone.theme==='crown'?'FINISH • CROWN':zone.name.replace(' HARBOR','').replace(' RIDGE','').replace(' GARDEN','').replace(' REACH','')):zone.name;
+  const title=c.zoom<.4?(zone.theme==='camp'?'START • NOEL':zone.theme==='crown'?'FINISH • CROWN':zone.name.replace(' HARBOR','').replace(' RIDGE','').replace(' GARDEN','').replace(' REACH','')):zone.name;
   label(g,title,-37,0,11,zone.theme==='crown'?'#ffe4a5':'#e1f3f8','left',700,95);g.restore();
  }
 }
@@ -284,11 +321,11 @@ function nodes(g,s){
    Math.min(a.y,b.y)<=c.y+halfH;
  for(const n of Object.values(s.map.nodes))for(const id of n.nextNodes){const a=n.position,b=s.map.nodes[id].position;
   if(!edgeVisible(a,b))continue;
-  const branch=id[0]==='b'?s.map.branches.find(v=>id.startsWith('b'+v.a+'_')):null;
+  const branch=s.map.branches.find(v=>v.nodeIds.includes(id));
   const tint=branch?.kind==='risky'?'#b78964':branch?'#6e9d91':'#5c8ea5';
   g.save();g.translate(a.x+(b.x-a.x)*.52,a.y+(b.y-a.y)*.52);g.rotate(Math.atan2(b.y-a.y,b.x-a.x));
   for(const shift of [-5,5])path(g,[[shift-4,-5],[shift+2,0],[shift-4,5]],null,tint,2.5);g.restore();
-  if(branch&&id==='b'+branch.a+'_1'&&c.zoom>.55){
+  if(branch&&id===branch.nodeIds[0]&&c.zoom>.55){
    const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),x=(a.x+b.x)/2-dy/d*58,y=(a.y+b.y)/2+dx/d*58;
    box(g,x-44,y-10,88,20,6,'#edf9f8ef',tint);label(g,branch.kind==='risky'?'ลัด • เสี่ยง':'อ้อม • ฮีล / โชค',x,y,9,'#36596c','center',700,80);
   }
@@ -504,7 +541,7 @@ function hud(g,s){
  const p=active;
  if(s.phase==='overview'||s.camera.overview){
   label(g,'WINTER ISLANDS',30,footerY+18,14,'#ffe4a5');
-  label(g,(s.map.islands?.length||7)+' เกาะ • เดินตามลูกศร • เลือกทางที่ทางแยก',30,footerY+40,10,'#b9d9e7','left',500,302);
+  label(g,(s.map.islands?.length||9)+' เกาะ • '+s.map.length+' ช่วง • A เริ่มทอยเมื่อพร้อม',30,footerY+40,10,'#b9d9e7','left',500,302);
   const legend=[['sword','ยึดพื้นที่'],['healing','ฟื้น HP'],['danger','อันตราย'],['lucky','ไอเทม']];
   legend.forEach(([type,name],i)=>{const x=410+i*135;circle(g,x,footerY+22,12,colors[type]);icon(g,type,x,footerY+22,type==='sword'?9:8);label(g,name,x,footerY+48,9,'#d6eaf2','center',600,100);});
  }else if(p){
@@ -779,11 +816,18 @@ function inspect(s,x,y){
   if(d<distance){best=n;distance=d;}}
  if(distance>Math.max(50,22/c.zoom))return null;
  c.selectedId=best.id;
- return {id:best.id,type:best.type,islandId:best.islandId,mapVersion:s.map.version,progress:best.progress,
+ return {id:best.id,type:best.type,islandId:best.islandId,bridgeId:best.bridgeId||null,mapVersion:s.map.version,progress:best.progress,
   next:[...best.nextNodes],previous:[...best.previousNodes],
   x:best.position.x,y:best.position.y,
   owner:s.map.territories[best.territoryId]?.ownerId||null,
   hp:best.effects.hp||0};
+}
+function branchFrame(s){
+ const p=window.BoardParty.current(s);
+ if(s.phase!=='branch'||!p)return null;
+ const points=[window.BoardItems.position(s,p),...s.map.nodes[p.currentNodeId].nextNodes.map(id=>s.map.nodes[id].position)];
+ const xs=points.map(p=>p.x),ys=points.map(p=>p.y),minX=Math.min(...xs)-75,maxX=Math.max(...xs)+75,minY=Math.min(...ys)-75,maxY=Math.max(...ys)+95;
+ return {x:(minX+maxX)/2,y:(minY+maxY)/2,zoom:Math.min(1,860/(maxX-minX),(mapBottom(s)-94-20)/(maxY-minY))};
 }
 function draw(g,t,s){
  // The first screen must render without allocating or painting the world map.
@@ -793,16 +837,16 @@ function draw(g,t,s){
  const top=94,bottom=mapBottom(s),viewH=bottom-top;
  const p=window.BoardParty.current(s)||s.players[0],
    bombing=s.phase==='effect'&&s.effect?.kind==='bomber';
- const pos=bombing?s.effect.points[2]:s.skill||window.BoardItems.position(s,p);
+ const fork=branchFrame(s),pos=fork|| (bombing?s.effect.points[2]:s.skill||window.BoardItems.position(s,p));
  const wide=s.phase==='aim',overviewMode=s.phase==='overview'||s.camera.overview;
  const introZoom=s.phase==='intro_zoom';
  const zoomTarget=overviewMode?(s.camera.manualZoom||fitZoom(s)):
    s.camera.paused?(s.camera.manualZoom||s.camera.zoom):
-   bombing?.72:canPan(s)?(s.camera.manualZoom||.65):wide?.65:s.phase==='branch'?.83:1;
+   bombing?.72:canPan(s)?(s.camera.manualZoom||.65):wide?.65:fork?fork.zoom:1;
  const c=s.camera,dt=Math.min(.05,Math.max(.001,t-(c.lastRenderTime??t-.016)));c.lastRenderTime=t;
  if(introZoom){
   // Use the authoritative board clock rather than render-frame smoothing.
-  // Exactly 1.5s after the 2s overview, reach the first player's start node.
+  // Reach START 1.5s after the player ends their map exploration.
   const from=c.introFrom||{x:c.x,y:c.y,zoom:c.zoom};
   const progress=Math.max(0,Math.min(1,(s.time-s.phaseAt)/1.5));
   const ease=progress*progress*(3-2*progress);
@@ -821,7 +865,7 @@ function draw(g,t,s){
  }
  c.x=clampCamera(c.x,halfW,b.minX,b.maxX);c.y=clampCamera(c.y,halfH,b.minY,b.maxY);
  g.clearRect(0,0,960,sceneHeight(s));g.fillStyle='#183e5d';g.fillRect(0,top,960,viewH);g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();g.translate(480,top+viewH/2);g.scale(c.zoom,c.zoom);g.translate(-c.x,-c.y);
- ground(g,s);if(typeof ambience==='function'&&!c.lowDetail)ambience(g,s,t);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
+ ground(g,s);decorations(g,s);if(typeof ambience==='function'&&!c.lowDetail)ambience(g,s,t);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<(c.lowDetail?0:35);i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
  hud(g,s);
@@ -838,7 +882,7 @@ function draw(g,t,s){
   label(g,n.id+' • '+n.type+' • progress '+n.progress+' • HP '+(n.effects.hp||0),
    221,bottom-31,12,'#ffe9a1','left',800,512);
   label(g,'ก่อน: '+n.previousNodes.join(',')+'  ต่อ: '+n.nextNodes.join(',')+
-    '  x='+Math.round(n.position.x)+' y='+Math.round(n.position.y)+'  เกาะ: '+n.islandId+
+    '  x='+Math.round(n.position.x)+' y='+Math.round(n.position.y)+'  พื้นที่: '+(n.islandId||n.bridgeId)+
     (t?'  เจ้าของ: '+(t.ownerId||'ไม่มี'):''),
     221,bottom-10,10,'#d6efff','left',700,513);
  }
@@ -847,5 +891,5 @@ function draw(g,t,s){
   label(g,c.paused?'หยุดเกม • ลากสำรวจ / กดเล่นต่อเมื่อพร้อม':'ลากสำรวจ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,bottom-13,11,'#e9faff','center',700,335);
  }
 }
-window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan,overview,follow,zoom,toggleDebug,inspect,fitZoom});
+window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan,overview,follow,zoom,toggleDebug,inspect,fitZoom,branchFrame});
 })();

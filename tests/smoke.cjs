@@ -2262,12 +2262,12 @@ for(const count of [1,12]){
  const s=api.getBoard(),map=s.map;
  assert.equal(api.getRound().mode,'board');assert.equal(s.players.length,count);
  assert.equal(s.phase,'overview');
- assert.equal(s.deadline-s.phaseAt,2,'map overview lasts exactly 2 seconds');
+ assert.equal(s.deadline,Infinity,'exploration has no human timeout');
  api.updateBoard(1);api.updateBoard(.95);
  assert.equal(s.phase,'overview','full-map introduction remains visible before two seconds');
- api.updateBoard(.05);
- assert.equal(s.phase,'intro_zoom','camera automatically begins zoom after 2 seconds');
- assert.equal(s.deadline-s.phaseAt,1.5,'intro zoom lasts exactly 1.5 seconds');
+ ui.click('boardStartDiceBtn');
+ assert.equal(s.phase,'intro_zoom','start button begins camera fly-in');
+ assert.ok(Math.abs(s.deadline-s.phaseAt-1.5)<1e-9,'intro zoom lasts 1.5 seconds');
  assert.ok(s.camera.introFrom&&Number.isFinite(s.camera.introFrom.zoom),
    'camera captures the current overview framing before zooming');
  // Camera fly-in must interpolate toward the real starting node, not an arbitrary point.
@@ -2283,7 +2283,7 @@ for(const count of [1,12]){
  assert.equal(s.phase,'intro_zoom','order cannot start until the fly-in finishes');
  api.updateBoard(.05);
  assert.equal(s.phase,'order','dice ordering starts automatically after 3.5 seconds');
- assert.equal(ui.elements.has('boardStartDiceBtn'),false,'obsolete manual start-dice button removed');
+ assert.equal(ui.elements.has('boardStartDiceBtn'),true,'host can end exploration when ready');
  for(let i=0;i<10000&&s.phase!=='minigame';i++)api.updateBoard(.05);
  assert.equal(s.phase,'minigame','every turn completes and starts the reel');
  assert.ok(api.getSelection());
@@ -2332,18 +2332,20 @@ for(const count of [1,12]){
  conn.fire('data',{t:'input',turnId:state.turnId,actionId:1,keys:{alt:true}});
  assert.equal(p.dice,null,'roll input rejected during map overview');
  api.updateBoard(1);api.updateBoard(1);
- assert.equal(s.phase,'intro_zoom','online clients also enter automatic camera fly-in');
+ assert.equal(s.phase,'overview','human can keep exploring');
+ conn.fire('data',{t:'input',turnId:state.turnId,actionId:2,keys:{action:true}});
+ assert.equal(s.phase,'intro_zoom','phone A starts camera fly-in');
  state=conn.sent.filter(p=>p.t==='board-state').at(-1);
- conn.fire('data',{t:'input',turnId:state.turnId,actionId:2,keys:{alt:true}});
+ conn.fire('data',{t:'input',turnId:state.turnId,actionId:3,keys:{alt:true}});
  assert.equal(p.dice,null,'roll input rejected while camera is zooming');
  api.updateBoard(1);api.updateBoard(.5);
  assert.equal(s.phase,'order','online game starts dice ordering automatically');
  state=conn.sent.filter(p=>p.t==='board-state').at(-1);
- conn.fire('data',{t:'input',turnId:state.turnId,actionId:3,keys:{alt:true}});assert.ok(p.dice,'B can roll order after fly-in');
+ conn.fire('data',{t:'input',turnId:state.turnId,actionId:4,keys:{alt:true}});assert.ok(p.dice,'B can roll order after fly-in');
  const dice=JSON.stringify(p.dice);conn.fire('data',{t:'input',turnId:state.turnId,actionId:3,keys:{alt:true}});assert.equal(JSON.stringify(p.dice),dice);
  for(let i=0;i<120;i++)api.updateBoard(.05);assert.equal(s.phase,'ready');
  conn.fire('data',{t:'input',turnId:state.turnId,actionId:2,keys:{action:true}});assert.equal(s.phase,'ready','old turn packet rejected');
- state=conn.sent.filter(p=>p.t==='board-state').at(-1);conn.fire('data',{t:'input',turnId:state.turnId,actionId:4,keys:{action:true}});assert.equal(s.phase,'dice');
+ state=conn.sent.filter(p=>p.t==='board-state').at(-1);conn.fire('data',{t:'input',turnId:state.turnId,actionId:5,keys:{action:true}});assert.equal(s.phase,'dice');
  const id=p.id,node=p.currentNodeId;conn.close();
  const seat=ui.timers.findLast(t=>t.ms===60000&&!t.cancelled);assert.ok(seat);seat.fn();assert.equal(api.getPlayers().length,1);assert.equal(p.isBot,true);assert.equal(p.currentNodeId,node);
  const replacement=peer.connect();peer.fire('connection',replacement);replacement.fire('data',{t:'join',name:'Board phone',clientToken:'stable-board-token'});

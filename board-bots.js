@@ -17,6 +17,16 @@ function forwardTarget(s,p,maxSteps=Infinity){
   .map(q=>({q,path:route(s,p.currentNodeId,q.currentNodeId)})).filter(v=>!Number.isFinite(maxSteps)||(v.path&&v.path.length-1<=maxSteps))
   .sort((a,b)=>Number.isFinite(maxSteps)?a.path.length-b.path.length:s.map.nodes[b.q.currentNodeId].progress-s.map.nodes[a.q.currentNodeId].progress)[0]?.q;
 }
+// Remaining distance is counted in directed edges, never X/Y or progress gaps.
+function chooseNext(s,p,from=p.currentNodeId){
+ const score=id=>{
+  const n=s.map.nodes[id];
+  const danger=n.type==='danger'?(p.hp<=35?25:p.hp<70?10:3):0;
+  const benefit=n.type==='healing'&&p.hp<80?Math.min(12,(100-p.hp)/4):n.type==='lucky'?-1:0;
+  return n.remainingSteps+danger-(n.type==='lucky'?1:benefit);
+ };
+ return [...s.map.nodes[from].nextNodes].sort((a,b)=>score(a)-score(b))[0]||null;
+}
 function update(s,dt,api){
  // Rewards are added directly to every bot's backpack by the host.
  const p=api.current(s);if(!p?.isBot)return;
@@ -40,7 +50,7 @@ function update(s,dt,api){
   send(s,p,api,0,0,currentIndex===desiredIndex?'A':'B');
  }else if(s.phase==='move_ready'||(s.phase==='moving'&&s.move?.kind==='walk')){
   const m=s.move,from=window.BoardItems.position(s,p),
-   goal=s.map.nodes[m.to||s.map.nodes[p.currentNodeId].nextNodes[0]]?.position;
+   goal=s.map.nodes[m.to||chooseNext(s,p)]?.position;
   if(!goal)return;
   // Reach the current checkpoint before aiming around the next bend. On a
   // tight island hairpin, blending the next edge can point backwards and
@@ -51,15 +61,13 @@ function update(s,dt,api){
  }else if(s.phase==='rocket'){
   const m=s.move,at=window.BoardItems.position(s,p),base=m.to||p.currentNodeId;
   const next=m.to?s.map.nodes[m.to]:s.map.nodes[p.currentNodeId];
-  const goal=m.to?next?.position:s.map.nodes[base].nextNodes
-   .map(id=>s.map.nodes[id]).sort((a,b)=>b.progress-a.progress)[0]?.position;
+  const goal=m.to?next?.position:s.map.nodes[chooseNext(s,p,base)]?.position;
   if(!goal)return;
   const dx=goal.x-at.x,dy=goal.y-at.y,d=Math.hypot(dx,dy)||1;
   send(s,p,api,dx/d,dy/d);
  }else if(s.phase==='branch'){
-  const opts=s.branch.options;
-  const cost=id=>{const n=s.map.nodes[id];return n.progress-s.map.nodes[p.currentNodeId].progress-(p.hp<2&&n.type==='danger'?4:0)+(p.hp<3&&n.type==='healing'?2:0);};
-  const to=[...opts].sort((a,b)=>cost(b)-cost(a))[0],a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position;
+  // All candidates are outgoing graph edges.
+  const to=chooseNext(s,p),a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position;
   send(s,p,api,(b.x-a.x)/Math.hypot(b.x-a.x,b.y-a.y),(b.y-a.y)/Math.hypot(b.x-a.x,b.y-a.y));
   // Selection is resolved by the host update before the confirmation arrives.
   if(s.move.kind==='rocket'&&s.branch.selected===to)send(s,p,api,0,0,'A');
@@ -88,5 +96,5 @@ function update(s,dt,api){
   send(s,p,api,dx/d,dy/d);
  }
 }
-window.BoardBots=Object.freeze({update});
+window.BoardBots=Object.freeze({update,chooseNext,route});
 })();

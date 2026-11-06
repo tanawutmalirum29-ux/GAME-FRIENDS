@@ -43,6 +43,7 @@ jobs:
           node tests/board-christmas-svg.cjs
           node tests/board-layout.cjs
           node tests/board-fixed.cjs
+          node tests/board-expedition.cjs
       - name: "Central character combat: 0.8-second stun and attacker-colored VFX"
         run: node tests/combat-motion.cjs
       - name: Runtime smoke test
@@ -76,3 +77,29 @@ jobs:
           for(const file of ['arena-art.js','style.css','amplify.yml','README.md','player-avatar.js','ghost-attack.js','chickens.js','fruit-memory.js','shockwave.js','host.html'])if(!fs.existsSync(file))throw Error('Missing '+file);
           console.log('Checked '+used.length+' ID references and static game assets');
           NODE
+
+  board-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser test tools
+        run: |
+          npm install --prefix /tmp/board-browser playwright@1.62.1
+          /tmp/board-browser/node_modules/.bin/playwright install --with-deps chromium webkit
+      - name: Real host and controller input, camera, and rendering
+        env:
+          NODE_PATH: /tmp/board-browser/node_modules
+        run: |
+          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
+          node tests/board-browser.cjs
+          node tests/board-startup.cjs
+          BOARD_BROWSER=webkit node tests/board-startup.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: board-expedition-screenshots
+          path: /tmp/game-friends-board

@@ -22,7 +22,7 @@ const server=http.createServer((req,res)=>{
 });
 async function noScroll(page){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight),true);}
 async function toolbarInside(page){
-   const toolBounds=await page.evaluate(()=>{const a=document.getElementById('arena').getBoundingClientRect(),b=document.getElementById('boardTools').getBoundingClientRect(),scale=Math.min(a.width/960,a.height/540),x=a.left+(a.width-960*scale)/2,y=a.top+(a.height-540*scale)/2;return{left:(b.left-x)/scale,right:(b.right-x)/scale,top:(b.top-y)/scale,bottom:(b.bottom-y)/scale};});
+   const toolBounds=await page.evaluate(()=>{const a=document.getElementById('arena').getBoundingClientRect(),b=document.getElementById('boardTools').getBoundingClientRect(),height=__boardTest.board.camera.viewHeight||540,scale=Math.min(a.width/960,a.height/height),x=a.left+(a.width-960*scale)/2,y=a.top+(a.height-height*scale)/2;return{left:(b.left-x)/scale,right:(b.right-x)/scale,top:(b.top-y)/scale,bottom:(b.bottom-y)/scale};});
    assert.ok(toolBounds.left>=340&&toolBounds.right<=910&&toolBounds.top>=0&&toolBounds.bottom<=35,'toolbar stays in the header above map/player cards');
 }
 async function main(){
@@ -42,7 +42,7 @@ async function main(){
    await toolbarInside(host);
   }
   await host.screenshot({path:path.join(out,'overview-12.png')});
-  await host.locator('#boardStartDiceBtn').click();await host.evaluate(()=>__boardTest.drawGame(0));
+  await host.locator('#boardStartDiceBtn').click();await host.evaluate(()=>{__boardTest.updateBoard(1);__boardTest.updateBoard(.5);__boardTest.drawGame(__boardTest.board.time);});
   await host.screenshot({path:path.join(out,'order-12.png')});
   await host.screenshot({path:path.join(out,'board-order.jpg'),type:'jpeg',quality:82,scale:'css'});
   async function drawnTexts(){return host.evaluate(()=>{
@@ -66,6 +66,7 @@ async function main(){
    await host.screenshot({path:path.join(out,`order-${view.width}.png`)});
   }
   await host.setViewportSize({width:1024,height:768});
+  await host.evaluate(()=>__boardTest.drawGame(0));
   // The real host controls must explore the map without touching gameplay state.
   await host.locator('#boardStartDiceBtn').click();
   await host.evaluate(()=>{const s=__boardTest.board;s.order=s.players.map(p=>p.id);s.players.forEach(p=>p.isBot=false);BoardParty.startTurn(s);});
@@ -77,18 +78,20 @@ async function main(){
   for(let i=0;i<7;i++)await host.locator('#boardZoomInBtn').click();
   await host.evaluate(()=>__boardTest.drawGame(0));
   const beforePan=await host.evaluate(()=>({...__boardTest.board.camera}));
-  const box=await host.locator('#arena').boundingBox(),scale=Math.min(box.width/960,box.height/540);
-  const arena={x:box.x+(box.width-960*scale)/2,y:box.y+(box.height-540*scale)/2,width:960*scale,height:540*scale};
-  await host.mouse.move(arena.x+arena.width*.50,arena.y+arena.height*.56);await host.mouse.down();
-  await host.mouse.move(arena.x+arena.width*.60,arena.y+arena.height*.60,{steps:5});await host.mouse.up();
+  const box=await host.locator('#arena').boundingBox(),viewHeight=await host.evaluate(()=>__boardTest.board.camera.viewHeight),scale=Math.min(box.width/960,box.height/viewHeight);
+  const arena={x:box.x+(box.width-960*scale)/2,y:box.y+(box.height-viewHeight*scale)/2,width:960*scale,height:viewHeight*scale};
+  await host.mouse.move(arena.x+arena.width*.50,arena.y+arena.height*.75);await host.mouse.down();
+  await host.mouse.move(arena.x+arena.width*.60,arena.y+arena.height*.77,{steps:5});await host.mouse.up();
   const afterPan=await host.evaluate(()=>({...__boardTest.board.camera}));
   assert.ok(afterPan.x!==beforePan.x||afterPan.y!==beforePan.y,'real canvas drag pans while paused');
+  // The center of this archipelago is open sea. Pan onto a known island for tap inspection.
+  await host.evaluate(()=>{const s=__boardTest.board,c=s.camera,p=s.map.nodes.n76.position;BoardArt.pan(s,(c.x-p.x)*c.zoom,(c.y-p.y)*c.zoom);__boardTest.drawGame(0);});
   const target=await host.evaluate(()=>{
    const s=__boardTest.board,c=s.camera,top=94;
-   return Object.values(s.map.nodes).map(n=>({id:n.id,x:480+(n.position.x-c.x)*c.zoom,y:(top+452)/2+(n.position.y-c.y)*c.zoom})).find(n=>n.x>100&&n.x<860&&n.y>top+40&&n.y<410);
+   return Object.values(s.map.nodes).map(n=>({id:n.id,x:480+(n.position.x-c.x)*c.zoom,y:(top+c.viewHeight-88)/2+(n.position.y-c.y)*c.zoom})).find(n=>n.x>100&&n.x<860&&n.y>top+40&&n.y<c.viewHeight-120);
   });
   assert.ok(target,'zoomed map has an inspectable node');
-  await host.mouse.click(arena.x+target.x*arena.width/960,arena.y+target.y*arena.height/540);
+  await host.mouse.click(arena.x+target.x*arena.width/960,arena.y+target.y*arena.height/viewHeight);
   assert.equal(await host.evaluate(()=>__boardTest.board.camera.selectedId),target.id);
   await host.evaluate(()=>__boardTest.drawGame(0));
   await host.screenshot({path:path.join(out,'pause-debug.png')});
@@ -128,22 +131,28 @@ async function main(){
   }
   await host.evaluate(()=>{const s=__boardTest.board;s.players[0].bag=['potion'];s.players[0].item='potion';s.players[0].hp=50;s.players[0].currentNodeId='n1';s.players[0].worldPosition=null;s.rng=()=>0;});
   await refreshPhone();await noScroll(phone);await phone.screenshot({path:path.join(out,'phone.png')});
-  assert.match(await phone.locator('#buttonBLabel').innerText(),/เปลี่ยนตัวเลือก/);await tap('#buttonB');
+  assert.match(await phone.locator('#buttonBLabel').innerText(),/เปลี่ยนไอเทม/);await tap('#buttonB');
   await refreshPhone();assert.match(await phone.locator('#buttonALabel').innerText(),/ใช้ไอเทม/);
   await tap('#buttonA');assert.equal(await host.evaluate(()=>__boardTest.board.players[0].hp),100);
   await host.evaluate(()=>{for(let i=0;i<30;i++)BoardParty.update(__boardTest.board,.05);});await refreshPhone();await tap('#buttonA');
   assert.equal(await host.evaluate(()=>__boardTest.board.phase),'dice');
-  await host.evaluate(()=>{const s=__boardTest.board;for(let i=0;i<20;i++)BoardParty.update(s,.05);__boardTest.drawGame(s.time);});
+  await host.evaluate(()=>{const s=__boardTest.board;for(let i=0;i<36;i++)BoardParty.update(s,.05);__boardTest.drawGame(s.time);});
   assert.deepEqual(await host.evaluate(()=>__boardTest.board.moveDice),[1,1]);
   // Inspect the actual Canvas calls: two die faces inside the central third, correct pips/total.
   const diceDrawing=await host.evaluate(()=>{
-   const g=document.createElement('canvas').getContext('2d'),faces=[],texts=[];let pips=0;
-   const rr=g.roundRect.bind(g),arc=g.arc.bind(g),text=g.fillText.bind(g);
-   g.roundRect=(x,y,w,h,...args)=>{if(w===h){const m=g.getTransform();faces.push({x:m.e+x+w/2,y:m.f+y+h/2});}rr(x,y,w,h,...args);};
-   g.arc=(...args)=>{pips++;arc(...args);};g.fillText=(...args)=>{texts.push(args[0]);text(...args);};
-   BoardArt.turnDice(g,__boardTest.board);return{centers:[...new Set(faces.map(p=>p.x))],faces,texts,pips};
+   const g=document.createElement('canvas').getContext('2d'),faces=[],texts=[],renderer=BoardDiceRenderer;
+   const text=g.fillText.bind(g);g.fillText=(...args)=>{texts.push(args[0]);text(...args);};
+   window.BoardDiceRenderer={...renderer,draw(g,value,x,y,size,t,index,lite){
+    faces.push({value,x,y,front:renderer.frontFace(value,t,index)});
+    return renderer.draw(g,value,x,y,size,t,index,lite);
+   }};
+   try{BoardArt.turnDice(g,__boardTest.board);}finally{window.BoardDiceRenderer=renderer;}
+   return{faces,texts};
   });
-  assert.equal(diceDrawing.centers.length,2);assert.equal(diceDrawing.pips,2);assert.ok(diceDrawing.faces.every(p=>p.x>320&&p.x<640&&p.y>180&&p.y<360));assert.ok(diceDrawing.texts.some(s=>String(s).includes('2 ก้าว')));
+  assert.equal(diceDrawing.faces.length,2);
+  assert.ok(diceDrawing.faces.every(p=>p.value===1&&p.front===1&&p.x>320&&p.x<640&&p.y>180&&p.y<360));
+  assert.ok(diceDrawing.faces[0].x<diceDrawing.faces[1].x);
+  assert.ok(diceDrawing.texts.some(s=>String(s).includes('2 ก้าว')));
   await host.screenshot({path:path.join(out,'dice-center.png')});
   await host.screenshot({path:path.join(out,'board-dice.jpg'),type:'jpeg',quality:82,scale:'css'});
   await host.evaluate(()=>{const s=__boardTest.board;for(let i=0;i<20;i++)BoardParty.update(s,.05);__boardTest.drawGame(s.time);});
@@ -173,7 +182,7 @@ async function main(){
   // Bomber: B changes to rotation after entering aim, A commits the same preview.
   await host.evaluate(()=>{const s=__boardTest.board;BoardParty.startTurn(s);s.players[0].usedRound=0;s.players[0].bag=['bomber'];s.players[0].item='bomber';});
   await refreshPhone();await tap('#buttonB');await refreshPhone();
-  assert.match(await phone.locator('#buttonBLabel').innerText(),/ใช้ไอเทม/);
+  assert.match(await phone.locator('#buttonALabel').innerText(),/เล็งเป้า/);
   await tap('#buttonA');await refreshPhone();assert.match(await phone.locator('#buttonBLabel').innerText(),/45/);await tap('#buttonB');
   assert.equal(await host.evaluate(()=>__boardTest.board.skill.angle),Math.PI/4);
   await refreshPhone();await tap('#buttonA');assert.equal(await host.evaluate(()=>__boardTest.board.phase),'effect');

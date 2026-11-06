@@ -61,7 +61,7 @@ async function main(){
     const s=__boardStartup.board;s.order=s.players.map(p=>p.id);s.players.forEach(p=>p.isBot=false);BoardParty.startTurn(s);
     window.__drawnTexts=[];
    });
-   await page.waitForFunction(()=>__drawnTexts.includes('A • ทอยลูกเต๋า'),{},{timeout:20000});
+   await page.waitForFunction(()=>__drawnTexts.includes('ทอยลูกเต๋า')&&__boardStartup.board.phase==='ready',{},{timeout:20000});
    assert.equal(await page.evaluate(()=>__boardStartup.view),'game');
    const sizes=await page.evaluate(()=>__terrainSizes);assert.equal(sizes.length,1);assert.ok(sizes[0]<=3500000);
    await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');

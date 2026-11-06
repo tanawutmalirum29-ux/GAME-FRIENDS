@@ -159,7 +159,7 @@ function arenaContentRect(rect){
  canvas.addEventListener('pointerdown',e=>{
   if(!enabled())return;
   const pt=coords(e),top=94;
-  if(pt.x<0||pt.x>960||pt.y<top||pt.y>452)return;
+  if(pt.x<0||pt.x>960||pt.y<top||pt.y>(boardSession.camera.viewHeight||540)-88)return;
   e.preventDefault();pointers.set(e.pointerId,pt);
   if(pointers.size===1){downAt=pt;gestureMoved=false;pinchDistance=0;}
   else if(pointers.size===2){const q=[...pointers.values()];
@@ -1535,7 +1535,7 @@ function renderPhoneInventory(info){
   $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
   showControllerMode(info.mode);
 }
-function sendInputs(){if(!controllerReady)return;send(controllerConn,{t:'input',keys:{...controllerKeys},turnId:controllerBoard?.turnId,actionId:++controllerActionId});}
+function sendInputs(){if(!controllerReady)return;send(controllerConn,{t:'input',keys:{...controllerKeys},turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId});}
 function isPortraitScreen(){
   if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
   return Number(window.innerHeight)>Number(window.innerWidth);
@@ -1750,6 +1750,7 @@ function refreshBoardTools(){
   const c=boardSession.camera;
   $('boardNodeDebugBtn').setAttribute('aria-pressed',String(!!c.debugNodes));
   $('boardEffectsBtn').setAttribute('aria-pressed',String(!!c.lowDetail));
+  $('boardStartDiceBtn').classList.toggle('hidden',boardSession.phase!=='overview');
   $('boardFollowBtn').disabled=['overview','intro_zoom'].includes(boardSession.phase);
   $('boardOverviewBtn').disabled=boardSession.phase==='intro_zoom';
   const inspect=window.BoardArt.canPan(boardSession);
@@ -1811,7 +1812,7 @@ function broadcastBoardState(){
   if(!boardSession||round?.mode!=='board')return;
   for(const conn of hostConnections){
     const p=boardSession.players.find(p=>p.id===conn.playerId);if(!p)continue;
-    send(conn,{t:'board-state',phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
+    send(conn,{t:'board-state',mapVersion:boardSession.map.version,phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
       round:boardSession.roundNumber,hp:p.hp,usedRound:p.usedRound||0,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:p.shieldTurns||0,
       item:window.BoardItems.names[p.item]||'ไม่มีไอเทม',
       bag:window.BoardItems.bag(p).slice(),actionIndex:p.actionIndex||0,bagMessage:p.bagMessage||'',
@@ -2692,6 +2693,7 @@ $('boardOverviewBtn').addEventListener('click',()=>{
  if(boardSession.phase!=='overview')pauseGame();
  window.BoardArt.overview(boardSession);refreshBoardTools();
 });
+$('boardStartDiceBtn').addEventListener('click',()=>{if(boardSession&&window.BoardParty.startOrder(boardSession))refreshBoardTools();});
 $('boardFollowBtn').addEventListener('click',()=>{if(round?.mode==='board'&&boardSession){window.BoardArt.follow(boardSession);if(round.paused)resumeGame();refreshBoardTools();}});
 $('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;refreshBoardTools();}});
 $('boardZoomInBtn').addEventListener('click',()=>{if(boardSession)window.BoardArt.zoom(boardSession,1.25);});
