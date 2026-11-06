@@ -5,7 +5,7 @@ const TAU=Math.PI*2, FIXED=1/60;
 const Combat=window.PartyCombatMotion;
 const C=Object.freeze({speed:170,radius:14,punchRange:46,punchWindup:Combat.ATTACK.windup,
  punchActive:Combat.ATTACK.active,punchRecovery:Combat.ATTACK.recovery,punchCooldown:Combat.ATTACK.cooldown,punchStun:Combat.NORMAL_STUN,
- blastCooldown:2.8,blastCast:.18,botPunchRate:.084,boxSpawnInterval:12,
+ blastCooldown:2.8,blastCast:.18,botPunchRate:.084,boxSpawnInterval:8,
  rocketSpeed:360,rocketRadius:7,rocketLifetime:2.2,rocketStun:1.5});
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function rand(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
@@ -40,7 +40,7 @@ function spawnPlayers(s,ps){
  });
 }
 function setup(round,ps){
- const s={clock:0,elapsed:0,remaining:0,duration:active(ps).length<=6?60:75,
+ const s={clock:0,elapsed:0,remaining:0,duration:active(ps).length<=6?40:60,
   accumulator:0,seed:(Number(round.colorSeed)||Date.now()^0x6d213a9b)>>>0||1,
   tiles:[],board:null,cols:0,rows:0,size:0,boxes:[],rockets:[],rocketHits:new Map(),effects:[],
   boxCounter:0,burstCounter:0,usedBoxIds:new Set(),nextBoxSpawn:0,eventCounter:0,finished:false,
@@ -288,7 +288,7 @@ function collectPowerBox(s,ps){
 }
 function updateBoxes(s,ps){
  // Do not expire uncollected boxes or refill to a maximum. Two fresh boxes
- // are added at 12,24,36... seconds, even when every previous box remains.
+ // are added at 8,16,24... seconds, even when every previous box remains.
  s.boxes=s.boxes.filter(b=>b.active);
  while(s.elapsed+1e-7>=s.nextBoxSpawn&&s.nextBoxSpawn<s.duration){
   const batch=rand(s)<.5?['rocket','score_bank']:['score_bank','rocket'];
