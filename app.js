@@ -140,8 +140,14 @@ function holdSeat(p){
 }
 const canvas=$('arena'), g=canvas.getContext('2d');
 function arenaContentRect(rect){
- const width=Number(rect.width)||960,height=Number(rect.height)||540,scale=Math.min(width/960,height/540);
- return {left:rect.left+(width-960*scale)/2,top:rect.top+(height-540*scale)/2,scale};
+ const width=Number(rect.width)||960,height=Number(rect.height)||540;
+ // BOARD PARTY extends its logical map vertically instead of letterboxing
+ // the fixed 16:9 world. Keep 960 X units and a uniform physical pixel scale.
+ if(round?.mode==='board'&&boardSession&&height/width>540/960){
+  return {left:rect.left,top:rect.top,scale:width/960,height:960*height/width};
+ }
+ const scale=Math.min(width/960,height/540);
+ return {left:rect.left+(width-960*scale)/2,top:rect.top+(height-540*scale)/2,scale,height:540};
 }
 // Host map gestures: drag to pan, pinch to zoom and tap nodes in Debug mode.
 // Game input remains exclusively on the controller; pause freezes simulation.
@@ -191,7 +197,7 @@ function arenaContentRect(rect){
 // across Retina tablets/large monitors. This changes graphics only: coordinates,
 // speeds, physics, HUD geometry and the controller's video quality are unchanged.
 const ARENA_WIDTH=960,ARENA_HEIGHT=540,MAX_ARENA_SCALE=3;
-let arenaResolutionDirty=true,arenaLastDpr=0,arenaLastModeKey='';
+let arenaResolutionDirty=true,arenaLastDpr=0,arenaLastModeKey='',arenaLastBoxKey='';
 function markArenaResolutionDirty(){arenaResolutionDirty=true;}
 function syncArenaResolution(){
  const rawDpr=Number(window.devicePixelRatio);
@@ -201,11 +207,19 @@ function syncArenaResolution(){
  // memory well above the smaller mini-games. Other games retain 3x quality.
  const denseBoard=round?.mode==='board'&&boardSession?.players.length>=8;
  const modeKey=denseBoard?'board-dense':round?.mode==='board'?'board':'normal';
- if(!arenaResolutionDirty&&arenaLastDpr===dpr&&arenaLastModeKey===modeKey)return;
- arenaResolutionDirty=false;arenaLastDpr=dpr;arenaLastModeKey=modeKey;
  const box=canvas.getBoundingClientRect?.();
- if(round?.mode==='board'&&box?.width){
-  const content=arenaContentRect(box),toolScale=content.scale,originX=content.left,originY=content.top;
+ const boxKey=(Number(box?.width)||0)+'x'+(Number(box?.height)||0);
+ if(!arenaResolutionDirty&&arenaLastDpr===dpr&&arenaLastModeKey===modeKey&&arenaLastBoxKey===boxKey)return;
+ arenaResolutionDirty=false;arenaLastDpr=dpr;arenaLastModeKey=modeKey;arenaLastBoxKey=boxKey;
+ const boardActive=round?.mode==='board'&&!!boardSession;
+ const content=arenaContentRect(box||{width:960,height:540,left:0,top:0});
+ if(boardActive){
+  const oldHeight=boardSession.camera.viewHeight||540;
+  boardSession.camera.viewHeight=content.height;
+  if(Math.abs(oldHeight-content.height)>.1&&boardSession.camera.overview)window.BoardArt?.overview?.(boardSession);
+ }
+ if(boardActive&&box?.width){
+  const toolScale=content.scale,originX=content.left,originY=content.top;
   $('boardTools').style.cssText='left:'+(originX+345*toolScale)+'px;top:'+(originY+3*toolScale)+'px;transform:scale('+toolScale+');';
   $('pauseBtn').style.cssText='left:'+(originX+919*toolScale)+'px;top:'+(originY+3*toolScale)+'px;transform:scale('+toolScale+');';
  }else $('pauseBtn').style.cssText='';
@@ -215,15 +229,19 @@ function syncArenaResolution(){
  const shortSide=Math.min(Number(box?.width)||0,Number(box?.height)||0);
  const displayScale=longSide>0&&shortSide>0?
    Math.max(longSide/ARENA_WIDTH,shortSide/ARENA_HEIGHT):1;
- const scale=Math.min(denseBoard?2.4:MAX_ARENA_SCALE,Math.max(1,displayScale*dpr));
+ const logicalHeight=boardActive?content.height:ARENA_HEIGHT;
+ const screenScale=boardActive&&box?.width?content.scale:displayScale;
+ // Cap the portrait/split-screen board bitmap budget at 3.6 MP.
+ const bitmapBudget=boardActive?Math.sqrt(3600000/(ARENA_WIDTH*logicalHeight)):MAX_ARENA_SCALE;
+ const scale=Math.min(denseBoard?2.4:MAX_ARENA_SCALE,bitmapBudget,Math.max(1,screenScale*dpr));
  const width=Math.round(ARENA_WIDTH*scale);
- const height=Math.round(ARENA_HEIGHT*scale);
+ const height=Math.round(logicalHeight*scale);
  if(canvas.width!==width||canvas.height!==height){
    canvas.width=width;canvas.height=height;
  }
  // Setting canvas.width/height clears all context state. Restore the
  // pixel-to-world transform so existing game engines still draw 960x540.
- g.setTransform(width/ARENA_WIDTH,0,0,height/ARENA_HEIGHT,0,0);
+ g.setTransform(width/ARENA_WIDTH,0,0,height/logicalHeight,0,0);
  g.imageSmoothingEnabled=true;
  g.imageSmoothingQuality='high';
 }
