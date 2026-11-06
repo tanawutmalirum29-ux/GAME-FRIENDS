@@ -19,6 +19,33 @@ function advance(x,seconds,fps=60){
  x.round.phase='playing';
  for(let i=0;i<Math.ceil(seconds*fps);i++)game.update(1/fps,x.round,x.players);
 }
+// Progressive timers apply inside Fruit Memory, not across the six-game
+// playlist. Each wave is harder but exposure and run duration have floors.
+{
+ for(const large of [false,true]){
+  const first=game.memoryPace(1,large);
+  assert.equal(first.revealFactor,1,'first wave uses original exposure');
+  assert.equal(first.moveSeconds,large?7:5,'first wave uses original run time');
+  let previous=first;
+  for(let wave=2;wave<=20;wave++){
+   const current=game.memoryPace(wave,large);
+   assert.ok(current.revealFactor<=previous.revealFactor,'never increase visibility in later wave');
+   assert.ok(current.moveSeconds<=previous.moveSeconds,'never increase running time in later wave');
+   assert.ok(current.revealFactor>=.55,'preserve minimum per-batch visibility');
+   assert.ok(current.moveSeconds>=(large?3.2:2.5),'preserve safe minimum running time');
+   previous=current;
+  }
+  assert.equal(game.memoryPace(2,large).revealFactor,.92);
+  assert.equal(game.memoryPace(2,large).moveSeconds,large?6.4:4.5);
+  assert.equal(game.memoryPace(12,large).revealFactor,.55);
+  assert.equal(game.memoryPace(12,large).moveSeconds,large?3.2:2.5);
+ }
+ const restarted=init(7);
+ assert.equal(restarted.state.rounds,1,'fresh match resets wave count');
+ assert.equal(restarted.state.revealFactor,1);
+ assert.equal(restarted.state.moveSeconds,7);
+}
+
 for(let n=1;n<=12;n++){
  const x=init(n),small=n<=6,tiles=x.state.tiles;
  assert.equal(x.state.cols,small?5:6);assert.equal(x.state.rows,small?5:6);
@@ -168,10 +195,19 @@ function seam(x){
  const tiles=s.tiles.slice(),b=s.board;
  advance(x,2.7);
  assert.equal(s.rounds,2);assert.equal(s.board,b);
+ assert.equal(s.revealFactor,.92,'second survival wave shortens exposure by 8 percent');
+ assert.equal(s.moveSeconds,4.5,'second survival wave shortens running time');
+ assert.ok(s.revealTimeline.every(group=>group.duration>.65),
+  'every sped-up reveal remains visible and readable');
  tiles.forEach((tile,i)=>assert.equal(s.tiles[i],tile,'physical tile object remains the same'));
  assert.deepEqual(x.players.slice(0,2).map(z=>[z.x,z.y,z.dir]),pos,
    'human and bot survivors never change position or direction between rounds');
  assert.equal(x.players.filter(z=>z.fruitAlive).length,2,'eliminated player stays out');
+ const secondWaveTiles=s.tiles.length;
+ advance(x,s.revealDuration+.1);
+ assert.equal(s.revealedTileIds.size,secondWaveTiles,
+  'every tile is shown even on the faster second wave');
+ assert.equal(s.phase,'hide','cards turn down only after the last group has been shown');
 }
 {
  const x=init(2),s=x.state,[p,q]=x.players;

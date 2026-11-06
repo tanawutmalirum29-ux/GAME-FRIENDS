@@ -57,12 +57,21 @@ function buildRevealSchedule(tiles,minCards=4,maxCards=6){
  }
  return groups;
 }
-function buildRevealTimeline(groups){
+// Each new survival wave accelerates Fruit Memory. Round one retains the
+// original timings; later waves shorten exposure and running time with floors.
+function memoryPace(roundNumber,large){
+ const extra=Math.max(0,(Number(roundNumber)||1)-1);
+ return {
+   revealFactor:Math.max(.55,1-.08*extra),
+   moveSeconds:large?Math.max(3.2,7-.6*extra):Math.max(2.5,5-.5*extra)
+ };
+}
+function buildRevealTimeline(groups,revealFactor=1){
  let start=0;
  return groups.map(ids=>{
-   // The full memorization phase has NO fixed countdown. Each batch gets
-   // time to turn over, be seen, and close before the next batch starts.
-   const duration=1.15+ids.length*.13+Math.random()*.33;
+   // Every group completes its own (progressively shorter) exposure; there
+   // is never a hard global cutoff that could skip unrevealed tiles.
+   const duration=(1.15+ids.length*.13+Math.random()*.33)*revealFactor;
    const item={ids,start,end:start+duration,duration};
    start=item.end;
    return item;
@@ -99,10 +108,14 @@ function newMemorize(state,players,entrants){
  }
  state.revealedTileIds=new Set();
  state.revealGroups=state.big?buildRevealSchedule(state.tiles,6,8):buildRevealSchedule(state.tiles,4,6);
- state.revealTimeline=buildRevealTimeline(state.revealGroups);
+ const nextRound=state.rounds+1;
+ const pace=memoryPace(nextRound,state.big);
+ state.revealFactor=pace.revealFactor;
+ state.moveSeconds=pace.moveSeconds;
+ state.revealTimeline=buildRevealTimeline(state.revealGroups,pace.revealFactor);
  state.revealCursor=0;
  state.revealDuration=state.revealTimeline.at(-1).end;
- state.target=null;state.rounds++;
+ state.target=null;state.rounds=nextRound;
  state.fallEntries=[];state.pendingWinner=null;state.botTargets={};
  state.pendingTie=false;state.tieIds=[];
  for(const p of players){
@@ -483,6 +496,6 @@ function draw(ctx,time,round,players){
  drawSideDisplays(ctx,state,round,players);
  ctx.restore();
 }
-window.FruitMemory=Object.freeze({setup,update,draw,hud,generateGrid,buildRevealSchedule,
+window.FruitMemory=Object.freeze({setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
  calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawSideDisplays,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();
