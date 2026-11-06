@@ -1982,17 +1982,17 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  conn.fire('data',frame);
  const slots=phone.elements.get('inventoryItem').children;
  assert.equal(slots.length,7,'permanent roll + six item slots are rendered');
- assert.equal(slots[0].classList.contains('is-selected'),true,'Roll stays bright/selectable');
- assert.equal(slots[0].classList.contains('is-locked'),false);
- for(let i=1;i<7;i++)assert.equal(slots[i].classList.contains('is-locked'),true,
+ assert.equal(slots[0].className.includes('is-selected'),true,'Roll stays bright/selectable');
+ assert.equal(slots[0].className.includes('is-locked'),false);
+ for(let i=1;i<7;i++)assert.equal(slots[i].className.includes('is-locked'),true,
   'all items are visibly locked after one item: slot '+i);
  assert.equal(slots[6].children.at(-1).textContent,'2','locked shield keeps the actual quantity');
  assert.match(phone.elements.get('inventoryGuide').textContent,/ทอยลูกเต๋าต่อ/);
  conn.fire('data',{...frame,turnId:'ready-next-round',round:4,usedRound:3});
  const unlocked=phone.elements.get('inventoryItem').children;
- assert.equal(unlocked[6].classList.contains('is-locked'),false,
+ assert.equal(unlocked[6].className.includes('is-locked'),false,
   'all stocked items unlock again when a NEW board round starts');
- assert.equal(unlocked[0].classList.contains('is-selected'),true);
+ assert.equal(unlocked[0].className.includes('is-selected'),true);
 }
 // Full room-preserving page refresh: same room, seat token, choice and color.
 {
