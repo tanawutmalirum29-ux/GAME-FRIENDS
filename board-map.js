@@ -61,8 +61,8 @@ function create(seed=Date.now()){
  // on the two longer detours as a balanced reward.
  const mainRegions=[[6,12],[14,19],[24,33],[36,45],[49,58],[61,70]];
  for(const [from,to] of mainRegions){
-  const options=Array.from({length:to-from+1},(_,j)=>'n'+(from+j))
-   .sort(()=>rng()-.5);
+  const options=Array.from({length:to-from+1},(_,j)=>'n'+(from+j));
+  for(let i=options.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[options[i],options[j]]=[options[j],options[i]];}
   const id=options.find(id=>!adjacentType(map,id,'lucky')&&!SWORD_TILES.includes(id));
   if(!id)throw Error('No non-adjacent Lucky Star in region');
   addType(nodes[id],'lucky');
