@@ -597,15 +597,56 @@ test('250 UFO cases: real world hitboxes, stacked players, atomic swap, no landi
  }
  const s=ready(),p=s.players[0],q=s.players[1];p.item='ufo';q.currentNodeId=s.map.finishId;press(s,p,'B');aimUfoAt(s,p,q);press(s,p,'A');assert.equal(p.item,'ufo');assert.equal(s.phase,'aim');press(s,p,'C');assert.equal(p.item,'ufo');assert.equal(s.phase,'ready');assert.equal(p.usedRound,0);
 });
-test('Repeated aim cancellation never forces a human dice roll',()=>{
+test('UFO aim does not expire for humans; C cancels repeatedly without spending or rolling',()=>{
  const s=ready(),p=s.players[0];p.item='ufo';
- press(s,p,'B');tick(s,8.05);assert.equal(s.phase,'ready');
- press(s,p,'B');tick(s,4.1);press(s,p,'B');tick(s,.2);
- assert.equal(s.phase,'aim','aiming is not interrupted by a 12s turn deadline');
- tick(s,8.1);assert.equal(s.phase,'ready');
- tick(s,30);assert.equal(s.phase,'ready','player may wait to roll after cancelling aim');
- assert.equal(p.item,'ufo');assert.equal(p.usedRound,0);
- press(s,p,'A');assert.equal(s.phase,'dice','A still starts the actual dice roll');
+ for(let i=0;i<3;i++){
+  press(s,p,'B');assert.equal(s.phase,'aim');
+  assert.equal(s.deadline,Infinity,'human UFO aim has no timeout');
+  tick(s,9+i*3);assert.equal(s.phase,'aim','human stays in targeting mode until A or C');
+  assert.equal(press(s,p,'C'),true);assert.equal(s.phase,'ready');
+  assert.equal(p.actionIndex,I.ids.indexOf('ufo')+1,'C keeps UFO selected');
+  assert.equal(p.item,'ufo');assert.equal(p.usedRound,0);
+  assert.equal(s.moveDice,null,'C never rolls dice');
+ }
+ tick(s,30);assert.equal(s.phase,'ready','cancel does not force a later roll');
+ assert.equal(P.action(s,p.id,'B'),true,'B can cycle back to Roll');
+ assert.equal(p.actionIndex,0);
+ assert.equal(press(s,p,'A'),true);assert.equal(s.phase,'dice','A now starts the chosen dice roll');
+});
+test('UFO next to another player never swaps on first/held A or without deliberate cursor movement',()=>{
+ const s=ready(3,1199),[p,q,r]=s.players;
+ p.item='ufo';q.currentNodeId='n1';r.currentNodeId='n20';
+ const own=I.position(s,p);
+ q.worldPosition={x:own.x+20,y:own.y}; // Inside the UFO radius immediately on entering aim.
+ const original=[p.currentNodeId,q.currentNodeId,r.currentNodeId];
+ p.actionIndex=I.ids.indexOf('ufo')+1;
+ const raw=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
+ assert.equal(raw({action:true}),true,'first A starts the preview');
+ assert.equal(s.phase,'aim');assert.equal(s.skill.requiresConfirmRelease,true);
+ assert.equal(s.skill.targetId,null,'nearby player is not preselected');
+ assert.equal(s.skill.aimTravel,0);
+ raw({action:true});assert.equal(s.phase,'aim','held A replay on the new token cannot swap');
+ raw({});assert.equal(s.skill.requiresConfirmRelease,false,'real A release arms confirmation');
+ raw({action:true});assert.equal(s.phase,'aim','second A without moving cursor is rejected');
+ assert.deepEqual(plain(s.players.map(v=>v.currentNodeId)),original);
+ assert.ok(I.bag(p).includes('ufo'),'UFO stock is untouched before aiming');
+ raw({});raw({axisX:1});P.update(s,.05);raw({});
+ assert.ok(s.skill.aimTravel>=I.UFO_AIM_TRAVEL_MIN,'joystick deliberately moves cursor');
+ assert.equal(s.skill.targetId,q.id,'nearby player is now visibly selected');
+ assert.equal(raw({cancel:true}),true);
+ assert.equal(s.phase,'ready','C exits aim without applying the swap');
+ assert.deepEqual(plain(s.players.map(v=>v.currentNodeId)),original);
+ assert.equal(p.usedRound,0);assert.equal(s.moveDice,null);
+ assert.ok(I.bag(p).includes('ufo'),'cancel keeps the UFO for reuse');
+ raw({});raw({action:true});assert.equal(s.phase,'aim','UFO may be reselected');
+ raw({action:true});assert.equal(s.phase,'aim','held A is still safe after retry');
+ raw({});raw({axisX:1});P.update(s,.05);raw({});
+ assert.equal(s.skill.targetId,q.id);
+ raw({action:true});
+ assert.equal(s.phase,'effect','a fresh A after actual aiming commits the swap');
+ assert.equal(s.effect.kind,'ufo');
+ assert.equal(p.currentNodeId,'n1');assert.equal(q.currentNodeId,'n0');
+ assert.equal(p.usedRound,s.roundNumber);assert.equal(p.item,null);
 });
 test('5-second rocket: continuous steering, no five-node cap and preserved mid-edge landing',()=>{
  let multiple=0;
