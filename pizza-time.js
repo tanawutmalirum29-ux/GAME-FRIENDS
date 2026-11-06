@@ -278,8 +278,13 @@ function projectPizzaPlayer(s,p,x,y,r){
  const minX=25+r,maxX=s.world.w-25-r,minY=25+r,maxY=s.world.h-25-r;
  x=bound(x,minX,maxX);y=bound(y,minY,maxY);
  if(!blocked(s,x,y,r))return {x,y};
- if(!blocked(s,x,p.y,r))return {x,y:p.y};
- if(!blocked(s,p.x,y,r))return {x:p.x,y};
+ // Prefer whichever tangential slide matches the intended joystick direction.
+ // The old horizontal-first rule made vertical turns snag on prep counters.
+ const horizontal=!blocked(s,x,p.y,r),vertical=!blocked(s,p.x,y,r);
+ if(horizontal&&vertical)
+  return Math.abs(y-p.y)>Math.abs(x-p.x)?{x:p.x,y}:{x,y:p.y};
+ if(horizontal)return{x,y:p.y};
+ if(vertical)return{x:p.x,y};
  return {x:p.x,y:p.y};
 }
 function pizzaCharacterRules(s){
@@ -303,12 +308,13 @@ function nearestWanted(s,p){
 }
 function botInput(s,p,dt){
  const pizza=p.pizza,chef=s.chefById.get(p.id);
+ if((pizza.botPause||0)>0){pizza.botPause=Math.max(0,pizza.botPause-dt);return {x:0,y:0};}
  const target=pizza.held?chef.deliver:nearestWanted(s,p);
  if(!target)return {x:0,y:0};
  const point=target.pick||target,goal=(target.id??'chef')+'-'+pizza.orderSerial+'-'+(pizza.held||'');
  pizza.repath-=dt;
  if(pizza.botGoal!==goal||pizza.repath<=0||pizza.botPath.length===0){
-   pizza.botPath=aStar(s,p,point,true).points;pizza.botGoal=goal;pizza.repath=.40;
+   pizza.botPath=aStar(s,p,point,true).points;pizza.botGoal=goal;pizza.repath=.72;
  }
  while(pizza.botPath.length&&hyp(p,pizza.botPath[0])<21)pizza.botPath.shift();
  const next=pizza.botPath[0]||point,dx=next.x-p.x,dy=next.y-p.y,len=Math.hypot(dx,dy);
@@ -316,11 +322,12 @@ function botInput(s,p,dt){
 }
 function collect(s,p){
  const pizza=p.pizza;
- const near=s.tables.filter(t=>hyp(p,t.pick)<40);
+ const near=s.tables.filter(t=>hyp(p,t.pick)<(p.isBot?40:48));
  for(const t of near){
   const id=t.ingredient;
   if(!pizza.order.includes(id)||pizza.delivered.includes(id)||pizza.held===id)continue;
   pizza.held=id;pizza.botGoal=null;
+  if(p.isBot)pizza.botPause=.20;
   s.effects.push({x:p.x,y:p.y-24,text:'รับ '+byId[id].name,life:.55,color:p.color});
   break;
  }
@@ -328,10 +335,11 @@ function collect(s,p){
 function deliver(s,p){
  const pizza=p.pizza;
  const chef=s.chefById.get(p.id);
- if(!chef||!pizza.held||hyp(p,chef.deliver)>41)return;
+ if(!chef||!pizza.held||hyp(p,chef.deliver)>(p.isBot?41:49))return;
  const id=pizza.held;
  if(!pizza.order.includes(id)||pizza.delivered.includes(id)){pizza.held=null;return;}
  pizza.delivered.push(id);pizza.held=null;pizza.botGoal=null;
+ if(p.isBot)pizza.botPause=.27;
  s.effects.push({x:p.x,y:p.y-25,text:'ส่ง '+byId[id].name,life:.65,color:'#fff6a2'});
  if(pizza.delivered.length===2){
    p.score+=1;s.effects.push({x:p.x,y:p.y-40,text:'+1',life:1,color:'#fff4a0'});
@@ -351,7 +359,16 @@ function step(dt,round,ps){
  for(const p of active(ps)){
    if(!p.pizza)continue;
    const v=p.isBot?botInput(s,p,dt):input(p);
-   window.PartyCharacters.move(p,v,dt,{...rules,speed:s.world.h*.305});
+   // Give human players responsive low-stick steering; bots still pathfind,
+   // but walk roughly 30% slower and hesitate at pickups/deliveries.
+   if(!p.isBot){
+    const strength=Math.hypot(v.x,v.y);
+    if(strength>.10&&strength<1){
+     const assisted=Math.min(1,.34+.66*strength);
+     v.x*=assisted/strength;v.y*=assisted/strength;
+    }
+   }
+   window.PartyCharacters.move(p,v,dt,{...rules,speed:s.world.h*(p.isBot?.215:.335)});
  }
  // Default character collision/pushing is applied BEFORE food pickup and chef
  // delivery, so characters cannot pass through each other at busy counters.
