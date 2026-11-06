@@ -26,6 +26,11 @@ jobs:
         run: |
           node --check pizza-time.js
           node tests/pizza-time.test.cjs
+      - name: KNIGHT MATCH physics, balloon and HUD regressions
+        run: |
+          node --check knight-match.js
+          node --check tests/knight-match.cjs
+          node tests/knight-match.cjs
       - name: Test COLOR SWITCH core rules and stress
         run: node tests/color-switch.test.js
       - name: Mayan skull theme and 15 percent bot nerf
