@@ -12,6 +12,10 @@ function label(g,text,x,y,size=14,color='#e9f9ff',align='left',weight=700,maxWid
 function line(g,x,y,a,b,color,w=2){g.strokeStyle=color;g.lineWidth=w;g.lineCap='round';g.beginPath();g.moveTo(x,y);g.lineTo(a,b);g.stroke();}
 function star(g,x,y,r,fill){path(g,Array.from({length:10},(_,i)=>{const a=i*Math.PI/5-Math.PI/2,d=i%2?r*.45:r;return[x+Math.cos(a)*d,y+Math.sin(a)*d];}),fill);}
 function icon(g,kind,x,y,size=20,color='#fff'){
+ // Source of truth is the same detailed Christmas SVG as the phone UI.
+ // Canvas vector fallback stays available while Safari decodes the image.
+ if(['potion','ufo','rocket','bomber','car','shield'].includes(kind)&&
+    window.PartyUiArt?.draw?.(g,kind,x,y,size*2.05))return;
  g.save();g.translate(x,y);g.scale(size/20,size/20);g.lineJoin='round';
  if(kind==='bag'){window.PartyUiArt?.draw(g,'bag',0,0,34);}
  else if(kind==='healing'||kind==='potion'){
@@ -338,8 +342,13 @@ function effects(g,s,t){
  const I=window.BoardItems,sk=s.skill;
  if(sk){
   if(sk.kind==='bomber'){
-   for(const p of I.bombs(sk)){circle(g,p.x,p.y,I.blastRadius,'#f36b7a25','#ec6679',2);circle(g,p.x,p.y,5,'#f26c81');}
-   g.save();g.translate(sk.x,sk.y);g.rotate(sk.angle+Math.PI/2);icon(g,'bomber',0,0,29);g.restore();
+   for(const p of I.bombs(sk)){
+    circle(g,p.x,p.y,I.blastRadius,'#da59721a','#e6a7ba',2);
+    circle(g,p.x,p.y,7,'#b6475f','#ffe7a7',2);
+    star(g,p.x,p.y,3.5,'#fff4c7');
+   }
+   g.save();g.translate(sk.x,sk.y-16);g.rotate(sk.angle+Math.PI/2);
+   icon(g,'bomber',0,0,44);g.restore();
   }else if(sk.kind==='ufo'){
    circle(g,sk.x,sk.y,I.ufoRadius+I.radius,'#9beef32b',sk.targetId?'#b5ffb8':'#9eefff',3);icon(g,'ufo',sk.x,sk.y-38,33);
    if(sk.targetId){const p=s.players.find(p=>p.id===sk.targetId);label(g,p.shieldTurns?'โล่ป้องกัน • '+p.name:'A • '+p.name,sk.x,sk.y+46,16,'#163c53','center');}
@@ -351,7 +360,7 @@ function effects(g,s,t){
  const fx=s.effect;
  if(fx){const f=Math.min(1,(s.time-fx.at)/fx.duration);
   for(const p of fx.points){
-   if(fx.kind==='bomber'||fx.kind==='car'){circle(g,p.x,p.y,I.blastRadius*(.3+.7*f),'#ffc97655','#fff0b8',3);for(let i=0;i<10;i++){const a=i*TAU/10;circle(g,p.x+Math.cos(a)*f*I.blastRadius,p.y+Math.sin(a)*f*I.blastRadius,12*(1-f)+2,i%2?'#ffb971':'#fff1bb');}}
+   if(fx.kind==='car'){circle(g,p.x,p.y,I.blastRadius*(.3+.7*f),'#ffc97655','#fff0b8',3);for(let i=0;i<10;i++){const a=i*TAU/10;circle(g,p.x+Math.cos(a)*f*I.blastRadius,p.y+Math.sin(a)*f*I.blastRadius,12*(1-f)+2,i%2?'#ffb971':'#fff1bb');}}
    else if(fx.kind==='ufo'){path(g,[[p.x-36,p.y],[p.x+36,p.y],[p.x+12,p.y-120],[p.x-12,p.y-120]],'#b0f4ff66');icon(g,'ufo',p.x,p.y-120,32);}
    else if(fx.kind==='shield'){circle(g,p.x,p.y,25+f*35,null,'#a2e8ff',4);icon(g,'shield',p.x,p.y-40-f*20,23);}
    else if(fx.kind==='heal'){circle(g,p.x,p.y,25+f*35,null,'#73e4b5',4);icon(g,'healing',p.x,p.y-35-f*30,18,'#3fbd8b');}
@@ -367,7 +376,50 @@ function effects(g,s,t){
     label(g,fx.kind==='swordClaim'?'ยึดพื้นที่ทั้ง 2 ช่อง!':'พื้นที่ของคุณ',p.x,p.y-90-f*20,16,'#fff5cb','center',900,160);
    }
   }
-  if(fx.kind==='bomber'){const a=fx.points[0],b=fx.points[4];g.save();g.translate(a.x+(b.x-a.x)*f,a.y+(b.y-a.y)*f-45);g.rotate(Math.atan2(b.y-a.y,b.x-a.x)+Math.PI/2);icon(g,'bomber',0,0,34);g.restore();}
+  if(fx.kind==='bomber'){
+   const flight=I.bomberFlight(fx.points,s.time-fx.at);
+   if(flight){
+    // Dropped ordnance and its expanding snowy blast only appear AFTER the
+    // plane has physically passed their individual marker (never all at t=0).
+    for(const shot of flight.bombs){
+     if(shot.phase==='carried'||shot.phase==='spent')continue;
+     if(shot.phase==='falling'){
+      const altitude=84*(1-shot.fall),px=shot.x,py=shot.y-altitude;
+      circle(g,shot.x,shot.y,8+shot.fall*5,'#1c344b26');
+      g.save();g.translate(px,py);
+      const twirl=(s.time-fx.at-shot.drop)*5;
+      g.rotate(twirl);
+      path(g,[[-7,-10],[7,-10],[9,6],[0,13],[-9,6]],'#a94354','#f8e7c0',1.6);
+      path(g,[[-5,-8],[3,-8],[5,4],[0,9]],'#e88b86');
+      box(g,-4,-14,8,5,2,'#e5d6aa','#fff5d7');
+      line(g,-2,-8,-2,6,'#ffeec5',1.8);
+      g.restore();
+      line(g,px-6,py-19,px-9,py-34,'#e3f6f6a0',1.8);
+     }else if(shot.phase==='exploding'){
+      const pulse=Math.min(1,shot.age/.24),fade=Math.max(0,1-shot.age/.54);
+      circle(g,shot.x,shot.y,I.blastRadius*(.16+.84*pulse),
+       '#f8b45e38','#fff1c9',Math.max(.5,3*fade));
+      circle(g,shot.x,shot.y,17+26*pulse,'#fff5d6'+(fade>.4?'7a':'23'));
+      for(let i=0;i<12;i++){
+       const angle=(i*TAU/12)+shot.index*.45,range=(19+55*pulse);
+       const x=shot.x+Math.cos(angle)*range,y=shot.y+Math.sin(angle)*range;
+       circle(g,x,y,Math.max(1,4*fade),i%3===0?'#fffefd':i%3===1?'#cdeefe':'#f8d29c');
+      }
+     }
+    }
+    if(flight.plane.visible){
+     const aircraft=flight.plane,direction=aircraft.angle;
+     g.save();g.translate(aircraft.x,aircraft.y-57);g.rotate(direction+Math.PI/2);
+     // Swift white motion streaks and a broad fuselage silhouette make the
+     // flight unmistakable even at an island-scale camera zoom.
+     for(let i=-1;i<=1;i++){
+      line(g,i*15,53,i*15,83+i*3,'#d3f5ff83',3);
+     }
+     icon(g,'bomber',0,0,62);
+     g.restore();
+    }
+   }
+  }
  }
  for(const heal of s.heals||[]){
    const age=s.time-heal.at;if(age<0||age>1.4)continue;
@@ -679,12 +731,14 @@ function draw(g,t,s){
   g.fillStyle='#102e43';g.fillRect(0,0,960,sceneHeight(s));overlay(g,s);return;
  }
  const top=94,bottom=mapBottom(s),viewH=bottom-top;
- const p=window.BoardParty.current(s)||s.players[0],pos=s.skill||window.BoardItems.position(s,p);
+ const p=window.BoardParty.current(s)||s.players[0],
+   bombing=s.phase==='effect'&&s.effect?.kind==='bomber';
+ const pos=bombing?s.effect.points[2]:s.skill||window.BoardItems.position(s,p);
  const wide=s.phase==='aim',overviewMode=s.phase==='overview'||s.camera.overview;
  const introZoom=s.phase==='intro_zoom';
  const zoomTarget=overviewMode?(s.camera.manualZoom||fitZoom(s)):
    s.camera.paused?(s.camera.manualZoom||s.camera.zoom):
-   canPan(s)?(s.camera.manualZoom||.65):wide?.65:s.phase==='branch'?.83:1;
+   bombing?.72:canPan(s)?(s.camera.manualZoom||.65):wide?.65:s.phase==='branch'?.83:1;
  const c=s.camera,dt=Math.min(.05,Math.max(.001,t-(c.lastRenderTime??t-.016)));c.lastRenderTime=t;
  if(introZoom){
   // Use the authoritative board clock rather than render-frame smoothing.
