@@ -43,6 +43,13 @@ jobs:
         run: node tests/chickens.cjs
       - name: Full multiplayer smoke integration
         run: node tests/smoke.cjs
+      - name: Shared art, Shockwave, avatar, auto-update and vector regressions
+        run: |
+          node tests/arena-art.cjs
+          node tests/shockwave.cjs
+          node tests/avatar-topdown.cjs
+          node tests/auto-update.cjs
+          node tests/svg-only-policy.cjs
       - name: Ensure fifth game is loaded by HTML
         run: |
           grep -q 'src="./color-switch.js"' index.html
