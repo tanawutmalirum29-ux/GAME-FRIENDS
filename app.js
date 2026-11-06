@@ -65,13 +65,13 @@ let selectedSessionMode='queue';
 let boardSession=null,boardStateToken=null,boardStateClock=0;
 let controllerSessionMode='queue',controllerBoard=null,controllerActionId=0;
 const KEYS = [
-  {left:'KeyA',right:'KeyD',jump:'KeyW',down:'KeyS',action:'Space',alt:'ShiftLeft'},
-  {left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',down:'ArrowDown',action:'Enter',alt:'ShiftRight'}
+  {left:'KeyA',right:'KeyD',jump:'KeyW',down:'KeyS',action:'Space',alt:'ShiftLeft',cancel:'KeyC'},
+  {left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',down:'ArrowDown',action:'Enter',alt:'ShiftRight',cancel:'Slash'}
 ];
-const INPUT_NAMES = ['left','right','jump','down','action','alt'];
+const INPUT_NAMES = ['left','right','jump','down','action','alt','cancel'];
 let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPeer=null, controllerConn=null;
 let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0, inventoryClock=0;
-let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
+let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,cancel:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false,controllerPlayerEliminated=false;
 let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
 let disconnectRequested=false;
@@ -254,7 +254,7 @@ canvas.addEventListener('contextrestored',markArenaResolutionDirty);
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const cleanName=(value)=>String(value||'').trim().replace(/[<>]/g,'').slice(0,14)||'เพื่อนใหม่';
-const blankInput=()=>({left:false,right:false,jump:false,down:false,action:false,alt:false,axisX:0,axisY:0});
+const blankInput=()=>({left:false,right:false,jump:false,down:false,action:false,alt:false,cancel:false,axisX:0,axisY:0});
 function setStatus(text,bad=false){$('netStatus').textContent=text;$('netDot').classList.toggle('bad',bad);}
 
 let toastHandle=null,pendingConfirmation=null;
@@ -1439,7 +1439,8 @@ function setControllerGameContext(mode,phase,active){
     $('inventoryItem').classList.remove('pizza-order-icons','board-bag-icons');
     $('inventoryGuide').replaceChildren();
     $('targetCycleControls').classList.add('hidden');
-    $('controllerButtons').classList.remove('has-target');
+    $('controllerButtons').classList.remove('has-target','board-bomber-aim');
+    $('buttonC').disabled=true;
     $('targetName').textContent='ไม่มีเป้าหมาย';
   }
   showControllerMode(controllerGameMode);
@@ -1459,6 +1460,8 @@ function showControllerMode(mode){
   const bLabel=voting?controllerResultVotes.backLabel+' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
     ghost?($('controllerButtons').classList.contains('has-target')?
     'ยืนยันสโลว์':'ใช้ไอเทม'):colorSwitch?'ระเบิดสี':'';
+  $('controllerButtons').classList.remove('board-bomber-aim');
+  $('buttonC').disabled=true;
   $('controllerButtons').classList.toggle('chickens-mode',chickens);
   $('controllerButtons').classList.toggle('fruit-memory-mode',fruit);
   $('controllerButtons').classList.toggle('color-switch-mode',colorSwitch);
@@ -1827,6 +1830,11 @@ function renderPhoneBoard(){
  const info=controllerBoard;if(!info||controllerGameMode!=='board')return;
  $('buttonA').disabled=false;$('buttonB').disabled=false;
  for(const cls of ['chickens-mode','fruit-memory-mode','color-switch-mode','shockwave-mode','has-target'])$('controllerButtons').classList.remove(cls);
+ const bomberAim=info.boardPhase==='aim'&&info.c==='ยกเลิก';
+ $('controllerButtons').classList.toggle('board-bomber-aim',bomberAim);
+ $('buttonC').disabled=!bomberAim;
+ $('buttonCLabel').textContent=bomberAim?'ยกเลิก':'';
+ $('buttonC').setAttribute('aria-label',bomberAim?'C ยกเลิกการเล็งเครื่องบิน':'C');
  $('targetCycleControls').classList.add('hidden');
  for(const id of ['buttonA','buttonB']){$(id).classList.remove('cooldown-active','color-boost-ready');$(id).style.removeProperty('--cooldown-sweep');}
  $('controllerModeName').textContent='BOARD PARTY • ROUND '+info.round;
