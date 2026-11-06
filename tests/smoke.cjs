@@ -1536,7 +1536,10 @@ function createVoteHost(){
  cons[1].fire('data',{t:'result-vote',choice:'next'});
  const next=ui.scope.window.__ghostTest.getRound();
  assert.notEqual(next,round,'unanimous A creates a new round immediately');
- assert.equal(next.phase,'countdown','next game starts without waiting for timer');
+ assert.equal(next.phase,'roulette','unanimous A immediately starts the short selection reel');
+ assert.ok(ui.elements.get('gameRoulette').classList.contains('hidden')===false);
+ finishReel(ui);
+ assert.equal(ui.scope.window.__ghostTest.getRound().phase,'countdown','game starts after centered reveal');
  assert.equal(ui.elements.get('results').classList.contains('hidden'),true);
 }
 
@@ -1562,6 +1565,9 @@ function createVoteHost(){
  for(let tick=27;tick<175;tick++)ui.step(1000+tick*45);
  assert.notEqual(ui.scope.window.__ghostTest.getRound(),round,
    'automatic game advance still occurs at the original seven-second deadline');
+ assert.equal(ui.scope.window.__ghostTest.getRound().phase,'roulette',
+   'automatic next-game timer launches the reel immediately');
+ finishReel(ui);
  assert.equal(ui.scope.window.__ghostTest.getRound().phase,'countdown');
 }
 
