@@ -338,6 +338,21 @@ test('Lucky Star landing adds one stackable item and must finish reel + above-pl
  assert.equal(s.lucky,null);
  assert.notEqual(s.turnId,token);
 });
+test('Two DIFFERENT Lucky Star landing nodes in one rocket + dice turn both award, no duplicate granting',()=>{
+ const s=ready(3,680),p=s.players[0],tiles=s.map.luckyTileIds;
+ for(let i=0;i<2;i++){
+  const id=tiles[i],prev='n'+(Number(id.slice(1))-1);
+  p.currentNodeId=prev;delete p.worldPosition;
+  const before=I.bag(p).length;
+  P.beginMove(s,p,1,'rocket');
+  until(s,()=>s.phase==='lucky_roulette',4);
+  assert.equal(p.currentNodeId,id);
+  assert.equal(I.bag(p).length,before+1);
+  until(s,()=>s.phase==='ready',6);
+  assert.equal(s.turnIndex,0);
+ }
+ assert.ok(s.luckyGrantKey.endsWith(':'+tiles[1]));
+});
 test('Board result holds add 0.8 seconds for both minigame and item reels',()=>{
  const app=fs.readFileSync('app.js','utf8');
  assert.match(app,/holdDuration:1\.18/);
