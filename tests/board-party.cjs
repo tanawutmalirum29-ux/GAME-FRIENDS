@@ -29,7 +29,7 @@ function press(s,p,key,extra={}){
   return result;
  }
  send(extra);
- return send({...extra,action:key==='A',alt:key==='B'});
+ return send({...extra,action:key==='A',alt:key==='B',cancel:key==='C'});
 }
 function steer(s,p,to=s.move?.to||s.map.nodes[p.currentNodeId].nextNodes[0]){
  const a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position,d=Math.hypot(b.x-a.x,b.y-a.y);
@@ -573,6 +573,56 @@ test('5-second rocket: continuous steering, no five-node cap and preserved mid-e
   }
  }
  assert.ok(multiple>0,'rocket must be capable of going farther than five checkpoints');
+});
+test('Bomber two-step A flow: release guard, 8 orientations and C cancels with stock intact',()=>{
+ const s=ready(3,660),p=s.players[0],q=s.players[1];
+ p.item='bomber';q.currentNodeId='n10';p.actionIndex=4;
+ const hp=q.hp,bag=plain(I.bag(p)),state=plain(s.players.map(v=>v.currentNodeId));
+ // FIRST A must only enter an indefinite preview, not deal damage.
+ assert.equal(press(s,p,'A'),true);
+ assert.equal(s.phase,'aim');
+ assert.equal(s.skill.kind,'bomber');
+ assert.equal(s.deadline,Infinity);
+ assert.equal(s.skill.requiresConfirmRelease,true);
+ assert.deepEqual(plain(I.bag(p)),bag);
+ assert.equal(q.hp,hp);
+ assert.equal(p.usedRound,0);
+ assert.equal(P.controls(s,p.id).c,'ยกเลิก');
+ const raw=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
+ // WebKit can replay an A still held on the newly broadcast turn token.
+ raw({action:true});
+ assert.equal(s.phase,'aim','resending held A with a NEW token cannot fire the bomber');
+ assert.equal(s.skill.requiresConfirmRelease,true);
+ raw({});
+ assert.equal(s.skill.requiresConfirmRelease,false,'release arms the second A');
+ for(let i=1;i<=8;i++){
+  assert.equal(press(s,p,'B'),true);
+  assert.ok(Math.abs(s.skill.angle-((i%8)*Math.PI/4))<1e-9,'B rotates '+i+' steps of eight');
+  assert.equal(s.phase,'aim');
+ }
+ assert.equal(s.skill.angle,0,'eight B presses wrap back to the initial heading');
+ assert.equal(press(s,p,'C'),true);
+ assert.equal(s.phase,'ready');
+ assert.equal(s.skill,null);
+ assert.equal(p.actionIndex,4,'cancel returns to the selected bomber item');
+ assert.deepEqual(plain(I.bag(p)),bag);
+ assert.equal(p.usedRound,0);
+ assert.equal(s.moveDice,null,'cancel does not roll');
+ assert.equal(q.hp,hp,'cancel does not deal damage');
+ assert.deepEqual(plain(s.players.map(v=>v.currentNodeId)),state,'cancel preserves positions');
+ assert.equal(P.action(s,p.id,'C'),false,'C does nothing outside bomber aim');
+ assert.equal(press(s,p,'A'),true);
+ assert.equal(s.phase,'aim');
+ assert.deepEqual(plain(I.bag(p)),bag);
+ raw({}); // new turn token observes physical A release
+ Object.assign(s.skill,I.position(s,q));
+ const preview=plain(I.bombs(s.skill));
+ assert.equal(press(s,p,'A'),true,'SECOND deliberate A fires exactly once');
+ assert.equal(s.phase,'effect');
+ assert.equal(s.effect.kind,'bomber');
+ assert.deepEqual(plain(s.effect.points),preview);
+ assert.equal(I.bag(p).includes('bomber'),false,'only the actual strike consumes stock');
+ assert.equal(P.action(s,p.id,'C'),false,'cancel cannot undo an already committed volley');
 });
 test('250 Bomber attacks: 45-degree rotations, frozen preview, one hit per volley',()=>{
  for(let seed=0;seed<250;seed++){
