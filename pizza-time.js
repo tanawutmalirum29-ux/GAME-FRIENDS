@@ -202,45 +202,49 @@ function fairnessCandidates(s,p){
  return s.pairs.map(pair=>({pair,distance:pairCost(s,p,pair,s.chefById.get(p.id))}))
   .filter(x=>Number.isFinite(x.distance)).sort((a,b)=>a.distance-b.distance);
 }
-function chooseFirstOrders(s,ps){
- const pools=new Map(ps.map(p=>[p.id,fairnessCandidates(s,p)]));
- // Search common target distance instead of independently choosing easiest jobs.
- const targets=[...new Set([...pools.values()].flat().map(o=>Math.round(o.distance/8)*8))].sort((a,b)=>a-b);
- let best=null;
- for(const target of targets){
-  const selected=ps.map(p=>{
-   const list=pools.get(p.id),offset=(Number(p.id)||0)%Math.max(1,list.length);
-   return [...list].sort((a,b)=>Math.abs(a.distance-target)-Math.abs(b.distance-target)||
-     Number(a.pair[0]===s.lastIngredient.get(p.id))-Number(b.pair[0]===s.lastIngredient.get(p.id)))[0];
-  });
-  if(selected.some(x=>!x))continue;
-  const values=selected.map(x=>x.distance),min=Math.min(...values),max=Math.max(...values);
-  const spread=max-min,avg=values.reduce((a,b)=>a+b,0)/values.length;
-  const score=spread+Math.abs(avg-s.world.h*1.2)*.015;
-  if(!best||score<best.score)best={score,selected,spread,avg};
-  if(best&&spread<=avg*.02)break;
- }
- if(!best)return;
- s.targetDistance=best.avg;
- s.firstSpread=best.spread;
- ps.forEach((p,i)=>assignPair(s,p,best.selected[i]));
+// Compare difficulty across the same player's own four successive menus.
+// Other players' orders, scores, and distances never enter this selection.
+const menuKey=pair=>[...pair].sort().join('|');
+function selectOrder(s,p){
+ const pizza=p.pizza,options=fairnessCandidates(s,p);
+ if(!options.length)return null;
+ if(pizza.orderSerial%4===0||!Number.isFinite(pizza.blockTarget))
+  pizza.blockTarget=options[Math.floor(options.length/2)].distance;
+ const target=pizza.blockTarget;
+ const ranked=[...options].sort((a,b)=>Math.abs(a.distance-target)-Math.abs(b.distance-target));
+ const fair=ranked.filter(o=>Math.abs(o.distance-target)<=Math.max(1,target*.20));
+ const pool=fair.length>=Math.min(4,ranked.length)?fair:
+  ranked.slice(0,Math.min(4,ranked.length));
+ const recent=new Set(pizza.menuHistory.slice(-3).map(h=>h.key));
+ const fresh=pool.filter(o=>!recent.has(menuKey(o.pair)));
+ const choices=fresh.length?fresh:pool;
+ const times=entry=>pizza.menuCounts[menuKey(entry.pair)]||0;
+ const minCount=Math.min(...choices.map(times));
+ const leastUsed=choices.filter(o=>times(o)===minCount);
+ const inBlock=pizza.menuHistory.slice(-(pizza.orderSerial%4));
+ const ingredientCount=id=>inBlock.reduce((count,h)=>count+Number(h.pair.includes(id)),0);
+ return leastUsed.map(entry=>({
+  entry,
+  score:Math.abs(entry.distance-target)/Math.max(1,target)*2+
+   (ingredientCount(entry.pair[0])+ingredientCount(entry.pair[1]))*.08+random(s)*.24
+ })).sort((a,b)=>a.score-b.score)[0].entry;
 }
 function assignPair(s,p,entry){
- const pizza=p.pizza;
+ if(!entry)return false;
+ const pizza=p.pizza,key=menuKey(entry.pair);
  pizza.order=[...entry.pair];pizza.delivered=[];pizza.held=null;
  pizza.assignedTotal+=entry.distance;
  pizza.lastCost=entry.distance;pizza.orderSerial++;
- s.lastIngredient.set(p.id,entry.pair[0]);pizza.botPath=[];pizza.botGoal=null;
+ pizza.menuCounts[key]=(pizza.menuCounts[key]||0)+1;
+ pizza.menuHistory.push({key,pair:[...entry.pair],distance:entry.distance,target:pizza.blockTarget});
+ pizza.botPath=[];pizza.botGoal=null;return true;
+}
+function chooseFirstOrders(s,ps){
+ for(const p of ps)assignPair(s,p,selectOrder(s,p));
 }
 function nextOrder(s,p){
- const options=fairnessCandidates(s,p);if(!options.length)return;
- const live=active(s.roster);
- const mean=live.reduce((a,x)=>a+(x.pizza?.assignedTotal||0),0)/Math.max(1,live.length);
- const fairTarget=s.targetDistance+bound((mean-p.pizza.assignedTotal)*.20,-s.targetDistance*.20,s.targetDistance*.20);
- const best=[...options].sort((a,b)=>
-  Math.abs(a.distance-fairTarget)-Math.abs(b.distance-fairTarget)||
-  Number(a.pair.includes(s.lastIngredient.get(p.id)))-Number(b.pair.includes(s.lastIngredient.get(p.id))))[0];
- assignPair(s,p,best);
+ // The only fairness comparison is against this chef's own past menu cycle.
+ return assignPair(s,p,selectOrder(s,p));
 }
 function setup(round,ps){
  // The lobby initializes everyone with active=false. Activate entrants BEFORE
@@ -252,8 +256,7 @@ function setup(round,ps){
    roster:ps,seed:(Number(round.pizzaSeed)||(Date.now()^0x4b1a8d7))>>>0||1,
    elapsed:0,duration:60,remaining:60,accumulator:0,clock:0,finished:false,
    tables:[],worktops:[],chefs:[],chefById:new Map(),chefRouteCache:new Map(),
-   pairs:[],pathCostCache:new Map(),lastIngredient:new Map(),targetDistance:0,
-   firstSpread:0,ranking:[],winnerIds:[],effects:[]};
+   pairs:[],pathCostCache:new Map(),ranking:[],winnerIds:[],effects:[]};
  round.pizzaTime=s;round.remaining=60;
  tableLayout(s);stationLayout(s,people);grid(s);planOrderCards(s);
  s.pairs=makePairs(s);
@@ -262,7 +265,8 @@ function setup(round,ps){
    p.x=chef.spawn.x;p.y=chef.spawn.y;
    p.dir={...chef.facing};p.vx=0;p.vy=0;p.score=0;
    p.pizza={chefId:chef.id,held:null,order:[],delivered:[],
-     assignedTotal:0,lastCost:0,orderSerial:0,botPath:[],botGoal:null,repath:0};
+     assignedTotal:0,lastCost:0,orderSerial:0,menuHistory:[],menuCounts:{},
+     blockTarget:null,botPath:[],botGoal:null,repath:0};
  });
  resolvePlayerCollisions(s,people);
  chooseFirstOrders(s,people);
@@ -274,8 +278,13 @@ function projectPizzaPlayer(s,p,x,y,r){
  const minX=25+r,maxX=s.world.w-25-r,minY=25+r,maxY=s.world.h-25-r;
  x=bound(x,minX,maxX);y=bound(y,minY,maxY);
  if(!blocked(s,x,y,r))return {x,y};
- if(!blocked(s,x,p.y,r))return {x,y:p.y};
- if(!blocked(s,p.x,y,r))return {x:p.x,y};
+ // Prefer whichever tangential slide matches the intended joystick direction.
+ // The old horizontal-first rule made vertical turns snag on prep counters.
+ const horizontal=!blocked(s,x,p.y,r),vertical=!blocked(s,p.x,y,r);
+ if(horizontal&&vertical)
+  return Math.abs(y-p.y)>Math.abs(x-p.x)?{x:p.x,y}:{x,y:p.y};
+ if(horizontal)return{x,y:p.y};
+ if(vertical)return{x:p.x,y};
  return {x:p.x,y:p.y};
 }
 function pizzaCharacterRules(s){
@@ -299,12 +308,13 @@ function nearestWanted(s,p){
 }
 function botInput(s,p,dt){
  const pizza=p.pizza,chef=s.chefById.get(p.id);
+ if((pizza.botPause||0)>0){pizza.botPause=Math.max(0,pizza.botPause-dt);return {x:0,y:0};}
  const target=pizza.held?chef.deliver:nearestWanted(s,p);
  if(!target)return {x:0,y:0};
  const point=target.pick||target,goal=(target.id??'chef')+'-'+pizza.orderSerial+'-'+(pizza.held||'');
  pizza.repath-=dt;
  if(pizza.botGoal!==goal||pizza.repath<=0||pizza.botPath.length===0){
-   pizza.botPath=aStar(s,p,point,true).points;pizza.botGoal=goal;pizza.repath=.40;
+   pizza.botPath=aStar(s,p,point,true).points;pizza.botGoal=goal;pizza.repath=.72;
  }
  while(pizza.botPath.length&&hyp(p,pizza.botPath[0])<21)pizza.botPath.shift();
  const next=pizza.botPath[0]||point,dx=next.x-p.x,dy=next.y-p.y,len=Math.hypot(dx,dy);
@@ -312,11 +322,12 @@ function botInput(s,p,dt){
 }
 function collect(s,p){
  const pizza=p.pizza;
- const near=s.tables.filter(t=>hyp(p,t.pick)<40);
+ const near=s.tables.filter(t=>hyp(p,t.pick)<(p.isBot?40:48));
  for(const t of near){
   const id=t.ingredient;
   if(!pizza.order.includes(id)||pizza.delivered.includes(id)||pizza.held===id)continue;
   pizza.held=id;pizza.botGoal=null;
+  if(p.isBot)pizza.botPause=.20;
   s.effects.push({x:p.x,y:p.y-24,text:'รับ '+byId[id].name,life:.55,color:p.color});
   break;
  }
@@ -324,10 +335,11 @@ function collect(s,p){
 function deliver(s,p){
  const pizza=p.pizza;
  const chef=s.chefById.get(p.id);
- if(!chef||!pizza.held||hyp(p,chef.deliver)>41)return;
+ if(!chef||!pizza.held||hyp(p,chef.deliver)>(p.isBot?41:49))return;
  const id=pizza.held;
  if(!pizza.order.includes(id)||pizza.delivered.includes(id)){pizza.held=null;return;}
  pizza.delivered.push(id);pizza.held=null;pizza.botGoal=null;
+ if(p.isBot)pizza.botPause=.27;
  s.effects.push({x:p.x,y:p.y-25,text:'ส่ง '+byId[id].name,life:.65,color:'#fff6a2'});
  if(pizza.delivered.length===2){
    p.score+=1;s.effects.push({x:p.x,y:p.y-40,text:'+1',life:1,color:'#fff4a0'});
@@ -347,7 +359,16 @@ function step(dt,round,ps){
  for(const p of active(ps)){
    if(!p.pizza)continue;
    const v=p.isBot?botInput(s,p,dt):input(p);
-   window.PartyCharacters.move(p,v,dt,{...rules,speed:s.world.h*.305});
+   // Give human players responsive low-stick steering; bots still pathfind,
+   // but walk roughly 30% slower and hesitate at pickups/deliveries.
+   if(!p.isBot){
+    const strength=Math.hypot(v.x,v.y);
+    if(strength>.10&&strength<1){
+     const assisted=Math.min(1,.34+.66*strength);
+     v.x*=assisted/strength;v.y*=assisted/strength;
+    }
+   }
+   window.PartyCharacters.move(p,v,dt,{...rules,speed:s.world.h*(p.isBot?.215:.335)});
  }
  // Default character collision/pushing is applied BEFORE food pickup and chef
  // delivery, so characters cannot pass through each other at busy counters.

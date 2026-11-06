@@ -22,6 +22,10 @@ jobs:
           for source in board-*.js; do node --check "$source"; done
           node tests/board-party.cjs
           node tests/board-art.cjs
+      - name: PIZZA TIME menu fairness and movement regression
+        run: |
+          node --check pizza-time.js
+          node tests/pizza-time.test.cjs
       - name: Test COLOR SWITCH core rules and stress
         run: node tests/color-switch.test.js
       - name: Mayan skull theme and 15 percent bot nerf
