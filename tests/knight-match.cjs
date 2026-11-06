@@ -70,6 +70,19 @@ test('Lance swept segment pops only active hitbox contacts; same strike cannot d
  K.strike(s,p,ps,{x:b.x-58,y:b.y},{x:b.x+58,y:b.y});
  assert.equal(p.score,before+1);
 });
+test('Visible silver lance tip and swept hitbox share the same world position',()=>{
+ const {ps,s,round}=game(2,256),p=ps[0];p.km.angle=0;p.dir={x:1,y:0};
+ const old=K.lanceTip(p,p.km);
+ assert.ok(Math.abs(old.x-(p.x+59))<.001);
+ assert.ok(Math.abs(old.y-(p.y+13))<.001);
+ const b=normal(s)[0],id=b.id;b.x=p.x+85;b.y=p.y+13;
+ // Remove other balloons to isolate a single true tip-to-balloon contact.
+ s.balloons=[b];p.input={action:true};
+ K.step(1/60,round,ps);
+ assert.equal(b.state,'popped');
+ assert.equal(s.balloons.some(q=>q.id===id),false);
+ assert.equal(p.score,K.effectiveOwner(s,b)===p.id?1:-1);
+});
 test('Rainbow override is visual/score only, never changes base ownership',()=>{
  const {ps,s}=game(3,25),owner=ps[0],other=ps[1];
  const rainbow=s.balloons.find(b=>b.kind==='rainbow')|| (K.spawnRainbow(s,ps),s.balloons.find(b=>b.kind==='rainbow'));
