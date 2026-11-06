@@ -53,6 +53,30 @@ function position(s,p){
 }
 function target(s,point,user){return s.players.filter(p=>p.id!==user.id&&p.currentNodeId!==s.map.finishId).map(p=>({p,d:Math.hypot(position(s,p).x-point.x,position(s,p).y-point.y)})).filter(q=>q.d<=ufoRadius+radius).sort((a,b)=>a.d-b.d||String(a.p.id).localeCompare(String(b.p.id)))[0]?.p||null;}
 function bombs(aim){return Array.from({length:5},(_,i)=>({x:aim.x+Math.cos(aim.angle)*(i-2)*90,y:aim.y+Math.sin(aim.angle)*(i-2)*90}));}
+// Timeline is world-space, frame-rate independent and shared by rule and art.
+// The aircraft approaches BEFORE the first marker and leaves AFTER the fifth.
+// Each bomb drops only once the plane has already passed its target, and its
+// corresponding damage is applied on IMPACT, not at confirmation time.
+const BOMBER_FLIGHT_SECONDS=1.08,BOMBER_EFFECT_SECONDS=1.6;
+function bomberFlight(points,elapsed=0){
+ if(!Array.isArray(points)||points.length<2)return null;
+ const first=points[0],last=points[points.length-1];
+ const dx=last.x-first.x,dy=last.y-first.y,len=Math.hypot(dx,dy)||1;
+ const ux=dx/len,uy=dy/len,lead=170,tail=190,total=len+lead+tail;
+ const t=Math.max(0,elapsed),progress=Math.max(0,Math.min(1,t/BOMBER_FLIGHT_SECONDS));
+ const px=first.x-ux*lead+ux*total*progress,py=first.y-uy*lead+uy*total*progress;
+ const plane={x:px,y:py,angle:Math.atan2(uy,ux),visible:t<=BOMBER_FLIGHT_SECONDS+.04};
+ const payload=points.map((p,i)=>{
+  const along=(p.x-first.x)*ux+(p.y-first.y)*uy;
+  const pass=(lead+along)/total*BOMBER_FLIGHT_SECONDS;
+  const drop=pass+.045,impact=pass+.19;
+  const fall=Math.max(0,Math.min(1,(t-drop)/(impact-drop)));
+  const age=Math.max(0,t-impact);
+  const phase=t<drop?'carried':t<impact?'falling':t<impact+.54?'exploding':'spent';
+  return{x:p.x,y:p.y,index:i,pass,drop,impact,age,fall,phase};
+ });
+ return {plane,bombs:payload,flightSeconds:BOMBER_FLIGHT_SECONDS,duration:BOMBER_EFFECT_SECONDS};
+}
 function victims(s,points,user){return s.players.filter(p=>p.id!==user.id&&points.some(q=>Math.hypot(position(s,p).x-q.x,position(s,p).y-q.y)<=blastRadius+radius));}
 function consume(s,p,kind){
  const items=bag(p),index=items.indexOf(kind);
@@ -127,9 +151,16 @@ function confirm(s,button,api){
  }
  if(skill.kind==='bomber'){
   const points=bombs(skill);consume(s,p,skill.kind);s.skill=null;
-  // Freeze the preview geometry for BOTH animation and damage resolution.
-  const hit=victims(s,points,p);for(const q of hit)api.damage(s,q,api.DAMAGE.bomber);
-  api.effect(s,{kind:'bomber',points,targets:hit.map(q=>q.id),next:afterUse(skill.kind)},1.6);return true;
+  // Freeze all markers and who is in each blast at confirmation. The bombs
+  // fall BEHIND the fast airplane; the host applies HP damage at each impact.
+  const flight=bomberFlight(points,0);
+  const hit=victims(s,points,p),pendingHits=hit.map(q=>{
+   const at=position(s,q);
+   const index=points.findIndex(pt=>Math.hypot(at.x-pt.x,at.y-pt.y)<=blastRadius+radius);
+   return{id:q.id,index,impact:flight.bombs[index].impact,applied:false};
+  });
+  api.effect(s,{kind:'bomber',points,targets:hit.map(q=>q.id),
+   pendingHits,next:afterUse(skill.kind)},BOMBER_EFFECT_SECONDS);return true;
  }
  return false;
 }
@@ -194,5 +225,5 @@ function update(s,dt,api){
 
  }
 }
-window.BoardItems=Object.freeze({names,ids,radius,ufoRadius,blastRadius,afterUse,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,victims,begin,confirm,update,segmentDistance});
+window.BoardItems=Object.freeze({names,ids,radius,ufoRadius,blastRadius,afterUse,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,bomberFlight,BOMBER_FLIGHT_SECONDS,BOMBER_EFFECT_SECONDS,victims,begin,confirm,update,segmentDistance});
 })();
