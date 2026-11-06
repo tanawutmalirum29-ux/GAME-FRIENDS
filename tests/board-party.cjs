@@ -229,6 +229,8 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
  press(s,p,null,{axisX:forward.x,axisY:forward.y});
  let last=plain(I.position(s,p)),crossed=false;
  for(let i=0;i<100&&!crossed;i++){
+  // Controller axis packets expire after 0.9s, just like on real devices.
+  if(i%8===0)press(s,p,null,{axisX:forward.x,axisY:forward.y});
   P.update(s,.05);
   const pos=I.position(s,p);
   assert.ok(Math.hypot(pos.x-last.x,pos.y-last.y)<25,'must not teleport toward pad centre');
