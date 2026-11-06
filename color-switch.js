@@ -11,7 +11,7 @@ const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function rand(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
 function active(ps){return ps.filter(p=>p.active);}
 function createArena(s,count){
- s.cols=count<=6?11:12;s.rows=count<=6?9:10;
+ s.cols=count<=6?11:13;s.rows=count<=6?9:11;
  s.size=count<=6?44:41;
  s.board={x:(960-s.cols*s.size)/2,y:(540-s.rows*s.size)/2,w:s.cols*s.size,h:s.rows*s.size};
  s.tiles=Array.from({length:s.cols*s.rows},(_,id)=>({
@@ -256,8 +256,9 @@ function updateRockets(s,ps,dt){
  const live=new Set(next.map(r=>r.burstId));
  for(const id of s.rocketHits.keys())if(!live.has(id))s.rocketHits.delete(id);
 }
-// New boxes arrive in fixed two-item waves, independent of existing stock.
-// Each wave always includes one red ROCKET BOX and one SCORE BANK BOX.
+// New boxes arrive every eight seconds regardless of existing stock.
+// A wave has 2 boxes for up to 9 players, and 3 for 10–12 players.
+// Each wave always includes at least one ROCKET BOX and one SCORE BANK BOX.
 function spawnPowerBox(s,ps,type=null){
  const findCandidates=(playerGap,boxGap)=>s.tiles.filter(t=>{
   if(t.column<1||t.row<1||t.column>=s.cols-1||t.row>=s.rows-1)return false;
@@ -287,11 +288,16 @@ function collectPowerBox(s,ps){
  }
 }
 function updateBoxes(s,ps){
- // Do not expire uncollected boxes or refill to a maximum. Two fresh boxes
- // are added at 8,16,24... seconds, even when every previous box remains.
+ // Never expire uncollected boxes or impose a cap. Spawn 2 boxes with 1–9
+ // players, 3 boxes with 10–12 players, at 8,16,24... seconds.
  s.boxes=s.boxes.filter(b=>b.active);
  while(s.elapsed+1e-7>=s.nextBoxSpawn&&s.nextBoxSpawn<s.duration){
   const batch=rand(s)<.5?['rocket','score_bank']:['score_bank','rocket'];
+  // Scale the large map's box waves with player count (7–9: 2, 10–12: 3).
+  if(active(ps).length>=10){
+   const extra=rand(s)<.5?'rocket':'score_bank';
+   batch.splice(Math.floor(rand(s)*3),0,extra);
+  }
   for(const type of batch)spawnPowerBox(s,ps,type);
   s.nextBoxSpawn+=C.boxSpawnInterval;
  }
