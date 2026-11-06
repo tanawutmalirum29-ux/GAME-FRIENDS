@@ -1555,12 +1555,12 @@ function beginBoard(){
 function refreshBoardTools(){
  const active=round?.mode==='board'&&!!boardSession;
  $('boardTools').classList.toggle('hidden',!active);
- $('boardStartDiceBtn').classList.toggle('hidden',!active||boardSession.phase!=='overview');
  if(active){
   const c=boardSession.camera;
   $('boardNodeDebugBtn').setAttribute('aria-pressed',String(!!c.debugNodes));
   $('boardEffectsBtn').setAttribute('aria-pressed',String(!!c.lowDetail));
-  $('boardFollowBtn').disabled=boardSession.phase==='overview';
+  $('boardFollowBtn').disabled=['overview','intro_zoom'].includes(boardSession.phase);
+  $('boardOverviewBtn').disabled=boardSession.phase==='intro_zoom';
   const inspect=window.BoardArt.canPan(boardSession);
   $('boardZoomInBtn').disabled=!inspect;$('boardZoomOutBtn').disabled=!inspect;
  }
@@ -2456,12 +2456,8 @@ function returnToLobby(){
   setView('hostLobby');renderRoster();broadcastRoster();
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
-$('boardStartDiceBtn').addEventListener('click',()=>{
- if(!boardSession||round?.mode!=='board'||round.paused)return;
- if(window.BoardParty.beginOrder(boardSession)){boardSession.camera.manualZoom=null;refreshBoardTools();broadcastBoardState();}
-});
 $('boardOverviewBtn').addEventListener('click',()=>{
- if(round?.mode!=='board'||!boardSession)return;
+ if(round?.mode!=='board'||!boardSession||boardSession.phase==='intro_zoom')return;
  if(boardSession.phase!=='overview')pauseGame();
  window.BoardArt.overview(boardSession);refreshBoardTools();
 });
