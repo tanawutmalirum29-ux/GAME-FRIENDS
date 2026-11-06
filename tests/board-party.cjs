@@ -610,7 +610,7 @@ test('UFO clears stale mid-rocket edges on BOTH swapped players; walk rejects in
  assert.equal(q.pendingTraverse,undefined);
  assert.equal(s.move.from,'n20');
  assert.equal(s.move.to,null,'a stale edge must not be resumed after teleport');
- assert.equal(s.phase,'move_ready');
+ assert.ok(['move_ready','branch'].includes(s.phase),'rejoined walker may require a new fork choice');
 });
 test('250 UFO cases: real world hitboxes, stacked players, atomic swap, no landing effects',()=>{
  for(let seed=0;seed<250;seed++){
