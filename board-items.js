@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const names={potion:'Healing Potion',ufo:'UFO Position Swap',rocket:'Rocket Ride',bomber:'Bomber Aircraft',car:'RC Bomb Car',shield:'Protection Shield'};
-const ids=Object.keys(names),radius=18,ufoRadius=48,blastRadius=72;
+const ids=Object.keys(names),radius=18,ufoRadius=48,blastRadius=72,UFO_AIM_TRAVEL_MIN=14;
 // Only UFO ends the current turn. Every other item permits exactly one dice
 // roll afterward; the round-wide one-item limit is independent of this rule.
 const afterUse=kind=>kind==='ufo'?'end':'ready';
@@ -109,12 +109,13 @@ function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
   api.phase(s,'car',6);return true;
  }
  if(kind==='ufo'||kind==='bomber'){
-  // The FIRST A only opens the targeting preview. A fresh release followed by
-  // a SECOND A is required for a bomber attack, even across network turn tokens.
-  s.skill={kind,...position(s,p),angle:0,targetId:null,requiresConfirmRelease:kind==='bomber'};
-  // Humans decide when to confirm/cancel. Bots retain an 8-second
-  // failsafe so an unreachable target cannot stall an all-bot session.
-  api.phase(s,'aim',kind==='bomber'&&!p.isBot?Infinity:8);return true;
+  // The first A ONLY enters aim mode. Both UFO and aircraft require an
+  // actual release + another A; UFO additionally requires stick aiming.
+  s.skill={kind,...position(s,p),angle:0,targetId:null,
+   requiresConfirmRelease:true,aimTravel:0};
+  // Human aim has no timeout: C cancels without spending the item.
+  // Bot aim retains an 8-second fallback to avoid stalled sessions.
+  api.phase(s,'aim',p.isBot?8:Infinity);return true;
  }
  return false;
 }
@@ -122,11 +123,11 @@ function confirm(s,button,api){
  if(s.phase!=='aim')return false;
  const skill=s.skill,p=api.current(s);
  if(!skill||!p)return false;
- if(skill.kind==='bomber'&&button==='C'){
-  // Abort the aircraft preview without consuming stock, dealing damage,
-  // or changing the player's movement/roll state.
-  api.ready(s);p.actionIndex=ids.indexOf('bomber')+1;
-  p.bagMessage='ยกเลิกการใช้เครื่องบิน • ไอเทมยังอยู่';
+ if(button==='C'&&(skill.kind==='bomber'||skill.kind==='ufo')){
+  // Aiming is reversible: keep every item, player position and dice state.
+  const kind=skill.kind;api.ready(s);
+  p.actionIndex=ids.indexOf(kind)+1;
+  p.bagMessage='ยกเลิกการใช้'+(kind==='ufo'?' UFO':'เครื่องบิน')+' • ไอเทมยังอยู่';
   return true;
  }
  if(button==='B'&&skill.kind==='bomber'){
@@ -134,9 +135,12 @@ function confirm(s,button,api){
   return true;
  }
  if(button!=='A')return false;
- if(skill.kind==='bomber'&&skill.requiresConfirmRelease)return false;
+ if(skill.requiresConfirmRelease)return false;
  if(skill.kind==='ufo'){
-  const q=target(s,skill,p);if(!q)return false;
+  // Do not auto-swap a nearby player when aim starts at the owner's feet.
+  // Only a visibly highlighted player chosen AFTER steering may be swapped.
+  if((skill.aimTravel||0)<UFO_AIM_TRAVEL_MIN||!skill.targetId)return false;
+  const q=target(s,skill,p);if(!q||q.id!==skill.targetId)return false;
   if(q.shieldTurns>0){q.blockedUntil=s.time+1.2;return false;}
   const points=[position(s,p),position(s,q)],a=p.currentNodeId,b=q.currentNodeId;
   // Validate first, then commit both node IDs in the same host action.
@@ -175,9 +179,13 @@ function update(s,dt,api){
  const input=api.axes(s,p.id);
  if(s.phase==='aim'){
   const speed=skill.kind==='ufo'?420:360;
+  const fromX=skill.x,fromY=skill.y;
   skill.x=Math.max(45,Math.min(s.map.width-45,skill.x+input.x*speed*dt));
   skill.y=Math.max(45,Math.min(s.map.height-45,skill.y+input.y*speed*dt));
-  skill.targetId=skill.kind==='ufo'?target(s,skill,p)?.id||null:null;
+  if(skill.kind==='ufo'){
+   skill.aimTravel=(skill.aimTravel||0)+Math.hypot(skill.x-fromX,skill.y-fromY);
+   skill.targetId=skill.aimTravel>=UFO_AIM_TRAVEL_MIN?target(s,skill,p)?.id||null:null;
+  }
   if(s.time>=s.deadline){s.skill=null;api.ready(s,false);}
  }else if(s.phase==='car'){
   skill.remaining=Math.max(0,skill.remaining-dt);
@@ -225,5 +233,5 @@ function update(s,dt,api){
 
  }
 }
-window.BoardItems=Object.freeze({names,ids,radius,ufoRadius,blastRadius,afterUse,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,bomberFlight,BOMBER_FLIGHT_SECONDS,BOMBER_EFFECT_SECONDS,victims,begin,confirm,update,segmentDistance});
+window.BoardItems=Object.freeze({names,ids,radius,ufoRadius,blastRadius,UFO_AIM_TRAVEL_MIN,afterUse,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,bomberFlight,BOMBER_FLIGHT_SECONDS,BOMBER_EFFECT_SECONDS,victims,begin,confirm,update,segmentDistance});
 })();
