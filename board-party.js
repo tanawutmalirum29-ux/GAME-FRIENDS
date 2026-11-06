@@ -112,7 +112,12 @@ function input(s,id,packet){
  if(packet.turnId!==s.turnId||!Number.isSafeInteger(packet.actionId)||packet.actionId<0||packet.actionId<=(s.lastActions[id]??-1))return false;
  const p=s.players.find(p=>p.id===id);if(!p||s.phase==='finished'||s.phase==='minigame')return false;
  s.lastActions[id]=packet.actionId;
- const old=s.inputs[id]||{},k=packet.keys||{};
+ // Edge detection is scoped to the current control token. A held or
+ // previously pressed key from an expired phase must not suppress a new A/B
+ // press when the next turn begins.
+ const previous=s.inputs[id];
+ const old=previous?.turnId===packet.turnId?previous:{};
+ const k=packet.keys||{};
  const x=Number.isFinite(k.axisX)&&k.axisX!==0?Math.max(-1,Math.min(1,k.axisX)):Number(k.right===true)-Number(k.left===true);
  const y=Number.isFinite(k.axisY)&&k.axisY!==0?Math.max(-1,Math.min(1,k.axisY)):Number(k.down===true)-Number(k.jump===true);
  const a=k.action===true,b=k.alt===true;
