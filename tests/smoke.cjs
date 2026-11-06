@@ -46,6 +46,14 @@ assert.match(css,/body:has\(#home:not\(\.hidden\)\) \.app\{[\s\S]*?height:100dvh
  'home page must fit a single dynamic browser viewport with no document scroll');
 assert.match(css,/#home\.party-entry\{[\s\S]*?flex:1 1 0;[\s\S]*?min-height:0;/,
  'home grid must shrink within height left by browser top bar and footer');
+
+assert.match(css,/#home\.party-entry\{[\s\S]*?grid-template-rows:minmax\(0,1fr\);[\s\S]*?align-content:stretch;/,
+ 'homepage row must stretch to fill available viewport rather than retain auto height at the top');
+assert.match(css,/#home\.party-entry \.hero:has\(\.hero-cover\)\{[\s\S]*?height:100%;[\s\S]*?overflow:hidden!important;/,
+ 'hero fills its expanded viewport grid row without requiring scrolling');
+assert.match(css,/@media \(min-width:1120px\) and \(min-height:580px\)\{[\s\S]*?grid-template-columns:minmax\(0,\.81fr\) minmax\(0,1\.29fr\);/,
+ 'large landscape screens devote extra width to the fully visible cover');
+
 assert.match(css,/#home\.party-entry \.hero:has\(\.hero-cover\)\{[\s\S]*?grid-template-columns:minmax\(0,\.94fr\) minmax\(0,1\.16fr\);[\s\S]*?grid-template-rows:minmax\(0,1fr\);/,
  'landscape host page uses bounded side-by-side cover instead of an overflowing image below actions');
 assert.match(css,/#home\.party-entry \.hero \.hero-cover\{[\s\S]*?height:100%;[\s\S]*?max-height:100%;[\s\S]*?object-fit:contain;/,
