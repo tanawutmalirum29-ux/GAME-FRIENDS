@@ -73,6 +73,8 @@ test('Board clock uses true elapsed time with bounded steps even at low FPS',()=
  const source=fs.readFileSync('app.js','utf8');
  assert.match(source,/const boardDt=Math\.min\(1,elapsed\)/);
  assert.match(source,/updateRound\(round\.mode==='board'\?boardDt:dt\)/);
+ assert.match(source,/if\(boardSession&&round\.mode==='board'\)return/,
+  'late duplicate end callbacks must not show a second normal results page');
  assert.match(source,/updateGameSelection\(boardSession\?boardDt:dt\)/,
   'board-to-minigame roulette should advance in real time');
  assert.match(source,/denseBoard\?2\.4:MAX_ARENA_SCALE/,
