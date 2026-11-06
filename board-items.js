@@ -42,14 +42,15 @@ function bombs(aim){return Array.from({length:5},(_,i)=>({x:aim.x+Math.cos(aim.a
 function victims(s,points,user){return s.players.filter(p=>p.id!==user.id&&points.some(q=>Math.hypot(position(s,p).x-q.x,position(s,p).y-q.y)<=blastRadius+radius));}
 function consume(s,p,kind){
  const items=bag(p),index=items.indexOf(kind);
- if(index>=0)items.splice(index,1);
+ // Debug stock is host-only: infinite use never consumes a slot.
+ if(index>=0&&!p.debugUnlimitedItems)items.splice(index,1);
  p.item=items[0]||null;
  p.bagIndex=Math.min(p.bagIndex||0,items.length);
- p.bagOpen=false;p.usedRound=s.roundNumber;
+ p.bagOpen=false;if(!p.debugUnlimitedItems)p.usedRound=s.roundNumber;
 }
 function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
  if(s.phase!=='ready'||!kind||!bag(p).includes(kind)||
-   p.usedRound===s.roundNumber||s.rolled||s.time>=s.readyDeadline)return false;
+   (!p.debugUnlimitedItems&&p.usedRound===s.roundNumber)||s.rolled||s.time>=s.readyDeadline)return false;
  if(kind==='potion'){
   if(p.hp>=api.MAX_HP)return false;
   const gained=Math.min(api.MAX_HP-p.hp,api.HEAL.potion);
