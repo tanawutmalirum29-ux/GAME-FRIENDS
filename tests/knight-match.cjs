@@ -99,6 +99,20 @@ test('Rainbow override is visual/score only, never changes base ownership',()=>{
  assert.equal(K.effectiveColor(s,another),previously);
  assert.equal(s.balloons.includes(b),false);
 });
+test('Same-frame Rainbow hit before a normal balloon uses correct geometric hit order',()=>{
+ const {ps,s}=game(2,410),p=ps[0],normalTarget=normal(s).find(q=>q.baseOwnerId===ps[1].id);
+ const rainbow=s.balloons.find(b=>b.kind==='rainbow')||(K.spawnRainbow(s,ps),s.balloons.find(b=>b.kind==='rainbow'));
+ assert.ok(rainbow);
+ // Deliberately keep the normal balloon FIRST in array order, but Rainbow
+ // physically nearer along the lance path.
+ s.balloons=[normalTarget,rainbow];
+ const start={x:p.x+20,y:p.y},end={x:p.x+140,y:p.y};
+ rainbow.x=p.x+55;rainbow.y=p.y;normalTarget.x=p.x+100;normalTarget.y=p.y;
+ K.startAttack(s,p);K.strike(s,p,ps,start,end);
+ assert.equal(s.rainbowOwnerId,p.id);
+ assert.equal(normalTarget.state,'popped');
+ assert.equal(p.score,1,'effective color changes at the moment the tip reaches the normal balloon');
+});
 test('Rainbow respawn preserves baseColor and expired override never restores popped items',()=>{
  const {ps,s}=game(4,91),owner=ps[0];
  const rb=s.balloons.find(b=>b.kind==='rainbow')||(K.spawnRainbow(s,ps),s.balloons.find(b=>b.kind==='rainbow'));
