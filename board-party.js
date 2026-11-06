@@ -185,15 +185,45 @@ function forwardInput(s,p){
  const a=axes(s,p.id),id=M().choose(s.map,p.currentNodeId,a.x,a.y);
  return forwardForce(s,p,id)>0?id:null;
 }
+function openBag(s,p){
+ if(s.phase!=='ready'||s.rolled)return false;
+ if(p.bagOpen)return true;
+ p.bagOpen=true;p.bagIndex=0;p.bagMessage='';
+ // Opening a menu once gives time to read item names, but cannot create an
+ // infinite timer extension by repeatedly opening and closing it.
+ if(!p.bagGraceRound||p.bagGraceRound!==s.roundNumber){
+  p.bagGraceRound=s.roundNumber;
+  s.readyDeadline=Math.max(s.readyDeadline,s.time+9);
+  s.deadline=s.readyDeadline;
+ }
+ return true;
+}
+function cycleBag(s,p){
+ if(!p.bagOpen)return false;
+ p.bagIndex=((p.bagIndex||0)+1)%(I().bag(p).length+1);
+ p.bagMessage='';return true;
+}
+function confirmBag(s,p){
+ if(!p.bagOpen)return false;
+ const items=I().bag(p),at=p.bagIndex||0;
+ if(at>=items.length){p.bagOpen=false;p.bagMessage='';return true;}
+ if(p.usedRound===s.roundNumber){p.bagMessage='ใช้ไอเทมในรอบนี้แล้ว';return false;}
+ const kind=items[at];
+ if(!I().begin(s,p,api,kind)){
+  p.bagMessage=kind==='potion'?'HP เต็มแล้ว':kind==='shield'?'โล่ยังทำงานอยู่':'ยังใช้ไอเทมนี้ไม่ได้';
+  return false;
+ }
+ p.bagOpen=false;p.bagMessage='';return true;
+}
 function action(s,id,button){
  const p=s.players.find(p=>p.id===id);if(!p||!['A','B'].includes(button))return false;
  if(s.phase==='order')return rollOrder(s,p);
- if(s.phase==='rewards'){
-  const pending=s.pendingItems[id];if(!pending||button!=='A')return false;
-  if(pending.replace)p.item=pending.item;delete s.pendingItems[id];return true;
- }
+
  if(p.id!==current(s)?.id)return false;
- if(s.phase==='ready')return button==='A'?roll(s):I().begin(s,p,api);
+ if(s.phase==='ready'){
+  if(p.bagOpen)return button==='A'?cycleBag(s,p):confirmBag(s,p);
+  return button==='A'?roll(s):openBag(s,p);
+ }
  if(s.phase==='aim')return I().confirm(s,button,api);
  if(s.phase==='branch'&&s.move?.kind==='rocket'&&button==='A')return step(s,forwardInput(s,p)||s.branch.selected);
  if(s.phase==='moving'&&s.move?.kind==='rocket'&&button==='A'){s.move.stop=true;return true;}
@@ -230,8 +260,15 @@ function minigameEnded(s,ranking){
  s.pendingItems={};phase(s,'standings',4);return true;
 }
 function grant(s){
- for(const r of s.results){if(!r.reward)continue;const p=s.players.find(p=>p.id===r.id);if(p.item)s.pendingItems[p.id]={item:r.reward,replace:false};else p.item=r.reward;}
- phase(s,'rewards',9);
+ // Rewards are collected, never silently discarded or forcibly substituted.
+ // Multiple identical item types may coexist and are consumed individually.
+ for(const r of s.results){
+  if(!r.reward)continue;
+  const p=s.players.find(p=>p.id===r.id);
+  if(p)I().add(p,r.reward);
+ }
+ s.pendingItems={};
+ phase(s,'rewards',5);
 }
 function update(s,dt){
  if(!Number.isFinite(dt)||dt<=0)return;dt=Math.min(dt,.1);s.time+=dt;
@@ -259,10 +296,7 @@ function update(s,dt){
  }else if(s.phase==='aim'||s.phase==='car')I().update(s,dt,api);
  else if(s.phase==='effect'&&s.time>=s.deadline){const next=s.effect.next;s.effect=null;if(next==='ready')ready(s);else endTurn(s);}
  else if(s.phase==='standings'&&s.time>=s.deadline)grant(s);
- else if(s.phase==='rewards'){
-  for(const p of s.players){const pending=s.pendingItems[p.id];if(!pending)continue;const a=axes(s,p.id);if(a.x>.4)pending.replace=true;else if(a.x<-.4)pending.replace=false;}
-  if(s.time>=s.deadline||(!Object.keys(s.pendingItems).length&&s.time-s.phaseAt>3)){s.pendingItems={};phase(s,'returning',1.5);}
- }else if(s.phase==='returning'&&s.time>=s.deadline){s.roundNumber++;s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',3);}
+ else if(s.phase==='rewards'&&s.time>=s.deadline)phase(s,'returning',1.5);else if(s.phase==='returning'&&s.time>=s.deadline){s.roundNumber++;s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',3);}
  else if(s.phase==='round_order'&&s.time>=s.deadline)startTurn(s);
  window.BoardBots?.update(s,dt,api);
 }
@@ -270,9 +304,17 @@ function snapshot(s){return JSON.parse(JSON.stringify({map:s.map,players:s.playe
 function controls(s,id){
  const p=s.players.find(p=>p.id===id),mine=current(s)?.id===id;
  if(s.phase==='order')return{a:'ทอย 2 ลูก',b:'ทอย 2 ลูก',help:p?.dice?'ทอยแล้ว • รอเพื่อน':'A หรือ B ทอยลำดับ'};
- if(s.phase==='rewards'&&s.pendingItems[id])return{a:'ยืนยัน',b:'',help:'ซ้าย เก็บเดิม / ขวา รับ '+I().names[s.pendingItems[id].item]};
+ if(s.phase==='rewards')return{a:'',b:'',help:'เก็บไอเทมรางวัลลงกระเป๋าอัตโนมัติ'};
  if(!mine)return{a:'',b:'',help:'รอตาของคุณ • '+(current(s)?.name||'สรุปผล')};
- if(s.phase==='ready')return{a:'ทอย 2 ลูก',b:p.item&&p.usedRound!==s.roundNumber?'ใช้ไอเทม':'',help:'A ทอย 2 ลูก / B ใช้ไอเทมก่อนทอย'};
+ if(s.phase==='ready'){
+  if(p.bagOpen){
+   const items=I().bag(p),at=p.bagIndex||0,close=at>=items.length;
+   return{a:'เลือกถัดไป',b:close?'ปิดกระเป๋า':'ใช้ไอเทม',
+    help:'กระเป๋า '+(at+1)+'/'+(items.length+1)+' • '+(close?'ปิดกระเป๋า':I().names[items[at]])+
+      (p.bagMessage?' • '+p.bagMessage:'')+' • A เลือก / B ยืนยัน'};
+  }
+  return{a:'ทอย 2 ลูก',b:'เปิดกระเป๋า',help:'A ทอย 2 ลูก • B เปิดกระเป๋า ('+I().bag(p).length+' ชิ้น)'};
+ }
  if(s.move?.kind==='walk')return{a:'',b:'',help:(s.move.auto?'ช่วยเดินเมื่อหมดเวลา':'ลากจอยหรือปุ่มทิศทางเพื่อเดิน / ปล่อยเพื่อหยุด')+' • เหลือ '+s.move.remaining+' ก้าว'};
  if(s.phase==='branch')return{a:'เลือกทาง',b:'',help:'อนาล็อกเลือกทางจรวด / A ยืนยัน'};
  if(s.phase==='aim')return{a:'ยืนยัน',b:s.skill.kind==='bomber'?'หมุน 45°':'',help:s.skill.kind==='ufo'?'เล็งให้สัมผัสตัวละคร / A สลับ':'เลื่อนแนวบิน / B หมุน / A โจมตี'};
