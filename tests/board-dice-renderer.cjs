@@ -51,7 +51,7 @@ assert.ok(polys>250&&arcs>0&&gradients>0,'3D vector faces, pips, gradients and s
 for(let n=1;n<=12;n++){
  const roster=Array.from({length:n},(_,i)=>({id:'p'+i,name:'Player '+i,color:'#ac8'}));
  const s=P.create(roster,{seed:n,rng:()=>.53});
- for(let i=0;i<70;i++)P.update(s,.05);
+ P.startOrder(s);for(let i=0;i<30;i++)P.update(s,.05);
  assert.equal(s.phase,'order');
  for(const p of s.players)assert.equal(P.action(s,p.id,'A'),true);
  const committed=s.players.map(p=>plain(p.dice));

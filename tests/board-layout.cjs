@@ -19,6 +19,12 @@ for(let seed=0;seed<100;seed++){
  let up=0,down=0,left=0,right=0,islandChanges=0;
  const bridges=new Set(map.bridges.map(([a,b])=>a+'>'+b));
  for(const n of nodes){
+  if(n.bridgeId){
+   assert.equal(n.islandId,null);
+   const bridge=map.bridgeRoutes.find(b=>b.id===n.bridgeId);
+   assert.ok(bridge&&bridge.nodeIds.includes(n.id),'water checkpoints belong to an authored bridge');
+   continue;
+  }
   const island=islands.find(i=>i.id===n.islandId);
   assert.ok(island&&island.nodeIds.includes(n.id),'every node belongs to one island: '+n.id);
   assert.ok(pointInside(n.position,island.outline),'node sits on actual snow: '+n.id);
@@ -30,7 +36,7 @@ for(let seed=0;seed<100;seed++){
  for(const [a,b] of edges){
   const dx=b.position.x-a.position.x,dy=b.position.y-a.position.y;
   if(dx>45)right++;if(dx< -45)left++;if(dy>45)down++;if(dy< -45)up++;
-  if(a.islandId!==b.islandId){islandChanges++;assert.ok(bridges.has(a.id+'>'+b.id),'ocean crossings have actual bridges');}
+  if(!a.islandId||!b.islandId||a.islandId!==b.islandId){islandChanges++;assert.ok(bridges.has(a.id+'>'+b.id),'ocean crossings have actual bridges');}
   else{
    const island=islands.find(i=>i.id===a.islandId);
    for(let j=1;j<10;j++){const t=j/10,p={x:a.position.x+dx*t,y:a.position.y+dy*t};assert.ok(pointInside(p,island.outline),'on-island path remains on land: '+a.id+'>'+b.id);}

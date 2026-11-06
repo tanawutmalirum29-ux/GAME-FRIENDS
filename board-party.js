@@ -12,7 +12,7 @@ function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
  const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,actionIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
  s.camera.x=s.map.width/2;s.camera.y=s.map.height/2;
- phase(s,'overview',INTRO_OVERVIEW_SECONDS);return s;
+ phase(s,'overview',Infinity);return s;
 }
 function beginOrder(s){
  if(s.phase!=='intro_zoom'||s.time+1e-6<s.deadline)return false;
@@ -40,7 +40,7 @@ const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
 function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
 function rollOrder(s,p){if(p.dice||s.phase!=='order')return false;p.dice=[D().roll(s.rng),D().roll(s.rng)];p.rollAt=s.time;return true;}
 function ready(s){s.move=null;s.skill=null;for(const p of s.players){p.bagOpen=false;if(p.id===current(s)?.id){p.actionIndex=0;p.bagMessage='';}}s.readyDeadline=Infinity;phase(s,'ready',Infinity);}
-function startTurn(s){s.camera.overview=false;s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
+function startTurn(s){M().assertCompatible(s.map);s.camera.overview=false;s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
 function endTurn(s){
  if(s.phase==='finished')return;
  // Count the shield's owner's completed turns, regardless of round reordering.
@@ -257,7 +257,10 @@ function walkEdge(s,p,dt){
   else movePhase(s,'move_ready');
   return;
  }
- if(m.t>=1){
+ // A resumed rocket can reach the exact world endpoint with t=0.9999999999999999.
+ // Resolve floating-point residue before the bot observes a zero-length aim.
+ if(m.t>=1-1e-9){
+  m.t=1;
   const worldPos=I().position(s,p);
   p.currentNodeId=m.to;m.visited.push(m.to);m.to=null;m.remaining--;
   p.worldPosition={...worldPos};
@@ -356,7 +359,9 @@ function confirmAction(s,p){
  return true;
 }
 function action(s,id,button){
+ M().assertCompatible(s.map);
  const p=s.players.find(p=>p.id===id);if(!p||!['A','B','C'].includes(button))return false;
+ if(s.phase==='overview')return button==='A'&&beginIntroZoom(s);
  if(s.phase==='order')return button!=='C'&&rollOrder(s,p);
 
  if(p.id!==current(s)?.id)return false;
@@ -372,6 +377,8 @@ function action(s,id,button){
  return false;
 }
 function input(s,id,packet){
+ M().assertCompatible(s.map);
+ if(packet.mapVersion&&packet.mapVersion!==s.map.version)return false;
  // Turn tokens change at every control boundary, including returning from a game.
  if(packet.turnId!==s.turnId||!Number.isSafeInteger(packet.actionId)||packet.actionId<0||packet.actionId<=(s.lastActions[id]??-1))return false;
  const p=s.players.find(p=>p.id===id);if(!p||s.phase==='finished'||s.phase==='minigame')return false;
@@ -397,6 +404,7 @@ function input(s,id,packet){
 }
 function minigameStarted(s,mode){if(s.phase!=='minigame_pending')return false;s.lastMinigame=mode;phase(s,'minigame');return true;}
 function minigameEnded(s,ranking){
+ M().assertCompatible(s.map);
  if(s.phase!=='minigame')return false;
  // Reject incomplete/duplicate outcomes rather than award arbitrary array order.
  if(ranking.length!==s.players.length||new Set(ranking.map(r=>r.id)).size!==s.players.length||ranking.some(r=>!s.players.some(p=>p.id===r.id)))throw Error('Incomplete BOARD PARTY outcome');
@@ -424,8 +432,9 @@ function grant(s){
  return true;
 }
 function update(s,dt){
+ M().assertCompatible(s.map);
  if(!Number.isFinite(dt)||dt<=0)return;dt=Math.min(dt,.1);s.time+=dt;
- if(s.phase==='overview'){if(s.time+1e-6>=s.deadline)beginIntroZoom(s);}
+ if(s.phase==='overview'){if(s.players.every(p=>p.isBot)&&s.time-s.phaseAt>=INTRO_OVERVIEW_SECONDS-1e-6)beginIntroZoom(s);}
  else if(s.phase==='intro_zoom'){if(s.time+1e-6>=s.deadline)beginOrder(s);}
  else if(s.phase==='order'){
   for(const p of s.players)if(!p.dice&&p.isBot&&s.time-s.phaseAt>.6+s.players.indexOf(p)*.12)rollOrder(s,p);
@@ -479,10 +488,10 @@ function update(s,dt){
  else if(s.phase==='round_order'&&s.time>=s.deadline)startTurn(s);
  window.BoardBots?.update(s,dt,api);
 }
-function snapshot(s){return JSON.parse(JSON.stringify({map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}
+function snapshot(s){M().assertCompatible(s.map);return JSON.parse(JSON.stringify({mapVersion:s.map.version,map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}
 function controls(s,id){
  const p=s.players.find(p=>p.id===id),mine=current(s)?.id===id;
- if(s.phase==='overview')return{a:'',b:'',help:'กำลังชมแผนที่ • อีกสักครู่กล้องจะซูมไปจุดเริ่มต้น'};
+ if(s.phase==='overview')return{a:'เริ่มทอยลำดับ',b:'',help:'ลากและซูมสำรวจแผนที่ • กด A เมื่อพร้อม'};
  if(s.phase==='intro_zoom')return{a:'',b:'',help:'กำลังซูมไปจุดเริ่มต้น • เตรียมทอยลูกเต๋าหาคนเริ่ม'};
  if(s.phase==='order')return{a:'ทอย',b:'ทอย',help:p?.dice?'ทอยแล้ว • รอเพื่อน':'A หรือ B ทอยลำดับ'};
  if(s.phase==='rewards')return{a:'',b:'',help:'ได้รับไอเทมรางวัลแล้ว'};
@@ -514,6 +523,6 @@ function controls(s,id){
  
  return{a:'',b:'',help:'กำลังดำเนินตา'};
 }
-const api={create,beginOrder,updateRocket,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
+const api={create,beginOrder,startOrder:beginIntroZoom,updateRocket,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
 window.BoardParty=Object.freeze(api);
 })();

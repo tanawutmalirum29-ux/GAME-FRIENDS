@@ -8,7 +8,7 @@ const roster=(n,bots=false)=>Array.from({length:n},(_,i)=>({id:'p'+(i+1),name:'P
 const game=(n=3,seed=42,bots=false)=>{
  const s=P.create(roster(n,bots),{seed,rng:M.random(seed)});
  assert.equal(s.phase,'overview');
- for(let i=0;i<40;i++)P.update(s,.05);
+ assert.equal(P.startOrder(s),true);
  assert.equal(s.phase,'intro_zoom');
  for(let i=0;i<30;i++)P.update(s,.05);
  assert.equal(s.phase,'order','new games begin dice ordering automatically');
@@ -57,26 +57,24 @@ test('1,000 seeds: connected DAG, reciprocal edges, all branches finish',()=>{
     'Every winter tile has a supported role for seed '+seed);
   for(const n of Object.values(map.nodes)){
    assert.ok(n.position&&n.effects&&n.type);let at=n,steps=0;
-   while(at.id!==map.finishId){assert.ok(at.nextNodes.length);const next=map.nodes[at.nextNodes[seed%at.nextNodes.length]];assert.ok(next.progress>at.progress);at=next;assert.ok(++steps<map.length+10);}
+   while(at.id!==map.finishId){assert.ok(at.nextNodes.length);const next=map.nodes[at.nextNodes[seed%at.nextNodes.length]];assert.ok(next.progress>at.progress);at=next;assert.ok(++steps<=map.nodes[map.startId].longestRemainingSteps);}
   }
  }
 });
-test('Automatic intro: full board 2s, start zoom 1.5s, then dice order',()=>{
+test('Explore until ready, then smooth 1.5s intro; all-bot games start automatically',()=>{
  const s=P.create(roster(3),{seed:37,rng:M.random(37)});
- assert.equal(s.phase,'overview');assert.equal(s.time,0);
- assert.equal(s.deadline,2);assert.ok(s.players.every(p=>p.dice===null));
- tick(s,1.95);assert.equal(s.phase,'overview');
- assert.equal(P.action(s,s.players[0].id,'A'),false);
- assert.equal(P.beginOrder(s),false,'cannot bypass the map showcase');
- tick(s,.05);assert.equal(s.phase,'intro_zoom');
- assert.ok(s.camera.introFrom&&s.camera.introFrom.zoom>0,'camera saves overview framing');
- assert.equal(s.deadline-s.phaseAt,1.5);
- assert.equal(P.action(s,s.players[0].id,'A'),false);
- assert.equal(P.beginOrder(s),false,'cannot bypass camera fly-in');
+ tick(s,30);assert.equal(s.phase,'overview');assert.equal(s.deadline,Infinity);
+ assert.ok(s.players.every(p=>p.dice===null));
+ assert.equal(P.beginOrder(s),false);
+ assert.equal(P.action(s,s.players[0].id,'A'),true);
+ assert.equal(s.phase,'intro_zoom');
+ assert.equal(P.startOrder(s),false,'duplicate start cannot restart the camera');
  tick(s,1.45);assert.equal(s.phase,'intro_zoom');
  tick(s,.05);assert.equal(s.phase,'order');
- assert.ok(s.players.every(p=>p.dice===null),'players roll only after intro completes');
- assert.equal(P.beginOrder(s),false,'intro cannot be triggered twice');
+ assert.ok(s.players.every(p=>p.dice===null));
+ const bots=P.create(roster(12,true),{seed:37});
+ tick(bots,2);assert.equal(bots.phase,'intro_zoom');
+ tick(bots,1.5);assert.equal(bots.phase,'order');
 });
 test('1–12 players: manual A/B order rolls, no human timeout, double-input protection',()=>{
  for(let n=1;n<=12;n++){
@@ -411,11 +409,11 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
  assert.equal(s.move.remaining,1,'one graph edge consumes exactly one die step');
 });
 
-test('120-step fixed board retains two consecutive linked sword tiles',()=>{
+test('152-step fixed board retains two consecutive linked sword tiles',()=>{
  for(const seed of [1,42,2026,999]){
   const map=M.create(seed);
-  assert.equal(map.length,120);assert.equal(map.finishId,'n120');
-  assert.ok(map.islands.length>=7&&map.width>5000&&map.height>3000,'120-step route spans seven large islands across a broad world');
+  assert.equal(map.length,152);assert.equal(map.finishId,'n152');
+  assert.ok(map.islands.length>=7&&map.width>5000&&map.height>3000,'152-step route spans a broad archipelago');
   assert.deepEqual(plain(M.SWORD_TILES),['n20','n21']);
   assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
   assert.equal(map.nodes.n20.ownerId,null);assert.equal(map.nodes.n21.ownerId,null);
@@ -427,7 +425,7 @@ test('120-step fixed board retains two consecutive linked sword tiles',()=>{
 test('Lucky Star locations are reachable purple/gold reward tiles, spread across the larger board',()=>{
  for(let seed=0;seed<120;seed++){
   const map=M.create(seed),lucky=Object.values(map.nodes).filter(n=>n.type==='lucky');
-  assert.ok(lucky.length>=8&&lucky.length<=14,'8–14 fixed separated Lucky Stars with long-route bonuses');
+  assert.ok(lucky.length>=18&&lucky.length<=24,'18–24 separated Lucky Stars on 212 nodes with long-route bonuses');
   assert.deepEqual(plain(lucky.map(n=>n.id).sort()),plain([...map.luckyTileIds].sort()));
   for(const node of lucky){assert.equal(node.effects.item,true);assert.ok(node.nextNodes.length);assert.ok(node.previousNodes.length);}
   assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
@@ -899,7 +897,7 @@ test('1,000 generated boards contain no trophy or graph-adjacent heal/Lucky spac
    }
   }
   for(const b of map.branches.filter(b=>b.count>b.b-b.a-1)){
-   const long=Array.from({length:b.count},(_,j)=>map.nodes['b'+b.a+'_'+(j+1)]);
+   const long=b.nodeIds.map(id=>map.nodes[id]);
    assert.ok(long.some(n=>n.type==='healing'||n.type==='lucky'),
     'longer path must provide a meaningful benefit');
   }
@@ -1040,6 +1038,13 @@ test('Bot recovers from failed UFO aim without a 12s forced roll',()=>{
  assert.ok(['dice','move_ready','moving','branch','effect'].includes(s.phase),
   'bot chooses Roll after failed aim instead of looping the same item forever');
  assert.ok(s.moveDice&&s.moveDice.length===2,'AI can roll using the original dice rules');
+});
+test('A resumed bridge edge completes at floating-point endpoint without extra input',()=>{
+ const s=ready(1),p=s.players[0];p.currentNodeId='n57';
+ P.beginMove(s,p,2);P.step(s,'n58');s.move.t=1-Number.EPSILON;
+ P.update(s,.05);
+ assert.equal(p.currentNodeId,'n58');assert.equal(s.move.remaining,1);
+ P.update(s,.05);assert.equal(s.move.remaining,1,'arrival consumes only one die step');
 });
 test('Full-session stress: 1–12 bots, 20 seeds each, minigame rewards and finish',()=>{
  let games=0,rounds=0,used=new Set();
