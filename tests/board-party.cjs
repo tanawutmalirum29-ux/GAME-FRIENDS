@@ -89,6 +89,23 @@ test('Board clock uses true elapsed time with bounded steps even at low FPS',()=
  assert.ok(Math.abs(s.time-12)<.001,'5 FPS must advance twelve game seconds in twelve real seconds');
  assert.equal(s.players[0].dice.length,2,'order timeout must resolve even on low FPS');
 });
+test('Backpack B opens, A cycles across items and Close, B uses only the selected slot',()=>{
+ const s=ready(3),p=s.players[0];p.hp=1;
+ I.add(p,'shield');I.add(p,'potion');I.add(p,'rocket');
+ const input=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
+ const tap=button=>{input({});return input({action:button==='A',alt:button==='B'});};
+ tap('B');assert.equal(p.bagOpen,true);assert.equal(s.phase,'ready');
+ assert.equal(p.bagIndex,0);assert.equal(P.controls(s,p.id).b,'ใช้ไอเทม');
+ tap('A');assert.equal(p.bagIndex,1);assert.equal(p.bag[p.bagIndex],'potion');
+ tap('B');assert.equal(p.hp,2);assert.equal(p.usedRound,1);
+ assert.deepEqual(plain(p.bag),['shield','rocket']);
+ assert.equal(s.phase,'effect');until(s,()=>s.phase==='ready');
+ tap('B');assert.equal(p.bagOpen,true);
+ tap('A');tap('A');assert.equal(p.bagIndex,2,'selection reaches the Close slot');
+ assert.equal(P.controls(s,p.id).b,'ปิดกระเป๋า');
+ tap('B');assert.equal(p.bagOpen,false);assert.deepEqual(plain(p.bag),['shield','rocket']);
+ tap('A');assert.equal(s.phase,'dice','A resumes dice rolling after closing backpack');
+});
 test('Two independent dice: all 36 combinations move the exact sum, landing effect once',()=>{
  for(let a=1;a<=6;a++)for(let b=1;b<=6;b++){
   const s=ready(),rolls=[a,b];s.rng=()=> (rolls.shift()-.5)/6;const p=s.players[0];
