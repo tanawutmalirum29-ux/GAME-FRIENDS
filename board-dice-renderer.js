@@ -106,8 +106,11 @@ function draw(g,value,x,y,size=60,elapsed=Infinity,index=0,lowDetail=false){
  const surfaces=FACES.map(face=>projectedFace(face,p,size)).filter(f=>f.normal>0.012).sort((a,b)=>a.depth-b.depth);
  for(const surface of surfaces){
   const face=surface.face,won=hasResult&&p.settled&&face.value===target;
-  const light=surface.normal>.66,top=won?'#FFF4CC':light?'#fffcf0':'#f5eedf';
-  const bottom=won?'#F6DF9B':light?'#E8DEC8':'#cfc1a8';
+  const light=surface.normal>.66;
+  // Keep the physically projected ivory/gold dice, but give each face a
+  // snow-white glaze and muted Christmas holly-green / cranberry side facets.
+  const top=won?'#FFF4CC':light?'#ffffff':'#f7f9f5';
+  const bottom=won?'#F6DF9B':light?'#e9f3ee':'#d5e4e2';
   const xs=surface.corners.map(v=>v[0]),ys=surface.corners.map(v=>v[1]);
   const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
   path(g,surface.corners);
@@ -115,7 +118,17 @@ function draw(g,value,x,y,size=60,elapsed=Infinity,index=0,lowDetail=false){
    const grad=g.createLinearGradient(minX,minY,maxX+.001,maxY+.001);
    grad.addColorStop(0,top);grad.addColorStop(1,bottom);g.fillStyle=grad;
   }else g.fillStyle=won?'#F6DF9B':light?'#fdf5e5':'#E8DEC8';
-  g.fill();g.lineJoin='round';g.strokeStyle='#D4AB57';g.lineWidth=Math.max(.65,size*.025);g.stroke();
+  g.fill();g.lineJoin='round';
+  g.strokeStyle=won?'#D4AB57':face.value%2?'#b99860':'#648d7f';
+  g.lineWidth=Math.max(.65,size*.026);g.stroke();
+  // Festive enamel top-edge trim follows the same 3D face transforms.
+  if(!lowDetail){
+   const a=project(rotate(at(face,-.43,-.43,.52),p),size);
+   const b=project(rotate(at(face,.43,-.43,.52),p),size);
+   g.strokeStyle=face.value%2?'#ac4052':'#28735f';
+   g.lineWidth=Math.max(.8,size*.026);g.lineCap='round';
+   g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke();
+  }
   // Pips are mapped to the same rotated plane as their own face, NEVER swapped.
   if(hasResult){
    for(const [pu,pv] of PIPS[face.value]){
@@ -132,6 +145,20 @@ function draw(g,value,x,y,size=60,elapsed=Infinity,index=0,lowDetail=false){
    }
   }
   if(!lowDetail&&surface.normal>.25){
+   // Tiny engraved snowflake in the unoccupied face corner. It is a real
+   // 3D-projected decoration, not a 2D sticker covering dice pips.
+   const origin=at(face,-.385,.39,.522);
+   for(const direction of [[1,0],[.5,.866],[-.5,.866]]){
+    const a=project(rotate(at(face,-.385-direction[0]*.042,.39-direction[1]*.042,.522),p),size);
+    const b=project(rotate(at(face,-.385+direction[0]*.042,.39+direction[1]*.042,.522),p),size);
+    g.strokeStyle='#8eb7b3';g.lineWidth=Math.max(.5,size*.009);
+    g.beginPath();g.moveTo(...a);g.lineTo(...b);g.stroke();
+   }
+   if(won){
+    const berry=project(rotate(at(face,.39,.37,.527),p),size);
+    g.fillStyle='#b54655';g.beginPath();
+    g.arc(berry[0],berry[1],Math.max(.7,size*.021),0,TAU);g.fill();
+   }
    const a=project(rotate(at(face,-.39,.36,.516),p),size);
    const b=project(rotate(at(face,.20,.36,.516),p),size);
    g.strokeStyle=won?'#fff9df':'#ffffffa8';g.lineWidth=Math.max(.5,size*.018);
