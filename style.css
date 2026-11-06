@@ -4290,6 +4290,15 @@ body:has(#home:not(.hidden)) footer{
  background:#1e2e38;border-color:#3c4d59;
 }
 #controllerInventory .board-bag-item.is-empty svg{opacity:.32;filter:grayscale(1)}
+#controllerInventory .board-bag-item.is-locked{
+ background:#1b2731;border-color:#39434e;box-shadow:none;
+}
+#controllerInventory .board-bag-item.is-locked svg{
+ opacity:.23;filter:grayscale(1) brightness(.65);
+}
+#controllerInventory .board-bag-item.is-locked .board-item-count{
+ background:#29353f;color:#98a2ad;border-color:#46515a;
+}
 #controllerInventory .board-bag-item.is-selected{
  z-index:1;border:2px solid #ffdf88;background:#305b6c;
  box-shadow:0 0 9px 2px #ffcf777a,0 0 0 1px #fff1b580 inset;
