@@ -1587,6 +1587,9 @@ function renderPhoneBoard(){
    cell.innerHTML=svg?.svg('bag')||'';
    cell.title='กระเป๋าว่าง';host.append(cell);
  }
+ // Keep the chosen item and the final Close slot visible on compact phones.
+ if(open&&Number(host.clientWidth)>0)
+   host.scrollLeft=Math.max(0,selected*36-host.clientWidth/2+18);
  const guide=$('inventoryGuide');
  const slot=open?(selected>=bag.length?'ปิดกระเป๋า':window.BoardItems.names[bag[selected]]||''):null;
  guide.textContent=open?'เลือก: '+slot+' • A เลื่อน / B ยืนยัน'+(info.bagMessage?' • '+info.bagMessage:''):
