@@ -47,7 +47,8 @@ function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,nam
 // compact 4-column (12 players) layouts. This catches badge overflow.
 for(const n of [4,12]){
  const ranked=P.create(Array.from({length:n},(_,i)=>({id:'r'+i,name:'Player '+i,color:'#66aacc'})),{seed:97+n});
- P.beginOrder(ranked);
+ for(let i=0;i<70;i++)P.update(ranked,.05);
+ assert.equal(ranked.phase,'order');
  ranked.players.forEach(p=>{p.dice=[4,3];p.rollAt=0;});
  ranked.order=ranked.players.map(p=>p.id);
  ranked.time=2;P.phase(ranked,'order_result',3);
@@ -89,7 +90,7 @@ assert.equal(A.pan(explore,100,100),false);
 assert.match(artSource,/for\(const \[from,to\] of map\.bridges\)/,
  'the low-memory renderer must also paint bridge decks');
 const initialSurfaces=surfaces.length;
-const s=game(1);P.beginOrder(s);A.draw(g,0,s);assert.equal(surfaces.length,initialSurfaces,'dice order screen does not allocate the world');assert.ok(labels.includes('ทอยลูกเต๋าเพื่อจัดลำดับ'));
+const s=game(1);for(let i=0;i<70;i++)P.update(s,.05);assert.equal(s.phase,'order');A.draw(g,0,s);assert.equal(surfaces.length,initialSurfaces,'dice order screen does not allocate the world');assert.ok(labels.includes('ทอยลูกเต๋าเพื่อจัดลำดับ'));
 s.order=s.players.map(p=>p.id);P.startTurn(s);A.draw(g,0,s);assert.equal(surfaces.length,initialSurfaces+1);const old=surfaces.at(-1);
 assert.ok(old.width*old.height>1000000);
 ctx.window.BoardItems.add(s.players[0],'shield');
@@ -160,4 +161,4 @@ for(let i=0;i<29;i++)P.update(lucky,.05);
 assert.equal(lucky.phase,'effect');assert.equal(lucky.effect.kind,'luckyReward');
 luckyLabelStart=labels.length;A.draw(g,lucky.time,lucky);
 assert.ok(labels.slice(luckyLabelStart).some(x=>String(x).includes('ได้รับ: '+ctx.window.BoardItems.names[luckyItem])));
-console.log('BOARD ART PASS: immediate order screen, bounded/reused terrain, replay release and null-context vector fallback');
+console.log('BOARD ART PASS: automatic order screen, bounded/reused terrain, replay release and null-context vector fallback');
