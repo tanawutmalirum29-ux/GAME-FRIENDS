@@ -13,7 +13,7 @@ function route(s,from,to){
  return null;
 }
 function forwardTarget(s,p,maxSteps=Infinity){
- return s.players.filter(q=>q.id!==p.id&&q.currentNodeId!==s.map.finishId&&s.map.nodes[q.currentNodeId].progress>s.map.nodes[p.currentNodeId].progress)
+ return s.players.filter(q=>q.id!==p.id&&!q.shieldTurns&&q.currentNodeId!==s.map.finishId&&s.map.nodes[q.currentNodeId].progress>s.map.nodes[p.currentNodeId].progress)
   .map(q=>({q,path:route(s,p.currentNodeId,q.currentNodeId)})).filter(v=>!Number.isFinite(maxSteps)||(v.path&&v.path.length-1<=maxSteps))
   .sort((a,b)=>Number.isFinite(maxSteps)?a.path.length-b.path.length:s.map.nodes[b.q.currentNodeId].progress-s.map.nodes[a.q.currentNodeId].progress)[0]?.q;
 }
@@ -23,8 +23,11 @@ function update(s,dt,api){
  }
  const p=api.current(s);if(!p?.isBot||s.time-s.phaseAt<.5)return;
  if(s.phase==='ready'){
-  const use=p.item&&p.usedRound!==s.roundNumber&&(p.item==='potion'?p.hp<3:p.item==='rocket'?true:p.item==='ufo'?!!forwardTarget(s,p):p.item==='car'?!!forwardTarget(s,p,6):s.players.length>1);
+  const use=p.item&&p.usedRound!==s.roundNumber&&(p.item==='potion'?p.hp<3:p.item==='shield'?!p.shieldTurns:p.item==='rocket'?true:p.item==='ufo'?!!forwardTarget(s,p):p.item==='car'?!!forwardTarget(s,p,6):s.players.some(q=>q.id!==p.id&&!q.shieldTurns));
   send(s,p,api,0,0,use?'B':'A');
+ }else if(s.phase==='move_ready'){
+  const from=s.map.nodes[p.currentNodeId].position,to=s.map.nodes[s.map.nodes[p.currentNodeId].nextNodes[0]].position,d=Math.hypot(to.x-from.x,to.y-from.y);
+  send(s,p,api,(to.x-from.x)/d,(to.y-from.y)/d);
  }else if(s.phase==='branch'){
   const opts=s.branch.options;
   const cost=id=>{const n=s.map.nodes[id];return n.progress-s.map.nodes[p.currentNodeId].progress-(p.hp<2&&n.type==='danger'?4:0)+(p.hp<3&&n.type==='healing'?2:0);};
@@ -33,7 +36,7 @@ function update(s,dt,api){
   // Selection is resolved by the host update before the confirmation arrives.
   if(s.branch.selected===to)send(s,p,api,0,0,'A');
  }else if(s.phase==='aim'){
-  const skill=s.skill,q=skill.kind==='ufo'?forwardTarget(s,p):s.players.find(q=>q.id!==p.id);
+  const skill=s.skill,q=skill.kind==='ufo'?forwardTarget(s,p):s.players.find(q=>q.id!==p.id&&!q.shieldTurns);
   if(!q)return;
   const pos=window.BoardItems.position(s,q),dx=pos.x-skill.x,dy=pos.y-skill.y,d=Math.hypot(dx,dy);
   if(d<10)send(s,p,api,0,0,'A');else send(s,p,api,dx/d,dy/d);

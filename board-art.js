@@ -27,6 +27,9 @@ function icon(g,kind,x,y,size=20,color='#fff'){
   path(g,[[0,-18],[5,-3],[20,6],[19,11],[4,6],[3,15],[10,20],[-10,20],[-3,15],[-4,6],[-19,11],[-20,6],[-5,-3]],'#f5c969','#8f683c');line(g,0,-9,0,12,'#fff2c4',3);
  }else if(kind==='car'){
   box(g,-12,-13,5,9,2,'#263c55');box(g,7,-13,5,9,2,'#263c55');box(g,-12,6,5,9,2,'#263c55');box(g,7,6,5,9,2,'#263c55');box(g,-8,-15,16,32,5,'#ed8398','#fff');circle(g,0,2,6,'#314860');line(g,0,-4,4,-9,'#f5d783',2);
+ }else if(kind==='shield'){
+  path(g,[[-12,-14],[0,-18],[12,-14],[11,1],[7,10],[0,17],[-7,10],[-11,1]],'#6fc9ee','#e3faff',2);
+  path(g,[[0,-14],[9,-11],[8,0],[5,7],[0,12]],'#3a8cbc');line(g,-5,0,-1,5,'#fff',3);line(g,-1,5,6,-5,'#fff',3);
  }else if(kind==='neutral')circle(g,0,0,4,color);
  else {path(g,[[-9,-4],[1,-4],[1,-9],[11,0],[1,9],[1,4],[-9,4]],color);}
  g.restore();
@@ -100,9 +103,10 @@ function nodes(g,s){
    if(n.type==='finish'){line(g,x-40,y-45,x-40,y+10,'#eefaff',5);line(g,x+40,y-45,x+40,y+10,'#eefaff',5);box(g,x-43,y-50,86,14,3,'#fff');for(let j=0;j<8;j++)box(g,x-40+j*10,y-49+(j%2)*7,10,7,0,'#234d62');}
   }
  }
- if(s.phase==='branch'){
+ if(s.phase==='branch'||s.phase==='move_ready'){
   const p=window.BoardParty.current(s),a=s.map.nodes[p.currentNodeId].position;
-  for(const id of s.branch.options){const b=s.map.nodes[id].position,selected=id===s.branch.selected;line(g,a.x,a.y,b.x,b.y,selected?'#ffe38b':'#75acc4',selected?8:3);circle(g,b.x,b.y,34,null,selected?'#ffe59a':'#fff8',selected?5:2);label(g,selected?'A • ทางนี้':'เลือกทาง',b.x,b.y+48,13,'#173b53','center');}
+  const choices=s.phase==='branch'?s.branch:{options:s.map.nodes[p.currentNodeId].nextNodes,selected:s.map.nodes[p.currentNodeId].nextNodes[0]};
+  for(const id of choices.options){const b=s.map.nodes[id].position,selected=id===choices.selected;line(g,a.x,a.y,b.x,b.y,selected?'#ffe38b':'#75acc4',selected?8:3);circle(g,b.x,b.y,34,null,selected?'#ffe59a':'#fff8',selected?5:2);label(g,selected?'A • ทางนี้':'เลือกทาง',b.x,b.y+48,13,'#173b53','center');}
  }
 }
 function actors(g,s,t){
@@ -110,7 +114,8 @@ function actors(g,s,t){
  const list=s.players.map(p=>({p,pos:I.position(s,p)})).sort((a,b)=>a.pos.y-b.pos.y);
  for(const {p,pos}of list){
   const dead=p.death&&s.time-p.death.at<1.2,xy=dead?p.death.position:pos;
-  g.save();if(p.id===active?.id){circle(g,xy.x,xy.y,29+Math.sin(t*4)*2,null,'#ffdc83',3);path(g,[[xy.x-6,xy.y-48],[xy.x+6,xy.y-48],[xy.x,xy.y-39]],'#ffcf76');}
+  g.save();if(p.shieldTurns>0){circle(g,xy.x,xy.y,29,'#8cddf42d',p.blockedUntil>s.time?'#fff':'#8bd8f1',p.blockedUntil>s.time?5:2);icon(g,'shield',xy.x-22,xy.y-25,10);}
+  if(p.id===active?.id){circle(g,xy.x,xy.y,29+Math.sin(t*4)*2,null,'#ffdc83',3);path(g,[[xy.x-6,xy.y-48],[xy.x+6,xy.y-48],[xy.x,xy.y-39]],'#ffcf76');}
   if(dead){g.globalAlpha=Math.max(.1,1-(s.time-p.death.at)/1.2);g.translate(xy.x,xy.y);g.rotate((s.time-p.death.at)*2);g.translate(-xy.x,-xy.y);}
   const moving=s.move?.playerId===p.id&&s.move.to,from=moving?s.map.nodes[s.move.from].position:null,to=moving?s.map.nodes[s.move.to].position:null;
   const shake=p.hurtUntil>s.time?Math.sin(t*50)*3:0;
@@ -130,7 +135,7 @@ function effects(g,s,t){
    g.save();g.translate(sk.x,sk.y);g.rotate(sk.angle+Math.PI/2);icon(g,'bomber',0,0,29);g.restore();
   }else if(sk.kind==='ufo'){
    circle(g,sk.x,sk.y,26,'#9beef326',sk.targetId?'#b5ffb8':'#9eefff',3);icon(g,'ufo',sk.x,sk.y-33,33);
-   if(sk.targetId){const p=s.players.find(p=>p.id===sk.targetId);label(g,'A • '+p.name,sk.x,sk.y+46,16,'#163c53','center');}
+   if(sk.targetId){const p=s.players.find(p=>p.id===sk.targetId);label(g,p.shieldTurns?'โล่ป้องกัน • '+p.name:'A • '+p.name,sk.x,sk.y+46,16,'#163c53','center');}
   }else {
    const n=s.map.nodes[sk.nodeId];if(!sk.step&&n.nextNodes.length>1)for(const id of n.nextNodes){const q=s.map.nodes[id].position;line(g,n.position.x,n.position.y,q.x,q.y,id===sk.selectedNext?'#ffe1a0':'#91b8c7',id===sk.selectedNext?6:2);}
    icon(g,'car',sk.x,sk.y,23);
@@ -141,6 +146,7 @@ function effects(g,s,t){
   for(const p of fx.points){
    if(fx.kind==='bomber'||fx.kind==='car'){circle(g,p.x,p.y,I.blastRadius*(.3+.7*f),'#ffc97655','#fff0b8',3);for(let i=0;i<10;i++){const a=i*TAU/10;circle(g,p.x+Math.cos(a)*f*I.blastRadius,p.y+Math.sin(a)*f*I.blastRadius,12*(1-f)+2,i%2?'#ffb971':'#fff1bb');}}
    else if(fx.kind==='ufo'){path(g,[[p.x-36,p.y],[p.x+36,p.y],[p.x+12,p.y-120],[p.x-12,p.y-120]],'#b0f4ff66');icon(g,'ufo',p.x,p.y-120,32);}
+   else if(fx.kind==='shield'){circle(g,p.x,p.y,25+f*35,null,'#a2e8ff',4);icon(g,'shield',p.x,p.y-40-f*20,23);}
    else if(fx.kind==='heal'){circle(g,p.x,p.y,25+f*35,null,'#73e4b5',4);icon(g,'healing',p.x,p.y-35-f*30,18,'#3fbd8b');}
    else if(fx.kind==='hurt'||fx.kind==='death')circle(g,p.x,p.y,30+f*35,null,'#ee6c88',4);
   }
@@ -160,34 +166,39 @@ function hud(g,s){
   label(g,(i+1)+'. '+p.name,x+10,y+12,11,p.color,'left',700,w-38);if(p.item)icon(g,p.item,x+w-16,y+14,11);
   box(g,x+10,y+26,w-53,5,2,'#0b2537');box(g,x+10,y+26,(w-53)*p.hp/3,5,2,p.color);
   label(g,p.hp+'/3',x+w-12,y+29,10,'#d6eef7','right',500);
-  label(g,Math.round(s.map.nodes[p.currentNodeId].progress/36*100)+'%'+(turn?' • ถึงตา':' • รอ'),x+10,y+39,8,'#b9d9e7','left',500);
+  label(g,turn?'เหลือ '+window.BoardParty.remainingSteps(s,p.id)+' ก้าว':Math.round(s.map.nodes[p.currentNodeId].progress/36*100)+'% • รอ',x+10,y+39,9,turn?'#ffe3a1':'#b9d9e7','left',turn?800:500);
+  if(p.shieldTurns>0){icon(g,'shield',x+w-15,y+39,7);label(g,'โล่ '+p.shieldTurns+' ตา',x+w-26,y+39,7,'#9de6fc','right');}
  });
  box(g,12,460,936,68,16,'#102e44f5','#53758a');
  const p=active,c=p?window.BoardParty.controls(s,p.id):{help:'เตรียมการแข่งขัน'};
  if(p){
   window.PartyPlayerAvatar.draw(g,{...p,x:47,y:494},{scale:.85,label:false});
-  label(g,p.name,83,480,17,p.color);label(g,c.help,83,507,12,'#d1e9f4','left',500);
+  label(g,p.name,83,480,17,p.color,'left',700,265);label(g,c.help,83,507,11,'#d1e9f4','left',500,495);
   if(p.item){icon(g,p.item,607,490,21);label(g,IName(p.item),633,486,11,'#ffe5aa');label(g,p.usedRound===s.roundNumber?'ใช้แล้วในรอบนี้':'B • ใช้ก่อนทอย',633,506,10,'#abcddd','left',500);}
-  const rolling=s.phase==='dice',value=s.die;dice(g,value,880,494,47,rolling,s.time);
-  label(g,s.move?'เหลือ '+s.move.remaining+' ช่อง':s.phase==='ready'?'A • ทอย':s.phase==='dice'?'กำลังทอย':'',824,495,11,'#fff','right');
+  label(g,window.BoardParty.remainingSteps(s,p.id),885,487,30,'#ffe3a1','center');label(g,'ก้าวที่เหลือ',885,512,10,'#c8e6f3','center');
+  if(p.shieldTurns>0&&!p.item){icon(g,'shield',607,490,21);label(g,p.shieldTurns===2?'โล่ถึงจบเทิร์นถัดไป':'โล่ป้องกันในเทิร์นนี้',633,486,11,'#b4eaff');}
  }
- const timed=['ready','branch','aim','car'].includes(s.phase);if(timed)label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,447,12,'#21495f','right');
+ const timed=['ready','move_ready','branch','aim','car'].includes(s.phase);if(timed){box(g,886,428,60,25,8,'#173c53e8');label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,441,12,'#e4f5fc','right');}
 }
 const IName=id=>window.BoardItems.names[id]||'ไม่มีไอเทม';
 function overlay(g,s){
- const order=s.phase==='order'||s.phase==='order_result',results=['standings','rewards','returning'].includes(s.phase);
+ const order=['order','order_result','round_order'].includes(s.phase),results=['standings','rewards','returning'].includes(s.phase);
  if(!order&&!results)return;
  box(g,0,0,960,540,0,'#0e2a40ed');
  label(g,'WINTER SNOW ADVENTURE',480,30,11,'#93c8d6','center',500);
- label(g,order?(s.phase==='order'?'ทอยลูกเต๋าเพื่อจัดลำดับ':'ลำดับการเดินพร้อมแล้ว'):s.phase==='standings'?'ผลการแข่งขันมินิเกม':s.phase==='rewards'?'รางวัลสำหรับผู้เล่นครึ่งบน':'กำลังกลับสู่กระดานเดิม',480,63,25,'#eefbff','center');
- label(g,order?'A หรือ B • ทอย 2 ลูก • คะแนนมากเริ่มก่อน':s.phase==='rewards'?'ซ้าย: เก็บเดิม   ขวา: เปลี่ยนใหม่   A: ยืนยัน • หมดเวลาเก็บเดิม':'อันดับร่วมคงเดิม • สุ่มเฉพาะผู้เสมอคร่อมโควตารางวัล '+Math.floor(s.players.length*.5)+' คน',480,96,12,'#adccdc','center',500);
- const ids=order?(s.phase==='order_result'?s.order:s.players.map(p=>p.id)):s.results.map(r=>r.id);
+ label(g,order?(s.phase==='round_order'?'ลำดับใหม่ตามผลมินิเกม':s.phase==='order'?'ทอยลูกเต๋าเพื่อจัดลำดับ':'ลำดับการเดินพร้อมแล้ว'):s.phase==='standings'?'ผลการแข่งขันมินิเกม':s.phase==='rewards'?'รางวัลสำหรับผู้เล่นครึ่งบน':'กำลังกลับสู่กระดานเดิม',480,63,25,'#eefbff','center');
+ label(g,order?(s.phase==='round_order'?'ผู้ชนะเริ่มก่อน • อันดับเสมอคงลำดับเดิมระหว่างกัน':'A หรือ B • ทอย 2 ลูก • คะแนนมากเริ่มก่อน'):s.phase==='rewards'?'ซ้าย: เก็บเดิม   ขวา: เปลี่ยนใหม่   A: ยืนยัน • หมดเวลาเก็บเดิม':'อันดับร่วมคงเดิม • สุ่มเฉพาะผู้เสมอคร่อมโควตารางวัล '+Math.floor(s.players.length*.5)+' คน',480,96,12,'#adccdc','center',500);
+ const ids=order?(s.phase!=='order'?s.order:s.players.map(p=>p.id)):s.results.map(r=>r.id);
  const cols=ids.length<=4?2:4,rows=Math.ceil(ids.length/cols),w=cols===2?392:211,h=Math.min(108,310/rows),left=(960-(cols*w+(cols-1)*12))/2;
  ids.forEach((id,i)=>{
   const p=s.players.find(p=>p.id===id),x=left+(i%cols)*(w+12),y=127+Math.floor(i/cols)*(h+10),r=s.results.find(r=>r.id===id);
   box(g,x,y,w,h,12,'#203f55',p.color+'99');box(g,x,y,4,h,3,p.color);
   window.PartyPlayerAvatar.draw(g,{...p,x:x+27,y:y+29},{scale:.72,label:false});label(g,p.name,x+53,y+23,13,p.color,'left',700,w-108);
-  if(order){
+  if(s.phase==='round_order'){
+   label(g,'ตาที่ '+(i+1),x+15,y+66,25,'#ffe3a1','left',800,88);
+   const tied=s.results.filter(q=>q.rank===r.rank).length>1;
+   label(g,'อันดับ '+r.rank+(tied?' ร่วม':''),x+112,y+59,12,'#cee5f2','left',700,w-125);label(g,r.label,x+112,y+80,10,'#a8cfdf','left',500,w-125);
+  }else if(order){
    const rolled=p.dice&&s.time-p.rollAt>=.85;
    dice(g,p.dice?.[0],x+57,y+65,31,!!p.dice&&!rolled,s.time);dice(g,p.dice?.[1],x+98,y+65,31,!!p.dice&&!rolled,s.time+.2);
    label(g,rolled?'= '+p.dice.reduce((a,b)=>a+b,0):'รอทอย',x+127,y+65,17,'#f3e2b7');
@@ -196,7 +207,7 @@ function overlay(g,s){
    const tied=s.results.filter(q=>q.rank===r.rank).length>1;
    label(g,'#'+r.rank+(tied?' ร่วม':''),x+13,y+61,22,'#ffe2a1');label(g,r.label,x+90,y+51,11,'#cce5f3');
    if(r.reward&&s.phase!=='standings'){
-    const pending=s.pendingItems[id],rolling=s.time-s.phaseAt<1.1;icon(g,rolling?window.BoardItems.ids[Math.floor(s.time*15)%5]:r.reward,pending?x+w-25:x+103,y+78,15);
+    const pending=s.pendingItems[id],rolling=s.time-s.phaseAt<1.1;icon(g,rolling?window.BoardItems.ids[Math.floor(s.time*15)%window.BoardItems.ids.length]:r.reward,pending?x+w-25:x+103,y+78,15);
     if(pending){label(g,(pending.replace?'':'เลือก • ')+IName(p.item),x+13,y+85,8,pending.replace?'#a8bfca':'#a6f1d8','left',700,w-49);label(g,(pending.replace?'เลือก • ':'')+IName(r.reward),x+13,y+98,8,pending.replace?'#ffe3a2':'#a8bfca','left',700,w-49);}
     else label(g,rolling?'กำลังสุ่ม...':IName(r.reward),x+125,y+79,9,'#f9dda6');
    }else label(g,r.reward?'ได้รับสิทธิ์ไอเทม':'ไม่ได้รับไอเทม',x+90,y+77,10,r.reward?'#8de4c4':'#8faebf');
@@ -204,6 +215,19 @@ function overlay(g,s){
  });
  label(g,Math.max(0,Math.ceil(s.deadline-s.time))+' วินาที • ดำเนินต่ออัตโนมัติ',480,503,13,'#b8dce9','center',500);
 }
+function turnDice(g,s){
+ if(!['ready','dice'].includes(s.phase))return;
+ const p=window.BoardParty.current(s);if(!p)return;
+ const rolling=s.phase==='dice'&&s.time-s.phaseAt<.85,settled=s.phase==='dice'&&!rolling;
+ box(g,320,170,320,200,20,'#12364ef5','#8ac5d8');
+ label(g,p.name+' • ทอย 2 ลูก',480,194,16,p.color,'center',700,280);
+ dice(g,s.moveDice?.[0],428,258,70,rolling,s.time);
+ dice(g,s.moveDice?.[1],532,258,70,rolling,s.time+.23);
+ label(g,'+',480,257,22,'#a9d8e8','center');
+ label(g,settled?s.die+' ก้าว':rolling?'กำลังทอย…':'A • ทอยลูกเต๋า',480,321,24,'#ffe4a4','center');
+ label(g,s.phase==='dice'?'ใช้อนาล็อกเดิน หรือกด A ทีละก้าว':'B • ใช้ไอเทมก่อนทอย',480,349,11,'#bcdfed','center',500);
+}
+
 function draw(g,t,s){
  const top=s.players.length>6?145:94,bottom=452,viewH=bottom-top;
  const p=window.BoardParty.current(s)||s.players[0],pos=s.skill||window.BoardItems.position(s,p);
@@ -218,7 +242,7 @@ function draw(g,t,s){
  ground(g,s);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<55;i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
- hud(g,s);overlay(g,s);
+ hud(g,s);turnDice(g,s);overlay(g,s);
 }
-window.BoardArt=Object.freeze({draw,icon,dice,colors});
+window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice});
 })();
