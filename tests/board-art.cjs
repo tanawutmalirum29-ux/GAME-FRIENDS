@@ -1,6 +1,12 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const surfaces=[],labels=[];let denyTerrain=false;
+const artSource=fs.readFileSync('board-art.js','utf8');
+assert.match(artSource,/else sceneryLite\(g,s\)/,
+ 'low-memory renderer must avoid repainting full scenery every frame');
+assert.match(artSource,/if\(!visible\(x,y,75\)\)continue/,
+ 'off-screen tiles should be culled');
+
 function brush(main=false){return new Proxy({globalAlpha:1},{get(target,key){
  if(key in target)return target[key];
  if(key==='createLinearGradient')return()=>({addColorStop(){}});
