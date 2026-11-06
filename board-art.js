@@ -85,6 +85,31 @@ function scenery(g,map){
   line(g,x,y,x+75,y-8,'#91766a',7);for(const k of [0,38,75]){line(g,x+k,y+5,x+k,y-18,'#80695e',7);line(g,x+k-3,y-18,x+k+3,y-18,'#f1fcff',5);}
  }
 }
+// Low-memory Safari fallback: only paint visible snow and paths. Repainting the
+// entire 155-prop terrain every animation frame can itself freeze the browser
+// when an offscreen Canvas cannot be allocated.
+function sceneryLite(g,s){
+ const map=s.map,c=s.camera,zoom=Math.max(.35,c.zoom||1);
+ const width=480/zoom+220,height=(452-(s.players.length>6?145:94))/2/zoom+220;
+ const intersects=(a,b)=>Math.max(a.x,b.x)>=c.x-width&&Math.min(a.x,b.x)<=c.x+width&&
+   Math.max(a.y,b.y)>=c.y-height&&Math.min(a.y,b.y)<=c.y+height;
+ g.fillStyle='#23647f';g.fillRect(0,0,map.width,map.height);
+ for(let row=0;row<4;row++){
+   const y=320+row*310;
+   if(Math.abs(y-c.y)<height+125)island(g,865,y,1580,245);
+ }
+ for(const [id,n] of Object.entries(map.nodes)){
+   if(id[0]==='b'&&Math.abs(n.position.x-c.x)<width+100&&
+     Math.abs(n.position.y-c.y)<height+100)
+     island(g,n.position.x,n.position.y,170,130);
+ }
+ for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
+   const a=n.position,b=map.nodes[id].position;
+   if(!intersects(a,b))continue;
+   line(g,a.x,a.y,b.x,b.y,'#a5dce9',50);
+   line(g,a.x,a.y,b.x,b.y,'#e8faff',40);
+ }
+}
 function ground(g,s){
  if(terrain?.map!==s.map){
   if(terrain?.canvas){terrain.canvas.width=1;terrain.canvas.height=1;}
@@ -105,7 +130,7 @@ function ground(g,s){
   const x=Math.max(0,c.x-halfW-2),y=Math.max(0,c.y-halfH-2),w=Math.min(s.map.width-x,halfW*2+4),h=Math.min(s.map.height-y,halfH*2+4);
   const sx=layer.width/s.map.width,sy=layer.height/s.map.height;
   g.drawImage(layer,x*sx,y*sy,w*sx,h*sy,x,y,w,h);
- }else scenery(g,s.map);
+ }else sceneryLite(g,s);
 }
 function nodes(g,s){
  // Most of the 47+ tiles are off-screen. Skip both far-away nodes and paths
