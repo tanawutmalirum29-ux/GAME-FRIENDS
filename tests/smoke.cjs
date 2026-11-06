@@ -38,6 +38,23 @@ assert.match(html,/<meta property="og:image:height" content="630">/);
 assert.match(html,/name="twitter:card" content="summary_large_image"/);
 assert.match(html,/<img class="hero-cover" src="\.\/assets\/game-friends-cover\.svg"/);
 assert.match(css,/#home \.hero-cover\{/);
+assert.match(html,/<section class="hero">\s*<div class="hero-content">/,
+ 'home text and actions must be grouped separately from the cover');
+assert.match(html,/<\/div>\s*<img class="hero-cover" src="\.\/assets\/game-friends-cover\.svg"/,
+ 'cover must be its own sized grid item, not appended to a tall text column');
+assert.match(css,/body:has\(#home:not\(\.hidden\)\) \.app\{[\s\S]*?height:100dvh;[\s\S]*?overflow:hidden!important;/,
+ 'home page must fit a single dynamic browser viewport with no document scroll');
+assert.match(css,/#home\.party-entry\{[\s\S]*?flex:1 1 0;[\s\S]*?min-height:0;/,
+ 'home grid must shrink within height left by browser top bar and footer');
+assert.match(css,/#home\.party-entry \.hero:has\(\.hero-cover\)\{[\s\S]*?grid-template-columns:minmax\(0,\.94fr\) minmax\(0,1\.16fr\);[\s\S]*?grid-template-rows:minmax\(0,1fr\);/,
+ 'landscape host page uses bounded side-by-side cover instead of an overflowing image below actions');
+assert.match(css,/#home\.party-entry \.hero \.hero-cover\{[\s\S]*?height:100%;[\s\S]*?max-height:100%;[\s\S]*?object-fit:contain;/,
+ 'entire six-game cover must be contained without any cropping');
+assert.match(css,/@media\(orientation:portrait\) and \(max-width:1100px\), \(max-width:620px\)\{[\s\S]*?grid-template-rows:auto minmax\(0,1fr\);/,
+ 'portrait devices allocate leftover viewport height to the cover below controls');
+assert.match(css,/@media\(orientation:landscape\) and \(max-width:620px\)\{[\s\S]*?grid-template-columns:minmax\(0,\.95fr\) minmax\(0,1\.05fr\);/,
+ 'short narrow landscape keeps a side-by-side arrangement');
+
 const coverSvg=fs.readFileSync('assets/game-friends-cover.svg','utf8');
 const iconSvg=fs.readFileSync('assets/game-friends-icon.svg','utf8');
 assert.match(coverSvg,/<svg[^>]*viewBox="0 0 1200 630"/);
