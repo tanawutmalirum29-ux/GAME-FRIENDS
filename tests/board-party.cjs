@@ -420,7 +420,7 @@ test('152-step winter map uses the exact requested danger, arrow and nine linked
   const map=M.create(seed);
   assert.equal(map.length,152);assert.equal(map.finishId,'n152');
   assert.ok(map.islands.length>=7&&map.width>5000&&map.height>3000);
-  assert.equal(map.version,'winter-expedition-152-v4');
+  assert.equal(map.version,'winter-expedition-152-v5');
   assert.deepEqual(plain(M.SWORD_TILES),swords);
   assert.deepEqual(plain(M.SWORD_PAIRS.map(p=>p.nodeIds)),pairs);
   assert.equal(Object.keys(map.territories).length,9);
@@ -448,6 +448,43 @@ test('152-step winter map uses the exact requested danger, arrow and nine linked
   assert.equal(M.validate(map),true);
   assert.throws(()=>M.assertCompatible({...map,version:'winter-expedition-152-v3'}),/Incompatible BOARD PARTY map/,
    'old room maps are rejected because their territories no longer match');
+ }
+});
+test('Star bridge b72_5 offers old n74 exit and new b72_6 to c76_2 link',()=>{
+ for(const seed of [1,42,1024]){
+  const map=M.create(seed);
+  assert.deepEqual(plain(map.nodes.b72_5.nextNodes),['n74','b72_6']);
+  assert.deepEqual(plain(map.nodes.b72_6.nextNodes),['c76_2']);
+  assert.ok(map.nodes.c76_2.previousNodes.includes('b72_6'));
+  assert.equal(map.nodes.b72_6.type,'movement');
+  assert.equal(map.bridgeStyles['b72_5>b72_6'],'ice');
+  assert.equal(M.validate(map),true);
+ }
+ for(const target of ['n74','b72_6']){
+  const s=ready(2,741),p=s.players[0];p.currentNodeId='b72_5';
+  P.beginMove(s,p,target==='n74'?1:2);
+  const a=s.map.nodes.b72_5.position,b=s.map.nodes[target].position;
+  const d=Math.hypot(a.x-b.x,a.y-b.y);
+  let i=0;
+  while(p.currentNodeId!=='b72_6'&&p.currentNodeId!=='n74'&&i++<300){
+   P.input(s,p.id,{turnId:s.turnId,actionId:i,keys:{
+    axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d
+   }});
+   P.update(s,.05);
+   if(s.move?.to)assert.equal(s.move.to,target,'stick chooses requested exit');
+  }
+  assert.equal(p.currentNodeId,target,'real host controller can drive ice branch to '+target);
+  if(target==='b72_6'){
+   const next=s.map.nodes.c76_2.position,from=s.map.nodes.b72_6.position;
+   const dist=Math.hypot(next.x-from.x,next.y-from.y);
+   for(let j=0;j<300&&p.currentNodeId!=='c76_2';j++){
+    P.input(s,p.id,{turnId:s.turnId,actionId:i+j+1,keys:{
+     axisX:(next.x-from.x)/dist,axisY:(next.y-from.y)/dist
+    }});
+    P.update(s,.05);
+   }
+   assert.equal(p.currentNodeId,'c76_2','new shortcut connects to the existing c76 route');
+  }
  }
 });
 test('Lucky Star locations are reachable purple/gold reward tiles, spread across the larger board',()=>{
