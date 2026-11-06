@@ -490,6 +490,7 @@ function overlay(g,s){
   if(!p)return;
   if(order){
    box(g,x,y,w,h,12,'#203f55',p.color+'99');
+   g.save();g.beginPath();g.roundRect(x+1,y+1,w-2,h-2,11);g.clip();
    box(g,x,y,4,h,3,p.color);
    window.PartyPlayerAvatar.drawFront(g,p,x+27,y+29,38);
    label(g,p.name,x+53,y+23,13,p.color,'left',700,w-108);
@@ -505,6 +506,7 @@ function overlay(g,s){
    label(g,s.phase==='order_result'?'ลำดับ '+(i+1):p.dice?'ทอยแล้ว':'A / B',
      badgeX+8,badgeY+badgeH/2,10,'#d5e9f3','left',700,badgeW-16);
    g.restore();
+   g.restore(); // outer order-card clipping scope
    return;
   }
   // Result banner is the player's actual color regardless of finishing rank.
@@ -512,6 +514,7 @@ function overlay(g,s){
   tint.addColorStop(0,p.color);tint.addColorStop(.65,p.color);
   tint.addColorStop(1,'#29264a');
   box(g,x,y,w,h,12,tint,r.rank===1?'#ffe5a5':'#fff7');
+  g.save();g.beginPath();g.roundRect(x+1,y+1,w-2,h-2,11);g.clip();
   g.save();
   g.shadowColor='#ffe5a3';g.shadowBlur=8;
   g.beginPath();g.arc(x+41,y+Math.min(46,h/2),32,0,Math.PI*2);
@@ -536,6 +539,7 @@ function overlay(g,s){
   }else{
    label(g,'ไม่มีไอเทมรางวัล',x+85,y+Math.min(h-12,76),10,'#ffffff','left',600,w-163);
   }
+  g.restore(); // outer result-card clipping scope
  });
 
  label(g,Math.max(0,Math.ceil(s.deadline-s.time))+' วินาที • ดำเนินต่ออัตโนมัติ',480,503,13,'#b8dce9','center',500);
