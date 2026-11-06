@@ -159,11 +159,11 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
 {
  const {s,ps}=make();
  s.elapsed=11;
- ok(E.spawnPowerBox(s,ps),'first box spawned');
- ok(E.spawnPowerBox(s,ps),'second box spawned alongside first');
- eq(s.boxes.length,2,'small map supports two simultaneous boxes');
- ok(!E.spawnPowerBox(s,ps),'two-box small map cap');
- const box=s.boxes[0];box.type='score_bank';
+ ok(E.spawnPowerBox(s,ps,'score_bank'),'first bank box spawned');
+ ok(E.spawnPowerBox(s,ps,'rocket'),'second rocket box spawned alongside first');
+ ok(E.spawnPowerBox(s,ps,'score_bank'),'third box spawned without a cap');
+ eq(s.boxes.length,3,'small map permits more than two concurrent boxes');
+ const box=s.boxes[0];
  const tile=s.tiles[10];E.captureTile(s,tile,ps[0],ps);
  ps[0].x=box.x;ps[0].y=box.y;
  E.collectPowerBox(s,ps);
@@ -171,7 +171,7 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  eq(ps[0].cs.territoryScore,0,'bank clears live score');
  eq(ps[0].score,1,'bank maintains total score');
  eq(tile.ownerId,null,'bank clears color');
- eq(s.boxes.length,1,'only claimed box removed; another box stays on map');
+ eq(s.boxes.length,2,'only claimed bank box removed; others stay on map');
  E.collectPowerBox(s,ps);
  eq(ps[0].cs.bankedScore,1,'cannot collect same box twice');
  E.captureTile(s,tile,ps[0],ps);
@@ -179,12 +179,9 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
 }
 {
  const {s,ps}=make(7);s.elapsed=10;
- ok(E.spawnPowerBox(s,ps),'first big map box');
- ok(E.spawnPowerBox(s,ps),'second big map box');
- ok(E.spawnPowerBox(s,ps),'third big map box');
- ok(!E.spawnPowerBox(s,ps),'large map box cap reached after three');
- eq(s.boxes.length,3,'large map allows three simultaneous boxes');
- ok(new Set(s.boxes.map(box=>box.id)).size===3,'simultaneous boxes have distinct IDs');
+ for(let i=0;i<5;i++)ok(E.spawnPowerBox(s,ps),'large map spawns extra box '+i);
+ eq(s.boxes.length,5,'large map allows five concurrent boxes without a fixed cap');
+ ok(new Set(s.boxes.map(box=>box.id)).size===5,'concurrent boxes have distinct IDs');
 }
 {
  const {round,ps,s}=make();
@@ -236,7 +233,7 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  }
  ok(ps.some(p=>p.score>0),'bots capture tiles');
  ok(ps.some(p=>p.cs.punchCooldown>0||p.cs.blastCooldown>0)||s.totalCaptures>80,'bots act strategically');
- ok(s.boxes.length<=3,'three-box cap under stress');
+ ok(s.boxes.length<=2*Math.floor(s.elapsed/E.constants.boxSpawnInterval),'box count cannot exceed emitted waves');
  ok(s.effects.length<=32,'effects bounded');
 }
 
@@ -305,32 +302,55 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
 
 
 {
- // Scheduled spawning should fill empty slots, but never exceed the per-map cap.
+ // Every 12 seconds spawn exactly two fresh boxes, one rocket and one bank,
+ // whether or not any old boxes have been collected. There is no timed expiry.
  for(const count of [2,6,7,12]){
   const {ps,s,round}=make(count);
-  const expected=count<=6?2:3;
-  s.nextBoxSpawn=0;
-  E.update(1/60,round,ps);
-  eq(s.boxes.length,expected,'scheduled spawn fills '+expected+' slots for '+count+' players');
-  ok(s.boxes.every(box=>box.active&&box.type==='rocket'||box.active&&box.type==='score_bank'),
-    'all spawned boxes are usable for '+count+' players');
-  ok(s.boxes.every((box,i)=>s.boxes.every((other,j)=>i===j||Math.hypot(box.x-other.x,box.y-other.y)>s.size*1.5)),
-    'simultaneous boxes do not overlap for '+count+' players');
-  s.elapsed=s.nextBoxSpawn;
-  E.update(1/60,round,ps);
-  eq(s.boxes.length,expected,'scheduled spawn respects box cap for '+count+' players');
+  eq(s.nextBoxSpawn,12,'first wave is at 12 seconds for '+count+' players');
+  let expected=0;
+  for(const when of [12,24,36,48,60,72]){
+   if(when>=s.duration)break;
+   s.elapsed=when-1/60;s.clock=s.elapsed;
+   E.update(1/60,round,ps);
+   expected+=2;
+   eq(s.boxes.length,expected,'uncollected boxes persist; total '+expected+' at '+when+' s with '+count+' players');
+   const wave=s.boxes.slice(-2);
+   eq(wave.filter(box=>box.type==='rocket').length,1,'wave has exactly one rocket at '+when+' s');
+   eq(wave.filter(box=>box.type==='score_bank').length,1,'wave has exactly one bank at '+when+' s');
+   ok(s.boxes.every(box=>box.active),'uncollected boxes remain active');
+   ok(s.boxes.every((box,i)=>s.boxes.every((other,j)=>i===j||
+       Math.hypot(box.x-other.x,box.y-other.y)>s.size*.99)),
+      'boxes never overlap at '+when+' s');
+   ok(new Set(s.boxes.map(box=>box.id)).size===expected,'all box ids unique at '+when+' s');
+  }
  }
+}
+{
+ // A bot must target tiles identically with or without a distant rocket or bank.
+ const plain=make(2),withBoxes=make(2);
+ plain.ps[0].isBot=true;withBoxes.ps[0].isBot=true;
+ const field=withBoxes.s;
+ field.boxes.push({id:101,type:'rocket',x:field.board.x+field.size*1.5,
+  y:field.board.y+field.size*1.5,active:true,spawnTime:0});
+ field.boxes.push({id:102,type:'score_bank',x:field.board.x+field.size*9.5,
+  y:field.board.y+field.size*7.5,active:true,spawnTime:0});
+ for(let i=0;i<20;i++){E.update(1/60,plain.round,plain.ps);E.update(1/60,withBoxes.round,withBoxes.ps);}
+ eq(plain.ps[0].cs.botTarget,withBoxes.ps[0].cs.botTarget,'distant boxes do not override painting target');
+ eq(plain.ps[0].x,withBoxes.ps[0].x,'bot movement not redirected by boxes');
+ eq(plain.ps[0].y,withBoxes.ps[0].y,'bot path stays territory-focused');
 }
 {
  const {ps,round,s}=make();
  const bot=ps[0],enemy=ps[1];bot.isBot=true;
  bot.x=s.board.x+s.size*4;bot.y=s.board.y+s.size*4;
- enemy.x=bot.x+32;enemy.y=bot.y;
+ enemy.x=bot.x+29;enemy.y=bot.y;
  bot.dir={x:1,y:0};
+ ok(bot.cs.botNextPunch>=8&&bot.cs.botNextPunch<=15,'bot starts by painting, not punching');
+ bot.cs.botNextPunch=0;
  E.update(1/60,round,ps);
  const delay=bot.cs.botNextPunch-s.clock;
- eq(E.constants.botPunchRate,.084,'bot punch rate reduced by 80% relative to .42');
- ok(delay>=1.15/.084-1e-6,'bot punch delay has reduced lower bound');
- ok(delay<=1.6/.084+1e-6,'bot punch delay has reduced upper bound');
+ eq(E.constants.botPunchRate,.084,'80 percent previous bot punch reduction retained');
+ ok(delay>=1.15/.084-1e-6,'defensive bot punch has reduced interval lower bound');
+ ok(delay<=1.6/.084+1e-6,'defensive bot punch has reduced interval upper bound');
 }
 console.log('COLOR SWITCH: '+passed+' assertions passed');

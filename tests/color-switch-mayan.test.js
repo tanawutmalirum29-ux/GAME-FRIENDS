@@ -81,7 +81,9 @@ function game(count=2,theme='mayan'){
  const {s,players,round}=game(2,'classic');
  const bot=players[0],enemy=players[1];bot.isBot=true;
  bot.x=s.board.x+s.size*4;bot.y=s.board.y+s.size*4;
- enemy.x=bot.x+32;enemy.y=bot.y;bot.dir={x:1,y:0};
+ enemy.x=bot.x+29;enemy.y=bot.y;bot.dir={x:1,y:0};
+ ok(bot.cs.botNextPunch>=8&&bot.cs.botNextPunch<=15,'bot initially waits to prioritize painting');
+ bot.cs.botNextPunch=0;
  E.update(1/60,round,players);
  const delay=bot.cs.botNextPunch-s.clock;
  ok(delay>=1.15/.084-1e-6,'minimum interval after 80 percent further punch reduction');
