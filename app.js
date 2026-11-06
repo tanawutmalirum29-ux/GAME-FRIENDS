@@ -138,6 +138,36 @@ function holdSeat(p){
  },60000));
 }
 const canvas=$('arena'), g=canvas.getContext('2d');
+// A pointer drag on the host's board view explores the map only AFTER rolling
+// and BEFORE the first walk. Gameplay inputs remain on the controller.
+{
+ let panId=null,lastX=0,lastY=0;
+ const canPan=()=>round?.mode==='board'&&!round.paused&&
+   !!boardSession&&!!window.BoardArt?.canPan(boardSession);
+ const release=e=>{if(e.pointerId===panId)panId=null;};
+ canvas.addEventListener('pointerdown',e=>{
+   if(panId!==null||!canPan())return;
+   const rect=canvas.getBoundingClientRect();
+   if(!rect.width||!rect.height)return;
+   const y=(e.clientY-rect.top)/rect.height*540;
+   const top=boardSession.players.length>6?145:94;
+   if(y<top||y>452)return; // HUD is not a draggable map.
+   e.preventDefault();panId=e.pointerId;lastX=e.clientX;lastY=e.clientY;
+   try{canvas.setPointerCapture(panId);}catch(_){}
+ });
+ canvas.addEventListener('pointermove',e=>{
+   if(panId!==e.pointerId)return;
+   if(!canPan()){panId=null;return;}
+   const rect=canvas.getBoundingClientRect();
+   if(!rect.width||!rect.height)return;
+   e.preventDefault();
+   window.BoardArt.pan(boardSession,(e.clientX-lastX)*960/rect.width,
+     (e.clientY-lastY)*540/rect.height);
+   lastX=e.clientX;lastY=e.clientY;
+ });
+ for(const name of ['pointerup','pointercancel','lostpointercapture'])
+   canvas.addEventListener(name,release);
+}
 // The game world stays at 960x540. Increase the bitmap resolution of the
 // *host canvas* to match the screen instead of stretching 960 physical pixels
 // across Retina tablets/large monitors. This changes graphics only: coordinates,
