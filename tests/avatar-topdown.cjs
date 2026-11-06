@@ -82,10 +82,14 @@ for(const theme of ['graveyard','egypt']){
  assert.ok(calls.some(x=>x[0]==='drawImage'&&x[2]===-27&&x[3]===-27&&
    x[4]===54&&x[5]===54),'ghost sprites must be centered top-down');
 }
+const shared=fs.readFileSync('character-system.js','utf8');
+assert.match(shared,/PartyPlayerAvatar\?\.draw/,
+ 'PartyCharacters must delegate to the canonical overhead avatar');
 for(const game of ['ghost-attack.js','chickens.js','fruit-memory.js','shockwave.js']){
  const src=fs.readFileSync(game,'utf8');
- assert.match(src,/PartyPlayerAvatar\.draw/,
-   game+' uses the exact same overhead player renderer');
+ const viaShared=game==='chickens.js'||game==='fruit-memory.js';
+ assert.match(src,viaShared?/PartyCharacters\.draw/:/PartyPlayerAvatar\.draw/,
+   game+' uses the same overhead avatar directly or through PartyCharacters');
 }
 const shock=fs.readFileSync('shockwave.js','utf8');
 assert.doesNotMatch(shock,/footAnchor:true/,'old side-view foot offset is removed');
