@@ -44,6 +44,37 @@ test('Input tokens, duplicate action IDs, held A, non-active players, B after ro
  const die=s.die;assert.equal(P.input(s,p.id,packet),false);press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(s.die,die);
  assert.equal(P.input(s,p.id,{turnId:s.turnId,actionId:1,keys:{}}),false);
 });
+test('Fresh turn token accepts A/B despite old pressed state',()=>{
+ const s=game(2,122),p=s.players[0];
+ const oldTurn=s.turnId;
+ assert.equal(P.input(s,p.id,{turnId:oldTurn,actionId:1,keys:{action:true}}),true);
+ assert.equal(s.players[0].dice.length,2);
+ s.order=[p.id,s.players[1].id];s.turnIndex=0;
+ P.startTurn(s);
+ const newTurn=s.turnId;
+ assert.notEqual(newTurn,oldTurn);
+ assert.equal(P.input(s,p.id,{turnId:newTurn,actionId:2,keys:{action:true}}),true);
+ assert.equal(s.phase,'dice','new A press must roll immediately, even if old A was held');
+ assert.equal(P.input(s,p.id,{turnId:newTurn,actionId:3,keys:{action:true}}),true);
+ assert.equal(s.phase,'dice','same turn repeated held A cannot trigger again');
+ assert.equal(P.input(s,p.id,{turnId:oldTurn,actionId:4,keys:{alt:true}}),false);
+});
+test('Board clock uses true elapsed time with bounded steps even at low FPS',()=>{
+ const source=fs.readFileSync('app.js','utf8');
+ assert.match(source,/const boardDt=Math\.min\(1,elapsed\)/);
+ assert.match(source,/updateRound\(round\.mode==='board'\?boardDt:dt\)/);
+ assert.match(source,/for\(let ticks=0;ticks<20&&pending>1e-6;ticks\+\+\)/);
+ function advance(s,frameSeconds){
+  let pending=Math.max(0,Math.min(1,frameSeconds));
+  for(let count=0;count<20&&pending>1e-6;count++){
+   const step=Math.min(.05,pending);P.update(s,step);pending-=step;
+  }
+ }
+ const s=game(1,7);s.players[0].isBot=false;
+ for(let frame=0;frame<60;frame++)advance(s,.2);
+ assert.ok(Math.abs(s.time-12)<.001,'5 FPS must advance twelve game seconds in twelve real seconds');
+ assert.equal(s.players[0].dice.length,2,'order timeout must resolve even on low FPS');
+});
 test('Two independent dice: all 36 combinations move the exact sum, landing effect once',()=>{
  for(let a=1;a<=6;a++)for(let b=1;b<=6;b++){
   const s=ready(),rolls=[a,b];s.rng=()=> (rolls.shift()-.5)/6;const p=s.players[0];
