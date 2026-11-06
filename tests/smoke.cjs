@@ -2369,7 +2369,7 @@ for(const count of [1,12]){
  assert.equal(p.bagOpen,false,'there is no popup bag');
  sendBoard({});sendBoard({action:true});
  api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
- assert.equal(state.shieldTurns,2);assert.equal(p.item,null);assert.equal(p.bag.length,0);
+ assert.equal(state.shieldTurns,1,'manually activated shield is active for this BOARD round');assert.equal(p.shieldRound,s.roundNumber);assert.equal(p.item,null);assert.equal(p.bag.length,0);
 }
 {
  // No timer ticks between taps: a new host token must immediately repair a

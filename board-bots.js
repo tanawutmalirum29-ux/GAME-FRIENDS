@@ -13,7 +13,7 @@ function route(s,from,to){
  return null;
 }
 function forwardTarget(s,p,maxSteps=Infinity){
- return s.players.filter(q=>q.id!==p.id&&!q.shieldTurns&&q.currentNodeId!==s.map.finishId&&s.map.nodes[q.currentNodeId].progress>s.map.nodes[p.currentNodeId].progress)
+ return s.players.filter(q=>q.id!==p.id&&!window.BoardParty.isProtected(s,q)&&q.currentNodeId!==s.map.finishId&&s.map.nodes[q.currentNodeId].progress>s.map.nodes[p.currentNodeId].progress)
   .map(q=>({q,path:route(s,p.currentNodeId,q.currentNodeId)})).filter(v=>!Number.isFinite(maxSteps)||(v.path&&v.path.length-1<=maxSteps))
   .sort((a,b)=>Number.isFinite(maxSteps)?a.path.length-b.path.length:s.map.nodes[b.q.currentNodeId].progress-s.map.nodes[a.q.currentNodeId].progress)[0]?.q;
 }
@@ -34,10 +34,10 @@ function update(s,dt,api){
  if(s.phase==='ready'){
   const bag=window.BoardItems.bag(p);
   const canUse=kind=>p.usedRound!==s.roundNumber&&(
-   kind==='potion'?p.hp<70:kind==='shield'?!p.shieldTurns:
+   kind==='potion'?p.hp<70:kind==='shield'?false:
    kind==='rocket'?true:kind==='ufo'?!!forwardTarget(s,p):
    kind==='car'?!!forwardTarget(s,p):
-   s.players.some(q=>q.id!==p.id&&!q.shieldTurns));
+   s.players.some(q=>q.id!==p.id&&!api.isProtected(s,q)));
   // A failed UFO/bomber aim expires back to ready. Without a forced-roll
   // timeout a bot must not enter the same failed item indefinitely.
   const botTurnKey=s.roundNumber+':'+s.turnIndex;
@@ -72,7 +72,7 @@ function update(s,dt,api){
   // Selection is resolved by the host update before the confirmation arrives.
   if(s.move.kind==='rocket'&&s.branch.selected===to)send(s,p,api,0,0,'A');
  }else if(s.phase==='aim'){
-  const skill=s.skill,q=skill.kind==='ufo'?forwardTarget(s,p):s.players.find(q=>q.id!==p.id&&!q.shieldTurns);
+  const skill=s.skill,q=skill.kind==='ufo'?forwardTarget(s,p):s.players.find(q=>q.id!==p.id&&!api.isProtected(s,q));
   if(!q)return;
   const pos=window.BoardItems.position(s,q),dx=pos.x-skill.x,dy=pos.y-skill.y,d=Math.hypot(dx,dy);
   // UFO bots must also steer the marker before confirming. If the target is

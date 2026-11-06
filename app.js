@@ -1813,7 +1813,7 @@ function broadcastBoardState(){
   for(const conn of hostConnections){
     const p=boardSession.players.find(p=>p.id===conn.playerId);if(!p)continue;
     send(conn,{t:'board-state',mapVersion:boardSession.map.version,phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
-      round:boardSession.roundNumber,hp:p.hp,usedRound:p.usedRound||0,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:p.shieldTurns||0,
+      round:boardSession.roundNumber,hp:p.hp,usedRound:p.usedRound||0,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:window.BoardParty.isProtected(boardSession,p)?1:0,
       item:window.BoardItems.names[p.item]||'ไม่มีไอเทม',
       bag:window.BoardItems.bag(p).slice(),actionIndex:p.actionIndex||0,bagMessage:p.bagMessage||'',
       ...window.BoardParty.controls(boardSession,p.id)});
