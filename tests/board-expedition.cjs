@@ -6,6 +6,8 @@ for(const f of ['board-map','board-dice','board-items','board-bots','board-minig
 const {BoardMap:M,BoardParty:P,BoardArt:A,BoardBots:B,BoardItems:I}=ctx.window;
 const game=()=>{const s=P.create([{id:'p1',name:'Explorer',color:'#ffc76e'}],{seed:23});s.order=['p1'];P.startTurn(s);return s;};
 const map=M.create(0),nodes=Object.values(map.nodes);
+assert.ok(!map.islands.find(i=>i.id==='lake').decorations.some(d=>d.kind==='fence'&&d.x===4240),
+ 'the fence at the b72_6 junction has been removed to clear the new walk lane');
 const g=new Proxy({}, {get(o,k){if(k==='createLinearGradient')return()=>({addColorStop(){}});return k in o?o[k]:()=>{};},set(o,k,v){o[k]=v;return true;}});
 // Every checkpoint can be followed at readable zoom, even after a geographic reversal.
 for(const height of [540,720]){
@@ -77,4 +79,4 @@ for(const island of map.islands){
   for(const [x,y] of [[b[0],b[1]],[b[2],b[1]],[b[0],b[3]],[b[2],b[3]]])assert.ok(inside({x:d.x+x*k,y:d.y+y*k},outline),'decoration on snow: '+island.id+' '+d.kind+' '+d.x);
  }
 }
-console.log('EXPEDITION PASS: all 212 nodes followed at 2 aspect ratios, all fork choices framed, nearby non-edges blocked, graph-aware bots, old-version rejection, curved coast and fixed decoration containment');
+console.log('EXPEDITION PASS: all '+nodes.length+' nodes followed at 2 aspect ratios, all fork choices framed, nearby non-edges blocked, graph-aware bots, old-version rejection, curved coast and fixed decoration containment');
