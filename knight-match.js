@@ -206,7 +206,7 @@ function botControls(s,p,ps){
  if(!best)return{x:0,y:0,action:false};
  const dx=best.x-p.x,dy=best.y-p.y,d=Math.hypot(dx,dy)||1;
  const desired=Math.atan2(dy,dx),delta=Math.abs(angleDelta(k.angle,desired));
- const attack=d<CONFIG.lanceReach+best.radius+15&&d>24&&delta<.24&&
+ const attack=d<CONFIG.lanceReach+(best.radius||22)+15&&d>24&&delta<.24&&
   k.cooldown<=0&&k.stun<=0&&s.clock>=k.botNext;
  if(attack)k.botNext=s.clock+.9+rand(s)*.3;
  return{x:dx/d*(d>42?1:.55),y:dy/d*(d>42?1:.55),action:attack};
