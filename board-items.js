@@ -14,12 +14,12 @@ function add(p,kind){
 }
 function positionOnNode(s,p,nodeId=p.currentNodeId){
  const n=s.map.nodes[nodeId].position;
+ if(nodeId===p.currentNodeId&&p.worldPosition)return {...p.worldPosition};
  const group=s.players.filter(q=>q.id===p.id||q.currentNodeId===nodeId),i=group.findIndex(q=>q.id===p.id);
- // Visual offsets also define the rendered avatar hitboxes; logical nodes never move.
+ // Crowd offsets remain within the physical pad, never out in the water.
  if(group.length<2)return {...n};
- const cols=group.length>6?4:group.length>3?3:group.length;
- const rows=Math.ceil(group.length/cols),col=i%cols,row=Math.floor(i/cols);
- return{x:n.x+(col-(cols-1)/2)*40,y:n.y+(row-(rows-1)/2)*44};
+ const angle=2*Math.PI*i/group.length;
+ return{x:n.x+Math.cos(angle)*16,y:n.y+Math.sin(angle)*16};
 }
 function position(s,p){
  if(s.move?.playerId===p.id){
@@ -31,7 +31,7 @@ function position(s,p){
    return{x:a.x+dx*m.t-dy/dist*lateral,y:a.y+dy*m.t+dx/dist*lateral};
   }
   if(m.kind==='walk'&&m.nodeOffset){
-   const n=positionOnNode(s,p);
+   const n=s.map.nodes[p.currentNodeId].position;
    return{x:n.x+(m.nodeOffset.x||0),y:n.y+(m.nodeOffset.y||0)};
   }
  }
@@ -78,7 +78,7 @@ function confirm(s,button,api){
   const points=[position(s,p),position(s,q)],a=p.currentNodeId,b=q.currentNodeId;
   // Validate first, then commit both node IDs in the same host action.
   if(b===s.map.finishId||a===s.map.finishId)return false;
-  p.currentNodeId=b;q.currentNodeId=a;consume(s,p,skill.kind);s.skill=null;
+  p.currentNodeId=b;q.currentNodeId=a;delete p.worldPosition;delete q.worldPosition;consume(s,p,skill.kind);s.skill=null;
   api.effect(s,{kind:'ufo',points,targets:[p.id,q.id],next:'end'},1.25);return true;
  }
  if(skill.kind==='bomber'){
