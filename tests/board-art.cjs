@@ -312,4 +312,48 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
   'square viewport anchors the footer near the actual bottom');
  g.roundRect=oldRect;
 }
+
+// iPhone Safari regression: the browser can render Thai/mixed-script
+// text as if the Canvas "center" anchor were "left". Explicitly use shaped
+// measureText width to position ALL selected texts around the true panel
+// center (x=480), without moving the dice or Lucky Star reel itself.
+{
+ const probe=brush(true);
+ probe.measureText=text=>({width:String(text).length*8});
+ function expectCenteredThai(records,labelText,at=480){
+  const hit=records.find(x=>x.text===labelText);
+  assert.ok(hit,'expected canvas text: '+labelText);
+  assert.equal(hit.align,'left','explicit left anchor avoids WebKit Thai center bug');
+  const measured=probe.measureText(labelText).width;
+  const actualWidth=hit.maxWidth>0?Math.min(measured,hit.maxWidth):measured;
+  assert.ok(Math.abs(hit.x+actualWidth/2-at)<1e-7,
+   'the actual painted text bounds must be centered on x='+at+': '+labelText);
+ }
+ const s=game(901);
+ s.order=s.players.map(p=>p.id);P.startTurn(s);
+ s.players[0].name='บอท 4';
+ let first=labelDraws.length;A.turnDice(probe,s);
+ const panel=labelDraws.slice(first);
+ expectCenteredThai(panel,'บอท 4');
+ expectCenteredThai(panel,'ทอยลูกเต๋า');
+ expectCenteredThai(panel,'A ทอย   •   B เปลี่ยนตัวเลือก');
+ // The second screenshot shows Lucky Star copy above and below the reel.
+ const lucky=game(902);lucky.order=lucky.players.map(p=>p.id);
+ P.startTurn(lucky);
+ lucky.players[0].currentNodeId=lucky.map.luckyTileIds[0];
+ P.land(lucky);assert.equal(lucky.phase,'lucky_roulette');
+ first=labelDraws.length;A.draw(probe,lucky.time,lucky);
+ const spin=labelDraws.slice(first);
+ expectCenteredThai(spin,'สุ่มไอเทม 1 ชิ้น • เข้ากระเป๋าสะสมได้ไม่จำกัด');
+ const luckyTitle=spin.find(x=>x.text==='LUCKY STAR');
+ assert.equal(luckyTitle.x,480,'English heading remains naturally centered');
+ assert.equal(luckyTitle.align,'center');
+ for(let i=0;i<41;i++)P.update(lucky,.05);
+ first=labelDraws.length;A.draw(probe,lucky.time,lucky);
+ const won=labelDraws.slice(first),prize='ได้รับ: '+ctx.window.BoardItems.names[lucky.lucky.item];
+ expectCenteredThai(won,prize);
+ expectCenteredThai(won,lucky.players[0].name+' • เพิ่มเข้ากระเป๋าแล้ว');
+}
+console.log('BOARD THAI CENTER PASS: dice panel and Lucky Star Thai text physically centered on Safari');
+
 console.log('BOARD VIEWPORT PASS: 16:9 / 4:3 / 1:1 map expansion, footer anchoring and stable game state');
