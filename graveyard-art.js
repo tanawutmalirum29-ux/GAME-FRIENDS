@@ -184,7 +184,7 @@
     }
     ctx.restore();
   }
-  function drawActor(ctx,p,color,isGhost,time,theme='graveyard'){
+  function drawActor(ctx,p,color,isGhost,time,theme='graveyard',scale=1){
     if(!isGhost){window.PartyPlayerAvatar.draw(ctx,p,{time,color,label:false,attacking:p.attackRemaining>0});return;}
     const movement=Math.hypot(p.vx||0,p.vy||0);
     const pose=isGhost?'float'+(Math.floor(time*3.3)%3):
@@ -196,6 +196,8 @@
     const angle=Math.hypot(d.x||0,d.y||0)>.001?
       Math.atan2(d.y,d.x)+Math.PI/2:0;
     ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);
+    // Display-only size: maintain the original position, collisions and movement.
+    ctx.scale(Number.isFinite(scale)&&scale>0?scale:1,Number.isFinite(scale)&&scale>0?scale:1);
     if(ready(img))ctx.drawImage(img,-27,-27,54,54);
     else{
       ctx.fillStyle=color;ctx.strokeStyle='#173d52';ctx.lineWidth=3;
