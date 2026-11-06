@@ -1845,8 +1845,13 @@ function endRound(){
   if(!round||round.phase==='results')return;
   if(boardSession?.phase==='minigame'){
     const ranking=window.BoardMinigame.ranking(round,players);
-    window.BoardParty.minigameEnded(boardSession,ranking);showBoard();return;
+    // Ignore duplicate end notifications: board state accepts one result only.
+    if(window.BoardParty.minigameEnded(boardSession,ranking))showBoard();
+    return;
   }
+  // After returning to the board, any delayed minigame "end" callback must
+  // not open the normal results page a second time.
+  if(boardSession&&round.mode==='board')return;
    if(round.mode==='pizza_time'){endPizzaTimeRound();return;}
    if(round.mode==='color_switch'){endColorSwitchRound();return;}
   if(round.mode==='chickens'){endChickensRound();return;}
