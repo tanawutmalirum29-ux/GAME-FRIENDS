@@ -151,10 +151,34 @@ test('Human turn stays ready indefinitely; only a real action rolls dice',()=>{
  assert.equal(s.die,null);
  assert.equal(s.moveDice,null);
  assert.deepEqual(s.players.map(v=>v.currentNodeId),original);
- assert.equal(P.controls(s,p.id).a,'ทอย');
+ assert.equal(P.controls(s,p.id).a,'ทอยลูกเต๋า');
  assert.equal(P.action(s,p.id,'A'),true);
  assert.equal(s.phase,'dice');
  assert.equal(s.moveDice.length,2);
+});
+test('Contextual board button labels distinguish roll, use, aim and A/B/C target actions',()=>{
+ const s=ready(3,497),p=s.players[0];
+ const label=()=>plain(P.controls(s,p.id));
+ assert.equal(label().a,'ทอยลูกเต๋า');
+ assert.equal(label().b,'เปลี่ยนไอเทม');
+ I.add(p,'shield');p.actionIndex=I.ids.indexOf('shield')+1;
+ assert.equal(label().a,'ใช้ไอเทม');
+ I.add(p,'bomber');p.actionIndex=I.ids.indexOf('bomber')+1;
+ assert.equal(label().a,'เล็งเป้า');
+ assert.equal(P.action(s,p.id,'A'),true);
+ assert.equal(s.phase,'aim');
+ assert.deepEqual([label().a,label().b,label().c],
+  ['ยืนยันโจมตี','หมุน 45°','ยกเลิก']);
+ assert.equal(P.action(s,p.id,'C'),true);
+ p.item='ufo';p.actionIndex=I.ids.indexOf('ufo')+1;
+ assert.equal(label().a,'เล็งเป้า');
+ assert.equal(P.action(s,p.id,'A'),true);
+ assert.equal(s.phase,'aim');
+ assert.deepEqual([label().a,label().b,label().c],
+  ['ยืนยันสลับ','ไม่ใช้','ยกเลิก']);
+ assert.equal(P.action(s,p.id,'C'),true);
+ assert.equal(s.phase,'ready');
+ assert.equal(p.usedRound,0,'canceling the aim does not consume an item');
 });
 test('Bot order still progresses without human auto-roll timeout',()=>{
  const s=game(4,1777,true);
@@ -169,8 +193,8 @@ test('B cycles [Roll, inventory], A activates selected action; no bag popup',()=
  const input=keys=>P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
  const tap=button=>{input({});return input({action:button==='A',alt:button==='B'});};
  assert.equal(p.actionIndex,0);
- assert.equal(P.controls(s,p.id).a,'ทอย');
- assert.equal(P.controls(s,p.id).b,'เปลี่ยนตัวเลือก');
+ assert.equal(P.controls(s,p.id).a,'ทอยลูกเต๋า');
+ assert.equal(P.controls(s,p.id).b,'เปลี่ยนไอเทม');
  tap('B');assert.equal(p.actionIndex,1,'the first B selects potion in fixed type order');
  assert.equal(I.ids[p.actionIndex-1],'potion');
  assert.match(P.controls(s,p.id).help,/Healing Potion/);
