@@ -2047,7 +2047,7 @@ for(const count of [1,12]){
  const beforeZoom=s.camera.introFrom.zoom;
  const beforeDistance=Math.hypot(s.camera.introFrom.x-start.x,s.camera.introFrom.y-start.y);
  api.updateBoard(.75);
- const drawCtx=new Proxy({}, {get(obj,key){return key in obj?obj[key]:(obj[key]=()=>{});},set(obj,key,value){obj[key]=value;return true;}});
+ const drawCtx=new Proxy({}, {get(obj,key){if(key==='createLinearGradient'||key==='createRadialGradient')return()=>({addColorStop(){}});return key in obj?obj[key]:(obj[key]=()=>{});},set(obj,key,value){obj[key]=value;return true;}});
  ui.scope.window.BoardArt.draw(drawCtx,s.time,s);
  assert.ok(s.camera.zoom>beforeZoom&&s.camera.zoom<1,'zoom visibly interpolates during fly-in');
  assert.ok(Math.hypot(s.camera.x-start.x,s.camera.y-start.y)<beforeDistance,'camera moves toward the actual start position');
