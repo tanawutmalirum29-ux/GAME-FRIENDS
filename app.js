@@ -1087,7 +1087,7 @@ function joinRoom(recovery=false){
         controllerState(data.reason||'ห้องไม่รับผู้เล่น',true);$('joinBtn').disabled=false;
         safePeerDestroy();
       }else if(data.t==='board-state'){
-        controllerBoard=data;setControllerGameContext('board',data.phase, true);if(data.phase!=='results')renderPhoneBoard();
+        receiveBoardState(data);
       }else if(data.t==='roster'){
         controllerSessionMode=data.sessionMode||'queue';
         showControllerMode(data.mode);
@@ -1514,9 +1514,17 @@ function broadcastBoardState(){
   for(const conn of hostConnections){
     const p=boardSession.players.find(p=>p.id===conn.playerId);if(!p)continue;
     send(conn,{t:'board-state',phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
-      round:boardSession.roundNumber,hp:p.hp,item:window.BoardItems.names[p.item]||'ไม่มีไอเทม',
+      round:boardSession.roundNumber,hp:p.hp,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:p.shieldTurns||0,item:window.BoardItems.names[p.item]||'ไม่มีไอเทม',
       ...window.BoardParty.controls(boardSession,p.id)});
   }
+}
+function receiveBoardState(info){
+  const previousToken=controllerBoard?.turnId;
+  controllerBoard=info;setControllerGameContext('board',info.phase,true);
+  if(info.phase!=='results')renderPhoneBoard();
+  // A release sent with the previous token may have been rejected by the host.
+  // Resend the physical button/stick state as soon as the new control phase arrives.
+  if(info.phase==='playing'&&info.turnId!==previousToken)sendInputs();
 }
 function renderPhoneBoard(){
   const info=controllerBoard;if(!info||controllerGameMode!=='board')return;
@@ -1529,7 +1537,7 @@ function renderPhoneBoard(){
   $('buttonA').setAttribute('aria-label','A '+(info.a||''));$('buttonB').setAttribute('aria-label','B '+(info.b||''));
   $('controllerHelp').textContent=info.help||'';
   $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing');
-  $('controllerRole').textContent='HP '+info.hp+'/3';$('inventoryItem').textContent=info.item;
+  $('controllerRole').textContent='HP '+info.hp+'/3 • เหลือ '+(info.stepsRemaining||0)+' ก้าว'+(info.shieldTurns?' • โล่ป้องกัน':'');$('inventoryItem').textContent=info.item;
   $('inventoryGuide').textContent=info.help;$('controllerState').textContent=info.help;
 }
 function finishBoard(){

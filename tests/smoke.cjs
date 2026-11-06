@@ -2035,9 +2035,11 @@ for(const count of [1,12]){
   assert.equal(api.resultVoteSnapshot(),null,'no NORMAL result vote in a board intermission');
  }
  // Complete results -> inventory -> original board, then real finish and replay.
+ const expectedOrder=Array.from(s.order).sort((a,b)=>s.results.find(p=>p.id===a).rank-s.results.find(p=>p.id===b).rank);
  for(let i=0;i<400&&s.phase!=='ready';i++)api.updateBoard(.05);
  assert.equal(s.phase,'ready');assert.equal(s.roundNumber,2);assert.equal(s.map,map);
- const p=P.current(s);p.isBot=false;p.currentNodeId='n35';P.beginMove(s,p,1);
+ assert.deepEqual(Array.from(s.order),expectedOrder,'actual minigame results determine the next board order');
+ const p=P.current(s);p.isBot=false;p.currentNodeId='n35';P.beginMove(s,p,1);P.action(s,p.id,'A');
  for(let i=0;i<80&&api.getRound().phase!=='results';i++)api.updateBoard(.05);
  assert.equal(s.phase,'finished');assert.equal(api.getRound().phase,'results');
  assert.ok(api.resultVoteSnapshot());ui.click('replayBtn');
@@ -2062,5 +2064,30 @@ for(const count of [1,12]){
  assert.equal(api.getPlayers()[0].id,id);assert.equal(p.isBot,false);assert.equal(p.currentNodeId,node);
  s.order=[id];P.startTurn(s);conn.fire('data',{t:'input',turnId:s.turnId,actionId:9999,keys:{action:true}});assert.equal(s.phase,'ready','superseded connection cannot inject commands');
  replacement.fire('data',{t:'input',turnId:s.turnId,actionId:1,keys:{action:true}});assert.equal(s.phase,'dice','reconnected phone has a fresh input sequence');
+ const movementTotal=s.die;assert.equal(s.moveDice.length,2);
+ for(let i=0;i<40;i++)api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
+ assert.equal(state.stepsRemaining,movementTotal);assert.equal(state.boardPhase,'move_ready');assert.equal(state.a,'เดิน 1 ก้าว');
+ replacement.fire('data',{t:'input',turnId:s.turnId,actionId:2,keys:{}});
+ replacement.fire('data',{t:'input',turnId:s.turnId,actionId:3,keys:{action:true}});
+ for(let i=0;i<9;i++)api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
+ assert.equal(state.stepsRemaining,movementTotal-1);assert.equal(p.currentNodeId,'n1');
+ P.startTurn(s);p.item='shield';p.usedRound=0;
+ replacement.fire('data',{t:'input',turnId:s.turnId,actionId:4,keys:{alt:true}});api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
+ assert.equal(state.shieldTurns,2);assert.equal(p.item,null);
 }
-console.log('BOARD INTEGRATION PASS: all six actual engines at 1/12 players, return, finish/replay, normal regression, remote tokens and reconnect');
+{
+ // No timer ticks between taps: a new host token must immediately repair a
+ // button release that was sent with the previous phase's token.
+ const ui=setup('https://game.example/?join=ABCDE3');ui.elements.get('nick').value='Board phone';ui.click('joinBtn');ui.instances[0].fire('open');
+ const conn=ui.instances[0].conn;conn.fire('open');conn.fire('data',{t:'welcome',id:'p1',name:'Board phone',color:'#66aacc',mode:'board',phase:'playing'});
+ const P=ui.scope.window.BoardParty,s=P.create([{id:'p1',name:'Phone',color:'#66aacc'}],{seed:123});s.order=['p1'];P.startTurn(s);s.players[0].item='bomber';
+ let sent=0;
+ const forward=()=>{for(const msg of conn.sent.slice(sent))if(msg.t==='input')P.input(s,'p1',msg);sent=conn.sent.length;};
+ const state=()=>conn.fire('data',{t:'board-state',phase:'playing',turnId:s.turnId,boardPhase:s.phase,round:1,hp:3,item:'Bomber Aircraft',stepsRemaining:0,shieldTurns:0,...P.controls(s,'p1')});
+ state();forward();ui.padZones.alt.fire('pointerdown',{pointerId:1});forward();assert.equal(s.phase,'aim');
+ ui.padZones.alt.fire('pointerup',{pointerId:1});forward();assert.equal(s.inputs.p1.b,true,'old-token release is rejected');
+ state();forward();assert.equal(s.inputs.p1.b,false,'fresh token immediately resends physical release');
+ const count=conn.sent.length;state();assert.equal(conn.sent.length,count,'unchanged token does not echo inputs unnecessarily');
+ ui.padZones.alt.fire('pointerdown',{pointerId:2});forward();assert.equal(s.skill.angle,Math.PI/4,'next B press rotates without waiting for a heartbeat');
+}
+console.log('BOARD INTEGRATION PASS: all six actual engines at 1/12 players, return, finish/replay, normal regression, step/shield packets, remote tokens, immediate button releases and reconnect');

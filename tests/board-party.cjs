@@ -39,20 +39,46 @@ test('Input tokens, duplicate action IDs, held A, non-active players, B after ro
  const die=s.die;assert.equal(P.input(s,p.id,packet),false);press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(s.die,die);
  assert.equal(P.input(s,p.id,{turnId:s.turnId,actionId:1,keys:{}}),false);
 });
-test('One-die movement counts actual edges and never processes crossed tiles',()=>{
- for(let roll=1;roll<=6;roll++){
-  const s=ready();s.rng=()=> (roll-.5)/6;const p=s.players[0];
+test('Two independent dice: all 36 combinations move the exact sum, landing effect once',()=>{
+ for(let a=1;a<=6;a++)for(let b=1;b<=6;b++){
+  const s=ready(),rolls=[a,b];s.rng=()=> (rolls.shift()-.5)/6;const p=s.players[0];
   for(const n of Object.values(s.map.nodes))if(!['start','finish'].includes(n.type))n.type='danger';
-  press(s,p,'A');assert.equal(s.die,roll);let last='n0',steps=0;
-  until(s,()=>{if(p.currentNodeId!==last){assert.ok(s.map.nodes[last].nextNodes.includes(p.currentNodeId));steps++;last=p.currentNodeId;}if(s.phase==='branch')press(s,p,'A');return s.phase==='effect';});
-  assert.equal(steps,roll);assert.equal(p.hp,2);tick(s,.1);assert.equal(p.hp,2);
+  press(s,p,'A');assert.deepEqual(plain(s.moveDice),[a,b]);assert.equal(s.die,a+b);let last='n0',steps=0;
+  until(s,()=>{if(p.currentNodeId!==last){assert.ok(s.map.nodes[last].nextNodes.includes(p.currentNodeId));steps++;last=p.currentNodeId;}if(['move_ready','branch'].includes(s.phase))press(s,p,'A');return s.phase==='effect';});
+  assert.equal(steps,a+b);assert.equal(p.hp,2);tick(s,.1);assert.equal(p.hp,2);
  }
+});
+test('Manual A steps: wait after rolling, count on arrival, ignore rapid/held/old commands',()=>{
+ const s=ready(),p=s.players[0];p.item='rocket';s.rng=()=>0;
+ press(s,p,'A',{axisX:1});const oldToken=s.turnId;assert.equal(P.remainingSteps(s,p.id),0);
+ tick(s,1);assert.equal(P.remainingSteps(s,p.id),2);until(s,()=>s.phase==='move_ready');
+ tick(s,1);assert.equal(p.currentNodeId,'n0');assert.equal(P.remainingSteps(s,p.id),2);
+ press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(s.phase,'move_ready');
+ const actionId=(s.lastActions[p.id]??0)+1;
+ assert.equal(P.input(s,p.id,{turnId:oldToken,actionId,keys:{action:true}}),false);
+ press(s,p,'A');assert.equal(s.phase,'moving');press(s,p,'A');assert.equal(s.move.to,'n1');
+ tick(s,.15);assert.equal(P.remainingSteps(s,p.id),2);assert.equal(p.currentNodeId,'n0');
+ until(s,()=>s.phase==='move_ready');assert.equal(p.currentNodeId,'n1');assert.equal(P.remainingSteps(s,p.id),1);
+ P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys:{action:true}});
+ tick(s,.5);assert.equal(s.phase,'move_ready','held A never schedules another step');
+ press(s,p,'A');until(s,()=>s.phase==='effect');assert.equal(p.currentNodeId,'n2');assert.equal(P.remainingSteps(s,p.id),0);
+ assert.equal(P.remainingSteps(s,s.players[1].id),0);assert.equal(p.item,'rocket');
+});
+test('Manual analog follows arrows with fresh input; timeout completes an unattended turn',()=>{
+ const s=ready(),p=s.players[0];P.beginMove(s,p,3);
+ const axis=(from,to)=>{const a=s.map.nodes[from].position,b=s.map.nodes[to].position,d=Math.hypot(b.x-a.x,b.y-a.y);return{axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d};};
+ const a=axis('n0','n1');press(s,p,null,{axisX:-a.axisX,axisY:-a.axisY});tick(s,.5);
+ assert.equal(s.phase,'move_ready');assert.equal(p.currentNodeId,'n0','reverse stick cannot start a step');
+ press(s,p,null,a);tick(s,.05);assert.equal(s.phase,'moving');until(s,()=>s.phase==='move_ready');
+ tick(s,.5);assert.equal(p.currentNodeId,'n1','a previous phase stick packet cannot start the next step');
+ press(s,p,null,axis('n1','n2'));tick(s,.05);until(s,()=>s.phase==='move_ready');assert.equal(P.remainingSteps(s,p.id),1);
+ until(s,()=>P.current(s).id!==p.id,20);assert.equal(p.currentNodeId,'n3','idle timeout provides a forward fallback');
 });
 test('Branch analog selects only forward edges; step rejects reverse/invalid nodes',()=>{
  const s=ready(),p=s.players[0];p.currentNodeId='n3';P.beginMove(s,p,2);assert.equal(s.phase,'branch');
  assert.equal(P.step(s,'n2'),false);assert.equal(P.step(s,'missing'),false);
  const to=s.map.nodes.b3_1.position,at=s.map.nodes.n3.position;
- press(s,p,null,{axisX:to.x-at.x,axisY:to.y-at.y});tick(s,.05);assert.equal(s.branch.selected,'b3_1');press(s,p,'A');until(s,()=>s.phase==='effect');assert.equal(p.currentNodeId,'b3_2');
+ press(s,p,null,{axisX:to.x-at.x,axisY:to.y-at.y});tick(s,.05);assert.equal(s.branch.selected,'b3_1');press(s,p,'A');until(s,()=>s.phase==='move_ready');assert.equal(P.remainingSteps(s,p.id),1);press(s,p,'A');until(s,()=>s.phase==='effect');assert.equal(p.currentNodeId,'b3_2');
 });
 test('HP cap, death keeps item/order, clears movement and awards no free roll',()=>{
  const s=ready(),p=s.players[0];p.currentNodeId='n1';p.hp=1;p.item='ufo';s.map.nodes.n2.type='danger';const order=plain(s.order);
@@ -61,6 +87,44 @@ test('HP cap, death keeps item/order, clears movement and awards no free roll',(
 });
 test('Potion only below max HP, consumes once per round and allows roll',()=>{
  const s=ready(),p=s.players[0];p.item='potion';press(s,p,'B');assert.equal(p.item,'potion');assert.equal(s.phase,'ready');p.hp=1;press(s,p,'B');assert.equal(p.hp,2);assert.equal(p.item,null);until(s,()=>s.phase==='ready');p.item='rocket';press(s,p,'B');assert.equal(p.item,'rocket');press(s,p,'A');assert.equal(s.phase,'dice');
+});
+test('Shield is a sixth reward item, usable once, still permits two-dice rolling',()=>{
+ assert.equal(I.ids.length,6);assert.ok(I.ids.includes('shield'));
+ const s=ready(),p=s.players[0];p.item='shield';press(s,p,'B');assert.equal(p.item,null);assert.equal(p.usedRound,1);assert.equal(p.shieldTurns,2);
+ until(s,()=>s.phase==='ready');p.item='rocket';press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(s.phase,'ready');
+ press(s,p,'A');assert.equal(s.phase,'dice');assert.equal(s.moveDice.length,2);
+ p.item='shield';press(s,p,'B');assert.equal(p.item,'shield');
+ const t=ready(),q=t.players[0];q.item='shield';q.shieldTurns=1;press(t,q,'B');assert.equal(q.item,'shield');assert.equal(q.usedRound,0);assert.equal(q.shieldTurns,1);
+});
+test('Shield blocks danger and random damage, keeps HP and node without consuming protection',()=>{
+ for(const type of ['danger','event']){
+  const s=ready(),p=s.players[0];p.hp=1;p.item='shield';press(s,p,'B');until(s,()=>s.phase==='ready');
+  p.currentNodeId='n1';s.map.nodes.n2.type=type;s.rng=()=>.99;P.beginMove(s,p,1,'rocket');until(s,()=>s.phase==='effect');
+  assert.equal(s.effect.kind,'shield');assert.equal(p.hp,1);assert.equal(p.currentNodeId,'n2');assert.equal(p.shieldTurns,2);
+  P.damage(s,p,3);assert.equal(p.hp,1);assert.equal(p.shieldTurns,2);assert.ok(p.blockedUntil>s.time);
+ }
+});
+test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected neighbours only',()=>{
+ for(let seed=0;seed<100;seed++)for(const kind of ['ufo','bomber','car']){
+  const s=ready(3,seed),[p,q,r]=s.players;p.item=kind;q.hp=1;q.shieldTurns=1;q.currentNodeId='n1';r.currentNodeId='n1';
+  press(s,p,'B');
+  if(kind==='ufo'){
+   Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(s.phase,'aim');assert.equal(p.item,'ufo');assert.equal(p.currentNodeId,'n0');assert.equal(q.currentNodeId,'n1');assert.equal(p.usedRound,0);
+   Object.assign(s.skill,I.position(s,r));press(s,p,'A');assert.equal(p.currentNodeId,'n1');assert.equal(r.currentNodeId,'n0');
+  }else{
+   if(kind==='bomber'){Object.assign(s.skill,I.position(s,q));press(s,p,'A');}else until(s,()=>s.phase==='effect');
+   assert.equal(r.hp,2);assert.equal(p.item,null);assert.equal(s.effect.next,'end');
+  }
+  assert.equal(q.hp,1);assert.equal(q.currentNodeId,'n1');assert.equal(q.shieldTurns,1);
+ }
+});
+test('Shield lasts through intermission/reordering until its owner completes their next turn',()=>{
+ const s=ready(),[p,q,r]=s.players;p.item='shield';press(s,p,'B');until(s,()=>s.phase==='ready');
+ P.endTurn(s);assert.equal(p.shieldTurns,1);assert.equal(P.current(s),q);P.damage(s,p,1);assert.equal(p.hp,3);
+ P.endTurn(s);assert.equal(p.shieldTurns,1);assert.equal(P.current(s),r);P.endTurn(s);assert.equal(p.shieldTurns,1);
+ P.minigameStarted(s,'chickens');P.minigameEnded(s,[{id:r.id,rank:1},{id:p.id,rank:2},{id:q.id,rank:3}]);until(s,()=>s.phase==='ready');
+ assert.equal(P.current(s),r);assert.equal(p.shieldTurns,1);P.endTurn(s);assert.equal(P.current(s),p);assert.equal(p.shieldTurns,1);
+ P.damage(s,p,1);assert.equal(p.hp,3);P.endTurn(s);assert.equal(p.shieldTurns,0);P.damage(s,p,1);assert.equal(p.hp,2);
 });
 test('250 UFO cases: real world hitboxes, stacked players, atomic swap, no landing effects',()=>{
  for(let seed=0;seed<250;seed++){
@@ -120,6 +184,16 @@ test('Inventory replacement defaults to keep, analog/A replace; same board/order
  until(s,()=>s.phase==='rewards');assert.ok(s.pendingItems[p.id]);tick(s,9.1);assert.equal(p.item,'ufo');until(s,()=>s.phase==='ready');assert.equal(s.map,map);assert.deepEqual(plain(s.order),order);assert.equal(p.currentNodeId,snapshot.players[0].currentNodeId);assert.equal(p.hp,2);assert.equal(s.roundNumber,2);
  s.pendingItems[p.id]={item:'rocket',replace:false};P.phase(s,'rewards',9);press(s,p,null,{axisX:1});tick(s,.05);press(s,p,'A');assert.equal(p.item,'rocket');assert.equal(s.pendingItems[p.id],undefined);
 });
+test('Next-round order follows actual minigame ranks; tied players retain prior relative order',()=>{
+ const s=ready(4);s.order=['p3','p2','p1','p4'];s.turnIndex=3;const before=plain(s.order);
+ P.phase(s,'minigame_pending');P.minigameStarted(s,'chickens');
+ const results=[{id:'p4',rank:1,label:'15 คะแนน'},{id:'p1',rank:2,label:'12 คะแนน'},{id:'p2',rank:2,label:'12 คะแนน'},{id:'p3',rank:4,label:'7 คะแนน'}];
+ P.minigameEnded(s,results);assert.deepEqual(plain(s.order),before);assert.deepEqual(plain(s.nextOrder),['p4','p2','p1','p3']);
+ assert.deepEqual(plain(s.results.map(r=>r.rank)),[1,2,2,4]);assert.equal(s.results.filter(r=>r.reward).length,2);
+ until(s,()=>s.phase==='round_order');assert.deepEqual(plain(s.order),['p4','p2','p1','p3']);assert.equal(s.roundNumber,2);
+ until(s,()=>s.phase==='ready');assert.equal(P.current(s).id,'p4');assert.equal(s.rolled,false);
+ assert.ok(s.players.every(p=>p.dice===null),'no new order roll after a minigame');
+});
 test('Registry filtering, unregistered/board excluded and consecutive repeats avoided',()=>{
  const engine={setup(){},update(){},draw(){}},registry={ghost:engine,chickens:engine,pizza_time:{...engine,minPlayers:4},missing:null,board:engine};
  assert.deepEqual(plain(G.eligible(registry,1)),['ghost','chickens']);for(let seed=0;seed<100;seed++)assert.equal(G.pick(registry,2,'ghost',M.random(seed)),'chickens');
@@ -131,14 +205,16 @@ test('Finish stops new actions and supports genuinely simultaneous finishers',()
 test('Full-session stress: 1–12 bots, 20 seeds each, minigame rewards and finish',()=>{
  let games=0,rounds=0,used=new Set();
  for(let n=1;n<=12;n++)for(let seed=0;seed<20;seed++){
-  const s=game(n,seed,true),map=s.map;let order=null;
+  const s=game(n,seed,true),map=s.map;let order=null,nextOrder=null;
   for(let frame=0;frame<80000&&s.phase!=='finished';frame++){
    const phase=s.phase,item=P.current(s)?.item;P.update(s,.1);
    if(s.phase==='order_result')order=plain(s.order);
+   if(s.phase==='round_order'){order=nextOrder;assert.ok(order);}
    if(phase==='ready'&&['aim','car','moving','effect'].includes(s.phase)&&item)used.add(item);
    if(s.phase==='minigame_pending'){
     const hp=s.players.map(p=>p.hp),positions=s.players.map(p=>p.currentNodeId);P.minigameStarted(s,'chickens');
     const r=G.ranking({mode:'chickens'},s.players.map(p=>({...p,active:true,score:Math.floor(s.rng()*5)})));P.minigameEnded(s,r);rounds++;
+    nextOrder=[...order].sort((a,b)=>r.find(p=>p.id===a).rank-r.find(p=>p.id===b).rank);
     assert.deepEqual(s.players.map(p=>p.hp),hp);assert.deepEqual(s.players.map(p=>p.currentNodeId),positions);
    }
    assert.equal(s.map,map);if(order)assert.deepEqual(plain(s.order),order);
@@ -146,6 +222,6 @@ test('Full-session stress: 1–12 bots, 20 seeds each, minigame rewards and fini
   }
   assert.equal(s.phase,'finished','session n='+n+' seed='+seed);assert.equal(s.winnerIds.length,1);assert.equal(s.players.find(p=>p.id===s.winnerIds[0]).currentNodeId,s.map.finishId);games++;
  }
- assert.equal(used.size,5);console.log('  Completed',games,'sessions,',rounds,'board rounds, all five bot items');
+ assert.equal(used.size,6);console.log('  Completed',games,'sessions,',rounds,'board rounds, all six bot items');
 });
 console.log('BOARD PARTY:',tests.length,'suites passed');

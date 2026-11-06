@@ -1,6 +1,6 @@
 (() => {
 'use strict';
-const names={potion:'Healing Potion',ufo:'UFO Position Swap',rocket:'Rocket Ride',bomber:'Bomber Aircraft',car:'RC Bomb Car'};
+const names={potion:'Healing Potion',ufo:'UFO Position Swap',rocket:'Rocket Ride',bomber:'Bomber Aircraft',car:'RC Bomb Car',shield:'Protection Shield'};
 const ids=Object.keys(names),radius=18,blastRadius=72;
 function positionOnNode(s,p,nodeId=p.currentNodeId){
  const n=s.map.nodes[nodeId].position;
@@ -25,6 +25,11 @@ function begin(s,p,api){
  if(kind==='potion'){
   if(p.hp>=3)return false;consume(s,p);p.hp++;api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
  }
+ if(kind==='shield'){
+  // Two own turns: the activation turn and the owner's next turn, inclusive.
+  if(p.shieldTurns>0)return false;consume(s,p);p.shieldTurns=2;
+  api.effect(s,{kind:'shield',points:[position(s,p)],targets:[p.id],next:'ready'},.85);return true;
+ }
  if(kind==='rocket'){consume(s,p);api.beginMove(s,p,5,'rocket');return true;}
  if(kind==='car'){
   consume(s,p);s.skill={kind,nodeId:p.currentNodeId,visited:[p.currentNodeId],...s.map.nodes[p.currentNodeId].position,remaining:6,launchUntil:s.time+.55,step:null};api.phase(s,'car',6);return true;
@@ -41,6 +46,7 @@ function confirm(s,button,api){
  if(button!=='A')return false;
  if(skill.kind==='ufo'){
   const q=target(s,skill,p);if(!q)return false;
+  if(q.shieldTurns>0){q.blockedUntil=s.time+1.2;return false;}
   const points=[position(s,p),position(s,q)],a=p.currentNodeId,b=q.currentNodeId;
   // Validate first, then commit both node IDs in the same host action.
   if(b===s.map.finishId||a===s.map.finishId)return false;
