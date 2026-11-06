@@ -1,21 +1,33 @@
 /* Handcrafted winter expedition, v3. All coordinates, edges, terrain, bridges,
  * tile roles and decoration placements below are authored, never seeded.
- * IDs from winter-fixed-120-v2 are NOT location-compatible: reject old sessions. */
+ * IDs from winter-expedition-152-v3 now carry different tile effects: reject old sessions. */
 (()=>{
 'use strict';
 function random(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
-const MAIN_LENGTH=152,SWORD_TILES=Object.freeze(['n20','n21']),TERRITORY_ID='sword-territory-1';
+const MAIN_LENGTH=152,
+ SWORD_PAIRS=Object.freeze([
+  Object.freeze({id:'sword-territory-14',nodeIds:Object.freeze(['n14','n15'])}),
+  Object.freeze({id:'sword-territory-27',nodeIds:Object.freeze(['n27','n28'])}),
+  Object.freeze({id:'sword-territory-59',nodeIds:Object.freeze(['n59','n60'])}),
+  Object.freeze({id:'sword-territory-69',nodeIds:Object.freeze(['n69','n70'])}),
+  Object.freeze({id:'sword-territory-85',nodeIds:Object.freeze(['n85','n86'])}),
+  Object.freeze({id:'sword-territory-c76_10',nodeIds:Object.freeze(['c76_10','c76_11'])}),
+  Object.freeze({id:'sword-territory-103',nodeIds:Object.freeze(['n103','n104'])}),
+  Object.freeze({id:'sword-territory-124',nodeIds:Object.freeze(['n124','n125'])}),
+  Object.freeze({id:'sword-territory-137',nodeIds:Object.freeze(['n137','n138'])})
+ ]),
+ SWORD_TILES=Object.freeze(SWORD_PAIRS.flatMap(pair=>pair.nodeIds)),TERRITORY_ID=SWORD_PAIRS[0].id;
 function neighbors(map,id){const n=map.nodes[id];return [...n.nextNodes,...n.previousNodes];}
 function adjacentType(map,id,type){return neighbors(map,id).some(k=>map.nodes[k]?.type===type);}
 const FIXED_MAP={
-  "version": "winter-expedition-152-v3",
+  "version": "winter-expedition-152-v4",
   "nodes": {
     "n0": {"id":"n0","position":{"x":650,"y":4750},"type":"start","nextNodes":["n1"],"previousNodes":[],"islandId":"village","progress":0,"effects":{},"remainingSteps":140,"longestRemainingSteps":174},
     "n1": {"id":"n1","position":{"x":800,"y":4800},"type":"movement","nextNodes":["n2"],"previousNodes":["n0"],"islandId":"village","progress":1,"effects":{},"remainingSteps":139,"longestRemainingSteps":173},
     "n2": {"id":"n2","position":{"x":960,"y":4800},"type":"movement","nextNodes":["n3"],"previousNodes":["n1"],"islandId":"village","progress":2,"effects":{},"remainingSteps":138,"longestRemainingSteps":172},
     "n3": {"id":"n3","position":{"x":1120,"y":4750},"type":"movement","nextNodes":["n4","b3_1"],"previousNodes":["n2"],"islandId":"village","progress":3,"effects":{},"remainingSteps":137,"longestRemainingSteps":171},
     "n4": {"id":"n4","position":{"x":1270,"y":4650},"type":"movement","nextNodes":["n5"],"previousNodes":["n3"],"islandId":"village","progress":4,"effects":{},"remainingSteps":138,"longestRemainingSteps":170},
-    "n5": {"id":"n5","position":{"x":1400,"y":4500},"type":"movement","nextNodes":["n6"],"previousNodes":["n4"],"islandId":"village","progress":5,"effects":{},"remainingSteps":137,"longestRemainingSteps":169},
+    "n5": {"id":"n5","position":{"x":1400,"y":4500},"type":"danger","nextNodes":["n6"],"previousNodes":["n4"],"islandId":"village","progress":5,"effects":{"hp":-35},"remainingSteps":137,"longestRemainingSteps":169},
     "n6": {"id":"n6","position":{"x":1400,"y":4320},"type":"lucky","nextNodes":["n7"],"previousNodes":["n5"],"islandId":"village","progress":6,"effects":{"item":true},"remainingSteps":136,"longestRemainingSteps":168},
     "n7": {"id":"n7","position":{"x":1260,"y":4190},"type":"movement","nextNodes":["n8"],"previousNodes":["n6"],"islandId":"village","progress":7,"effects":{},"remainingSteps":135,"longestRemainingSteps":167},
     "n8": {"id":"n8","position":{"x":1080,"y":4190},"type":"movement","nextNodes":["n9"],"previousNodes":["n7"],"islandId":"village","progress":8,"effects":{},"remainingSteps":134,"longestRemainingSteps":166},
@@ -24,21 +36,21 @@ const FIXED_MAP={
     "n11": {"id":"n11","position":{"x":580,"y":4250},"type":"movement","nextNodes":["n12"],"previousNodes":["n10"],"islandId":"village","progress":11,"effects":{},"remainingSteps":131,"longestRemainingSteps":163},
     "n12": {"id":"n12","position":{"x":500,"y":4060},"type":"healing","nextNodes":["n13"],"previousNodes":["n11"],"islandId":"village","progress":12,"effects":{"hp":20},"remainingSteps":130,"longestRemainingSteps":162},
     "n13": {"id":"n13","position":{"x":550,"y":3870},"type":"movement","nextNodes":["n14"],"previousNodes":["n12"],"islandId":"village","progress":13,"effects":{},"remainingSteps":129,"longestRemainingSteps":161},
-    "n14": {"id":"n14","position":{"x":720,"y":3750},"type":"movement","nextNodes":["n15"],"previousNodes":["n13"],"islandId":"village","progress":14,"effects":{},"remainingSteps":128,"longestRemainingSteps":160},
-    "n15": {"id":"n15","position":{"x":920,"y":3720},"type":"movement","nextNodes":["n16"],"previousNodes":["n14"],"islandId":"village","progress":15,"effects":{},"remainingSteps":127,"longestRemainingSteps":159},
+    "n14": {"id":"n14","position":{"x":720,"y":3750},"type":"sword","nextNodes":["n15"],"previousNodes":["n13"],"islandId":"village","progress":14,"effects":{},"remainingSteps":128,"longestRemainingSteps":160,"territoryId":"sword-territory-14","ownerId":null},
+    "n15": {"id":"n15","position":{"x":920,"y":3720},"type":"sword","nextNodes":["n16"],"previousNodes":["n14"],"islandId":"village","progress":15,"effects":{},"remainingSteps":127,"longestRemainingSteps":159,"territoryId":"sword-territory-14","ownerId":null},
     "n16": {"id":"n16","position":{"x":1080,"y":3810},"type":"movement","nextNodes":["n17"],"previousNodes":["n15"],"islandId":"village","progress":16,"effects":{},"remainingSteps":126,"longestRemainingSteps":158},
     "n17": {"id":"n17","position":{"x":1230,"y":3900},"type":"lucky","nextNodes":["n18"],"previousNodes":["n16"],"islandId":"village","progress":17,"effects":{"item":true},"remainingSteps":125,"longestRemainingSteps":157},
     "n18": {"id":"n18","position":{"x":1410,"y":3890},"type":"movement","nextNodes":["n19"],"previousNodes":["n17"],"islandId":"village","progress":18,"effects":{},"remainingSteps":124,"longestRemainingSteps":156},
     "n19": {"id":"n19","position":{"x":1570,"y":3790},"type":"movement","nextNodes":["n20"],"previousNodes":["n18"],"islandId":"village","progress":19,"effects":{},"remainingSteps":123,"longestRemainingSteps":155},
-    "n20": {"id":"n20","position":{"x":1640,"y":3610},"type":"sword","nextNodes":["n21"],"previousNodes":["n19"],"islandId":"village","progress":20,"effects":{},"territoryId":"sword-territory-1","ownerId":null,"remainingSteps":122,"longestRemainingSteps":154},
-    "n21": {"id":"n21","position":{"x":1580,"y":3430},"type":"sword","nextNodes":["n22"],"previousNodes":["n20"],"islandId":"village","progress":21,"effects":{},"territoryId":"sword-territory-1","ownerId":null,"remainingSteps":121,"longestRemainingSteps":153},
+    "n20": {"id":"n20","position":{"x":1640,"y":3610},"type":"movement","nextNodes":["n21"],"previousNodes":["n19"],"islandId":"village","progress":20,"effects":{},"remainingSteps":122,"longestRemainingSteps":154},
+    "n21": {"id":"n21","position":{"x":1580,"y":3430},"type":"movement","nextNodes":["n22"],"previousNodes":["n20"],"islandId":"village","progress":21,"effects":{},"remainingSteps":121,"longestRemainingSteps":153},
     "n22": {"id":"n22","position":{"x":1400,"y":3350},"type":"movement","nextNodes":["n23"],"previousNodes":["n21"],"islandId":"village","progress":22,"effects":{},"remainingSteps":120,"longestRemainingSteps":152},
     "n23": {"id":"n23","position":{"x":1200,"y":3350},"type":"movement","nextNodes":["n24"],"previousNodes":["n22"],"islandId":"village","progress":23,"effects":{},"remainingSteps":119,"longestRemainingSteps":151},
     "n24": {"id":"n24","position":{"x":1000,"y":3360},"type":"healing","nextNodes":["n25"],"previousNodes":["n23"],"islandId":"village","progress":24,"effects":{"hp":20},"remainingSteps":118,"longestRemainingSteps":150},
     "n25": {"id":"n25","position":{"x":800,"y":3300},"type":"movement","nextNodes":["n26"],"previousNodes":["n24"],"islandId":"village","progress":25,"effects":{},"remainingSteps":117,"longestRemainingSteps":149},
     "n26": {"id":"n26","position":{"x":800,"y":3000},"type":"movement","nextNodes":["n27"],"previousNodes":["n25"],"islandId":null,"progress":26,"effects":{},"bridgeId":"harbor-out","remainingSteps":116,"longestRemainingSteps":148},
-    "n27": {"id":"n27","position":{"x":800,"y":2700},"type":"movement","nextNodes":["n28"],"previousNodes":["n26"],"islandId":null,"progress":27,"effects":{},"bridgeId":"harbor-out","remainingSteps":115,"longestRemainingSteps":147},
-    "n28": {"id":"n28","position":{"x":800,"y":2400},"type":"movement","nextNodes":["n29"],"previousNodes":["n27"],"islandId":null,"progress":28,"effects":{},"bridgeId":"harbor-out","remainingSteps":114,"longestRemainingSteps":146},
+    "n27": {"id":"n27","position":{"x":800,"y":2700},"type":"sword","nextNodes":["n28"],"previousNodes":["n26"],"islandId":null,"progress":27,"effects":{},"bridgeId":"harbor-out","remainingSteps":115,"longestRemainingSteps":147,"territoryId":"sword-territory-27","ownerId":null},
+    "n28": {"id":"n28","position":{"x":800,"y":2400},"type":"sword","nextNodes":["n29"],"previousNodes":["n27"],"islandId":null,"progress":28,"effects":{},"bridgeId":"harbor-out","remainingSteps":114,"longestRemainingSteps":146,"territoryId":"sword-territory-27","ownerId":null},
     "n29": {"id":"n29","position":{"x":800,"y":2130},"type":"movement","nextNodes":["n30"],"previousNodes":["n28"],"islandId":"grove","progress":29,"effects":{},"remainingSteps":113,"longestRemainingSteps":145},
     "n30": {"id":"n30","position":{"x":600,"y":2040},"type":"movement","nextNodes":["n31"],"previousNodes":["n29"],"islandId":"grove","progress":30,"effects":{},"remainingSteps":112,"longestRemainingSteps":144},
     "n31": {"id":"n31","position":{"x":480,"y":1880},"type":"lucky","nextNodes":["n32"],"previousNodes":["n30"],"islandId":"grove","progress":31,"effects":{"item":true},"remainingSteps":111,"longestRemainingSteps":143},
@@ -59,7 +71,7 @@ const FIXED_MAP={
     "n46": {"id":"n46","position":{"x":1230,"y":680},"type":"movement","nextNodes":["n47"],"previousNodes":["n45"],"islandId":"grove","progress":46,"effects":{},"remainingSteps":97,"longestRemainingSteps":124},
     "n47": {"id":"n47","position":{"x":1440,"y":630},"type":"movement","nextNodes":["n48"],"previousNodes":["n46"],"islandId":"grove","progress":47,"effects":{},"remainingSteps":96,"longestRemainingSteps":123},
     "n48": {"id":"n48","position":{"x":1640,"y":680},"type":"healing","nextNodes":["n49"],"previousNodes":["n47"],"islandId":"grove","progress":48,"effects":{"hp":20},"remainingSteps":95,"longestRemainingSteps":122},
-    "n49": {"id":"n49","position":{"x":1840,"y":800},"type":"movement","nextNodes":["n50"],"previousNodes":["n48"],"islandId":"grove","progress":49,"effects":{},"remainingSteps":94,"longestRemainingSteps":121},
+    "n49": {"id":"n49","position":{"x":1840,"y":800},"type":"danger","nextNodes":["n50"],"previousNodes":["n48"],"islandId":"grove","progress":49,"effects":{"hp":-35},"remainingSteps":94,"longestRemainingSteps":121},
     "n50": {"id":"n50","position":{"x":1990,"y":970},"type":"movement","nextNodes":["n51"],"previousNodes":["n49"],"islandId":"grove","progress":50,"effects":{},"remainingSteps":93,"longestRemainingSteps":120},
     "n51": {"id":"n51","position":{"x":2060,"y":1170},"type":"movement","nextNodes":["n52"],"previousNodes":["n50"],"islandId":"grove","progress":51,"effects":{},"remainingSteps":92,"longestRemainingSteps":119},
     "n52": {"id":"n52","position":{"x":2070,"y":1390},"type":"movement","nextNodes":["n53"],"previousNodes":["n51"],"islandId":"grove","progress":52,"effects":{},"remainingSteps":91,"longestRemainingSteps":118},
@@ -69,8 +81,8 @@ const FIXED_MAP={
     "n56": {"id":"n56","position":{"x":1810,"y":2150},"type":"movement","nextNodes":["n57"],"previousNodes":["n55"],"islandId":"grove","progress":56,"effects":{},"remainingSteps":87,"longestRemainingSteps":114},
     "n57": {"id":"n57","position":{"x":1810,"y":2440},"type":"movement","nextNodes":["n58"],"previousNodes":["n56"],"islandId":null,"progress":57,"effects":{},"bridgeId":"harbor-return","remainingSteps":86,"longestRemainingSteps":113},
     "n58": {"id":"n58","position":{"x":1810,"y":2740},"type":"movement","nextNodes":["n59"],"previousNodes":["n57"],"islandId":null,"progress":58,"effects":{},"bridgeId":"harbor-return","remainingSteps":85,"longestRemainingSteps":112},
-    "n59": {"id":"n59","position":{"x":1810,"y":3040},"type":"movement","nextNodes":["n60"],"previousNodes":["n58"],"islandId":null,"progress":59,"effects":{},"bridgeId":"harbor-return","remainingSteps":84,"longestRemainingSteps":111},
-    "n60": {"id":"n60","position":{"x":1850,"y":3350},"type":"movement","nextNodes":["n61"],"previousNodes":["n59"],"islandId":"village","progress":60,"effects":{},"remainingSteps":83,"longestRemainingSteps":110},
+    "n59": {"id":"n59","position":{"x":1810,"y":3040},"type":"sword","nextNodes":["n60"],"previousNodes":["n58"],"islandId":null,"progress":59,"effects":{},"bridgeId":"harbor-return","remainingSteps":84,"longestRemainingSteps":111,"territoryId":"sword-territory-59","ownerId":null},
+    "n60": {"id":"n60","position":{"x":1850,"y":3350},"type":"sword","nextNodes":["n61"],"previousNodes":["n59"],"islandId":"village","progress":60,"effects":{},"remainingSteps":83,"longestRemainingSteps":110,"territoryId":"sword-territory-59","ownerId":null},
     "n61": {"id":"n61","position":{"x":1980,"y":3500},"type":"lucky","nextNodes":["n62"],"previousNodes":["n60"],"islandId":"village","progress":61,"effects":{"item":true},"remainingSteps":82,"longestRemainingSteps":109},
     "n62": {"id":"n62","position":{"x":2040,"y":3700},"type":"movement","nextNodes":["n63"],"previousNodes":["n61"],"islandId":"village","progress":62,"effects":{},"remainingSteps":81,"longestRemainingSteps":108},
     "n63": {"id":"n63","position":{"x":2020,"y":3910},"type":"healing","nextNodes":["n64"],"previousNodes":["n62"],"islandId":"village","progress":63,"effects":{"hp":20},"remainingSteps":80,"longestRemainingSteps":107},
@@ -79,9 +91,9 @@ const FIXED_MAP={
     "n66": {"id":"n66","position":{"x":1950,"y":4470},"type":"movement","nextNodes":["n67"],"previousNodes":["n65"],"islandId":"village","progress":66,"effects":{},"remainingSteps":77,"longestRemainingSteps":104},
     "n67": {"id":"n67","position":{"x":2330,"y":4470},"type":"movement","nextNodes":["n68"],"previousNodes":["n66"],"islandId":null,"progress":67,"effects":{},"bridgeId":"market-channel","remainingSteps":76,"longestRemainingSteps":103},
     "n68": {"id":"n68","position":{"x":2660,"y":4470},"type":"movement","nextNodes":["n69"],"previousNodes":["n67"],"islandId":null,"progress":68,"effects":{},"bridgeId":"market-channel","remainingSteps":75,"longestRemainingSteps":102},
-    "n69": {"id":"n69","position":{"x":2990,"y":4470},"type":"movement","nextNodes":["n70"],"previousNodes":["n68"],"islandId":null,"progress":69,"effects":{},"bridgeId":"market-channel","remainingSteps":74,"longestRemainingSteps":101},
-    "n70": {"id":"n70","position":{"x":3320,"y":4470},"type":"movement","nextNodes":["n71"],"previousNodes":["n69"],"islandId":"lake","progress":70,"effects":{},"remainingSteps":73,"longestRemainingSteps":100},
-    "n71": {"id":"n71","position":{"x":3350,"y":4680},"type":"lucky","nextNodes":["n72"],"previousNodes":["n70"],"islandId":"lake","progress":71,"effects":{"item":true},"remainingSteps":72,"longestRemainingSteps":99},
+    "n69": {"id":"n69","position":{"x":2990,"y":4470},"type":"sword","nextNodes":["n70"],"previousNodes":["n68"],"islandId":null,"progress":69,"effects":{},"bridgeId":"market-channel","remainingSteps":74,"longestRemainingSteps":101,"territoryId":"sword-territory-69","ownerId":null},
+    "n70": {"id":"n70","position":{"x":3320,"y":4470},"type":"sword","nextNodes":["n71"],"previousNodes":["n69"],"islandId":"lake","progress":70,"effects":{},"remainingSteps":73,"longestRemainingSteps":100,"territoryId":"sword-territory-69","ownerId":null},
+    "n71": {"id":"n71","position":{"x":3350,"y":4680},"type":"movement","nextNodes":["n72"],"previousNodes":["n70"],"islandId":"lake","progress":71,"effects":{},"remainingSteps":72,"longestRemainingSteps":99},
     "n72": {"id":"n72","position":{"x":3490,"y":4830},"type":"movement","nextNodes":["n73","b72_1"],"previousNodes":["n71"],"islandId":"lake","progress":72,"effects":{},"remainingSteps":71,"longestRemainingSteps":98},
     "n73": {"id":"n73","position":{"x":3700,"y":4890},"type":"movement","nextNodes":["n74"],"previousNodes":["n72"],"islandId":"lake","progress":73,"effects":{},"remainingSteps":70,"longestRemainingSteps":93},
     "n74": {"id":"n74","position":{"x":3900,"y":4840},"type":"movement","nextNodes":["n75"],"previousNodes":["n73","b72_5"],"islandId":"lake","progress":74,"effects":{},"remainingSteps":69,"longestRemainingSteps":92},
@@ -95,8 +107,8 @@ const FIXED_MAP={
     "n82": {"id":"n82","position":{"x":3550,"y":3560},"type":"movement","nextNodes":["n83"],"previousNodes":["n81"],"islandId":"lake","progress":82,"effects":{},"remainingSteps":68,"longestRemainingSteps":82},
     "n83": {"id":"n83","position":{"x":3720,"y":3430},"type":"lucky","nextNodes":["n84"],"previousNodes":["n82"],"islandId":"lake","progress":83,"effects":{"item":true},"remainingSteps":67,"longestRemainingSteps":81},
     "n84": {"id":"n84","position":{"x":3940,"y":3390},"type":"movement","nextNodes":["n85"],"previousNodes":["n83"],"islandId":"lake","progress":84,"effects":{},"remainingSteps":66,"longestRemainingSteps":80},
-    "n85": {"id":"n85","position":{"x":4160,"y":3430},"type":"movement","nextNodes":["n86"],"previousNodes":["n84"],"islandId":"lake","progress":85,"effects":{},"remainingSteps":65,"longestRemainingSteps":79},
-    "n86": {"id":"n86","position":{"x":4340,"y":3550},"type":"movement","nextNodes":["n87"],"previousNodes":["n85"],"islandId":"lake","progress":86,"effects":{},"remainingSteps":64,"longestRemainingSteps":78},
+    "n85": {"id":"n85","position":{"x":4160,"y":3430},"type":"sword","nextNodes":["n86"],"previousNodes":["n84"],"islandId":"lake","progress":85,"effects":{},"remainingSteps":65,"longestRemainingSteps":79,"territoryId":"sword-territory-85","ownerId":null},
+    "n86": {"id":"n86","position":{"x":4340,"y":3550},"type":"sword","nextNodes":["n87"],"previousNodes":["n85"],"islandId":"lake","progress":86,"effects":{},"remainingSteps":64,"longestRemainingSteps":78,"territoryId":"sword-territory-85","ownerId":null},
     "n87": {"id":"n87","position":{"x":4510,"y":3620},"type":"movement","nextNodes":["n88"],"previousNodes":["n86","b76_3","c76_12"],"islandId":"lake","progress":87,"effects":{},"remainingSteps":63,"longestRemainingSteps":77},
     "n88": {"id":"n88","position":{"x":4690,"y":3570},"type":"danger","nextNodes":["n89"],"previousNodes":["n87"],"islandId":"lake","progress":88,"effects":{"hp":-35},"remainingSteps":62,"longestRemainingSteps":76},
     "n89": {"id":"n89","position":{"x":4810,"y":3410},"type":"lucky","nextNodes":["n90"],"previousNodes":["n88"],"islandId":"lake","progress":89,"effects":{"item":true},"remainingSteps":61,"longestRemainingSteps":75},
@@ -113,8 +125,8 @@ const FIXED_MAP={
     "n100": {"id":"n100","position":{"x":4390,"y":1450},"type":"lucky","nextNodes":["n101"],"previousNodes":["n99"],"islandId":"frost","progress":100,"effects":{"item":true},"remainingSteps":50,"longestRemainingSteps":64},
     "n101": {"id":"n101","position":{"x":4490,"y":1280},"type":"movement","nextNodes":["n102"],"previousNodes":["n100"],"islandId":"frost","progress":101,"effects":{},"remainingSteps":49,"longestRemainingSteps":63},
     "n102": {"id":"n102","position":{"x":4440,"y":1080},"type":"movement","nextNodes":["n103"],"previousNodes":["n101"],"islandId":"frost","progress":102,"effects":{},"remainingSteps":48,"longestRemainingSteps":62},
-    "n103": {"id":"n103","position":{"x":4280,"y":950},"type":"movement","nextNodes":["n104"],"previousNodes":["n102"],"islandId":"frost","progress":103,"effects":{},"remainingSteps":47,"longestRemainingSteps":61},
-    "n104": {"id":"n104","position":{"x":4080,"y":920},"type":"movement","nextNodes":["n105"],"previousNodes":["n103"],"islandId":"frost","progress":104,"effects":{},"remainingSteps":46,"longestRemainingSteps":60},
+    "n103": {"id":"n103","position":{"x":4280,"y":950},"type":"sword","nextNodes":["n104"],"previousNodes":["n102"],"islandId":"frost","progress":103,"effects":{},"remainingSteps":47,"longestRemainingSteps":61,"territoryId":"sword-territory-103","ownerId":null},
+    "n104": {"id":"n104","position":{"x":4080,"y":920},"type":"sword","nextNodes":["n105"],"previousNodes":["n103"],"islandId":"frost","progress":104,"effects":{},"remainingSteps":46,"longestRemainingSteps":60,"territoryId":"sword-territory-103","ownerId":null},
     "n105": {"id":"n105","position":{"x":3880,"y":960},"type":"movement","nextNodes":["n106","b105_1"],"previousNodes":["n104"],"islandId":"frost","progress":105,"effects":{},"remainingSteps":45,"longestRemainingSteps":59},
     "n106": {"id":"n106","position":{"x":3700,"y":1090},"type":"movement","nextNodes":["n107"],"previousNodes":["n105"],"islandId":"frost","progress":106,"effects":{},"remainingSteps":46,"longestRemainingSteps":58},
     "n107": {"id":"n107","position":{"x":3540,"y":1020},"type":"healing","nextNodes":["n108"],"previousNodes":["n106"],"islandId":"frost","progress":107,"effects":{"hp":20},"remainingSteps":45,"longestRemainingSteps":57},
@@ -123,19 +135,19 @@ const FIXED_MAP={
     "n110": {"id":"n110","position":{"x":3650,"y":540},"type":"movement","nextNodes":["n111"],"previousNodes":["n109","b105_2"],"islandId":"frost","progress":110,"effects":{},"remainingSteps":42,"longestRemainingSteps":54},
     "n111": {"id":"n111","position":{"x":3870,"y":500},"type":"movement","nextNodes":["n112","b111_1"],"previousNodes":["n110"],"islandId":"frost","progress":111,"effects":{},"remainingSteps":41,"longestRemainingSteps":53},
     "n112": {"id":"n112","position":{"x":4090,"y":520},"type":"movement","nextNodes":["n113"],"previousNodes":["n111"],"islandId":"frost","progress":112,"effects":{},"remainingSteps":40,"longestRemainingSteps":49},
-    "n113": {"id":"n113","position":{"x":4310,"y":570},"type":"lucky","nextNodes":["n114"],"previousNodes":["n112"],"islandId":"frost","progress":113,"effects":{"item":true},"remainingSteps":39,"longestRemainingSteps":48},
+    "n113": {"id":"n113","position":{"x":4310,"y":570},"type":"movement","nextNodes":["n114"],"previousNodes":["n112"],"islandId":"frost","progress":113,"effects":{},"remainingSteps":39,"longestRemainingSteps":48},
     "n114": {"id":"n114","position":{"x":4520,"y":650},"type":"movement","nextNodes":["n115"],"previousNodes":["n113","b111_5"],"islandId":"frost","progress":114,"effects":{},"remainingSteps":38,"longestRemainingSteps":47},
     "n115": {"id":"n115","position":{"x":4720,"y":750},"type":"movement","nextNodes":["n116"],"previousNodes":["n114"],"islandId":"frost","progress":115,"effects":{},"remainingSteps":37,"longestRemainingSteps":46},
     "n116": {"id":"n116","position":{"x":4900,"y":880},"type":"danger","nextNodes":["n117"],"previousNodes":["n115"],"islandId":"frost","progress":116,"effects":{"hp":-35},"remainingSteps":36,"longestRemainingSteps":45},
     "n117": {"id":"n117","position":{"x":5060,"y":1050},"type":"movement","nextNodes":["n118","b117_1"],"previousNodes":["n116"],"islandId":"frost","progress":117,"effects":{},"remainingSteps":35,"longestRemainingSteps":44},
     "n118": {"id":"n118","position":{"x":5190,"y":1240},"type":"movement","nextNodes":["n119"],"previousNodes":["n117"],"islandId":"frost","progress":118,"effects":{},"remainingSteps":34,"longestRemainingSteps":34},
     "n119": {"id":"n119","position":{"x":5240,"y":1450},"type":"healing","nextNodes":["n120"],"previousNodes":["n118"],"islandId":"frost","progress":119,"effects":{"hp":20},"remainingSteps":33,"longestRemainingSteps":33},
-    "n120": {"id":"n120","position":{"x":5240,"y":1670},"type":"movement","nextNodes":["n121"],"previousNodes":["n119"],"islandId":"frost","progress":120,"effects":{},"remainingSteps":32,"longestRemainingSteps":32},
+    "n120": {"id":"n120","position":{"x":5240,"y":1670},"type":"danger","nextNodes":["n121"],"previousNodes":["n119"],"islandId":"frost","progress":120,"effects":{"hp":-35},"remainingSteps":32,"longestRemainingSteps":32},
     "n121": {"id":"n121","position":{"x":5210,"y":1890},"type":"movement","nextNodes":["n122"],"previousNodes":["n120","b117_12"],"islandId":"frost","progress":121,"effects":{},"remainingSteps":31,"longestRemainingSteps":31},
     "n122": {"id":"n122","position":{"x":5150,"y":2100},"type":"movement","nextNodes":["n123"],"previousNodes":["n121"],"islandId":"frost","progress":122,"effects":{},"remainingSteps":30,"longestRemainingSteps":30},
     "n123": {"id":"n123","position":{"x":5330,"y":2400},"type":"movement","nextNodes":["n124"],"previousNodes":["n122"],"islandId":null,"progress":123,"effects":{},"bridgeId":"glacier-return","remainingSteps":29,"longestRemainingSteps":29},
-    "n124": {"id":"n124","position":{"x":5450,"y":2700},"type":"movement","nextNodes":["n125"],"previousNodes":["n123"],"islandId":null,"progress":124,"effects":{},"bridgeId":"glacier-return","remainingSteps":28,"longestRemainingSteps":28},
-    "n125": {"id":"n125","position":{"x":5480,"y":3000},"type":"movement","nextNodes":["n126"],"previousNodes":["n124"],"islandId":null,"progress":125,"effects":{},"bridgeId":"glacier-return","remainingSteps":27,"longestRemainingSteps":27},
+    "n124": {"id":"n124","position":{"x":5450,"y":2700},"type":"sword","nextNodes":["n125"],"previousNodes":["n123"],"islandId":null,"progress":124,"effects":{},"bridgeId":"glacier-return","remainingSteps":28,"longestRemainingSteps":28,"territoryId":"sword-territory-124","ownerId":null},
+    "n125": {"id":"n125","position":{"x":5480,"y":3000},"type":"sword","nextNodes":["n126"],"previousNodes":["n124"],"islandId":null,"progress":125,"effects":{},"bridgeId":"glacier-return","remainingSteps":27,"longestRemainingSteps":27,"territoryId":"sword-territory-124","ownerId":null},
     "n126": {"id":"n126","position":{"x":5350,"y":3300},"type":"movement","nextNodes":["n127"],"previousNodes":["n125"],"islandId":"lake","progress":126,"effects":{},"remainingSteps":26,"longestRemainingSteps":26},
     "n127": {"id":"n127","position":{"x":5400,"y":3530},"type":"lucky","nextNodes":["n128"],"previousNodes":["n126"],"islandId":"lake","progress":127,"effects":{"item":true},"remainingSteps":25,"longestRemainingSteps":25},
     "n128": {"id":"n128","position":{"x":5400,"y":3760},"type":"movement","nextNodes":["n129"],"previousNodes":["n127"],"islandId":"lake","progress":128,"effects":{},"remainingSteps":24,"longestRemainingSteps":24},
@@ -147,8 +159,8 @@ const FIXED_MAP={
     "n134": {"id":"n134","position":{"x":5100,"y":4850},"type":"movement","nextNodes":["n135"],"previousNodes":["n133"],"islandId":"lake","progress":134,"effects":{},"remainingSteps":18,"longestRemainingSteps":18},
     "n135": {"id":"n135","position":{"x":5550,"y":4770},"type":"movement","nextNodes":["n136"],"previousNodes":["n134"],"islandId":null,"progress":135,"effects":{},"bridgeId":"crown-approach","remainingSteps":17,"longestRemainingSteps":17},
     "n136": {"id":"n136","position":{"x":5900,"y":4700},"type":"movement","nextNodes":["n137"],"previousNodes":["n135"],"islandId":null,"progress":136,"effects":{},"bridgeId":"crown-approach","remainingSteps":16,"longestRemainingSteps":16},
-    "n137": {"id":"n137","position":{"x":6200,"y":4700},"type":"movement","nextNodes":["n138"],"previousNodes":["n136"],"islandId":"crown","progress":137,"effects":{},"remainingSteps":15,"longestRemainingSteps":15},
-    "n138": {"id":"n138","position":{"x":6400,"y":4750},"type":"movement","nextNodes":["n139"],"previousNodes":["n137"],"islandId":"crown","progress":138,"effects":{},"remainingSteps":14,"longestRemainingSteps":14},
+    "n137": {"id":"n137","position":{"x":6200,"y":4700},"type":"sword","nextNodes":["n138"],"previousNodes":["n136"],"islandId":"crown","progress":137,"effects":{},"remainingSteps":15,"longestRemainingSteps":15,"territoryId":"sword-territory-137","ownerId":null},
+    "n138": {"id":"n138","position":{"x":6400,"y":4750},"type":"sword","nextNodes":["n139"],"previousNodes":["n137"],"islandId":"crown","progress":138,"effects":{},"remainingSteps":14,"longestRemainingSteps":14,"territoryId":"sword-territory-137","ownerId":null},
     "n139": {"id":"n139","position":{"x":6600,"y":4700},"type":"lucky","nextNodes":["n140"],"previousNodes":["n138"],"islandId":"crown","progress":139,"effects":{"item":true},"remainingSteps":13,"longestRemainingSteps":13},
     "n140": {"id":"n140","position":{"x":6750,"y":4560},"type":"movement","nextNodes":["n141"],"previousNodes":["n139"],"islandId":"crown","progress":140,"effects":{},"remainingSteps":12,"longestRemainingSteps":12},
     "n141": {"id":"n141","position":{"x":6780,"y":4350},"type":"movement","nextNodes":["n142"],"previousNodes":["n140"],"islandId":"crown","progress":141,"effects":{},"remainingSteps":11,"longestRemainingSteps":11},
@@ -158,7 +170,7 @@ const FIXED_MAP={
     "n145": {"id":"n145","position":{"x":6180,"y":3840},"type":"healing","nextNodes":["n146"],"previousNodes":["n144"],"islandId":"crown","progress":145,"effects":{"hp":20},"remainingSteps":7,"longestRemainingSteps":7},
     "n146": {"id":"n146","position":{"x":6240,"y":3660},"type":"movement","nextNodes":["n147"],"previousNodes":["n145"],"islandId":"crown","progress":146,"effects":{},"remainingSteps":6,"longestRemainingSteps":6},
     "n147": {"id":"n147","position":{"x":6410,"y":3530},"type":"movement","nextNodes":["n148"],"previousNodes":["n146"],"islandId":"crown","progress":147,"effects":{},"remainingSteps":5,"longestRemainingSteps":5},
-    "n148": {"id":"n148","position":{"x":6630,"y":3510},"type":"movement","nextNodes":["n149"],"previousNodes":["n147"],"islandId":"crown","progress":148,"effects":{},"remainingSteps":4,"longestRemainingSteps":4},
+    "n148": {"id":"n148","position":{"x":6630,"y":3510},"type":"danger","nextNodes":["n149"],"previousNodes":["n147"],"islandId":"crown","progress":148,"effects":{"hp":-35},"remainingSteps":4,"longestRemainingSteps":4},
     "n149": {"id":"n149","position":{"x":6840,"y":3610},"type":"movement","nextNodes":["n150"],"previousNodes":["n148"],"islandId":"crown","progress":149,"effects":{},"remainingSteps":3,"longestRemainingSteps":3},
     "n150": {"id":"n150","position":{"x":6970,"y":3780},"type":"lucky","nextNodes":["n151"],"previousNodes":["n149"],"islandId":"crown","progress":150,"effects":{"item":true},"remainingSteps":2,"longestRemainingSteps":2},
     "n151": {"id":"n151","position":{"x":6990,"y":3990},"type":"movement","nextNodes":["n152"],"previousNodes":["n150"],"islandId":"crown","progress":151,"effects":{},"remainingSteps":1,"longestRemainingSteps":1},
@@ -200,8 +212,8 @@ const FIXED_MAP={
     "c76_7": {"id":"c76_7","position":{"x":5080,"y":3970},"type":"movement","nextNodes":["c76_8"],"previousNodes":["c76_6"],"islandId":"lake","progress":81.9231,"effects":{},"remainingSteps":69,"longestRemainingSteps":83},
     "c76_8": {"id":"c76_8","position":{"x":5160,"y":3770},"type":"movement","nextNodes":["c76_9"],"previousNodes":["c76_7"],"islandId":"lake","progress":82.7692,"effects":{},"remainingSteps":68,"longestRemainingSteps":82},
     "c76_9": {"id":"c76_9","position":{"x":5170,"y":3550},"type":"lucky","nextNodes":["c76_10"],"previousNodes":["c76_8"],"islandId":"lake","progress":83.6154,"effects":{"item":true},"remainingSteps":67,"longestRemainingSteps":81},
-    "c76_10": {"id":"c76_10","position":{"x":5050,"y":3380},"type":"movement","nextNodes":["c76_11"],"previousNodes":["c76_9"],"islandId":"lake","progress":84.4615,"effects":{},"remainingSteps":66,"longestRemainingSteps":80},
-    "c76_11": {"id":"c76_11","position":{"x":4950,"y":3590},"type":"movement","nextNodes":["c76_12"],"previousNodes":["c76_10"],"islandId":"lake","progress":85.3077,"effects":{},"remainingSteps":65,"longestRemainingSteps":79},
+    "c76_10": {"id":"c76_10","position":{"x":5050,"y":3380},"type":"sword","nextNodes":["c76_11"],"previousNodes":["c76_9"],"islandId":"lake","progress":84.4615,"effects":{},"remainingSteps":66,"longestRemainingSteps":80,"territoryId":"sword-territory-c76_10","ownerId":null},
+    "c76_11": {"id":"c76_11","position":{"x":4950,"y":3590},"type":"sword","nextNodes":["c76_12"],"previousNodes":["c76_10"],"islandId":"lake","progress":85.3077,"effects":{},"remainingSteps":65,"longestRemainingSteps":79,"territoryId":"sword-territory-c76_10","ownerId":null},
     "c76_12": {"id":"c76_12","position":{"x":4800,"y":3770},"type":"healing","nextNodes":["n87"],"previousNodes":["c76_11"],"islandId":"lake","progress":86.1538,"effects":{"hp":20},"remainingSteps":64,"longestRemainingSteps":78},
     "b105_1": {"id":"b105_1","position":{"x":3790,"y":790},"type":"danger","nextNodes":["b105_2"],"previousNodes":["n105"],"islandId":"frost","progress":106.6667,"effects":{"hp":-35},"remainingSteps":44,"longestRemainingSteps":56},
     "b105_2": {"id":"b105_2","position":{"x":3720,"y":650},"type":"movement","nextNodes":["n110"],"previousNodes":["b105_1"],"islandId":"frost","progress":108.3333,"effects":{},"remainingSteps":43,"longestRemainingSteps":55},
@@ -299,7 +311,7 @@ const FIXED_MAP={
     {"id":"b111","a":111,"b":114,"count":5,"kind":"scenic","nodeIds":["b111_1","b111_2","b111_3","b111_4","b111_5"]},
     {"id":"b117","a":117,"b":121,"count":12,"kind":"scenic","nodeIds":["b117_1","b117_2","b117_3","b117_4","b117_5","b117_6","b117_7","b117_8","b117_9","b117_10","b117_11","b117_12"]}
   ],
-  "territories": {"sword-territory-1":{"id":"sword-territory-1","nodeIds":["n20","n21"],"ownerId":null}},
+  "territories": {"sword-territory-14":{"id":"sword-territory-14","nodeIds":["n14","n15"],"ownerId":null},"sword-territory-27":{"id":"sword-territory-27","nodeIds":["n27","n28"],"ownerId":null},"sword-territory-59":{"id":"sword-territory-59","nodeIds":["n59","n60"],"ownerId":null},"sword-territory-69":{"id":"sword-territory-69","nodeIds":["n69","n70"],"ownerId":null},"sword-territory-85":{"id":"sword-territory-85","nodeIds":["n85","n86"],"ownerId":null},"sword-territory-c76_10":{"id":"sword-territory-c76_10","nodeIds":["c76_10","c76_11"],"ownerId":null},"sword-territory-103":{"id":"sword-territory-103","nodeIds":["n103","n104"],"ownerId":null},"sword-territory-124":{"id":"sword-territory-124","nodeIds":["n124","n125"],"ownerId":null},"sword-territory-137":{"id":"sword-territory-137","nodeIds":["n137","n138"],"ownerId":null}},
   "luckyTileIds": [
     "n6",
     "n17",
@@ -307,11 +319,9 @@ const FIXED_MAP={
     "n43",
     "n53",
     "n61",
-    "n71",
     "n83",
     "n89",
     "n100",
-    "n113",
     "n127",
     "n139",
     "n150",
@@ -405,8 +415,29 @@ function validate(map){
   if(!['start','finish','movement','healing','danger','lucky','sword'].includes(n.type))throw Error('Unsupported tile '+n.id);
   if(['lucky','healing'].includes(n.type)&&adjacentType(map,n.id,n.type))throw Error('Adjacent '+n.type+' tiles at '+n.id);
  }
- const t=map.territories[TERRITORY_ID];
- if(!t||t.nodeIds.length!==2||SWORD_TILES.some(id=>!t.nodeIds.includes(id)||map.nodes[id].type!=='sword'||map.nodes[id].territoryId!==TERRITORY_ID||map.nodes[id].ownerId!==t.ownerId)||!map.nodes.n20.nextNodes.includes('n21'))throw Error('Linked swords invalid');
+ // Every pair is a separate linked territory. Stepping on EITHER sword tile
+ // captures both; rivals take 12 HP on either member of the pair.
+ const actualSwordIds=entries.filter(([,n])=>n.type==='sword').map(([id])=>id);
+ if(actualSwordIds.length!==SWORD_TILES.length||
+    actualSwordIds.some(id=>!SWORD_TILES.includes(id))||
+    Object.keys(map.territories).length!==SWORD_PAIRS.length)
+   throw Error('Sword territory set does not match fixed map');
+ for(const pair of SWORD_PAIRS){
+  const territory=map.territories[pair.id], [a,b]=pair.nodeIds;
+  if(!territory||territory.id!==pair.id||
+     territory.nodeIds.length!==2||
+     territory.nodeIds[0]!==a||territory.nodeIds[1]!==b||
+     !map.nodes[a]?.nextNodes.includes(b))
+    throw Error('Linked sword route invalid: '+pair.id);
+  for(const id of pair.nodeIds){
+   const node=map.nodes[id];
+   if(node.type!=='sword'||node.territoryId!==pair.id||
+      node.ownerId!==territory.ownerId)
+    throw Error('Linked sword ownership invalid: '+id);
+  }
+ }
+ if(entries.some(([id,n])=>n.type!=='sword'&&(n.territoryId!==undefined||n.ownerId!==undefined)))
+  throw Error('Stale sword metadata on ordinary tile');
  for(const b of map.branches){
   const path=['n'+b.a,...b.nodeIds,'n'+b.b];
   if(!b.count||b.count!==b.nodeIds.length||path.some((id,i)=>i<path.length-1&&!map.nodes[id]?.nextNodes.includes(path[i+1])))throw Error('Branch disconnected '+b.id);
@@ -427,5 +458,5 @@ function choose(map,id,x,y,allowed=null){
 }
 // Fail at script load, then clone the validated literal once per game.
 validate(FIXED_MAP);
-window.BoardMap=Object.freeze({create,validate,assertCompatible,choose,neighbors,random,MAIN_LENGTH,SWORD_TILES,TERRITORY_ID,MAP_VERSION:FIXED_MAP.version});
+window.BoardMap=Object.freeze({create,validate,assertCompatible,choose,neighbors,random,MAIN_LENGTH,SWORD_PAIRS,SWORD_TILES,TERRITORY_ID,MAP_VERSION:FIXED_MAP.version});
 })();
