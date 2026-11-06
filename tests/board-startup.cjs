@@ -49,8 +49,10 @@ async function main(){
    },denyTerrain);
    await page.locator('#startBtn').click();
    const startup=await page.evaluate(()=>({time:__boardStartup.board.time,view:__boardStartup.view,texts:__drawnTexts,allocations:__terrainSizes,pixel:[...document.getElementById('arena').getContext('2d').getImageData(100,100,1,1).data]}));
-   assert.equal(startup.view,'game');assert.equal(startup.time,0);assert.equal(startup.pixel[3],255,'order screen is painted even before the first rAF');
-   assert.ok(startup.texts.includes('ทอยลูกเต๋าเพื่อจัดลำดับ'));assert.deepEqual(startup.allocations,[]);
+   assert.equal(startup.view,'game');assert.equal(startup.time,0);assert.equal(startup.pixel[3],255,'overview is painted even before the first rAF');
+   assert.ok(startup.texts.includes('BOARD PARTY'));assert.equal(startup.allocations.length,1);assert.ok(startup.allocations[0]<=3500000);
+   await page.locator('#boardStartDiceBtn').click();
+   // Order screen paints on the next frame; the initial overview already painted synchronously.
    await page.screenshot({path:path.join(out,engine+'-start-'+(denyTerrain?'fallback':'normal')+'.png')});
    await page.evaluate(()=>window.__resumeBoardFrame());
    await page.waitForFunction(()=>__boardStartup.board?.time>.05,{},{timeout:20000});
@@ -62,13 +64,14 @@ async function main(){
    await page.waitForFunction(()=>__drawnTexts.includes('A • ทอยลูกเต๋า'),{},{timeout:20000});
    assert.equal(await page.evaluate(()=>__boardStartup.view),'game');
    const sizes=await page.evaluate(()=>__terrainSizes);assert.equal(sizes.length,1);assert.ok(sizes[0]<=3500000);
-   await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseMenu').isVisible(),true);
-   await page.locator('#resumeBtn').click();assert.equal(await page.locator('#pauseMenu').isVisible(),false);
+   await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
+   await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
    await page.screenshot({path:path.join(out,engine+'-terrain-'+(denyTerrain?'fallback':'normal')+'.png')});
-   await page.locator('#pauseBtn').click();await page.locator('#exitBtn').click();assert.equal(await page.locator('#hostLobby').isVisible(),true);
+   await page.locator('#boardOverviewBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
+   await page.locator('#boardFollowBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
    assert.deepEqual(errors,[]);await context.close();
   }
-  console.log('STARTUP PASS ('+engine+'): actual Start, 2/12 players, DPR 2, delayed rAF, old clip reset, <=3.5MP terrain, allocation failure fallback, pause/resume/exit');
+  console.log('STARTUP PASS ('+engine+'): actual Start, 2/12 players, DPR 2, delayed rAF, old clip reset, <=3.5MP terrain, allocation failure fallback, pause/resume/overview/follow');
  }finally{await browser.close();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>server.close());

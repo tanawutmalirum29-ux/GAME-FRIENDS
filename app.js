@@ -139,17 +139,21 @@ function holdSeat(p){
  },60000));
 }
 const canvas=$('arena'), g=canvas.getContext('2d');
+function arenaContentRect(rect){
+ const width=Number(rect.width)||960,height=Number(rect.height)||540,scale=Math.min(width/960,height/540);
+ return {left:rect.left+(width-960*scale)/2,top:rect.top+(height-540*scale)/2,scale};
+}
 // Host map gestures: drag to pan, pinch to zoom and tap nodes in Debug mode.
 // Game input remains exclusively on the controller; pause freezes simulation.
 {
  const pointers=new Map();let pinchDistance=0,gestureMoved=false,downAt=null;
  const enabled=()=>round?.mode==='board'&&!!boardSession&&!!window.BoardArt?.canPan(boardSession);
- const coords=e=>{const rect=canvas.getBoundingClientRect();
-   return {x:(e.clientX-rect.left)*960/(rect.width||960),y:(e.clientY-rect.top)*540/(rect.height||540)};};
+ const coords=e=>{const rect=arenaContentRect(canvas.getBoundingClientRect());
+   return {x:(e.clientX-rect.left)/rect.scale,y:(e.clientY-rect.top)/rect.scale};};
  canvas.addEventListener('pointerdown',e=>{
   if(!enabled())return;
   const pt=coords(e),top=boardSession.players.length>6?145:94;
-  if(pt.y<top||pt.y>452)return;
+  if(pt.x<0||pt.x>960||pt.y<top||pt.y>452)return;
   e.preventDefault();pointers.set(e.pointerId,pt);
   if(pointers.size===1){downAt=pt;gestureMoved=false;pinchDistance=0;}
   else if(pointers.size===2){const q=[...pointers.values()];
@@ -196,10 +200,15 @@ function syncArenaResolution(){
  // Its many SVG characters and full terrain would otherwise push tablet GPU
  // memory well above the smaller mini-games. Other games retain 3x quality.
  const denseBoard=round?.mode==='board'&&boardSession?.players.length>=8;
- const modeKey=denseBoard?'board-dense':'normal';
+ const modeKey=denseBoard?'board-dense':round?.mode==='board'?'board':'normal';
  if(!arenaResolutionDirty&&arenaLastDpr===dpr&&arenaLastModeKey===modeKey)return;
  arenaResolutionDirty=false;arenaLastDpr=dpr;arenaLastModeKey=modeKey;
  const box=canvas.getBoundingClientRect?.();
+ if(round?.mode==='board'&&box?.width){
+  const content=arenaContentRect(box),toolScale=content.scale,originX=content.left,originY=content.top;
+  $('boardTools').style.cssText='left:'+(originX+345*toolScale)+'px;top:'+(originY+3*toolScale)+'px;transform:scale('+toolScale+');';
+  $('pauseBtn').style.cssText='left:'+(originX+919*toolScale)+'px;top:'+(originY+3*toolScale)+'px;transform:scale('+toolScale+');';
+ }else $('pauseBtn').style.cssText='';
  // Long/short sides are intentional: portrait fallback may rotate the
  // host canvas by 90 degrees without changing the game world's coordinates.
  const longSide=Math.max(Number(box?.width)||0,Number(box?.height)||0);
@@ -1533,6 +1542,7 @@ function beginBoard(){
   try{
     tournament=null;gameSelection=null;
     boardSession=window.BoardParty.create(players);
+    boardSession.camera.lowDetail=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
     window.BoardArt.overview(boardSession);
     players.forEach(p=>{p.active=true;});
     window.PartyPlayerAvatar.preload(boardSession.players);
@@ -1546,11 +1556,20 @@ function refreshBoardTools(){
  const active=round?.mode==='board'&&!!boardSession;
  $('boardTools').classList.toggle('hidden',!active);
  $('boardStartDiceBtn').classList.toggle('hidden',!active||boardSession.phase!=='overview');
- if(active)$('boardNodeDebugBtn').setAttribute('aria-pressed',String(!!boardSession.camera.debugNodes));
+ if(active){
+  const c=boardSession.camera;
+  $('boardNodeDebugBtn').setAttribute('aria-pressed',String(!!c.debugNodes));
+  $('boardEffectsBtn').setAttribute('aria-pressed',String(!!c.lowDetail));
+  $('boardFollowBtn').disabled=boardSession.phase==='overview';
+  const inspect=window.BoardArt.canPan(boardSession);
+  $('boardZoomInBtn').disabled=!inspect;$('boardZoomOutBtn').disabled=!inspect;
+ }
  if(active&&round.paused){
   $('pauseBtn').title='เล่นต่อ';$('pauseBtn').setAttribute('aria-label','เล่นต่อ');
+  $('pauseBtn').classList.add('board-resume');
  }else{
   $('pauseBtn').title='หยุดเกม';$('pauseBtn').setAttribute('aria-label','หยุดเกม');
+  $('pauseBtn').classList.remove('board-resume');
  }
 }
 function showBoard(){
@@ -1667,7 +1686,7 @@ function finishBoard(){
     const progress=s.map.nodes[p.currentNodeId].progress,rank=1+ranked.filter(q=>s.map.nodes[q.currentNodeId].progress>progress).length;
     const row=document.createElement('div');row.className='result-player';
     const name=document.createElement('div');name.textContent='อันดับ '+rank+' • '+p.name;name.style.color=p.color;
-    const note=document.createElement('small');note.textContent=Math.round(progress/36*100)+'% • HP '+p.hp+'/3';
+    const note=document.createElement('small');note.textContent=Math.round(progress/s.map.length*100)+'% • HP '+p.hp+'/'+window.BoardParty.MAX_HP;
     row.append(name,note);list.append(row);
   }
   $('results').classList.remove('hidden');broadcastRoster();beginResultVoting();
@@ -2427,6 +2446,7 @@ function returnToLobby(){
   $('boardTools').classList.add('hidden');
   gameSelection=null;$('gameRoulette').classList.add('hidden');
   boardSession=null;boardStateToken=null;document.body.classList.remove('board-playing');
+  $('pauseBtn').style.cssText='';$('pauseBtn').classList.remove('board-resume');
   tournament=null;round=null;resetInputs();
   stopAllHostVideoCalls();
   broadcast({t:'preview-reset'});
@@ -2440,7 +2460,13 @@ $('boardStartDiceBtn').addEventListener('click',()=>{
  if(!boardSession||round?.mode!=='board'||round.paused)return;
  if(window.BoardParty.beginOrder(boardSession)){boardSession.camera.manualZoom=null;refreshBoardTools();broadcastBoardState();}
 });
-$('boardOverviewBtn').addEventListener('click',()=>{if(round?.mode==='board'&&boardSession)window.BoardArt.overview(boardSession);});
+$('boardOverviewBtn').addEventListener('click',()=>{
+ if(round?.mode!=='board'||!boardSession)return;
+ if(boardSession.phase!=='overview')pauseGame();
+ window.BoardArt.overview(boardSession);refreshBoardTools();
+});
+$('boardFollowBtn').addEventListener('click',()=>{if(round?.mode==='board'&&boardSession){window.BoardArt.follow(boardSession);if(round.paused)resumeGame();refreshBoardTools();}});
+$('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;refreshBoardTools();}});
 $('boardZoomInBtn').addEventListener('click',()=>{if(boardSession)window.BoardArt.zoom(boardSession,1.25);});
 $('boardZoomOutBtn').addEventListener('click',()=>{if(boardSession)window.BoardArt.zoom(boardSession,.8);});
 $('boardNodeDebugBtn').addEventListener('click',()=>{if(boardSession){window.BoardArt.toggleDebug(boardSession);refreshBoardTools();}});

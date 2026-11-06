@@ -40,14 +40,10 @@ function update(s,dt,api){
   const m=s.move,from=window.BoardItems.position(s,p),
    goal=s.map.nodes[m.to||s.map.nodes[p.currentNodeId].nextNodes[0]]?.position;
   if(!goal)return;
-  // Predict a soft turn before a corner; the actual joystick remains subject to
-  // exactly the same node/lane collision, speed and dice limits as a human.
-  let dx=goal.x-from.x,dy=goal.y-from.y;
-  if(m.to&&m.t>.65){
-   const next=s.map.nodes[m.to].nextNodes[0];
-   if(next){const nextP=s.map.nodes[next].position;
-    dx=dx*.85+(nextP.x-goal.x)*.15;dy=dy*.85+(nextP.y-goal.y)*.15;}
-  }
+  // Reach the current checkpoint before aiming around the next bend. On a
+  // tight island hairpin, blending the next edge can point backwards and
+  // strand a bot indefinitely just short of the current node.
+  const dx=goal.x-from.x,dy=goal.y-from.y;
   const d=Math.hypot(dx,dy)||1;
   send(s,p,api,dx/d,dy/d);
  }else if(s.phase==='rocket'){

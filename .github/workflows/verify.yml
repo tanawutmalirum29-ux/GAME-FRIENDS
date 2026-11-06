@@ -39,7 +39,8 @@ jobs:
           for source in board-*.js; do node --check "$source"; done
           node tests/board-party.cjs
           node tests/board-art.cjs
-      - name: Central character combat: 0.8-second stun and attacker-colored VFX
+          node tests/board-layout.cjs
+      - name: "Central character combat: 0.8-second stun and attacker-colored VFX"
         run: node tests/combat-motion.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
