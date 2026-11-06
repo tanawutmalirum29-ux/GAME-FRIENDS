@@ -4523,3 +4523,96 @@ body.board-playing #game .bot-test-pad{
  #game .bot-test-face{width:42px;height:42px;min-width:42px;min-height:42px}
  body.board-playing #game .bot-test-pad{bottom:72px}
 }
+
+/* iPhone Safari / in-app WebKit controller viewport repair (2026-11).
+   Safari's dynamic bars can change the visual viewport without recomputing
+   the layout viewport immediately. app.js supplies exact visible dimensions;
+   dvw/dvh remain the fallback on browsers without VisualViewport. */
+body.controller-playing #controller.controller-page{
+  inset:auto!important;
+  left:var(--gf-controller-visible-left,0px)!important;
+  top:var(--gf-controller-visible-top,0px)!important;
+  right:auto!important;
+  bottom:auto!important;
+  width:var(--gf-controller-visible-width,100dvw)!important;
+  height:var(--gf-controller-visible-height,100dvh)!important;
+  max-width:none;
+  max-height:none;
+  min-width:0;
+  min-height:0;
+  overflow:hidden!important;
+}
+body.controller-playing #controller #controllerActive,
+body.controller-playing #controller #controllerActive .gamepad-hud,
+body.controller-playing #controller #controllerActive .gamepad-preview-column{
+  max-width:100%;
+  min-width:0;
+}
+/* The right action track must ALWAYS be wide enough for its contents.
+   The old minmax(106px,.23fr) track paired with 98-165px circles could
+   paint A/B outside a short landscape iPhone. */
+body.controller-playing #controller #controllerActive
+.controller-buttons:not(.shockwave-mode){
+  grid-template-columns:minmax(0,1fr) clamp(92px,17vw,152px)!important;
+  column-gap:clamp(3px,.7vw,9px)!important;
+  padding-left:max(6px,env(safe-area-inset-left,0px));
+  padding-right:max(8px,env(safe-area-inset-right,0px));
+  min-width:0;
+  width:100%;
+  max-width:100%;
+  overflow:hidden!important;
+}
+body.controller-playing #controller #controllerActive .controller-buttons
+.gamepad-face-buttons{
+  min-width:0;
+  width:100%!important;
+  max-width:100%!important;
+  justify-self:stretch;
+  overflow:hidden!important;
+}
+body.controller-playing #controller #controllerActive .controller-buttons
+.gamepad-face-buttons .face-button-wrap{
+  min-width:0!important;
+  max-width:100%!important;
+  width:100%!important;
+  box-sizing:border-box;
+  align-items:center!important;
+  justify-content:center!important;
+}
+body.controller-playing #controller #controllerActive .controller-buttons
+.gamepad-face-buttons .face-button{
+  --gf-face-diameter:clamp(76px,28dvh,136px);
+  width:min(100%,var(--gf-face-diameter))!important;
+  height:min(100%,var(--gf-face-diameter))!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:100%!important;
+  box-sizing:border-box;
+  aspect-ratio:1 / 1;
+  flex-shrink:1;
+}
+body.controller-playing #controller #controllerActive
+.controller-buttons.has-target:not(.shockwave-mode) .gamepad-face-buttons .face-button{
+  --gf-face-diameter:clamp(55px,19dvh,100px);
+}
+/* A paint-only sideways preview translation ate into the limited action
+   column on 667–900px wide iPhones. Keep it inside its own grid cell. */
+@media(max-width:950px){
+  body.controller-playing #controller #controllerActive .gamepad-preview-column{
+    transform:none!important;
+  }
+}
+@media(orientation:portrait){
+  body.controller-playing.portrait-fallback #controller #controllerActive{
+    width:var(--gf-controller-visible-height,100dvh)!important;
+    height:var(--gf-controller-visible-width,100dvw)!important;
+    max-width:none!important;
+    max-height:none!important;
+  }
+}
+@media(orientation:landscape) and (max-height:350px){
+  body.controller-playing #controller #controllerActive .controller-buttons
+  .gamepad-face-buttons .face-button{
+    --gf-face-diameter:clamp(68px,25dvh,95px);
+  }
+}
