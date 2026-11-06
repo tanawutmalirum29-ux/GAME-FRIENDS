@@ -2,10 +2,13 @@
 (() => {
 'use strict';
 const M=()=>window.BoardMap,D=()=>window.BoardDice,I=()=>window.BoardItems;
+const MAX_HP=100;
+const DAMAGE=Object.freeze({sword:12,car:18,bomber:26,skull:35,event:14});
+const HEAL=Object.freeze({tile:20,event:15,potion:30});
 let serial=0;
 function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
- const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:3,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,results:[],pendingItems:{},winnerIds:[],camera:{x:480,y:320,zoom:1,explore:false},lastMinigame:null};
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,results:[],pendingItems:{},winnerIds:[],hits:[],camera:{x:480,y:320,zoom:1,explore:false},lastMinigame:null};
  phase(s,'order',12);return s;
 }
 function phase(s,name,duration=0){s.phase=name;s.phaseAt=s.time;s.deadline=s.time+duration;s.turnId=s.id+':'+(++s.revision);}
@@ -32,11 +35,16 @@ function endTurn(s){
 function effect(s,fx,duration){s.effect={...fx,duration,at:s.time};phase(s,'effect',duration);}
 function damage(s,p,amount){
  if(p.shieldTurns>0){p.blockedUntil=s.time+1.2;return false;}
- p.hp=Math.max(0,p.hp-amount);p.hurtUntil=s.time+1.2;
+ const actual=Math.min(p.hp,Math.max(0,Math.round(amount)));
+ if(!actual)return false;
+ const position=I().position(s,p);
+ p.hp=Math.max(0,p.hp-actual);p.hurtUntil=s.time+1.2;
+ s.hits.push({id:p.id,amount:actual,at:s.time,position,color:p.color});
+ if(s.hits.length>32)s.hits.shift();
  if(p.hp)return false;
- p.death={at:s.time,position:I().position(s,p)};
- p.currentNodeId=s.map.startId;delete p.worldPosition;p.hp=3;p.shieldTurns=0;
- // Inventory and turn order survive respawn. No movement credit survives death.
+ p.death={at:s.time,position};
+ p.currentNodeId=s.map.startId;delete p.worldPosition;p.hp=MAX_HP;p.shieldTurns=0;
+ // Inventory and claimed sword tiles survive this respawn.
  if(current(s)?.id===p.id){s.move=null;s.skill=null;}
  return true;
 }
@@ -51,10 +59,20 @@ function land(s){
  s.move=null;
  if(p.currentNodeId===s.map.finishId){win(s,p);return;}
  const n=s.map.nodes[p.currentNodeId];let dead=false,kind='land';
- if(n.type==='healing'){p.hp=Math.min(3,p.hp+1);kind='heal';}
- if(n.type==='danger'){dead=damage(s,p,1);kind=p.shieldTurns>0?'shield':'hurt';}
- if(n.type==='event'){if(s.rng()<.5){p.hp=Math.min(3,p.hp+1);kind='heal';}else{dead=damage(s,p,1);kind=p.shieldTurns>0?'shield':'hurt';}}
- effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],next:!dead&&m?.kind==='rocket'?'ready':'end'},dead?1.5:.8);
+ if(n.type==='healing'){p.hp=Math.min(MAX_HP,p.hp+HEAL.tile);kind='heal';}
+ if(n.type==='danger'){dead=damage(s,p,DAMAGE.skull);kind=p.shieldTurns>0?'shield':'hurt';}
+ if(n.type==='event'){
+  if(s.rng()<.5){p.hp=Math.min(MAX_HP,p.hp+HEAL.event);kind='heal';}
+  else{dead=damage(s,p,DAMAGE.event);kind=p.shieldTurns>0?'shield':'hurt';}
+ }
+ if(n.type==='sword'){
+  if(n.ownerId==null){n.ownerId=p.id;kind='swordClaim';}
+  else if(n.ownerId===p.id){kind='swordSafe';}
+  else{dead=damage(s,p,DAMAGE.sword);kind=p.shieldTurns>0?'shield':'swordHit';}
+ }
+ effect(s,{kind:dead?'death':kind,points:[n.position],targets:[p.id],
+  ownerColor:n.type==='sword'?s.players.find(q=>q.id===n.ownerId)?.color:null,
+  next:!dead&&m?.kind==='rocket'?'ready':'end'},dead?1.5:.8);
 }
 function beginMove(s,p,steps,kind='walk'){
  // Preserve the existing real position at the pad, even across turns.
@@ -352,6 +370,6 @@ function controls(s,id){
  if(s.phase==='moving'&&s.move?.kind==='rocket')return{a:'ลงช่องถัดไป',b:'',help:'จรวดไปข้างหน้า / A ลงจอด'};
  return{a:'',b:'',help:'กำลังดำเนินตา'};
 }
-const api={create,phase,current,axes,ready,startTurn,endTurn,effect,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
+const api={create,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
 window.BoardParty=Object.freeze(api);
 })();
