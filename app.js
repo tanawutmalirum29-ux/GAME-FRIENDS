@@ -143,13 +143,18 @@ const canvas=$('arena'), g=canvas.getContext('2d');
 // across Retina tablets/large monitors. This changes graphics only: coordinates,
 // speeds, physics, HUD geometry and the controller's video quality are unchanged.
 const ARENA_WIDTH=960,ARENA_HEIGHT=540,MAX_ARENA_SCALE=3;
-let arenaResolutionDirty=true,arenaLastDpr=0;
+let arenaResolutionDirty=true,arenaLastDpr=0,arenaLastModeKey='';
 function markArenaResolutionDirty(){arenaResolutionDirty=true;}
 function syncArenaResolution(){
  const rawDpr=Number(window.devicePixelRatio);
  const dpr=Number.isFinite(rawDpr)&&rawDpr>0?rawDpr:1;
- if(!arenaResolutionDirty&&arenaLastDpr===dpr)return;
- arenaResolutionDirty=false;arenaLastDpr=dpr;
+ // Keep the dense 8–12 player board at a still-sharp 2.4x bitmap cap.
+ // Its many SVG characters and full terrain would otherwise push tablet GPU
+ // memory well above the smaller mini-games. Other games retain 3x quality.
+ const denseBoard=round?.mode==='board'&&boardSession?.players.length>=8;
+ const modeKey=denseBoard?'board-dense':'normal';
+ if(!arenaResolutionDirty&&arenaLastDpr===dpr&&arenaLastModeKey===modeKey)return;
+ arenaResolutionDirty=false;arenaLastDpr=dpr;arenaLastModeKey=modeKey;
  const box=canvas.getBoundingClientRect?.();
  // Long/short sides are intentional: portrait fallback may rotate the
  // host canvas by 90 degrees without changing the game world's coordinates.
@@ -157,7 +162,7 @@ function syncArenaResolution(){
  const shortSide=Math.min(Number(box?.width)||0,Number(box?.height)||0);
  const displayScale=longSide>0&&shortSide>0?
    Math.max(longSide/ARENA_WIDTH,shortSide/ARENA_HEIGHT):1;
- const scale=Math.min(MAX_ARENA_SCALE,Math.max(1,displayScale*dpr));
+ const scale=Math.min(denseBoard?2.4:MAX_ARENA_SCALE,Math.max(1,displayScale*dpr));
  const width=Math.round(ARENA_WIDTH*scale);
  const height=Math.round(ARENA_HEIGHT*scale);
  if(canvas.width!==width||canvas.height!==height){
