@@ -1812,7 +1812,7 @@ function broadcastBoardState(){
   for(const conn of hostConnections){
     const p=boardSession.players.find(p=>p.id===conn.playerId);if(!p)continue;
     send(conn,{t:'board-state',phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
-      round:boardSession.roundNumber,hp:p.hp,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:p.shieldTurns||0,
+      round:boardSession.roundNumber,hp:p.hp,usedRound:p.usedRound||0,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:p.shieldTurns||0,
       item:window.BoardItems.names[p.item]||'ไม่มีไอเทม',
       bag:window.BoardItems.bag(p).slice(),actionIndex:p.actionIndex||0,bagMessage:p.bagMessage||'',
       ...window.BoardParty.controls(boardSession,p.id)});
@@ -1853,7 +1853,8 @@ function renderPhoneBoard(){
  const rollIcon='<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="7" width="22" height="22" rx="5" fill="#fff4dc" stroke="#d2a85b" stroke-width="2"/><rect x="24" y="18" width="20" height="20" rx="5" fill="#f9f5ec" stroke="#d2a85b" stroke-width="2"/><g fill="#4c5e73"><circle cx="10" cy="13" r="2.5"/><circle cx="20" cy="23" r="2.5"/><circle cx="30" cy="24" r="2.5"/><circle cx="38" cy="32" r="2.5"/></g></svg>';
  for(let i=0;i<options.length;i++){
    const id=options[i],qty=id==='roll'?null:stock[id],cell=doc.createElement('span');
-   cell.className='board-bag-item'+(qty===0?' is-empty':'')+(ready&&i===selected?' is-selected':'');
+   const locked=id!=='roll'&&info.usedRound===info.round;
+   cell.className='board-bag-item'+(qty===0?' is-empty':'')+(locked?' is-locked':'')+(ready&&i===selected&&!locked&&qty!==0?' is-selected':'');
    cell.innerHTML=id==='roll'?rollIcon:svg?.svg(id)||'';
    cell.title=id==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[id]||id;
    cell.setAttribute('aria-label',cell.title+(qty===null?'':' จำนวน '+qty));
@@ -1866,7 +1867,8 @@ function renderPhoneBoard(){
  }
  const guide=$('inventoryGuide');
  const slot=options[selected]||'roll';
- guide.textContent=ready?'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[slot]||slot)+' • B เปลี่ยน / A ยืนยัน'+(info.bagMessage?' • '+info.bagMessage:''):
+ guide.textContent=ready?(info.usedRound===info.round?'ใช้ไอเทมแล้ว 1 ชิ้น • A ทอยลูกเต๋าต่อ':
+   'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[slot]||slot)+' • B เปลี่ยน / A ยืนยัน'+(info.bagMessage?' • '+info.bagMessage:'')):
    'ทอยลูกเต๋า + ไอเทมทั้ง 6 ชนิด';
  $('controllerState').textContent=info.help||'';
 }
