@@ -139,35 +139,48 @@ function holdSeat(p){
  },60000));
 }
 const canvas=$('arena'), g=canvas.getContext('2d');
-// A pointer drag on the host's board view explores the map only AFTER rolling
-// and BEFORE the first walk. Gameplay inputs remain on the controller.
+// Host map gestures: drag to pan, pinch to zoom and tap nodes in Debug mode.
+// Game input remains exclusively on the controller; pause freezes simulation.
 {
- let panId=null,lastX=0,lastY=0;
- const canPan=()=>round?.mode==='board'&&!round.paused&&
-   !!boardSession&&!!window.BoardArt?.canPan(boardSession);
- const release=e=>{if(e.pointerId===panId)panId=null;};
+ const pointers=new Map();let pinchDistance=0,gestureMoved=false,downAt=null;
+ const enabled=()=>round?.mode==='board'&&!!boardSession&&!!window.BoardArt?.canPan(boardSession);
+ const coords=e=>{const rect=canvas.getBoundingClientRect();
+   return {x:(e.clientX-rect.left)*960/(rect.width||960),y:(e.clientY-rect.top)*540/(rect.height||540)};};
  canvas.addEventListener('pointerdown',e=>{
-   if(panId!==null||!canPan())return;
-   const rect=canvas.getBoundingClientRect();
-   if(!rect.width||!rect.height)return;
-   const y=(e.clientY-rect.top)/rect.height*540;
-   const top=boardSession.players.length>6?145:94;
-   if(y<top||y>452)return; // HUD is not a draggable map.
-   e.preventDefault();panId=e.pointerId;lastX=e.clientX;lastY=e.clientY;
-   try{canvas.setPointerCapture(panId);}catch(_){}
+  if(!enabled())return;
+  const pt=coords(e),top=boardSession.players.length>6?145:94;
+  if(pt.y<top||pt.y>452)return;
+  e.preventDefault();pointers.set(e.pointerId,pt);
+  if(pointers.size===1){downAt=pt;gestureMoved=false;pinchDistance=0;}
+  else if(pointers.size===2){const q=[...pointers.values()];
+   pinchDistance=Math.hypot(q[0].x-q[1].x,q[0].y-q[1].y)||1;gestureMoved=true;}
+  try{canvas.setPointerCapture(e.pointerId);}catch(_){}
  });
  canvas.addEventListener('pointermove',e=>{
-   if(panId!==e.pointerId)return;
-   if(!canPan()){panId=null;return;}
-   const rect=canvas.getBoundingClientRect();
-   if(!rect.width||!rect.height)return;
-   e.preventDefault();
-   window.BoardArt.pan(boardSession,(e.clientX-lastX)*960/rect.width,
-     (e.clientY-lastY)*540/rect.height);
-   lastX=e.clientX;lastY=e.clientY;
+  if(!pointers.has(e.pointerId))return;
+  if(!enabled()){pointers.clear();return;}
+  e.preventDefault();
+  const old=pointers.get(e.pointerId),pt=coords(e);pointers.set(e.pointerId,pt);
+  if(pointers.size===2){
+   const q=[...pointers.values()],newDistance=Math.hypot(q[0].x-q[1].x,q[0].y-q[1].y)||1;
+   if(pinchDistance>0)window.BoardArt.zoom(boardSession,newDistance/pinchDistance);
+   pinchDistance=newDistance;gestureMoved=true;
+  }else{
+   const dx=pt.x-old.x,dy=pt.y-old.y;
+   if(Math.hypot(pt.x-downAt.x,pt.y-downAt.y)>7)gestureMoved=true;
+   window.BoardArt.pan(boardSession,dx,dy);
+  }
  });
+ const release=e=>{
+  if(!pointers.has(e.pointerId))return;
+  const pt=coords(e);pointers.delete(e.pointerId);
+  if(!pointers.size){
+   if(!gestureMoved&&enabled())window.BoardArt.inspect(boardSession,pt.x,pt.y);
+   downAt=null;pinchDistance=0;
+  }
+ };
  for(const name of ['pointerup','pointercancel','lostpointercapture'])
-   canvas.addEventListener(name,release);
+  canvas.addEventListener(name,release);
 }
 // The game world stays at 960x540. Increase the bitmap resolution of the
 // *host canvas* to match the screen instead of stretching 960 physical pixels
