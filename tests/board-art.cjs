@@ -19,7 +19,7 @@ const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(){},costumeFor(){ret
   return denyTerrain?null:brush();
  }};surfaces.push(surface);return surface;
 }}});
-for(const name of ['board-map','board-dice','board-items','board-minigame','board-party','board-art'])vm.runInContext(fs.readFileSync(name+'.js','utf8'),ctx,{filename:name+'.js'});
+for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-minigame','board-party','board-art'])vm.runInContext(fs.readFileSync(name+'.js','utf8'),ctx,{filename:name+'.js'});
 const {BoardParty:P,BoardArt:A}=ctx.window,g=brush(true);
 function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,name:'Player '+i,color:'#66aacc'})),{seed});}
 
