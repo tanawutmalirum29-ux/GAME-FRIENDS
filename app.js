@@ -2219,6 +2219,8 @@ function beginGameSelection(mode){
   gameSelection={mode,elapsed:0,spinDuration:1.45,holdDuration:.38,
     initial,final,winningIndex,winner,track};
   setView('game');
+  // iOS fullscreen needs the original Start tap: request before the reel runs.
+  requestHostFullscreen();
   broadcastRoster();
 }
 function updateGameSelection(dt){
