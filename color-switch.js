@@ -5,7 +5,8 @@ const TAU=Math.PI*2, FIXED=1/60;
 const Combat=window.PartyCombatMotion;
 const C=Object.freeze({speed:170,radius:14,punchRange:46,punchWindup:Combat.ATTACK.windup,
  punchActive:Combat.ATTACK.active,punchRecovery:Combat.ATTACK.recovery,punchCooldown:Combat.ATTACK.cooldown,punchStun:Combat.NORMAL_STUN,
- blastCooldown:2.8,blastCast:.18,botPunchRate:.42,
+ blastCooldown:2.8,blastCast:.18,botPunchRate:.084,
+ boxCapSmall:2,boxCapLarge:3,
  rocketSpeed:360,rocketRadius:7,rocketLifetime:2.2,rocketStun:1.5});
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function rand(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;return (s.seed>>>0)/4294967296;}
@@ -256,8 +257,10 @@ function updateRockets(s,ps,dt){
  const live=new Set(next.map(r=>r.burstId));
  for(const id of s.rocketHits.keys())if(!live.has(id))s.rocketHits.delete(id);
 }
+// 1–6 players may have two boxes; 7–12 players may have three at once.
+function maxActiveBoxes(ps){return active(ps).length<=6?C.boxCapSmall:C.boxCapLarge;}
 function spawnPowerBox(s,ps){
- const max=active(ps).length<=6?1:2;
+ const max=maxActiveBoxes(ps);
  if(s.boxes.length>=max)return false;
  const candidates=s.tiles.filter(t=>{
   if(t.column<1||t.row<1||t.column>=s.cols-1||t.row>=s.rows-1)return false;
@@ -288,7 +291,7 @@ function updateBoxes(s,ps){
  const old=s.boxes.length;
  s.boxes=s.boxes.filter(b=>b.active&&b.expireTime>s.elapsed);
  if(s.elapsed>=s.nextBoxSpawn){
-  const cap=active(ps).length<=6?1:2;
+  const cap=maxActiveBoxes(ps);
   while(s.boxes.length<cap)if(!spawnPowerBox(s,ps))break;
   s.nextBoxSpawn=s.elapsed+12+rand(s)*6;
  }
