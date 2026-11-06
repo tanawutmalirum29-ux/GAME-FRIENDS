@@ -1330,7 +1330,10 @@ assert.match(css,/grid-template-columns:repeat\(var\(--result-cols,4\),minmax\(0
  assert.equal(test.getRound().mode,order[0]);
  for(let i=1;i<5;i++){
   test.advanceParty();
-  assert.equal(test.getRound().mode,order[i],'every type appears once in deck order');
+  assert.equal(test.getTournament().index,i,'endless deck index advances in order');
+  assert.equal(test.getTournament().schedule[i],order[i],'all six distinct games are scheduled');
+  assert.equal(test.getRound().mode,order[i],
+    'game '+i+' should be '+order[i]+', actual '+test.getRound()?.mode);
  }
  const round=test.getRound(),tiles=round.colorSwitch.tiles;
  let cursor=0;
