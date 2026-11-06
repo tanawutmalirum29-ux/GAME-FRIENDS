@@ -63,6 +63,10 @@ test('Board clock uses true elapsed time with bounded steps even at low FPS',()=
  const source=fs.readFileSync('app.js','utf8');
  assert.match(source,/const boardDt=Math\.min\(1,elapsed\)/);
  assert.match(source,/updateRound\(round\.mode==='board'\?boardDt:dt\)/);
+ assert.match(source,/updateGameSelection\(boardSession\?boardDt:dt\)/,
+  'board-to-minigame roulette should advance in real time');
+ assert.match(source,/denseBoard\?2\.4:MAX_ARENA_SCALE/,
+  'dense board should limit Canvas bitmap memory without affecting minigames');
  assert.match(source,/for\(let ticks=0;ticks<20&&pending>1e-6;ticks\+\+\)/);
  function advance(s,frameSeconds){
   let pending=Math.max(0,Math.min(1,frameSeconds));
