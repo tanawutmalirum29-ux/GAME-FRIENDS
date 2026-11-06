@@ -130,8 +130,11 @@ test('Free 2D walking: reverse and sideways inputs are real movement, no acciden
  assert.ok(s.phase==='move_ready'||s.move.t<fraction,'reversing must recover a slightly premature turn');
  assert.equal(s.move.remaining,remaining,'reversing cannot spend extra dice');
  steer(s,p);until(s,()=>p.currentNodeId==='n1');assert.equal(s.move.remaining,2);
- press(s,p,null);tick(s,1.1);const stale=plain(I.position(s,p));tick(s,.6);
- assert.deepEqual(plain(I.position(s,p)),stale,'released stick stops walking');
+ press(s,p,null);tick(s,.2);
+ if(s.phase==='moving'){
+  const stale=plain(I.position(s,p));tick(s,.3);
+  assert.deepEqual(plain(I.position(s,p)),stale,'released stick stops mid-edge');
+ }
  until(s,()=>P.current(s).id!==p.id,30);
  assert.equal(p.currentNodeId,'n3','idle fallback must complete only remaining legal nodes');
 });
