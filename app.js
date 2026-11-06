@@ -1295,6 +1295,7 @@ function joinRoom(recovery=false){
         $('controllerInventory').classList.remove('is-ghost');
         setControllerGameContext(data.mode,data.phase||'lobby',!!data.active);
         document.body.classList.add('controller-playing');
+        syncControllerVisibleViewport();
         syncZoomPolicy();
         showControllerMode(data.mode);
         updatePhoneGamePicker(data.phase||'lobby',data.choice||null);
@@ -1536,6 +1537,30 @@ function isPortraitScreen(){
   if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
   return Number(window.innerHeight)>Number(window.innerWidth);
 }
+// Safari on iPhone can resize or offset the actually visible area when its
+// address bar/toolbar moves, without matching 100dvw/100dvh immediately.
+// Bound the phone gamepad to the visual viewport, never the oversized layout
+// viewport. The CSS fallback still works on browsers missing this API.
+function syncControllerVisibleViewport(){
+  const style=$('controller')?.style;
+  if(typeof style?.setProperty!=='function')return;
+  const view=window.visualViewport;
+  const w=Number(view?.width)||Number(window.innerWidth);
+  const h=Number(view?.height)||Number(window.innerHeight);
+  if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return;
+  const left=Number(view?.offsetLeft)||0,top=Number(view?.offsetTop)||0;
+  style.setProperty('--gf-controller-visible-width',w+'px');
+  style.setProperty('--gf-controller-visible-height',h+'px');
+  style.setProperty('--gf-controller-visible-left',left+'px');
+  style.setProperty('--gf-controller-visible-top',top+'px');
+}
+// iOS fires visualViewport.resize independently of window.resize when the
+// Safari controls retract or expand; address both and orientation changes.
+window.addEventListener('resize',syncControllerVisibleViewport);
+window.addEventListener('orientationchange',syncControllerVisibleViewport);
+window.addEventListener('pageshow',syncControllerVisibleViewport);
+window.visualViewport?.addEventListener?.('resize',syncControllerVisibleViewport);
+window.visualViewport?.addEventListener?.('scroll',syncControllerVisibleViewport);
 // Opt-in only: by default the existing real-landscape controller remains unchanged.
 function clearPortraitFallback(){
   releaseStick();
@@ -1546,6 +1571,7 @@ function enablePortraitFallback(){
   if(!controllerReady||!isPortraitScreen())return;
   releaseStick();
   document.body.classList.add('portrait-fallback');
+  syncControllerVisibleViewport();
   $('portraitRestoreBtn').classList.remove('hidden');
 }
 // If the phone is eventually rotated, return to the normal landscape gamepad.
