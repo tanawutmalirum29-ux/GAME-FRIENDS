@@ -409,17 +409,45 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
  assert.equal(s.move.remaining,1,'one graph edge consumes exactly one die step');
 });
 
-test('152-step fixed board retains two consecutive linked sword tiles',()=>{
+test('152-step winter map uses the exact requested danger, arrow and nine linked sword pair roles',()=>{
+ const pairs=[['n14','n15'],['n27','n28'],['n59','n60'],['n69','n70'],
+  ['n85','n86'],['c76_10','c76_11'],['n103','n104'],
+  ['n124','n125'],['n137','n138']];
+ const danger=['n5','n49','n120','n148'];
+ const arrows=['n20','n21','n71','n113'];
+ const swords=pairs.flat();
  for(const seed of [1,42,2026,999]){
   const map=M.create(seed);
   assert.equal(map.length,152);assert.equal(map.finishId,'n152');
-  assert.ok(map.islands.length>=7&&map.width>5000&&map.height>3000,'152-step route spans a broad archipelago');
-  assert.deepEqual(plain(M.SWORD_TILES),['n20','n21']);
-  assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
-  assert.equal(map.nodes.n20.ownerId,null);assert.equal(map.nodes.n21.ownerId,null);
-  assert.ok(map.nodes.n20.nextNodes.includes('n21'),'sword tiles are adjacent on the main path');
-  assert.ok(map.nodes.n19.nextNodes.includes('n20'));
+  assert.ok(map.islands.length>=7&&map.width>5000&&map.height>3000);
+  assert.equal(map.version,'winter-expedition-152-v4');
+  assert.deepEqual(plain(M.SWORD_TILES),swords);
+  assert.deepEqual(plain(M.SWORD_PAIRS.map(p=>p.nodeIds)),pairs);
+  assert.equal(Object.keys(map.territories).length,9);
+  for(const id of danger){
+   assert.equal(map.nodes[id].type,'danger',id);
+   assert.deepEqual(plain(map.nodes[id].effects),{hp:-35},id);
+  }
+  for(const id of arrows){
+   assert.equal(map.nodes[id].type,'movement',id);
+   assert.deepEqual(plain(map.nodes[id].effects),{},id);
+   assert.equal(map.nodes[id].territoryId,undefined);
+   assert.ok(!map.luckyTileIds.includes(id),id+' is no longer a Lucky Star');
+  }
+  for(const [a,b] of pairs){
+   const first=map.nodes[a],last=map.nodes[b];
+   assert.equal(first.type,'sword');assert.equal(last.type,'sword');
+   assert.ok(first.nextNodes.includes(b),'linked sword tiles are traversable: '+a);
+   assert.equal(first.territoryId,last.territoryId);
+   assert.equal(first.ownerId,null);assert.equal(last.ownerId,null);
+   assert.deepEqual(plain(map.territories[first.territoryId].nodeIds),[a,b]);
+  }
+  assert.deepEqual(plain(Object.values(map.nodes).filter(n=>n.type==='sword').map(n=>n.id).sort()),[...swords].sort(),
+   'no forgotten sword tiles or metadata');
+  assert.equal(map.luckyTileIds.length,19);
   assert.equal(M.validate(map),true);
+  assert.throws(()=>M.assertCompatible({...map,version:'winter-expedition-152-v3'}),/Incompatible BOARD PARTY map/,
+   'old room maps are rejected because their territories no longer match');
  }
 });
 test('Lucky Star locations are reachable purple/gold reward tiles, spread across the larger board',()=>{
@@ -428,7 +456,7 @@ test('Lucky Star locations are reachable purple/gold reward tiles, spread across
   assert.ok(lucky.length>=18&&lucky.length<=24,'18–24 separated Lucky Stars on 212 nodes with long-route bonuses');
   assert.deepEqual(plain(lucky.map(n=>n.id).sort()),plain([...map.luckyTileIds].sort()));
   for(const node of lucky){assert.equal(node.effects.item,true);assert.ok(node.nextNodes.length);assert.ok(node.previousNodes.length);}
-  assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
+  assert.equal(map.nodes.n20.type,'movement');assert.equal(map.nodes.n21.type,'movement');
   assert.equal(M.validate(map),true);
  }
 });
@@ -474,26 +502,45 @@ test('Board result holds add 0.8 seconds for both minigame and item reels',()=>{
  until(s,()=>s.phase==='rewards',5);
  assert.ok(s.deadline-s.time>4.4&&s.deadline-s.time<=4.5,'item results hold 4.5 seconds');
 });
-test('Linked sword territory: claiming either tile owns BOTH, once-only damage and shield',()=>{
- for(const first of ['n20','n21']){
-  const s=ready(3,2026),[a,b,c]=s.players,second=first==='n20'?'n21':'n20';
-  const arrive=(p,id)=>{
-   s.order=[p.id,...s.players.filter(q=>q.id!==p.id).map(q=>q.id)];
-   s.turnIndex=0;P.startTurn(s);p.currentNodeId=id;delete p.worldPosition;P.land(s);
-  };
-  arrive(a,first);
-  assert.equal(s.map.territories[M.TERRITORY_ID].ownerId,a.id);
-  assert.equal(s.map.nodes.n20.ownerId,a.id);assert.equal(s.map.nodes.n21.ownerId,a.id);
-  assert.equal(s.effect.kind,'swordClaim');assert.equal(a.hp,100);
-  arrive(c,second);assert.equal(c.hp,88);assert.equal(s.effect.kind,'swordHit');
-  assert.equal(s.hits.at(-1).amount,12);
-  arrive(a,second);assert.equal(a.hp,100);assert.equal(s.effect.kind,'swordSafe');
-  b.shieldTurns=1;arrive(b,first);
-  assert.equal(b.hp,100);assert.equal(s.effect.kind,'shield');
-  b.shieldTurns=0;b.hp=10;arrive(b,second);
-  assert.equal(b.currentNodeId,s.map.startId);assert.equal(b.hp,100);
-  assert.equal(s.map.nodes.n20.ownerId,a.id);assert.equal(s.map.nodes.n21.ownerId,a.id);
+test('Every sword pair captures two tiles and independently enforces 12 HP damage, shield and respawn',()=>{
+ for(const pair of M.SWORD_PAIRS){
+  for(const first of pair.nodeIds){
+   const s=ready(3,2026),[a,b,c]=s.players,second=pair.nodeIds.find(id=>id!==first);
+   const arrive=(p,id)=>{
+    s.order=[p.id,...s.players.filter(q=>q.id!==p.id).map(q=>q.id)];
+    s.turnIndex=0;P.startTurn(s);p.currentNodeId=id;delete p.worldPosition;P.land(s);
+   };
+   arrive(a,first);
+   assert.equal(s.map.territories[pair.id].ownerId,a.id,'pair '+pair.id);
+   for(const id of pair.nodeIds)assert.equal(s.map.nodes[id].ownerId,a.id);
+   assert.equal(s.effect.kind,'swordClaim');assert.equal(a.hp,100);
+   arrive(c,second);assert.equal(c.hp,88);assert.equal(s.effect.kind,'swordHit');
+   assert.equal(s.hits.at(-1).amount,12);
+   arrive(a,second);assert.equal(a.hp,100);assert.equal(s.effect.kind,'swordSafe');
+   b.shieldTurns=1;arrive(b,first);
+   assert.equal(b.hp,100);assert.equal(s.effect.kind,'shield');
+   b.shieldTurns=0;b.hp=10;arrive(b,second);
+   assert.equal(b.currentNodeId,s.map.startId);assert.equal(b.hp,100);
+   for(const id of pair.nodeIds)assert.equal(s.map.nodes[id].ownerId,a.id);
+   for(const other of M.SWORD_PAIRS.filter(group=>group.id!==pair.id)){
+    assert.equal(s.map.territories[other.id].ownerId,null,'other territories remain independent');
+   }
+  }
  }
+});
+test('Multiple sword territories can be claimed by different players without interfering',()=>{
+ const s=ready(3,2026),[a,b]=s.players,[left,right]=M.SWORD_PAIRS;
+ const claim=(p,id)=>{
+  s.order=[p.id,...s.players.filter(q=>q.id!==p.id).map(q=>q.id)];
+  s.turnIndex=0;P.startTurn(s);p.currentNodeId=id;delete p.worldPosition;P.land(s);
+ };
+ claim(a,left.nodeIds[0]);claim(b,right.nodeIds[1]);
+ assert.equal(s.map.territories[left.id].ownerId,a.id);
+ assert.equal(s.map.territories[right.id].ownerId,b.id);
+ for(const id of left.nodeIds)assert.equal(s.map.nodes[id].ownerId,a.id);
+ for(const id of right.nodeIds)assert.equal(s.map.nodes[id].ownerId,b.id);
+ claim(a,right.nodeIds[0]);assert.equal(a.hp,88,'opposing owned sword pair hits for 12');
+ claim(b,left.nodeIds[0]);assert.equal(b.hp,88,'each sword territory is defended separately');
 });
 test('Damage has distinct 100-HP values and healing clamps to max',()=>{
  const s=ready(3,999),p=s.players[0];
