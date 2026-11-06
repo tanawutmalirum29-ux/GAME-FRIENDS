@@ -199,15 +199,15 @@ function seam(x){
  assert.equal(s.moveSeconds,4.5,'second survival wave shortens running time');
  assert.ok(s.revealTimeline.every(group=>group.duration>.65),
   'every sped-up reveal remains visible and readable');
+ tiles.forEach((tile,i)=>assert.equal(s.tiles[i],tile,'physical tile object remains the same'));
+ assert.deepEqual(x.players.slice(0,2).map(z=>[z.x,z.y,z.dir]),pos,
+   'human and bot survivors never change position or direction between rounds');
+ assert.equal(x.players.filter(z=>z.fruitAlive).length,2,'eliminated player stays out');
  const secondWaveTiles=s.tiles.length;
  advance(x,s.revealDuration+.1);
  assert.equal(s.revealedTileIds.size,secondWaveTiles,
   'every tile is shown even on the faster second wave');
  assert.equal(s.phase,'hide','cards turn down only after the last group has been shown');
- tiles.forEach((tile,i)=>assert.equal(s.tiles[i],tile,'physical tile object remains the same'));
- assert.deepEqual(x.players.slice(0,2).map(z=>[z.x,z.y,z.dir]),pos,
-   'human and bot survivors never change position or direction between rounds');
- assert.equal(x.players.filter(z=>z.fruitAlive).length,2,'eliminated player stays out');
 }
 {
  const x=init(2),s=x.state,[p,q]=x.players;
