@@ -452,28 +452,30 @@ function hud(g,s){
   const canSelect=s.phase==='ready';
   const stripX=274,stripW=554,gap=8,cardW=(stripW-gap*(kinds.length-1))/kinds.length,cardY=footerY+6,cardH=56;
   kinds.forEach((kind,i)=>{
-   const x=stripX+i*(cardW+gap),chosen=canSelect&&selected===i,amount=kind==='roll'?null:stock[kind]||0;
-   const empty=amount===0;
+   const x=stripX+i*(cardW+gap),amount=kind==='roll'?null:stock[kind]||0;
+   const locked=kind!=='roll'&&p.usedRound===s.roundNumber;
+   const empty=amount===0,dimmed=empty||locked;
+   const chosen=canSelect&&selected===i&&!dimmed;
    g.save();g.translate(x+cardW/2,cardY+cardH/2);
    if(chosen)g.scale(1.055,1.065);
    if(chosen){g.shadowColor='#ffe29a';g.shadowBlur=12;}
    box(g,-cardW/2,-cardH/2,cardW,cardH,9,
-    chosen?'#3f5a6a':empty?'#202d39':'#1c435b',
-    chosen?'#ffe0a1':empty?'#43515e':'#527c91');
+    chosen?'#3f5a6a':dimmed?'#202d39':'#1c435b',
+    chosen?'#ffe0a1':dimmed?'#43515e':'#527c91');
    g.shadowBlur=0;
    if(chosen){g.strokeStyle='#ffd777';g.lineWidth=1.7;g.strokeRect(-cardW/2+2,-cardH/2+2,cardW-4,cardH-4);}
-   if(empty)g.globalAlpha=.34;
+   if(dimmed)g.globalAlpha=.27;
    if(kind==='roll'){
     dice(g,1,-10,-10,20,false,0,0,true);
     dice(g,2,11,-10,20,false,0,1,true);
    }else icon(g,kind,0,-9,20);
    g.globalAlpha=1;
    const shortName=kind==='roll'?'ทอย':{potion:'ยา',ufo:'UFO',rocket:'จรวด',bomber:'เครื่องบิน',car:'รถระเบิด',shield:'โล่'}[kind]||kind;
-   label(g,shortName,-4,16,10,empty?'#6f8491':chosen?'#ffe9b0':'#e4f2fa','center',800,cardW-26);
+   label(g,shortName,-4,16,10,dimmed?'#6f8491':chosen?'#ffe9b0':'#e4f2fa','center',800,cardW-26);
    if(amount!==null){
     box(g,cardW/2-18,cardH/2-18,15,15,5,
-      empty?'#394550':'#e4c77c',empty?'#596674':'#fff1bc');
-    label(g,String(amount),cardW/2-10.5,cardH/2-10.5,10,empty?'#93a1ad':'#3e3023','center',900,12);
+      dimmed?'#394550':'#e4c77c',dimmed?'#596674':'#fff1bc');
+    label(g,String(amount),cardW/2-10.5,cardH/2-10.5,10,dimmed?'#93a1ad':'#3e3023','center',900,12);
    }
    g.restore();
   });

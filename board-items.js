@@ -2,6 +2,9 @@
 'use strict';
 const names={potion:'Healing Potion',ufo:'UFO Position Swap',rocket:'Rocket Ride',bomber:'Bomber Aircraft',car:'RC Bomb Car',shield:'Protection Shield'};
 const ids=Object.keys(names),radius=18,ufoRadius=48,blastRadius=72;
+// Only UFO ends the current turn. Every other item permits exactly one dice
+// roll afterward; the round-wide one-item limit is independent of this rule.
+const afterUse=kind=>kind==='ufo'?'end':'ready';
 function bag(p){
  if(!Array.isArray(p.bag))p.bag=[];
  // Accept older single-slot session data without losing a previously held item.
@@ -14,7 +17,8 @@ function counts(p){
  for(const id of held)if(Object.hasOwn(totals,id))totals[id]++;
  return totals;
 }
-function availableSlots(p){
+function availableSlots(p,roundNumber){
+ if(roundNumber!==undefined&&p.usedRound===roundNumber)return [0];
  const stock=counts(p);
  return [0,...ids.flatMap((id,i)=>stock[id]>0?[i+1]:[])];
 }
@@ -66,12 +70,12 @@ function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
   const gained=Math.min(api.MAX_HP-p.hp,api.HEAL.potion);
   consume(s,p,kind);p.hp+=gained;
   s.heals.push({id:p.id,amount:gained,at:s.time,position:position(s,p)});
-  api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:'end'},.85);return true;
+  api.effect(s,{kind:'heal',points:[position(s,p)],targets:[p.id],next:afterUse(kind)},.85);return true;
  }
  if(kind==='shield'){
   // Two own turns: the activation turn and the owner's next turn, inclusive.
   if(p.shieldTurns>0)return false;consume(s,p,kind);p.shieldTurns=2;
-  api.effect(s,{kind:'shield',points:[position(s,p)],targets:[p.id],next:'end'},.85);return true;
+  api.effect(s,{kind:'shield',points:[position(s,p)],targets:[p.id],next:afterUse(kind)},.85);return true;
  }
  if(kind==='rocket'){consume(s,p,kind);api.beginMove(s,p,Infinity,'rocket');return true;}
  if(kind==='car'){
@@ -119,13 +123,13 @@ function confirm(s,button,api){
   // rocket traverse belonged to the old position and must not be resumed.
   delete p.pendingTraverse;delete q.pendingTraverse;
   consume(s,p,skill.kind);s.skill=null;
-  api.effect(s,{kind:'ufo',points,targets:[p.id,q.id],next:'end'},1.25);return true;
+  api.effect(s,{kind:'ufo',points,targets:[p.id,q.id],next:afterUse(skill.kind)},1.25);return true;
  }
  if(skill.kind==='bomber'){
   const points=bombs(skill);consume(s,p,skill.kind);s.skill=null;
   // Freeze the preview geometry for BOTH animation and damage resolution.
   const hit=victims(s,points,p);for(const q of hit)api.damage(s,q,api.DAMAGE.bomber);
-  api.effect(s,{kind:'bomber',points,targets:hit.map(q=>q.id),next:'end'},1.6);return true;
+  api.effect(s,{kind:'bomber',points,targets:hit.map(q=>q.id),next:afterUse(skill.kind)},1.6);return true;
  }
  return false;
 }
@@ -133,7 +137,7 @@ function segmentDistance(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.mi
 function explode(s,api){
  const skill=s.skill,p=api.current(s),points=[{x:skill.x,y:skill.y}],hit=victims(s,points,p);
  for(const q of hit)api.damage(s,q,api.DAMAGE.car);s.skill=null;
- api.effect(s,{kind:'car',points,targets:hit.map(q=>q.id),next:'end'},1.2);
+ api.effect(s,{kind:'car',points,targets:hit.map(q=>q.id),next:afterUse('car')},1.2);
 }
 function update(s,dt,api){
  const skill=s.skill,p=api.current(s);if(!skill||!p)return;
@@ -190,5 +194,5 @@ function update(s,dt,api){
 
  }
 }
-window.BoardItems=Object.freeze({names,ids,radius,ufoRadius,blastRadius,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,victims,begin,confirm,update,segmentDistance});
+window.BoardItems=Object.freeze({names,ids,radius,ufoRadius,blastRadius,afterUse,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,victims,begin,confirm,update,segmentDistance});
 })();

@@ -1968,6 +1968,32 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.equal(phone.elements.get('controllerButtons').classList.contains('board-bomber-aim'),false);
  assert.equal(phone.elements.get('buttonC').disabled,true);
 }
+// BOARD PARTY after using an item: all six choices darken even if stock
+// remains, only the Roll card stays active, and the real stock counts remain.
+{
+ const phone=setup('https://game.example/?join=LOCKED');
+ phone.elements.get('nick').value='Inventory';
+ phone.click('joinBtn');phone.instances[0].fire('open');
+ const conn=phone.instances[0].conn;conn.fire('open');
+ conn.fire('data',{t:'welcome',id:'locked',name:'Inventory',color:'#66aacc',mode:'board',phase:'playing'});
+ const frame={t:'board-state',phase:'playing',boardPhase:'ready',turnId:'ready-locked',
+  round:3,usedRound:3,hp:72,bag:['potion','shield','shield','rocket'],
+  actionIndex:0,stepsRemaining:0,a:'ทอย',b:'เปลี่ยนตัวเลือก'};
+ conn.fire('data',frame);
+ const slots=phone.elements.get('inventoryItem').children;
+ assert.equal(slots.length,7,'permanent roll + six item slots are rendered');
+ assert.equal(slots[0].className.includes('is-selected'),true,'Roll stays bright/selectable');
+ assert.equal(slots[0].className.includes('is-locked'),false);
+ for(let i=1;i<7;i++)assert.equal(slots[i].className.includes('is-locked'),true,
+  'all items are visibly locked after one item: slot '+i);
+ assert.equal(slots[6].children.at(-1).textContent,'2','locked shield keeps the actual quantity');
+ assert.match(phone.elements.get('inventoryGuide').textContent,/ทอยลูกเต๋าต่อ/);
+ conn.fire('data',{...frame,turnId:'ready-next-round',round:4,usedRound:3});
+ const unlocked=phone.elements.get('inventoryItem').children;
+ assert.equal(unlocked[6].className.includes('is-locked'),false,
+  'all stocked items unlock again when a NEW board round starts');
+ assert.equal(unlocked[0].className.includes('is-selected'),true);
+}
 // Full room-preserving page refresh: same room, seat token, choice and color.
 {
  const hostA=setup();
@@ -2089,8 +2115,8 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.equal(ui.elements.get('botUnlimitedBtn').attributes['aria-pressed'],'true');
  assert.deepEqual(Array.from(new Set(possessed.bag)),Array.from(I.ids),'debug bot has all six items without a huge inventory');
  assert.equal(board.players[0].debugUnlimitedItems,undefined,'other bot inventory is never modified');
- // Infinite *stock* still obeys the one-item-per-round rule. Each
- // successful item use ends the turn without a bonus die roll.
+ // Infinite stock still obeys the one-item-per-round rule. Potion
+ // returns to Roll on the same owner's turn, never another item.
  board.order=[possessed.id,...board.players.filter(p=>p.id!==possessed.id).map(p=>p.id)];
  const initialRound=board.roundNumber;
  for(let k=0;k<2;k++){
@@ -2103,8 +2129,14 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
   assert.equal(possessed.usedRound,board.roundNumber,'debug stock still respects one item per round');
   for(let t=0;t<22&&board.phase!=='ready';t++)P.update(board,.05);
   assert.equal(board.phase,'ready');
-  assert.notEqual(P.current(board).id,possessed.id,'item effect passes the turn');
-  assert.equal(board.moveDice,null,'no extra roll after using a debug item');
+  assert.equal(P.current(board).id,possessed.id,'potion returns to the same player to roll');
+  assert.equal(board.moveDice,null,'dice do not roll until player presses A');
+  assert.deepEqual(Array.from(I.availableSlots(possessed,board.roundNumber)),[0]);
+  possessed.actionIndex=I.ids.indexOf('potion')+1;
+  assert.equal(P.action(board,possessed.id,'A'),false,'infinite stock cannot use twice in one round');
+  possessed.actionIndex=0;
+  assert.equal(P.action(board,possessed.id,'A'),true,'infinite-stock test player can manually roll');
+  assert.equal(board.phase,'dice');
  }
  ui.click('botUnlimitedBtn');
  assert.equal(possessed.debugUnlimitedItems,false);
