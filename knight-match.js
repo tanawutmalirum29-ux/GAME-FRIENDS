@@ -5,6 +5,8 @@ const TAU=Math.PI*2,STEP=1/60;
 const CONFIG=Object.freeze({duration:60,thrustDuration:.25,thrustDash:160,thrustCooldown:.65,
   lanceReach:66,lanceTipRadius:8,stunDuration:1,stunImmunity:.5,
   rainbowDuration:10,rainbowPenalty:2,rainbowChance:.08,respawnMin:.8,respawnMax:1.8});
+const RIDER_SCALE=.7,BALLOON_SIZE_MULTIPLIER=1.2,MOVE_SPEED_MULTIPLIER=.5;
+const PLAYER_RADIUS=22*RIDER_SCALE,LANCE_TIP_RADIUS=CONFIG.lanceTipRadius*RIDER_SCALE;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const normal=a=>({x:Math.cos(a),y:Math.sin(a)});
@@ -12,8 +14,8 @@ const normal=a=>({x:Math.cos(a),y:Math.sin(a)});
 // Sweeping this point prevents a visual hit without a real registered collision.
 function lanceTip(p,k,extension=0){
  const f=normal(k.angle),r={x:-f.y,y:f.x};
- return {x:p.x+f.x*(59+extension)+r.x*13,
-  y:p.y+f.y*(59+extension)+r.y*13};
+ return {x:p.x+RIDER_SCALE*(f.x*(59+extension)+r.x*13),
+  y:p.y+RIDER_SCALE*(f.y*(59+extension)+r.y*13)};
 }
 const angleDelta=(a,b)=>Math.atan2(Math.sin(b-a),Math.cos(b-a));
 const alive=ps=>ps.filter(p=>p.active);
@@ -56,26 +58,31 @@ function location(s,ps,r,attempts=260){
  for(let i=0;i<attempts;i++){
   const a=rand(s)*TAU,mag=Math.sqrt(rand(s))*(s.radius-r-17);
   const pt={x:s.center.x+Math.cos(a)*mag,y:s.center.y+Math.sin(a)*mag};
-  if(occupants.every(o=>dist(pt,o)>r+(o.radius||22)+8))return pt;
+  if(occupants.every(o=>dist(pt,o)>r+(o.radius||(o.km?PLAYER_RADIUS:22))+8))return pt;
  }
  return null;
+}
+function floatSettings(s,b){
+ b.floatPhase=rand(s)*TAU;b.floatSpeed=.65+rand(s)*.6;
+ b.driftVelocity=(rand(s)-.5)*12;b.bobOffset=0;
+ return b;
 }
 function spawnNormal(s,ps,ownerId){
  const pt=location(s,ps,s.balloonRadius);
  if(!pt)return false;
  const owner=s.owners.find(o=>o.id===ownerId);if(!owner)return false;
- s.balloons.push({id:++s.nextBalloonId,kind:'normal',state:'active',
+ s.balloons.push(floatSettings(s,{id:++s.nextBalloonId,kind:'normal',state:'active',
   baseOwnerId:owner.id,baseColor:owner.color,x:pt.x,y:pt.y,vx:0,vy:0,
-  radius:s.balloonRadius,spawnTime:s.clock});
+  radius:s.balloonRadius,spawnTime:s.clock}));
  return true;
 }
 function spawnRainbow(s,ps){
  if(s.rainbowOwnerId||s.balloons.some(b=>b.kind==='rainbow'))return false;
- const pt=location(s,ps,s.balloonRadius+2);
+ const pt=location(s,ps,s.balloonRadius+2*BALLOON_SIZE_MULTIPLIER);
  if(!pt)return false;
- s.balloons.push({id:++s.nextBalloonId,kind:'rainbow',state:'active',
+ s.balloons.push(floatSettings(s,{id:++s.nextBalloonId,kind:'rainbow',state:'active',
   baseOwnerId:null,baseColor:'rainbow',x:pt.x,y:pt.y,vx:0,vy:0,
-  radius:s.balloonRadius+2,spawnTime:s.clock});
+  radius:s.balloonRadius+2*BALLOON_SIZE_MULTIPLIER,spawnTime:s.clock}));
  return true;
 }
 function setup(round,ps){
@@ -84,7 +91,7 @@ function setup(round,ps){
  for(const p of people)p.active=true;
  const s={world:{w:world.w,h:world.h},center:{x:world.w/2,y:world.h*.54},
   radius:Math.min(world.w*.33,world.h*.43),targetCount:world.count,
-  balloonRadius:ps.length>=10?21:ps.length>=7?19:16,seed:(Number(round.knightSeed)||(Date.now()^0x5a17c28))>>>0||1,
+  balloonRadius:(ps.length>=10?21:ps.length>=7?19:16)*BALLOON_SIZE_MULTIPLIER,seed:(Number(round.knightSeed)||(Date.now()^0x5a17c28))>>>0||1,
   clock:0,remaining:CONFIG.duration,accumulator:0,finished:false,
   balloons:[],respawnQueue:[],effects:[],owners:people.map(p=>({id:p.id,color:p.color})),
   colorCursor:0,nextBalloonId:0,nextAttackId:0,ranRainbowAttempt:false,
@@ -97,7 +104,7 @@ function setup(round,ps){
   p.x=s.center.x+Math.cos(a)*radial;p.y=s.center.y+Math.sin(a)*radial;
   p.vx=0;p.vy=0;p.score=0;p.dir=normal(theta);p.face=p.dir.x<0?-1:1;
   p.km={angle:theta,turnRate:6.2,stun:0,immune:0,cooldown:0,attackTime:0,
-   attackId:0,hitIds:new Set(),actionLatch:false,tip:null,botNext:0,botTarget:null};
+   attackId:0,hitIds:new Set(),balloonHitConsumed:false,actionLatch:false,tip:null,botNext:0,botTarget:null};
  }
  for(let i=0;i<s.targetCount;i++){const owner=pickOwner(s);if(!spawnNormal(s,people,owner.id))
    throw Error('Unable to place balanced KNIGHT MATCH balloons');}
@@ -118,10 +125,11 @@ function emit(s,x,y,text,color,kind='score'){
  if(s.effects.length>120)s.effects.splice(0,s.effects.length-120);
 }
 function popBalloon(s,b,p){
- if(!b||b.state!=='active'||!p?.km?.attackId)return false;
+ if(!b||b.state!=='active'||!p?.km?.attackId||p.km.balloonHitConsumed)return false;
  const index=s.balloons.indexOf(b);if(index<0)return false;
  // A popped balloon cannot be involved in any further collision or rendering.
  b.state='popped';s.balloons.splice(index,1);s.popped++;
+ p.km.balloonHitConsumed=true;
  const hitId='balloon:'+b.id;p.km.hitIds.add(hitId);
  if(b.kind==='rainbow'){
   s.rainbowOwnerId=p.id;s.rainbowUntil=s.clock+CONFIG.rainbowDuration;
@@ -157,28 +165,40 @@ function segmentDistance(pt,a,b){
  const t=clamp(((pt.x-a.x)*dx+(pt.y-a.y)*dy)/d,0,1);
  return Math.hypot(pt.x-a.x-dx*t,pt.y-a.y-dy*t);
 }
+// Earliest segment/circle intersection, not the closest center projection.
+// A long frame can cross several balloons: only the first boundary counts.
+function sweptCircleEntry(pt,a,b,r){
+ const dx=b.x-a.x,dy=b.y-a.y,ax=a.x-pt.x,ay=a.y-pt.y;
+ const q=dx*dx+dy*dy,c=ax*ax+ay*ay-r*r;
+ if(c<=0)return 0;
+ if(q<1e-9)return null;
+ const dot=ax*dx+ay*dy,discriminant=dot*dot-q*c;
+ if(discriminant<0)return null;
+ const t=(-dot-Math.sqrt(discriminant))/q;
+ return t>=0&&t<=1?t:null;
+}
 function startAttack(s,p){
  const k=p.km;if(k.cooldown>0||k.stun>0)return false;
  k.attackId=++s.nextAttackId;k.attackTime=CONFIG.thrustDuration;
  k.cooldown=CONFIG.thrustCooldown;k.hitIds=new Set();
+ k.balloonHitConsumed=false;
  k.tip=lanceTip(p,k,0);
  return true;
 }
 function strike(s,p,ps,prevTip,nextTip){
  const k=p.km;
- // Resolve all collisions in actual swept-tip travel order. If the spear
- // crosses a Rainbow Balloon before a normal balloon in the SAME frame,
- // the latter must use the newly active effective color, not array order.
- const vx=nextTip.x-prevTip.x,vy=nextTip.y-prevTip.y,len2=vx*vx+vy*vy||1;
- const candidates=s.balloons.filter(b=>b.state==='active'&&!k.hitIds.has('balloon:'+b.id)&&
-   segmentDistance(b,prevTip,nextTip)<=b.radius+CONFIG.lanceTipRadius)
-   .map(b=>({b,t:clamp(((b.x-prevTip.x)*vx+(b.y-prevTip.y)*vy)/len2,0,1)}))
+ if(!k.balloonHitConsumed){
+  const candidates=s.balloons.filter(b=>b.state==='active')
+   .map(b=>({b,t:sweptCircleEntry(b,prevTip,nextTip,b.radius+LANCE_TIP_RADIUS)}))
+   .filter(hit=>hit.t!==null)
    .sort((a,b)=>a.t-b.t||a.b.id-b.b.id);
- for(const hit of candidates)popBalloon(s,hit.b,p);
+  if(candidates.length)popBalloon(s,candidates[0].b,p);
+ }
+ // Player jousting is independent of the one-balloon quota.
  for(const target of alive(ps)){
   if(target.id===p.id||target.km.stun>0||target.km.immune>0)continue;
   const key='player:'+target.id;if(k.hitIds.has(key))continue;
-  if(segmentDistance(target,prevTip,nextTip)>22+CONFIG.lanceTipRadius)continue;
+  if(segmentDistance(target,prevTip,nextTip)>PLAYER_RADIUS+LANCE_TIP_RADIUS)continue;
   k.hitIds.add(key);target.km.stun=CONFIG.stunDuration;
   target.vx=0;target.vy=0;target.km.attackTime=0;
   emit(s,target.x,target.y-20,'STUN 1s',p.color,'stun');
@@ -213,44 +233,61 @@ function botControls(s,p,ps){
  if(!best)return{x:0,y:0,action:false};
  const dx=best.x-p.x,dy=best.y-p.y,d=Math.hypot(dx,dy)||1;
  const desired=Math.atan2(dy,dx),delta=Math.abs(angleDelta(k.angle,desired));
- const attack=d<CONFIG.lanceReach+(best.radius||22)+15&&d>24&&delta<.24&&
+ const attack=d<CONFIG.lanceReach*RIDER_SCALE+(best.radius||22)+15*RIDER_SCALE&&d>PLAYER_RADIUS&&delta<.24&&
   k.cooldown<=0&&k.stun<=0&&s.clock>=k.botNext;
  if(attack)k.botNext=s.clock+.9+rand(s)*.3;
  return{x:dx/d*(d>42?1:.55),y:dy/d*(d>42?1:.55),action:attack};
 }
 function separate(s,ps){
- const list=alive(ps);
+ const list=alive(ps),diameter=PLAYER_RADIUS*2;
  for(let pass=0;pass<3;pass++){
   for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){
    const a=list[i],b=list[j],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||.001;
-   if(d>=44)continue;
-   const nx=d<.01?Math.cos(i*2+j):dx/d,ny=d<.01?Math.sin(i*2+j):dy/d,shift=(44-d)*.47;
+   if(d>=diameter)continue;
+   const nx=d<.01?Math.cos(i*2+j):dx/d,ny=d<.01?Math.sin(i*2+j):dy/d,shift=(diameter-d)*.47;
    a.x-=nx*shift;a.y-=ny*shift;b.x+=nx*shift;b.y+=ny*shift;
   }
-  for(const p of list)bound(s,p,22);
+  for(const p of list)bound(s,p,PLAYER_RADIUS);
  }
 }
 function balloonPhysics(s,ps,dt){
+ const maxSpeed=30,people=alive(ps);
  for(const b of s.balloons){
-  b.x+=b.vx*dt;b.y+=b.vy*dt;b.vx*=Math.exp(-2.6*dt);b.vy*=Math.exp(-2.6*dt);
-  bound(s,b,b.radius+2);
+  b.floatPhase+=dt*b.floatSpeed;
+  b.bobOffset=Math.sin(b.floatPhase*.95)*2.4;
+  // Float is part of the authoritative world coordinates, never a visual-only offset.
+  const wind=Math.sin(s.clock*.37+b.floatPhase*.45)*7;
+  const targetVx=b.driftVelocity+wind+Math.sin(b.floatPhase)*5;
+  const targetVy=Math.cos(b.floatPhase*.95)*7;
+  const response=1-Math.exp(-1.05*dt);
+  b.vx+=(targetVx-b.vx)*response;
+  b.vy+=(targetVy-b.vy)*response;
+  const speed=Math.hypot(b.vx,b.vy);
+  if(speed>maxSpeed){b.vx=b.vx/speed*maxSpeed;b.vy=b.vy/speed*maxSpeed;}
+  b.x+=b.vx*dt;b.y+=b.vy*dt;
+  bound(s,b,b.radius+3);
  }
- for(let pass=0;pass<3;pass++){
+ for(let pass=0;pass<2;pass++){
   for(let i=0;i<s.balloons.length;i++)for(let j=i+1;j<s.balloons.length;j++){
    const a=s.balloons[i],b=s.balloons[j],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||.001,min=a.radius+b.radius+2;
    if(d>=min)continue;
    const nx=d<.01?1:dx/d,ny=d<.01?0:dy/d,k=(min-d)*.51;
    a.x-=nx*k;a.y-=ny*k;b.x+=nx*k;b.y+=ny*k;
-   a.vx-=nx*8;a.vy-=ny*8;b.vx+=nx*8;b.vy+=ny*8;
+   if(pass===0){a.vx-=nx*3;a.vy-=ny*3;b.vx+=nx*3;b.vy+=ny*3;}
   }
-  for(const b of s.balloons)for(const p of alive(ps)){
-   const dx=b.x-p.x,dy=b.y-p.y,d=Math.hypot(dx,dy)||.001,min=b.radius+23;
+  for(const b of s.balloons)for(const p of people){
+   const dx=b.x-p.x,dy=b.y-p.y,d=Math.hypot(dx,dy)||.001,min=b.radius+PLAYER_RADIUS+1;
    if(d>=min)continue;
-   const nx=d<.01?Math.cos(s.clock*2):dx/d,ny=d<.01?Math.sin(s.clock*2):dy/d;
-   const amt=Math.min(12,(min-d)*.75);
-   b.x+=nx*amt;b.y+=ny*amt;b.vx+=nx*55;b.vy+=ny*55;
+   const nx=d<.01?Math.cos(s.clock*2+b.id):dx/d,ny=d<.01?Math.sin(s.clock*2+b.id):dy/d;
+   const amt=Math.min(12,(min-d)*.85);
+   b.x+=nx*amt;b.y+=ny*amt;
+   if(pass===0){b.vx+=nx*9;b.vy+=ny*9;}
   }
-  for(const b of s.balloons)bound(s,b,b.radius+2);
+  for(const b of s.balloons)bound(s,b,b.radius+3);
+ }
+ for(const b of s.balloons){
+  const speed=Math.hypot(b.vx,b.vy);
+  if(speed>maxSpeed){b.vx=b.vx/speed*maxSpeed;b.vy=b.vy/speed*maxSpeed;}
  }
 }
 function finish(s,round,ps){
@@ -280,11 +317,11 @@ function step(dt,round,ps){
    k.angle+=clamp(angleDelta(k.angle,desired),-k.turnRate*dt,k.turnRate*dt);
   }
   const forward=normal(k.angle);
-  const speed=mag>.1?clamp(mag,.15,1)*Math.min(240,s.world.h*.30):0;
-  const dash=k.attackTime>0?CONFIG.thrustDash:0;
+  const speed=mag>.1?clamp(mag,.15,1)*Math.min(240,s.world.h*.30)*MOVE_SPEED_MULTIPLIER:0;
+  const dash=k.attackTime>0?CONFIG.thrustDash*MOVE_SPEED_MULTIPLIER:0;
   const vx=forward.x*(speed+dash),vy=forward.y*(speed+dash);
   p.vx+=(vx-p.vx)*Math.min(1,dt*12);p.vy+=(vy-p.vy)*Math.min(1,dt*12);
-  p.x+=p.vx*dt;p.y+=p.vy*dt;bound(s,p,22);
+  p.x+=p.vx*dt;p.y+=p.vy*dt;bound(s,p,PLAYER_RADIUS);
   p.dir={x:forward.x,y:forward.y};p.face=forward.x<0?-1:1;
  }
  separate(s,people);
@@ -330,60 +367,140 @@ function circle(ctx,x,y,r,color){
 }
 function scenery(ctx,s){
  const {w,h}=s.world,c=s.center,r=s.radius;
- ctx.fillStyle='#618e63';ctx.fillRect(0,0,w,h);
- for(let i=0;i<80;i++){
+ // World-only decorations: no obstacles or invisible collisions are created.
+ ctx.fillStyle='#71a55d';ctx.fillRect(0,0,w,h);
+ for(let i=0;i<110;i++){
   const x=(i*193+53)%w,y=(i*137+29)%h;
-  circle(ctx,x,y,2+i%3,'#9dc47c');
+  circle(ctx,x,y,1.6+i%3,i%4?'#9fc77b':'#4a8859');
  }
- for(let i=0;i<18;i++){
-  const a=TAU*i/18,outer=r+46+((i%3)*8);
-  const x=c.x+Math.cos(a)*outer,y=c.y+Math.sin(a)*outer;
-  if(x<15||x>w-15||y<15||y>h-15)continue;
-  if(i%4===0){
-   ctx.save();ctx.translate(x,y);ctx.rotate(a+Math.PI/2);
-   ctx.fillStyle=i%8===0?'#f5d596':'#cf7892';
-   ctx.beginPath();ctx.moveTo(-24,14);ctx.lineTo(0,-30);ctx.lineTo(24,14);ctx.closePath();ctx.fill();
-   ctx.fillStyle='#704c37';ctx.fillRect(-24,14,48,5);ctx.restore();
-  }else{
-   circle(ctx,x,y+7,19,'#30472d');
-   circle(ctx,x,y,16,'#467944');circle(ctx,x-4,y-5,10,'#6ca367');
+ // Painted, cached-like fixed-cost props, anchored beyond the play circle.
+ function prop(kind,x,y,sz,a=0,variant=0){
+  ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.scale(sz,sz);
+  circle(ctx,6,11,22,'#243c2850');
+  if(kind==='tent'){
+   ctx.fillStyle='#71533d';ctx.fillRect(-27,-9,54,37);
+   ctx.fillStyle=variant%2?'#557db6':'#d3656f';
+   ctx.beginPath();ctx.moveTo(-36,4);ctx.lineTo(0,-38);ctx.lineTo(36,4);ctx.closePath();ctx.fill();
+   ctx.fillStyle=variant%2?'#e3bd83':'#f5d699';
+   ctx.beginPath();ctx.moveTo(0,-38);ctx.lineTo(5,4);ctx.lineTo(36,4);ctx.closePath();ctx.fill();
+   line(ctx,{x:-36,y:4},{x:36,y:4},'#fff0bb',2);
+   line(ctx,{x:0,y:-38},{x:0,y:-55},'#71503c',3);
+   ctx.fillStyle='#edc95f';ctx.beginPath();ctx.moveTo(0,-55);ctx.lineTo(22,-49);ctx.lineTo(0,-43);ctx.fill();
+  }else if(kind==='tree'){
+   ctx.fillStyle='#725139';ctx.fillRect(-7,-3,14,27);
+   circle(ctx,0,-16,26,'#33583b');circle(ctx,-15,-19,20,'#48794b');
+   circle(ctx,17,-17,19,'#4c8455');circle(ctx,0,-33,22,'#65a662');
+   circle(ctx,-12,-31,8,'#85bc6e');
+  }else if(kind==='target'){
+   ctx.fillStyle='#68533c';ctx.fillRect(-3,-2,6,32);
+   circle(ctx,0,-18,19,'#f3dfb5');circle(ctx,0,-18,13,'#c84e55');
+   circle(ctx,0,-18,8,'#f8f3dc');circle(ctx,0,-18,3,'#cc4c46');
+  }else if(kind==='hay'){
+   ctx.fillStyle='#bd8b3c';ctx.fillRect(-27,-12,54,27);
+   ctx.fillStyle='#e6be62';ctx.fillRect(-24,-15,48,25);
+   line(ctx,{x:-5,y:-15},{x:-5,y:12},'#986a31',3);
+   for(let i=0;i<5;i++)line(ctx,{x:-20+i*9,y:-12},{x:-12+i*9,y:6},'#f8d583',2);
+  }else if(kind==='barrels'){
+   for(const shift of [-10,13]){
+    circle(ctx,shift,-5,13,'#684733');circle(ctx,shift,-7,10,'#ae784b');
+    circle(ctx,shift,-7,7,'#765238');
+    line(ctx,{x:shift-9,y:-11},{x:shift+9,y:-11},'#d8bd89',2);
+   }
+  }else if(kind==='crate'){
+   ctx.fillStyle='#654735';ctx.fillRect(-22,-18,43,36);
+   ctx.fillStyle='#aa7b4c';ctx.fillRect(-18,-15,35,29);
+   line(ctx,{x:-18,y:-15},{x:17,y:14},'#dbac6f',4);
+   line(ctx,{x:17,y:-15},{x:-18,y:14},'#7d533a',3);
+  }else if(kind==='straw'){
+   ctx.fillStyle='#88633b';ctx.fillRect(-5,-6,10,28);
+   ctx.fillStyle='#e9c272';ctx.beginPath();ctx.ellipse(0,-17,17,13,0,0,TAU);ctx.fill();
+   ctx.fillStyle='#db9e62';ctx.fillRect(-14,-5,28,10);
+   line(ctx,{x:-24,y:-7},{x:24,y:-7},'#86583a',5);
+   ctx.fillStyle='#a84d53';ctx.fillRect(-3,-29,6,8);
+  }else if(kind==='torch'){
+   line(ctx,{x:0,y:12},{x:0,y:-23},'#604c39',6);
+   circle(ctx,0,-26,10,'#b76c32');
+   ctx.fillStyle='#ffd466';ctx.beginPath();
+   ctx.moveTo(0,-47);ctx.quadraticCurveTo(19,-27,0,-22);
+   ctx.quadraticCurveTo(-11,-29,0,-47);ctx.fill();
   }
+  ctx.restore();
  }
- circle(ctx,c.x,c.y,r+13,'#593d2d');circle(ctx,c.x,c.y,r+6,'#d9ac69');
- circle(ctx,c.x,c.y,r,'#a87a4b');
- circle(ctx,c.x-r*.18,c.y-r*.23,r*.64,'#b98850a0');
- ctx.strokeStyle='#7e5636';ctx.lineWidth=2;ctx.setLineDash?.([16,17]);
+ const items=[
+  ['tent',-.85,1.04,1.05,0],['tree',-2.20,1.10,1.05,0],
+  ['target',-1.53,1.15,.8,0],['hay',-.32,1.18,.9,0],
+  ['tent',.48,1.14,1.05,0],['tree',1.18,1.12,1,0],
+  ['crate',1.94,1.13,.9,0],['target',2.60,1.12,.9,0],
+  ['tent',3.26,1.05,1,0],['barrels',3.87,1.12,.9,0],
+  ['straw',4.53,1.14,.8,0],['tree',5.11,1.13,1.05,0],
+  ['tent',5.77,1.07,1.05,0],['torch',.03,1.10,.75,0],
+  ['torch',3.09,1.12,.75,0]
+ ];
+ for(let i=0;i<items.length;i++){
+  const [kind,a,m,scale]=items[i];
+  const x=c.x+Math.cos(a)*(r+44*m),y=c.y+Math.sin(a)*(r+44*m);
+  if(x<30||x>w-30||y<26||y>h-24)continue;
+  prop(kind,x,y,scale,a+Math.PI/2,i);
+ }
+ // Soil, compacted path, and delicate painted sand scuffs.
+ circle(ctx,c.x,c.y,r+13,'#4b3829');
+ circle(ctx,c.x,c.y,r+7,'#d7ae70');
+ circle(ctx,c.x,c.y,r,'#a6784a');
+ circle(ctx,c.x-r*.17,c.y-r*.20,r*.67,'#bc8b55a0');
+ for(let i=0;i<40;i++){
+  const a=TAU*i/40,rd=r*(.18+(i*17%63)/100);
+  const x=c.x+Math.cos(a)*rd,y=c.y+Math.sin(a)*rd;
+  line(ctx,{x,y},{x:x+8+(i%7),y:y-2},i%2?'#d5a37050':'#704b3255',2);
+ }
+ ctx.strokeStyle='#795537';ctx.lineWidth=2;ctx.setLineDash?.([16,17]);
  ctx.beginPath();ctx.arc(c.x,c.y,r*.52,0,TAU);ctx.stroke();ctx.setLineDash?.([]);
- // Arena fence is outside walkable circle and cannot obscure balloon hitboxes.
+ // Fence rendered after scenery, entirely beyond the navigable boundary.
  for(let i=0;i<72;i++){
   const a=TAU*i/72,b=TAU*(i+.82)/72;
   const p={x:c.x+Math.cos(a)*(r+6),y:c.y+Math.sin(a)*(r+6)};
   const q={x:c.x+Math.cos(b)*(r+6),y:c.y+Math.sin(b)*(r+6)};
   line(ctx,p,q,i%3===0?'#f0d8a8':'#805239',6);
-  if(i%6===0){circle(ctx,p.x,p.y,5,'#543729');line(ctx,{x:p.x,y:p.y},{x:p.x,y:p.y-33},'#66482f',3);
+  if(i%6===0){
+   circle(ctx,p.x,p.y,5,'#543729');
+   line(ctx,{x:p.x,y:p.y},{x:p.x,y:p.y-33},'#66482f',3);
    ctx.fillStyle=['#cf456e','#5c8ec7','#f4bc4d'][i%3];
-   ctx.beginPath();ctx.moveTo(p.x,p.y-33);ctx.lineTo(p.x+19,p.y-25);ctx.lineTo(p.x,p.y-17);ctx.fill();}
+   ctx.beginPath();ctx.moveTo(p.x,p.y-33);ctx.lineTo(p.x+19,p.y-25);
+   ctx.lineTo(p.x,p.y-17);ctx.fill();
+  }
  }
 }
 function balloonArt(ctx,s,b){
  const x=b.x,y=b.y,r=b.radius,col=effectiveColor(s,b)||'#fff';
  ctx.save();
- circle(ctx,x+3,y+r*.65,r*.70,'#2f241f59');
+ // The draw center equals the authoritative collision center even during bobbing.
+ circle(ctx,x+3,y+r*.68,r*.72,'#2f241f59');
+ const balloonY=y-r*.18;
  if(b.kind==='rainbow'){
-  const colors=['#f8729a','#ffd761','#79e4bc','#74c5fe','#af8aff'];
-  for(let i=colors.length-1;i>=0;i--)circle(ctx,x,y-r*.20,r*(.65+i*.08),colors[i]);
+  ctx.save();ctx.beginPath();ctx.arc(x,balloonY,r,0,TAU);ctx.clip();
+  const rainbow=ctx.createLinearGradient(x-r,balloonY-r,x+r,balloonY+r);
+  ['#ee4054','#ff953a','#ffe66c','#54d47b','#47c8ea','#4f75df','#ae65da']
+   .forEach((c,i)=>rainbow.addColorStop(i/6,c));
+  ctx.fillStyle=rainbow;ctx.fillRect(x-r,balloonY-r,r*2,r*2);
+  const shine=ctx.createRadialGradient(x-r*.35,balloonY-r*.43,r*.07,x,balloonY,r*1.2);
+  shine.addColorStop(0,'#ffffff9c');shine.addColorStop(.35,'#ffffff24');
+  shine.addColorStop(1,'#17273a44');
+  ctx.fillStyle=shine;ctx.fillRect(x-r,balloonY-r,r*2,r*2);
+  ctx.restore();
+  ctx.strokeStyle='#fef3cfb0';ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.arc(x,balloonY,r-.8,0,TAU);ctx.stroke();
  }else{
-  circle(ctx,x,y-r*.18,r,col);
-  circle(ctx,x-r*.29,y-r*.54,r*.22,'#ffffff77');
-  circle(ctx,x+r*.37,y+r*.24,r*.12,'#201e2544');
+  circle(ctx,x,balloonY,r,col);
+  circle(ctx,x+r*.37,y+r*.24,r*.13,'#201e2544');
  }
+ ctx.fillStyle='#ffffffa9';ctx.beginPath();
+ ctx.ellipse(x-r*.30,balloonY-r*.36,r*.23,r*.38,-.55,0,TAU);ctx.fill();
  ctx.fillStyle='#f4ddbd';ctx.beginPath();ctx.moveTo(x-3,y+r*.70);
  ctx.lineTo(x+3,y+r*.70);ctx.lineTo(x,y+r*.96);ctx.fill();
  ctx.restore();
 }
 function horseArt(ctx,p,s){
  const k=p.km,stun=k.stun>0,angle=k.angle;
- ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);
+ ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);ctx.scale(RIDER_SCALE,RIDER_SCALE);
  circle(ctx,6,7,22,'#2c211d65');
  const leg=Math.sin(s.clock*16+Number(String(p.id).replace(/\D/g,'')))*5;
  ctx.fillStyle='#633d2c';
@@ -427,10 +544,10 @@ function draw(ctx,time,round,ps){
   }
   ctx.restore();
  }
- const scaleX=s.world.w/960,scaleY=s.world.h/540;
  ctx.restore();
+ ctx.save();
  // Screen-space HUD is independent of world size and leaves the arena visible.
- ctx.fillStyle='#1f2e3ee5';ctx.fillRect(12,10,234,s.rainbowOwnerId?78:57);
+ ctx.fillStyle='#1f2e3ee5';ctx.fillRect(12,10,234,57);
  ctx.fillStyle='#fff2dc';ctx.font='900 19px system-ui';ctx.textAlign='left';
  ctx.fillText('KNIGHT MATCH',23,33);
  ctx.font='bold 14px system-ui';
@@ -438,12 +555,24 @@ function draw(ctx,time,round,ps){
   'เหลือ '+Math.ceil(s.remaining)+' วินาที',23,53);
  if(s.rainbowOwnerId){
   const owner=ps.find(p=>p.id===s.rainbowOwnerId);
-  ctx.fillStyle=owner?.color||'#ffe8ad';ctx.font='bold 11px system-ui';
-  ctx.fillText('RAINBOW '+(owner?.name||'')+' • '+Math.max(0,s.rainbowUntil-s.clock).toFixed(1)+'s',23,74,220);
+  const remaining=Math.max(0,s.rainbowUntil-s.clock),x=480,y=8,w=246,h=48;
+  ctx.save();
+  ctx.fillStyle='#1d263be9';ctx.fillRect(x-w/2,y,w,h);
+  ctx.strokeStyle='#f8cf87';ctx.lineWidth=2;ctx.strokeRect(x-w/2+1,y+1,w-2,h-2);
+  const rainbow=ctx.createLinearGradient(x-108,y,x-83,y);
+  ['#f44350','#ff9736','#ffe353','#5cde78','#53caff','#4c79e9','#b778f7'].forEach((c,i)=>rainbow.addColorStop(i/6,c));
+  ctx.fillStyle=rainbow;ctx.beginPath();ctx.arc(x-96,y+24,12,0,TAU);ctx.fill();
+  ctx.textAlign='left';ctx.font='900 13px system-ui';ctx.fillStyle='#fff5d8';
+  ctx.fillText('RAINBOW POWER',x-74,y+19,162);
+  ctx.font='bold 12px system-ui';ctx.fillStyle=owner?.color||'#ffe8ad';
+  ctx.fillText(String(owner?.name||'Player').slice(0,18),x-74,y+38,117);
+  ctx.textAlign='right';ctx.fillStyle='#ffffff';ctx.font='900 15px system-ui';
+  ctx.fillText(remaining.toFixed(1)+'s',x+110,y+38);
+  ctx.restore();
  }
  ctx.restore();
 }
 window.KnightMatch=Object.freeze({setup,update,draw,hud,dimensions,inside,effectiveOwner,
  effectiveColor,popBalloon,spawnNormal,spawnRainbow,replenish,segmentDistance,
- startAttack,strike,lanceTip,finish,step,constants:CONFIG});
+ startAttack,strike,lanceTip,finish,step,sweptCircleEntry,scales:Object.freeze({rider:RIDER_SCALE,balloon:BALLOON_SIZE_MULTIPLIER,speed:MOVE_SPEED_MULTIPLIER,playerRadius:PLAYER_RADIUS,lanceTipRadius:LANCE_TIP_RADIUS}),constants:CONFIG});
 })();
