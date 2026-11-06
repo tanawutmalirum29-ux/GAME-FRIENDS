@@ -18,12 +18,15 @@ function icon(g,kind,x,y,size=20,color='#fff'){
   if(kind==='potion'){box(g,-10,-10,20,26,6,'#aaf0df','#fff');box(g,-5,-17,10,7,2,'#d09c65');}
   line(g,-7,0,7,0,color,4);line(g,0,-7,0,7,color,4);
  }else if(kind==='sword'){
-  // Two intersecting blades visible while unclaimed (grey) and owned (player color).
+  // Each blade has a point, fuller, crossguard, grip and pommel.
   for(const tilt of [-Math.PI/4,Math.PI/4]){
    g.save();g.rotate(tilt);
-   path(g,[[-3,-17],[3,-17],[4,5],[-4,5]],color,'#34475a',1.4);
-   line(g,-9,6,9,6,'#eddfb6',3);line(g,0,6,0,14,'#eddfb6',3);
-   circle(g,0,15,2,'#ffebb0');g.restore();
+   path(g,[[0,-20],[3.8,-11],[3,3],[-3,3],[-3.8,-11]],'#ebf4ff','#3b5264',1.6);
+   line(g,0,-15,0,2,'#fff',1.2);
+   path(g,[[-11,4],[-3,2],[3,2],[11,4],[9,8],[0,6],[-9,8]],'#edc777','#755d46',1.3);
+   box(g,-2.5,7,5,11,1,'#956a49','#f3dc9a');
+   circle(g,0,19,3,'#ffdf8f','#826247',1.2);
+   g.restore();
   }
  }else if(kind==='danger'){
   circle(g,0,-3,10,color);box(g,-6,2,12,9,2,color);circle(g,-4,-3,2.7,'#924454');circle(g,4,-3,2.7,'#924454');line(g,-2,7,-2,11,'#924454');line(g,3,7,3,11,'#924454');
@@ -99,7 +102,7 @@ function scenery(g,map){
 // entire 155-prop terrain every animation frame can itself freeze the browser
 // when an offscreen Canvas cannot be allocated.
 function sceneryLite(g,s){
- const map=s.map,c=s.camera,zoom=Math.max(.35,c.zoom||1);
+ const map=s.map,c=s.camera,zoom=Math.max(.06,c.zoom||1);
  const width=480/zoom+220,height=(452-(s.players.length>6?145:94))/2/zoom+220;
  const intersects=(a,b)=>Math.max(a.x,b.x)>=c.x-width&&Math.min(a.x,b.x)<=c.x+width&&
    Math.max(a.y,b.y)>=c.y-height&&Math.min(a.y,b.y)<=c.y+height;
@@ -150,7 +153,7 @@ function ground(g,s){
 function nodes(g,s){
  // Most of the 47+ tiles are off-screen. Skip both far-away nodes and paths
  // to reduce Canvas calls substantially on low-FPS phones/tablets.
- const c=s.camera,zoom=Math.max(.35,c.zoom||1);
+ const c=s.camera,zoom=Math.max(.06,c.zoom||1);
  const halfW=480/zoom+95;
  const halfH=(452-(s.players.length>6?145:94))/2/zoom+95;
  const visible=(x,y,r=0)=>Math.abs(x-c.x)<=halfW+r&&Math.abs(y-c.y)<=halfH+r;
@@ -163,14 +166,20 @@ function nodes(g,s){
  for(const n of Object.values(s.map.nodes)){
   const {x,y}=n.position;
   if(!visible(x,y,75))continue;
-  const owner=n.type==='sword'?s.players.find(p=>p.id===n.ownerId):null;
+  const owner=n.type==='sword'?s.players.find(p=>p.id===s.map.territories[n.territoryId]?.ownerId):null;
   const tileColor=owner?.color||colors[n.type]||colors.neutral;
   if(n.type==='lucky')circle(g,x,y,49+Math.sin(s.time*3)*1.5,'#ffd66a35','#ffd66a',2);
    circle(g,x,y+5,45,'#407b9355');circle(g,x,y,44,tileColor,n.type==='lucky'?'#ffe58d':'#fff6',3);
   circle(g,x,y-2,39,null,owner?'#ffe7a4':'#ffffff60',owner?3:1);
   g.save();g.translate(x,y);
   if(n.type==='movement'||n.type==='start'){const q=s.map.nodes[n.nextNodes[0]];if(q)g.rotate(Math.atan2(q.position.y-y,q.position.x-x));}
-  icon(g,n.type,0,0,n.type==='sword'?22:17,'#f3fdff');g.restore();
+  icon(g,n.type,0,0,n.type==='sword'?24:17,'#f3fdff');g.restore();
+   if(c.debugNodes){
+    g.save();g.translate(x,y-53);g.scale(1/c.zoom,1/c.zoom);
+    box(g,-27,-9,54,18,4,'#0a2a43e9','#72b1cf');
+    label(g,c.zoom<.2?n.id.replace(/^n/,''):n.id,0,0,9,'#fff','center',800,50);
+    g.restore();
+   }
   if(owner){box(g,x-38,y+27,76,16,7,'#173b50e6');label(g,owner.name,x,y+35,10,owner.color,'center',800,68);}
   if(n.type==='start'||n.type==='finish'){
    box(g,x-56,y-72,112,25,9,'#163b54');label(g,n.type==='start'?'START':'FINISH',x,y-59,12,'#fff','center');
@@ -234,18 +243,22 @@ function effects(g,s,t){
    else if(fx.kind==='swordClaim'||fx.kind==='swordSafe'){
     circle(g,p.x,p.y,32+f*26,null,fx.ownerColor||'#fce2ae',4);
     icon(g,'sword',p.x,p.y-55-f*24,27,'#fff8da');
-    label(g,fx.kind==='swordClaim'?'ยึดพื้นที่!':'พื้นที่ของคุณ',p.x,p.y-90-f*20,16,'#fff5cb','center',900,160);
+    label(g,fx.kind==='swordClaim'?'ยึดพื้นที่ทั้ง 2 ช่อง!':'พื้นที่ของคุณ',p.x,p.y-90-f*20,16,'#fff5cb','center',900,160);
    }
   }
   if(fx.kind==='bomber'){const a=fx.points[0],b=fx.points[4];g.save();g.translate(a.x+(b.x-a.x)*f,a.y+(b.y-a.y)*f-45);g.rotate(Math.atan2(b.y-a.y,b.x-a.x)+Math.PI/2);icon(g,'bomber',0,0,34);g.restore();}
  }
- for(const hit of s.hits||[]){
+ for(const heal of s.heals||[]){
+   const age=s.time-heal.at;if(age<0||age>1.4)continue;
+   label(g,'+'+heal.amount+' HP',heal.position.x,heal.position.y-65-age*25,19,'#95f5c7','center',900,150);
+  }
+  for(const hit of s.hits||[]){
   const age=s.time-hit.at;
   if(age<0||age>1.25)continue;
   label(g,'-'+hit.amount,hit.position.x,hit.position.y-55-age*33,22,'#ffe6e7','center',900,65);
  }
  if(s.phase==='finished'){const p=s.map.nodes[s.map.finishId].position;icon(g,'milestone',p.x,p.y-65,40,'#f8d884');for(let i=0;i<40;i++){const a=i*2.4,r=(s.time-s.phaseAt)*80;circle(g,p.x+Math.cos(a)*r,p.y-30+Math.sin(a)*r,3,i%2?'#fce2a1':'#78d9e8');}}
- if(s.milestone&&s.time-s.milestone.at<1.5){const p=s.milestone.position;icon(g,'milestone',p.x,p.y-50-(s.time-s.milestone.at)*20,24,'#eebf4e');}
+ // No trophy milestone cells or special reward displays.
 }
 function hud(g,s){
  const n=s.players.length,cols=n>4?6:n,w=(932-(cols-1)*6)/cols,active=window.BoardParty.current(s);
