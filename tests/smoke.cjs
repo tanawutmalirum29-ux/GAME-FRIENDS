@@ -2075,7 +2075,7 @@ for(const count of [1,12]){
  replacement.fire('data',{t:'input',turnId:s.turnId,actionId:1,keys:{action:true}});assert.equal(s.phase,'dice','reconnected phone has a fresh input sequence');
  const movementTotal=s.die;assert.equal(s.moveDice.length,2);
  for(let i=0;i<40;i++)api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
- assert.equal(state.stepsRemaining,movementTotal);assert.equal(state.boardPhase,'move_ready');assert.equal(state.a,'');assert.match(state.help,/ลากจอย/);
+ assert.equal(state.stepsRemaining,movementTotal);assert.equal(state.boardPhase,'move_ready');assert.equal(state.a,'เริ่มเดิน');assert.match(state.help,/สำรวจแผนที่/);
  replacement.fire('data',{t:'input',turnId:s.turnId,actionId:2,keys:{}});
  replacement.fire('data',{t:'input',turnId:s.turnId,actionId:3,keys:{right:true}});
  for(let i=0;i<20;i++)api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
