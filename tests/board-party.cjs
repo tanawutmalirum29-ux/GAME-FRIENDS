@@ -561,7 +561,7 @@ test('Every sword pair captures two tiles and independently enforces 12 HP damag
    assert.equal(s.hits.at(-1).amount,12);
    arrive(a,second);assert.equal(a.hp,100);assert.equal(s.effect.kind,'swordSafe');
    b.shieldTurns=1;b.shieldRound=s.roundNumber;arrive(b,first);
-   assert.equal(b.hp,100);assert.equal(s.effect.kind,'shield');
+   assert.equal(b.hp,100);assert.equal(s.effect.kind,'shieldBreak');assert.equal(b.shieldTurns,0);
    b.shieldTurns=0;b.shieldRound=null;b.hp=10;arrive(b,second);
    assert.equal(b.currentNodeId,s.map.startId);assert.equal(b.hp,100);
    for(const id of pair.nodeIds)assert.equal(s.map.nodes[id].ownerId,a.id);
@@ -704,46 +704,39 @@ test('Shield requires an explicit A, then protects the current BOARD round witho
  press(t,q,'B');
  assert.equal(q.item,'shield');assert.equal(q.usedRound,0);assert.equal(P.isProtected(t,q),true);
 });
-test('Activated shield blocks hazards for every turn of this round, with no turn-count expiry',()=>{
- for(const type of ['danger','event','sword']){
-  const s=ready(),p=s.players[0];p.hp=1;p.item='shield';
-  press(s,p,'B');
-  assert.equal(p.shieldTurns,1);assert.equal(p.shieldRound,s.roundNumber);
-  P.damage(s,p,3);assert.equal(p.hp,1);
-  until(s,()=>s.phase==='ready');
-  assert.equal(P.isProtected(s,p),true,'shield remains on after its effect animation');
-  P.endTurn(s);assert.equal(p.shieldTurns,1,'ending a turn does not exhaust shield');
-  P.damage(s,p,3);assert.equal(p.hp,1,'shield protects during other players turns');
-  assert.equal(s.hits.length,0,'shield blocks damage before the hit log is recorded');
+test('Shield absorbs exactly one hostile damage hit, shatters, then future attacks land',()=>{
+ for(const [kind,amount] of Object.entries(P.DAMAGE)){
+  const s=ready(3,707),p=s.players[0];p.hp=30;I.add(p,'shield');
+  p.actionIndex=I.ids.indexOf('shield')+1;assert.equal(P.action(s,p.id,'A'),true);
+  assert.equal(P.damage(s,p,0),false,'zero damage must not waste shield');
+  assert.equal(P.isProtected(s,p),true);
+  const count=s.hits.length;
+  assert.equal(P.damage(s,p,amount),false,'first '+kind+' damage absorbed');
+  assert.equal(p.hp,30);assert.equal(s.hits.length,count);
+  assert.equal(P.isProtected(s,p),false,'first hit shatters shield');
+  assert.equal(p.shieldTurns,0);assert.equal(p.shieldRound,null);
+  assert.ok(Number.isFinite(p.shieldBrokenAt));
+  P.damage(s,p,1);assert.equal(p.hp,29,'next damage is effective');
+  assert.equal(s.hits.length,count+1);
  }
 });
-test('Central shield guard protects all hostile effects this round, but never auto-activates',()=>{
+test('Shield also blocks exactly one UFO/status effect, then no longer blocks it',()=>{
  const s=ready(3,1777),[owner,victim,other]=s.players;
  victim.currentNodeId='n5';victim.hp=80;I.add(victim,'shield');
- assert.equal(P.isProtected(s,victim),false,'a held but unused shield offers no protection');
- assert.equal(P.blockHarm(s,victim),false,'future negative status effects are not blocked by inventory alone');
+ assert.equal(P.isProtected(s,victim),false);
+ assert.equal(P.blockHarm(s,victim),false,'stored shields never auto-equip');
  P.damage(s,victim,18);assert.equal(victim.hp,62);
- // Temporarily put this player on turn to activate the same inventory slot via A.
  s.order=[victim.id,owner.id,other.id];s.turnIndex=0;P.startTurn(s);
  victim.actionIndex=I.ids.indexOf('shield')+1;
- assert.equal(P.action(s,victim.id,'A'),true,'only deliberate A activates protection');
- assert.equal(P.isProtected(s,victim),true);
- assert.equal(victim.shieldRound,s.roundNumber);
- const hp=victim.hp,nodes=s.players.map(q=>q.currentNodeId);
- for(const [kind,amount] of [['sword',P.DAMAGE.sword],['skull',P.DAMAGE.skull],
-  ['bomber',P.DAMAGE.bomber],['car',P.DAMAGE.car],['event',P.DAMAGE.event]]){
-  assert.equal(P.damage(s,victim,amount),false,kind+' harm is blocked');
-  assert.equal(victim.hp,hp,'no HP loss from '+kind);
- }
- assert.equal(P.blockHarm(s,victim),true,'UFO and future displacement/status effects blocked');
- assert.deepEqual(plain(s.players.map(q=>q.currentNodeId)),plain(nodes),'blocked effects cannot teleport players');
- assert.equal(s.hits.length,1,'blocked attacks never append a damage event');
- assert.equal(I.bag(victim).includes('shield'),false,'manual activation consumes one shield');
- // A forged old marker from another round cannot grant protection.
- s.roundNumber++;
- assert.equal(P.isProtected(s,victim),false,'shield is tied to the activation round, not remaining turns');
- assert.equal(P.blockHarm(s,victim),false);
- P.damage(s,victim,1);assert.equal(victim.hp,hp-1);
+ assert.equal(P.action(s,victim.id,'A'),true);
+ const nodes=plain(s.players.map(q=>q.currentNodeId)),hp=victim.hp;
+ assert.equal(P.blockHarm(s,victim),true,'first teleport is blocked');
+ assert.equal(P.isProtected(s,victim),false,'protection is consumed');
+ assert.deepEqual(plain(s.players.map(q=>q.currentNodeId)),nodes);
+ assert.equal(P.blockHarm(s,victim),false,'second teleport would succeed');
+ assert.equal(P.damage(s,victim,1),false);assert.equal(victim.hp,hp-1);
+ assert.equal(victim.shieldTurns,0);assert.equal(victim.shieldRound,null);
+ assert.ok(!I.bag(victim).includes('shield'));
 });
 test('Bots do not automatically consume shield stock before a player presses A',()=>{
  const s=ready(2,283),p=s.players[0];p.isBot=true;I.add(p,'shield');
