@@ -161,9 +161,9 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
  eq(ps[1].cs.stunRemaining,.8,'all standard punches apply 0.8-second stun');
   eq(ps[1].stunColor,ps[0].color,'punch stun uses attacker color');
  ps[1].cs.stunRemaining=0;ps[1].cs.stunImmunity=0;
- ps[0].dir={x:-1,y:0};E.resolvePunchHit(ps[0],ps);
+ ps[0].dir={x:-1,y:0};ps[0].attackFacing={x:-1,y:0};E.resolvePunchHit(ps[0],ps);
  eq(ps[1].cs.stunRemaining,0,'punch cannot hit behind');
- ps[0].dir={x:1,y:0};ps[1].x+=120;E.resolvePunchHit(ps[0],ps);
+ ps[0].dir={x:1,y:0};ps[0].attackFacing={x:1,y:0};ps[1].x+=120;E.resolvePunchHit(ps[0],ps);
  eq(ps[1].cs.stunRemaining,0,'punch cannot hit out of range');
 }
 {
