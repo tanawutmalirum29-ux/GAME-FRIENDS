@@ -97,21 +97,30 @@ assert.match(shock,/ctx\.arc\(p\.x,p\.y,C\.avatarRadius/,
  'displayed full-body blast marker uses exact physics centre');
 console.log('TOP-DOWN AVATAR PASS: overhead SVG, four directions, centred foot anchor, theme ghosts, renderer reuse');
 
-// A seat keeps its costume across engines, transient hit colors and reloads.
+// Every seat and every legacy costume resolves to the same clean mask, no hats.
 for(let id=1;id<=12;id++){
- const player={id:'p'+id,color:'#ff628c'};
- assert.equal(Avatar.costumeFor(player),Avatar.costumeFor({...player,color:'#ffe86b'}));
- assert.equal(Avatar.costumeFor(player),Avatar.costumeFor(JSON.parse(JSON.stringify(player))));
+ const player={id:'p'+id,color:'#ff628c',costume:'pharaoh'};
+ assert.equal(Avatar.costumeFor(player),'standard');
+ assert.equal(Avatar.costumeFor({...player,color:'#ffe86b'}),'standard');
 }
-assert.equal(new Set([1,2,3,4].map(id=>Avatar.costumeFor({id:'p'+id}))).size,4);
-for(const costume of Avatar.COSTUMES){
- for(const pose of ['idle','walk','walk2','hold','attack']){
-  assert.match(Avatar.svgFor('#3fe4ef',pose,costume),/data-view="top-down"/);
-  assert.equal(Avatar.imageFor('#3fe4ef',pose,costume),Avatar.imageFor('#3fe4ef',pose,costume));
- }
+assert.equal(Avatar.COSTUMES.length,1);
+for(const pose of ['idle','walk','walk2','hold','attack']){
+ const sprite=Avatar.svgFor('#3fe4ef',pose,'fox');
+ assert.match(sprite,/data-view="top-down"/);
+ assert.match(sprite,/data-costume="standard"/);
+ assert.doesNotMatch(sprite,/crown|headdress|fox|pharaoh|scout|chicken|hat/i);
+ assert.equal(Avatar.imageFor('#3fe4ef',pose,'fox'),Avatar.imageFor('#3fe4ef',pose,'chicken'));
 }
-assert.notEqual(Avatar.imageFor('#3fe4ef','idle','chicken'),Avatar.imageFor('#3fe4ef','idle','fox'));
 assert.notEqual(Avatar.svgFor('#3fe4ef','walk'),Avatar.svgFor('#3fe4ef','walk2'));
+const front=Avatar.svgForFront('#ff628c');
+assert.match(front,/data-view="front"/);
+assert.match(front,/<circle cx="48" cy="43"/);
+assert.match(front,/fill="#fff"/);
+assert.doesNotMatch(front,/crown|ears|hat|headdress/i);
+assert.notEqual(front,Avatar.svgFor('#ff628c','idle'));
+assert.notEqual(Avatar.svgForFront('#ff628c'),Avatar.svgForFront('#3fe4ef'),
+ 'every color has its own banner identity');
+assert.equal(Avatar.imageForFront('#ff628c'),Avatar.imageForFront('#ff628c'));
 assert.match(Art.actorSVG(false,'#ff628c','walk0'),/data-view="top-down"/,
  'legacy human entry point must not resurrect a front-facing actor');
 assert.doesNotMatch(Avatar.svgFor('\" onload=\"alert(1)','idle','<script>'),/onload|<script>/);
@@ -124,4 +133,4 @@ vm.runInContext(avatarSource,noImages);
  assert.ok(!calls.some(c=>c[0]==='drawImage'));
  assert.ok(calls.some(c=>c[0]==='translate'&&c[1]===p.x&&c[2]===p.y));
 }
-console.log('COSTUME PASS: stable identity, separate cached poses, overhead legacy path and no-image fallback');
+console.log('HATLESS AVATAR PASS: same mask, 12 colored identities, front/top projections and no-image fallback');
