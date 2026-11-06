@@ -4,7 +4,11 @@
 function random(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 const MAIN_LENGTH=72,SWORD_TILES=Object.freeze(['n20','n21']);
 const TERRITORY_ID='sword-territory-1';
-const weighted=['movement','movement','movement','movement','neutral','key','event','event','healing','danger','movement'];
+// WINTER ISLANDS currently supports movement, healing, danger and special
+// reward/sword tiles. Keep legacy neutral/key/event tile implementations in
+// the shared board engine for other maps; do not generate them on this map.
+const weighted=['movement','movement','movement','movement','movement','movement','movement',
+ 'healing','healing','danger','danger'];
 function neighbors(map,id){const n=map.nodes[id];return [...n.nextNodes,...n.previousNodes];}
 function adjacentType(map,id,type){return neighbors(map,id).some(k=>map.nodes[k]?.type===type);}
 function addType(n,type){
@@ -125,8 +129,8 @@ function create(seed=Date.now()){
   // Long routes pay the player back for added travel. Shortcuts have risk.
   const slots=Array.from({length:b.count},(_,i)=>nodes['b'+b.a+'_'+(i+1)]);
   const layout=b.count>b.b-b.a?
-   ['healing','movement','event','movement','healing','movement','lucky','movement']:
-   ['danger','movement','event'];
+   ['healing','movement','movement','movement','healing','movement','lucky','movement']:
+   ['danger','movement','movement'];
   for(let i=0;i<slots.length;i++)addType(slots[i],layout[i%layout.length]);
  }
  const map={seed,nodes,startId:'n0',finishId:'n'+MAIN_LENGTH,length:MAIN_LENGTH,width:0,

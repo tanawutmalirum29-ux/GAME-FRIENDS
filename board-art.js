@@ -399,8 +399,8 @@ function hud(g,s){
  if(s.phase==='overview'||s.camera.overview){
   label(g,'WINTER ISLANDS',30,478,14,'#ffe4a5');
   label(g,(s.map.islands?.length||7)+' เกาะ • เดินตามลูกศร • เลือกทางที่ทางแยก',30,500,10,'#b9d9e7','left',500,302);
-  const legend=[['sword','ยึดพื้นที่'],['healing','ฟื้น HP'],['danger','อันตราย'],['lucky','ไอเทม'],['event','สุ่มเหตุการณ์']];
-  legend.forEach(([type,name],i)=>{const x=385+i*109;circle(g,x,482,12,colors[type]);icon(g,type,x,482,type==='sword'?9:8);label(g,name,x,508,9,'#d6eaf2','center',600,100);});
+  const legend=[['sword','ยึดพื้นที่'],['healing','ฟื้น HP'],['danger','อันตราย'],['lucky','ไอเทม']];
+  legend.forEach(([type,name],i)=>{const x=410+i*135;circle(g,x,482,12,colors[type]);icon(g,type,x,482,type==='sword'?9:8);label(g,name,x,508,9,'#d6eaf2','center',600,100);});
  }else if(p){
   window.PartyPlayerAvatar.draw(g,{...p,x:47,y:494},{scale:.85,label:false});
   label(g,p.name,83,480,17,p.color,'left',700,235);
