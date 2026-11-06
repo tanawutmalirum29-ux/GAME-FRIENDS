@@ -2085,6 +2085,32 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.equal(hi.scope.window.__ghostTest.getRound().ghost.world.w,960,
    'the gameplay world is not resized or zoomed');
 }
+// Tall iPad/Stage Manager viewports must no longer leave black bands above
+// and below BOARD PARTY. Preserve an isometric 960-X logical world and cap GPU.
+{
+ const viewport={width:1024,height:768};
+ const host=setup('https://game.example/?host=1',false,null,viewport);
+ host.click('offlineBtn');
+ host.sessionButtons[2].fire('click');host.click('startBtn');
+ const board=host.scope.window.__ghostTest.getBoard(),frame=host.elements.get('arena');
+ assert.ok(board,'a real BOARD PARTY game is active');
+ host.step(16.667);
+ assert.equal(board.camera.viewHeight,720,'4:3 physical view expands the virtual map height');
+ assert.ok(Math.abs(frame.width/frame.height-1024/768)<.002,'bitmap fills 4:3 without letterboxing');
+ const savedMap=board.map,savedTime=board.time;
+ viewport.width=1024;viewport.height=1024;
+ host.scope.window.fire('resize');host.step(33.334);
+ assert.equal(board.camera.viewHeight,960,'1:1 Split View uses the whole available height');
+ assert.ok(Math.abs(frame.width/frame.height-1)<.002);
+ assert.ok(frame.width*frame.height<=3650000,'retina bitmap is bounded under split-screen GPU budget');
+ assert.equal(board.map,savedMap,'resizing the host must not rebuild the game map');
+ assert.ok(board.time>=savedTime,'resizing cannot reset the board simulation');
+ viewport.width=1024;viewport.height=576;
+ host.scope.window.fire('resize');host.step(50);
+ assert.equal(board.camera.viewHeight,540,'normal 16:9 layout remains unchanged');
+ assert.ok(Math.abs(frame.width/frame.height-16/9)<.002);
+}
+console.log('BOARD RESPONSIVE PASS: 16:9, 4:3 and square split-screen host canvas');
 console.log('SMOKE PASS: 12-player cap, host/controller reconnect, and Retina 2x/3x host canvas scaling');
 
 // All chicken gameplay rules run alongside the existing GHOST ATTACK regression suite.
