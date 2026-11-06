@@ -445,6 +445,7 @@ function update(s,dt){
 function snapshot(s){return JSON.parse(JSON.stringify({map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}
 function controls(s,id){
  const p=s.players.find(p=>p.id===id),mine=current(s)?.id===id;
+ if(s.phase==='overview')return{a:'',b:'',help:'กำลังดูแมพทั้งหมด • เจ้าของห้องกด เริ่มทอยจัดลำดับ'};
  if(s.phase==='order')return{a:'ทอย 2 ลูก',b:'ทอย 2 ลูก',help:p?.dice?'ทอยแล้ว • รอเพื่อน':'A หรือ B ทอยลำดับ'};
  if(s.phase==='rewards')return{a:'',b:'',help:'เก็บไอเทมรางวัลลงกระเป๋าอัตโนมัติ'};
  if(s.phase==='lucky_roulette')return{a:'',b:'',help:'LUCKY STAR • กำลังสุ่มไอเทมเข้ากระเป๋า'};
