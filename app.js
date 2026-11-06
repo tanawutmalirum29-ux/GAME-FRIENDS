@@ -2025,6 +2025,9 @@ function renderLeaderboard(){
     color.className='circle';color.style.background=p.color;
     const name=document.createElement('span');
     name.className='leader-name';name.textContent=p.name;name.title=p.name;
+    if(round.mode==='ghost'&&p.ghost){
+      name.style.color='#ff454f';name.classList.add('ghost-name');
+    }
     const role=document.createElement('small');role.className='leader-role';
     role.textContent=p.ghost?'ผี':p.stun>0?'สตั้น':'คน';
     const itemSlot=document.createElement('span');
