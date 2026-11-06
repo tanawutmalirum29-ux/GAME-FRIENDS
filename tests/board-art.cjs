@@ -13,7 +13,7 @@ function brush(main=false){return new Proxy({globalAlpha:1},{get(target,key){
  if(key==='fillText')return (text,x,y,maxWidth)=>{if(main){labels.push(text);labelDraws.push({text:String(text),x,y,maxWidth,align:target.textAlign});}};
  return()=>{};
 },set(target,key,value){target[key]=value;return true;}});}
-const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(){},costumeFor(){return 'crown';}}},console,document:{createElement(tag){
+const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(){},drawFront(){},costumeFor(){return 'standard';}}},console,document:{createElement(tag){
  assert.equal(tag,'canvas');const surface={width:0,height:0,getContext(){
   assert.ok(this.width*this.height<=3500000,'terrain allocation stays below the mobile budget');
   return denyTerrain?null:brush();
@@ -74,6 +74,24 @@ for(const n of [4,12]){
   assert.ok(rank.y>cardY+68&&rank.y<=cardY+h-5,
     'rank must sit below dice/score and inside the card vertically');
  });
+}
+// Awarded items are revealed on the FIRST standings paint, not a fake reel.
+for(const n of [4,12]){
+ const match=P.create(Array.from({length:n},(_,i)=>({id:'k'+i,name:'Hero '+i,
+   color:['#ff628c','#3fe4ef','#ffcf62','#ae94ff'][i%4]})),{seed:320+n});
+ P.phase(match,'minigame');
+ const finish=match.players.map((p,i)=>({id:p.id,rank:i+1,label:(80-i)+' คะแนน'}));
+ assert.equal(P.minigameEnded(match,finish),true);
+ assert.equal(match.phase,'standings');
+ const before=labels.length;
+ A.draw(g,match.time,match);
+ const immediate=labels.slice(before).map(String);
+ for(const earned of match.results.filter(r=>r.reward))
+  assert.ok(immediate.includes('ได้รับ: '+ctx.window.BoardItems.names[earned.reward]),
+    'real item name is visible immediately on standings for '+n+' players');
+ assert.ok(!immediate.some(s=>s.includes('กำลังสุ่ม')),
+   'result page must not show random item animation');
+ assert.ok(immediate.some(s=>s.includes('ST')),'large podium ordinal must appear');
 }
 // Map inspection is an explicit pre-walk state, not a free camera during
 // movement. Panning must never change the logical position or remaining dice.
