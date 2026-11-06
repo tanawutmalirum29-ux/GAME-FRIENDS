@@ -456,7 +456,24 @@ function update(s,dt){
   effect(s,{kind:'luckyReward',item:prize.item,points:[I().position(s,p)],
     targets:[p.id],next:prize.next},1.5);
  }
- else if(s.phase==='effect'&&s.time>=s.deadline){const next=s.effect.next;s.effect=null;s.lucky=null;if(next==='ready')ready(s);else endTurn(s);}
+ else if(s.phase==='effect'){
+  const fx=s.effect;
+  if(fx?.kind==='bomber'){
+   // Apply damage only when the matching bomb reaches the ground AFTER
+   // the passing airplane. One target can be damaged only once per volley.
+   for(const hit of fx.pendingHits||[]){
+    if(!hit.applied&&s.time-fx.at+1e-8>=hit.impact){
+     hit.applied=true;
+     const target=s.players.find(p=>p.id===hit.id);
+     if(target)damage(s,target,DAMAGE.bomber);
+    }
+   }
+  }
+  if(s.time>=s.deadline){
+   const next=fx.next;s.effect=null;s.lucky=null;
+   if(next==='ready')ready(s);else endTurn(s);
+  }
+ }
  else if(s.phase==='standings'&&s.time>=s.deadline)grant(s);
  else if(s.phase==='rewards'&&s.time>=s.deadline)phase(s,'returning',.6);
  else if(s.phase==='returning'&&s.time>=s.deadline){s.roundNumber++;s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',1.8);}
