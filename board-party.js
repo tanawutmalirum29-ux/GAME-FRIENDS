@@ -258,9 +258,13 @@ function minigameEnded(s,ranking){
  // Competition ranks remain unchanged; tied players retain their prior relative order.
  const ranks=new Map(ranking.map(r=>[r.id,r.rank]));
  s.nextOrder=[...s.order].sort((a,b)=>ranks.get(a)-ranks.get(b));
- s.pendingItems={};phase(s,'standings',4);return true;
+ s.pendingItems={};s.rewardGrantRound=null;phase(s,'standings',2.5);return true;
 }
 function grant(s){
+ // A single minigame can never add rewards twice even if a stale render/update
+ // repeats a transition. State and awarded count are owned by this round.
+ if(s.rewardGrantRound===s.roundNumber)return false;
+ s.rewardGrantRound=s.roundNumber;
  // Rewards are collected, never silently discarded or forcibly substituted.
  // Multiple identical item types may coexist and are consumed individually.
  for(const r of s.results){
@@ -269,7 +273,8 @@ function grant(s){
   if(p)I().add(p,r.reward);
  }
  s.pendingItems={};
- phase(s,'rewards',5);
+ phase(s,'rewards',3.7);
+ return true;
 }
 function update(s,dt){
  if(!Number.isFinite(dt)||dt<=0)return;dt=Math.min(dt,.1);s.time+=dt;
@@ -297,7 +302,8 @@ function update(s,dt){
  }else if(s.phase==='aim'||s.phase==='car')I().update(s,dt,api);
  else if(s.phase==='effect'&&s.time>=s.deadline){const next=s.effect.next;s.effect=null;if(next==='ready')ready(s);else endTurn(s);}
  else if(s.phase==='standings'&&s.time>=s.deadline)grant(s);
- else if(s.phase==='rewards'&&s.time>=s.deadline)phase(s,'returning',1.5);else if(s.phase==='returning'&&s.time>=s.deadline){s.roundNumber++;s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',3);}
+ else if(s.phase==='rewards'&&s.time>=s.deadline)phase(s,'returning',.6);
+ else if(s.phase==='returning'&&s.time>=s.deadline){s.roundNumber++;s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',1.8);}
  else if(s.phase==='round_order'&&s.time>=s.deadline)startTurn(s);
  window.BoardBots?.update(s,dt,api);
 }
