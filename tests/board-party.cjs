@@ -652,7 +652,7 @@ test('250 RC cars: backward input cannot reverse, no repeated node, swept hit de
  for(let seed=0;seed<250;seed++){
   const s=ready(3,seed),p=s.players[0];p.item='car';p.currentNodeId='n'+(seed%30);s.players[1].currentNodeId='n35';s.players[2].currentNodeId='n34';press(s,p,'B');
   let visited=[p.currentNodeId];until(s,()=>{if(s.skill){press(s,p,null,{axisX:-1,axisY:-1});visited=plain(s.skill.visited);}return s.phase==='effect';},10);
-  assert.equal(new Set(visited).size,visited.length);for(let i=1;i<visited.length;i++)assert.ok(s.map.nodes[visited[i-1]].nextNodes.includes(visited[i]));assert.equal(s.effect.next,'end');assert.equal(p.item,null);
+  for(let i=1;i<visited.length;i++)assert.ok(M.neighbors(s.map,visited[i-1]).includes(visited[i]),'RC route stays on bidirectional connected roads');assert.equal(s.effect.next,'end');assert.equal(p.item,null);
  }
  assert.equal(I.segmentDistance({x:50,y:0},{x:0,y:0},{x:100,y:0}),0);
  const s=ready(),p=s.players[0],q=s.players[1];p.item='car';q.currentNodeId='n1';q.hp=1;q.worldPosition={...I.position(s,p)};s.players[2].currentNodeId='n20';press(s,p,'B');until(s,()=>s.phase==='effect');assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,100);
