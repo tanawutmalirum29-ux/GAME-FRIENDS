@@ -308,4 +308,21 @@ test('Bot-controlled knight approaches a target and pierces one balloon with rea
  assert.equal(bot.score,1);
 });
 
+test('Rainbow chance is 3% for both initial and replenishment attempts, with quotas intact',()=>{
+ assert.equal(K.constants.rainbowChance,.03,'single 3% chance shared by initial and refill rolls');
+ for(const n of [1,4,12]){
+  const {ps,s}=game(n,199+n),initial=K.dimensions(n).count;
+  assert.equal(normal(s).length,initial);
+  const first=normal(s)[0];
+  K.startAttack(s,ps[0]);
+  assert.equal(K.popBalloon(s,first,ps[0]),true);
+  assert.equal(normal(s).length,initial-1);
+  s.clock=s.respawnQueue[0].due+.01;
+  K.replenish(s,ps);
+  assert.equal(normal(s).length,initial,'normal balloon target is unchanged');
+  assert.ok(s.balloons.filter(b=>b.kind==='rainbow').length<=1,
+   'rainbow balloon remains capped at one active spawn');
+ }
+});
+
 console.log('KNIGHT MATCH:',tests.length,'suites passed');
