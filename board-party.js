@@ -490,9 +490,12 @@ function controls(s,id){
  if(!mine)return{a:'',b:'',help:'รอตาของคุณ • '+(current(s)?.name||'สรุปผล')};
  if(s.phase==='ready'){
   const selected=Math.min(I().ids.length,Math.max(0,Math.trunc(p.actionIndex||0)));
-  const name=selected===0?'ทอยลูกเต๋า':I().names[I().ids[selected-1]];
-  return{a:selected===0?'ทอย':I().ids[selected-1]==='bomber'?'เรียกเครื่องบิน':'ใช้ไอเทม',b:'เปลี่ยนตัวเลือก',c:'',
-   help:'เลือก: '+name+(p.bagMessage?' • '+p.bagMessage:'')+' • B เปลี่ยน / A ยืนยัน'};
+  const kind=selected===0?null:I().ids[selected-1];
+  const name=selected===0?'ทอยลูกเต๋า':I().names[kind];
+  const a=selected===0?'ทอยลูกเต๋า':['ufo','bomber'].includes(kind)?'เล็งเป้า':'ใช้ไอเทม';
+  const b=p.usedRound===s.roundNumber?'ใช้ไอเทมครบแล้ว':'เปลี่ยนไอเทม';
+  return{a,b,c:'',help:'เลือก: '+name+' • A '+a+' • B '+b+
+   (p.bagMessage?' • '+p.bagMessage:'')};
  }
  if(s.move?.kind==='walk')return{a:s.camera.explore?'เริ่มเดิน':'',b:'',
    help:(s.camera.explore?'ลากหน้าจอหลักดูแผนที่ • A เริ่มเดิน หรือขยับจอยเพื่อล็อกกล้อง':
@@ -501,10 +504,12 @@ function controls(s,id){
  if(s.phase==='rocket')return{a:'',b:'',help:'จรวด '+Math.max(0,s.move.expires-s.time).toFixed(1)+'s • คุมอนาล็อกไปข้างหน้า ไม่มีจำกัดช่อง'};
   if(s.phase==='branch')return{a:'',b:'',help:'ชี้ทิศทางที่แยกด้วยอนาล็อก'};
  if(s.phase==='aim')return s.skill.kind==='bomber'?
-  {a:'โจมตี',b:'หมุน 45°',c:'ยกเลิก',help:'กำลังเล็งเครื่องบิน • ทิศ '+(Math.round(s.skill.angle/(Math.PI/4))%8+1)+'/8 • B หมุน / A โจมตี / C ยกเลิก'}:
-  {a:'ยืนยันสลับ',b:'',c:'ยกเลิก',
-   help:!s.skill.targetId?'ลากจอยเลื่อน UFO ไปหาเป้าหมาย • A ยืนยันเมื่อเลือกได้ • C ยกเลิก':
-    'เป้าหมาย: '+(s.players.find(q=>q.id===s.skill.targetId)?.name||'ผู้เล่น')+' • A ยืนยันสลับ / C ยกเลิก'};
+  {a:'ยืนยันโจมตี',b:'หมุน 45°',c:'ยกเลิก',
+   help:'กำลังเล็งเครื่องบิน • ทิศ '+(Math.round(s.skill.angle/(Math.PI/4))%8+1)+'/8 • A ยืนยันโจมตี / B หมุนทิศ / C ยกเลิก'}:
+  {a:'ยืนยันสลับ',b:'ไม่ใช้',c:'ยกเลิก',
+   help:!s.skill.targetId?'ขยับจอยเพื่อเล็ง UFO • A ยืนยันเมื่อเลือกได้ / B ไม่ใช้ / C ยกเลิก':
+    'เป้าหมาย: '+(s.players.find(q=>q.id===s.skill.targetId)?.name||'ผู้เล่น')+
+    ' • A ยืนยันสลับ / B ไม่ใช้ / C ยกเลิก'};
  if(s.phase==='car')return{a:'',b:'',help:'อนาล็อกขับตามลูกศร • ระเบิดเมื่อชนหรือครบ 6 วินาที'};
  
  return{a:'',b:'',help:'กำลังดำเนินตา'};
