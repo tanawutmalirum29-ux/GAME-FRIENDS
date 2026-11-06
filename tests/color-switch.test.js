@@ -26,12 +26,12 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
 }
 {
  const {s,ps}=make(7);
- eq(s.cols,12,'large width');eq(s.rows,10,'large height');eq(s.tiles.length,120,'large tiles');
+ eq(s.cols,13,'large width (+1 column)');eq(s.rows,11,'large height (+1 row)');eq(s.tiles.length,143,'large tiles');
  eq(s.duration,60,'large round lasts exactly 60 seconds');ok(ps.every(p=>p.cs),'7 players initialized');
 }
 {
  const {s,ps}=make(12);
- eq(s.tiles.length,120,'12 player large map');
+ eq(s.tiles.length,143,'12 player expanded map');
  ok(new Set(ps.map(p=>p.x+','+p.y)).size===12,'spawn positions unique');
  ok(ps.every(p=>p.x>=s.board.x+14&&p.x<=s.board.x+s.board.w-14),'valid spawn x');
  ok(ps.every(p=>p.y>=s.board.y+14&&p.y<=s.board.y+s.board.h-14),'valid spawn y');
@@ -228,12 +228,12 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
    const counts=ps.reduce((n,p)=>n+(p.cs?.territoryScore||0),0);
    eq(counts,s.tiles.filter(t=>t.ownerId!=null).length,'stress score consistency at tick '+i);
    ok(ps.every(p=>p.score===p.cs.bankedScore+p.cs.territoryScore),'banked total consistency '+i);
-   ok(counts<=120,'stress no duplicate tile ownership at tick '+i);
+   ok(counts<=s.tiles.length,'stress no duplicate tile ownership at tick '+i);
   }
  }
  ok(ps.some(p=>p.score>0),'bots capture tiles');
  ok(ps.some(p=>p.cs.punchCooldown>0||p.cs.blastCooldown>0)||s.totalCaptures>80,'bots act strategically');
- ok(s.boxes.length<=2*Math.floor(s.elapsed/E.constants.boxSpawnInterval),'box count cannot exceed emitted waves');
+ ok(s.boxes.length<=3*Math.floor(s.elapsed/E.constants.boxSpawnInterval),'box count cannot exceed variable-size emitted waves');
  ok(s.effects.length<=32,'effects bounded');
 }
 
@@ -302,28 +302,30 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
 
 
 {
- // Every 8 seconds spawn exactly two fresh boxes, one rocket and one bank,
- // whether or not any old boxes have been collected. There is no timed expiry.
- for(const count of [2,6,7,12]){
+ // Every 8 seconds spawn 2 boxes (1–9 players) or 3 (10–12 players),
+ // always including a rocket and a bank. Old boxes never expire.
+ for(const count of [2,6,7,9,10,12]){
   const {ps,s,round}=make(count);
   eq(s.nextBoxSpawn,8,'first wave is at 8 seconds for '+count+' players');
+  const perWave=count>=10?3:2;
   let expected=0;
   for(const when of [8,16,24,32,40,48,56]){
    if(when>=s.duration)break;
    s.elapsed=when-1/60;s.clock=s.elapsed;
    E.update(1/60,round,ps);
-   expected+=2;
+   expected+=perWave;
    eq(s.boxes.length,expected,'uncollected boxes persist; total '+expected+' at '+when+' s with '+count+' players');
-   const wave=s.boxes.slice(-2);
-   eq(wave.filter(box=>box.type==='rocket').length,1,'wave has exactly one rocket at '+when+' s');
-   eq(wave.filter(box=>box.type==='score_bank').length,1,'wave has exactly one bank at '+when+' s');
+   const wave=s.boxes.slice(-perWave);
+   eq(wave.length,perWave,'exactly '+perWave+' boxes in wave at '+when+' s');
+   ok(wave.some(box=>box.type==='rocket'),'wave contains a rocket at '+when+' s');
+   ok(wave.some(box=>box.type==='score_bank'),'wave contains a bank at '+when+' s');
    ok(s.boxes.every(box=>box.active),'uncollected boxes remain active');
    ok(s.boxes.every((box,i)=>s.boxes.every((other,j)=>i===j||
        Math.hypot(box.x-other.x,box.y-other.y)>s.size*.99)),
       'boxes never overlap at '+when+' s');
    ok(new Set(s.boxes.map(box=>box.id)).size===expected,'all box ids unique at '+when+' s');
   }
-  eq(expected,count<=6?8:14,'waves match round length for '+count+' players');
+  eq(expected,count<=6?8:count<=9?14:21,'waves match round length and player count for '+count+' players');
   const before=s.boxes.length;
   s.elapsed=s.duration-1/60;s.clock=s.elapsed;
   E.update(1/60,round,ps);
