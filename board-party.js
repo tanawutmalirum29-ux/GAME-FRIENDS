@@ -63,8 +63,15 @@ function land(s){
  if(n.type==='lucky'){
   // Only a final landing is eligible; grant once per player turn. Stacked
   // duplicates are legitimate backpack entries, never replacements.
-  const grantKey=s.roundNumber+':'+s.turnIndex+':'+p.id;
-  if(s.luckyGrantKey===grantKey)return;
+  // A rocket may land on one Lucky Star, then its bonus roll may reach
+  // another Lucky Star within the same turn. Each DISTINCT landing pays once.
+  const grantKey=s.roundNumber+':'+s.turnIndex+':'+p.id+':'+n.id;
+  if(s.luckyGrantKey===grantKey){
+   // A defensive repeated landing must not leave phase=moving with move=null.
+   if(s.phase==='moving')effect(s,{kind:'land',points:[n.position],targets:[p.id],
+     next:m?.kind==='rocket'?'ready':'end'},.8);
+   return;
+  }
   const pool=I().ids,index=Math.max(0,Math.min(pool.length-1,Math.floor(s.rng()*pool.length)));
   const item=pool[index];
   if(!I().add(p,item))throw Error('Lucky Star reward not in item registry');
