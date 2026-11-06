@@ -8,6 +8,13 @@ const CONFIG=Object.freeze({duration:60,thrustDuration:.25,thrustDash:160,thrust
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const normal=a=>({x:Math.cos(a),y:Math.sin(a)});
+// The lance-tip hitbox is exactly the silver tip drawn at local (59+extension,13).
+// Sweeping this point prevents a visual hit without a real registered collision.
+function lanceTip(p,k,extension=0){
+ const f=normal(k.angle),r={x:-f.y,y:f.x};
+ return {x:p.x+f.x*(59+extension)+r.x*13,
+  y:p.y+f.y*(59+extension)+r.y*13};
+}
 const angleDelta=(a,b)=>Math.atan2(Math.sin(b-a),Math.cos(b-a));
 const alive=ps=>ps.filter(p=>p.active);
 function rand(s){let x=s.seed|0;x^=x<<13;x^=x>>>17;x^=x<<5;s.seed=x||1234567;return(s.seed>>>0)/4294967296;}
@@ -154,8 +161,7 @@ function startAttack(s,p){
  const k=p.km;if(k.cooldown>0||k.stun>0)return false;
  k.attackId=++s.nextAttackId;k.attackTime=CONFIG.thrustDuration;
  k.cooldown=CONFIG.thrustCooldown;k.hitIds=new Set();
- const v=normal(k.angle);
- k.tip={x:p.x+v.x*31,y:p.y+v.y*31};
+ k.tip=lanceTip(p,k,0);
  return true;
 }
 function strike(s,p,ps,prevTip,nextTip){
@@ -284,10 +290,10 @@ function step(dt,round,ps){
  for(const p of people){
   const k=p.km;
   if(k.stun>0||k.attackTime<=0)continue;
-  const previous=k.tip||{x:p.x,y:p.y},v=normal(k.angle);
+  const previous=k.tip||lanceTip(p,k,0);
   const progress=1-k.attackTime/CONFIG.thrustDuration;
-  const reach=36+Math.sin(Math.PI*Math.min(.999,progress+.16))*30;
-  const tip={x:p.x+v.x*reach,y:p.y+v.y*reach};
+  const extension=20+Math.sin(Math.PI*progress)*15;
+  const tip=lanceTip(p,k,extension);
   strike(s,p,people,previous,tip);k.tip=tip;
   k.attackTime=Math.max(0,k.attackTime-dt);
  }
@@ -438,5 +444,5 @@ function draw(ctx,time,round,ps){
 }
 window.KnightMatch=Object.freeze({setup,update,draw,hud,dimensions,inside,effectiveOwner,
  effectiveColor,popBalloon,spawnNormal,spawnRainbow,replenish,segmentDistance,
- startAttack,strike,finish,step,constants:CONFIG});
+ startAttack,strike,lanceTip,finish,step,constants:CONFIG});
 })();
