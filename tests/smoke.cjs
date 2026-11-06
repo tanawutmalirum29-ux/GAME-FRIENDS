@@ -2046,8 +2046,11 @@ for(const count of [1,12]){
  for(let i=0;i<400&&s.phase!=='ready';i++)api.updateBoard(.05);
  assert.equal(s.phase,'ready');assert.equal(s.roundNumber,2);assert.equal(s.map,map);
  assert.deepEqual(Array.from(s.order),expectedOrder,'actual minigame results determine the next board order');
- const p=P.current(s);p.isBot=false;p.currentNodeId='n35';P.beginMove(s,p,1);
- const from=s.map.nodes.n35.position,to=s.map.nodes.n36.position,d=Math.hypot(to.x-from.x,to.y-from.y);
+ const p=P.current(s);p.isBot=false;
+ const beforeFinish=s.map.nodes[s.map.finishId].previousNodes.find(id=>id.startsWith('n'));
+ assert.ok(beforeFinish,'finish has a traversable main-route predecessor');
+ p.currentNodeId=beforeFinish;delete p.worldPosition;P.beginMove(s,p,1);
+ const from=s.map.nodes[beforeFinish].position,to=s.map.nodes[s.map.finishId].position,d=Math.hypot(to.x-from.x,to.y-from.y);
  P.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys:{axisX:(to.x-from.x)/d,axisY:(to.y-from.y)/d}});
  for(let i=0;i<80&&api.getRound().phase!=='results';i++)api.updateBoard(.05);
  assert.equal(s.phase,'finished');assert.equal(api.getRound().phase,'results');
