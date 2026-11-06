@@ -822,18 +822,22 @@ function hud(players,round){
   return {survivors:survivors(players).length,ghosts:players.filter(p=>p.active&&p.ghost).length+
     (round.ghost?.npcs.length||0),total:players.filter(p=>p.active).length};
 }
+const GHOST_VISUAL_SCALE=1.26;
+const GHOST_NAME_COLOR='#ff454f';
 function drawPerson(ctx,p,color,ghost,t,alpha=1,theme='graveyard'){
   ctx.save();ctx.globalAlpha=alpha;
-  if(ghost)Art.drawActor(ctx,p,color,true,t,theme);
+  // Only enlarge ghost artwork; preserve gameplay speed, hit radius and physics.
+  if(ghost)Art.drawActor(ctx,p,color,true,t,theme,GHOST_VISUAL_SCALE);
    else window.PartyPlayerAvatar.draw(ctx,p,{time:t,color,label:false,attacking:p.attackRemaining>0});
   // The shared combat and stun timelines also decorate the SVG sprite.
   Combat.drawAttack(ctx,p);
   Combat.drawStun(ctx,p,t);
-  const labelY=p.y-(p.stun>0?48:34);
-  ctx.font='bold 13px system-ui';ctx.textAlign='center';
-  ctx.strokeStyle='#081329';ctx.lineWidth=4;
+  const labelY=p.y-(ghost?(p.stun>0?59:43):(p.stun>0?48:34));
+  ctx.font=(ghost?'900 14px':'bold 13px')+' system-ui';ctx.textAlign='center';
+  ctx.lineJoin='round';ctx.strokeStyle='#081329';ctx.lineWidth=4;
   ctx.strokeText(p.name||'GHOST',p.x,labelY);
-  ctx.fillStyle='#fff';ctx.fillText(p.name||'GHOST',p.x,labelY);
+  ctx.fillStyle=ghost?GHOST_NAME_COLOR:'#fff';
+  ctx.fillText(p.name||'GHOST',p.x,labelY);
   ctx.restore();
 }
 function drawPickupNotice(ctx,p,w,h){
