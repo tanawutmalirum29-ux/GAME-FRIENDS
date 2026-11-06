@@ -998,6 +998,8 @@ assert.equal(host.elements.get('roster').children[0].children[3].children[1].tex
 assert.match(host.elements.get('roster').children[0].children[3].children[0].innerHTML,/<svg[\s>]/);
 host.click('startBtn');
 assert.equal(host.elements.get('game').classList.contains('hidden'),false);
+assert.equal(host.scope.window.__ghostTest.getRound().phase,'roulette','first game shows reel before countdown');
+finishReel(host);
 assert.equal(host.scope.document.fullscreenElement,host.scope.document.documentElement);
 let rr=host.scope.window.__ghostTest.getRound();
 assert.equal(rr.phase,'countdown');assert.equal(rr.ghost.npcs.length,1);
@@ -1090,6 +1092,7 @@ assert.equal(online.elements.get('startBtn').disabled,false);
 conn.fire('data',{t:'pick',mode:'stars'});
 assert.equal(online.elements.get('roster').children[0].children[3].children[1].textContent,'GHOST ATTACK');
 online.click('startBtn');
+finishReel(online);
 assert.equal((online.instances[0].mediaCalls||[]).length,0,'host must not stream before the phone opts in');
 conn.fire('data',{t:'video-quality',quality:'medium'});
 assert.equal((online.instances[0].mediaCalls||[]).length,0,'quality alone cannot enable video');
@@ -1203,6 +1206,7 @@ bigRoom.sessionButtons[1].fire('click');
 assert.equal(bigRoom.sessionButtons[1].classList.contains('active'),true);
 bigRoom.sessionButtons[0].fire('click');
 bigRoom.click('startBtn');
+finishReel(bigRoom);
 assert.equal(bigRoom.scope.window.__ghostTest.getRound().ghost.npcs.length,1);
 assert.equal(bigRoom.elements.get('leaderboard').style['--leader-rows'],'1');
 assert.equal(bigRoom.elements.get('leaderboard').style['--leader-cols'],'12');
@@ -1294,7 +1298,7 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  assert.ok(people.every(p=>p.choice==='color_switch'));
  ui.scope.window.innerWidth=1473; // reference: landscape tablet host
  ui.click('startBtn');
- const round=ui.scope.window.__ghostTest.getRound();
+ const round=finishReel(ui);
  assert.equal(round.mode,'color_switch');
  const tiles=round.colorSwitch.tiles;
  let tileIndex=0;
@@ -1470,7 +1474,7 @@ function createVoteHost(){
   cons.push(conn);
  }
  ui.click('startBtn');
- const round=ui.scope.window.__ghostTest.getRound();
+ const round=finishReel(ui);
  assert.equal(round.phase,'countdown');
  ui.scope.window.__ghostTest.endRound();
  assert.equal(round.phase,'results');
@@ -1862,6 +1866,7 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  const viewport={width:1024,height:576};
  const hi=setup('https://game.example/?host=1',false,null,viewport);
  hi.click('offlineBtn');hi.click('startBtn');
+ finishReel(hi);
  const frame=hi.elements.get('arena');
  hi.step(16.667);
  assert.equal(frame.width,2048,'2x iPad DPR and 1024 CSS px must yield a 2048px backing');
