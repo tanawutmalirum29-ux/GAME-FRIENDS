@@ -554,9 +554,9 @@ test('Every sword pair captures two tiles and independently enforces 12 HP damag
    arrive(c,second);assert.equal(c.hp,88);assert.equal(s.effect.kind,'swordHit');
    assert.equal(s.hits.at(-1).amount,12);
    arrive(a,second);assert.equal(a.hp,100);assert.equal(s.effect.kind,'swordSafe');
-   b.shieldTurns=1;arrive(b,first);
+   b.shieldTurns=1;b.shieldRound=s.roundNumber;arrive(b,first);
    assert.equal(b.hp,100);assert.equal(s.effect.kind,'shield');
-   b.shieldTurns=0;b.hp=10;arrive(b,second);
+   b.shieldTurns=0;b.shieldRound=null;b.hp=10;arrive(b,second);
    assert.equal(b.currentNodeId,s.map.startId);assert.equal(b.hp,100);
    for(const id of pair.nodeIds)assert.equal(s.map.nodes[id].ownerId,a.id);
    for(const other of M.SWORD_PAIRS.filter(group=>group.id!==pair.id)){
@@ -619,37 +619,48 @@ test('Potion only activates with missing HP; rejected item keeps selection',()=>
  send({});send({alt:true});assert.equal(q.actionIndex,0,'B wraps back to Roll');
  send({});send({action:true});assert.equal(t.phase,'dice');
 });
-test('Shield uses one item slot then allows dice roll, lasting two own turns',()=>{
+test('Shield requires an explicit A, then protects the current BOARD round without rolling dice',()=>{
  assert.equal(I.ids.length,6);assert.ok(I.ids.includes('shield'));
- const s=ready(),p=s.players[0];p.item='shield';press(s,p,'B');
- assert.equal(p.item,null);assert.equal(p.usedRound,1);assert.equal(p.shieldTurns,2);
+ const s=ready(),p=s.players[0];I.add(p,'shield');
+ assert.equal(p.shieldTurns,0,'earning a shield does not activate it');
+ assert.equal(p.shieldRound,null);
+ assert.equal(P.isProtected(s,p),false);
+ assert.equal(P.damage(s,p,1),false);assert.equal(p.hp,99,'an unused shield does not prevent harm');
+ assert.equal(P.action(s,p.id,'B'),true,'B only selects shield slot');
+ assert.equal(p.actionIndex,6);assert.equal(P.isProtected(s,p),false);
+ assert.equal(I.bag(p).includes('shield'),true,'selection never spends shield');
+ assert.equal(P.action(s,p.id,'A'),true,'A deliberately activates the selected shield');
+ assert.equal(p.item,null);assert.equal(p.usedRound,1);assert.equal(p.shieldTurns,1);
+ assert.equal(p.shieldRound,s.roundNumber);assert.equal(P.isProtected(s,p),true);
+ assert.equal(s.moveDice,null,'shield does not auto-roll dice');
  until(s,()=>s.phase==='ready');
- assert.equal(P.current(s).id,p.id,'shield returns to dice selection for the same turn');
- assert.equal(s.moveDice,null,'shield does not automatically throw dice');
- assert.equal(p.shieldTurns,2,'shield protects activation turn and next turn');
+ assert.equal(P.current(s).id,p.id,'shield returns to manual dice selection');
+ assert.equal(P.isProtected(s,p),true);
  p.item='rocket';p.actionIndex=3;
  assert.equal(P.action(s,p.id,'A'),false,'cannot use rocket after shield in same round');
  p.actionIndex=0;
  assert.equal(P.action(s,p.id,'A'),true,'owner can roll dice after equipping shield');
  assert.equal(s.phase,'dice');
- const t=ready(),q=t.players[0];q.item='shield';q.shieldTurns=1;press(t,q,'B');
- assert.equal(q.item,'shield');assert.equal(q.usedRound,0);assert.equal(q.shieldTurns,1);
+ const t=ready(),q=t.players[0];q.item='shield';q.shieldTurns=1;q.shieldRound=t.roundNumber;
+ press(t,q,'B');
+ assert.equal(q.item,'shield');assert.equal(q.usedRound,0);assert.equal(P.isProtected(t,q),true);
 });
-test('Shield blocks danger and events without reducing HP or losing turns',()=>{
- for(const type of ['danger','event']){
+test('Activated shield blocks hazards for every turn of this round, with no turn-count expiry',()=>{
+ for(const type of ['danger','event','sword']){
   const s=ready(),p=s.players[0];p.hp=1;p.item='shield';
   press(s,p,'B');
-  assert.equal(p.shieldTurns,2);
+  assert.equal(p.shieldTurns,1);assert.equal(p.shieldRound,s.roundNumber);
   P.damage(s,p,3);assert.equal(p.hp,1);
   until(s,()=>s.phase==='ready');
-  assert.equal(p.shieldTurns,2,'shield is active while preparing bonus dice');
-  P.endTurn(s);assert.equal(p.shieldTurns,1,'completed turn consumes one shield turn');
-  P.damage(s,p,3);assert.equal(p.hp,1,'shield still blocks damage from another player');
+  assert.equal(P.isProtected(s,p),true,'shield remains on after its effect animation');
+  P.endTurn(s);assert.equal(p.shieldTurns,1,'ending a turn does not exhaust shield');
+  P.damage(s,p,3);assert.equal(p.hp,1,'shield protects during other players turns');
+  assert.equal(s.hits.length,0,'shield blocks damage before the hit log is recorded');
  }
 });
 test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected neighbours only',()=>{
  for(let seed=0;seed<100;seed++)for(const kind of ['ufo','bomber','car']){
-  const s=ready(3,seed),[p,q,r]=s.players;p.item=kind;q.hp=1;q.shieldTurns=1;q.currentNodeId='n1';r.currentNodeId=kind==='car'?'n0':'n1';
+  const s=ready(3,seed),[p,q,r]=s.players;p.item=kind;q.hp=1;q.shieldTurns=1;q.shieldRound=s.roundNumber;q.currentNodeId='n1';r.currentNodeId=kind==='car'?'n0':'n1';
   press(s,p,'B');
   if(kind==='ufo'){
    aimUfoAt(s,p,q);press(s,p,'A');assert.equal(s.phase,'aim');assert.equal(p.item,'ufo');assert.equal(p.currentNodeId,'n0');assert.equal(q.currentNodeId,'n1');assert.equal(p.usedRound,0);
@@ -661,15 +672,20 @@ test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected ne
   assert.equal(q.hp,1);assert.equal(q.currentNodeId,'n1');assert.equal(q.shieldTurns,1);
  }
 });
-test('Shield lasts through intermission/reordering until its owner completes their next turn',()=>{
+test('Shield persists through the minigame, expires for everyone at the next BOARD round',()=>{
  const s=ready(),[p,q,r]=s.players;p.item='shield';press(s,p,'B');until(s,()=>s.phase==='ready');
- assert.equal(p.shieldTurns,2);assert.equal(P.current(s),p);
- P.endTurn(s);assert.equal(p.shieldTurns,1);assert.equal(P.current(s),q);
+ assert.equal(p.shieldTurns,1);assert.equal(p.shieldRound,s.roundNumber);
+ P.endTurn(s);assert.equal(P.current(s),q.id===p.id?p:q);assert.equal(P.isProtected(s,p),true);
  P.damage(s,p,1);assert.equal(p.hp,100);
- P.endTurn(s);assert.equal(p.shieldTurns,1);assert.equal(P.current(s),r);P.endTurn(s);assert.equal(p.shieldTurns,1);
- P.minigameStarted(s,'chickens');P.minigameEnded(s,[{id:r.id,rank:1},{id:p.id,rank:2},{id:q.id,rank:3}]);until(s,()=>s.phase==='ready');
- assert.equal(P.current(s),r);assert.equal(p.shieldTurns,1);P.endTurn(s);assert.equal(P.current(s),p);assert.equal(p.shieldTurns,1);
- P.damage(s,p,1);assert.equal(p.hp,100);P.endTurn(s);assert.equal(p.shieldTurns,0);P.damage(s,p,1);assert.equal(p.hp,99);
+ P.endTurn(s);assert.equal(P.current(s),r);P.endTurn(s);
+ assert.equal(s.phase,'minigame_pending');assert.equal(P.isProtected(s,p),true);
+ P.minigameStarted(s,'chickens');
+ P.minigameEnded(s,[{id:r.id,rank:1},{id:p.id,rank:2},{id:q.id,rank:3}]);
+ until(s,()=>s.phase==='round_order');
+ assert.equal(s.roundNumber,2);
+ assert.equal(P.isProtected(s,p),false,'new round revokes previous round protection');
+ assert.ok(s.players.every(v=>v.shieldTurns===0&&v.shieldRound===null));
+ P.damage(s,p,1);assert.equal(p.hp,99,'new round damage is not blocked by old shield');
 });
 test('UFO clears stale mid-rocket edges on BOTH swapped players; walk rejects invalid traverse',()=>{
  const s=ready(3,880),[p,q]=s.players;p.item='ufo';q.currentNodeId='n20';
@@ -1116,7 +1132,7 @@ test('Bot recovers from failed UFO aim without a 12s forced roll',()=>{
  tick(s,1);
  assert.equal(s.phase,'aim','bot should attempt available UFO once');
  assert.equal(p.botItemAttemptKey,s.roundNumber+':'+s.turnIndex);
- q.shieldTurns=1; // Target becomes invalid while the bot is aiming.
+ q.shieldTurns=1;q.shieldRound=s.roundNumber; // Target becomes protected while bot is aiming.
  tick(s,9.5);
  assert.equal(p.item,'ufo','a failed aim must not consume the item');
  assert.ok(['dice','move_ready','moving','branch','effect'].includes(s.phase),
