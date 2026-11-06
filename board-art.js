@@ -1,7 +1,7 @@
 /* Original vector winter scenery: ground, scenery, paths, actors, FX, then HUD. */
 (() => {
 'use strict';
-const TAU=Math.PI*2,colors={start:'#45c4d9',finish:'#ffca63',movement:'#54acc5',healing:'#59ad91',danger:'#cf7180',event:'#9b84bd',key:'#c49b63',milestone:'#d9b862',neutral:'#9cabb7',sword:'#63748c',lucky:'#8660ad'};
+const TAU=Math.PI*2,sceneHeight=s=>Number(s?.camera?.viewHeight)||540,mapBottom=s=>sceneHeight(s)-88,sceneOffset=s=>(sceneHeight(s)-540)/2,colors={start:'#45c4d9',finish:'#ffca63',movement:'#54acc5',healing:'#59ad91',danger:'#cf7180',event:'#9b84bd',key:'#c49b63',milestone:'#d9b862',neutral:'#9cabb7',sword:'#63748c',lucky:'#8660ad'};
 // Keep one bounded terrain surface. Replays explicitly release the old pixels
 // instead of waiting for mobile Safari to collect detached canvases.
 let terrain=null;
@@ -181,7 +181,7 @@ function scenery(g,map){
 // Allocation failure keeps the same island silhouette and walkable connections;
 // only ornamentation is omitted. Visible-region culling bounds per-frame work.
 function sceneryLite(g,s){
- const map=s.map,c=s.camera,zoom=Math.max(.06,c.zoom||1),width=480/zoom+220,height=(452-(s.players.length>6?145:94))/2/zoom+220;
+ const map=s.map,c=s.camera,zoom=Math.max(.06,c.zoom||1),width=480/zoom+220,height=(mapBottom(s)-(s.players.length>6?145:94))/2/zoom+220;
  const intersects=(a,b)=>Math.max(a.x,b.x)>=c.x-width&&Math.min(a.x,b.x)<=c.x+width&&Math.max(a.y,b.y)>=c.y-height&&Math.min(a.y,b.y)<=c.y+height;
  g.fillStyle='#183e5d';g.fillRect(0,0,map.width,map.height);
  for(const zone of map.islands||[]){const p=zone.outline;if(intersects({x:Math.min(...p.map(v=>v.x)),y:Math.min(...p.map(v=>v.y))},{x:Math.max(...p.map(v=>v.x)),y:Math.max(...p.map(v=>v.y))}))island(g,zone,true);}
@@ -191,7 +191,7 @@ function sceneryLite(g,s){
 }
 function ambience(g,s,t){
  if(s.camera.lowDetail)return;
- for(const zone of s.map.islands||[]){const p=zone.landmark;if(!p||Math.abs(p.x-s.camera.x)>550/s.camera.zoom||Math.abs(p.y-s.camera.y)>300/s.camera.zoom)continue;
+ for(const zone of s.map.islands||[]){const p=zone.landmark;if(!p||Math.abs(p.x-s.camera.x)>550/s.camera.zoom||Math.abs(p.y-s.camera.y)>(mapBottom(s)-(s.players.length>6?145:94))/2/s.camera.zoom)continue;
   const shimmer=.35+.35*Math.sin(t*1.7+zone.center.x);g.save();g.globalAlpha=shimmer;star(g,p.x+72,p.y-95,5,'#e7faff');star(g,p.x-84,p.y-22,3,'#ffe7a4');g.restore();
  }
 }
@@ -211,7 +211,7 @@ function ground(g,s){
  }
  const layer=terrain.canvas;
  if(layer){
-  const c=s.camera,halfW=480/c.zoom,halfH=(452-(s.players.length>6?145:94))/2/c.zoom;
+  const c=s.camera,halfW=480/c.zoom,halfH=(mapBottom(s)-(s.players.length>6?145:94))/2/c.zoom;
   const x=Math.max(0,c.x-halfW-2),y=Math.max(0,c.y-halfH-2),w=Math.min(s.map.width-x,halfW*2+4),h=Math.min(s.map.height-y,halfH*2+4);
   const sx=layer.width/s.map.width,sy=layer.height/s.map.height;
   g.drawImage(layer,x*sx,y*sy,w*sx,h*sy,x,y,w,h);
@@ -257,7 +257,7 @@ function nodes(g,s){
  // to reduce Canvas calls substantially on low-FPS phones/tablets.
  const c=s.camera,zoom=Math.max(.06,c.zoom||1);
  const halfW=480/zoom+95;
- const halfH=(452-(s.players.length>6?145:94))/2/zoom+95;
+ const halfH=(mapBottom(s)-(s.players.length>6?145:94))/2/zoom+95;
  const visible=(x,y,r=0)=>Math.abs(x-c.x)<=halfW+r&&Math.abs(y-c.y)<=halfH+r;
  const edgeVisible=(a,b)=>Math.max(a.x,b.x)>=c.x-halfW&&
    Math.min(a.x,b.x)<=c.x+halfW&&Math.max(a.y,b.y)>=c.y-halfH&&
@@ -431,20 +431,21 @@ function hud(g,s){
   if(bagItems.length){icon(g,'bag',x+w-21,y+14,11);label(g,String(bagItems.length),x+w-6,y+14,9,'#ffe1a3','right');}
   if(p.shieldTurns>0)icon(g,'shield',x+w-15,y+35,10);
  });
- box(g,12,460,936,68,16,'#102e44f5','#53758a');
+ const footerY=sceneHeight(s)-80;
+ box(g,12,footerY,936,68,16,'#102e44f5','#53758a');
  const p=active;
  if(s.phase==='overview'||s.camera.overview){
-  label(g,'WINTER ISLANDS',30,478,14,'#ffe4a5');
-  label(g,(s.map.islands?.length||7)+' เกาะ • เดินตามลูกศร • เลือกทางที่ทางแยก',30,500,10,'#b9d9e7','left',500,302);
+  label(g,'WINTER ISLANDS',30,footerY+18,14,'#ffe4a5');
+  label(g,(s.map.islands?.length||7)+' เกาะ • เดินตามลูกศร • เลือกทางที่ทางแยก',30,footerY+40,10,'#b9d9e7','left',500,302);
   const legend=[['sword','ยึดพื้นที่'],['healing','ฟื้น HP'],['danger','อันตราย'],['lucky','ไอเทม']];
-  legend.forEach(([type,name],i)=>{const x=410+i*135;circle(g,x,482,12,colors[type]);icon(g,type,x,482,type==='sword'?9:8);label(g,name,x,508,9,'#d6eaf2','center',600,100);});
+  legend.forEach(([type,name],i)=>{const x=410+i*135;circle(g,x,footerY+22,12,colors[type]);icon(g,type,x,footerY+22,type==='sword'?9:8);label(g,name,x,footerY+48,9,'#d6eaf2','center',600,100);});
  }else if(p){
-  window.PartyPlayerAvatar.drawFront(g,p,48,494,44);
-  clippedPlayerName(g,p.name,82,494,16,p.color,nameWidth(g,16));
+  window.PartyPlayerAvatar.drawFront(g,p,48,footerY+34,44);
+  clippedPlayerName(g,p.name,82,footerY+34,16,p.color,nameWidth(g,16));
   const stock=window.BoardItems.counts(p),kinds=['roll',...window.BoardItems.ids];
   const selected=Math.max(0,Math.min(kinds.length-1,Math.trunc(p.actionIndex||0)));
   const canSelect=s.phase==='ready';
-  const stripX=274,stripW=554,gap=8,cardW=(stripW-gap*(kinds.length-1))/kinds.length,cardY=466,cardH=56;
+  const stripX=274,stripW=554,gap=8,cardW=(stripW-gap*(kinds.length-1))/kinds.length,cardY=footerY+6,cardH=56;
   kinds.forEach((kind,i)=>{
    const x=stripX+i*(cardW+gap),chosen=canSelect&&selected===i,amount=kind==='roll'?null:stock[kind]||0;
    const empty=amount===0;
@@ -472,11 +473,11 @@ function hud(g,s){
    g.restore();
   });
   // Replace the old "steps remaining" caption with two small footprint glyphs.
-  footsteps(g,855,492,35,'#86d3f5');
-  label(g,window.BoardParty.remainingSteps(s,p.id),916,492,29,'#ffe3a1','right',900,36);
+  footsteps(g,855,footerY+32,35,'#86d3f5');
+  label(g,window.BoardParty.remainingSteps(s,p.id),916,footerY+32,29,'#ffe3a1','right',900,36);
  }
  const timed=['ready','aim','car','rocket'].includes(s.phase)||(['move_ready','branch'].includes(s.phase)&&s.move?.kind!=='walk');
- if(timed){box(g,886,428,60,25,8,'#173c53e8');label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,441,12,'#e4f5fc','right');}
+ if(timed){box(g,886,footerY-32,60,25,8,'#173c53e8');label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,footerY-19,12,'#e4f5fc','right');}
 }
 
 const IName=id=>window.BoardItems.names[id]||'ไม่มีไอเทม';
@@ -591,7 +592,7 @@ function turnDice(g,s){
  g.save();g.beginPath();g.roundRect(left+4,top+4,width-8,height-8,15);g.clip();
  label(g,p.name,cx,top+28,18,p.color,'center',800,width-35);
  if(!active&&Number(p.actionIndex)>0){
-  const item=window.BoardItems.bag(p)[Math.trunc(p.actionIndex)-1];
+  const item=window.BoardItems.ids[Math.trunc(p.actionIndex)-1];
   if(item){
    icon(g,item,cx,top+102,53);
    label(g,IName(item),cx,top+162,17,'#ffe7a8','center',800,width-30);
@@ -627,14 +628,14 @@ function canPan(s){
 }
 function pan(s,dx,dy){
  if(!canPan(s)||!Number.isFinite(dx)||!Number.isFinite(dy))return false;
- const c=s.camera,top=s.players.length>6?145:94,halfW=480/c.zoom,halfH=(452-top)/2/c.zoom,b=bounds(s);
+ const c=s.camera,top=s.players.length>6?145:94,halfW=480/c.zoom,halfH=(mapBottom(s)-top)/2/c.zoom,b=bounds(s);
  c.x=clampCamera(c.x-dx/c.zoom,halfW,b.minX,b.maxX);
  c.y=clampCamera(c.y-dy/c.zoom,halfH,b.minY,b.maxY);c.panned=true;
  return true;
 }
 function bounds(s){return s.map.bounds||{minX:0,minY:0,maxX:s.map.width,maxY:s.map.height};}
 function clampCamera(value,half,min,max){return half>=(max-min)/2?(min+max)/2:Math.max(min+half,Math.min(max-half,value));}
-function fitZoom(s){const h=452-(s.players.length>6?145:94),b=bounds(s);return Math.min(916/(b.maxX-b.minX),(h-22)/(b.maxY-b.minY));}
+function fitZoom(s){const h=mapBottom(s)-(s.players.length>6?145:94),b=bounds(s);return Math.min(916/(b.maxX-b.minX),(h-22)/(b.maxY-b.minY));}
 function overview(s){const c=s.camera,b=bounds(s);c.overview=true;c.explore=true;c.manualZoom=fitZoom(s);
  c.zoom=c.manualZoom;c.x=(b.minX+b.maxX)/2;c.y=(b.minY+b.maxY)/2;c.panned=false;return true;}
 function follow(s){if(s.phase==='overview')return false;const c=s.camera;c.overview=false;c.explore=false;c.manualZoom=null;c.panned=false;return true;}
@@ -642,14 +643,14 @@ function zoom(s,scale){
  if(!canPan(s)||!Number.isFinite(scale)||scale<=0)return false;
  const c=s.camera,b=bounds(s);c.zoom=Math.max(fitZoom(s),Math.min(2.2,c.zoom*scale));
  c.x=clampCamera(c.x,480/c.zoom,b.minX,b.maxX);
- c.y=clampCamera(c.y,(452-(s.players.length>6?145:94))/2/c.zoom,b.minY,b.maxY);
+ c.y=clampCamera(c.y,(mapBottom(s)-(s.players.length>6?145:94))/2/c.zoom,b.minY,b.maxY);
  c.manualZoom=c.zoom;c.panned=true;return true;
 }
 function toggleDebug(s){s.camera.debugNodes=!s.camera.debugNodes;return s.camera.debugNodes;}
 function inspect(s,x,y){
  if(!s.camera.debugNodes)return null;
- const top=s.players.length>6?145:94,viewH=452-top,c=s.camera;
- if(y<top||y>452)return null;
+ const top=s.players.length>6?145:94,viewH=mapBottom(s)-top,c=s.camera;
+ if(y<top||y>mapBottom(s))return null;
  const wx=c.x+(x-480)/c.zoom,wy=c.y+(y-(top+viewH/2))/c.zoom;
  let best=null,distance=Infinity;
  for(const n of Object.values(s.map.nodes)){const d=Math.hypot(n.position.x-wx,n.position.y-wy);
@@ -665,9 +666,9 @@ function inspect(s,x,y){
 function draw(g,t,s){
  // The first screen must render without allocating or painting the world map.
  if(['order','order_result','standings','rewards'].includes(s.phase)&&!s.camera.overview){
-  g.fillStyle='#102e43';g.fillRect(0,0,960,540);overlay(g,s);return;
+  g.fillStyle='#102e43';g.fillRect(0,0,960,sceneHeight(s));g.save();g.translate(0,sceneOffset(s));overlay(g,s);g.restore();return;
  }
- const top=s.players.length>6?145:94,bottom=452,viewH=bottom-top;
+ const top=s.players.length>6?145:94,bottom=mapBottom(s),viewH=bottom-top;
  const p=window.BoardParty.current(s)||s.players[0],pos=s.skill||window.BoardItems.position(s,p);
  const wide=s.phase==='aim',overviewMode=s.phase==='overview'||s.camera.overview;
  const introZoom=s.phase==='intro_zoom';
@@ -695,24 +696,24 @@ function draw(g,t,s){
   c.x+=(targetX-c.x)*(1-Math.exp(-dt*6));c.y+=(targetY-c.y)*(1-Math.exp(-dt*6));
  }
  c.x=clampCamera(c.x,halfW,b.minX,b.maxX);c.y=clampCamera(c.y,halfH,b.minY,b.maxY);
- g.clearRect(0,0,960,540);g.fillStyle='#183e5d';g.fillRect(0,top,960,viewH);g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();g.translate(480,top+viewH/2);g.scale(c.zoom,c.zoom);g.translate(-c.x,-c.y);
+ g.clearRect(0,0,960,sceneHeight(s));g.fillStyle='#183e5d';g.fillRect(0,top,960,viewH);g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();g.translate(480,top+viewH/2);g.scale(c.zoom,c.zoom);g.translate(-c.x,-c.y);
  ground(g,s);if(typeof ambience==='function'&&!c.lowDetail)ambience(g,s,t);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<(c.lowDetail?0:35);i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
- hud(g,s);if(!overviewMode&&!c.paused){turnDice(g,s);intermissionNotice(g,s);overlay(g,s);luckyRoulette(g,s);}
+ hud(g,s);if(!overviewMode&&!c.paused){g.save();g.translate(0,sceneOffset(s));turnDice(g,s);intermissionNotice(g,s);overlay(g,s);luckyRoulette(g,s);g.restore();}
  if(s.camera.debugNodes&&s.camera.selectedId){
   const n=s.map.nodes[s.camera.selectedId],t=s.map.territories[n.territoryId];
-  box(g,207,403,546,57,8,'#0a2a43f5','#91cde7');
+  box(g,207,bottom-49,546,57,8,'#0a2a43f5','#91cde7');
   label(g,n.id+' • '+n.type+' • progress '+n.progress+' • HP '+(n.effects.hp||0),
-   221,421,12,'#ffe9a1','left',800,512);
+   221,bottom-31,12,'#ffe9a1','left',800,512);
   label(g,'ก่อน: '+n.previousNodes.join(',')+'  ต่อ: '+n.nextNodes.join(',')+
     '  x='+Math.round(n.position.x)+' y='+Math.round(n.position.y)+
     (t?'  เจ้าของ: '+(t.ownerId||'ไม่มี'):''),
-    221,442,10,'#d6efff','left',700,513);
+    221,bottom-10,10,'#d6efff','left',700,513);
  }
  if(canPan(s)&&!overviewMode&&!c.debugNodes){
-  box(g,305,423,350,30,9,'#133b50d9','#6cafc3');
-  label(g,c.paused?'หยุดเกม • ลากสำรวจ / กดเล่นต่อเมื่อพร้อม':'ลากสำรวจ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,439,11,'#e9faff','center',700,335);
+  box(g,305,bottom-29,350,30,9,'#133b50d9','#6cafc3');
+  label(g,c.paused?'หยุดเกม • ลากสำรวจ / กดเล่นต่อเมื่อพร้อม':'ลากสำรวจ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,bottom-13,11,'#e9faff','center',700,335);
  }
 }
 window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan,overview,follow,zoom,toggleDebug,inspect,fitZoom});
