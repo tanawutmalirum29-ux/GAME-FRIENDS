@@ -452,7 +452,9 @@ function overlay(g,s){
  label(g,order?(s.phase==='order'?'ทอยลูกเต๋าเพื่อจัดลำดับ':'ลำดับการเดินพร้อมแล้ว'):'สรุปผลมินิเกมและรางวัล',480,63,25,'#eefbff','center');
  label(g,order?'A หรือ B • ทอย 2 ลูก • คะแนนมากเริ่มก่อน':'อันดับการแข่งขันและสิทธิ์รางวัล • ไอเทมเข้ากระเป๋าอัตโนมัติ • ไม่สุ่มซ้ำ',480,96,12,'#adccdc','center',500);
  const ids=order?(s.phase!=='order'?s.order:s.players.map(p=>p.id)):s.results.map(r=>r.id);
- const cols=ids.length<=4?2:4,rows=Math.ceil(ids.length/cols),w=cols===2?392:211,h=Math.min(108,310/rows),left=(960-(cols*w+(cols-1)*12))/2;
+ const cols=order?(ids.length<=4?2:4):ids.length<=4?1:ids.length<=8?2:3;
+ const rows=Math.ceil(ids.length/cols),w=cols===1?700:cols===2?392:cols===3?286:211;
+ const h=Math.min(108,310/rows),left=(960-(cols*w+(cols-1)*12))/2;
  ids.forEach((id,i)=>{
   const p=s.players.find(p=>p.id===id);
   const x=left+(i%cols)*(w+12),y=127+Math.floor(i/cols)*(h+10),r=s.results.find(q=>q.id===id);
