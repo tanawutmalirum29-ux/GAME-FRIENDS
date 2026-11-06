@@ -812,6 +812,20 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   const padButtons=Object.fromEntries(['action','alt'].map(key=>{
     const button=makeElement('pad-'+key);button.dataset.control=key;return [key,button];
   }));
+  // Simulate the real DOM: a small visible button is nested in the enlarged
+  // full-column touch region. Events on the circle bubble to that region.
+  const padZones=Object.fromEntries(Object.entries(padButtons).map(([key,button])=>{
+    const zone=makeElement('hit-zone-'+key);
+    zone.classList.add('face-button-wrap');
+    button.parentElement=zone;
+    const buttonFire=button.fire.bind(button);
+    button.fire=(type,props={})=>{
+      buttonFire(type,props);
+      if(['pointerdown','pointerup','pointercancel','lostpointercapture','contextmenu'].includes(type))
+        zone.fire(type,props);
+    };
+    return [key,zone];
+  }));
   const docHandlers={};
   const document={
     head:makeElement('head'),body:makeElement('body'),
@@ -932,7 +946,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(pizzaArtSource,scope,{filename:'pizza-ingredient-art.js'});
   vm.runInContext(pizzaSource,scope,{filename:'pizza-time.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
-  return {elements,pickButtons,sessionButtons,padButtons,instances,scope,sessionData,timers,canvasTransforms,
+  return {elements,pickButtons,sessionButtons,padButtons,padZones,instances,scope,sessionData,timers,canvasTransforms,
     mediaCall(peer){return new FakeMediaCall(peer);},
     step(ms){assert(raf);raf(ms);},
     click(id){elements.get(id).fire('click');},
@@ -1681,6 +1695,66 @@ assert.equal(phone.elements.get('controllerInventory').classList.contains('hidde
 phone.click('leaveBtn');phone.click('confirmLeaveBtn');
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
 assert.equal(phone.scope.window.location.search,'?controller=1');
+
+// Full-size A/B touch zones use independent, exactly stacked grid tracks.
+// A's rectangle NEVER reaches B's rectangle. Slow-item arrows get row three.
+// The circles stay unchanged: touching blank space in a zone acts on its button.
+assert.match(css,/BLIND-PLAY FACE TOUCH ZONES/);
+assert.match(css,/grid-template-rows:repeat\(2,minmax\(0,1fr\)\)/,
+  'two full-height, non-overlapping action regions');
+assert.match(css,/\.gamepad-face-buttons \.face-a\{\s*grid-row:1;/,
+  'A occupies only the top half');
+assert.match(css,/\.gamepad-face-buttons \.face-b\{\s*grid-row:2;/,
+  'B occupies only the bottom half');
+assert.match(css,/\.gamepad-face-buttons \.target-cycle-controls\{[\s\S]*?grid-row:3;/,
+  'slow item arrow controls remain below B in their own zone');
+assert.match(css,/\.gamepad-face-buttons \.face-button\{[\s\S]*?pointer-events:none!important;/,
+  'visual circles forward all pointer hit testing to the parent region');
+assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\('face-button-wrap'\)/,
+  'pointer listeners are bound to full-size touch region, not just circle');
+{
+ const phone=setup('https://game.example/?join=TEST23');
+ phone.elements.get('nick').value='Touch Test';
+ phone.click('joinBtn');phone.instances[0].fire('open');
+ const conn=phone.instances[0].conn;conn.fire('open');
+ conn.fire('data',{t:'welcome',id:'p1',name:'Touch Test',color:'#ff628c',
+  mode:'ghost',phase:'lobby'});
+ conn.fire('data',{t:'roster',mode:'ghost',phase:'playing',
+  players:[{id:'p1',active:true,choice:'ghost'}]});
+ const lastKeys=()=>conn.sent.filter(x=>x.t==='input').at(-1).keys;
+ // Touching blank space in the upper rectangle sends A, NOT B or joystick.
+ phone.padZones.action.fire('pointerdown',{pointerId:101});
+ assert.equal(lastKeys().action,true,'top touch zone maps to A');
+ assert.equal(lastKeys().alt,false,'touching A never triggers B');
+ assert.equal(phone.padButtons.action.classList.contains('pressed'),true,
+  'the circular A button still animates when its surrounding rectangle is tapped');
+ phone.padZones.action.fire('pointerdown',{pointerId:102});
+ phone.padZones.action.fire('pointerup',{pointerId:101});
+ assert.equal(lastKeys().action,true,'A stays pressed while second finger is down');
+ phone.padZones.action.fire('pointerup',{pointerId:102});
+ assert.equal(lastKeys().action,false,'A releases after the last pointer');
+ // The lower rectangle is completely independent and can be held with A.
+ phone.padZones.alt.fire('pointerdown',{pointerId:201});
+ assert.equal(lastKeys().alt,true,'lower touch zone maps to B');
+ assert.equal(lastKeys().action,false,'touching B never triggers A');
+ assert.equal(phone.padButtons.alt.classList.contains('pressed'),true);
+ phone.padZones.action.fire('pointerdown',{pointerId:301});
+ assert.equal(lastKeys().action,true);
+ assert.equal(lastKeys().alt,true,'both distinct zones support simultaneous touches');
+ phone.padZones.action.fire('pointercancel',{pointerId:301});
+ assert.equal(lastKeys().action,false,'cancelled A touch releases A only');
+ assert.equal(lastKeys().alt,true,'cancelled A does not release B');
+ phone.padZones.alt.fire('lostpointercapture',{pointerId:201});
+ assert.equal(lastKeys().alt,false,'lost B capture safely releases B');
+ // Disabled A must remain disabled even if tapped *outside* the circle.
+ phone.padButtons.action.disabled=true;
+ const before=conn.sent.filter(x=>x.t==='input').length;
+ phone.padZones.action.fire('pointerdown',{pointerId:501});
+ assert.equal(conn.sent.filter(x=>x.t==='input').length,before,
+  'expanded touch zone does not bypass disabled state');
+ assert.equal(phone.padButtons.action.classList.contains('pressed'),false);
+}
+
 // Full room-preserving page refresh: same room, seat token, choice and color.
 {
  const hostA=setup();

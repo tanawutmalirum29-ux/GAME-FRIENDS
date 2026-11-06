@@ -1394,6 +1394,12 @@ function bindAnalogStick(zone,base,knob,target){
 }
 function bindControl(btn, target, id){
   const key=btn.dataset.control;if(!key)return;
+  // Use the full, nonoverlapping A/B half of the right-side control column
+  // instead of making players aim for the small circular button. The circle
+  // remains visual feedback; its parent catches touches all the way to edges.
+  const touchZone=btn.parentElement?.classList?.contains('face-button-wrap')?
+    btn.parentElement:btn;
+  const activePointers=new Set();
   const change=(pressed)=>{
     if(target[key]===pressed)return;
     target[key]=pressed;btn.classList.toggle('pressed',pressed);
@@ -1405,11 +1411,24 @@ function bindControl(btn, target, id){
       sendInputs();
     }
   };
-  btn.addEventListener('pointerdown',e=>{e.preventDefault();try{btn.setPointerCapture(e.pointerId);}catch(x){}change(true);});
-  btn.addEventListener('pointerup',e=>{e.preventDefault();change(false);});
-  btn.addEventListener('pointercancel',()=>change(false));
-  btn.addEventListener('lostpointercapture',()=>change(false));
-  btn.addEventListener('contextmenu',e=>e.preventDefault());
+  touchZone.addEventListener('pointerdown',e=>{
+    if(btn.disabled)return;
+    e.preventDefault();
+    const pointer=e.pointerId??0;
+    activePointers.add(pointer);
+    try{touchZone.setPointerCapture(pointer);}catch(_){}
+    change(true);
+  });
+  const release=e=>{
+    const pointer=e.pointerId??0;
+    if(!activePointers.delete(pointer))return;
+    e.preventDefault?.();
+    change(activePointers.size>0);
+  };
+  touchZone.addEventListener('pointerup',release);
+  touchZone.addEventListener('pointercancel',release);
+  touchZone.addEventListener('lostpointercapture',release);
+  touchZone.addEventListener('contextmenu',e=>e.preventDefault());
 }
 document.addEventListener('keydown',e=>{
   if(currentView!=='game'||e.target.matches('input,select,textarea'))return;
