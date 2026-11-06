@@ -270,7 +270,7 @@ test('Free 2D walking: reverse and sideways inputs are real movement, no acciden
  press(s,p,null,{axisX:-dx/d,axisY:-dy/d});tick(s,.3);
  assert.ok(s.phase==='move_ready'||s.move.t<fraction,'reversing must recover a slightly premature turn');
  assert.equal(s.move.remaining,remaining,'reversing cannot spend extra dice');
- steer(s,p);until(s,()=>p.currentNodeId==='n1');assert.equal(s.move.remaining,2);
+ steer(s,p);until(s,()=>{if(s.move)steer(s,p);return p.currentNodeId==='n1';});assert.equal(s.move.remaining,2);
  press(s,p,null);tick(s,.2);
  if(s.phase==='moving'&&!s.move.auto){
   const stale=plain(I.position(s,p));tick(s,.3);
