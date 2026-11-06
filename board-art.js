@@ -13,7 +13,8 @@ function line(g,x,y,a,b,color,w=2){g.strokeStyle=color;g.lineWidth=w;g.lineCap='
 function star(g,x,y,r,fill){path(g,Array.from({length:10},(_,i)=>{const a=i*Math.PI/5-Math.PI/2,d=i%2?r*.45:r;return[x+Math.cos(a)*d,y+Math.sin(a)*d];}),fill);}
 function icon(g,kind,x,y,size=20,color='#fff'){
  g.save();g.translate(x,y);g.scale(size/20,size/20);g.lineJoin='round';
- if(kind==='healing'||kind==='potion'){
+ if(kind==='bag'){window.PartyUiArt?.draw(g,'bag',0,0,34);}
+ else if(kind==='healing'||kind==='potion'){
   if(kind==='potion'){box(g,-10,-10,20,26,6,'#aaf0df','#fff');box(g,-5,-17,10,7,2,'#d09c65');}
   line(g,-7,0,7,0,color,4);line(g,0,-7,0,7,color,4);
  }else if(kind==='danger'){
@@ -160,7 +161,7 @@ function nodes(g,s){
  if(s.phase==='branch'||s.phase==='move_ready'){
   const p=window.BoardParty.current(s),a=s.map.nodes[p.currentNodeId].position;
   const choices=s.phase==='branch'?s.branch:{options:s.map.nodes[p.currentNodeId].nextNodes,selected:s.map.nodes[p.currentNodeId].nextNodes[0]};
-  for(const id of choices.options){const b=s.map.nodes[id].position,selected=id===choices.selected;line(g,a.x,a.y,b.x,b.y,selected?'#ffe38b':'#75acc4',selected?8:3);circle(g,b.x,b.y,34,null,selected?'#ffe59a':'#fff8',selected?5:2);label(g,s.move.kind==='walk'?'ชี้จอยทางนี้':selected?'A • ทางนี้':'เลือกทาง',b.x,b.y+48,13,'#173b53','center');}
+  for(const id of choices.options){const b=s.map.nodes[id].position,selected=id===choices.selected;line(g,a.x,a.y,b.x,b.y,selected?'#ffe38b':'#75acc4',selected?8:3);circle(g,b.x,b.y,34,null,selected?'#ffe59a':'#fff8',selected?5:2);label(g,s.move.kind==='walk'?'เดินอิสระ • ชี้ทางนี้':selected?'A • ทางนี้':'เลือกทาง',b.x,b.y+48,11,'#173b53','center');}
  }
 }
 function actors(g,s,t){
@@ -172,8 +173,11 @@ function actors(g,s,t){
   if(p.id===active?.id){circle(g,xy.x,xy.y,29+Math.sin(t*4)*2,null,'#ffdc83',3);path(g,[[xy.x-6,xy.y-48],[xy.x+6,xy.y-48],[xy.x,xy.y-39]],'#ffcf76');}
   if(dead){g.globalAlpha=Math.max(.1,1-(s.time-p.death.at)/1.2);g.translate(xy.x,xy.y);g.rotate((s.time-p.death.at)*2);g.translate(-xy.x,-xy.y);}
   const moving=s.move?.playerId===p.id&&s.move.to,from=moving?s.map.nodes[s.move.from].position:null,to=moving?s.map.nodes[s.move.to].position:null;
+  const joystick=window.BoardParty.axes(s,p.id);
+  const freeWalking=s.move?.kind==='walk'&&s.move.playerId===p.id&&Math.hypot(joystick.x,joystick.y)>.12;
   const shake=p.hurtUntil>s.time?Math.sin(t*50)*3:0;
-  window.PartyPlayerAvatar.draw(g,{...p,x:xy.x+shake,y:xy.y,vx:moving&&(s.move.kind==='rocket'||s.move.walking)?40:0,vy:0,dir:moving?{x:to.x-from.x,y:to.y-from.y}:{x:0,y:-1}},{time:t,scale:.86,label:false,holding:s.effect?.kind==='heal'&&s.effect.targets.includes(p.id)});
+  window.PartyPlayerAvatar.draw(g,{...p,x:xy.x+shake,y:xy.y,vx:freeWalking?joystick.x*90:moving&&s.move.walking?40:0,vy:freeWalking?joystick.y*90:0,
+    dir:freeWalking?joystick:moving?{x:to.x-from.x,y:to.y-from.y}:{x:0,y:-1}},{time:t,scale:.86,label:false,holding:s.effect?.kind==='heal'&&s.effect.targets.includes(p.id)});
   const crowded=s.players.filter(q=>q.currentNodeId===p.currentNodeId).length>1;
   if(!crowded||p.id===active?.id||p.id===s.skill?.targetId){box(g,xy.x-42,xy.y+25,84,18,7,'#15394cda');label(g,p.name,xy.x,xy.y+34,10,p.color,'center',700,78);}
   else {circle(g,xy.x+17,xy.y+16,8,'#15394c');label(g,(s.order.indexOf(p.id)+1)||s.players.indexOf(p)+1,xy.x+17,xy.y+16,9,p.color,'center');}
@@ -217,7 +221,9 @@ function hud(g,s){
  const ids=s.order.length?s.order:s.players.map(p=>p.id);
  ids.forEach((id,i)=>{const p=s.players.find(p=>p.id===id),x=14+(i%cols)*(w+6),y=36+Math.floor(i/cols)*51,turn=p.id===active?.id;
   box(g,x,y,w,45,8,turn?'#2e5267':'#1b3a50',turn?'#edce82':'#33566a');box(g,x,y,3,45,2,p.color);
-  label(g,(i+1)+'. '+p.name,x+10,y+12,11,p.color,'left',700,w-38);if(p.item)icon(g,p.item,x+w-16,y+14,11);
+  label(g,(i+1)+'. '+p.name,x+10,y+12,11,p.color,'left',700,w-38);
+  const bagItems=p.bag||[];
+  if(bagItems.length){icon(g,'bag',x+w-20,y+13,11);label(g,String(bagItems.length),x+w-6,y+14,9,'#ffe1a3','right');}
   box(g,x+10,y+26,w-53,5,2,'#0b2537');box(g,x+10,y+26,(w-53)*p.hp/3,5,2,p.color);
   label(g,p.hp+'/3',x+w-12,y+29,10,'#d6eef7','right',500);
   label(g,turn?'เหลือ '+window.BoardParty.remainingSteps(s,p.id)+' ก้าว':Math.round(s.map.nodes[p.currentNodeId].progress/36*100)+'% • รอ',x+10,y+39,9,turn?'#ffe3a1':'#b9d9e7','left',turn?800:500);
@@ -228,9 +234,12 @@ function hud(g,s){
  if(p){
   window.PartyPlayerAvatar.draw(g,{...p,x:47,y:494},{scale:.85,label:false});
   label(g,p.name,83,480,17,p.color,'left',700,265);label(g,c.help,83,507,11,'#d1e9f4','left',500,495);
-  if(p.item){icon(g,p.item,607,490,21);label(g,IName(p.item),633,486,11,'#ffe5aa');label(g,p.usedRound===s.roundNumber?'ใช้แล้วในรอบนี้':'B • ใช้ก่อนทอย',633,506,10,'#abcddd','left',500);}
+  const bagItems=p.bag||[];
+  icon(g,'bag',607,490,21);
+  label(g,'กระเป๋า '+bagItems.length+' ชิ้น',632,486,13,'#ffe5aa');
+  label(g,p.bagOpen?'A เลือก / B ใช้หรือปิด':p.usedRound===s.roundNumber?'ใช้แล้วในรอบนี้':'B เปิดกระเป๋า',632,506,10,'#abcddd','left',500);
   label(g,window.BoardParty.remainingSteps(s,p.id),885,487,30,'#ffe3a1','center');label(g,'ก้าวที่เหลือ',885,512,10,'#c8e6f3','center');
-  if(p.shieldTurns>0&&!p.item){icon(g,'shield',607,490,21);label(g,p.shieldTurns===2?'โล่ถึงจบเทิร์นถัดไป':'โล่ป้องกันในเทิร์นนี้',633,486,11,'#b4eaff');}
+  if(p.shieldTurns>0)icon(g,'shield',775,490,16);
  }
  const timed=['ready','move_ready','branch','aim','car'].includes(s.phase);if(timed){box(g,886,428,60,25,8,'#173c53e8');label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,441,12,'#e4f5fc','right');}
 }
@@ -241,7 +250,7 @@ function overlay(g,s){
  box(g,0,0,960,540,0,'#0e2a40ed');
  label(g,'WINTER SNOW ADVENTURE',480,30,11,'#93c8d6','center',500);
  label(g,order?(s.phase==='round_order'?'ลำดับใหม่ตามผลมินิเกม':s.phase==='order'?'ทอยลูกเต๋าเพื่อจัดลำดับ':'ลำดับการเดินพร้อมแล้ว'):s.phase==='standings'?'ผลการแข่งขันมินิเกม':s.phase==='rewards'?'รางวัลสำหรับผู้เล่นครึ่งบน':'กำลังกลับสู่กระดานเดิม',480,63,25,'#eefbff','center');
- label(g,order?(s.phase==='round_order'?'ผู้ชนะเริ่มก่อน • อันดับเสมอคงลำดับเดิมระหว่างกัน':'A หรือ B • ทอย 2 ลูก • คะแนนมากเริ่มก่อน'):s.phase==='rewards'?'ซ้าย: เก็บเดิม   ขวา: เปลี่ยนใหม่   A: ยืนยัน • หมดเวลาเก็บเดิม':'อันดับร่วมคงเดิม • สุ่มเฉพาะผู้เสมอคร่อมโควตารางวัล '+Math.floor(s.players.length*.5)+' คน',480,96,12,'#adccdc','center',500);
+ label(g,order?(s.phase==='round_order'?'ผู้ชนะเริ่มก่อน • อันดับเสมอคงลำดับเดิมระหว่างกัน':'A หรือ B • ทอย 2 ลูก • คะแนนมากเริ่มก่อน'):s.phase==='rewards'?'ไอเทมรางวัลเข้ากระเป๋าอัตโนมัติ • สะสมได้หลายชิ้น • B เปิดกระเป๋าก่อนทอย':'อันดับร่วมคงเดิม • สุ่มเฉพาะผู้เสมอคร่อมโควตารางวัล '+Math.floor(s.players.length*.5)+' คน',480,96,12,'#adccdc','center',500);
  const ids=order?(s.phase!=='order'?s.order:s.players.map(p=>p.id)):s.results.map(r=>r.id);
  const cols=ids.length<=4?2:4,rows=Math.ceil(ids.length/cols),w=cols===2?392:211,h=Math.min(108,310/rows),left=(960-(cols*w+(cols-1)*12))/2;
  ids.forEach((id,i)=>{
@@ -262,12 +271,36 @@ function overlay(g,s){
    label(g,'#'+r.rank+(tied?' ร่วม':''),x+13,y+61,22,'#ffe2a1');label(g,r.label,x+90,y+51,11,'#cce5f3');
    if(r.reward&&s.phase!=='standings'){
     const pending=s.pendingItems[id],rolling=s.time-s.phaseAt<1.1;icon(g,rolling?window.BoardItems.ids[Math.floor(s.time*15)%window.BoardItems.ids.length]:r.reward,pending?x+w-25:x+103,y+78,15);
-    if(pending){label(g,(pending.replace?'':'เลือก • ')+IName(p.item),x+13,y+85,8,pending.replace?'#a8bfca':'#a6f1d8','left',700,w-49);label(g,(pending.replace?'เลือก • ':'')+IName(r.reward),x+13,y+98,8,pending.replace?'#ffe3a2':'#a8bfca','left',700,w-49);}
-    else label(g,rolling?'กำลังสุ่ม...':IName(r.reward),x+125,y+79,9,'#f9dda6');
+    if(pending)label(g,IName(r.reward),x+13,y+89,9,'#ffe3a2');
+    else label(g,rolling?'กำลังสุ่ม...':IName(r.reward)+' • เข้ากระเป๋า',x+125,y+79,9,'#f9dda6');
    }else label(g,r.reward?'ได้รับสิทธิ์ไอเทม':'ไม่ได้รับไอเทม',x+90,y+77,10,r.reward?'#8de4c4':'#8faebf');
   }
  });
  label(g,Math.max(0,Math.ceil(s.deadline-s.time))+' วินาที • ดำเนินต่ออัตโนมัติ',480,503,13,'#b8dce9','center',500);
+}
+// SVG-only backpack selector, drawn above the dice until the owner closes it.
+// Five visible slots keep every item selectable even with many rewards.
+function backpackOverlay(g,s){
+ if(s.phase!=='ready')return;
+ const p=window.BoardParty.current(s);if(!p?.bagOpen)return;
+ const bag=window.BoardItems.bag(p),total=bag.length+1;
+ const selected=Math.max(0,Math.min(total-1,p.bagIndex||0));
+ const windowStart=Math.max(0,Math.min(selected-2,total-5));
+ const visible=Math.min(5,total-windowStart),cardW=138,gap=10;
+ box(g,104,148,752,246,18,'#102d43f8','#86bfd2');
+ icon(g,'bag',159,181,25);
+ label(g,p.name+' • กระเป๋าไอเทม ('+bag.length+' ชิ้น)',193,180,18,p.color);
+ label(g,'A เลื่อนรายการ    B ใช้ไอเทมหรือปิดกระเป๋า',480,216,14,'#d3eff6','center');
+ for(let i=0;i<visible;i++){
+  const index=windowStart+i,item=bag[index],close=index===bag.length;
+  const x=(960-(visible*cardW+(visible-1)*gap))/2+i*(cardW+gap),y=241,chosen=index===selected;
+  box(g,x,y,cardW,103,12,chosen?'#2c6174':'#1d4355',chosen?'#ffe18b':'#426c7e');
+  if(close){label(g,'ปิด',x+cardW/2,y+45,22,chosen?'#fff4c2':'#d0e6ee','center');}
+  else {icon(g,item,x+cardW/2,y+32,28);
+    label(g,IName(item),x+cardW/2,y+75,10,chosen?'#ffe7ac':'#d6eef8','center',700,cardW-12);}
+  if(chosen)label(g,'เลือกอยู่',x+cardW/2,y+93,9,'#ffe2a0','center');
+ }
+ label(g,p.bagMessage||('ตำแหน่ง '+(selected+1)+' / '+total),480,367,12,p.bagMessage?'#ffb2a7':'#a9cfdd','center');
 }
 function turnDice(g,s){
  if(!['ready','dice'].includes(s.phase))return;
@@ -300,7 +333,7 @@ function draw(g,t,s){
  ground(g,s);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<55;i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
- hud(g,s);turnDice(g,s);overlay(g,s);
+ hud(g,s);turnDice(g,s);backpackOverlay(g,s);overlay(g,s);
 }
 window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice});
 })();
