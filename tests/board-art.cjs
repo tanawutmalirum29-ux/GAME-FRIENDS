@@ -154,7 +154,10 @@ for(let i=0;i<52;i++)P.update(intermission,.05);
 assert.equal(intermission.phase,'rewards');
 const firstReveal=frameLabels();
 assert.ok(firstReveal.includes('สรุปผลมินิเกมและรางวัล'));
-assert.ok(firstReveal.includes('กำลังสุ่ม...'),'prizes spin once on reward reveal');
+assert.ok(!firstReveal.includes('กำลังสุ่ม...'),'result rewards reveal the assigned item without spinning');
+for(const earned of intermission.results.filter(r=>r.reward))
+ assert.ok(firstReveal.includes('ได้รับ: '+ctx.window.BoardItems.names[earned.reward]),
+  'the exact assigned item is visible in both standings and reward phases');
 for(let i=0;i<92;i++)P.update(intermission,.05); // 4.5s reward hold (+0.8s)
 assert.equal(intermission.phase,'returning');
 const back=frameLabels();
