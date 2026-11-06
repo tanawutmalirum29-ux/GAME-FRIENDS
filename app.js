@@ -1815,7 +1815,7 @@ function renderPhoneBoard(){
  $('controllerState').textContent=info.help||'';
 }
 function finishBoard(){
-  round.phase='results';round.paused=false;resetInputs();
+  round.phase='results';round.paused=false;resetInputs();renderBotTestPad();
   $('pauseBtn').classList.add('hidden');
   const s=boardSession,ranked=[...s.players].sort((a,b)=>s.map.nodes[b.currentNodeId].progress-s.map.nodes[a.currentNodeId].progress);
   $('results').querySelector('.eyebrow').textContent='BOARD PARTY • FINISH';
@@ -2620,7 +2620,7 @@ function returnToLobby(){
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
   // Keep document-root fullscreen during lobby/round transitions.
-  setView('hostLobby');renderRoster();broadcastRoster();
+  setView('hostLobby');renderRoster();broadcastRoster();renderBotTestPad();
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
 $('boardOverviewBtn').addEventListener('click',()=>{
