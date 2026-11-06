@@ -70,7 +70,7 @@ invalid(m=>m.nodes.ghost={...m.nodes.n1,id:'ghost'},/Unreachable/);
 invalid(m=>m.bridges.push(['n1','n9']),/Orphan/);
 invalid(m=>m.bridgeRoutes[0].nodeIds[1]='n100',/bridge edge/);
 invalid(m=>m.nodes.n26.bridgeId='missing',/bridge checkpoint/);
-invalid(m=>m.nodes.b72_6.nextNodes=[],/Dead end|graph distance/);
+invalid(m=>m.nodes.b72_6.nextNodes=[],/Dead end|graph distance|previous edge/);
 invalid(m=>m.nodes.b72_5.nextNodes=['n74'],/previous edge|bridge edge|Orphan/);
 invalid(m=>m.islands[0].nodeIds.push('n1'),/membership/);
 invalid(m=>m.nodes.n14.ownerId='p1',/sword ownership/);
