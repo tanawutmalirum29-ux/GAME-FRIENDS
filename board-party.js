@@ -321,12 +321,13 @@ function forwardInput(s,p){
  const a=axes(s,p.id),id=M().choose(s.map,p.currentNodeId,a.x,a.y);
  return forwardForce(s,p,id)>0?id:null;
 }
-// Bottom HUD owns the full action list: [Roll, ...items].
-// B cycles and A confirms the highlighted action, never the reverse.
+// Slots remain fixed [Roll, Potion, UFO, Rocket, Bomber, Car, Shield].
+// B skips empty item types and repeated rewards do not duplicate slots.
 function cycleAction(s,p){
  if(s.phase!=='ready'||s.rolled)return false;
- const items=I().bag(p);
- p.actionIndex=((Number(p.actionIndex)||0)+1)%(items.length+1);
+ const slots=I().availableSlots(p);
+ const at=slots.indexOf(Number(p.actionIndex)||0);
+ p.actionIndex=slots[(at+1)%slots.length];
  p.bagMessage='';
  if(p.actionGraceRound!==s.roundNumber){
   p.actionGraceRound=s.roundNumber;
@@ -337,10 +338,10 @@ function cycleAction(s,p){
 }
 function confirmAction(s,p){
  if(s.phase!=='ready'||s.rolled)return false;
- const items=I().bag(p);
- const selected=Math.min(items.length,Math.max(0,Math.trunc(p.actionIndex||0)));
+ const selected=Math.min(I().ids.length,Math.max(0,Math.trunc(p.actionIndex||0)));
  if(selected===0)return roll(s);
- const kind=items[selected-1];
+ const kind=I().ids[selected-1];
+ if(!I().bag(p).includes(kind)){p.actionIndex=0;p.bagMessage='ไม่มีไอเทมนี้';return false;}
  if(!p.debugUnlimitedItems&&p.usedRound===s.roundNumber){p.bagMessage='ใช้ไอเทมในรอบนี้แล้ว';return false;}
  if(!I().begin(s,p,api,kind)){
   p.bagMessage=kind==='potion'?'HP เต็มแล้ว':kind==='shield'?'โล่ยังทำงานอยู่':'ยังใช้ไอเทมนี้ไม่ได้';
@@ -461,8 +462,8 @@ function controls(s,id){
  if(s.phase==='lucky_roulette')return{a:'',b:'',help:'LUCKY STAR • กำลังสุ่มไอเทมเข้ากระเป๋า'};
  if(!mine)return{a:'',b:'',help:'รอตาของคุณ • '+(current(s)?.name||'สรุปผล')};
  if(s.phase==='ready'){
-  const items=I().bag(p),selected=Math.min(items.length,Math.max(0,Math.trunc(p.actionIndex||0)));
-  const name=selected===0?'ทอยลูกเต๋า':I().names[items[selected-1]];
+  const selected=Math.min(I().ids.length,Math.max(0,Math.trunc(p.actionIndex||0)));
+  const name=selected===0?'ทอยลูกเต๋า':I().names[I().ids[selected-1]];
   return{a:selected===0?'ทอย':'ใช้ไอเทม',b:'เปลี่ยนตัวเลือก',
    help:'เลือก: '+name+(p.bagMessage?' • '+p.bagMessage:'')+' • B เปลี่ยน / A ยืนยัน'};
  }
