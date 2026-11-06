@@ -5,7 +5,7 @@ vm.runInContext(source,ctx,{filename:'board-map.js'});
 const M=ctx.window.BoardMap,plain=x=>JSON.parse(JSON.stringify(x));
 const normalize=map=>{const copy=plain(map);delete copy.seed;return JSON.stringify(copy);};
 const map=M.create(0),expected=normalize(map),nodes=Object.values(map.nodes);
-assert.equal(M.MAIN_LENGTH,152);assert.equal(M.MAP_VERSION,'winter-expedition-152-v3');
+assert.equal(M.MAIN_LENGTH,152);assert.equal(M.MAP_VERSION,'winter-expedition-152-v4');
 for(let seed=1;seed<=1000;seed++)assert.equal(normalize(M.create(seed)),expected,'Full definition, including scenery, must ignore seed '+seed);
 const fresh=vm.createContext({window:{},console});vm.runInContext(source,fresh);
 assert.equal(normalize(fresh.window.BoardMap.create(9987)),expected,'reload recreates identical geometry and tile effects');
@@ -38,6 +38,7 @@ assert.equal(M.validate(map),true);
 // Mutations must be diagnosed rather than silently accepted as old IDs on new geography.
 function invalid(edit,re){const bad=plain(map);edit(bad);assert.throws(()=>M.validate(bad),re);}
 invalid(m=>m.version='winter-fixed-120-v2',/Incompatible/);
+invalid(m=>m.version='winter-expedition-152-v3',/Incompatible/);
 invalid(m=>delete m.version,/Incompatible/);
 invalid(m=>m.nodes.n1.id='n0',/ID/);
 invalid(m=>m.nodes.n1.position.x=NaN,/position/);
@@ -51,9 +52,11 @@ invalid(m=>m.bridges.push(['n1','n9']),/Orphan/);
 invalid(m=>m.bridgeRoutes[0].nodeIds[1]='n100',/bridge edge/);
 invalid(m=>m.nodes.n26.bridgeId='missing',/bridge checkpoint/);
 invalid(m=>m.islands[0].nodeIds.push('n1'),/membership/);
-invalid(m=>m.nodes.n20.ownerId='p1',/swords/);
+invalid(m=>m.nodes.n14.ownerId='p1',/sword ownership/);
+invalid(m=>m.nodes.n20.territoryId=M.TERRITORY_ID,/Stale sword metadata/);
+invalid(m=>m.nodes.c76_11.type='movement',/Sword territory set/);
 // Session ownership cannot contaminate the literal or another game.
-map.nodes.n20.ownerId='p1';map.nodes.n21.ownerId='p1';map.territories[M.TERRITORY_ID].ownerId='p1';
+map.nodes.n14.ownerId='p1';map.nodes.n15.ownerId='p1';map.territories[M.TERRITORY_ID].ownerId='p1';
 map.islands[0].decorations[0].x=-10;
 assert.equal(normalize(M.create(0)),expected);
 console.log('FIXED MAP PASS: 1,000 full-data seed comparisons, fresh reload, 152 main edges / 212 nodes / 9 islands, 140–174 route steps, two main-route island returns, validator mutation checks');
