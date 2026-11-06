@@ -28,11 +28,15 @@ function update(s,dt,api){
    kind==='rocket'?true:kind==='ufo'?!!forwardTarget(s,p):
    kind==='car'?!!forwardTarget(s,p):
    s.players.some(q=>q.id!==p.id&&!q.shieldTurns));
-  const target=bag.find(canUse);
+  // A failed UFO/bomber aim expires back to ready. Without a forced-roll
+  // timeout a bot must not enter the same failed item indefinitely.
+  const botTurnKey=s.roundNumber+':'+s.turnIndex;
+  const target=p.botItemAttemptKey===botTurnKey?null:bag.find(canUse);
   const desiredIndex=target?window.BoardItems.ids.indexOf(target)+1:0;
   const currentIndex=Math.min(window.BoardItems.ids.length,Math.max(0,Math.trunc(p.actionIndex||0)));
-  // The bot uses exactly the same Roll-first list as human controllers:
-  // B advances one slot, A confirms, including when nothing is usable.
+  // The bot uses the same fixed [Roll, ...item types] cycle as a phone.
+  // Record an attempted item before A so unsuccessful casts fall back to Roll.
+  if(currentIndex===desiredIndex&&desiredIndex>0)p.botItemAttemptKey=botTurnKey;
   send(s,p,api,0,0,currentIndex===desiredIndex?'A':'B');
  }else if(s.phase==='move_ready'||(s.phase==='moving'&&s.move?.kind==='walk')){
   const m=s.move,from=window.BoardItems.position(s,p),
