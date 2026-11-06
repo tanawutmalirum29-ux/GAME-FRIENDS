@@ -423,6 +423,7 @@ test('Different Lucky Star landings award separately without duplication',()=>{
   const before=I.bag(p).length;p.currentNodeId=ids[i];
   s.roundNumber=i+1;s.turnIndex=0;s.order[0]=p.id;P.ready(s);
   s.move={kind:'rocket',playerId:p.id};
+  p.usedRound=s.roundNumber; // Simulated rocket was already committed.
   P.land(s);assert.equal(s.phase,'lucky_roulette');
   assert.equal(I.bag(p).length,before+1);
   until(s,()=>s.phase==='ready',6);
