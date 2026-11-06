@@ -1344,92 +1344,120 @@ assert.match(css,/#game #resultList\{[\s\S]*?height:100%/,
 assert.match(css,/grid-template-columns:repeat\(var\(--result-cols,4\),minmax\(0,1fr\)\)/,
   'responsive ranking grid supports four landscape columns');
 
-// Two selectable session modes: nominated one-off deck and an endless cycle
-// through all SIX games with 12–rank points (11 to 0), preserving scores.
+// Endless mode draws a new truly randomized game EVERY round (never a
+// predetermined six-game list). The 1.83-second sideways reel ends with the
+// PRESELECTED winning game precisely at the center marker.
+assert.match(html,/id="gameRoulette"/);
+assert.match(html,/id="rouletteTrack"/);
+assert.match(html,/id="rouletteHeading"/);
+assert.match(css,/#game #gameRoulette \.roulette-track\{/);
+assert.match(css,/#game #gameRoulette \.roulette-center-mark\{/);
+assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
 {
  const ui=setup();ui.click('offlineBtn');
  for(let i=0;i<10;i++)ui.click('addLocalBtn');
- const players=ui.scope.window.__ghostTest.getPlayers();
+ const players=ui.scope.window.__ghostTest.getPlayers(),api=ui.scope.window.__ghostTest;
  assert.equal(players.length,12);
  ui.sessionButtons[1].fire('click');
  assert.equal(ui.sessionButtons[1].dataset.sessionMode,'endless');
- assert.equal(ui.sessionButtons[1].classList.contains('active'),true);
  assert.equal(ui.elements.get('startBtn').textContent,'เริ่มเล่นทุกเกม ▶');
+ // A deterministic RNG probe proves next pick depends on a RANDOM draw.
+ assert.equal(api.pickRandomEndlessGame(null,()=>0),'ghost');
+ assert.equal(api.pickRandomEndlessGame('ghost',()=>0),'chickens',
+   'previous game is excluded, not replayed at next spin');
+ assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'pizza_time',
+   'new random value changes the game instead of following fixed order');
  ui.click('startBtn');
- const test=ui.scope.window.__ghostTest;
- const order=['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time'];
- assert.equal(test.getTournament().endless,true);
- assert.equal(test.getTournament().schedule.length,6);
- assert.equal(test.getRound().mode,order[0]);
- for(let i=1;i<5;i++){
-  test.advanceParty();
-  assert.equal(test.getTournament().index,i,'endless deck index advances in order');
-  assert.equal(test.getTournament().schedule[i],order[i],'all six distinct games are scheduled');
-  assert.equal(test.getRound().mode,order[i],
-    'game '+i+' should be '+order[i]+', actual '+test.getRound()?.mode);
- }
- const round=test.getRound(),tiles=round.colorSwitch.tiles;
+ assert.equal(api.getTournament().endless,true);
+ assert.equal(api.getTournament().schedule.length,6);
+ const first=api.getSelection();
+ assert.ok(first,'roulette appears immediately on start, before game engine');
+ assert.equal(api.getRound().phase,'roulette');
+ assert.equal(api.getRound().mode,first.mode);
+ assert.equal(ui.elements.get('rouletteTrack').children.length,12,
+   'the horizontal ribbon displays 12 candidate cards');
+ assert.equal(ui.elements.get('rouletteTrack').children[first.winningIndex].dataset.mode,first.mode,
+   'the selected game is physically centered when the animation stops');
+ assert.ok(!ui.elements.get('gameRoulette').classList.contains('hidden'));
+ assert.equal(ui.elements.get('rouletteHeading').textContent,'กำลังสุ่มเกม...');
+ api.updateGameSelection(1.45);
+ assert.equal(ui.elements.get('rouletteHeading').textContent,
+   ({ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',
+     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME'})[first.mode]);
+ assert.ok(first.winner.classList.contains('is-selected'));
+ assert.equal(first.track.style.transform,'translate3d(-'+first.final.toFixed(2)+'px,0,0)',
+   'winning card stops precisely in the middle');
+ assert.equal(api.getRound().phase,'roulette','game does not begin until reveal hold');
+ api.updateGameSelection(.4);
+ assert.equal(api.getSelection(),null);
+ assert.equal(api.getRound().phase,'countdown');
+ assert.equal(api.getRound().mode,first.mode,'actual engine matches the highlighted winner');
+ assert.ok(ui.elements.get('gameRoulette').classList.contains('hidden'));
+ const starting=first.mode;
+ // Endlessly selecting is independent from the fixed mode ordering; players
+ // do not lose points as game selection animation is shown.
+ api.startRound('color_switch');
+ const round=api.getRound(),tiles=round.colorSwitch.tiles;
  let cursor=0;
- for(let rank=0;rank<players.length;rank++){
-  for(let amount=0;amount<12-rank;amount++)tiles[cursor++].ownerId=players[rank].id;
- }
- test.endColorSwitchRound();
+ for(let rank=0;rank<players.length;rank++)
+   for(let amount=0;amount<12-rank;amount++)tiles[cursor++].ownerId=players[rank].id;
+ api.endColorSwitchRound();
  assert.equal(round.phase,'results');
- assert.equal(round.autoNextRemaining,7,'endless games retain next-game countdown');
- assert.equal(ui.elements.get('backBtn').textContent,'สรุปคะแนน','B opens cumulative scores in endless mode');
- assert.equal(ui.elements.get('backBtn').dataset.action,'B');
- assert.equal(ui.elements.get('resultList').children.length,12);
+ assert.equal(round.autoNextRemaining,7,'seven-second result vote timer is unchanged');
+ assert.equal(ui.elements.get('backBtn').textContent,'สรุปคะแนน');
  const ranked=[...players].sort((a,b)=>b.score-a.score);
  ranked.forEach((p,i)=>{
-  assert.equal(p.lastRoundPoints,11-i,'rank '+(i+1)+' earns '+(11-i)+' points');
-  assert.equal(p.total,11-i,'first scored round uses fixed 12-player scale');
+   assert.equal(p.lastRoundPoints,11-i,'rank '+(i+1)+' scores '+(11-i));
+   assert.equal(p.total,11-i,'cumulative score equals first-round points');
  });
- const oldScores=new Map(players.map(p=>[p.id,p.total]));
+ const totals=new Map(players.map(p=>[p.id,p.total]));
  ui.click('backBtn');
- assert.equal(round.phase,'summary','first B opens total scoreboard instead of lobby');
- assert.equal(round.autoNextRemaining,0,'scoreboard freezes the original timer');
- assert.equal(ui.elements.get('game').classList.contains('hidden'),false,'scoreboard remains on host display');
- assert.equal(ui.elements.get('results').querySelector('h2').textContent,'ตารางคะแนนรวม');
- assert.equal(ui.elements.get('backBtn').textContent,'กลับล็อบบี้','summary B returns to lobby');
- const resultRows=ui.elements.get('resultList').children.filter(x=>x.className==='result-player');
- assert.equal(resultRows.length,12,'all twelve cumulative scores visible at once');
- resultRows.forEach((row,i)=>{
-  assert.match(row.children[0].textContent,new RegExp('^อันดับ '+(i+1)+' '));
-  assert.equal(row.dataset.rank,String(i+1));
-  assert.ok(row.children[1].textContent.includes(String(11-i)+' คะแนนสะสม'));
+ assert.equal(round.phase,'summary','B opens the cumulative standings');
+ assert.equal(round.autoNextRemaining,0);
+ const summary=ui.elements.get('resultList').children.filter(x=>x.className==='result-player');
+ assert.equal(summary.length,12,'summary shows all twelve positions');
+ summary.forEach((row,i)=>{
+   assert.match(row.children[0].textContent,new RegExp('^อันดับ '+(i+1)+' '));
+   assert.equal(row.dataset.rank,String(i+1));
+   assert.ok(row.children[1].textContent.includes(String(11-i)+' คะแนนสะสม'));
  });
  ui.click('replayBtn');
- assert.equal(test.getRound().mode,'pizza_time','summary A goes to next game');
- for(const p of players)assert.equal(p.total,oldScores.get(p.id),'scores survive transitions');
- test.advanceParty();
- assert.equal(test.getRound().mode,'ghost','all six games loop to the first game');
- assert.equal(test.getTournament().roundsPlayed,6);
- test.advanceParty();
- assert.equal(test.getRound().mode,'chickens','continuous play continues past first cycle');
+ const after=api.getSelection();
+ assert.ok(after,'summary A spins before playing another game');
+ assert.notEqual(after.mode,starting,'new random game differs from previous random result');
+ assert.equal(api.getRound().phase,'roulette');
+ assert.equal(api.getTournament().roundsPlayed,1);
+ assert.ok(players.every(p=>p.total===totals.get(p.id)),'roulette never resets points');
+ finishReel(ui);
+ assert.equal(api.getRound().mode,after.mode,'the second selected game starts');
+ assert.equal(api.getRound().phase,'countdown');
+ api.advanceParty();
+ const third=api.getSelection();
+ assert.ok(third&&third.mode!==after.mode,'every new draw excludes immediately preceding game');
+ finishReel(ui);
+ assert.equal(api.getTournament().roundsPlayed,2);
 }
 {
- const ui=setup();ui.click('offlineBtn');
- ui.sessionButtons[1].fire('click');ui.click('startBtn');
- const test=ui.scope.window.__ghostTest;
- for(let i=0;i<4;i++)test.advanceParty();
- const ps=test.getPlayers(),s=test.getRound().colorSwitch;
+ const ui=setup();ui.click('offlineBtn');ui.sessionButtons[1].fire('click');
+ ui.click('startBtn');
+ const api=ui.scope.window.__ghostTest;
+ finishReel(ui);
+ api.startRound('color_switch');
+ const ps=api.getPlayers(),s=api.getRound().colorSwitch;
  for(const tile of s.tiles)tile.ownerId=null;
  s.tiles[0].ownerId=ps[0].id;s.tiles[1].ownerId=ps[1].id;
- test.endColorSwitchRound();
- assert.equal(ps[0].lastRoundPoints,11,'joint first place gets 11 points');
- assert.equal(ps[1].lastRoundPoints,11,'joint first place ties share 11 points');
+ api.endColorSwitchRound();
+ assert.equal(ps[0].lastRoundPoints,11,'joint first gets 11');
+ assert.equal(ps[1].lastRoundPoints,11,'joint first ties get 11');
  ui.click('backBtn');
  const rows=ui.elements.get('resultList').children.filter(x=>x.className==='result-player');
  assert.equal(rows.length,2);
- assert.ok(rows.every(r=>r.children[0].textContent.startsWith('อันดับ 1 ร่วม')),
-   'cumulative scoreboard preserves shared ranks');
+ assert.ok(rows.every(r=>r.children[0].textContent.startsWith('อันดับ 1 ร่วม')));
  ui.click('backBtn');
- assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false,
-   'summary B returns to lobby without disconnecting controllers');
- assert.equal(test.getTournament(),null,'exiting endless session clears accumulated competition');
+ assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false);
+ assert.equal(api.getTournament(),null,'leaving ends continuous session');
 }
-// B votes on mobile controllers navigate to summary, and then a second
-// unanimous B vote exits that page; A remains next game in both phases.
+// Joystick B voting: result -> cumulative summary -> lobby, exactly as before.
 {
  const ui=setup();ui.click('hostBtn');ui.instances[0].fire('open');
  const cons=[];
@@ -1438,27 +1466,24 @@ assert.match(css,/grid-template-columns:repeat\(var\(--result-cols,4\),minmax\(0
   conn.fire('data',{t:'join',name});cons.push(conn);
  }
  ui.sessionButtons[1].fire('click');
- assert.equal(ui.elements.get('startBtn').disabled,false,'endless mode ignores unselected game picks');
- ui.click('startBtn');
- const test=ui.scope.window.__ghostTest;
- for(let i=0;i<4;i++)test.advanceParty();
- const game=test.getRound();
- test.endColorSwitchRound();
+ assert.equal(ui.elements.get('startBtn').disabled,false);
+ ui.click('startBtn');finishReel(ui);
+ const api=ui.scope.window.__ghostTest;
+ api.startRound('color_switch');
+ const game=api.getRound();api.endColorSwitchRound();
  assert.equal(game.phase,'results');
- const firstPacket=cons[0].sent.filter(x=>x.t==='result-votes').at(-1);
- assert.equal(firstPacket.backLabel,'สรุปคะแนน');
+ const packet=cons[0].sent.filter(x=>x.t==='result-votes').at(-1);
+ assert.equal(packet.backLabel,'สรุปคะแนน');
  cons[0].fire('data',{t:'result-vote',choice:'lobby'});
- assert.equal(game.phase,'results','one B vote does not prematurely change screen');
+ assert.equal(game.phase,'results');
  cons[1].fire('data',{t:'result-vote',choice:'lobby'});
- assert.equal(game.phase,'summary','unanimous B shows score summary');
- const secondPacket=cons[0].sent.filter(x=>x.t==='result-votes').at(-1);
- assert.equal(secondPacket.backLabel,'กลับล็อบบี้');
- assert.equal(secondPacket.nextLabel,'เกมถัดไป');
+ assert.equal(game.phase,'summary');
+ assert.equal(cons[0].sent.filter(x=>x.t==='result-votes').at(-1).backLabel,'กลับล็อบบี้');
  cons[0].fire('data',{t:'result-vote',choice:'lobby'});
- assert.equal(game.phase,'summary','summary B also requires unanimous confirmation');
+ assert.equal(game.phase,'summary');
  cons[1].fire('data',{t:'result-vote',choice:'lobby'});
- assert.equal(test.getRound(),null,'all B on score summary returns to lobby');
- assert.ok(cons.every(c=>c.open),'return does not disconnect gamepads');
+ assert.equal(api.getRound(),null,'unanimous B exits summary');
+ assert.ok(cons.every(c=>c.open),'room gamepads stay connected');
 }
 
 // Host counts ONLY the real joypads, rejects duplicate votes, lets players
