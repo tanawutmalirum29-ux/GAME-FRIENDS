@@ -1397,7 +1397,7 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
    assert.ok(row.children[0].textContent.startsWith('อันดับ '+(i+1)+' • '),
      'each finishing position 1 through 12 is visible as a label');
    assert.equal(row.dataset.rank,String(i+1),'each row exposes its competition rank');
-   assert.ok(row.children[1].textContent.includes('ช่อง'),'each row shows territory score');
+   assert.ok(row.children[1].textContent.includes('คะแนน'),'each row shows total score');
  });
  assert.equal(rows[0].classList.contains('is-winner'),true,'first place is highlighted');
  assert.equal(ui.elements.get('results').classList.contains('hidden'),false);
