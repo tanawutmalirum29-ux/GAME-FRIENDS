@@ -30,7 +30,7 @@ test('1,000 seeds: connected DAG, reciprocal edges, all branches finish',()=>{
   const map=M.create(seed);assert.equal(M.validate(map),true);
   for(const n of Object.values(map.nodes)){
    assert.ok(n.position&&n.effects&&n.type);let at=n,steps=0;
-   while(at.id!==map.finishId){assert.ok(at.nextNodes.length);const next=map.nodes[at.nextNodes[seed%at.nextNodes.length]];assert.ok(next.progress>at.progress);at=next;assert.ok(++steps<60);}
+   while(at.id!==map.finishId){assert.ok(at.nextNodes.length);const next=map.nodes[at.nextNodes[seed%at.nextNodes.length]];assert.ok(next.progress>at.progress);at=next;assert.ok(++steps<map.length+10);}
   }
  }
 });
@@ -99,7 +99,7 @@ test('Backpack B opens, A cycles across items and Close, B uses only the selecte
  tap('B');assert.equal(p.bagOpen,true);assert.equal(s.phase,'ready');
  assert.equal(p.bagIndex,0);assert.equal(P.controls(s,p.id).b,'ใช้ไอเทม');
  tap('A');assert.equal(p.bagIndex,1);assert.equal(p.bag[p.bagIndex],'potion');
- tap('B');assert.equal(p.hp,2);assert.equal(p.usedRound,1);
+ tap('B');assert.equal(p.hp,31);assert.equal(p.usedRound,1);
  assert.deepEqual(plain(p.bag),['shield','rocket']);
  assert.equal(s.phase,'effect');until(s,()=>s.phase==='ready');
  tap('B');assert.equal(p.bagOpen,true);
@@ -114,7 +114,7 @@ test('Two independent dice: all 36 combinations move the exact sum, landing effe
   for(const n of Object.values(s.map.nodes))if(!['start','finish'].includes(n.type))n.type='danger';
   press(s,p,'A');assert.deepEqual(plain(s.moveDice),[a,b]);assert.equal(s.die,a+b);let last='n0',steps=0;
   until(s,()=>{if(p.currentNodeId!==last){assert.ok(s.map.nodes[last].nextNodes.includes(p.currentNodeId));steps++;last=p.currentNodeId;}if(s.move){assert.equal(s.move.auto,false);steer(s,p);}return s.phase==='effect';});
-  assert.equal(steps,a+b);assert.equal(p.hp,2);tick(s,.1);assert.equal(p.hp,2);
+  assert.equal(steps,a+b);assert.equal(p.hp,65);tick(s,.1);assert.equal(p.hp,65);
  }
 });
 test('Directional walking: release stops mid-edge, A/B cannot move, counts only completed edges',()=>{
@@ -287,15 +287,69 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
  assert.ok(crossed,'crosses the bridge normally');
  assert.equal(s.move.remaining,1,'one graph edge consumes exactly one die step');
 });
+
+test('54-step board extends the original map and has two consecutive neutral sword tiles',()=>{
+ for(const seed of [1,42,2026,999]){
+  const map=M.create(seed);
+  assert.equal(map.length,54);assert.equal(map.finishId,'n54');
+  assert.ok(map.height>=2000&&map.rows>=6,'snow map must extend far enough for six rows');
+  assert.deepEqual(plain(M.SWORD_TILES),['n20','n21']);
+  assert.equal(map.nodes.n20.type,'sword');assert.equal(map.nodes.n21.type,'sword');
+  assert.equal(map.nodes.n20.ownerId,null);assert.equal(map.nodes.n21.ownerId,null);
+  assert.ok(map.nodes.n20.nextNodes.includes('n21'),'sword tiles are adjacent on the main path');
+  assert.ok(map.nodes.n19.nextNodes.includes('n20'));
+  assert.equal(M.validate(map),true);
+ }
+});
+test('Sword territory claims are permanent, separately owned and deal 12 only to visitors',()=>{
+ const s=ready(3,2026),[a,b,c]=s.players;
+ const arrive=(p,from)=>{
+  s.order=[p.id,...s.players.filter(x=>x.id!==p.id).map(x=>x.id)];
+  s.turnIndex=0;P.startTurn(s);
+  p.currentNodeId=from;delete p.worldPosition;
+  P.beginMove(s,p,1,'rocket');
+  until(s,()=>s.phase==='effect',5);
+ };
+ arrive(a,'n19');
+ assert.equal(s.map.nodes.n20.ownerId,a.id);assert.equal(a.hp,100);
+ assert.equal(s.effect.kind,'swordClaim');
+ arrive(c,'n20');
+ assert.equal(s.map.nodes.n21.ownerId,c.id);assert.equal(c.hp,100);
+ assert.notEqual(s.map.nodes.n20.ownerId,s.map.nodes.n21.ownerId);
+ arrive(b,'n19');
+ assert.equal(b.hp,88,'unowned tile first visit has no damage, owned tile visit takes 12');
+ assert.equal(s.effect.kind,'swordHit');
+ assert.equal(s.hits.at(-1).amount,12);
+ assert.equal(s.map.nodes.n20.ownerId,a.id);
+ arrive(a,'n19');assert.equal(a.hp,100);assert.equal(s.effect.kind,'swordSafe');
+ b.shieldTurns=1;arrive(b,'n19');
+ assert.equal(b.hp,88,'shield blocks enemy sword tile damage');
+ assert.equal(s.effect.kind,'shield');
+ b.shieldTurns=0;b.hp=10;arrive(b,'n19');
+ assert.equal(b.currentNodeId,s.map.startId);assert.equal(b.hp,100,'defeated player respawns at full HP');
+ assert.equal(s.map.nodes.n20.ownerId,a.id,'captured territory persists after a visitor is defeated');
+ assert.equal(s.map.nodes.n21.ownerId,c.id,'second sword owner is independent');
+});
+test('Damage has distinct 100-HP values and healing clamps to max',()=>{
+ const s=ready(3,999),p=s.players[0];
+ assert.equal(p.hp,100);assert.equal(P.MAX_HP,100);
+ assert.deepEqual(plain(P.DAMAGE),{sword:12,car:18,bomber:26,skull:35,event:14});
+ P.damage(s,p,P.DAMAGE.car);assert.equal(p.hp,82);
+ P.damage(s,p,P.DAMAGE.bomber);assert.equal(p.hp,56);
+ P.damage(s,p,P.DAMAGE.skull);assert.equal(p.hp,21);
+ assert.deepEqual(plain(s.hits.map(x=>x.amount)),[18,26,35]);
+ p.hp=95;p.item='potion';I.begin(s,p,P,'potion');
+ assert.equal(p.hp,100,'potion cannot overfill beyond 100');
+});
 test('HP cap, death keeps item/order, clears movement and awards no free roll',()=>{
  const s=ready(),p=s.players[0];p.currentNodeId='n1';p.hp=1;p.item='ufo';s.map.nodes.n2.type='danger';const order=plain(s.order);
- P.beginMove(s,p,1,'rocket');until(s,()=>s.phase==='effect');assert.equal(p.hp,3);assert.equal(p.currentNodeId,'n0');assert.equal(p.item,'ufo');assert.equal(s.effect.next,'end');tick(s,2);assert.equal(P.current(s).id,'p2');assert.deepEqual(plain(s.order),order);
- const q=s.players[2];q.hp=1;q.item='car';q.currentNodeId='n9';P.damage(s,q,1);assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,3);assert.equal(q.item,'car');assert.equal(P.current(s).id,'p2');
+ P.beginMove(s,p,1,'rocket');until(s,()=>s.phase==='effect');assert.equal(p.hp,100);assert.equal(p.currentNodeId,'n0');assert.equal(p.item,'ufo');assert.equal(s.effect.next,'end');tick(s,2);assert.equal(P.current(s).id,'p2');assert.deepEqual(plain(s.order),order);
+ const q=s.players[2];q.hp=1;q.item='car';q.currentNodeId='n9';P.damage(s,q,1);assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,100);assert.equal(q.item,'car');assert.equal(P.current(s).id,'p2');
 });
 test('Potion requires HP below maximum; backpack can be closed without using an item',()=>{
  const s=ready(),p=s.players[0];p.item='potion';
  press(s,p,'B');assert.equal(p.item,'potion');assert.equal(s.phase,'ready');
- p.hp=1;press(s,p,'B');assert.equal(p.hp,2);assert.equal(p.item,null);
+ p.hp=1;press(s,p,'B');assert.equal(p.hp,31);assert.equal(p.item,null);
  until(s,()=>s.phase==='ready');p.item='rocket';
  press(s,p,'B');assert.equal(p.item,'rocket');assert.equal(p.bagOpen,true);
  press(s,p,'A');assert.equal(p.bagIndex,1,'Close is included in the item selection');
@@ -330,25 +384,25 @@ test('100 protected attacks each: UFO cannot swap, bomber/car hit unprotected ne
    Object.assign(s.skill,I.position(s,r));press(s,p,'A');assert.equal(p.currentNodeId,'n1');assert.equal(r.currentNodeId,'n0');
   }else{
    if(kind==='bomber'){Object.assign(s.skill,I.position(s,q));press(s,p,'A');}else until(s,()=>s.phase==='effect');
-   assert.equal(r.hp,2);assert.equal(p.item,null);assert.equal(s.effect.next,'end');
+   assert.equal(r.hp,kind==='bomber'?74:82);assert.equal(p.item,null);assert.equal(s.effect.next,'end');
   }
   assert.equal(q.hp,1);assert.equal(q.currentNodeId,'n1');assert.equal(q.shieldTurns,1);
  }
 });
 test('Shield lasts through intermission/reordering until its owner completes their next turn',()=>{
  const s=ready(),[p,q,r]=s.players;p.item='shield';press(s,p,'B');until(s,()=>s.phase==='ready');
- P.endTurn(s);assert.equal(p.shieldTurns,1);assert.equal(P.current(s),q);P.damage(s,p,1);assert.equal(p.hp,3);
+ P.endTurn(s);assert.equal(p.shieldTurns,1);assert.equal(P.current(s),q);P.damage(s,p,1);assert.equal(p.hp,100);
  P.endTurn(s);assert.equal(p.shieldTurns,1);assert.equal(P.current(s),r);P.endTurn(s);assert.equal(p.shieldTurns,1);
  P.minigameStarted(s,'chickens');P.minigameEnded(s,[{id:r.id,rank:1},{id:p.id,rank:2},{id:q.id,rank:3}]);until(s,()=>s.phase==='ready');
  assert.equal(P.current(s),r);assert.equal(p.shieldTurns,1);P.endTurn(s);assert.equal(P.current(s),p);assert.equal(p.shieldTurns,1);
- P.damage(s,p,1);assert.equal(p.hp,3);P.endTurn(s);assert.equal(p.shieldTurns,0);P.damage(s,p,1);assert.equal(p.hp,2);
+ P.damage(s,p,1);assert.equal(p.hp,100);P.endTurn(s);assert.equal(p.shieldTurns,0);P.damage(s,p,1);assert.equal(p.hp,99);
 });
 test('250 UFO cases: real world hitboxes, stacked players, atomic swap, no landing effects',()=>{
  for(let seed=0;seed<250;seed++){
   const s=ready(12,seed),p=s.players[0],q=s.players[1];p.item='ufo';for(const q of s.players.slice(1))q.currentNodeId='n10';
   press(s,p,'B');assert.equal(s.phase,'aim');s.skill.x=9999;press(s,p,'A');assert.equal(p.item,'ufo');assert.equal(p.currentNodeId,'n0');
   const pos=I.position(s,q);Object.assign(s.skill,pos);assert.equal(I.target(s,s.skill,p).id,q.id);press(s,p,'A');
-  assert.equal(p.currentNodeId,'n10');assert.equal(q.currentNodeId,'n0');assert.equal(p.hp,3);assert.equal(q.hp,3);assert.equal(p.item,null);assert.equal(s.effect.next,'end');assert.equal(new Set(s.players.map(p=>p.id)).size,12);press(s,p,'A');assert.equal(s.phase,'effect');
+  assert.equal(p.currentNodeId,'n10');assert.equal(q.currentNodeId,'n0');assert.equal(p.hp,100);assert.equal(q.hp,100);assert.equal(p.item,null);assert.equal(s.effect.next,'end');assert.equal(new Set(s.players.map(p=>p.id)).size,12);press(s,p,'A');assert.equal(s.phase,'effect');
  }
  const s=ready(),p=s.players[0],q=s.players[1];p.item='ufo';q.currentNodeId=s.map.finishId;press(s,p,'B');Object.assign(s.skill,I.position(s,q));press(s,p,'A');assert.equal(p.item,'ufo');tick(s,8.1);assert.equal(p.item,'ufo');assert.equal(s.phase,'ready');assert.equal(p.usedRound,0);
 });
@@ -368,7 +422,7 @@ test('250 Bomber attacks: 45-degree rotations, frozen preview, one hit per volle
   const s=ready(12,seed),p=s.players[0];p.item='bomber';for(const q of s.players.slice(1))q.currentNodeId='n10';
   press(s,p,'B');Object.assign(s.skill,s.map.nodes.n10.position);const before=s.skill.angle;press(s,p,'B');assert.equal(s.skill.angle,before+Math.PI/4);assert.equal(p.item,'bomber');
   const preview=plain(I.bombs(s.skill)),expected=I.victims(s,preview,p).map(p=>p.id);press(s,p,'A');assert.deepEqual(plain(s.effect.points),preview);
-  for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?2:3);assert.equal(p.hp,3);assert.equal(s.effect.next,'end');tick(s,.5);for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?2:3);
+  for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?74:100);assert.equal(p.hp,100);assert.equal(s.effect.next,'end');tick(s,.5);for(const q of s.players.slice(1))assert.equal(q.hp,expected.includes(q.id)?74:100);
  }
 });
 test('250 RC cars: backward input cannot reverse, no repeated node, swept hit detection',()=>{
@@ -378,7 +432,7 @@ test('250 RC cars: backward input cannot reverse, no repeated node, swept hit de
   assert.equal(new Set(visited).size,visited.length);for(let i=1;i<visited.length;i++)assert.ok(s.map.nodes[visited[i-1]].nextNodes.includes(visited[i]));assert.equal(s.effect.next,'end');assert.equal(p.item,null);
  }
  assert.equal(I.segmentDistance({x:50,y:0},{x:0,y:0},{x:100,y:0}),0);
- const s=ready(),p=s.players[0],q=s.players[1];p.item='car';q.currentNodeId='n1';q.hp=1;s.players[2].currentNodeId='n20';press(s,p,'B');until(s,()=>s.phase==='effect');assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,3);
+ const s=ready(),p=s.players[0],q=s.players[1];p.item='car';q.currentNodeId='n1';q.hp=1;s.players[2].currentNodeId='n20';press(s,p,'B');until(s,()=>s.phase==='effect');assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,100);
 });
 test('Actual engine outcomes use competition ranking and survival semantics',()=>{
  const list=roster(4).map((p,i)=>({...p,active:true,score:[15,12,12,7][i]}));
@@ -478,7 +532,7 @@ test('Full-session stress: 1–12 bots, 20 seeds each, minigame rewards and fini
     assert.deepEqual(s.players.map(p=>p.hp),hp);assert.deepEqual(s.players.map(p=>p.currentNodeId),positions);
    }
    assert.equal(s.map,map);if(order)assert.deepEqual(plain(s.order),order);
-   for(const p of s.players)assert.ok(p.hp>=1&&p.hp<=3&&s.map.nodes[p.currentNodeId]);
+   for(const p of s.players)assert.ok(p.hp>=1&&p.hp<=100&&s.map.nodes[p.currentNodeId]);
   }
   assert.equal(s.phase,'finished','session n='+n+' seed='+seed);assert.equal(s.winnerIds.length,1);assert.equal(s.players.find(p=>p.id===s.winnerIds[0]).currentNodeId,s.map.finishId);games++;
  }
