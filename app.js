@@ -518,7 +518,8 @@ function sendPlayerInventory(conn){
     const cs=p.cs||{};
     send(conn,{t:'color-status',mode:round.mode,phase:networkPhase(),score:p.score||0,
       stun:cs.stunRemaining||0,cooldownA:cs.punchCooldown||0,
-      cooldownB:cs.blastCooldown||0,boost:!!cs.powerBoostReady});return;
+      cooldownB:cs.blastCooldown||0,
+      bankedScore:cs.bankedScore||0,territoryScore:cs.territoryScore||0});return;
   }
   if(round.mode==='shockwave'){
      send(conn,{t:'shockwave-status',mode:round.mode,phase:networkPhase(),eliminated:!p.shockAlive,wave:round.shockwave?.wave||0});return;
@@ -1191,11 +1192,11 @@ function joinRoom(recovery=false){
              button.classList.toggle('cooldown-active',seconds>.03);
              button.style.setProperty('--cooldown-sweep',Math.round(seconds/max*360)+'deg');
            }
-           $('buttonBLabel').textContent=data.boost?'ระเบิดสี 4×4':'ระเบิดสี';
-           $('buttonB').classList.toggle('color-boost-ready',!!data.boost);
-           $('buttonB').title=cb>.03?'รอ '+cb.toFixed(1)+' วิ':data.boost?'พร้อมระเบิด 4×4':'พร้อมระเบิด 3×3';
-           $('controllerState').textContent=data.stun>0?'สตั้น '+Number(data.stun).toFixed(1)+' วิ':
-             'พื้นที่ '+data.score+' ช่อง'+(data.boost?' • มีพลัง 4×4':'');
+           $('buttonBLabel').textContent='ระเบิดสี';
+           $('buttonB').classList.remove('color-boost-ready');
+           $('buttonB').title=cb>.03?'รอ '+cb.toFixed(1)+' วิ':'พร้อมระเบิด 3×3';
+           $('controllerState').textContent='คะแนน '+(data.score||0)+
+             (data.stun>0?' • สตั้น '+Number(data.stun).toFixed(1)+' วิ':'');
          }
        }else if(data.t==='chicken-status'){
         if(controllerReady&&controllerPlayerActive&&controllerGameMode==='chickens'&&
@@ -1309,7 +1310,7 @@ function showControllerMode(mode){
     'ลากจากที่ว่างเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':
     chickens?'วิ่งชนไก่เพื่อจับ • เอาหัวไก่จุ่มในคอก 0.15 วิ • A ตีให้ไก่หล่น':
     fruit?'จำผลไม้แล้ววิ่งไปยังช่องที่ถูกต้อง • ดันกันได้ • A ต่อยให้สตั้น':
-    colorSwitch?'วิ่งทาสีชิงพื้นที่ • A ต่อยสตั้น • B ระเบิดสี 3×3 / 4×4':
+    colorSwitch?'วิ่งทาสีสะสมคะแนน • A ต่อยสตั้น • B ระเบิดสี 3×3 • เก็บกล่องทองสะสมคะแนน':
      shockwave?'แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง':
      mode==='knight_match'?'ควบม้าใช้ทวนแทงลูกโป่งสีตัวเอง +1 สีอื่น -1 • A แทง / B ไม่ใช้':
       mode==='pizza_time'?'รับวัตถุดิบทีละชิ้น กลับไปส่งเชฟ • เดินรับชนิดใหม่เพื่อเปลี่ยนของ • A/B ไม่ใช้':
@@ -1701,7 +1702,7 @@ function startRound(forcedMode=null){
     return;
   }
   $('results').querySelector('.eyebrow').textContent=MODES[mode];
-  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ครอบครองพื้นที่มากที่สุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':'จับไก่ให้ได้มากที่สุด!';
+  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ทำคะแนนสูงสุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':'จับไก่ให้ได้มากที่สุด!';
   // Countdown and player count now live in the solid map-corner HUD.
   $('gameBanner').textContent='';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
@@ -2032,7 +2033,7 @@ function endColorSwitchRound(){
     const tied=ranked.filter(q=>(byId.get(q.id)?.rank||1)===rank).length>1;
     name.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
    const score=document.createElement('span');
-   score.textContent=p.score+' ช่อง'+totalScoreNote(p);
+   score.textContent=p.score+' คะแนน'+totalScoreNote(p);
    row.append(name,score);list.append(row);
  });
  if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
@@ -2284,9 +2285,9 @@ function renderLeaderboard(){
        const box=document.createElement('div');box.className='leader-chip color-switch-leader';
        const color=document.createElement('span');color.className='circle';color.style.background=p.color;
        const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
-       const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' ช่อง';
+       const score=document.createElement('small');score.className='leader-role';score.textContent='คะแนน '+p.score;
        const status=document.createElement('span');status.className='leader-item-slot';
-       status.textContent=p.cs?.powerBoostReady?'บูสต์':p.cs?.stunRemaining>0?'สตั้น':'';
+       status.textContent=p.cs?.stunRemaining>0?'สตั้น':'';
        box.append(color,name,score,status);root.append(box);
      });return;
    }
