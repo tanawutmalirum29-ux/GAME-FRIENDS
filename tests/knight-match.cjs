@@ -200,7 +200,10 @@ test('Swept contact selects first balloon and consumes exactly one hit across mu
   balls[i].x=p.x+20+i*37;balls[i].y=p.y;
  }
  K.startAttack(s,p);const score=p.score;
- K.strike(s,p,ps,{x:p.x-20,y:p.y},{x:p.x+200,y:p.y});
+ const segA={x:p.x-20,y:p.y},segB={x:p.x+200,y:p.y};
+ console.log('DEBUG sweep',balls.map(v=>({id:v.id,r:v.radius,x:v.x,t:K.sweptCircleEntry(v,segA,segB,v.radius+K.scales.lanceTipRadius)})),p.km.balloonHitConsumed,p.km.attackId);
+ K.strike(s,p,ps,segA,segB);
+ console.log('DEBUG popped',balls.map(v=>v.state),s.popped,p.km.balloonHitConsumed);
  assert.equal(balls[0].state,'popped');
  assert.equal(s.balloons.length,4);
  assert.equal(Math.abs(p.score-score),1);
