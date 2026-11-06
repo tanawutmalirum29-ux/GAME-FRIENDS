@@ -166,14 +166,15 @@ function startAttack(s,p){
 }
 function strike(s,p,ps,prevTip,nextTip){
  const k=p.km;
- for(const b of [...s.balloons]){
-  const key='balloon:'+b.id;
-  if(b.state!=='active'||k.hitIds.has(key))continue;
-  if(segmentDistance(b,prevTip,nextTip)<=b.radius+CONFIG.lanceTipRadius){
-   // Score only at an actual lance-tip sweep. Horse contact is irrelevant.
-   popBalloon(s,b,p);
-  }
- }
+ // Resolve all collisions in actual swept-tip travel order. If the spear
+ // crosses a Rainbow Balloon before a normal balloon in the SAME frame,
+ // the latter must use the newly active effective color, not array order.
+ const vx=nextTip.x-prevTip.x,vy=nextTip.y-prevTip.y,len2=vx*vx+vy*vy||1;
+ const candidates=s.balloons.filter(b=>b.state==='active'&&!k.hitIds.has('balloon:'+b.id)&&
+   segmentDistance(b,prevTip,nextTip)<=b.radius+CONFIG.lanceTipRadius)
+   .map(b=>({b,t:clamp(((b.x-prevTip.x)*vx+(b.y-prevTip.y)*vy)/len2,0,1)}))
+   .sort((a,b)=>a.t-b.t||a.b.id-b.b.id);
+ for(const hit of candidates)popBalloon(s,hit.b,p);
  for(const target of alive(ps)){
   if(target.id===p.id||target.km.stun>0||target.km.immune>0)continue;
   const key='player:'+target.id;if(k.hitIds.has(key))continue;
