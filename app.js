@@ -2570,6 +2570,52 @@ function endRound(){
   renderLeaderboard();
 }
 
+function endWitchingSnakeRound(){
+ const state=round.witchingSnake;
+ round.phase='results';round.paused=false;resetInputs();broadcastRoster();
+ $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
+ const ranked=players.filter(p=>p.active).slice().sort((a,b)=>
+  Number(!!b.ws?.alive)-Number(!!a.ws?.alive)||
+  (b.ws?.eliminatedTick??0)-(a.ws?.eliminatedTick??0)||
+  String(a.id).localeCompare(String(b.id)));
+ const value=p=>p.ws?.alive?Infinity:(p.ws?.eliminatedTick??0);
+ const rankOf=p=>1+ranked.filter(q=>value(q)>value(p)).length;
+ awardRoundPoints(ranked,rankOf);
+ round.autoNextRemaining=canAutoAdvanceResults()?7:0;
+ const top=ranked.filter(p=>rankOf(p)===1);
+ $('results').querySelector('h2').textContent=ranked.length===1?
+  (top[0]?.ws?.alive?'เอาตัวรอดครบ 60 วินาที!':'เอาตัวรอดไม่สำเร็จ'):
+  top.length>1?'เสมอ! อันดับ 1 ร่วม':
+  top[0]?.ws?.alive?'ผู้ชนะ: '+top[0].name:'อยู่รอดนานที่สุด: '+top[0]?.name;
+ const list=$('resultList');list.replaceChildren();
+ const show=(people,useTotal=false)=>{
+  const get=q=>useTotal?q.total:value(q);
+  for(const p of people){
+   const rank=1+people.filter(q=>get(q)>get(p)).length;
+   const tied=people.filter(q=>get(q)===get(p)).length>1;
+   const row=document.createElement('div');row.className='result-player';
+   const label=document.createElement('div');label.style.color=p.color;
+   label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
+   const detail=document.createElement('span');
+   detail.textContent=useTotal?p.total+' คะแนนรวม':
+    (p.ws?.alive?'รอดชีวิต':'ตกรอบ')+' • '+(p.ws?.eliminatedAt??state.clock).toFixed(1)+
+    ' วิ • ดาว '+(p.ws?.stars||0)+totalScoreNote(p);
+   row.append(label,detail);list.append(row);
+  }
+ };
+ show(ranked);
+ if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
+  list.replaceChildren();const overall=ranked.slice().sort((a,b)=>b.total-a.total);
+  show(overall,true);
+  const first=overall.filter(p=>p.total===overall[0].total);
+  const header=document.createElement('div');header.className='tournament-header';
+  header.textContent=first.length===1?'ผู้ชนะรวม: '+first[0].name:
+   'คะแนนรวมเสมอ: '+first.map(p=>p.name).join(', ');
+  list.prepend(header);
+ }
+ $('results').classList.remove('hidden');$('gameBanner').textContent='';
+ beginResultVoting();renderLeaderboard();
+}
 function endShockwaveRound(){
  const s=round.shockwave;round.phase='results';round.paused=false;resetInputs();broadcastRoster();
  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
@@ -2944,7 +2990,22 @@ function renderLeaderboard(){
   root.style.setProperty('--leader-cols-compact',String(Math.min(6,count)));
   root.style.setProperty('--leader-rows','1');
   if(!round||round.mode==='board')return;
-  if(round.mode==='snow_brawl'){
+    if(round.mode==='witching_snake'){
+   const ordered=[...active].sort((a,b)=>Number(!!b.ws?.alive)-Number(!!a.ws?.alive)||
+    (b.ws?.eliminatedTick??0)-(a.ws?.eliminatedTick??0));
+   for(const p of ordered){
+    const box=document.createElement('div');box.className='leader-chip';
+    if(!p.ws?.alive)box.classList.add('shockwave-eliminated');
+    const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
+    const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+    const role=document.createElement('small');role.className='leader-role';
+    role.textContent=p.ws?.alive?'รอด • ดาว '+p.ws.stars:'ตกรอบ';
+    const item=document.createElement('span');item.className='leader-item-slot';
+    box.append(dot,name,role,item);root.append(box);
+   }
+   return;
+  }
+if(round.mode==='snow_brawl'){
      const ordered=[...active].sort((a,b)=>Number(b.snow?.alive)-Number(a.snow?.alive)||
        (b.snow?.eliminatedTick||0)-(a.snow?.eliminatedTick||0));
      for(const p of ordered){
