@@ -299,6 +299,10 @@ function contactTime(a,b,r){
  return t>=0&&t<=1?t:Infinity;
 }
 function hitBallPlayer(s,ball,p){
+ // A pushed snowball remains attached after crushing a player. While the
+ // target has crush immunity, ignore repeated held-ball contact entirely:
+ // otherwise the same surviving snowball would apply knockback every tick.
+ if(ball.state!=='ROLLING'&&p.snow.flatImmunity>0)return;
  const dx=p.x-ball.x,dy=p.y-ball.y;
  const n=normal(dx,dy,ball.vx,ball.vy);
  const rel=(ball.vx-p.vx-p.kvx)*n.x+(ball.vy-p.vy-p.kvy)*n.y;
@@ -314,8 +318,10 @@ function hitBallPlayer(s,ball,p){
  if(ball.state==='ROLLING')destroy(s,ball);
  else if(ball.ownerId!==p.id&&p.snow.flatImmunity<=0){
   p.snow.flat=C.flattenTime;p.snow.flatImmunity=C.flattenTime+C.flattenImmunity;
+  // The flattened victim drops their held snowball even when hit from a
+  // different side. The attacking held snowball DOES NOT break on a person;
+  // only actual snowball-to-snowball contact destroys it.
   const own=ballFor(s,p);if(own)destroy(s,own);
-  destroy(s,ball);
   burst(s,p.x,p.y,29,'crush',.56);
  }
 }
