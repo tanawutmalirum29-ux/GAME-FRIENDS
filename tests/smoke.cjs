@@ -1768,7 +1768,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  assert.equal(players.length,12);
  ui.sessionButtons[1].fire('click');
  assert.equal(ui.sessionButtons[1].dataset.sessionMode,'endless');
- assert.equal(ui.elements.get('startBtn').textContent,'เริ่มเล่นทุกเกม ▶');
+ assert.match(ui.elements.get('startBtn').textContent,/^เริ่มเล่นทุกเกม ▶\s+\d+\/\d+$/);
  // A deterministic RNG probe proves next pick depends on a RANDOM draw.
  assert.equal(api.pickRandomEndlessGame(null,()=>0),'ghost');
  assert.equal(api.pickRandomEndlessGame('ghost',()=>0),'chickens',
