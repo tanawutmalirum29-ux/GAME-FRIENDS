@@ -169,6 +169,7 @@ assert.match(html,/data-pick="snow_brawl"/);
 assert.match(html,/data-pick="witching_snake"/);
 assert.match(html,/src="\.\/witching-snake\.js"/);
 assert.match(html,/data-pick="lawn_mower"/);
+assert.doesNotMatch(html,/class="feature-tags"/,'homepage no longer renders redundant feature badges');
 assert.match(html,/src="\.\/lawn-mower\.js"/);
 assert.match(html,/data-pick="boulder_bash"/);
 assert.match(html,/data-pick="knight_match"/);
