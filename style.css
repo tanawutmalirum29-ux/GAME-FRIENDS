@@ -4821,3 +4821,62 @@ body.host-playing #game .game-fullscreen-restore{
 #game .ghost-map-inspector strong{display:block;color:#8ef2d0;font-weight:900}
 #game .ghost-map-inspector span{display:block;font-size:.88em;color:#b7e1ed;margin-top:3px}
 #game .ghost-map-inspector.hidden{display:none!important}
+
+
+/* Clean lobby footer: two functional groups only. The host controls stay at right. */
+.gf-visually-hidden{
+  position:absolute!important;width:1px!important;height:1px!important;padding:0!important;
+  margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;border:0!important;
+}
+#hostLobby .lobby-controls{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) max-content!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:clamp(8px,1.1vw,17px)!important;
+  max-height:none!important;
+  overflow:hidden!important;
+}
+#hostLobby .lobby-controls>.lobby-session-control{
+  grid-column:1!important;grid-row:1!important;
+  display:flex!important;flex-direction:row!important;align-items:center;
+  justify-content:flex-start;min-width:0;width:100%;
+}
+#hostLobby .lobby-controls .lobby-session-control #sessionMode{
+  min-width:0;max-width:100%;margin:0;
+}
+#hostLobby .lobby-controls>input[hidden]{display:none!important}
+#hostLobby .lobby-controls>.lobby-room-actions{
+  grid-column:2!important;grid-row:1!important;
+  display:flex!important;flex-direction:row!important;align-items:center!important;
+  justify-content:flex-end!important;justify-self:end!important;
+  align-self:center!important;gap:clamp(5px,.65vw,10px)!important;
+  width:auto!important;max-width:100%;min-width:0;
+}
+#hostLobby .lobby-controls>.lobby-room-actions>.btn{
+  flex:0 0 auto;max-width:none;min-width:0;
+  white-space:nowrap!important;
+  padding-inline:clamp(10px,1.1vw,18px);
+}
+@media (orientation:portrait) and (max-width:720px){
+  #hostLobby .lobby-controls{
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:auto auto!important;
+    overflow-y:auto!important;
+    max-height:35dvh!important;
+  }
+  #hostLobby .lobby-controls>.lobby-session-control{
+    grid-column:1!important;grid-row:1!important;
+  }
+  #hostLobby .lobby-controls>.lobby-room-actions{
+    grid-column:1!important;grid-row:2!important;
+  }
+}
+@media (orientation:landscape) and (max-height:520px){
+  #hostLobby .lobby-controls{gap:5px!important;padding:4px 6px!important}
+  #hostLobby .lobby-controls>.lobby-room-actions>.btn{
+    font-size:clamp(9px,1vw,11px)!important;
+    min-height:30px!important;height:auto!important;padding:5px 7px!important;
+  }
+}
