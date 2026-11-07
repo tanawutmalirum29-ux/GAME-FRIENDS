@@ -211,7 +211,7 @@ function resolveMowerCollisions(s,people){
     if(remaining>.0001)move(b,remaining);
    }
   }
-  if(worst<.012)break;
+  if(worst<.00005)break;
  }
  return contacts;
 }
