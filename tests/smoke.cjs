@@ -143,7 +143,7 @@ assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-touch-i
 
 // Game catalog retains Ghost Attack and now adds CHICKENS as game two.
 assert.match(html,/data-pick="ghost"/);
-assert.equal([...html.matchAll(/data-pick="/g)].length,10);
+assert.equal([...html.matchAll(/data-pick="/g)].length,11);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
 assert.match(html,/src=".\/ghost-attack\.js"/);
 assert.match(html,/src=".\/chickens\.js"/);
@@ -162,6 +162,8 @@ assert.match(html,/src="\.\/knight-match\.js"/);
 assert.match(html,/src="\.\/boulder-bash\.js"/);
 assert.match(html,/src="\.\/snow-brawl\.js"/);
 assert.match(html,/data-pick="snow_brawl"/);
+assert.match(html,/data-pick="witching_snake"/);
+assert.match(html,/src="\.\/witching-snake\.js"/);
 assert.match(html,/data-pick="boulder_bash"/);
 assert.match(html,/data-pick="knight_match"/);
 assert.match(html,/src=".\/color-switch\.js"/);
