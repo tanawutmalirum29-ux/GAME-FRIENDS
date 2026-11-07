@@ -57,7 +57,7 @@ function setup(round,players){
   p.vx=0;p.vy=0;p.kvx=0;p.kvy=0;p.dir={x:-Math.cos(angle)||1,y:-Math.sin(angle)};
   p.face=p.dir.x<0?-1:1;p.active=true;p.score=0;
   p.snow={alive:true,ballId:null,phase:'COLLECTING',windup:0,
-   flat:0,flatImmunity:0,prevA:false,eliminatedTick:null,eliminatedAt:null,
+   flat:0,flatImmunity:0,prevA:false,rebuildCooldown:0,eliminatedTick:null,eliminatedAt:null,
    faceX:p.dir.x,faceY:p.dir.y,botOrbit:i%2?1:-1,botReplan:0,
    botTarget:null,botAim:false};
  });
@@ -176,12 +176,15 @@ function release(s,p,ball){
  ball.ttl=C.rollMaxAge;ball.age=0;
  // The ball has its own independent trajectory and cannot be controlled.
  p.snow.ballId=null;p.snow.phase='COLLECTING';p.snow.windup=0;
+ // Prevent a newly forming ball from immediately hitting the departing shot.
+ p.snow.rebuildCooldown=.28;
  burst(s,ball.x,ball.y,ball.r*.45,'powder',.24);
 }
 function playerStep(s,p,dt){
  const b=p.snow;if(!b.alive)return;
  b.flat=Math.max(0,b.flat-dt);
  b.flatImmunity=Math.max(0,b.flatImmunity-dt);
+ b.rebuildCooldown=Math.max(0,b.rebuildCooldown-dt);
  const input=p.isBot?botInput(s,p):inputVector(p.input);
  const pressingA=p.isBot?!!input.action:!!p.input?.action;
  const actionEdge=pressingA&&!b.prevA;
@@ -221,7 +224,7 @@ function playerStep(s,p,dt){
   const along=(p.x-oldX)*input.x+(p.y-oldY)*input.y;
   // Growth counts *actual voluntary travel*, not knockback or idle input.
   if(along>0&&moved>.015){
-   if(!owned)owned=makeBall(s,p);
+   if(!owned&&b.rebuildCooldown<=0)owned=makeBall(s,p);
    if(owned){
     owned.distanceRolled+=Math.min(moved,Math.max(0,along));
     owned.r=growthRadius(owned.distanceRolled);
