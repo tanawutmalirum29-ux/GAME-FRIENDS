@@ -185,6 +185,24 @@ assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function d
 assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
+
+const coverStart=source.indexOf('const MODE_COVER_SVG={');
+const coverEnd=source.indexOf('\n};\nfunction gameCover',coverStart);
+assert.ok(coverStart>=0&&coverEnd>coverStart,'cover registry stays self-contained');
+const coverMarkup=source.slice(coverStart,coverEnd);
+assert.equal([...coverMarkup.matchAll(/<svg\b/g)].length,12,'all 12 minigames still have an SVG cover');
+assert.doesNotMatch(coverMarkup,/<(?:text|tspan)\b/i,'SVG cover art never duplicates the game names');
+assert.match(source,/label\.textContent=MODES\[mode\]/,'game title remains outside each illustration');
+const pauseMarkup=html.match(/<button id="pauseBtn"[\s\S]*?<\/button>/)?.[0];
+assert.ok(pauseMarkup,'host pause control is present');
+assert.match(pauseMarkup,/<svg\b/,'host pause button retains its SVG icon');
+assert.match(pauseMarkup,/aria-label="หยุดเกม"/,'icon-only pause remains screen-reader accessible');
+assert.doesNotMatch(pauseMarkup,/<span\b|หยุดเกม<\/span>/,'pause control has no visible caption');
+assert.ok(css.includes('span.leader-item-slot:not(.leader-held-icon):not(.pizza-order-icons)'),
+ 'text status slots are not restricted to the 23px item icon');
+assert.match(css,/body\.host-playing #game \.leader-chip span\.leader-held-icon\{[\s\S]*?width:23px;/,
+ 'actual item SVG badges keep their compact dimensions');
+
 assert.match(html,/data-session-mode="queue"/);
 assert.match(html,/data-session-mode="endless"/);
 assert.match(html,/เล่นทุกเกมไปเรื่อยๆ/);
