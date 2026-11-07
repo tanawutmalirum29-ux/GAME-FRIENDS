@@ -153,11 +153,14 @@ function shiftCartOwner(s,p,dx,dy){
 function shoppingContact(s,a,b,ax,ay,bx,by,minDistance,pass){
  let dx=bx-ax,dy=by-ay,dist=length(dx,dy);
  if(dist>=minDistance-1e-5)return;
- if(dist<1e-5){
-  dx=b.x-a.x;dy=b.y-a.y;dist=length(dx,dy);
-  if(dist<1e-5){dx=String(a.id)<String(b.id)?1:-1;dy=0;dist=1;}
+ // Choose a stable push direction at coincident cart centres, but preserve
+ // the actual zero separation for overlap correction.
+ let normalLength=dist;
+ if(normalLength<1e-5){
+  dx=b.x-a.x;dy=b.y-a.y;normalLength=length(dx,dy);
+  if(normalLength<1e-5){dx=String(a.id)<String(b.id)?1:-1;dy=0;normalLength=1;}
  }
- const nx=dx/dist,ny=dy/dist,qa=a.shopping,qb=b.shopping;
+ const nx=dx/normalLength,ny=dy/normalLength,qa=a.shopping,qb=b.shopping;
  const avx=qa.vx,avy=qa.vy+qa.flow,bvx=qb.vx,bvy=qb.vy+qb.flow;
  const closing=(avx-bvx)*nx+(avy-bvy)*ny;
  // Fast incoming carts have more leverage; equal opposing pushes balance.
