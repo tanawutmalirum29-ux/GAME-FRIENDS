@@ -334,6 +334,9 @@ function tryLandscapeOrientation(){
 // Restore the original fullscreen behavior on any browser that supports it.
 // Browser/OS permission prompts remain under the browser's control.
 function requestHostFullscreen(){
+  // A Home Screen Web App already has no browser bars. Entering the native
+  // Fullscreen API again would reintroduce iOS swipe-to-dismiss behavior.
+  if(isStandaloneWebApp()){tryLandscapeOrientation();return;}
   const root=document.documentElement;
   let request=null;
   try{
