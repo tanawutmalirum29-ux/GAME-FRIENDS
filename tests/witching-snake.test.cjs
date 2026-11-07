@@ -114,7 +114,7 @@ check('same simulation tick simultaneous deaths produce genuine tied ranks',()=>
  b.x=s.w/2-s.rx+13;b.y=s.h/2;b.ws.heading=Math.PI;b.ws.moveHeading=Math.PI;
  e.step(1/60,round,ps);
  assert.equal(s.finished,true);assert.equal(s.winnerIds.length,0);
- assert.deepEqual(s.ranking.map(r=>r.rank),[1,1]);
+ assert.deepEqual(Array.from(s.ranking,r=>r.rank),[1,1]);
 });
 check('solo survival at 60 seconds is a success',()=>{
  const {e,s,round,ps}=game(1),p=ps[0];
