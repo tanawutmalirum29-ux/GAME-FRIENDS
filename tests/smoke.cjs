@@ -372,7 +372,10 @@ for(const n of [1,4,5,6,7,8,9,12]){
 // Boxes have their exact collision footprint, not merely a drawn outline.
 {
  const x=init(5);
- if(x.state.theme!=='graveyard')ghost.setup(x.round,x.players);
+ if(x.state.theme!=='graveyard'){
+  ghost.setup(x.round,x.players);
+  x.state=x.round.ghost; // setup replaces the round state object
+ }
  assert.equal(x.state.theme,'graveyard','alternating theme selects cemetery for layout regression');
  const byId=new Map(x.state.obstacles.slice(1).map(o=>[o.id,o]));
  const expected={
