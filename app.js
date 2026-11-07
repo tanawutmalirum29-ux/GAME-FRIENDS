@@ -1684,7 +1684,7 @@ function showControllerMode(mode){
   const voting=controllerReady&&['results','summary'].includes(controllerGamePhase)&&controllerPlayerActive;
   const aLabel=lobbyVoting?(controllerLobbyVotes.selfReady?'ยกเลิกพร้อม':'พร้อมเริ่ม')+
     ' '+controllerLobbyVotes.ready+'/'+controllerLobbyVotes.total:
-    voting?(controllerResultVotes.nextLabel='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
+    voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
     controllerResultVotes.nextLabel)+
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
