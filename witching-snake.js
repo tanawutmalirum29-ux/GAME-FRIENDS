@@ -14,6 +14,18 @@ const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const angleDiff=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
 const living=ps=>ps.filter(p=>p.active&&p.ws?.alive);
 const random=s=>{let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1;return(s.seed>>>0)/4294967296;};
+// Give each match fresh entropy, but honor an explicit seed for reproducible QA.
+function matchSeed(round){
+ const chosen=Number(round?.witchSeed);
+ if(Number.isFinite(chosen)&&chosen!==0)return(chosen>>>0)||1;
+ let entropy=0;
+ try{
+  const bytes=new Uint32Array(1);
+  window.crypto?.getRandomValues?.(bytes);
+  entropy=bytes[0];
+ }catch(_){}
+ return entropy||((Math.random()*4294967296)>>>0)||(Date.now()>>>0)||1;
+}
 function polygon(s,scale=1){
  // A broad, 12-facet oval: long upper/lower rails and gently chamfered ends.
  // The identical world polygon drives rendering, pickups, bots and collision.
@@ -127,44 +139,60 @@ function move(w,p,dt,aim){
  p.dir={x:Math.cos(w.heading),y:Math.sin(w.heading)};p.face=p.dir.x<0?-1:1;
 }
 function botPlan(s,p,ps){
- const w=p.ws,star=s.stars.filter(v=>Math.hypot(v.x-p.x,v.y-p.y)<230)
+ const w=p.ws,style=w.botStyle||{orbit:.5,caution:1,starDrive:1,turnBias:0};
+ const star=s.stars.filter(v=>Math.hypot(v.x-p.x,v.y-p.y)<250)
   .sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
- const candidates=[-1.35,-.8,-.4,0,.4,.8,1.35];
+ // Choose from a richer range; varied preferences stop every bot circling
+ // the same central lane. The same explicit seed still reproduces QA runs.
+ const candidates=[-1.7,-1.3,-.95,-.65,-.34,0,.34,.65,.95,1.3,1.7];
  let best=-Infinity,bestHeading=w.heading;
  for(const turn of candidates){
-  const aim=w.heading+turn,trial={heading:w.heading,moveHeading:w.moveHeading,angular:w.angular};
+  const aim=w.heading+turn+style.turnBias,trial={heading:w.heading,moveHeading:w.moveHeading,angular:w.angular};
   const pos={x:p.x,y:p.y,dir:p.dir,face:p.face};
-  let score=-Math.abs(turn)*.8,collision=false;
+  let score=-Math.abs(turn)*(.3+.25*style.caution),collision=false;
   for(let k=0;k<11;k++){
    const previous={x:pos.x,y:pos.y};
    move(trial,pos,.13,aim);
    if(!inside(s,pos.x,pos.y,CONFIG.radius+6)){collision=true;break;}
    if(strikesTrail(s,p,previous,pos)){collision=true;break;}
    const dx=(pos.x-s.w/2)/s.rx,dy=(pos.y-s.h/2)/s.ry;
-   score+=.04*(1-Math.hypot(dx,dy));
+   score+=.025*(1-Math.hypot(dx,dy));
   }
   if(collision)score-=400;
   else{
    const near=Math.hypot((pos.x-s.w/2)/s.rx,(pos.y-s.h/2)/s.ry);
-   score+=1.2*(1-near)+1.6;
+   // Each bot prefers its own safe orbit radius rather than funneling center.
+   score+=1.5-2.3*Math.abs(near-style.orbit);
+   if(!inside(s,pos.x,pos.y,CONFIG.radius+22))score-=.8*style.caution;
+   // Avoid steering straight into the other living brooms.
+   for(const other of ps){
+    if(other===p||!other.ws?.alive||!other.active)continue;
+    const d=Math.hypot(pos.x-other.x,pos.y-other.y);
+    if(d<85)score-=((85-d)/85)*1.3*style.caution;
+   }
    if(star&&w.trailCap<s.settings.trailMax){
     const start=Math.hypot(p.x-star.x,p.y-star.y);
     const finish=Math.hypot(pos.x-star.x,pos.y-star.y);
-    score+=clamp((start-finish)/150,-.7,.7)*2;
+    score+=clamp((start-finish)/150,-.7,.7)*2.2*style.starDrive;
    }
-   score+=Math.sin(Number(String(p.id).length)*2.3+turn*3)*.07;
+   // Small reproducible exploration allows varied turn decisions.
+   score+=random(s)*.16;
   }
   if(score>best){best=score;bestHeading=aim;}
  }
  return bestHeading;
 }
 function spawnPositions(s,count){
- const result=[];
+ const result=[],rotation=random(s)*TAU,clockwise=random(s)<.5?-1:1;
  for(let i=0;i<count;i++){
-  const theta=-Math.PI/2+TAU*i/count;
-  const r=count===1?.3:count<=3?.38:.46;
-  const x=s.w/2+s.rx*r*Math.cos(theta),y=s.h/2+s.ry*r*Math.sin(theta);
-  const facing=theta+Math.PI/2+(i%2===0?.10:-.1);
+  // Evenly spaced for fairness, with a new orientation and slight stagger
+  // per match. Jitter is capped to avoid crowding in 7–12-player rooms.
+  const theta=-Math.PI/2+rotation+TAU*i/count+
+   (random(s)-.5)*Math.min(.15,TAU/count*.2);
+  const radius=(count===1?.3:count<=3?.38:.46)+(random(s)-.5)*.065;
+  const x=s.w/2+s.rx*radius*Math.cos(theta);
+  const y=s.h/2+s.ry*radius*Math.sin(theta);
+  const facing=theta+clockwise*Math.PI/2+(random(s)-.5)*.19;
   result.push({x,y,heading:facing});
  }
  return result;
@@ -173,7 +201,7 @@ function setup(round,ps){
  if(ps.length<1||ps.length>12)throw Error('WITCHING SNAKE supports 1–12 players');
  const cfg=ps.length>6?CONFIG.large:CONFIG.small;
  const s={w:cfg.width,h:cfg.height,rx:cfg.rx,ry:cfg.ry,settings:cfg,clock:0,tick:0,
-  accumulator:0,arenaScale:1,seed:(Number(round.witchSeed)||1357911)>>>0||1,
+  accumulator:0,arenaScale:1,seed:matchSeed(round),
   stars:[],starClock:0,grid:new Map(),finished:false,winnerIds:[],ranking:[],roster:ps};
  round.witchingSnake=s;round.remaining=ps.length===1?CONFIG.soloDuration:null;
  const positions=spawnPositions(s,ps.length);
@@ -182,7 +210,10 @@ function setup(round,ps){
   p.vx=0;p.vy=0;p.face=1;p.dir={x:Math.cos(q.heading),y:Math.sin(q.heading)};
   p.ws={alive:true,heading:q.heading,moveHeading:q.heading,angular:0,trail:[],
    trailCap:cfg.trailStart,distance:0,stars:0,eliminatedTick:null,
-   eliminatedAt:null,fade:0,botPlan:q.heading,botClock:0};
+   eliminatedAt:null,fade:0,botPlan:q.heading,botClock:0,
+   botStyle:{orbit:.34+random(s)*.37,caution:.75+random(s)*.65,
+    starDrive:.55+random(s)*1.1,turnBias:(random(s)-.5)*.18,
+    reaction:.1+random(s)*.12}};
  }
  return s;
 }
@@ -223,7 +254,7 @@ function step(dt,round,ps){
   old.set(p.id,{x:p.x,y:p.y});const w=p.ws;
   if(p.isBot){
    w.botClock-=dt;
-   if(w.botClock<=0){w.botPlan=botPlan(s,p,ps);w.botClock=.14+(random(s)*.08);}
+   if(w.botClock<=0){w.botPlan=botPlan(s,p,ps);w.botClock=(w.botStyle?.reaction||.14)*(0.85+random(s)*.3);}
   }
   const input=p.isBot?null:vector(p.input);
   const aim=p.isBot?w.botPlan:Math.hypot(input.x,input.y)>.14?Math.atan2(input.y,input.x):null;
