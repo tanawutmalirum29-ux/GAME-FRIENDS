@@ -749,7 +749,7 @@ function addLocal(){
 // On-host test pad: a local bot can be temporarily piloted without adding a seat.
 // Minigames already honor p.isBot; BOARD PARTY has a distinct copied bot flag.
 let possessedBotId=null,botUnlimitedBackup=null,botTestClock=0;
-const botPadKeys={axisX:0,axisY:0,action:false,alt:false};
+const botPadKeys={axisX:0,axisY:0,action:false,alt:false,cancel:false};
 function canUseBotTest(){
  return players.length>0&&players.every(p=>p.type==='local'&&(p.isBot||p.id===possessedBotId));
 }
@@ -763,12 +763,12 @@ function applyBotPadKeys(){
  p.input.axisX=botPadKeys.axisX;p.input.axisY=botPadKeys.axisY;
  p.input.left=botPadKeys.axisX<-.3;p.input.right=botPadKeys.axisX>.3;
  p.input.jump=botPadKeys.axisY<-.3;p.input.down=botPadKeys.axisY>.3;
- p.input.action=botPadKeys.action;p.input.alt=botPadKeys.alt;
+ p.input.action=botPadKeys.action;p.input.alt=botPadKeys.alt;p.input.cancel=botPadKeys.cancel;
 }
 function clearBotPadKeys(){
- botPadKeys.axisX=0;botPadKeys.axisY=0;botPadKeys.action=false;botPadKeys.alt=false;
+ botPadKeys.axisX=0;botPadKeys.axisY=0;botPadKeys.action=false;botPadKeys.alt=false;botPadKeys.cancel=false;
  const knob=$('botTestKnob');if(knob)knob.style.transform='translate(-50%,-50%)';
- for(const id of ['botTestA','botTestB'])$(id).classList.remove('pressed');
+ for(const id of ['botTestA','botTestB','botTestC'])$(id).classList.remove('pressed');
  applyBotPadKeys();
 }
 function disableInfiniteBotItems(){
@@ -930,7 +930,7 @@ function bindHostBotPad(){
  stick.addEventListener('pointermove',e=>{if(e.pointerId===pointer){e.preventDefault();update(e);}});
  for(const evt of ['pointerup','pointercancel','lostpointercapture'])stick.addEventListener(evt,release);
  stick.addEventListener('contextmenu',e=>e.preventDefault());
- for(const [id,key] of [['botTestA','action'],['botTestB','alt']]){
+ for(const [id,key] of [['botTestA','action'],['botTestB','alt'],['botTestC','cancel']]){
   const btn=$(id),ids=new Set();
   btn.addEventListener('pointerdown',e=>{
    if(!possessedBotId)return;
