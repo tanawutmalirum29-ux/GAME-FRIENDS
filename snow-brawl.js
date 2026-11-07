@@ -7,7 +7,7 @@
 'use strict';
 const TAU=Math.PI*2,STEP=1/60,WIDTH=960,HEIGHT=540,CX=480,CY=276;
 const C=Object.freeze({
- playerRadius:16,playerMass:1,moveAcceleration:790,maxMoveSpeed:183,
+ playerRadius:19.2,avatarScale:1.2,playerMass:1,moveAcceleration:790,maxMoveSpeed:183,
  moveFriction:4.4,impactFriction:1.45,bodyRestitution:.18,
  baseRadius:12,maxRadius:44,growthDistance:920,windup:.15,
  turnRate:3.6, // rad/s: ~0.87s for a U-turn instead of the old 0.26s
@@ -492,14 +492,14 @@ function drawPerson(g,p,time){
   g.translate(p.x,p.y);g.scale(1.25,.40);g.translate(-p.x,-p.y);
  }
  if(window.PartyPlayerAvatar?.draw){
-  window.PartyPlayerAvatar.draw(g,p,{time,color:p.color,label:false});
+  window.PartyPlayerAvatar.draw(g,p,{time,color:p.color,label:false,scale:C.avatarScale});
  }else{
   circle(g,p.x,p.y,C.playerRadius,p.color||'#ffc887');
  }
  g.restore();
  g.textAlign='center';g.font='bold 13px system-ui';g.lineWidth=3.5;
- g.strokeStyle='#092b42';g.strokeText(p.name||'ผู้เล่น',p.x,p.y-30);
- g.fillStyle='#ffffff';g.fillText(p.name||'ผู้เล่น',p.x,p.y-30);
+ g.strokeStyle='#092b42';g.strokeText(p.name||'ผู้เล่น',p.x,p.y-36);
+ g.fillStyle='#ffffff';g.fillText(p.name||'ผู้เล่น',p.x,p.y-36);
  if(b.phase==='WINDUP'){
   g.strokeStyle='#285579';g.lineWidth=5;
   g.beginPath();g.arc(p.x,p.y,C.playerRadius+7,0,TAU);g.stroke();
