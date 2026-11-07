@@ -127,23 +127,25 @@ function resolveBodies(s){
  p.y=clamp(p.y,TOP+C.radius,BOTTOM-C.radius);}
 }
 function rockInput(s,r){
- if(!r.ownerId)return 0;
+ if(!r.ownerId)return {side:0,forward:0};
  const p=s.roster.find(p=>p.id===r.ownerId);
- if(!p)return 0;
+ if(!p)return {side:0,forward:0};
  if(p.isBot){
   const t=living(s.roster).sort((a,b)=>Math.abs(a.y-r.y)-Math.abs(b.y-r.y))[0];
-  if(!t)return 0;
+  if(!t)return {side:0,forward:0};
   const prediction=t.y+t.vy*clamp((r.x-t.x)/Math.max(60,-r.vx),0,2);
-  return clamp((prediction-r.y)/90,-1,1)*.9;
+  return {side:clamp((prediction-r.y)/90,-1,1)*.9,forward:t.x<r.x?1:0};
  }
- return vector(p.input).y;
+ const stick=vector(p.input);
+ return {side:stick.y,forward:Math.max(0,stick.x)};
 }
 function moveRocks(s,dt){
  for(const r of s.rocks){
   r.oldX=r.x;r.oldY=r.y;r.age+=dt;
   // Gravity always accelerates down-slope (-X). Steering never adds up-slope force.
-  r.vx-=C.rockGravity*dt;r.vx*=Math.exp(-C.rockDrag*dt);
-  r.vy+=((Math.sin(s.clock*1.25+r.wobble)*17)+rockInput(s,r)*155)*dt;
+  const control=rockInput(s,r);
+  r.vx-=(C.rockGravity+control.forward*55)*dt;r.vx*=Math.exp(-C.rockDrag*dt);
+  r.vy+=((Math.sin(s.clock*1.25+r.wobble)*17)+control.side*155)*dt;
   r.vy*=Math.exp(-.6*dt);
   r.vx=Math.max(-390,r.vx);r.vy=clamp(r.vy,-125,125);
   r.x+=r.vx*dt;r.y+=r.vy*dt;
