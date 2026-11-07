@@ -137,7 +137,7 @@ function rockInput(s,r){
   return {side:clamp((prediction-r.y)/90,-1,1)*.9,forward:t.x<r.x?1:0};
  }
  const stick=vector(p.input);
- return {side:stick.y,forward:Math.max(0,stick.x)};
+ return {side:stick.y,forward:Math.max(0,-stick.x)};
 }
 function moveRocks(s,dt){
  for(const r of s.rocks){
