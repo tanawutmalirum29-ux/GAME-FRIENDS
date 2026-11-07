@@ -2840,7 +2840,8 @@ $('restoreHostFullscreenBtn').addEventListener('click',()=>{
  if(currentView==='game')requestHostFullscreen();
 });
 $('webAppHelpBtn').addEventListener('click',()=>{
- const opened=$('webAppHelp').classList.toggle('hidden')===false;
+ const help=$('webAppHelp'),opened=help.classList.contains('hidden');
+ help.classList.toggle('hidden',!opened);
  $('webAppHelpBtn').setAttribute('aria-expanded',String(opened));
 });
 $('boardOverviewBtn').addEventListener('click',()=>{
