@@ -1678,7 +1678,7 @@ function showControllerMode(mode){
     ['countdown','playing','paused'].includes(controllerGamePhase);
   const ghost=playing&&mode==='ghost',chickens=playing&&mode==='chickens';
   const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave',colorSwitch=playing&&mode==='color_switch',knight=playing&&mode==='knight_match',boulder=playing&&mode==='boulder_bash',snow=playing&&mode==='snow_brawl';
-  const lobbyVoting=controllerReady&&controllerGamePhase==='lobby';
+  const lobbyVoting=controllerReady&&controllerGamePhase==='lobby'&&controllerLobbyVotes.total>0;
   const voting=controllerReady&&['results','summary'].includes(controllerGamePhase)&&controllerPlayerActive;
   const aLabel=lobbyVoting?(controllerLobbyVotes.selfReady?'ยกเลิกพร้อม':'พร้อมเริ่ม')+
     ' '+controllerLobbyVotes.ready+'/'+controllerLobbyVotes.total:
