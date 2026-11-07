@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const surfaces=[],labels=[],labelDraws=[],avatarDraws=[],portraitDraws=[],portraitPositions=[],ringArcs=[];let denyTerrain=false;
+const surfaces=[],labels=[],labelDraws=[],avatarDraws=[],portraitDraws=[],portraitPositions=[],ringArcs=[];let denyTerrain=false,paintClock=0;
 const artSource=fs.readFileSync('board-art.js','utf8');
 assert.match(artSource,/else sceneryLite\(g,s\)/,
  'low-memory renderer must avoid repainting full scenery every frame');
@@ -10,11 +10,11 @@ assert.match(artSource,/if\(!visible\(x,y,75\)\)continue/,
 function brush(main=false){return new Proxy({globalAlpha:1},{get(target,key){
  if(key in target)return target[key];
  if(key==='createLinearGradient')return()=>({addColorStop(){}});
-  if(key==='arc')return (x,y,r)=>{if(main&&[27,32].includes(r))ringArcs.push({x,y,r});};
+  if(key==='arc')return (x,y,r)=>{if(main&&[26.5,27,29.5,32].includes(r))ringArcs.push({x,y,r,seq:++paintClock});};
  if(key==='fillText')return (text,x,y,maxWidth)=>{if(main){labels.push(text);labelDraws.push({text:String(text),x,y,maxWidth,align:target.textAlign});}};
  return()=>{};
 },set(target,key,value){target[key]=value;return true;}});}
-const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(_g,p){avatarDraws.push(JSON.parse(JSON.stringify(p)));},drawFront(_g,p,x,y,size){portraitDraws.push(p.id);portraitPositions.push({id:p.id,x,y,size});},costumeFor(){return 'standard';}}},console,document:{createElement(tag){
+const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(_g,p){avatarDraws.push(JSON.parse(JSON.stringify(p)));},drawFront(_g,p,x,y,size){portraitDraws.push(p.id);portraitPositions.push({id:p.id,x,y,size,seq:++paintClock});},costumeFor(){return 'standard';}}},console,document:{createElement(tag){
  assert.equal(tag,'canvas');const surface={width:0,height:0,getContext(){
   assert.ok(this.width*this.height<=3500000,'terrain allocation stays below the mobile budget');
   return denyTerrain?null:brush();
@@ -292,7 +292,11 @@ for(const n of [4,5,12]){
   assert.ok(ringArcs.some(a=>a.r===32&&a.x===p.x&&a.y===p.y),
    'outer medal ring centered on '+p.id);
   assert.ok(ringArcs.some(a=>a.r===27&&a.x===p.x&&a.y===p.y),
-   'inner medal ring centered on '+p.id);
+   'inner medal background centered on '+p.id);
+  assert.ok(ringArcs.some(a=>a.r===29.5&&a.x===p.x&&a.y===p.y&&a.seq>p.seq),
+   'outer golden bezel is drawn OVER the avatar for '+p.id);
+  assert.ok(ringArcs.some(a=>a.r===26.5&&a.x===p.x&&a.y===p.y&&a.seq>p.seq),
+   'inner golden bezel overlays portrait edge for '+p.id);
  }
 }
 // A Lucky Star item reel must show the actual result, then the prize above

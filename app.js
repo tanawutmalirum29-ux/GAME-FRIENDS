@@ -280,6 +280,29 @@ function finishConfirmation(answer){
 const FREE_VIEWPORT='width=device-width,initial-scale=1,viewport-fit=cover';
 const LOCKED_VIEWPORT='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
 const gameZoomLocked=()=>currentView==='game'||(currentView==='controller'&&controllerReady);
+// Browser/OS chrome cannot be hidden by page gestures. Installed iOS Home
+// Screen Web Apps run standalone; offer that supported path for Chrome users.
+const isIOSBrowser=()=>{
+ const ua=String(navigator?.userAgent||''),platform=String(navigator?.platform||'');
+ return /iPad|iPhone|iPod/.test(ua)||(platform==='MacIntel'&&Number(navigator?.maxTouchPoints)>1);
+};
+const isStandaloneWebApp=()=>navigator?.standalone===true||
+  !!window.matchMedia?.('(display-mode: standalone)')?.matches||
+  !!window.matchMedia?.('(display-mode: fullscreen)')?.matches;
+let hostFullscreenWasEntered=false;
+function syncWebAppHelp(){
+ const show=currentView==='game'&&isIOSBrowser()&&!isStandaloneWebApp();
+ $('webAppHelpBtn').classList.toggle('hidden',!show);
+ if(!show){
+  $('webAppHelp').classList.add('hidden');
+  $('webAppHelpBtn').setAttribute('aria-expanded','false');
+ }
+}
+function syncFullscreenRecovery(){
+ const show=currentView==='game'&&hostFullscreenWasEntered&&
+   !document.fullscreenElement&&!isStandaloneWebApp();
+ $('restoreHostFullscreenBtn').classList.toggle('hidden',!show);
+}
 function syncZoomPolicy(){
   const locked=gameZoomLocked();
   $('viewportMeta').setAttribute('content',locked?LOCKED_VIEWPORT:FREE_VIEWPORT);
@@ -290,7 +313,8 @@ function setView(view) {
   if(view==='game')markArenaResolutionDirty();
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
-  syncZoomPolicy();
+  if(view!=='game')hostFullscreenWasEntered=false;
+  syncZoomPolicy();syncWebAppHelp();syncFullscreenRecovery();
   // A joined QR link can open directly on the room-code form; try native
   // landscape without blocking the form if automatic rotation is disallowed.
   if(view==='controller'&&!controllerReady)tryLandscapeOrientation();
@@ -310,6 +334,9 @@ function tryLandscapeOrientation(){
 // Restore the original fullscreen behavior on any browser that supports it.
 // Browser/OS permission prompts remain under the browser's control.
 function requestHostFullscreen(){
+  // A Home Screen Web App already has no browser bars. Entering the native
+  // Fullscreen API again would reintroduce iOS swipe-to-dismiss behavior.
+  if(isStandaloneWebApp()){tryLandscapeOrientation();return;}
   const root=document.documentElement;
   let request=null;
   try{
@@ -317,9 +344,19 @@ function requestHostFullscreen(){
       request=root.requestFullscreen({navigationUI:'hide'});
   }catch(_){/* Browser may deny native fullscreen. */}
   if(request&&typeof request.then==='function')
-    request.then(tryLandscapeOrientation,tryLandscapeOrientation);
-  else tryLandscapeOrientation();
+    request.then(()=>{
+      if(document.fullscreenElement)hostFullscreenWasEntered=true;
+      syncFullscreenRecovery();tryLandscapeOrientation();
+    },()=>{syncFullscreenRecovery();tryLandscapeOrientation();});
+  else {syncFullscreenRecovery();tryLandscapeOrientation();}
 }
+function trackHostFullscreen(){
+ if(document.fullscreenElement===document.documentElement)
+  hostFullscreenWasEntered=true;
+ syncFullscreenRecovery();
+}
+document.addEventListener('fullscreenchange',trackHostFullscreen);
+document.addEventListener('webkitfullscreenchange',trackHostFullscreen);
 // Safari may ignore viewport scaling hints for gesture zoom; guard native gestures
 // only in gameplay, without preventing Pointer Events on analog and A/B buttons.
 for(const type of ['gesturestart','gesturechange','gestureend']){
@@ -2801,6 +2838,15 @@ function returnToLobby(){
   setView('hostLobby');renderRoster();broadcastRoster();renderBotTestPad();
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
+// Re-enter native fullscreen only after a real user click (required by the API).
+$('restoreHostFullscreenBtn').addEventListener('click',()=>{
+ if(currentView==='game')requestHostFullscreen();
+});
+$('webAppHelpBtn').addEventListener('click',()=>{
+ const help=$('webAppHelp'),opened=help.classList.contains('hidden');
+ help.classList.toggle('hidden',!opened);
+ $('webAppHelpBtn').setAttribute('aria-expanded',String(opened));
+});
 $('boardOverviewBtn').addEventListener('click',()=>{
  if(round?.mode!=='board'||!boardSession||boardSession.phase==='intro_zoom'||
    (boardSession.phase!=='overview'&&!hostCanControlBoardZoom()))return;

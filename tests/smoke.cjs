@@ -144,7 +144,8 @@ assert.match(html,/data-session-mode="queue"/);
 assert.match(html,/data-session-mode="endless"/);
 assert.match(html,/เล่นทุกเกมไปเรื่อยๆ/);
 assert.match(html,/id="cycleAllBotsBtn"/);
-assert.doesNotMatch(html,/id="iosFullscreenBtn"|apple-mobile-web-app-capable/);
+assert.doesNotMatch(html,/id="iosFullscreenBtn"/,'no obsolete iOS fake fullscreen button');
+assert.match(html,/apple-mobile-web-app-capable/,'standalone iPad Web App metadata is required');
 assert.doesNotMatch(source,/avoidIOSNativeFullscreen|canUseNativeHostFullscreen|iosNativeFullscreenEnabled|IOS_FULLSCREEN_PREF/);
 assert.match(css,/#hostLobby \.lobby-section-title \.bulk-bot-switch\{/);
 assert.match(html,/id="uiModal"/);
@@ -1179,10 +1180,43 @@ assert.equal(tablet.elements.get('game').classList.contains('hidden'),false);
 assert.equal(tablet.scope.document.fullscreenRequests,1,
   'iPad host automatically requests native fullscreen on Start');
 assert.equal(tablet.scope.document.fullscreenElement,tablet.scope.document.documentElement);
+assert.equal(tablet.elements.get('webAppHelpBtn').classList.contains('hidden'),false,
+ 'iPad browser shows how to play without Chrome bars');
+tablet.click('webAppHelpBtn');
+assert.equal(tablet.elements.get('webAppHelp').classList.contains('hidden'),false);
+assert.equal(tablet.elements.get('webAppHelpBtn').attributes['aria-expanded'],'true');
+tablet.click('webAppHelpBtn');
+assert.equal(tablet.elements.get('webAppHelp').classList.contains('hidden'),true);
+assert.equal(tablet.elements.get('webAppHelpBtn').attributes['aria-expanded'],'false');
+// Browser first announces ENTER, then announces its native swipe EXIT.
+tablet.scope.document.fire('fullscreenchange');
+tablet.scope.document.fullscreenElement=null;
+tablet.scope.document.fire('fullscreenchange');
+assert.equal(tablet.elements.get('restoreHostFullscreenBtn').classList.contains('hidden'),false,
+ 'browser exiting native fullscreen exposes one-tap recovery');
+tablet.click('restoreHostFullscreenBtn');
+assert.equal(tablet.scope.document.fullscreenRequests,2,'user gesture re-enters fullscreen');
+tablet.scope.document.fire('fullscreenchange');
+assert.equal(tablet.elements.get('restoreHostFullscreenBtn').classList.contains('hidden'),true);
 tablet.click('backBtn');
 assert.equal(tablet.elements.get('hostLobby').classList.contains('hidden'),false);
-assert.doesNotMatch(source,/iosFullscreenBtn|isStandaloneWebApp/,
-  'no iOS warning workaround or opt-in full screen remains');
+assert.ok(source.includes("isStandaloneWebApp=()=>"),
+  'iOS has a supported browser-free Home Screen Web App mode');
+assert.match(html,/<meta name="apple-mobile-web-app-capable" content="yes">/);
+assert.match(html,/<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">/);
+assert.match(html,/<button id="webAppHelpBtn"[^>]*hidden/);
+assert.match(html,/<button id="restoreHostFullscreenBtn"[^>]*hidden/);
+assert.equal(tablet.elements.get('webAppHelpBtn').classList.contains('hidden'),true,
+ 'Web App guidance is hidden outside the game');
+assert.equal(tablet.elements.get('restoreHostFullscreenBtn').classList.contains('hidden'),true,
+ 'fullscreen restore is hidden after returning to lobby');
+const standaloneTablet=setup('https://game.example/?host=1',false,null,null,{...ipadUA,standalone:true});
+standaloneTablet.click('addLocalBtn');standaloneTablet.click('offlineBtn');standaloneTablet.click('startBtn');
+assert.equal(standaloneTablet.scope.document.fullscreenRequests,0,
+ 'installed Web App does not enter native fullscreen with a swipe-dismiss path');
+assert.equal(standaloneTablet.elements.get('webAppHelpBtn').classList.contains('hidden'),true,
+ 'installed Home Screen Web App never displays irrelevant browser install instructions');
+assert.equal(standaloneTablet.elements.get('restoreHostFullscreenBtn').classList.contains('hidden'),true);
 const ipadController=setup('https://game.example/?room=ABC123',false,null,null,ipadUA);
 ipadController.click('joinLandscapeBtn');
 assert.equal(ipadController.scope.document.fullscreenRequests,1,
