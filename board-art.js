@@ -293,7 +293,11 @@ function ground(g,s){
    try{
     c.width=Math.floor(s.map.width*scale);c.height=Math.floor(s.map.height*scale);
     const ctx=c.getContext('2d',{alpha:false});
-    if(ctx){ctx.scale(c.width/s.map.width,c.height/s.map.height);scenery(ctx,s.map);terrain.canvas=c;}
+    if(ctx){ctx.scale(c.width/s.map.width,c.height/s.map.height);if(window.BOARD_PARTY_V7_ART&&window.BOARD_PARTY_V7_DESIGN){
+      window.BOARD_PARTY_V7_ART.render(ctx,window.BOARD_PARTY_V7_DESIGN,
+       {layers:{nodes:0,labels:0}});
+     }else scenery(ctx,s.map);
+     terrain.canvas=c;}
    }catch(_){/* Direct vector drawing remains available under canvas memory pressure. */}
    if(!terrain.canvas){c.width=1;c.height=1;}
   }
@@ -968,7 +972,15 @@ function draw(g,t,s){
  }
  c.x=clampCamera(c.x,halfW,b.minX,b.maxX);c.y=clampCamera(c.y,halfH,b.minY,b.maxY);
  g.clearRect(0,0,960,sceneHeight(s));g.fillStyle='#183e5d';g.fillRect(0,top,960,viewH);g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();g.translate(480,top+viewH/2);g.scale(c.zoom,c.zoom);g.translate(-c.x,-c.y);
- ground(g,s);decorations(g,s);if(typeof ambience==='function'&&!c.lowDetail)ambience(g,s,t);nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
+ ground(g,s);
+  const v7D=window.BOARD_PARTY_V7_DESIGN,v7A=window.BOARD_PARTY_V7_ART;
+  if(v7D&&v7A){
+   if(!c.lowDetail){
+    if(!s.__v7Fx)s.__v7Fx=v7A.createEffects(v7D,1);
+    s.__v7Fx.draw(g,{x:c.x-480/c.zoom,y:c.y-viewH/(2*c.zoom),w:960/c.zoom,h:viewH/c.zoom,zoom:c.zoom},t);
+   }
+  }else{decorations(g,s);if(typeof ambience==='function'&&!c.lowDetail)ambience(g,s,t);}
+  nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<(c.lowDetail?0:35);i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
  hud(g,s);

@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Restore BOARD PARTY v7 source assets
+        run: node scripts/build-board-v7.cjs
       - name: JavaScript syntax
         run: |
           node --check app.js
@@ -40,6 +42,7 @@ jobs:
           node --check tests/lobby-start.cjs
           node --check tests/combat-motion.cjs
           node --check auto-update.js
+          node --check scripts/build-board-v7.cjs
           node --check scripts/build-static.cjs
       - name: SHOPPING TIME conveyor physics, checkout, bombs and bot regressions
         run: node tests/shopping-time.cjs
@@ -54,6 +57,7 @@ jobs:
       - name: BOARD PARTY rules and simulations
         run: |
           for source in board-*.js; do node --check "$source"; done
+          node tests/board-v7.cjs
           node tests/board-party.cjs
           node tests/board-art.cjs
           node tests/board-dice-renderer.cjs
@@ -104,6 +108,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Restore BOARD PARTY v7 source assets
+        run: node scripts/build-board-v7.cjs
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
