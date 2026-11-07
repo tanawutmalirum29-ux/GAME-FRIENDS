@@ -482,7 +482,8 @@ function grant(s){
 function update(s,dt){
  M().assertCompatible(s.map);
  if(!Number.isFinite(dt)||dt<=0)return;dt=Math.min(dt,.1);s.time+=dt;
- if(s.phase==='overview'){if(s.players.every(p=>p.isBot)&&s.time-s.phaseAt>=INTRO_OVERVIEW_SECONDS-1e-6)beginIntroZoom(s);}
+ // The panorama is an automatic, fixed 2-second intro for bot AND human lobbies.
+  if(s.phase==='overview'){if(s.time-s.phaseAt>=INTRO_OVERVIEW_SECONDS-1e-6)beginIntroZoom(s);}
  else if(s.phase==='intro_zoom'){if(s.time+1e-6>=s.deadline)beginOrder(s);}
  else if(s.phase==='order'){
   for(const p of s.players)if(!p.dice&&p.isBot&&s.time-s.phaseAt>.6+s.players.indexOf(p)*.12)rollOrder(s,p);
