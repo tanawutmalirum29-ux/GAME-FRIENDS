@@ -125,11 +125,13 @@ function calculateDangerWeights(s,ps){
 // Compact and fast: only the escape validator may extend individual warnings.
 function warningSeconds(w){return w<=3?1.45:w<=6?1.15:w<=9?.95:w<=11?.75:.65;}
 function intervalSeconds(w){return w<=3?.45:w<=6?.30:w<=9?.19:w<=11?.12:.10;}
-// Fast progression: Wave 12+ leaves exactly one safe tile.
-// Floor tiles stay solid; dangerous tiles revert after exploding.
+// Fixed safe tiles per wave on the 5x5 arena: 14, 7, 5, 2, then 1
+// forever from wave 5 onward. The existing warning and inter-wave timing
+// still speeds up with later waves, including the adaptive escape guard.
+// Every floor tile remains solid and resets after each explosion.
 function dangerCount(s){
- const targets=[0,4,6,8,10,12,14,16,18,20,22,23,24];
- return targets[Math.min(Math.max(1,s.wave),12)];
+ const dangerByWave=[0,11,18,20,23,24];
+ return dangerByWave[Math.min(Math.max(1,s.wave),5)];
 }
 function requiredEscapeSeconds(s,ps,danger){
  const selected=danger instanceof Set?danger:new Set(danger);
