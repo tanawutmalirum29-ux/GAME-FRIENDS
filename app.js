@@ -2172,16 +2172,35 @@ function layoutFinalResults(){
   const rows=children.filter(el=>String(el.className||'').split(/\s+/).includes('result-player'));
   const hasHeading=children.some(el=>String(el.className||'').split(/\s+/).includes('tournament-header'));
   const width=Number(window.innerWidth)||960;
-  const maxColumns=rows.length<=4?1:width>=1060?4:width>=620?3:2;
+  // Fill full rows from the BOTTOM. Any short row belongs at the TOP and
+  // is centered, so 5 players become [1] / [2 3 4 5] rather than leaving
+  // 3 dead slots beside the fifth-place card. Two micro-tracks per card make
+  // a 1/2/3-card top row mathematically centered without resizing cards.
+  const maxColumns=rows.length<=4?
+    Math.max(1,Math.min(rows.length-1,width>=620?3:2)):
+    width>=1060?4:width>=620?3:2;
   const columns=Math.max(1,Math.min(rows.length||1,maxColumns));
   const lines=Math.max(1,Math.ceil(rows.length/columns));
+  const topCount=rows.length%columns||columns;
   list.style.setProperty('--result-cols',String(columns));
+  list.style.setProperty('--result-tracks',String(columns*2));
   list.style.setProperty('--result-rows',String(lines));
   list.dataset.count=String(rows.length);
   list.dataset.cols=String(columns);
+  list.dataset.topCount=String(topCount);
   list.classList.toggle('has-heading',hasHeading);
   const roster=round?.mode==='board'&&boardSession?boardSession.players:players;
   rows.forEach((row,index)=>{
+    // Rank order in DOM is untouched for screen readers and result voting.
+    // Only its CSS position changes. The header occupies grid row 1.
+    const top=index<topCount;
+    const visualRow=top?0:1+Math.floor((index-topCount)/columns);
+    const slot=top?index:(index-topCount)%columns;
+    const track=1+2*slot+(top?columns-topCount:0);
+    row.style.gridColumn=track+' / span 2';
+    row.style.gridRow=String(visualRow+1+(hasHeading?1:0));
+    row.style.setProperty('--rank-delay',String(index));
+
     const label=row.children[0],detail=row.children[1];
     const name=String(label?.textContent||'');
     const color=label?.style?.color||'#9fb9da';
