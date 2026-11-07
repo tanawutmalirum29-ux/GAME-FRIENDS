@@ -7,7 +7,7 @@ const CONFIG=Object.freeze({
  large:Object.freeze({width:1280,height:720,rx:437,ry:281,trailStart:230,trailGain:65,trailMax:760,stars:4}),
  speed:173, turnMax:2.2, turnAcceleration:9, slip:.075, radius:12,
  trailRadius:3.4, selfGap:41, sample:8, soloDuration:60, overtimeStart:120,
- overtimeLength:48, minArenaScale:.67, starRadius:14
+ overtimeLength:75, minArenaScale:.18, starRadius:14
 });
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const angleDiff=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
@@ -26,10 +26,10 @@ function inside(s,x,y,padding=0,scale=s.arenaScale){
  for(let i=0;i<poly.length;i++){
   const a=poly[i],b=poly[(i+1)%poly.length];
   const cross=(b.x-a.x)*(y-a.y)-(b.y-a.y)*(x-a.x);
-  if(cross>0)return false;
+  if(cross<0)return false;
   if(padding){
    const edge=Math.hypot(b.x-a.x,b.y-a.y);
-   if(-cross/edge<padding)return false;
+   if(cross/edge<padding)return false;
   }
   sign++;
  }
@@ -116,8 +116,7 @@ function vector(input){
 function move(w,p,dt,aim){
  if(Number.isFinite(aim))steer(w,aim,dt);
  else{
-  const wanted=w.heading+w.angular*0.9;
-  steer(w,wanted,dt);
+  steer(w,w.heading,dt);
  }
  p.x+=Math.cos(w.moveHeading)*CONFIG.speed*dt;
  p.y+=Math.sin(w.moveHeading)*CONFIG.speed*dt;
@@ -290,7 +289,7 @@ function artArena(g,s,time){
  }
  g.restore();
  if(s.arenaScale<1){
-  const sh=polygon(s,s.arenaScale);g.beginPath();sh.forEach((v,i)=>i?g.lineTo(v.x,v.y):g.moveTo(v.x,v.y));g.closePath();
+  const sh=polygon(s,s.arenaScale);g.beginPath();g.rect(0,0,s.w,s.h);sh.forEach((v,i)=>i?g.lineTo(v.x,v.y):g.moveTo(v.x,v.y));g.closePath();
   g.fillStyle='rgba(5,8,25,.46)';g.fill('evenodd');
   g.strokeStyle='#f4ae64';g.lineWidth=5;g.stroke();
  }
