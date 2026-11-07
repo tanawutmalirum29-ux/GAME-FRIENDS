@@ -3,8 +3,9 @@
 'use strict';
 const STEP=1/60,TAU=Math.PI*2,MIN_X=94,MAX_X=895,TOP=75,BOTTOM=468;
 // The snow stretches nearly to x=925; players must be able to reach it.
-// Spawn positions leave a safe inset from the icy borders and incoming rocks.
-const SPAWN_LEFT=190,SPAWN_RIGHT=784,SPAWN_TOP=145,SPAWN_BOTTOM=397;
+// Start formation is the left/front edge of the slope, not across its width.
+// Up to seven players line up top-to-bottom; larger groups use two left columns.
+const SPAWN_FRONT_X=190,SPAWN_SECOND_X=263,SPAWN_TOP=120,SPAWN_BOTTOM=425;
 const C=Object.freeze({radius:15,accel:780,drag:2.4,maxSpeed:195,pushImpulse:98,pushRange:40,
  pushCooldown:.6,rockGravity:118,rockDrag:.14,rockLimit:18,rockChance:.35,soloDuration:60});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -16,22 +17,24 @@ function vector(i){let x=Number(i?.axisX)||Number(!!i?.right)-Number(!!i?.left);
  const m=Math.hypot(x,y);if(m>1){x/=m;y/=m;}return{x,y};}
 function interval(t){return t<15?2.5:t<30?2:t<45?1.5:t<60?1:.75;}
 function spawnPositions(count){
- // Evenly cover the whole usable slope instead of bunching up at x=210.
- // Partial rows are centered so 5, 7, 10, 11 players do not leave a corner pile.
- const columns=count<=3?count:count===4?2:count<=6?3:count<=8?4:count===9?3:4;
- const rows=Math.ceil(count/columns);
- const positions=[];
- for(let i=0;i<count;i++){
-  const row=Math.floor(i/columns),inRow=Math.min(columns,count-row*columns);
-  const col=i-row*columns;
-  const spacing=columns>1?(SPAWN_RIGHT-SPAWN_LEFT)/(columns-1):0;
-  const offset=(columns-inRow)*spacing/2;
-  positions.push({
-   x:columns===1?(SPAWN_LEFT+SPAWN_RIGHT)/2:SPAWN_LEFT+offset+col*spacing,
-   y:rows===1?(SPAWN_TOP+SPAWN_BOTTOM)/2:SPAWN_TOP+row*(SPAWN_BOTTOM-SPAWN_TOP)/(rows-1)
-  });
- }
- return positions;
+ // Vertical starting line on the LEFT side, as on the reference screenshot.
+ // A single file is ideal for 1–7. For 8–12 use a second nearby column:
+ // no spawn is placed in the center or on the right half of the snowfield.
+ const leftCount=Math.min(7,count);
+ const rightCount=count-leftCount;
+ const column=(number,x)=>{
+  const positions=[];
+  for(let i=0;i<number;i++){
+   positions.push({
+    x,
+    y:number===1?(SPAWN_TOP+SPAWN_BOTTOM)/2:
+     SPAWN_TOP+i*(SPAWN_BOTTOM-SPAWN_TOP)/(number-1)
+   });
+  }
+  return positions;
+ };
+ return [...column(leftCount,SPAWN_FRONT_X),
+  ...column(rightCount,SPAWN_SECOND_X)];
 }
 function setup(round,ps){
  if(!ps.length||ps.length>12)throw Error('BOULDER BASH supports 1–12 players');
