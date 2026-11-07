@@ -341,9 +341,12 @@ test('300 adversarial 2D walks: legal graph edges, finite positions, bounded pat
     assert.equal(s.move.remaining,steps-edges);assert.ok(edges<=steps);
     const pos=I.position(s,p);assert.ok(Number.isFinite(pos.x)&&Number.isFinite(pos.y));
     if(s.move.to&&s.move.kind==='walk'){
-     assert.ok(Math.abs(s.move.lateral||0)<=50.001);
-     assert.ok(I.segmentDistance(pos,s.move.startPosition,s.move.endPosition)<=51,
-      '2D walking stays inside the safe corridor');
+     const isRoundedFork=s.map.nodes[s.move.from]?.nextNodes.length>1;
+     const maxOffset=isRoundedFork?86:50;
+     assert.ok(Math.abs(s.move.lateral||0)<=maxOffset+.001,
+      'rounded branch junction allows a gradual turn without teleporting across the road');
+     assert.ok(I.segmentDistance(pos,s.move.startPosition,s.move.endPosition)<=maxOffset+1,
+      '2D walking stays within the wider curved junction or the normal safe corridor');
     }
     if(!s.move.to&&s.move.kind==='walk')
      assert.ok(Math.hypot(s.move.nodeOffset.x,s.move.nodeOffset.y)<=55.001);
