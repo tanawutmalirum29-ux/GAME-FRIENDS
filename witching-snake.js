@@ -43,7 +43,8 @@ function distPointSegment2(p,a,b){
 function segmentsTouch(a,b,c,d,r){
  const cross=(p,q,v)=>(q.x-p.x)*(v.y-p.y)-(q.y-p.y)*(v.x-p.x);
  const a1=cross(a,b,c),a2=cross(a,b,d),b1=cross(c,d,a),b2=cross(c,d,b);
- if(a1*a2<=0&&b1*b2<=0)return true;
+ // Strict crossings; collinear but disjoint segments must not be false positives.
+ if(a1*a2<0&&b1*b2<0)return true;
  const limit=r*r;
  return distPointSegment2(a,c,d)<=limit||distPointSegment2(b,c,d)<=limit||
   distPointSegment2(c,a,b)<=limit||distPointSegment2(d,a,b)<=limit;
