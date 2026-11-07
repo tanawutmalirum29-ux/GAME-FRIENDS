@@ -47,7 +47,7 @@ fs.writeFileSync(path.join(root,'offline-assets.json'),JSON.stringify({version:i
 // The worker's source changes per release, so registration.update() detects new builds.
 const workerPath=path.join(root,'service-worker.js');
 const worker=fs.readFileSync(workerPath,'utf8').replace(
- /const BUILD_ID='(?:__GAME_BUILD_ID__|[a-z0-9._-]{7,64})';/,
+ /const BUILD_ID=['\"](?:__GAME_BUILD_ID__|[a-z0-9._-]{7,64})['\"];/,
  'const BUILD_ID='+JSON.stringify(id)+';');
 fs.writeFileSync(workerPath,worker);
 process.stdout.write('Static deploy '+id.slice(0,12)+'\n');
