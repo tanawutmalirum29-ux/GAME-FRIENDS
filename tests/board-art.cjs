@@ -138,6 +138,11 @@ assert.match(artSource,/s\.move\?\.kind!=='walk'/,
  assert.equal(moving.phase,'moving','player is walking while the camera can move');
  assert.equal(A.canPan(moving),true,'gestures stay enabled while moving between pads');
  const playerBefore=JSON.stringify(player),stepsBefore=moving.move.remaining;
+ // Keep the manual camera NEAR the walker here; the separate test below
+ // deliberately pans completely off-screen and expects safety recentering.
+ const playerPos=ctx.window.BoardItems.position(moving,player);
+ moving.camera.x=playerPos.x;moving.camera.y=playerPos.y;
+ moving.camera.zoom=1;moving.camera.manualZoom=1;moving.camera.explore=false;
  A.draw(g,6,moving);
  const centerBefore={x:moving.camera.x,y:moving.camera.y};
  assert.equal(A.pan(moving,-110,65),true);
