@@ -230,8 +230,8 @@ function syncArenaResolution(){
  }
  if(boardActive&&box?.width){
   const toolScale=content.scale,originX=content.left,originY=content.top;
-  $('boardTools').style.cssText='left:'+(originX+345*toolScale)+'px;top:'+(originY+3*toolScale)+'px;transform:scale('+toolScale+');';
-  $('pauseBtn').style.cssText='left:'+(originX+919*toolScale)+'px;top:'+(originY+3*toolScale)+'px;transform:scale('+toolScale+');';
+  $('boardTools').style.cssText='left:'+(originX+600*toolScale)+'px;top:'+(originY+99*toolScale)+'px;transform:scale('+toolScale+');';
+  $('pauseBtn').style.cssText='left:'+(originX+921*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
  }else $('pauseBtn').style.cssText='';
  // Long/short sides are intentional: portrait fallback may rotate the
  // host canvas by 90 degrees without changing the game world's coordinates.
@@ -2068,7 +2068,7 @@ function beginBoard(){
 function hostCanControlBoardZoom(){
  const s=boardSession,p=s&&window.BoardParty?.current(s);
  return !!(round?.mode==='board'&&round.phase==='playing'&&p&&
-   players.some(q=>q.id===p.id&&q.type==='local'&&!q.isBot)&&
+   (players.some(q=>q.id===p.id&&q.type==='local'&&!q.isBot)||s.players.every(q=>q.isBot))&&
    window.BoardArt?.canPan?.(s));
 }
 function refreshBoardTools(){
@@ -2076,9 +2076,12 @@ function refreshBoardTools(){
  $('boardTools').classList.toggle('hidden',!active);
  if(active){
   const c=boardSession.camera;
-  $('boardNodeDebugBtn').setAttribute('aria-pressed',String(!!c.debugNodes));
+  const botsOnly=boardSession.players.every(p=>p.isBot);
+   if(!botsOnly){c.debugNodes=false;c.selectedId=null;}
+   $('boardNodeDebugBtn').classList.toggle('hidden',!botsOnly);
+   $('boardNodeDebugBtn').setAttribute('aria-pressed',String(botsOnly&&!!c.debugNodes));
   $('boardEffectsBtn').setAttribute('aria-pressed',String(!!c.lowDetail));
-  $('boardStartDiceBtn').classList.toggle('hidden',boardSession.phase!=='overview');
+  $('boardStartDiceBtn').classList.add('hidden'); // Automatic 2-second panorama, no manual start required.
   const canZoom=hostCanControlBoardZoom();
   // Overview/follow change zoom implicitly; treat them as zoom controls too.
   $('boardFollowBtn').disabled=['overview','intro_zoom'].includes(boardSession.phase)||!canZoom;
@@ -3277,7 +3280,7 @@ $('boardFollowBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom()){
 $('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;refreshBoardTools();}});
 $('boardZoomInBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,1.25);});
 $('boardZoomOutBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,.8);});
-$('boardNodeDebugBtn').addEventListener('click',()=>{if(boardSession){window.BoardArt.toggleDebug(boardSession);refreshBoardTools();}});
+$('boardNodeDebugBtn').addEventListener('click',()=>{if(boardSession&&boardSession.players.every(p=>p.isBot)){window.BoardArt.toggleDebug(boardSession);refreshBoardTools();}});
 $('resumeBtn').addEventListener('click',resumeGame);
 document.addEventListener('keydown',e=>{
   if(currentView==='game'&&(e.code==='Escape'||e.code==='KeyP')){
