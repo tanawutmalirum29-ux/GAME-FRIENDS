@@ -6,7 +6,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
 const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'..'),out=process.env.BOARD_SCREENSHOTS||'/tmp/game-friends-board';
-const injection=`window.__boardTest={get board(){return boardSession},get round(){return round},get players(){return players},beginBoard,updateBoard,updateRound,drawGame,addLocal,returnToLobby,pulse:sendInputs,
+const injection=`window.__boardTest={get board(){return boardSession},get round(){return round},get players(){return players},beginBoard,updateBoard,updateRound,drawGame,addLocal,returnToLobby,layoutFinalResults,pulse:sendInputs,
  phone(info){controllerReady=true;controllerPlayerActive=true;controllerId='p1';controllerSessionMode='board';
  controllerConn={open:true,send:msg=>window.__boardPackets.push(msg)};window.__boardPackets=[];
  $('controllerName').textContent='Snow explorer';$('controllerAvatar').style.background='#ff628c';
@@ -173,6 +173,57 @@ async function main(){
   await host.evaluate(()=>{const s=__boardTest.board;s.players.forEach(p=>p.isBot=false);s.order=s.players.map(p=>p.id);s.players.forEach((p,i)=>p.currentNodeId='n'+(i+1));s.players[0].currentNodeId='n3';BoardParty.startTurn(s);for(let i=0;i<80;i++){BoardParty.update(s,.01);__boardTest.drawGame(s.time);}});
   await host.screenshot({path:path.join(out,'board-12.png')});
   await host.screenshot({path:path.join(out,'board-preview.jpg'),type:'jpeg',quality:82,scale:'css'});
+  // Real browser visual regression: winner row centered, all lower rows
+  // full, and no cards overlapping at the 3/4/5/6/7/9/10/12-player sizes.
+  for(const count of [3,4,5,6,7,9,10,12]){
+   await host.evaluate(n=>{
+    const list=document.getElementById('resultList');list.replaceChildren();
+    for(let i=0;i<n;i++){
+     const card=document.createElement('div');card.className='result-player';
+     card.style.animation='none';
+     const label=document.createElement('div'),detail=document.createElement('span');
+     label.textContent='อันดับ '+(i+1)+' • Bot '+(i+1);
+     label.style.color=['#f7899a','#74d7c1','#ffcc78','#83a6ef'][i%4];
+     detail.textContent=(n-i)+' คะแนน';
+     card.append(label,detail);list.append(card);
+    }
+    document.getElementById('results').classList.remove('hidden');
+    __boardTest.layoutFinalResults();
+   },count);
+   const p=await host.evaluate(()=>{
+    const list=document.getElementById('resultList'),b=list.getBoundingClientRect();
+    const box=el=>{const z=el.getBoundingClientRect();
+     return{x:z.x,y:z.y,right:z.right,bottom:z.bottom,width:z.width};};
+    return{left:b.left,right:b.right,center:b.left+b.width/2,
+     cols:Number(list.dataset.cols),top:Number(list.dataset.topCount),
+     rows:[...list.querySelectorAll('.result-player')].map(box)};
+   });
+   const cards=p.rows,topCards=cards.slice(0,p.top),bottom=cards.slice(-p.cols);
+   assert.equal(cards.length,count);
+   assert.ok(Math.abs((topCards[0].x+topCards.at(-1).right)/2-p.center)<2.5,
+    count+' players: short top row centered in the real viewport');
+   assert.ok(topCards.every(c=>Math.abs(c.y-topCards[0].y)<2.5));
+   if(count>p.cols){
+    assert.ok(Math.abs(bottom[0].x-p.left)<2.5,
+     count+' players: bottom row fills the left edge');
+    assert.ok(Math.abs(bottom.at(-1).right-p.right)<2.5,
+     count+' players: bottom row fills the right edge');
+    assert.ok(topCards[0].y<bottom[0].y,
+     count+' players: rank-one cards sit above the filled lower rows');
+   }
+   for(let i=0;i<cards.length;i++)for(let j=i+1;j<cards.length;j++){
+    const a=cards[i],b=cards[j];
+    assert.ok(a.right<=b.x+.5||b.right<=a.x+.5||
+      a.bottom<=b.y+.5||b.bottom<=a.y+.5,
+     count+' players: rank cards must not overlap');
+   }
+   if([5,9,12].includes(count))
+    await host.screenshot({path:path.join(out,'rankings-'+count+'.png')});
+  }
+  await host.evaluate(()=>{
+   document.getElementById('results').classList.add('hidden');
+   document.getElementById('resultList').replaceChildren();
+  });
   // Render the real mobile UI and click its actual pointer-bound A/B buttons.
   const mobile=await browser.newContext({viewport:{width:844,height:390},deviceScaleFactor:2,isMobile:true,hasTouch:true});
   await mobile.route('https://**/*',route=>route.fulfill({body:'',contentType:'text/javascript'}));
