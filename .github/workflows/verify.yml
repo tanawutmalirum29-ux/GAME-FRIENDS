@@ -40,6 +40,7 @@ jobs:
           node --check tests/fruit-memory.cjs
           node --check tests/chickens.cjs
           node --check tests/lobby-start.cjs
+          node --check tests/ipad-statusbar.cjs
           node --check tests/combat-motion.cjs
           node --check auto-update.js
           node --check scripts/build-board-v7.cjs
@@ -67,6 +68,8 @@ jobs:
           node tests/board-expedition.cjs
       - name: "Central character combat: 0.8-second stun and attacker-colored VFX"
         run: node tests/combat-motion.cjs
+      - name: iPadOS Home Screen and native fullscreen status-bar regression
+        run: node tests/ipad-statusbar.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
       - name: GHOST ATTACK courtyards, wall collisions, reachable lanes and 1–12 bots
