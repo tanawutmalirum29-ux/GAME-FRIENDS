@@ -64,6 +64,8 @@ function renderModeChoices(){
 let tournament=null;
 let gameSelection=null;
 let selectedSessionMode='queue';
+// Each connected phone may vote A once to start; local bots are ready by default.
+const lobbyReadyVotes=new Set();
 let boardSession=null,boardStateToken=null,boardStateClock=0;
 let controllerSessionMode='queue',controllerBoard=null,controllerActionId=0;
 const KEYS = [
@@ -76,6 +78,7 @@ let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,cancel:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false,controllerPlayerEliminated=false;
 let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
+let controllerLobbyVotes={ready:0,total:0,selfReady:false};
 let disconnectRequested=false;
 const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
 const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
@@ -410,6 +413,7 @@ function removePlayer(id) {
   const at=players.findIndex(p=>p.id===id);
   if(at<0)return;
   cancelSeat(id);
+  lobbyReadyVotes.delete(id);
   const p=players[at];
   if(p.conn)stopHostVideoCall(p.conn);
   if(boardSession&&boardSession.phase!=='finished'){
@@ -557,9 +561,33 @@ function broadcastGamePreview(){
   }catch(_){/* Some browsers may not support encoding; game input stays usable. */}
 }
 function networkPhase(){return round?(round.paused?'paused':round.phase):'lobby';}
+function lobbyReadySnapshot(){
+  // Votes from removed seats are dropped; bot seats count as ready without a phone.
+  const seats=new Set(players.map(p=>p.id));
+  for(const id of lobbyReadyVotes)if(!seats.has(id))lobbyReadyVotes.delete(id);
+  return {
+    ready:players.filter(p=>p.isBot||lobbyReadyVotes.has(p.id)).length,
+    total:players.length,
+    voted:[...lobbyReadyVotes]
+  };
+}
+function castLobbyReadyVote(conn){
+  if(round||gameSelection||currentView!=='hostLobby'||!conn?.playerId)return false;
+  const p=players.find(p=>p.id===conn.playerId&&p.conn===conn&&p.type==='remote');
+  if(!p)return false;
+  if(lobbyReadyVotes.has(p.id))lobbyReadyVotes.delete(p.id);
+  else lobbyReadyVotes.add(p.id);
+  renderRoster();
+  broadcastRoster();
+  const count=lobbyReadySnapshot();
+  // Only an explicit A press starts a unanimous lobby, never a player removal.
+  if(count.total>0&&count.ready===count.total&&!$('startBtn').disabled)beginParty();
+  return true;
+}
 function broadcastRoster(){
   broadcast({t:'roster',players:players.map(playerPublic),phase:networkPhase(),
-    mode:round?round.mode:'ghost',selectionOpen:!round&&selectedSessionMode!=='board',sessionMode:selectedSessionMode});
+    mode:round?round.mode:'ghost',selectionOpen:!round&&selectedSessionMode!=='board',
+    sessionMode:selectedSessionMode,lobbyReady:lobbyReadySnapshot()});
   if(round?.mode==='board')broadcastBoardState();
   if(onlineHost)saveHost();else saveOffline();
 }
@@ -649,7 +677,9 @@ function renderRoster(){
   el.style.setProperty('--roster-rows',String(MAX_PLAYERS/columns));
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
   $('startBtn').disabled=players.length<1||(selectedSessionMode==='queue'&&nominatedGames().length!==players.length);
-  $('startBtn').textContent=selectedSessionMode==='board'?'เริ่ม BOARD PARTY':selectedSessionMode==='endless'?'เริ่มเล่นทุกเกม ▶':'สุ่มและเริ่มเล่น ▶';
+  const readyCount=lobbyReadySnapshot();
+  const startText=selectedSessionMode==='board'?'เริ่ม BOARD PARTY':selectedSessionMode==='endless'?'เริ่มเล่นทุกเกม ▶':'สุ่มและเริ่มเล่น ▶';
+  $('startBtn').textContent=startText+'  '+readyCount.ready+'/'+readyCount.total;
   updateHostQueue();
   players.forEach(p=>{
     const item=document.createElement('div');item.className='roster-item';
@@ -903,6 +933,7 @@ function resetInputs(){
   players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
 }
 function closeHost({goHome=true}={}){
+  lobbyReadyVotes.clear();
   ++hostOpenAttempt;
   if(hostRetryTimeout!==null){clearTimeout(hostRetryTimeout);hostRetryTimeout=null;}
   releaseBotPossession();
@@ -1031,7 +1062,9 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         if(round||selectedSessionMode==='board'||currentView!=='hostLobby'||!Object.hasOwn(MODES,msg.mode))return;
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!p||p.choice===msg.mode)return;
-        p.choice=msg.mode;renderRoster();broadcastRoster();
+        p.choice=msg.mode;lobbyReadyVotes.delete(p.id);renderRoster();broadcastRoster();
+      }else if(msg.t==='lobby-ready'&&conn.playerId){
+        castLobbyReadyVote(conn);
       }else if(msg.t==='result-vote'&&conn.playerId){
         castResultVote(conn,msg.choice);
       }else if(msg.t==='target-cycle'&&conn.playerId){
@@ -1472,6 +1505,12 @@ function joinRoom(recovery=false){
         receiveBoardState(data);
       }else if(data.t==='roster'){
         controllerSessionMode=data.sessionMode||'queue';
+        const ready=data.lobbyReady||{};
+        controllerLobbyVotes={
+          ready:Math.max(0,Math.min(MAX_PLAYERS,Number(ready.ready)||0)),
+          total:Math.max(0,Math.min(MAX_PLAYERS,Number(ready.total)||0)),
+          selfReady:Array.isArray(ready.voted)&&ready.voted.includes(controllerId)
+        };
         showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
         setControllerGameContext(data.mode,data.phase,!!(self&&self.active));
@@ -1480,7 +1519,8 @@ function joinRoom(recovery=false){
         $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
           data.phase==='playing'?(self&&self.eliminated?'ตกรอบ • ดูเกมต่อ':self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):
           data.phase==='roulette'?'กำลังสุ่มเกมรอบถัดไป':data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='summary'?'กำลังดูคะแนนรวม • กด B กลับล็อบบี้':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':
-          'กำลังรอเจ้าของห้องเริ่มเกม';
+          (controllerLobbyVotes.selfReady?'พร้อมแล้ว • กด A อีกครั้งเพื่อยกเลิก':'กด A เพื่อโหวตเริ่มเกม')+
+          ' • '+controllerLobbyVotes.ready+'/'+controllerLobbyVotes.total+' พร้อม';
       }else if(data.t==='result-votes'){
         if(controllerReady&&['results','summary'].includes(controllerGamePhase)){
           controllerResultVotes={
@@ -1638,8 +1678,11 @@ function showControllerMode(mode){
     ['countdown','playing','paused'].includes(controllerGamePhase);
   const ghost=playing&&mode==='ghost',chickens=playing&&mode==='chickens';
   const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave',colorSwitch=playing&&mode==='color_switch',knight=playing&&mode==='knight_match',boulder=playing&&mode==='boulder_bash',snow=playing&&mode==='snow_brawl';
+  const lobbyVoting=controllerReady&&controllerGamePhase==='lobby';
   const voting=controllerReady&&['results','summary'].includes(controllerGamePhase)&&controllerPlayerActive;
-  const aLabel=voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
+  const aLabel=lobbyVoting?(controllerLobbyVotes.selfReady?'ยกเลิกพร้อม':'พร้อมเริ่ม')+
+    ' '+controllerLobbyVotes.ready+'/'+controllerLobbyVotes.total:
+    voting?(controllerResultVotes.nextLabel='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
     controllerResultVotes.nextLabel)+
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
@@ -1668,7 +1711,7 @@ function showControllerMode(mode){
   $('buttonA').setAttribute('aria-label',aLabel?'ปุ่ม A '+aLabel:'ปุ่ม A');
   $('buttonB').setAttribute('aria-label',bLabel?'ปุ่ม B '+bLabel:'ปุ่ม B');
   $('controllerModeName').textContent=playing?(MODES[mode]||''):'';
-  $('controllerHelp').textContent=ghost?
+  $('controllerHelp').textContent=lobbyVoting?'กด A เพื่อโหวตเริ่มเกม • ครบทุกคนแล้วเกมเริ่มอัตโนมัติ':ghost?
     'ลากจากที่ว่างเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':
     chickens?'วิ่งชนไก่เพื่อจับ • เอาหัวไก่จุ่มในคอก 0.15 วิ • A ตีให้ไก่หล่น':
     fruit?'จำผลไม้แล้ววิ่งไปยังช่องที่ถูกต้อง • ดันกันได้ • A ต่อยให้สตั้น':
@@ -1872,6 +1915,8 @@ function bindControl(btn, target, id){
     if(target[key]===pressed)return;
     target[key]=pressed;btn.classList.toggle('pressed',pressed);
     if(id==='remote'){
+      if(pressed&&key==='action'&&controllerReady&&controllerGamePhase==='lobby')
+        send(controllerConn,{t:'lobby-ready'});
       if(pressed&&controllerReady&&controllerPlayerActive&&['results','summary'].includes(controllerGamePhase)){
         const choice=key==='action'?'next':key==='alt'?'lobby':null;
         if(choice)send(controllerConn,{t:'result-vote',choice});
@@ -3004,6 +3049,7 @@ function resumeGame(){
   broadcastGameState();
 }
 function returnToLobby(){
+  lobbyReadyVotes.clear();
   releaseBotPossession();
   $('boardTools').classList.add('hidden');
   gameSelection=null;$('gameRoulette').classList.add('hidden');
@@ -3153,7 +3199,7 @@ function updateGameSelection(dt){
   }
 }
 function beginParty(){
-  if(!players.length)return;
+  if(!players.length||round||gameSelection||currentView!=='hostLobby')return;
   if(selectedSessionMode==='board'){beginBoard();return;}
   if(selectedSessionMode==='endless'){
     tournament={schedule:Object.keys(MODES),index:0,endless:true,roundsPlayed:0,lastMode:null};
@@ -3215,7 +3261,8 @@ $('replayBtn').addEventListener('click',advanceParty);
 document.querySelectorAll('[data-session-mode]').forEach(button=>{
  button.addEventListener('click',()=>{
   selectedSessionMode=['endless','board'].includes(button.dataset.sessionMode)?button.dataset.sessionMode:'queue';
-   renderRoster();
+  lobbyReadyVotes.clear();
+  renderRoster();
   for(const other of document.querySelectorAll('[data-session-mode]')){
    const active=other.dataset.sessionMode===selectedSessionMode;
    other.classList.toggle('active',active);
