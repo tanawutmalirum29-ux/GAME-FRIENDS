@@ -2864,6 +2864,32 @@ for(const count of [1,12]){
    two=spectator.sent.filter(m=>m.t==='board-state').at(-1);
  assert.equal(one.canZoom,true,'current player receives zoom permission');
  assert.equal(two.canZoom,false,'spectator receives no zoom permission');
+ // Remote-only camera mode: owner may inspect; spectators never can.
+ const cameraPacket={turnId:s.turnId,mapVersion:s.map.version};
+ spectator.fire('data',{t:'board-camera-mode',enabled:true,...cameraPacket});
+ spectator.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...cameraPacket});
+ assert.equal(spectator.boardCameraGestureToken,null,'spectator camera activation rejected');
+ const preModeZoom=s.camera.zoom;
+ owner.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...cameraPacket});
+ assert.equal(s.camera.zoom,preModeZoom,'gesture before double-tap mode rejected');
+ owner.fire('data',{t:'board-camera-mode',enabled:true,...cameraPacket});
+ assert.equal(owner.boardCameraGestureToken,s.turnId);
+ assert.equal(s.camera.panned,true,'inspection mode suspends follow');
+ const gestureInitial=s.camera.zoom;
+ owner.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...cameraPacket});
+ assert.ok(s.camera.zoom>gestureInitial,'pinch zooms host map');
+ const gestureZoom=s.camera.zoom;
+ const positionBefore=JSON.stringify(ui.scope.window.BoardItems.position(s,first));
+ owner.fire('data',{t:'input',turnId:s.turnId,actionId:1,keys:{axisX:1,axisY:1}});
+ api.updateBoard(.05);
+ assert.equal(JSON.stringify(ui.scope.window.BoardItems.position(s,first)),positionBefore,
+   'host rejects movement axes while controller is in map mode');
+ owner.fire('data',{t:'board-camera-mode',enabled:false,...cameraPacket});
+ assert.equal(s.camera.panned,false,'double-tap back resumes follow');
+ assert.equal(s.camera.manualZoom,gestureZoom,'zoom remains unchanged when returning to walk');
+ const afterExit=s.camera.zoom;
+ owner.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...cameraPacket});
+ assert.equal(s.camera.zoom,afterExit,'gestures rejected after switching back');
  const initial=s.camera.zoom;
  spectator.fire('data',{t:'board-camera-zoom',direction:1});
  assert.equal(s.camera.zoom,initial,'spectator zoom rejected by host');
