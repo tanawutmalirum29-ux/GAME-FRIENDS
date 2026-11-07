@@ -345,7 +345,8 @@ assert.equal(left.snow.ballId,null);assert.equal(right.snow.ballId,null);
  G.solveBallCollisions(g.s,g.ps);
  assert.ok(victim.snow.flat>0,'moving held snowball flattens victim');
  assert.ok(victim.snow.alive,'Snow Crush is not elimination');
- assert.equal(b.state,'DESTROYED','crushing snowball breaks immediately');
+ assert.equal(b.state,'FORMING','crushing a person preserves the attacking snowball');
+ owner.x=-120;owner.y=0;owner.vx=0;owner.vy=0; // Leave range, so the victim can recover.
  tick(g,65);
  assert.equal(victim.snow.flat,0,'flattened player automatically recovers');
 }
