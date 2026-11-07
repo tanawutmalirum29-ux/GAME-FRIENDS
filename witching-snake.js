@@ -213,7 +213,7 @@ function setup(round,ps){
    eliminatedAt:null,fade:0,botPlan:q.heading,botClock:0,
    botStyle:{orbit:.34+random(s)*.37,caution:.75+random(s)*.65,
     starDrive:.55+random(s)*1.1,turnBias:(random(s)-.5)*.18,
-    reaction:.1+random(s)*.12}};
+    reaction:.13+random(s)*.12}};
  }
  return s;
 }
