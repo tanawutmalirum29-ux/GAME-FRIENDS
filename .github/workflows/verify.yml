@@ -27,6 +27,10 @@ jobs:
           node --check knight-match.js
           node --check boulder-bash.js
           node --check snow-brawl.js
+          node --check party-arena-scenes.js
+          node --check game-cover-art.js
+          node --check tests/party-arenas.cjs
+          node --check tests/party-arenas-browser.cjs
           node --check shopping-time.js
           node --check pizza-time.js
           node --check pizza-kitchen-art.js
@@ -53,6 +57,8 @@ jobs:
           node --check scripts/build-static.cjs
       - name: LAWN MOWER 1–12 player race and sun distribution checks
         run: node tests/lawn-mower.cjs
+      - name: Original covers, scene geometry, exact lance tips and 1–12-player rounds
+        run: node tests/party-arenas.cjs
       - name: SHOPPING TIME conveyor physics, checkout, bombs and bot regressions
         run: node tests/shopping-time.cjs
       - name: PIZZA TIME garden kitchen, serving and 1–12-player bot rounds
@@ -123,7 +129,7 @@ jobs:
 
   board-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Restore BOARD PARTY v7 source assets
@@ -149,6 +155,8 @@ jobs:
           BOARD_BROWSER=webkit node tests/ghost-courtyards-browser.cjs
           node tests/pizza-kitchen-browser.cjs
           BOARD_BROWSER=webkit node tests/pizza-kitchen-browser.cjs
+          node tests/party-arenas-browser.cjs
+          BOARD_BROWSER=webkit node tests/party-arenas-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

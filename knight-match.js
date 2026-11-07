@@ -89,7 +89,7 @@ function setup(round,ps){
  if(!ps.length||ps.length>12)throw Error('KNIGHT MATCH supports 1–12 players');
  const world=dimensions(ps.length),people=ps;
  for(const p of people)p.active=true;
- const s={world:{w:world.w,h:world.h},center:{x:world.w/2,y:world.h*.54},
+ const s={world:{w:world.w,h:world.h},center:{x:world.w/2,y:world.h*.5},
   radius:Math.min(world.w*.33,world.h*.43),targetCount:world.count,
   balloonRadius:(ps.length>=10?21:ps.length>=7?19:16)*BALLOON_SIZE_MULTIPLIER,seed:(Number(round.knightSeed)||(Date.now()^0x5a17c28))>>>0||1,
   clock:0,remaining:CONFIG.duration,accumulator:0,finished:false,
@@ -109,6 +109,7 @@ function setup(round,ps){
  for(let i=0;i<s.targetCount;i++){const owner=pickOwner(s);if(!spawnNormal(s,people,owner.id))
    throw Error('Unable to place balanced KNIGHT MATCH balloons');}
  if(rand(s)<CONFIG.rainbowChance)spawnRainbow(s,people);
+ window.PartyArenaScenes?.preload('knight',s);
  return s;
 }
 function effectiveOwner(s,b){
@@ -327,10 +328,11 @@ function step(dt,round,ps){
  separate(s,people);
  for(const p of people){
   const k=p.km;
-  if(k.stun>0||k.attackTime<=0)continue;
+  if(k.stun>0||k.attackTime<=0){k.visualExtension=0;continue;}
   const previous=k.tip||lanceTip(p,k,0);
   const progress=1-k.attackTime/CONFIG.thrustDuration;
   const extension=20+Math.sin(Math.PI*progress)*15;
+  k.visualExtension=extension;
   const tip=lanceTip(p,k,extension);
   strike(s,p,people,previous,tip);k.tip=tip;
   k.attackTime=Math.max(0,k.attackTime-dt);
@@ -365,116 +367,12 @@ function line(ctx,a,b,color,width){
 function circle(ctx,x,y,r,color){
  ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();
 }
-function scenery(ctx,s){
- const {w,h}=s.world,c=s.center,r=s.radius;
- // World-only decorations: no obstacles or invisible collisions are created.
- ctx.fillStyle='#71a55d';ctx.fillRect(0,0,w,h);
- for(let i=0;i<110;i++){
-  const x=(i*193+53)%w,y=(i*137+29)%h;
-  circle(ctx,x,y,1.6+i%3,i%4?'#9fc77b':'#4a8859');
- }
- // Painted, cached-like fixed-cost props, anchored beyond the play circle.
- function prop(kind,x,y,sz,a=0,variant=0){
-  ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.scale(sz,sz);
-  circle(ctx,6,11,22,'#243c2850');
-  if(kind==='tent'){
-   ctx.fillStyle='#71533d';ctx.fillRect(-27,-9,54,37);
-   ctx.fillStyle=variant%2?'#557db6':'#d3656f';
-   ctx.beginPath();ctx.moveTo(-36,4);ctx.lineTo(0,-38);ctx.lineTo(36,4);ctx.closePath();ctx.fill();
-   ctx.fillStyle=variant%2?'#e3bd83':'#f5d699';
-   ctx.beginPath();ctx.moveTo(0,-38);ctx.lineTo(5,4);ctx.lineTo(36,4);ctx.closePath();ctx.fill();
-   line(ctx,{x:-36,y:4},{x:36,y:4},'#fff0bb',2);
-   line(ctx,{x:0,y:-38},{x:0,y:-55},'#71503c',3);
-   ctx.fillStyle='#edc95f';ctx.beginPath();ctx.moveTo(0,-55);ctx.lineTo(22,-49);ctx.lineTo(0,-43);ctx.fill();
-  }else if(kind==='tree'){
-   ctx.fillStyle='#725139';ctx.fillRect(-7,-3,14,27);
-   circle(ctx,0,-16,26,'#33583b');circle(ctx,-15,-19,20,'#48794b');
-   circle(ctx,17,-17,19,'#4c8455');circle(ctx,0,-33,22,'#65a662');
-   circle(ctx,-12,-31,8,'#85bc6e');
-  }else if(kind==='target'){
-   ctx.fillStyle='#68533c';ctx.fillRect(-3,-2,6,32);
-   circle(ctx,0,-18,19,'#f3dfb5');circle(ctx,0,-18,13,'#c84e55');
-   circle(ctx,0,-18,8,'#f8f3dc');circle(ctx,0,-18,3,'#cc4c46');
-  }else if(kind==='hay'){
-   ctx.fillStyle='#bd8b3c';ctx.fillRect(-27,-12,54,27);
-   ctx.fillStyle='#e6be62';ctx.fillRect(-24,-15,48,25);
-   line(ctx,{x:-5,y:-15},{x:-5,y:12},'#986a31',3);
-   for(let i=0;i<5;i++)line(ctx,{x:-20+i*9,y:-12},{x:-12+i*9,y:6},'#f8d583',2);
-  }else if(kind==='barrels'){
-   for(const shift of [-10,13]){
-    circle(ctx,shift,-5,13,'#684733');circle(ctx,shift,-7,10,'#ae784b');
-    circle(ctx,shift,-7,7,'#765238');
-    line(ctx,{x:shift-9,y:-11},{x:shift+9,y:-11},'#d8bd89',2);
-   }
-  }else if(kind==='crate'){
-   ctx.fillStyle='#654735';ctx.fillRect(-22,-18,43,36);
-   ctx.fillStyle='#aa7b4c';ctx.fillRect(-18,-15,35,29);
-   line(ctx,{x:-18,y:-15},{x:17,y:14},'#dbac6f',4);
-   line(ctx,{x:17,y:-15},{x:-18,y:14},'#7d533a',3);
-  }else if(kind==='straw'){
-   ctx.fillStyle='#88633b';ctx.fillRect(-5,-6,10,28);
-   ctx.fillStyle='#e9c272';ctx.beginPath();ctx.ellipse(0,-17,17,13,0,0,TAU);ctx.fill();
-   ctx.fillStyle='#db9e62';ctx.fillRect(-14,-5,28,10);
-   line(ctx,{x:-24,y:-7},{x:24,y:-7},'#86583a',5);
-   ctx.fillStyle='#a84d53';ctx.fillRect(-3,-29,6,8);
-  }else if(kind==='torch'){
-   line(ctx,{x:0,y:12},{x:0,y:-23},'#604c39',6);
-   circle(ctx,0,-26,10,'#b76c32');
-   ctx.fillStyle='#ffd466';ctx.beginPath();
-   ctx.moveTo(0,-47);ctx.quadraticCurveTo(19,-27,0,-22);
-   ctx.quadraticCurveTo(-11,-29,0,-47);ctx.fill();
-  }
-  ctx.restore();
- }
- const items=[
-  ['tent',-.85,1.04,1.05,0],['tree',-2.20,1.10,1.05,0],
-  ['target',-1.53,1.15,.8,0],['hay',-.32,1.18,.9,0],
-  ['tent',.48,1.14,1.05,0],['tree',1.18,1.12,1,0],
-  ['crate',1.94,1.13,.9,0],['target',2.60,1.12,.9,0],
-  ['tent',3.26,1.05,1,0],['barrels',3.87,1.12,.9,0],
-  ['straw',4.53,1.14,.8,0],['tree',5.11,1.13,1.05,0],
-  ['tent',5.77,1.07,1.05,0],['torch',.03,1.10,.75,0],
-  ['torch',3.09,1.12,.75,0]
- ];
- for(let i=0;i<items.length;i++){
-  const [kind,a,m,scale]=items[i];
-  const x=c.x+Math.cos(a)*(r+44*m),y=c.y+Math.sin(a)*(r+44*m);
-  if(x<30||x>w-30||y<26||y>h-24)continue;
-  prop(kind,x,y,scale,a+Math.PI/2,i);
- }
- // Soil, compacted path, and delicate painted sand scuffs.
- circle(ctx,c.x,c.y,r+13,'#4b3829');
- circle(ctx,c.x,c.y,r+7,'#d7ae70');
- circle(ctx,c.x,c.y,r,'#a6784a');
- circle(ctx,c.x-r*.17,c.y-r*.20,r*.67,'#bc8b55a0');
- for(let i=0;i<40;i++){
-  const a=TAU*i/40,rd=r*(.18+(i*17%63)/100);
-  const x=c.x+Math.cos(a)*rd,y=c.y+Math.sin(a)*rd;
-  line(ctx,{x,y},{x:x+8+(i%7),y:y-2},i%2?'#d5a37050':'#704b3255',2);
- }
- ctx.strokeStyle='#795537';ctx.lineWidth=2;ctx.setLineDash?.([16,17]);
- ctx.beginPath();ctx.arc(c.x,c.y,r*.52,0,TAU);ctx.stroke();ctx.setLineDash?.([]);
- // Fence rendered after scenery, entirely beyond the navigable boundary.
- for(let i=0;i<72;i++){
-  const a=TAU*i/72,b=TAU*(i+.82)/72;
-  const p={x:c.x+Math.cos(a)*(r+6),y:c.y+Math.sin(a)*(r+6)};
-  const q={x:c.x+Math.cos(b)*(r+6),y:c.y+Math.sin(b)*(r+6)};
-  line(ctx,p,q,i%3===0?'#f0d8a8':'#805239',6);
-  if(i%6===0){
-   circle(ctx,p.x,p.y,5,'#543729');
-   line(ctx,{x:p.x,y:p.y},{x:p.x,y:p.y-33},'#66482f',3);
-   ctx.fillStyle=['#cf456e','#5c8ec7','#f4bc4d'][i%3];
-   ctx.beginPath();ctx.moveTo(p.x,p.y-33);ctx.lineTo(p.x+19,p.y-25);
-   ctx.lineTo(p.x,p.y-17);ctx.fill();
-  }
- }
-}
 function balloonArt(ctx,s,b){
  const x=b.x,y=b.y,r=b.radius,col=effectiveColor(s,b)||'#fff';
  ctx.save();
  // The draw center equals the authoritative collision center even during bobbing.
  circle(ctx,x+3,y+r*.68,r*.72,'#2f241f59');
- const balloonY=y-r*.18;
+ const balloonY=y;
  if(b.kind==='rainbow'){
   ctx.save();ctx.beginPath();ctx.arc(x,balloonY,r,0,TAU);ctx.clip();
   const rainbow=ctx.createLinearGradient(x-r,balloonY-r,x+r,balloonY+r);
@@ -489,7 +387,9 @@ function balloonArt(ctx,s,b){
   ctx.strokeStyle='#fef3cfb0';ctx.lineWidth=1.3;
   ctx.beginPath();ctx.arc(x,balloonY,r-.8,0,TAU);ctx.stroke();
  }else{
-  circle(ctx,x,balloonY,r,col);
+  const skin=ctx.createRadialGradient(x-r*.32,y-r*.4,r*.08,x,y,r*1.1);
+  skin.addColorStop(0,'#fff9ec');skin.addColorStop(.25,col);skin.addColorStop(.8,col);skin.addColorStop(1,'#333c49');
+  circle(ctx,x,balloonY,r,skin);
   circle(ctx,x+r*.37,y+r*.24,r*.13,'#201e2544');
  }
  ctx.fillStyle='#ffffffa9';ctx.beginPath();
@@ -498,42 +398,15 @@ function balloonArt(ctx,s,b){
  ctx.lineTo(x+3,y+r*.70);ctx.lineTo(x,y+r*.96);ctx.fill();
  ctx.restore();
 }
-function horseArt(ctx,p,s){
- const k=p.km,stun=k.stun>0,angle=k.angle;
- ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);ctx.scale(RIDER_SCALE,RIDER_SCALE);
- circle(ctx,6,7,22,'#2c211d65');
- const leg=Math.sin(s.clock*16+Number(String(p.id).replace(/\D/g,'')))*5;
- ctx.fillStyle='#633d2c';
- for(const x of [-14,13])for(const y of [-13,13]){ctx.beginPath();ctx.ellipse(x+leg*(x>0?1:-1),y,9,5,0,0,TAU);ctx.fill();}
- // Tail, body, mane, neck, head, ears from overhead.
- line(ctx,{x:-25,y:0},{x:-43,y:Math.sin(s.clock*9)*7},'#4d3029',8);
- ctx.fillStyle='#a46c4a';ctx.beginPath();ctx.ellipse(0,0,30,18,0,0,TAU);ctx.fill();
- circle(ctx,14,0,15,'#d49a69');circle(ctx,30,0,11,'#b57a55');
- ctx.fillStyle='#8b5739';ctx.fillRect(23,-11,5,22);
- ctx.fillStyle='#ecdbc4';circle(ctx,34,-7,2,'#2e2626');circle(ctx,34,7,2,'#2e2626');
- // Rider's colored tabard, steel helmet and shield.
- ctx.fillStyle=p.color;ctx.fillRect(-14,-11,23,22);
- circle(ctx,-3,0,11,'#d1dbe0');circle(ctx,0,0,6,'#8097a4');
- line(ctx,{x:-9,y:-3},{x:-24,y:-12},'#eff2ee',4);
- circle(ctx,-21,-12,8,p.color);
- const forward=normal(0),extension=k.attackTime>0?20+Math.sin(Math.PI*(1-k.attackTime/CONFIG.thrustDuration))*15:0;
- line(ctx,{x:2,y:13},{x:45+extension,y:13},'#ebdba1',5);
- for(let i=0;i<5;i++)line(ctx,{x:10+i*10+extension*.75,y:10},{x:15+i*10+extension*.75,y:16},i%2?p.color:'#fff8dd',3);
- ctx.fillStyle='#e6eef4';ctx.beginPath();ctx.moveTo(45+extension,7);
- ctx.lineTo(59+extension,13);ctx.lineTo(45+extension,19);ctx.fill();
- if(stun){circle(ctx,0,-29,5,'#ffe078');circle(ctx,13,-35,4,'#fff1a2');}
- ctx.restore();
- // Name faces the camera, not the horse's rotation.
- ctx.fillStyle='#1e2933dc';ctx.fillRect(p.x-48,p.y-47,96,16);
- ctx.fillStyle=p.color;ctx.textAlign='center';ctx.font='bold 12px system-ui';
- ctx.fillText(String(p.name||p.id).slice(0,14),p.x,p.y-35,90);
-}
 function draw(ctx,time,round,ps){
  const s=round.knightMatch;if(!s)return;
  ctx.save();ctx.clearRect(0,0,960,540);ctx.scale(960/s.world.w,540/s.world.h);
- scenery(ctx,s);
+ window.PartyArenaScenes.knight(ctx,s);
  for(const b of s.balloons)if(b.state==='active')balloonArt(ctx,s,b);
- for(const p of alive(ps).slice().sort((a,b)=>a.y-b.y))horseArt(ctx,p,s);
+ for(const p of alive(ps).slice().sort((a,b)=>a.y-b.y)){
+  const k=p.km,extension=k.visualExtension||0;
+  window.PartyArenaScenes.knightHorse(ctx,s,p,RIDER_SCALE,extension);
+ }
  for(const fx of s.effects){
   ctx.save();ctx.globalAlpha=clamp(fx.life/fx.full,0,1);
   if(fx.kind==='shard')circle(ctx,fx.x,fx.y,3,fx.color||'#ffda84');
@@ -546,13 +419,7 @@ function draw(ctx,time,round,ps){
  }
  ctx.restore();
  ctx.save();
- // Screen-space HUD is independent of world size and leaves the arena visible.
- ctx.fillStyle='#1f2e3ee5';ctx.fillRect(12,10,234,57);
- ctx.fillStyle='#fff2dc';ctx.font='900 19px system-ui';ctx.textAlign='left';
- ctx.fillText('KNIGHT MATCH',23,33);
- ctx.font='bold 14px system-ui';
- ctx.fillText(round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown):
-  'เหลือ '+Math.ceil(s.remaining)+' วินาที',23,53);
+ window.PartyArenaScenes.clock(ctx,round.phase==='countdown'?round.countdown:s.remaining);
  if(s.rainbowOwnerId){
   const owner=ps.find(p=>p.id===s.rainbowOwnerId);
   const remaining=Math.max(0,s.rainbowUntil-s.clock),x=480,y=8,w=246,h=48;

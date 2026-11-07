@@ -45,8 +45,9 @@ for(let n=1;n<=12;n++){
 {
  const a=newGame(6),b=newGame(12);
  assert.ok(b.s.world.w>a.s.world.w&&b.s.world.h>a.s.world.h);
- assert.equal(b.s.beltRight-b.s.beltLeft,a.s.beltRight-a.s.beltLeft,
-   'Large expands the walkable sides; does not stretch or add conveyor lanes');
+ assert.ok(Math.abs((b.s.beltRight-b.s.beltLeft)/b.s.unit-(a.s.beltRight-a.s.beltLeft)/a.s.unit)<1e-8,
+   'Large keeps conveyor lanes the same screen size while widening the walking sides');
+ assert.ok(b.s.arena.w/b.s.unit>a.s.arena.w/a.s.unit);
 }
 {
  const t=newGame(),p=t.players[0],q=p.shopping,s=t.s;
@@ -72,6 +73,7 @@ for(let n=1;n<=12;n++){
  const overflow=obj(s,p);s.objects.push(overflow);tick(t);
  assert.equal(q.basket.length,5,'capacity is five');
  assert.equal(overflow.active,true,'full cart does not erase an item');
+ s.objects=[]; // Isolate checkout idempotency from fresh products near the smaller market.
  const z=s.checkouts[0];
  p.x=z.x-C.cartDistance;p.y=z.y;q.angle=0;q.cartX=z.x;q.cartY=z.y;
  tick(t);assert.equal(p.score,5,'checkout transfers 5 paid items to score');

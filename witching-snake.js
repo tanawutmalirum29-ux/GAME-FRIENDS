@@ -3,8 +3,8 @@
 'use strict';
 const TAU=Math.PI*2, STEP=1/60, CELL=40;
 const CONFIG=Object.freeze({
- small:Object.freeze({width:960,height:540,rx:442,ry:238,trailStart:190,trailGain:48,trailMax:520,stars:2}),
- large:Object.freeze({width:1280,height:720,rx:590,ry:317,trailStart:230,trailGain:65,trailMax:760,stars:4}),
+ small:Object.freeze({width:960,height:540,rx:292,ry:222,trailStart:190,trailGain:48,trailMax:520,stars:2}),
+ large:Object.freeze({width:1280,height:720,rx:490,ry:300,trailStart:230,trailGain:65,trailMax:760,stars:4}),
  // 20% more steering authority; maintain original broom speed and light slip.
  speed:173, turnMax:2.64, turnAcceleration:10.8, slip:.075, radius:12,
  trailRadius:3.4, selfGap:41, sample:8, soloDuration:60, overtimeStart:120,
@@ -203,6 +203,7 @@ function setup(round,ps){
  const s={w:cfg.width,h:cfg.height,rx:cfg.rx,ry:cfg.ry,settings:cfg,clock:0,tick:0,
   accumulator:0,arenaScale:1,seed:matchSeed(round),
   stars:[],starClock:0,grid:new Map(),finished:false,winnerIds:[],ranking:[],roster:ps};
+ s.boundary=polygon(s);window.PartyArenaScenes?.preload('witch',s);
  round.witchingSnake=s;round.remaining=ps.length===1?CONFIG.soloDuration:null;
  const positions=spawnPositions(s,ps.length);
  for(let i=0;i<ps.length;i++){
@@ -315,143 +316,8 @@ function traceArena(g,points){
  }
  g.closePath();
 }
-function coloredRoof(g,x,y,rotation,roof,trim){
- g.save();g.translate(x,y);g.rotate(rotation);
- // Color-coded shrines sit outside the flight zone, underneath its polygon mask.
- g.fillStyle='#121a30';g.fillRect(-108,-60,216,124);
- g.fillStyle='#4f5667';g.fillRect(-97,-51,194,112);
- g.fillStyle='#232f44';g.fillRect(-89,-43,178,97);
- g.beginPath();g.moveTo(-119,-50);g.lineTo(0,-84);g.lineTo(119,-50);
- g.lineTo(101,66);g.lineTo(-101,66);g.closePath();g.fillStyle=roof;g.fill();
- g.lineWidth=5;g.strokeStyle=trim;g.stroke();
- // Layered rectangular shingles echo the screenshot, but are drawn as vectors.
- g.strokeStyle='rgba(11,19,39,.42)';g.lineWidth=2;
- for(let row=0;row<6;row++){
-  const yy=-44+row*17,shift=row%2?12:0;
-  g.beginPath();g.moveTo(-106,yy);g.lineTo(106,yy);g.stroke();
-  for(let col=0;col<8;col++){
-   const xx=-94+col*26+shift;
-   g.beginPath();g.moveTo(xx,yy-17);g.lineTo(xx+5,yy);g.stroke();
-  }
- }
- g.fillStyle='rgba(255,255,255,.12)';
- g.beginPath();g.moveTo(-100,-47);g.lineTo(0,-72);g.lineTo(96,-47);
- g.lineTo(90,-33);g.lineTo(0,-58);g.lineTo(-90,-33);g.closePath();g.fill();
- // Gold mushroom/lantern caps at the corner towers.
- for(const [dx,dy,size] of [[77,-39,20],[48,-63,13]]){
-  g.shadowColor='#eaa94e';g.shadowBlur=7;
-  circle(g,dx,dy,size,'#9c602c');circle(g,dx-2,dy-3,size*.72,'#efb65f');
-  circle(g,dx-5,dy-7,size*.35,'#ffe1a1');
- }
- g.restore();
-}
-function strawGrove(g,x,y,flipped=false){
- g.save();g.translate(x,y);g.scale(flipped?-1:1,1);
- // Gold thatch fans along the outer edge, clipped by the playable floor.
- g.fillStyle='#483116';g.beginPath();g.ellipse(0,0,116,112,-.24,0,TAU);g.fill();
- for(let i=0;i<32;i++){
-  const a=-1.35+i/31*2.8,rad=58+(i%4)*10;
-  const tipX=Math.cos(a)*rad+14,tipY=Math.sin(a)*99;
-  g.beginPath();
-  g.moveTo(-12+Math.sin(i*5)*19,0);
-  g.quadraticCurveTo(tipX*.5-5,tipY*.75,tipX+12,tipY);
-  g.quadraticCurveTo(tipX*.7+17,tipY*.95,tipX*.58,tipY*.42);
-  g.closePath();
-  g.fillStyle=i%3===0?'#dd9b29':i%3===1?'#a56c1d':'#c98921';g.fill();
- }
- g.restore();
-}
-function floorStones(g){
- // Sparse slate mosaics leave the danger trails and players unmistakable.
- const patches=[[255,166],[482,204],[710,162],[277,391],[517,354],[737,386]];
- for(let p=0;p<patches.length;p++){
-  const [x,y]=patches[p];
-  for(let row=0;row<4;row++)for(let col=0;col<5;col++){
-   const xx=x+col*22+(row%2?10:0),yy=y+row*22;
-   g.fillStyle=(col+row+p)%3===0?'rgba(137,163,218,.085)':'rgba(13,19,54,.12)';
-   g.fillRect(xx,yy,19,19);
-   g.strokeStyle='rgba(152,161,202,.045)';g.lineWidth=1;g.strokeRect(xx+.5,yy+.5,19,19);
-  }
- }
-}
-function paintStaticArena(g,s){
- // Decor is rendered at a shared reference size; large and small maps keep
- // the same visual proportions while physics always uses real world units.
- const unit=s.w/960,poly=polygon(s).map(v=>({x:v.x/unit,y:v.y/unit}));
- g.save();g.scale(unit,unit);
- const night=g.createLinearGradient(0,0,960,540);
- night.addColorStop(0,'#141832');night.addColorStop(.5,'#080f24');
- night.addColorStop(1,'#22243e');
- g.fillStyle=night;g.fillRect(0,0,960,540);
- // Low-contrast stonework beyond the rail.
- g.fillStyle='#1f2a3c';
- for(let i=0;i<28;i++){
-  const col=i%7,row=Math.floor(i/7);
-  g.fillRect(col*146-14+(row%2?18:0),row*166-16,137,143);
- }
- coloredRoof(g,178,-8,-.3,'#cfb72f','#f2d759');
- coloredRoof(g,782,-8,.3,'#0b9bc9','#62daf4');
- coloredRoof(g,176,558,.3,'#b72b31','#f46263');
- coloredRoof(g,789,558,-.3,'#38a941','#76e65c');
- strawGrove(g,20,266,false);strawGrove(g,940,268,true);
- // Polygonal collision boundary and rendered inner rail are exactly aligned.
- traceArena(g,poly);g.strokeStyle='#090b20';g.lineWidth=29;g.stroke();
- traceArena(g,poly);g.strokeStyle='#303449';g.lineWidth=23;g.stroke();
- const floor=g.createLinearGradient(0,40,860,510);
- floor.addColorStop(0,'#344370');floor.addColorStop(.5,'#303b68');
- floor.addColorStop(1,'#293357');
- traceArena(g,poly);g.fillStyle=floor;g.fill();
- g.save();traceArena(g,poly);g.clip();
- floorStones(g);
- g.save();g.translate(480,270);
- for(let i=0;i<3;i++){
-  g.strokeStyle=i===1?'rgba(146,161,220,.07)':'rgba(197,178,241,.065)';
-  g.lineWidth=2;g.beginPath();g.ellipse(0,0,95+i*92,47+i*65,0,0,TAU);g.stroke();
- }
- for(let i=0;i<8;i++){
-  const angle=i*TAU/8;
-  g.beginPath();g.moveTo(Math.cos(angle)*42,Math.sin(angle)*42);
-  g.lineTo(Math.cos(angle)*80,Math.sin(angle)*80);
-  g.strokeStyle='rgba(196,190,230,.09)';g.lineWidth=2;g.stroke();
- }
- g.restore();g.restore();
- // Protective masonry, segmented magenta/red-gold spell rails and metal joints.
- traceArena(g,poly);g.strokeStyle='#171b31';g.lineWidth=23;g.stroke();
- traceArena(g,poly);g.strokeStyle='#6d7284';g.lineWidth=14;g.stroke();
- for(let i=0;i<poly.length;i++){
-  const a=poly[i],b=poly[(i+1)%poly.length],dx=b.x-a.x,dy=b.y-a.y;
-  const length=Math.hypot(dx,dy);
-  const inset=Math.min(.17,12/length);
-  const x1=a.x+dx*inset,y1=a.y+dy*inset;
-  const x2=b.x-dx*inset,y2=b.y-dy*inset;
-  g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);
-  g.strokeStyle='#36263c';g.lineWidth=10;g.stroke();
-  g.shadowColor='#f94e82';g.shadowBlur=9;
-  g.strokeStyle='#e64e78';g.lineWidth=5.5;g.stroke();
-  g.shadowBlur=0;g.strokeStyle='#ffc66a';g.lineWidth=2;g.stroke();
-  const midX=(x1+x2)/2,midY=(y1+y2)/2;
-  circle(g,midX,midY,2.5,'#fff0c3');
- }
- for(let i=0;i<poly.length;i++){
-  const v=poly[i];
-  circle(g,v.x,v.y,11,'#2c304a');
-  circle(g,v.x,v.y,8,'#9296a5');
-  circle(g,v.x-1.8,v.y-2.1,4.5,'#e1dce1');
-  circle(g,v.x-2.6,v.y-3.2,1.8,'#fff8dd');
- }
- g.restore();
-}
 function artArena(g,s,time){
- // Bake detailed static decorations once rather than rerender shingles and
- // slate every animation frame on low-end phones.
- if(!s.arenaBackdrop&&typeof document!=='undefined'&&typeof document.createElement==='function'){
-  const canvas=document.createElement('canvas');
-  canvas.width=s.w;canvas.height=s.h;
-  const context=canvas.getContext?.('2d');
-  if(context){paintStaticArena(context,s);s.arenaBackdrop=canvas;}
- }
- if(s.arenaBackdrop)g.drawImage(s.arenaBackdrop,0,0);
- else paintStaticArena(g,s);
+ window.PartyArenaScenes.witch(g,s);
  if(s.arenaScale<1){
   const safe=polygon(s,s.arenaScale);
   g.save();g.beginPath();g.rect(0,0,s.w,s.h);
@@ -472,28 +338,6 @@ function artStar(g,p,t){
  g.closePath();g.fillStyle='#ffe69a';g.shadowColor='#f7c35c';g.shadowBlur=14;g.fill();
  circle(g,0,0,3,'#ffffff');g.restore();
 }
-function artWitch(g,p,t){
- const w=p.ws;if(!w.alive&&w.fade<=0)return;
- g.save();g.globalAlpha=w.alive?1:w.fade/.95;
- circle(g,p.x+3,p.y+9,14,'rgba(3,2,18,.34)');
- g.translate(p.x,p.y);g.rotate(w.heading);
- const tilt=clamp(w.angular/CONFIG.turnMax,-1,1);
- g.rotate(tilt*.11);
- g.strokeStyle='#ac8254';g.lineWidth=5;g.lineCap='round';g.beginPath();g.moveTo(-25,0);g.lineTo(23,0);g.stroke();
- g.fillStyle='#d4a56e';g.beginPath();g.moveTo(-25,-9);g.lineTo(-39,0);g.lineTo(-25,9);g.closePath();g.fill();
- g.fillStyle=p.color||'#b794f9';g.beginPath();g.moveTo(-15,-11-tilt*2);
- g.quadraticCurveTo(-25,0,-16,12+tilt*2);g.lineTo(6,10);g.lineTo(9,-9);g.closePath();g.fill();
- circle(g,-1,0,9,'#efcbb5');
- g.fillStyle='#272042';g.beginPath();g.ellipse(0,-6,16,6,0,0,TAU);g.fill();
- g.beginPath();g.moveTo(-9,-7);g.lineTo(-4,-30);g.lineTo(10,-7);g.closePath();g.fill();
- g.strokeStyle=p.color||'#e9c1ff';g.lineWidth=2;g.beginPath();g.moveTo(-10,-7);g.lineTo(10,-7);g.stroke();
- g.strokeStyle='#f8e4d2';g.lineWidth=3;
- g.beginPath();g.moveTo(1,8);g.lineTo(13,3);g.moveTo(-4,8);g.lineTo(10,5);g.stroke();
- g.restore();
- g.save();g.font='bold 13px system-ui';g.textAlign='center';
- g.lineWidth=3;g.strokeStyle='#09102d';g.fillStyle='#fff';
- const name=String(p.name||'แม่มด').slice(0,16);g.strokeText(name,p.x,p.y-39);g.fillText(name,p.x,p.y-39);g.restore();
-}
 function draw(g,t,round,ps){
  const s=round.witchingSnake;if(!s)return;
  g.save();g.scale(960/s.w,540/s.h);artArena(g,s,t);
@@ -509,13 +353,9 @@ function draw(g,t,round,ps){
   line(11,p.color||'#c7a4ff',14);line(3.5,'#f6eeff',3);g.restore();
  }
  for(const star of s.stars)artStar(g,star,t);
- for(const p of ps)if(p.ws)artWitch(g,p,t);
- g.fillStyle='rgba(7,9,30,.78)';g.fillRect(12,10,209,57);
- g.textAlign='left';g.font='900 19px system-ui';g.fillStyle='#fff';
- g.fillText('WITCHING SNAKE',24,34);g.font='bold 13px system-ui';
- const status=round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown):
-  'รอด '+living(ps).length+' • '+Math.floor(s.clock)+' วิ'+(s.clock>=120?' • OVERTIME':'');
- g.fillText(status,24,55);g.restore();
+ for(const p of ps)if(p.ws)window.PartyArenaScenes.witchRider(g,s,p,t);
+ g.restore();
+ window.PartyArenaScenes.clock(g,round.phase==='countdown'?round.countdown:s.clock,'#b4a4d7');
 }
 window.WitchingSnake=Object.freeze({setup,update,draw,hud,step,spawnPositions,
  inside,segmentsTouch,distPointSegment2,addTrail,indexTrails,strikesTrail,
