@@ -153,8 +153,8 @@ assert.match(artSource,/s\.move\?\.kind!=='walk'/,
  assert.equal(moving.camera.panned,false);
  A.draw(g,8,moving);
  assert.equal(moving.camera.manualZoom,null);
- assert.ok(Math.abs(moving.camera.x-I.position(moving,player).x)<
-  Math.abs(held.x-I.position(moving,player).x)+1e-6,
+ assert.ok(Math.abs(moving.camera.x-ctx.window.BoardItems.position(moving,player).x)<
+  Math.abs(held.x-ctx.window.BoardItems.position(moving,player).x)+1e-6,
   'Follow returns smoothly toward the moving player');
 }
 {
