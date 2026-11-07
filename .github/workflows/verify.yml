@@ -35,6 +35,8 @@ jobs:
           node --check tests/shopping-time.cjs
           node --check tests/snow-brawl.cjs
           node --check witching-snake.js
+          node --check lawn-mower.js
+          node --check tests/lawn-mower.cjs
           node --check tests/witching-snake.test.cjs
           node --check tests/boulder-bash.cjs
           node --check tests/knight-match.cjs
@@ -49,6 +51,8 @@ jobs:
           node --check auto-update.js
           node --check scripts/build-board-v7.cjs
           node --check scripts/build-static.cjs
+      - name: LAWN MOWER 1–12 player race and sun distribution checks
+        run: node tests/lawn-mower.cjs
       - name: SHOPPING TIME conveyor physics, checkout, bombs and bot regressions
         run: node tests/shopping-time.cjs
       - name: PIZZA TIME garden kitchen, serving and 1–12-player bot rounds
