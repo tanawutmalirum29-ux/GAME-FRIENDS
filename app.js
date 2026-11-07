@@ -1060,6 +1060,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         const c=s.camera;
         // Do not call BoardArt.follow here: that API deliberately resets zoom.
         c.manualZoom=c.zoom;c.explore=false;c.panned=!!msg.enabled;
+         c.bagMapInspect=s.phase==='ready'&&msg.enabled;
         if(!msg.enabled)c.rescuedOffscreen=false;
       }else if(msg.t==='board-camera-gesture'&&conn.playerId){
         const s=boardSession;
