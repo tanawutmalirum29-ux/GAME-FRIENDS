@@ -7,14 +7,15 @@
 'use strict';
 const TAU=Math.PI*2,STEP=1/60,WIDTH=960,HEIGHT=540,CX=480,CY=276;
 const C=Object.freeze({
- playerRadius:19.2,avatarScale:1.2,playerMass:1,moveAcceleration:790,maxMoveSpeed:183,
+ playerRadius:19.2,avatarScale:1.2,playerMass:1,moveAcceleration:790,maxMoveSpeed:109.8,
  moveFriction:4.4,impactFriction:1.45,bodyRestitution:.18,
  baseRadius:12,maxRadius:44,growthDistance:920,windup:.15,
  turnRate:3.6, // rad/s: ~0.87s for a U-turn instead of the old 0.26s
  rollSmallSpeed:320,rollLargeSpeed:224,rollMaxAge:5.8,
  flattenTime:.7,flattenImmunity:.3,soloDuration:60,suddenDeathTime:90,
  shrinkSpeed:12,maxImpactSpeed:560,
- // The island size remains proportionate to players (world units).
+ // Keep the five player-count tiers, but reduce the real and visible island radius by 20%.
+ arenaScale:.8,spawnInset:.1,
  sizes:[470,540,610,690,780]
 });
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
@@ -27,7 +28,7 @@ const inputVector=input=>{
  if(!Number.isFinite(x))x=0;if(!Number.isFinite(y))y=0;
  const m=mag(x,y);return m>1?{x:x/m,y:y/m}:{x,y};
 };
-function islandRadius(count){return C.sizes[count<=2?0:count<=4?1:count<=6?2:count<=9?3:4]/2;}
+function islandRadius(count){return C.sizes[count<=2?0:count<=4?1:count<=6?2:count<=9?3:4]/2*C.arenaScale;}
 function rollSpeed(radius){
  const t=clamp((radius-C.baseRadius)/(C.maxRadius-C.baseRadius),0,1);
  return C.rollSmallSpeed+(C.rollLargeSpeed-C.rollSmallSpeed)*t;
@@ -50,8 +51,9 @@ function setup(round,players){
   suddenDeath:false};
  round.snowBrawl=s;round.remaining=s.solo?C.soloDuration:null;
  const n=players.length;
- // Equal angular distance and equal radial distance: no center-spawn advantage.
- const spawnR=n===1?0:Math.min(125,r*.37);
+ // Spawn each player 10% of the island radius inward from its outer rim,
+ // evenly distributed around the circumference (including solo sessions).
+ const spawnR=r*(1-C.spawnInset);
  players.forEach((p,i)=>{
   const angle=-Math.PI/2+i*TAU/n;
   p.x=Math.cos(angle)*spawnR;p.y=Math.sin(angle)*spawnR;
@@ -436,7 +438,9 @@ function hud(ps,round){
 }
 function circle(ctx,x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();}
 function drawIsland(g,s,t){
- const scale=Math.min(930,480)/(2*(s.baseRadius+29));
+ // Preserve the previous world-to-screen camera scale, so a 20% smaller
+ // playable island also looks 20% smaller instead of auto-zooming to fill.
+ const scale=Math.min(930,480)/(2*(s.baseRadius/C.arenaScale+29));
  g.fillStyle='#092c4a';g.fillRect(0,0,WIDTH,HEIGHT);
  const sea=g.createRadialGradient(CX,CY,32,CX,CY,510);
  sea.addColorStop(0,'#2b789f');sea.addColorStop(.65,'#125372');
