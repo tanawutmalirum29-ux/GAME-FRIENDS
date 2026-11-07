@@ -359,7 +359,10 @@ function nodes(g,s){
    if(n.type==='finish'){line(g,x-40,y-45,x-40,y+10,'#eefaff',5);line(g,x+40,y-45,x+40,y+10,'#eefaff',5);box(g,x-43,y-50,86,14,3,'#fff');for(let j=0;j<8;j++)box(g,x-40+j*10,y-49+(j%2)*7,10,7,0,'#234d62');}
   }
  }
- if(s.phase==='branch'||s.phase==='move_ready'){
+ // The bright yellow destination beam is a rocket/autopath helper, NOT
+ // a human steering constraint. A normal analog walk needs no suggested
+ // destination or route-selection beam drawn on top of the playfield.
+ if((s.phase==='branch'||s.phase==='move_ready')&&s.move?.kind!=='walk'){
   const p=window.BoardParty.current(s),a=s.map.nodes[p.currentNodeId].position;
   const choices=s.phase==='branch'?s.branch:{options:s.map.nodes[p.currentNodeId].nextNodes,selected:s.map.nodes[p.currentNodeId].nextNodes[0]};
   for(const id of choices.options){const b=s.map.nodes[id].position,selected=id===choices.selected;line(g,a.x,a.y,b.x,b.y,selected?'#ffe38b':'#75acc4',selected?8:3);circle(g,b.x,b.y,34,null,selected?'#ffe59a':'#fff8',selected?5:2);if(!s.players.some(q=>q.currentNodeId===id))label(g,s.move.kind==='walk'?'ชี้จอยทางนี้':selected?'A • ทางนี้':'เลือกทาง',b.x,b.y+59,10,'#173b53','center');}
@@ -805,10 +808,14 @@ function intermissionNotice(g,s){
  label(g,title,480,201,19,'#fff3c8','center',800,480);
  label(g,detail,480,230,12,'#cbebf4','center',500,475);
 }
+function walkingCamera(s){
+ return s?.move?.kind==='walk'&&['move_ready','branch','moving'].includes(s.phase);
+}
 function canPan(s){
+ // Drag and pinch gestures are independent from the controller's walking
+ // input. A moving player can keep steering WHILE the host views other pads.
  return !!(s?.phase==='overview'||s?.camera?.paused||s?.camera?.overview||
-  (s?.camera?.explore&&s.move?.kind==='walk'&&!s.move.started&&
-  !s.move.to&&['move_ready','branch'].includes(s.phase)));
+  walkingCamera(s)||(s?.phase==='dice'&&s?.rolled));
 }
 function pan(s,dx,dy){
  if(!canPan(s)||!Number.isFinite(dx)||!Number.isFinite(dy))return false;
@@ -862,13 +869,20 @@ function draw(g,t,s){
  const top=94,bottom=mapBottom(s),viewH=bottom-top;
  const p=window.BoardParty.current(s)||s.players[0],
    bombing=s.phase==='effect'&&s.effect?.kind==='bomber';
- const fork=branchFrame(s),pos=fork|| (bombing?s.effect.points[2]:s.skill||window.BoardItems.position(s,p));
+ // Ordinary walking must NOT frame every fork with a forced zoom-out.
+ // That repeated camera retargeting made manual turns look like a snap.
+ const walk=walkingCamera(s),fork=walk?null:branchFrame(s);
+ const pos=fork|| (bombing?s.effect.points[2]:s.skill||window.BoardItems.position(s,p));
  const wide=s.phase==='aim',overviewMode=s.phase==='overview'||s.camera.overview;
- const introZoom=s.phase==='intro_zoom';
- const zoomTarget=overviewMode?(s.camera.manualZoom||fitZoom(s)):
-   s.camera.paused?(s.camera.manualZoom||s.camera.zoom):
-   bombing?.72:canPan(s)?(s.camera.manualZoom||.65):wide?.65:fork?fork.zoom:1;
- const c=s.camera,dt=Math.min(.05,Math.max(.001,t-(c.lastRenderTime??t-.016)));c.lastRenderTime=t;
+ const introZoom=s.phase==='intro_zoom',c=s.camera;
+ const freeView=canPan(s)&&c.panned;
+ const trackPlayer=!overviewMode&&!introZoom&&!c.paused&&!freeView&&!(walk&&c.explore);
+ const zoomTarget=overviewMode?(c.manualZoom||fitZoom(s)):
+   c.paused?(c.manualZoom||c.zoom):
+   freeView?(c.manualZoom||c.zoom):
+   bombing?.72:walk?(c.explore?.65:1):
+   canPan(s)&&s.phase!=='dice'?(c.manualZoom||.65):wide?.65:fork?fork.zoom:1;
+ const dt=Math.min(.05,Math.max(.001,t-(c.lastRenderTime??t-.016)));c.lastRenderTime=t;
  if(introZoom){
   // Use the authoritative board clock rather than render-frame smoothing.
   // Reach START 1.5s after the player ends their map exploration.
@@ -884,7 +898,7 @@ function draw(g,t,s){
   c.zoom+=(zoomTarget-c.zoom)*(1-Math.exp(-dt*5));
  }
  const halfW=480/c.zoom,halfH=viewH/2/c.zoom,b=bounds(s);
- if(!introZoom&&!canPan(s)){
+ if(trackPlayer){
   const targetX=clampCamera(pos.x,halfW,b.minX,b.maxX),targetY=clampCamera(pos.y,halfH,b.minY,b.maxY);
   c.x+=(targetX-c.x)*(1-Math.exp(-dt*6));c.y+=(targetY-c.y)*(1-Math.exp(-dt*6));
  }
@@ -913,7 +927,9 @@ function draw(g,t,s){
  }
  if(canPan(s)&&!overviewMode&&!c.debugNodes){
   box(g,305,bottom-29,350,30,9,'#133b50d9','#6cafc3');
-  label(g,c.paused?'หยุดเกม • ลากสำรวจ / กดเล่นต่อเมื่อพร้อม':'ลากสำรวจ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,bottom-13,11,'#e9faff','center',700,335);
+  label(g,c.paused?'หยุดเกม • ลากสำรวจ / กดเล่นต่อเมื่อพร้อม':
+   walkingCamera(s)?'ลากดูแมพ / กางนิ้วซูม • กดติดตามเพื่อกลับหาตัวละคร':
+   'ลากสำรวจ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,bottom-13,11,'#e9faff','center',700,335);
  }
 }
 window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan,overview,follow,zoom,toggleDebug,inspect,fitZoom,branchFrame});
