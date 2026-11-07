@@ -27,12 +27,18 @@ for(const height of [540,720]){
  }
  for(const n of nodes.filter(n=>n.nextNodes.length>1)){
   s.players[0].currentNodeId=n.id;P.beginMove(s,s.players[0],1);s.camera.explore=false;
-  const frame=A.branchFrame(s);assert.ok(frame&&frame.zoom>=.55,'fork keeps characters readable');
+  const frame=A.branchFrame(s);assert.ok(frame&&frame.zoom>=.55,'route geometry remains valid');
+  assert.equal(A.canPan(s),true,'fork camera gestures remain enabled');
   for(let j=0;j<100;j++)A.draw(g,(s.time+=.05),s);
-  for(const id of [n.id,...n.nextNodes]){
-   const p=s.map.nodes[id].position,x=480+(p.x-s.camera.x)*s.camera.zoom,y=(94+height-88)/2+(p.y-s.camera.y)*s.camera.zoom;
-   assert.ok(x>30&&x<930&&y>94+25&&y<height-88-25,'all choices visible at '+n.id+': '+id);
-  }
+  // The WALK camera now follows the avatar instead of jumping to the
+  // entire fork and zooming out. The other routes can remain off-screen:
+  // scrolling/pinching is always available if the host wants to inspect.
+  assert.ok(s.camera.zoom>.95,'no automatic fork zoom-out while manually walking');
+  const pos=I.position(s,s.players[0]);
+  const x=480+(pos.x-s.camera.x)*s.camera.zoom;
+  const y=(94+height-88)/2+(pos.y-s.camera.y)*s.camera.zoom;
+  assert.ok(x>30&&x<930&&y>94+25&&y<height-88-25,
+   'active walker remains visible at '+n.id+' without forced route framing');
  }
 }
 // Nearest-looking pads and incoming arrows never create outgoing walking edges.
