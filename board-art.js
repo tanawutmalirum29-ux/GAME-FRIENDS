@@ -935,7 +935,7 @@ function draw(g,t,s){
  // A manually panned camera stays free until the actively walking player
  // actually leaves the visible map. Rescue them gently at the CURRENT zoom,
  // never snapping the map to 1x or spending a dice step.
- if(walk&&c.panned&&s.move?.walking&&!c.paused&&!overviewMode){
+ if(walk&&c.panned&&s.move?.walking&&!c.paused&&!overviewMode&&c.rescueOnWalk){
   const active=window.BoardItems.position(s,p);
   const sx=480+(active.x-c.x)*c.zoom,sy=top+viewH/2+(active.y-c.y)*c.zoom;
   if(sx<24||sx>936||sy<top+24||sy>bottom-24){
