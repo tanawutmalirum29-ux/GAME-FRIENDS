@@ -15,11 +15,14 @@ function match(n,bot=false){
 }
 const tick=(g,n=1,dt=1/60)=>{for(let i=0;i<n;i++)G.update(dt,g.round,g.ps);};
 for(let n=1;n<=12;n++){
- const g=match(n),expected=n<=2?235:n<=4?270:n<=6?305:n<=9?345:390;
+ const g=match(n),expected=n<=2?188:n<=4?216:n<=6?244:n<=9?276:312;
  assert.equal(g.s.radius,expected,'arena scales with 1–12 participants');
  assert.equal(g.ps.length,n);
  assert.equal(new Set(g.ps.map(p=>p.x.toFixed(5)+','+p.y.toFixed(5))).size,n);
- assert.ok(g.ps.every(p=>Math.hypot(p.x,p.y)+C.playerRadius<g.s.radius));
+ assert.ok(g.ps.every(p=>Math.hypot(p.x,p.y)+C.playerRadius*.75<g.s.radius),
+  'each spawn must start inside the actual elimination boundary');
+ assert.ok(g.ps.every(p=>Math.abs(g.s.radius-Math.hypot(p.x,p.y)-g.s.radius*.1)<1e-7),
+  'each spawn is exactly 10% of the arena radius inward from the edge');
  assert.ok(g.ps.every(p=>p.snow.alive&&p.snow.ballId===null));
  assert.equal(G.hud(g.ps,g.round).survivors,n);
  if(n>1){
@@ -57,11 +60,36 @@ for(let n=1;n<=12;n++){
  assert.ok(Math.abs(Math.hypot(snow.x-person.x,snow.y-person.y)-
   (C.playerRadius+C.baseRadius+5))<1e-6,
   'new 20% larger player also pushes their snowball farther forward');
- assert.equal(C.maxMoveSpeed,183,'enlarging visuals must never change walking speed');
+ assert.equal(C.maxMoveSpeed,109.8,'walking speed is 40% below the previous 183 units/second');
  assert.equal(C.rollSmallSpeed,320,'snowball launch speed remains unchanged');
  assert.equal(C.rollLargeSpeed,224,'snowball size speed balance remains unchanged');
 }
 
+// Changes must affect movement and the physical/visible island, not thrown snowball speeds.
+assert.equal(C.arenaScale,.8);
+assert.equal(C.spawnInset,.1);
+{
+ const g=match(2),p=g.ps[0];p.input.axisX=1;
+ tick(g,28);
+ assert.ok(Math.hypot(p.vx,p.vy)<=109.8+1e-7,'real movement cannot exceed reduced maximum speed');
+ assert.ok(Math.hypot(p.vx,p.vy)>100,'player accelerates to new target speed');
+}
+{
+ const g=match(2),scales=[];
+ const gradient={addColorStop(){}};
+ const ctx=new Proxy({}, {get(_,key){
+  if(key==='createRadialGradient'||key==='createLinearGradient')return()=>gradient;
+  if(key==='scale')return(x,y)=>{scales.push([x,y]);};
+  return()=>{};
+ },set(){return true;}});
+ G.draw(ctx,0,g.round,g.ps);
+ const oldRadius=235;
+ const oldScale=480/(2*(oldRadius+29));
+ assert.ok(Math.abs(scales[0][0]-oldScale)<1e-9,
+  'camera zoom must remain fixed so the island looks 20% smaller');
+ assert.ok(Math.abs(g.s.radius*scales[0][0]-oldRadius*oldScale*.8)<1e-7,
+  'visible ice radius decreases by exactly 20%');
+}
 assert.equal(C.windup,.15);
 assert.equal(C.turnRate,3.6,'turning is intentionally slower than the previous 12rad/s');
 assert.equal(C.baseRadius,12);assert.equal(C.maxRadius,44);
