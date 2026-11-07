@@ -295,6 +295,35 @@ test('Early fork can be changed without consuming a die step or jumping over nod
  until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';});
  assert.ok(s.map.nodes[p.currentNodeId].progress>3,'legal forward steps were completed');
 });
+test('Near n3 upper junction: a late upward turn stays possible without snapping or dice loss',()=>{
+ const s=ready(3,303),p=s.players[0];
+ p.currentNodeId='n3';P.beginMove(s,p,4);
+ assert.equal(P.step(s,'n4'),true);
+ s.move.t=.52;s.move.lateral=-15;
+ const oldPosition=plain(I.position(s,p)),oldRemaining=s.move.remaining;
+ const target=s.map.nodes.b3_1.position,delta={x:target.x-oldPosition.x,y:target.y-oldPosition.y};
+ const distance=Math.hypot(delta.x,delta.y);
+ assert.ok(distance>50&&distance<200,'screenshot shows the player already off the fork center');
+ press(s,p,null,{axisX:delta.x/distance,axisY:delta.y/distance});
+ P.update(s,.05);
+ assert.equal(s.move.to,'b3_1','upper branch can be selected while still inside rounded junction');
+ const afterSwitch=plain(I.position(s,p));
+ assert.ok(Math.hypot(afterSwitch.x-oldPosition.x,afterSwitch.y-oldPosition.y)<.0001,
+  'branch switch must never teleport the avatar to the other lane');
+ assert.equal(s.move.remaining,oldRemaining,'switch does not consume or add a dice step');
+ assert.ok(Math.abs(s.move.lateral)>18,'reprojection preserves the world position');
+ let before=afterSwitch;
+ for(let i=0;i<11;i++){
+  press(s,p,null,{axisX:delta.x/distance,axisY:delta.y/distance});
+  P.update(s,.05);
+  const now=I.position(s,p);
+  assert.ok(Math.hypot(now.x-before.x,now.y-before.y)<=27,
+   'one 50ms tick cannot snap the player sideways across the fork');
+  before=plain(now);
+ }
+ assert.ok(s.move.remaining<=oldRemaining,'valid progress still counts real nodes');
+ assert.ok(s.move.visited.every((id,i,list)=>i===0||s.map.nodes[list[i-1]].nextNodes.includes(id)));
+});
 test('300 adversarial 2D walks: legal graph edges, finite positions, bounded paths and dice',()=>{
  for(let seed=0;seed<300;seed++){
   const s=ready(3,seed),p=s.players[0],rng=M.random(seed+99),steps=2+seed%11;
