@@ -4528,7 +4528,8 @@ body.board-playing #game .bot-test-pad{
  box-shadow:0 2px 9px #000a;pointer-events:none;
 }
 #game .bot-test-keys{
- display:flex;align-items:center;gap:8px;flex:0 0 auto;
+ display:grid;grid-template-columns:repeat(2,44px);grid-template-rows:repeat(2,44px);
+ align-items:center;justify-items:center;gap:5px;flex:0 0 auto;
 }
 #game .bot-test-face{
  width:44px;height:44px;min-width:44px;min-height:44px;padding:0;
@@ -4539,6 +4540,7 @@ body.board-playing #game .bot-test-pad{
 }
 #game .bot-test-a{background:#32a878}
 #game .bot-test-b{background:#d66073}
+#game .bot-test-c{background:#4c79b8;grid-column:1 / 3;grid-row:2}
 #game .bot-test-face.pressed{filter:brightness(1.3);transform:scale(.94)}
 @media(max-height:390px){
  #game .bot-test-pad{padding:3px 5px}
@@ -4546,6 +4548,7 @@ body.board-playing #game .bot-test-pad{
  #game .bot-test-stick{width:79px;height:79px;flex-basis:79px}
  #game .bot-test-knob{width:33px;height:33px}
  #game .bot-test-face{width:42px;height:42px;min-width:42px;min-height:42px}
+ #game .bot-test-keys{grid-template-columns:repeat(2,42px);grid-template-rows:repeat(2,42px);gap:3px}
  body.board-playing #game .bot-test-pad{bottom:72px}
 }
 
