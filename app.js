@@ -1704,6 +1704,12 @@ function setControllerGameContext(mode,phase,active){
      !['results','summary'].includes(previousControllerPhase))
     controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
   controllerPlayerActive=!!active;
+  // Revoke camera mode when the walking turn ends or the owner loses control.
+  if(boardCameraController?.enabled()&&(!controllerReady||mode!=='board'||
+      controllerGamePhase!=='playing'||!controllerPlayerActive||
+      controllerBoard?.canZoom!==true||
+      !['move_ready','branch','moving'].includes(controllerBoard?.boardPhase)))
+    boardCameraController.reset();
   const visible=isLiveGameContext();
   document.body.classList.toggle('pizza-controller-game',visible&&mode==='pizza_time');
   $('controllerInventory').classList.toggle('hidden',!visible);
@@ -3501,6 +3507,24 @@ $('confirmLeaveBtn').addEventListener('click',()=>{
 });
 document.querySelectorAll('#controllerActive [data-control]').forEach(btn=>bindControl(btn,controllerKeys,'remote'));
 bindAnalogStick($('joystickZone'),$('joystickBase'),$('joystickKnob'),controllerKeys);
+boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
+  allowed:()=>controllerReady&&controllerPlayerActive&&controllerGameMode==='board'&&
+    controllerGamePhase==='playing'&&controllerBoard?.canZoom===true&&
+    ['move_ready','branch','moving'].includes(controllerBoard?.boardPhase),
+  isRotated:()=>document.body.classList.contains('portrait-fallback')&&isPortraitScreen(),
+  releaseStick:()=>releaseStick(),
+  onMode:(enabled,notify)=>{
+    $('boardCameraModeHint').classList.toggle('hidden',!enabled);
+    if(notify&&controllerConn?.open)
+      send(controllerConn,{t:'board-camera-mode',enabled,
+        turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
+  },
+  onGesture:gesture=>{
+    if(!controllerReady||!controllerConn?.open)return;
+    send(controllerConn,{t:'board-camera-gesture',...gesture,
+      turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
+  }
+});
 setInterval(sendInputs,100);
 window.addEventListener('beforeunload',()=>{
   void stopRoomScanner();safePeerDestroy();
