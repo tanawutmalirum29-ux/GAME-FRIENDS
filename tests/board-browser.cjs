@@ -50,12 +50,24 @@ async function main(){
    g.fillText=function(value,...args){seen.push(String(value));return text.call(this,value,...args);};
    try{__boardTest.drawGame(__boardTest.board.time);}finally{g.fillText=text;}return seen;
   });}
+  // During dice ordering there is no current turn: spectators may not
+  // invoke a zoom-changing Overview/Follow camera action.
+  assert.equal(await host.locator('#boardOverviewBtn').isDisabled(),true,
+    'no host owner may zoom or force overview before the turn is assigned');
+  await host.evaluate(()=>{
+   const a=__boardTest,s=a.board;
+   s.order=s.players.map(p=>p.id);s.players[0].isBot=false;a.players[0].isBot=false;
+   BoardParty.startTurn(s);BoardParty.beginMove(s,s.players[0],2);
+   a.updateBoard(.05);a.drawGame(s.time);
+  });
   await host.locator('#boardOverviewBtn').click();
   assert.equal(await host.evaluate(()=>__boardTest.round.paused),true);
-  assert.equal((await drawnTexts()).includes('ทอยลูกเต๋าเพื่อจัดลำดับ'),false,'overview hides dice-order modal so the map can be inspected');
+  assert.equal((await drawnTexts()).includes('ทอยลูกเต๋าเพื่อจัดลำดับ'),false,
+    'overview hides any dice-order overlay while inspecting the map');
   await host.locator('#boardFollowBtn').click();
-  assert.equal(await host.evaluate(()=>__boardTest.round.paused),false);
-  assert.ok((await drawnTexts()).includes('ทอยลูกเต๋าเพื่อจัดลำดับ'),'follow resumes same order screen');
+  assert.equal(await host.evaluate(()=>__boardTest.round.paused),false,
+    'local turn owner can follow/resume after inspecting overview');
+  assert.equal(await host.evaluate(()=>__boardTest.board.phase),'move_ready');
 
   for(const view of [{width:1440,height:900},{width:1024,height:768},{width:844,height:390}]){
    await host.setViewportSize(view);
@@ -69,7 +81,11 @@ async function main(){
   await host.evaluate(()=>__boardTest.drawGame(0));
   // The real host controls must explore the map without touching gameplay state.
   await host.locator('#boardStartDiceBtn').click();
-  await host.evaluate(()=>{const s=__boardTest.board;s.order=s.players.map(p=>p.id);s.players.forEach(p=>p.isBot=false);BoardParty.startTurn(s);});
+  await host.evaluate(()=>{const a=__boardTest,s=a.board;
+   s.order=s.players.map(p=>p.id);s.players.forEach(p=>p.isBot=false);
+   a.players[0].isBot=false;BoardParty.startTurn(s);BoardParty.beginMove(s,s.players[0],2);
+   a.updateBoard(.05);
+  });
   await host.locator('#pauseBtn').click();
   assert.equal(await host.evaluate(()=>__boardTest.round.paused),true);
   const pausedPlayers=await host.evaluate(()=>JSON.stringify(__boardTest.board.players));
