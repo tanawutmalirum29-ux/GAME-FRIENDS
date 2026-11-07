@@ -4,7 +4,8 @@
 'use strict';
 const TAU=Math.PI*2, STEP=1/60, CELL=24;
 const CONFIG=Object.freeze({small:{w:960,h:540},large:{w:1280,h:720},
-  speed:72.5,bodyRadius:17,mowerHalfWidth:22,mowerHalfLength:31,bladeHalfWidth:21,bladeDepth:23,
+  speed:50.75,bodyRadius:17,mowerHalfWidth:22,mowerHalfLength:31,
+  bladeHalfWidth:15,bladeStart:16,bladeDepth:28,
   smallDuration:30,largeDuration:60,sunValue:5});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const active=ps=>ps.filter(p=>p.active);
@@ -56,8 +57,8 @@ function setup(round,players){
 }
 function award(s,p,tuft){
  const q=p.mower; q.cutCount++;
- // 55% empty, otherwise 1–3 equally weighted outcomes (15% each).
- const r=rand(s),amount=r<.55?0:1+Math.min(2,Math.floor((r-.55)/.15));
+ // Probability bands: 55% nothing, 20% one sun, 15% two, 10% three.
+ const r=rand(s),amount=r<.55?0:r<.75?1:r<.90?2:3;
  if(amount>0){
   p.score+=amount*CONFIG.sunValue;q.suns+=amount;
   if(s.effects.length>36)s.effects.shift();
@@ -91,13 +92,15 @@ function cutSwath(s,p,fromX,fromY){
  let n=0;
  for(const id of nearby(s,minX,minY,maxX,maxY)){
   const tuft=s.grass[id];if(!tuft||tuft.cut)continue;
-  // Swept front-mounted rectangular blade: nearest point along the movement
-  // segment, then test its forward distance and lateral width in mower space.
+  // The blade is a narrow strip at the FRONT of the rendered mower deck.
+  // Previously the 42px-wide, 29px-deep sweep cleared grass across most
+  // of the chassis, so crowds could mow an entire lawn far too quickly.
+  // A tuft may be cut only when the moving blade actually passes over it.
   const l2=dx*dx+dy*dy;
   const u=clamp(((tuft.x-fromX)*dx+(tuft.y-fromY)*dy)/l2,0,1);
   const vx=tuft.x-(fromX+u*dx),vy=tuft.y-(fromY+u*dy);
   const along=vx*c+vy*t,side=-vx*t+vy*c;
-  if(along>=6&&along<=CONFIG.bladeDepth+12&&Math.abs(side)<=CONFIG.bladeHalfWidth){
+  if(along>=CONFIG.bladeStart&&along<=CONFIG.bladeDepth&&Math.abs(side)<=CONFIG.bladeHalfWidth){
    if(cutTuft(s,p,tuft))n++;
   }
  }
@@ -384,7 +387,14 @@ function drawBackground(g,s){
  }
  rect(g,w-16,0,16,h,'#e9e8d9');
  for(let y=7;y<h;y+=100)rect(g,w-16,y,16,48,'#e55048');
- // Patio parasol, red/cream wedges.
+
+}
+
+// Patio furniture and flowerbeds OVERLAP the lawn edge. Paint them *after*
+// the grass tiles, or the opaque tile/background rectangles conceal them.
+function drawGardenDecorations(g,s){
+ const w=s.w,h=s.h,f=s.field,houseW=f.x-39;
+ // Patio umbrella: foreground above grass, not below the tile cache.
  const ux=houseW+13,uy=h-40;
  disk(g,ux,uy,66,'#b33832');
  for(let k=0;k<8;k++){
@@ -442,6 +452,7 @@ function draw(ctx,time,round,ps){
  ctx.save();ctx.scale(960/s.w,540/s.h);
  const off=background(s);if(off)ctx.drawImage(off,0,0);else drawBackground(ctx,s);
  drawLawn(ctx,s);
+ drawGardenDecorations(ctx,s);
  for(const p of active(ps))drawMower(ctx,p,time);
  for(const e of s.effects){
   const t=1-e.life/e.maxLife;
