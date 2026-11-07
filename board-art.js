@@ -956,7 +956,15 @@ function draw(g,t,s){
  const halfW=480/c.zoom,halfH=viewH/2/c.zoom,b=bounds(s);
  if(trackPlayer){
   const targetX=clampCamera(pos.x,halfW,b.minX,b.maxX),targetY=clampCamera(pos.y,halfH,b.minY,b.maxY);
-  c.x+=(targetX-c.x)*(1-Math.exp(-dt*6));c.y+=(targetY-c.y)*(1-Math.exp(-dt*6));
+  // Walking stays centered at the selected magnification after remote pan.
+  const outside=walk&&(Math.abs(pos.x-c.x)>halfW*.88||Math.abs(pos.y-c.y)>halfH*.88);
+  const followRate=walk?(outside?23:10):6,blend=1-Math.exp(-dt*followRate);
+  c.x+=(targetX-c.x)*blend;c.y+=(targetY-c.y)*blend;
+  if(outside){
+   // Emergency frame rescue never touches c.zoom or c.manualZoom.
+   c.x=Math.max(pos.x-halfW*.80,Math.min(pos.x+halfW*.80,c.x));
+   c.y=Math.max(pos.y-halfH*.80,Math.min(pos.y+halfH*.80,c.y));
+  }
  }
  c.x=clampCamera(c.x,halfW,b.minX,b.maxX);c.y=clampCamera(c.y,halfH,b.minY,b.maxY);
  g.clearRect(0,0,960,sceneHeight(s));g.fillStyle='#183e5d';g.fillRect(0,top,960,viewH);g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();g.translate(480,top+viewH/2);g.scale(c.zoom,c.zoom);g.translate(-c.x,-c.y);
