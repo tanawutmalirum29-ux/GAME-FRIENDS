@@ -255,7 +255,7 @@ const cleanStandings=frameLabels();
 assert.ok(cleanStandings.includes('สรุปผลมินิเกม'));
 assert.ok(!cleanStandings.some(x=>x.includes('และรางวัล')||x.includes('อันดับการแข่งขันและสิทธิ์รางวัล')||
  x.includes('ดำเนินต่ออัตโนมัติ')),'circled results copy removed');
-assert.ok(cleanStandings.some(x=>/^\\d+ วินาที$/.test(x)),'results keep a clean countdown');
+assert.ok(cleanStandings.some(x=>/^\d+ วินาที$/.test(x)),'results keep a clean countdown');
 for(let i=0;i<52;i++)P.update(intermission,.05);
 assert.equal(intermission.phase,'rewards');
 const firstReveal=frameLabels();
