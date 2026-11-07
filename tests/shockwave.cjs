@@ -53,7 +53,7 @@ assert.equal(E.intervalSeconds(7),.19);
 assert.equal(E.intervalSeconds(12),.10);
 assert.ok(E.warningSeconds(4)<1.2,'quick early rounds');
 assert.ok(E.warningSeconds(12)<.7,'quick late rounds');
-assert.equal(25-E.dangerCount({wave:10}),3,'only three safe tiles by wave 10');
+assert.equal(25-E.dangerCount({wave:10}),1,'one safe tile from wave 5 onward');
 {
  const {state:s,ps}=game(4,6420);
  s.wave=12;
@@ -69,23 +69,45 @@ assert.equal(25-E.dangerCount({wave:10}),3,'only three safe tiles by wave 10');
  assert.notEqual(s.lastSafeTileId,previousSafe,
    'the last safe tile must relocate rather than enable permanent camping');
 }
+{
+ // Single refuge must move from wave 5 onward; camping one square is unsafe.
+ const {state:s,ps}=game(5,20261107);
+ s.wave=5;E.startWarning(s,ps);
+ const firstSafe=s.lastSafeTileId;
+ assert.equal(s.danger.length,24);
+ assert.equal(s.tiles.filter(t=>t.state==='safe').length,1);
+ assert.ok(firstSafe>=0&&firstSafe<25);
+ for(const id of s.danger)s.tiles[id].state='exploding';
+ E.collapseTiles(s);
+ s.wave=6;E.startWarning(s,ps);
+ assert.equal(s.danger.length,24);
+ assert.equal(s.tiles.filter(t=>t.state==='safe').length,1);
+ assert.notEqual(s.lastSafeTileId,firstSafe,
+   'the one safe tile moves between consecutive waves');
+}
 assert.ok(E.distanceBias(13)>E.distanceBias(3));
 
 {
- // 25 fixed floor tiles, but the safe area shrinks each wave.
- const expected=[0,4,6,8,10,12,14,16,18,20,22,23,24];
+ // 25 fixed floor tiles: wave safe counts 14, 7, 5, 2, then one forever.
+ const expectedSafe=[0,14,7,5,2,1];
  const {state:s}=game(4,303);
  let last=0;
  for(let wave=1;wave<=30;wave++){
    s.wave=wave;
    const count=E.dangerCount(s);
-   assert.equal(count,expected[Math.min(wave,12)],
-     'accelerated danger counts must match the wave number');
+   assert.equal(25-count,expectedSafe[Math.min(wave,5)],
+     'safe tile counts must match 14, 7, 5, 2, 1 and stay at 1 from wave 5');
    assert.ok(count>=last,'danger tiles must never decrease with later waves');
    assert.ok(count<=24,'always keep at least one safe square');
    last=count;
  }
- assert.equal(25-E.dangerCount({wave:11}),2);
+ assert.equal(25-E.dangerCount({wave:1}),14);
+ assert.equal(25-E.dangerCount({wave:2}),7);
+ assert.equal(25-E.dangerCount({wave:3}),5);
+ assert.equal(25-E.dangerCount({wave:4}),2);
+ assert.equal(25-E.dangerCount({wave:5}),1);
+ assert.equal(25-E.dangerCount({wave:6}),1);
+ assert.equal(25-E.dangerCount({wave:11}),1);
  assert.equal(25-E.dangerCount({wave:12}),1);
  assert.equal(25-E.dangerCount({wave:13}),1);
  assert.equal(25-E.dangerCount({wave:14}),1);
@@ -99,7 +121,7 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  for(const n of [2,4,12]){
    for(let seed=1;seed<=12;seed++){
      const {state:s,ps}=game(n,seed);
-     for(let wave=10;wave<=16;wave++){
+     for(const wave of [1,2,3,4,5,6,7,10,12,16]){
        s.wave=wave;
        const tiles=E.selectDangerTiles(s,ps),target=E.dangerCount(s);
        assert.equal(tiles.length,target,'must select exact target danger count');
@@ -109,7 +131,8 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
        assert.ok(s.plannedWarningDuration>=E.warningSeconds(wave));
        assert.equal(E.validateSafeRoutes(s,ps,tiles,s.plannedWarningDuration),true,
          'every threatened player can reach safe ground in the planned warning');
-       if(wave>=12)assert.equal(25-tiles.length,1);
+       assert.equal(25-tiles.length,[0,14,7,5,2,1][Math.min(wave,5)],
+         'selected red squares must leave exactly the requested safe area');
        assert.equal(s.tiles.filter(tile=>tile.state==='destroyed').length,0,
          'pressure is explosions, never disappearing floor');
      }
@@ -360,4 +383,4 @@ assert.match(avatars,/data:image\/svg\+xml/);
  assert.equal(E.calculateDangerContact(s,ps[0],new Set(danger)),0,
    'the only safe tile still has safe standing room for a full character');
 }
-console.log('SHOCKWAVE PASS: any-pixel whole-body contact, seams/corners, one-safe-tile late waves and ties');
+console.log('SHOCKWAVE PASS: 14/7/5/2/1 safe tiles, faster waves, full-body contact and ties');
