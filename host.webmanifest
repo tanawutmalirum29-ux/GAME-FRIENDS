@@ -1,0 +1,16 @@
+{
+  "id": "./host.html",
+  "name": "GAME FRIENDS — จอหลัก",
+  "short_name": "GF HOST",
+  "description": "จอหลักสำหรับสร้างห้องและเล่นเกมปาร์ตี้ GAME FRIENDS บน iPad หรือจอใหญ่",
+  "lang": "th",
+  "start_url": "./host.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d1122",
+  "theme_color": "#0d1122",
+  "icons": [
+    {"src": "./assets/game-friends-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"},
+    {"src": "./assets/game-friends-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any"}
+  ]
+}
