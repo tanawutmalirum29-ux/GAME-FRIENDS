@@ -66,6 +66,7 @@
   <script defer src="./board-minigame.js"></script>
   <script defer src="./board-party.js"></script>
   <script defer src="./board-art.js"></script>
+  <script defer src="./board-controller-camera.js"></script>
   <script defer src="./app.js"></script>
   <script defer src="./auto-update.js"></script>
 </head>
@@ -255,7 +256,7 @@
           </div>
         </div>
         <div id="controllerButtons" class="controller-buttons" aria-label="จอยเกมแบบอนาล็อกและปุ่ม A B">
-          <div id="joystickZone" class="joystick-group joystick-zone" role="group" aria-label="พื้นที่อนาล็อกอิสระ แตะจุดใดก็ได้แล้วลากเพื่อเดิน"><span class="gamepad-label joystick-hint">FLOATING STICK • แตะที่ว่างแล้วลาก</span><div id="joystickBase" class="joystick-base" aria-hidden="true"><span class="joystick-direction direction-up">▲</span><span class="joystick-direction direction-left">◀</span><span class="joystick-direction direction-right">▶</span><span class="joystick-direction direction-down">▼</span><div id="joystickKnob" class="joystick-knob"></div></div></div>
+          <div id="joystickZone" class="joystick-group joystick-zone" role="group" aria-label="พื้นที่อนาล็อกอิสระ แตะจุดใดก็ได้แล้วลากเพื่อเดิน"><span class="gamepad-label joystick-hint">FLOATING STICK • แตะที่ว่างแล้วลาก</span><div id="joystickBase" class="joystick-base" aria-hidden="true"><span class="joystick-direction direction-up">▲</span><span class="joystick-direction direction-left">◀</span><span class="joystick-direction direction-right">▶</span><span class="joystick-direction direction-down">▼</span><div id="joystickKnob" class="joystick-knob"></div></div><span id="boardCameraModeHint" class="board-camera-mode-hint hidden" aria-live="polite">เลื่อนแผนที่ • หุบ/กางซูม • ดับเบิลแท็บกลับเดิน</span></div>
           <div class="gamepad-middle gamepad-preview-column">
             <div id="controllerPreview" class="gamepad-preview" aria-label="จอพรีวิวเกมจากเจ้าของห้อง">
             <div id="phoneGamePicker" class="phone-game-picker hidden" aria-label="เลือกมินิเกมที่จะเล่น">
