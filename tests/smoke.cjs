@@ -27,6 +27,17 @@ const combatSource=fs.readFileSync('combat-motion.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
 const hostLauncher=fs.readFileSync('host.html','utf8');
+const rail=html.slice(html.indexOf('class="gamepad-top-actions"'),html.indexOf('</div>',html.indexOf('class="gamepad-top-actions"')));
+const railIds=['controllerBoardZoomInBtn','controllerBoardZoomOutBtn','videoPreviewToggleBtn','videoQualityBtn'];
+const indexes=railIds.map(id=>rail.indexOf('id="'+id+'"'));
+assert.ok(indexes.every((i,k)=>i>=0&&(k===0||i>indexes[k-1])),
+ 'phone top rail order is zoom+ / zoom− / preview / graphics');
+assert.ok(css.includes('#controllerBoardZoomInBtn{order:-3}')&&css.includes('#controllerBoardZoomOutBtn{order:-2}'),
+ 'CSS preserves zoom button order');
+assert.ok(source.includes("t:'board-camera-zoom',direction"),
+ 'phone zoom buttons send the host a dedicated board-camera packet');
+assert.ok(source.includes('conn.lastBoardCameraZoomAt'),
+ 'the host rate-limits remote zoom packets');
 
 // Cover/social assets are checked into GitHub: no external hotlink or
 // missing favicon fallback that browsers would otherwise show as a globe.
@@ -2355,6 +2366,16 @@ for(const count of [1,12]){
  const movementTotal=s.die;assert.equal(s.moveDice.length,2);
  for(let i=0;i<50;i++)api.updateBoard(.05);state=replacement.sent.filter(p=>p.t==='board-state').at(-1);
  assert.equal(state.stepsRemaining,movementTotal);assert.equal(state.boardPhase,'move_ready');assert.equal(state.a,'เริ่มเดิน');assert.match(state.help,/ดูแผนที่/);
+ const beforeZoom=s.camera.zoom,controlToken=s.turnId;
+ replacement.fire('data',{t:'board-camera-zoom',direction:1});
+ assert.ok(s.camera.zoom>beforeZoom,'remote phone + magnifies the HOST board while walking');
+ assert.equal(s.turnId,controlToken,'zoom cannot advance or steal a control turn');
+ assert.equal(s.move.remaining,movementTotal,'camera zoom does not consume dice steps');
+ const pressed=s.camera.zoom;
+ replacement.fire('data',{t:'board-camera-zoom',direction:-1});
+ assert.equal(s.camera.zoom,pressed,'zoom packet burst is throttled');
+ replacement.fire('data',{t:'board-camera-zoom',direction:5});
+ assert.equal(s.camera.zoom,pressed,'invalid remote zoom commands are ignored');
  const sendBoard=keys=>replacement.fire('data',{t:'input',turnId:s.turnId,actionId:(s.lastActions[id]??0)+1,keys});
  const a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes.n1.position,d=Math.hypot(b.x-a.x,b.y-a.y);
  sendBoard({});

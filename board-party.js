@@ -197,6 +197,10 @@ function nextStep(s){
  step(s,options[0]);
 }
 const WALK_SPEED=240,LANE_RADIUS=18,NODE_RADIUS=18,TURN_DELAY=.16;
+ // The Y-junction starts to curve before its centre. Keep branch steering
+ // reversible inside the visibly shared curved plaza, not only when the
+ // sprite is within a skinny 18-unit strip of the ALTERNATE straight line.
+const JUNCTION_SWITCH_RADIUS=130,JUNCTION_TURN_LANE=86;
 const bound=(x,a,b)=>Math.max(a,Math.min(b,x));
 function step(s,to){
  const m=s.move,p=current(s);
@@ -243,22 +247,31 @@ function walkEdge(s,p,dt){
  const stick=axes(s,p.id),magnitude=Math.hypot(stick.x,stick.y);
  if(magnitude>.13){
   const options=s.map.nodes[m.from].nextNodes;
-  // Still able to change the chosen branch until far enough down the edge.
-  if(options.length>1&&m.t<.70){
+  // Until the walker clears the rounded shared fork, the stick can turn
+  // toward EITHER exit. Compare directions from the ACTUAL player position:
+  // projecting onto the other edge with the old 18px corridor locked out
+  // an otherwise obvious turn (including n3 -> b3_1 in the screenshot).
+  const at=I().position(s,p);
+  const nearFork=Math.hypot(at.x-a.x,at.y-a.y)<=JUNCTION_SWITCH_RADIUS;
+  if(options.length>1&&nearFork&&m.t<.94){
    const candidate=M().choose(s.map,m.from,stick.x,stick.y);
    if(candidate!==m.to){
-    const to=s.map.nodes[candidate].position,from=s.map.nodes[m.from].position;
-    const cd=Math.hypot(to.x-from.x,to.y-from.y)||1;
-    const currentDot=(stick.x*nx+stick.y*ny)/magnitude;
-    const candidateDot=(stick.x*(to.x-from.x)+stick.y*(to.y-from.y))/(magnitude*cd);
-    const pos=I().position(s,p),end=I().positionOnNode(s,p,candidate);
+    const end=s.map.nodes[candidate].position,now=m.endPosition;
+    const toCandidate={x:end.x-at.x,y:end.y-at.y};
+    const toCurrent={x:now.x-at.x,y:now.y-at.y};
+    const cd=Math.hypot(toCandidate.x,toCandidate.y)||1;
+    const nd=Math.hypot(toCurrent.x,toCurrent.y)||1;
+    const candidateDot=(stick.x*toCandidate.x+stick.y*toCandidate.y)/(magnitude*cd);
+    const currentDot=(stick.x*toCurrent.x+stick.y*toCurrent.y)/(magnitude*nd);
     const vx=end.x-a.x,vy=end.y-a.y,len=Math.hypot(vx,vy)||1;
-    const projected=((pos.x-a.x)*vx+(pos.y-a.y)*vy)/(len*len);
-    const lateral=(-(pos.x-a.x)*vy+(pos.y-a.y)*vx)/len;
-    if(candidateDot>.55&&candidateDot>currentDot+.15&&
-      projected>=-NODE_RADIUS/len&&projected<.75&&Math.abs(lateral)<=LANE_RADIUS){
-     m.to=candidate;m.endPosition=s.map.nodes[candidate].position;m.t=projected;m.lateral=lateral;
-     // The sprite retains its real position when the fork is reselected.
+    const projected=((at.x-a.x)*vx+(at.y-a.y)*vy)/(len*len);
+    const lateral=(-(at.x-a.x)*vy+(at.y-a.y)*vx)/len;
+    if(candidateDot>.25&&candidateDot>currentDot+.10&&
+      projected>=-.07&&projected<.93&&Math.abs(lateral)<=JUNCTION_TURN_LANE){
+     // Reproject the same world point; gradual lane easing below avoids
+     // teleporting to the newly selected line or deducting a dice step.
+     m.to=candidate;m.endPosition=end;m.t=projected;m.lateral=lateral;
+     m.walking=false;m.intent=null;m.intentTime=0;
      return;
     }
    }
@@ -271,7 +284,11 @@ function walkEdge(s,p,dt){
   // Full 2D input: forwards, sideways and backwards are all allowed. The
   // walkable lane bounds prevent shortcuts while the dice still count nodes.
   m.t=bound(m.t+tangent*WALK_SPEED*dt/d,0,1);
-  m.lateral=bound(beforeL+sideways*WALK_SPEED*dt,-LANE_RADIUS,LANE_RADIUS);
+  // A newly selected fork can start outside the narrow straight corridor.
+  // Reduce that offset at a physically reachable rate, never clamp 60px
+  // sideways to 18px in one frame (the visible "character snap" bug).
+  const lane=Math.max(LANE_RADIUS,Math.abs(beforeL)-WALK_SPEED*dt*.55);
+  m.lateral=bound(beforeL+sideways*WALK_SPEED*dt,-lane,lane);
  }
  m.walking=Math.abs(m.t-beforeT)>1e-6||Math.abs(m.lateral-beforeL)>1e-6;
  if(m.t<=.001&&tangent<-.15){

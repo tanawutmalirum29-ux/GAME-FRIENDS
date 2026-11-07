@@ -138,6 +138,11 @@ assert.match(artSource,/s\.move\?\.kind!=='walk'/,
  assert.equal(moving.phase,'moving','player is walking while the camera can move');
  assert.equal(A.canPan(moving),true,'gestures stay enabled while moving between pads');
  const playerBefore=JSON.stringify(player),stepsBefore=moving.move.remaining;
+ // Keep the manual camera NEAR the walker here; the separate test below
+ // deliberately pans completely off-screen and expects safety recentering.
+ const playerPos=ctx.window.BoardItems.position(moving,player);
+ moving.camera.x=playerPos.x;moving.camera.y=playerPos.y;
+ moving.camera.zoom=1;moving.camera.manualZoom=1;moving.camera.explore=false;
  A.draw(g,6,moving);
  const centerBefore={x:moving.camera.x,y:moving.camera.y};
  assert.equal(A.pan(moving,-110,65),true);
@@ -170,6 +175,43 @@ assert.match(artSource,/s\.move\?\.kind!=='walk'/,
  assert.deepEqual({x:fork.camera.x,y:fork.camera.y,zoom:fork.camera.zoom},current,
   'fork UI must not override camera gestures');
 }
+// A user can manually inspect the map, but once their ACTUALLY MOVING
+// character disappears beyond the visible frame the camera gently returns
+// without changing the current zoom level.
+{
+ const s=game(911),p=s.players[0];s.order=s.players.map(q=>q.id);
+ P.startTurn(s);P.beginMove(s,p,5);
+ s.camera.zoom=1.45;s.camera.manualZoom=1.45;
+ s.camera.x=2000;s.camera.y=4750;s.camera.panned=true;
+ s.camera.explore=false;s.move.started=true;s.move.walking=false;
+ const manual={x:s.camera.x,zoom:s.camera.zoom};
+ A.draw(g,20,s);
+ assert.equal(s.camera.x,manual.x,'still allowed to inspect freely while stopped');
+ s.move.walking=true;
+ A.draw(g,20.016,s);
+ assert.equal(s.camera.panned,false,'leaving view during WALK reengages camera tracking');
+ assert.equal(s.camera.rescuedOffscreen,true);
+ assert.equal(s.camera.zoom,manual.zoom,'automatic rescue does not reset manual zoom');
+ assert.ok(s.camera.x<manual.x,'camera pans back toward the player smoothly');
+ assert.ok(s.camera.x>ctx.window.BoardItems.position(s,p).x,
+  'the camera glides rather than instant teleporting to the player');
+ for(let i=0;i<90;i++)A.draw(g,20.032+i/60,s);
+ const world=ctx.window.BoardItems.position(s,p);
+ const screenX=480+(world.x-s.camera.x)*s.camera.zoom;
+ assert.ok(screenX>24&&screenX<936,'player returns to the visible horizontal map');
+ assert.equal(s.camera.zoom,manual.zoom,'zoom is stable for the whole rescue');
+ assert.equal(s.move.remaining,5,'camera rescue does not spend movement');
+ assert.equal(p.currentNodeId,'n0','camera rescue does not move a character');
+ assert.equal(A.pan(s,30,0),true);
+ assert.equal(s.camera.panned,true,'dragging detaches tracking again');
+}
+assert.match(artSource,/function curvedForkRoad\(/,'real curved road renderer exists');
+assert.match(artSource,/g\.quadraticCurveTo\(control\.x,control\.y,b\.x,b\.y\)/,
+ 'n3 forks are drawn with smooth rounded curves, not overlapping sharp road edges');
+assert.match(artSource,/curvedForkRoad\(g,n\.id,id,n\.position,p\)/,
+ 'cached high-detail roads use the same Y-curve');
+assert.match(artSource,/curvedForkRoad\(g,n\.id,id,a,b,true\)/,
+ 'low-memory fallback also uses Y-curve');
 assert.match(artSource,/for\(const \[from,to\] of map\.bridges\)/,
  'the low-memory renderer must also paint bridge decks');
 const initialSurfaces=surfaces.length;

@@ -875,6 +875,18 @@ function startHost(retries=0,resumeCode=null){
         conn.previewEnabled=msg.enabled;
         if(msg.enabled){if(round)startHostVideoCall(conn);}
         else stopHostVideoCall(conn);
+      }else if(msg.t==='board-camera-zoom'&&conn.playerId){
+        // Only an authenticated controller in an active BOARD game may
+        // zoom the HOST map. Never interpret this packet as movement/A/B/C.
+        if(round?.mode!=='board'||round.phase!=='playing'||!boardSession||
+           ![1,-1].includes(msg.direction)||!window.BoardArt?.canPan?.(boardSession))return;
+        const player=players.find(p=>p.id===conn.playerId&&p.conn===conn);
+        if(!player||!player.active)return;
+        const now=Date.now();
+        if(now-(conn.lastBoardCameraZoomAt||0)<100)return;
+        conn.lastBoardCameraZoomAt=now;
+        window.BoardArt.zoom(boardSession,msg.direction>0?1.25:.8);
+        refreshBoardTools();
       }else if(msg.t==='video-quality'&&conn.playerId){
         if(!Object.hasOwn(VIDEO_QUALITY,msg.quality))return;
         const autoHeight=msg.quality==='auto'?normalizeAutoHeight(msg.autoHeight):null;
@@ -1425,6 +1437,13 @@ function setControllerGameContext(mode,phase,active){
   controllerGameMode=mode||null;
   if(mode!=='shockwave'||!['countdown','playing','paused'].includes(phase))controllerPlayerEliminated=false;
   controllerGamePhase=phase||'lobby';
+  // Remote board camera tools are never shown in a minigame or room lobby.
+  const boardZoomActive=controllerReady&&mode==='board'&&
+   ['playing','paused'].includes(controllerGamePhase);
+  for(const id of ['controllerBoardZoomInBtn','controllerBoardZoomOutBtn']){
+   $(id).classList.toggle('hidden',!boardZoomActive);
+   $(id).disabled=!boardZoomActive;
+  }
   if(!['results','summary'].includes(controllerGamePhase))
     controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
   controllerPlayerActive=!!active;
@@ -2912,6 +2931,14 @@ document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener
   updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
 }));
+// These buttons control the HOST BOARD camera, not the tiny phone preview.
+for(const [id,direction] of [['controllerBoardZoomInBtn',1],['controllerBoardZoomOutBtn',-1]]){
+ $(id).addEventListener('click',()=>{
+  if(!controllerReady||controllerGameMode!=='board'||
+     !['playing','paused'].includes(controllerGamePhase))return;
+  send(controllerConn,{t:'board-camera-zoom',direction});
+ });
+}
 $('videoPreviewToggleBtn').addEventListener('click',()=>{
   setControllerPreviewEnabled(!controllerPreviewEnabled);
 });
