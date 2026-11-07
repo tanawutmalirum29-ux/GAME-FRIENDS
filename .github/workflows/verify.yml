@@ -28,6 +28,10 @@ jobs:
           node --check boulder-bash.js
           node --check snow-brawl.js
           node --check shopping-time.js
+          node --check pizza-time.js
+          node --check pizza-kitchen-art.js
+          node --check tests/pizza-kitchen.cjs
+          node --check tests/pizza-kitchen-browser.cjs
           node --check tests/shopping-time.cjs
           node --check tests/snow-brawl.cjs
           node --check witching-snake.js
@@ -47,6 +51,11 @@ jobs:
           node --check scripts/build-static.cjs
       - name: SHOPPING TIME conveyor physics, checkout, bombs and bot regressions
         run: node tests/shopping-time.cjs
+      - name: PIZZA TIME garden kitchen, serving and 1–12-player bot rounds
+        run: |
+          node tests/pizza-time.test.cjs
+          node tests/pizza-kitchen.cjs
+          node tests/svg-only-policy.cjs
       - name: BOULDER BASH fixed-step physics and multiplayer survival
         run: node tests/boulder-bash.cjs
       - name: WITCHING SNAKE 60 Hz broom survival and integration checks
@@ -134,6 +143,8 @@ jobs:
           BOARD_BROWSER=webkit node tests/board-startup.cjs
           node tests/ghost-courtyards-browser.cjs
           BOARD_BROWSER=webkit node tests/ghost-courtyards-browser.cjs
+          node tests/pizza-kitchen-browser.cjs
+          BOARD_BROWSER=webkit node tests/pizza-kitchen-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

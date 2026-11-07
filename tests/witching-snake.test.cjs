@@ -27,11 +27,20 @@ function roster(n){
  return Array.from({length:n},(_,i)=>({id:'p'+i,name:'แม่มด '+i,color:'#ff628c',
   active:true,isBot:false,input:{axisX:0,axisY:0,action:false,alt:false}}));
 }
-function game(n,doc){
- const e=engine(doc),round={mode:'witching_snake',phase:'playing',paused:false},ps=roster(n);
+function game(n,doc,witchSeed=1337){
+ // Match spawns now vary by seed. Physics comparisons need the same starting
+ // state; normal, unseeded gameplay still receives fresh entropy per match.
+ const e=engine(doc),round={mode:'witching_snake',phase:'playing',paused:false,witchSeed},ps=roster(n);
  const s=e.setup(round,ps);return{e,round,ps,s};
 }
 function approx(a,b,eps=1e-6){assert.ok(Math.abs(a-b)<=eps,a+' !== '+b);}
+check('explicit QA seed reproduces spawns while different seeds vary them',()=>{
+ const positions=g=>g.ps.map(p=>[p.x,p.y,p.ws.heading]);
+ for(const n of [1,6,12]){
+  assert.deepEqual(positions(game(n,undefined,1337)),positions(game(n,undefined,1337)));
+  assert.notDeepEqual(positions(game(n,undefined,1337)),positions(game(n,undefined,977)));
+ }
+});
 check('supports 1, 2, 4, 6, 7, 9 and 12 separated, valid spawns',()=>{
  for(const n of [1,2,4,6,7,9,12]){
   const {e,ps,s}=game(n);

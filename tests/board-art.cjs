@@ -192,6 +192,9 @@ assert.match(artSource,/s\.move\?\.kind!=='walk'/,
  assert.equal(s.camera.x,manual.x,'still allowed to inspect freely while stopped');
  s.move.walking=true;
  A.draw(g,20.016,s);
+ assert.equal(s.camera.panned,true,'a stale walking flag without stick input must not interrupt map inspection');
+ P.input(s,p.id,{turnId:s.turnId,actionId:1,keys:{axisX:1,axisY:0}});
+ A.draw(g,20.024,s);
  assert.equal(s.camera.panned,false,'leaving view during WALK reengages camera tracking');
  assert.equal(s.camera.rescuedOffscreen,true);
  assert.equal(s.camera.zoom,manual.zoom,'automatic rescue does not reset manual zoom');

@@ -12,7 +12,7 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','pizza-ingredient-ar
 vm.runInNewContext(source,sandbox,{filename:'pizza-time.js'});
 const G=sandbox.window.PizzaTime;
 const art=sandbox.window.PizzaIngredientArt;
-assert.ok(art&&art.ids.length===8,'original SVG icons must be registered for all ingredients');
+assert.ok(art&&art.ids.length===10,'original SVG icons must be registered for all ingredients');
 for(const id of art.ids){
  const markup=art.svg(id);
  assert.match(markup,/<svg[^>]+viewBox=/);
@@ -37,11 +37,11 @@ function assertState(x,n){
  assert.equal(x.s.chefs.length,n);
  assert.equal(x.s.orderCards.size,n,'one order bubble for each private chef');
  const all=[...x.s.orderCards.values()];
- const zones=x.s.chefs.map(c=>({x:c.x-65,y:c.y-49,w:130,h:105}));
+ const zones=x.s.chefs.map(c=>c.figureBounds);
  for(const [i,bubble] of all.entries()){
-   assert.ok(zones.every(z=>!G.rectanglesOverlap(bubble,z,5)),
+   assert.ok(zones.every(z=>!G.rectanglesOverlap(bubble,z,2*x.s.unit)),
      'order bubble must not cover a chef');
-   assert.ok(all.slice(i+1).every(z=>!G.rectanglesOverlap(bubble,z,5)),
+   assert.ok(all.slice(i+1).every(z=>!G.rectanglesOverlap(bubble,z,2*x.s.unit)),
      'order bubbles must not overlap each other');
  }
 
@@ -59,8 +59,8 @@ function assertState(x,n){
    assert.notEqual(p.pizza.order[0],p.pizza.order[1]);
    assert.equal(p.pizza.held,null);
    assert.ok(x.s.chefById.get(p.id),'every player has a private chef');
-   assert.ok(Math.hypot(p.x-x.s.chefById.get(p.id).x,p.y-x.s.chefById.get(p.id).y)<90,
-      'player spawns beside own chef');
+   assert.ok(Math.hypot(p.x-x.s.chefById.get(p.id).deliver.x,p.y-x.s.chefById.get(p.id).deliver.y)<65*x.s.unit,
+      'player spawns on the walking side of own counter');
    assert.ok(Number.isFinite(p.pizza.lastCost),'A* route to personal chef exists');
  }
 }
