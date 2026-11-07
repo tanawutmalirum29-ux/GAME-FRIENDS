@@ -1827,6 +1827,78 @@ const phone=setup('https://game.example/?join=ABCDE3');
  assert.equal(phone.elements.get('controllerActive').classList.contains('hidden'),true);
 }
 
+// A restored but not yet reopened HOST room must never show a ghost lobby.
+{
+ const saved=new Map([['gf-host-room-v2',JSON.stringify({
+  code:'ABC123',players:[],nextId:1,selectedSessionMode:'board',autoNext:true
+ })]]);
+ const restore=setup('https://game.example/?host=1',false,saved);
+ assert.equal(restore.instances.length,1,'stored HOST starts one room-restoration attempt');
+ assert.equal(restore.instances[0].id,'gf-party-ABC123');
+ assert.equal(restore.elements.get('home').classList.contains('hidden'),false,
+  'during restoration the main screen remains visible, not a closed lobby');
+ assert.equal(restore.elements.get('hostLobby').classList.contains('hidden'),true);
+ restore.instances[0].fire('open');
+ assert.equal(restore.elements.get('hostLobby').classList.contains('hidden'),false,
+  'the lobby appears only after the signaling server confirms the room');
+ assert.equal(restore.elements.get('hostRoomBadge').textContent,'ROOM ABC123');
+}
+{
+ const saved=new Map([['gf-host-room-v2',JSON.stringify({
+  code:'DEF456',players:[],nextId:1,selectedSessionMode:'queue',autoNext:true
+ })]]);
+ const failed=setup('https://game.example/?host=1',false,saved);
+ const stalePeer=failed.instances[0];
+ stalePeer.fire('error',{type:'network'});
+ assert.equal(failed.elements.get('home').classList.contains('hidden'),false,
+  'terminal restore failure always returns to the host home');
+ assert.equal(failed.elements.get('hostLobby').classList.contains('hidden'),true);
+ assert.equal(failed.elements.get('roomPanel').classList.contains('hidden'),true);
+ assert.equal(failed.elements.get('hostBtn').disabled,false);
+ assert.equal(failed.sessionData.has('gf-host-room-v2'),false,
+  'failed room restoration clears stale room snapshot');
+ assert.equal(failed.scope.window.GAME_CAN_AUTO_RELOAD(),true,
+  'closed host is safe to receive updates without a ghost room');
+ stalePeer.fire('open');
+ assert.equal(failed.elements.get('hostLobby').classList.contains('hidden'),true,
+  'obsolete PeerJS open cannot reopen an already closed room');
+ failed.click('hostBtn');failed.instances[1].fire('open');
+ assert.equal(failed.elements.get('hostLobby').classList.contains('hidden'),false,
+  'user can start a fresh room after the failed restoration');
+}
+{
+ const lost=setup('https://game.example/?host=1');
+ lost.click('hostBtn');const peer=lost.instances[0];peer.fire('open');
+ const originalBadge=lost.elements.get('hostRoomBadge').textContent;
+ peer.fire('disconnected');
+ assert.equal(lost.elements.get('hostLobby').classList.contains('hidden'),false,
+  'transient network disconnect must not kick a recoverable host');
+ assert.equal(lost.elements.get('hostRoomBadge').textContent,originalBadge);
+ peer.fire('close');
+ assert.equal(lost.elements.get('home').classList.contains('hidden'),false,
+  'permanently closed PeerJS room immediately returns home');
+ assert.equal(lost.elements.get('hostLobby').classList.contains('hidden'),true);
+ assert.equal(lost.elements.get('roomPanel').classList.contains('hidden'),true);
+ assert.equal(lost.sessionData.has('gf-host-room-v2'),false);
+}
+{
+ const restoreSaved=new Map([['gf-host-room-v2',JSON.stringify({
+  code:'FF1122',players:[],nextId:1,selectedSessionMode:'queue',autoNext:true
+ })]]);
+ const retry=setup('https://game.example/?host=1',false,restoreSaved);
+ const firstPeer=retry.instances[0];
+ firstPeer.fire('error',{type:'unavailable-id'});
+ const pending=retry.timers.find(t=>t.ms>=1200&&!t.cancelled);
+ assert.ok(pending,'occupied room code schedules a recoverable retry');
+ retry.click('offlineBtn');
+ assert.equal(pending.cancelled,true,
+  'switching to offline cancels the pending room retry');
+ assert.equal(retry.elements.get('hostRoomBadge').textContent,'OFFLINE');
+ assert.equal(retry.elements.get('hostLobby').classList.contains('hidden'),false);
+ pending.fn();
+ assert.equal(retry.instances.length,1,
+  'obsolete room retry cannot replace the new offline lobby');
+}
 // Closing an online room displays an in-app dialog; cancellation keeps peers.
 const confirmHost=setup();
 confirmHost.click('hostBtn');
