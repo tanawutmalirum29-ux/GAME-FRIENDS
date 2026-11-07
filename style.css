@@ -3917,7 +3917,10 @@ body.controller-playing #controller #controllerActive .controller-buttons{
 }
 #game #gameRoulette .roulette-track{
   position:absolute;
-  top:50%;
+  /* The track already centers cards with align-items:center. A 50% top
+     offset plus per-card -50% translation previously pushed the selected
+     card BELOW the overlay even when their dimensions matched. */
+  top:0;
   left:50%;
   display:flex;
   align-items:center;
@@ -3942,7 +3945,7 @@ body.controller-playing #controller #controllerActive .controller-buttons{
   border-radius:clamp(11px,1.8vw,21px);
   box-shadow:0 8px 24px #0008,inset 0 1px 0 #ffffff26;
   padding:clamp(7px,1vw,13px);
-  transform:translateY(-50%);
+  transform:none;
   transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
   overflow:hidden;
 }
