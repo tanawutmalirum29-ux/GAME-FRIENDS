@@ -27,13 +27,16 @@ const combatSource=fs.readFileSync('combat-motion.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
 const hostLauncher=fs.readFileSync('host.html','utf8');
-assert.match(html,/id="controllerBoardZoomInBtn"[\\s\\S]*id="controllerBoardZoomOutBtn"[\\s\\S]*id="videoPreviewToggleBtn"[\\s\\S]*id="videoQualityBtn"/,
+const rail=html.slice(html.indexOf('class="gamepad-top-actions"'),html.indexOf('</div>',html.indexOf('class="gamepad-top-actions"')));
+const railIds=['controllerBoardZoomInBtn','controllerBoardZoomOutBtn','videoPreviewToggleBtn','videoQualityBtn'];
+const indexes=railIds.map(id=>rail.indexOf('id="'+id+'"'));
+assert.ok(indexes.every((i,k)=>i>=0&&(k===0||i>indexes[k-1])),
  'phone top rail order is zoom+ / zoom− / preview / graphics');
-assert.match(css,/#controllerBoardZoomInBtn\\{order:-3\\}/);
-assert.match(css,/#controllerBoardZoomOutBtn\\{order:-2\\}/);
-assert.match(source,/t:'board-camera-zoom',direction/,
- 'phone zoom buttons send the host an authenticated board-camera packet');
-assert.match(source,/conn\\.lastBoardCameraZoomAt/,
+assert.ok(css.includes('#controllerBoardZoomInBtn{order:-3}')&&css.includes('#controllerBoardZoomOutBtn{order:-2}'),
+ 'CSS preserves zoom button order');
+assert.ok(source.includes("t:'board-camera-zoom',direction"),
+ 'phone zoom buttons send the host a dedicated board-camera packet');
+assert.ok(source.includes('conn.lastBoardCameraZoomAt'),
  'the host rate-limits remote zoom packets');
 
 // Cover/social assets are checked into GitHub: no external hotlink or
