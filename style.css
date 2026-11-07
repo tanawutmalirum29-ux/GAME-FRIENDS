@@ -5257,3 +5257,30 @@ body.controller-playing #controllerActive #joystickZone .board-camera-mode-hint{
 body.controller-playing #controllerActive #joystickZone .board-camera-mode-hint.hidden{
  display:none!important;
 }
+
+
+/* iPadOS Fullscreen API: WebKit may keep its system time/battery strip visible
+   with safe-area-inset-top=0. Never put interactive controls behind the strip.
+   Standalone PWA is already handled by the opaque status-bar meta tag. */
+@media (orientation:landscape) and (min-width:700px){
+  html.ipad-native-fullscreen body:has(#home:not(.hidden)) .topbar{
+    height:clamp(74px,11dvh,100px);
+    padding-top:max(26px,env(safe-area-inset-top,0px));
+  }
+  html.ipad-native-fullscreen #hostLobby{
+    padding-top:max(28px,env(safe-area-inset-top,0px));
+  }
+  html.ipad-native-fullscreen #game .game-toolbar{
+    padding-top:max(28px,env(safe-area-inset-top,0px));
+  }
+  html.ipad-native-fullscreen #game .game-pause-btn,
+  html.ipad-native-fullscreen #game .game-name{
+    top:max(28px,env(safe-area-inset-top,0px));
+  }
+  html.ipad-native-fullscreen body.controller-playing .gamepad-hud{
+    padding-top:max(28px,env(safe-area-inset-top,0px));
+  }
+  html.ipad-native-fullscreen body:not(.controller-playing) #controller.controller-page{
+    padding-top:max(28px,env(safe-area-inset-top,0px));
+  }
+}
