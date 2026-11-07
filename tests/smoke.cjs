@@ -1246,7 +1246,7 @@ assert.equal(standaloneTablet.scope.document.fullscreenRequests,0,
 assert.equal(standaloneTablet.elements.get('webAppHelpBtn').classList.contains('hidden'),true,
  'installed Home Screen Web App never displays irrelevant browser install instructions');
 assert.equal(standaloneTablet.elements.get('restoreHostFullscreenBtn').classList.contains('hidden'),true);
-const ipadController=setup('https://game.example/?room=ABC123',false,null,null,ipadUA);
+const ipadController=setup('https://game.example/?room=ABC234',false,null,null,ipadUA);
 ipadController.click('joinLandscapeBtn');
 assert.equal(ipadController.scope.document.fullscreenRequests,1,
   'iPad controller requests fullscreen on landscape button');
@@ -1830,18 +1830,18 @@ const phone=setup('https://game.example/?join=ABCDE3');
 // A restored but not yet reopened HOST room must never show a ghost lobby.
 {
  const saved=new Map([['gf-host-room-v2',JSON.stringify({
-  code:'ABC123',players:[],nextId:1,selectedSessionMode:'board',autoNext:true
+  code:'ABC234',players:[],nextId:1,selectedSessionMode:'board',autoNext:true
  })]]);
  const restore=setup('https://game.example/?host=1',false,saved);
  assert.equal(restore.instances.length,1,'stored HOST starts one room-restoration attempt');
- assert.equal(restore.instances[0].id,'gf-party-ABC123');
+ assert.equal(restore.instances[0].id,'gf-party-ABC234');
  assert.equal(restore.elements.get('home').classList.contains('hidden'),false,
   'during restoration the main screen remains visible, not a closed lobby');
  assert.equal(restore.elements.get('hostLobby').classList.contains('hidden'),true);
  restore.instances[0].fire('open');
  assert.equal(restore.elements.get('hostLobby').classList.contains('hidden'),false,
   'the lobby appears only after the signaling server confirms the room');
- assert.equal(restore.elements.get('hostRoomBadge').textContent,'ROOM ABC123');
+ assert.equal(restore.elements.get('hostRoomBadge').textContent,'ROOM ABC234');
 }
 {
  const saved=new Map([['gf-host-room-v2',JSON.stringify({
@@ -1883,7 +1883,7 @@ const phone=setup('https://game.example/?join=ABCDE3');
 }
 {
  const restoreSaved=new Map([['gf-host-room-v2',JSON.stringify({
-  code:'FF1122',players:[],nextId:1,selectedSessionMode:'queue',autoNext:true
+  code:'FF2233',players:[],nextId:1,selectedSessionMode:'queue',autoNext:true
  })]]);
  const retry=setup('https://game.example/?host=1',false,restoreSaved);
  const firstPeer=retry.instances[0];
