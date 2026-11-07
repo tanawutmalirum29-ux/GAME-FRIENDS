@@ -811,7 +811,8 @@ function aimControls(g,s){
   'ขยับจอยเพื่อเล็งก่อนกด A',x+14,y+148,11,'#b6def0','left',700,w-27);
 }
 function turnDice(g,s){
- if(!['ready','dice'].includes(s.phase))return;
+ if(!['ready','dice'].includes(s.phase)||
+    (s.phase==='ready'&&s.camera.bagMapInspect))return;
  const p=window.BoardParty.current(s);if(!p)return;
  const cx=480,top=168,width=348,height=232,left=cx-width/2;
  const elapsed=Math.max(0,s.time-s.phaseAt);
