@@ -61,6 +61,8 @@ jobs:
         run: node tests/combat-motion.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
+      - name: BOARD PARTY phone double-tap camera gestures
+        run: node tests/board-camera-controller.cjs
       - name: Lobby controller-A readiness and layout
         run: node tests/lobby-start.cjs
       - name: COLOR SWITCH rules and 12-player stress

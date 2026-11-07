@@ -5219,3 +5219,41 @@ body.controller-playing #controller #controllerActive #phoneGameChoices .phone-g
   }
   #hostLobby .lobby-controls{max-height:140px!important}
 }
+
+/* BOARD PARTY: phone stick doubles as map navigation after a double-tap.
+   Existing +/− controls remain hidden for old saved controller pages. */
+body.controller-playing #controllerActive .gamepad-top-actions #controllerBoardZoomInBtn,
+body.controller-playing #controllerActive .gamepad-top-actions #controllerBoardZoomOutBtn{
+ display:none!important;
+}
+body.controller-playing #controllerActive #joystickZone.board-camera-mode{
+ touch-action:none!important;
+ cursor:grab;
+ background:linear-gradient(135deg,#5dd8e918,#4de5b01e)!important;
+ box-shadow:inset 0 0 0 2px #75f1cd88!important;
+ border-radius:10px;
+}
+body.controller-playing #controllerActive #joystickZone.board-camera-mode:active{cursor:grabbing}
+body.controller-playing #controllerActive #joystickZone.board-camera-mode .joystick-base{
+ opacity:.28;
+}
+body.controller-playing #controllerActive #joystickZone .board-camera-mode-hint{
+ position:absolute;
+ z-index:4;
+ pointer-events:none;
+ left:clamp(8px,2vw,16px);
+ top:clamp(6px,1.5dvh,14px);
+ max-width:min(82%,390px);
+ padding:5px 9px;
+ border:1px solid #76f1d9;
+ border-radius:9px;
+ background:#0d3b4bdc;
+ color:#e1fff3;
+ font-size:clamp(10px,1.5dvh,13px);
+ font-weight:900;
+ line-height:1.3;
+ text-align:left;
+}
+body.controller-playing #controllerActive #joystickZone .board-camera-mode-hint.hidden{
+ display:none!important;
+}

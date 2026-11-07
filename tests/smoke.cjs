@@ -12,6 +12,7 @@ assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
 const characterSource=fs.readFileSync('character-system.js','utf8');
+const boardCameraSource=fs.readFileSync('board-controller-camera.js','utf8');
 const uiArtSource=fs.readFileSync('party-ui-art.js','utf8');
 const pizzaArtSource=fs.readFileSync('pizza-ingredient-art.js','utf8');
 const pizzaSource=fs.readFileSync('pizza-time.js','utf8');
@@ -1236,6 +1237,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(artSource,scope,{filename:'graveyard-art.js'});
    vm.runInContext(avatarSource,scope,{filename:'player-avatar.js'});
   vm.runInContext(characterSource,scope,{filename:'character-system.js'});
+   vm.runInContext(boardCameraSource,scope,{filename:'board-controller-camera.js'});
   vm.runInContext(uiArtSource,scope,{filename:'party-ui-art.js'});
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
   vm.runInContext(chickensSource,scope,{filename:'chickens.js'});
@@ -2862,6 +2864,32 @@ for(const count of [1,12]){
    two=spectator.sent.filter(m=>m.t==='board-state').at(-1);
  assert.equal(one.canZoom,true,'current player receives zoom permission');
  assert.equal(two.canZoom,false,'spectator receives no zoom permission');
+ // Remote-only camera mode: owner may inspect; spectators never can.
+ const cameraPacket={turnId:s.turnId,mapVersion:s.map.version};
+ spectator.fire('data',{t:'board-camera-mode',enabled:true,...cameraPacket});
+ spectator.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...cameraPacket});
+ assert.equal(spectator.boardCameraGestureToken,null,'spectator camera activation rejected');
+ const preModeZoom=s.camera.zoom;
+ owner.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...cameraPacket});
+ assert.equal(s.camera.zoom,preModeZoom,'gesture before double-tap mode rejected');
+ owner.fire('data',{t:'board-camera-mode',enabled:true,...cameraPacket});
+ assert.equal(owner.boardCameraGestureToken,s.turnId);
+ assert.equal(s.camera.panned,true,'inspection mode suspends follow');
+ const gestureInitial=s.camera.zoom;
+ owner.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...cameraPacket});
+ assert.ok(s.camera.zoom>gestureInitial,'pinch zooms host map');
+ const gestureZoom=s.camera.zoom;
+ const positionBefore=JSON.stringify(ui.scope.window.BoardItems.position(s,first));
+ owner.fire('data',{t:'input',turnId:s.turnId,actionId:1,keys:{axisX:1,axisY:1}});
+ api.updateBoard(.05);
+ assert.equal(JSON.stringify(ui.scope.window.BoardItems.position(s,first)),positionBefore,
+   'host rejects movement axes while controller is in map mode');
+ owner.fire('data',{t:'board-camera-mode',enabled:false,...cameraPacket});
+ assert.equal(s.camera.panned,false,'double-tap back resumes follow');
+ assert.equal(s.camera.manualZoom,gestureZoom,'zoom remains unchanged when returning to walk');
+ const afterExit=s.camera.zoom;
+ owner.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...cameraPacket});
+ assert.equal(s.camera.zoom,afterExit,'gestures rejected after switching back');
  const initial=s.camera.zoom;
  spectator.fire('data',{t:'board-camera-zoom',direction:1});
  assert.equal(s.camera.zoom,initial,'spectator zoom rejected by host');
