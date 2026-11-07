@@ -9,7 +9,8 @@ const TAU=Math.PI*2,STEP=1/60,WIDTH=960,HEIGHT=540,CX=480,CY=276;
 const C=Object.freeze({
  playerRadius:16,playerMass:1,moveAcceleration:790,maxMoveSpeed:183,
  moveFriction:4.4,impactFriction:1.45,bodyRestitution:.18,
- baseRadius:12,maxRadius:44,growthDistance:920,windup:.4,
+ baseRadius:12,maxRadius:44,growthDistance:920,windup:.15,
+ turnRate:3.6, // rad/s: ~0.87s for a U-turn instead of the old 0.26s
  rollSmallSpeed:320,rollLargeSpeed:224,rollMaxAge:5.8,
  flattenTime:.7,flattenImmunity:.3,soloDuration:60,suddenDeathTime:90,
  shrinkSpeed:12,maxImpactSpeed:560,
@@ -159,7 +160,7 @@ function setHeading(p,x,y,dt){
  const wanted=normal(x,y),before=normal(b.faceX,b.faceY);
  const desired=Math.atan2(wanted.y,wanted.x),prior=Math.atan2(before.y,before.x);
  const delta=Math.atan2(Math.sin(desired-prior),Math.cos(desired-prior));
- const a=prior+clamp(delta,-12*dt,12*dt);
+ const a=prior+clamp(delta,-C.turnRate*dt,C.turnRate*dt);
  b.faceX=Math.cos(a);b.faceY=Math.sin(a);
  p.dir={x:b.faceX,y:b.faceY};p.face=b.faceX<0?-1:1;
 }
@@ -170,7 +171,8 @@ function beginWindup(s,p,ball){
 }
 function release(s,p,ball){
  if(!ball||ball.state==='DESTROYED')return;
- const dir=normal(ball.x-p.x,ball.y-p.y,p.snow.faceX,p.snow.faceY);
+ // Launch in the facing direction, including after a turn or windup.
+ const dir=normal(p.snow.faceX,p.snow.faceY);
  const speed=rollSpeed(ball.r);
  ball.state='ROLLING';ball.vx=dir.x*speed;ball.vy=dir.y*speed;
  ball.ttl=C.rollMaxAge;ball.age=0;
@@ -199,7 +201,12 @@ function playerStep(s,p,dt){
  }else{
   setHeading(p,input.x,input.y,dt);
   // Snowball mass/size has NO effect on acceleration, max speed or turning.
-  const targetX=input.x*C.maxMoveSpeed,targetY=input.y*C.maxMoveSpeed;
+  // Direction changes require turning the BODY, not instantaneous sideways
+  // translation on raw analog input. The held snowball uses this same heading.
+  const heading=normal(b.faceX,b.faceY);
+  const throttle=clamp(mag(input.x,input.y),0,1);
+  const targetX=heading.x*throttle*C.maxMoveSpeed;
+  const targetY=heading.y*throttle*C.maxMoveSpeed;
   const change=C.moveAcceleration*dt;
   const dvx=targetX-p.vx,dvy=targetY-p.vy,m=mag(dvx,dvy);
   const factor=Math.min(1,change/Math.max(m,1e-9));
@@ -237,17 +244,11 @@ function playerStep(s,p,dt){
   const dir=normal(b.faceX,b.faceY);
   const targetX=p.x+dir.x*(C.playerRadius+owned.r+4),
    targetY=p.y+dir.y*(C.playerRadius+owned.r+4);
-  // Smooth spring/contact constraint. Never teleport an attached snowball
-  // around a turning player, especially during a sudden 180° turn.
-  const dx=targetX-owned.x,dy=targetY-owned.y,d=mag(dx,dy);
-  const stepDistance=Math.min(d,(C.maxMoveSpeed+110)*dt);
-  if(d>1e-7){
-   owned.x+=dx/d*stepDistance;owned.y+=dy/d*stepDistance;
-  }
-  const away=normal(owned.x-p.x,owned.y-p.y,dir.x,dir.y);
-  const gap=mag(owned.x-p.x,owned.y-p.y);
-  const minGap=C.playerRadius+owned.r+1;
-  if(gap<minGap){owned.x=p.x+away.x*minGap;owned.y=p.y+away.y*minGap;}
+  // Rotating contact constraint: the real physical ball stays in FRONT
+  // of the body at every physics step. A capped turn rate makes its orbital
+  // movement continuous (no instantaneous 180-degree teleport).
+  // Swept ball/ball and ball/person collisions run on old -> new positions.
+  owned.x=targetX;owned.y=targetY;
   owned.vx=(owned.x-owned.oldX)/dt;owned.vy=(owned.y-owned.oldY)/dt;
   owned.angle+=mag(owned.x-owned.oldX,owned.y-owned.oldY)/owned.r;
  }
@@ -316,24 +317,43 @@ function hitBallPlayer(s,ball,p){
   burst(s,p.x,p.y,29,'crush',.56);
  }
 }
-function ballCollision(s,a,b){
+function ballCollision(s,a,b,t=1){
  if(a.state==='DESTROYED'||b.state==='DESTROYED')return;
- const axis=normal(b.x-a.x,b.y-a.y);
+ // Collision normal at FIRST contact, not after interpenetration. Prevent
+ // reversed recoil when a fast projectile tunnels past a held snowball.
+ const ax=a.oldX+(a.x-a.oldX)*t,ay=a.oldY+(a.y-a.oldY)*t;
+ const bx=b.oldX+(b.x-b.oldX)*t,by=b.oldY+(b.y-b.oldY)*t;
+ const fallback=normal(b.x-a.x,b.y-a.y,1,0);
+ const axis=normal(bx-ax,by-ay,fallback.x,fallback.y);
  const rel=(b.vx-a.vx)*axis.x+(b.vy-a.vy)*axis.y;
- const j=Math.max(0,-(1+.2)*rel/(1/a.mass+1/b.mass));
+ // A snowball still being pushed is coupled to its owner. Treat the owner's
+ // mass as part of that colliding object so impulses remain physical.
+ const ma=a.mass+(a.state==='ROLLING'?0:C.playerMass);
+ const mb=b.mass+(b.state==='ROLLING'?0:C.playerMass);
+ const impulse=Math.max(0,-(1+.2)*rel/(1/ma+1/mb));
  for(const ball of [a,b]){
-  if(ball.state!=='ROLLING'){
-   const owner=s.roster.find(p=>p.id===ball.ownerId);
-   if(owner?.snow?.alive){
-    const sign=ball===a?-1:1;
-    owner.kvx+=sign*axis.x*Math.min(65,j*.15);
-    owner.kvy+=sign*axis.y*Math.min(65,j*.15);
-    if(owner.snow.phase==='WINDUP')owner.snow.phase='COLLECTING';
-   }
+  if(ball.state==='ROLLING')continue;
+  const owner=s.roster.find(p=>p.id===ball.ownerId);
+  if(!owner?.snow?.alive)continue;
+  // The launched ball shatters against an unthrown one, but its impact
+  // reaches the holder: NO blocking immunity and NO fixed recoil constant.
+  // Larger/faster balls deliver more momentum, subject to a safety cap.
+  const sign=ball===a?-1:1;
+  const coupledMass=ball===a?ma:mb;
+  const recoil=clamp(impulse/coupledMass,0,C.maxImpactSpeed);
+  owner.kvx+=sign*axis.x*recoil;
+  owner.kvy+=sign*axis.y*recoil;
+  const speed=mag(owner.kvx,owner.kvy);
+  if(speed>C.maxImpactSpeed){
+   owner.kvx*=C.maxImpactSpeed/speed;
+   owner.kvy*=C.maxImpactSpeed/speed;
   }
+  if(owner.snow.phase==='WINDUP')owner.snow.phase='COLLECTING';
  }
- const x=(a.x+b.x)*.5,y=(a.y+b.y)*.5;
- destroy(s,a,false);destroy(s,b,false);burst(s,x,y,Math.max(a.r,b.r),'snow',.6);
+ const x=(ax+bx)*.5,y=(ay+by)*.5;
+ // Both snowballs cancel, regardless of whether they were held or launched.
+ destroy(s,a,false);destroy(s,b,false);
+ burst(s,x,y,Math.max(a.r,b.r),'snow',.6);
 }
 function solveBallCollisions(s,ps){
  const balls=s.balls.filter(b=>b.state!=='DESTROYED');
@@ -356,7 +376,7 @@ function solveBallCollisions(s,ps){
  // Earliest impact wins: a snowball cannot strike two people after destruction.
  events.sort((a,b)=>a.t-b.t||String(a.type).localeCompare(String(b.type)));
  for(const event of events){
-  if(event.type==='ball')ballCollision(s,event.a,event.b);
+  if(event.type==='ball')ballCollision(s,event.a,event.b,event.t);
   else if(event.b.state!=='DESTROYED'&&event.p.snow.alive)hitBallPlayer(s,event.b,event.p);
  }
 }
