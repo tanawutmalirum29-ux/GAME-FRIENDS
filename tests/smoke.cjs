@@ -2650,8 +2650,10 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  hi.step(83.333);
  assert.equal(frame.width,1280);
  assert.equal(frame.height,720);
- assert.equal(hi.scope.window.__ghostTest.getRound().ghost.world.w,960,
-   'the gameplay world is not resized or zoomed');
+ assert.equal(hi.scope.window.__ghostTest.getRound().ghost.world.w,1080,
+   'viewport resizing must not change the 1–6-player arena width');
+ assert.equal(hi.scope.window.__ghostTest.getRound().ghost.world.h,608,
+   'viewport resizing must not change the 1–6-player arena height');
 }
 // Tall iPad/Stage Manager viewports must no longer leave black bands above
 // and below BOARD PARTY. Preserve an isometric 960-X logical world and cap GPU.
