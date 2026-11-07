@@ -69,6 +69,7 @@ let selectedSessionMode='queue';
 const lobbyReadyVotes=new Set();
 let boardSession=null,boardStateToken=null,boardStateClock=0;
 let controllerSessionMode='queue',controllerBoard=null,controllerActionId=0;
+let boardCameraController=null;
 const KEYS = [
   {left:'KeyA',right:'KeyD',jump:'KeyW',down:'KeyS',action:'Space',alt:'ShiftLeft',cancel:'KeyC'},
   {left:'ArrowLeft',right:'ArrowRight',jump:'ArrowUp',down:'ArrowDown',action:'Enter',alt:'ShiftRight',cancel:'Slash'}
@@ -1789,7 +1790,16 @@ function renderPhoneInventory(info){
   $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
   showControllerMode(info.mode);
 }
-function sendInputs(){if(!controllerReady)return;send(controllerConn,{t:'input',keys:{...controllerKeys},turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId});}
+function sendInputs(){
+ if(!controllerReady)return;
+ const keys={...controllerKeys};
+ // Never let a delayed heartbeat or a stale held stick move a walking avatar
+ // while that player's controller is in camera inspection mode.
+ if(boardCameraController?.enabled()){
+   keys.axisX=0;keys.axisY=0;keys.left=false;keys.right=false;keys.jump=false;keys.down=false;
+ }
+ send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId});
+}
 function isPortraitScreen(){
   if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
   return Number(window.innerHeight)>Number(window.innerWidth);
