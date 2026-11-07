@@ -98,8 +98,9 @@ for(const n of [4,12]){
    'result page must not show random item animation');
  assert.ok(immediate.some(s=>s.includes('ST')),'large podium ordinal must appear');
 }
-// Map inspection is an explicit pre-walk state, not a free camera during
-// movement. Panning must never change the logical position or remaining dice.
+// Map inspection and zoom remain available BEFORE and DURING walking,
+ // including the moment after the first joystick input and between nodes.
+ // Camera gestures never change the player's direction, dice or graph state.
 const explore=game(17),walker=explore.players[0];
 explore.order=explore.players.map(p=>p.id);P.startTurn(explore);
 P.beginMove(explore,walker,4);
@@ -115,8 +116,60 @@ for(let i=0;i<30;i++)A.draw(g,i/60,explore);
 assert.equal(explore.camera.zoom,chosenZoom,'pre-walk manual zoom survives subsequent render frames');
 assert.equal(JSON.stringify(explore.players),explorePlayers);
 P.action(explore,walker.id,'A');
-assert.equal(A.canPan(explore),false);
-assert.equal(A.pan(explore,100,100),false);
+assert.equal(A.canPan(explore),true,'tapping A to walk must NOT disable the map gestures');
+assert.equal(A.pan(explore,100,100),true);
+assert.equal(A.zoom(explore,.85),true);
+assert.equal(explore.move.remaining,before.steps,'camera-only actions do not consume steps');
+assert.equal(walker.currentNodeId,before.node,'camera-only actions do not move the actor');
+assert.match(artSource,/s\.move\?\.kind!=='walk'/,
+ 'yellow selected-route beams are hidden for ordinary analog walking');
+{
+ const moving=game(881),player=moving.players[0];moving.order=moving.players.map(p=>p.id);
+ P.startTurn(moving);P.beginMove(moving,player,5);
+ assert.equal(A.canPan(moving),true);
+ const origin=moving.map.nodes[player.currentNodeId].position;
+ const goal=moving.map.nodes.n1.position,dist=Math.hypot(goal.x-origin.x,goal.y-origin.y);
+ const send=(x,y)=>P.input(moving,player.id,{
+  turnId:moving.turnId,actionId:(moving.lastActions[player.id]??0)+1,
+  keys:{axisX:x,axisY:y}
+ });
+ send((goal.x-origin.x)/dist,(goal.y-origin.y)/dist);
+ for(let i=0;i<8;i++)P.update(moving,.05);
+ assert.equal(moving.phase,'moving','player is walking while the camera can move');
+ assert.equal(A.canPan(moving),true,'gestures stay enabled while moving between pads');
+ const playerBefore=JSON.stringify(player),stepsBefore=moving.move.remaining;
+ A.draw(g,6,moving);
+ const centerBefore={x:moving.camera.x,y:moving.camera.y};
+ assert.equal(A.pan(moving,-110,65),true);
+ assert.equal(A.zoom(moving,1.25),true);
+ const held={x:moving.camera.x,y:moving.camera.y,zoom:moving.camera.zoom};
+ for(let i=0;i<40;i++)A.draw(g,6.016+i/60,moving);
+ assert.deepEqual({x:moving.camera.x,y:moving.camera.y,zoom:moving.camera.zoom},held,
+  'free camera must never auto-retarget player or reset zoom during movement');
+ assert.ok(Math.abs(centerBefore.x-held.x)>1);
+ assert.equal(JSON.stringify(player),playerBefore,'camera gesture cannot move a player');
+ assert.equal(moving.move.remaining,stepsBefore,'camera gesture cannot consume steps');
+ A.follow(moving);
+ assert.equal(moving.camera.panned,false);
+ A.draw(g,8,moving);
+ assert.equal(moving.camera.manualZoom,null);
+ assert.ok(Math.abs(moving.camera.x-I.position(moving,player).x)<
+  Math.abs(held.x-I.position(moving,player).x)+1e-6,
+  'Follow returns smoothly toward the moving player');
+}
+{
+ const fork=game(883),p=fork.players[0];fork.order=fork.players.map(q=>q.id);
+ P.startTurn(fork);p.currentNodeId='n3';P.beginMove(fork,p,3);
+ assert.equal(fork.phase,'branch');
+ assert.equal(A.canPan(fork),true,'manual camera works at forks');
+ assert.equal(A.pan(fork,40,10),true);
+ assert.equal(A.zoom(fork,.93),true);
+ assert.equal(fork.camera.panned,true);
+ const current={x:fork.camera.x,y:fork.camera.y,zoom:fork.camera.zoom};
+ for(let i=0;i<20;i++)A.draw(g,10+i/60,fork);
+ assert.deepEqual({x:fork.camera.x,y:fork.camera.y,zoom:fork.camera.zoom},current,
+  'fork UI must not override camera gestures');
+}
 assert.match(artSource,/for\(const \[from,to\] of map\.bridges\)/,
  'the low-memory renderer must also paint bridge decks');
 const initialSurfaces=surfaces.length;
