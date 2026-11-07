@@ -330,6 +330,40 @@ for(const n of [1,4,5,6,7,8,9,12]){
  for(let i=0;i<22;i++)ghost.update(.045,x.round,x.players);
  assert.ok(p.x>=o.x+o.w+14,'ghost cannot cross solid HUD');
 }
+// GHOST ATTACK props are STATIC for the same theme/arena/tier. Every
+// monument receives a stable ID matching the collision rectangle, while
+// human/ghost spawns continue to be random.
+for(const n of [1,4,5,6,7,8,9,12]){
+ const signatures=new Map();
+ for(let repeat=0;repeat<4;repeat++){
+  const players=mkPlayers(n),round={mode:'ghost',phase:'countdown'};
+  ghost.setup(round,players);
+  const state=round.ghost,info=ghost.mapInfo(round);
+  assert.ok(['สุสานผี','อียิปต์ฟาโรห์'].includes(info.name));
+  assert.equal(info.width,n>=9?1280:n>=5?1080:960);
+  assert.equal(info.height,n>=9?720:n>=5?608:540);
+  assert.equal(info.id,state.mapId);
+  assert.equal(info.count,state.obstacles.length-1);
+  const signature=JSON.stringify(state.obstacles);
+  if(signatures.has(info.theme))
+   assert.equal(signature,signatures.get(info.theme),
+    'same-themed and same-sized map must never reshuffle '+n+' players');
+  else signatures.set(info.theme,signature);
+  const ids=state.obstacles.map(o=>o.id);
+  assert.equal(new Set(ids).size,ids.length,'every prop has one unique ID');
+  assert.equal(ids[0],'HUD-00','the corner HUD has a stable ID');
+  state.obstacles.slice(1).forEach((o,index)=>{
+   assert.equal(o.id,(info.theme==='egypt'?'EG':'GY')+'-'+String(index+1).padStart(2,'0'));
+   const found=ghost.obstacleAt(round,o.x+o.w/2,o.y+o.h/2);
+   assert.equal(found.id,o.id,'tap lookup hits the real collision rectangle');
+   assert.equal(found.kind,o.kind);assert.equal(found.w,o.w);assert.equal(found.h,o.h);
+  });
+  assert.equal(ghost.obstacleAt(round,-10,-10),null);
+  assert.equal(state.showObstacleIds,false,'normal players never see QA labels');
+  assert.equal(state.selectedObstacleId,null);
+ }
+ assert.equal(signatures.size,2,'both ghost themes get stable layouts');
+}
 assert.equal(ghost.constants.humanSpeed,172);
 assert.equal(ghost.constants.ghostSpeed,186,'modest ghost speed advantage');
 assert.ok(ghost.constants.ghostSpeed>ghost.constants.humanSpeed);
@@ -2338,6 +2372,73 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.equal(offlineB.elements.get('hostLobby').classList.contains('hidden'),false);
  assert.equal(offlineB.scope.window.__ghostTest.getPlayers().length,oldBotCount);
  assert.equal(offlineB.scope.window.GAME_CAN_AUTO_RELOAD(),true);
+}
+// The green roulette outline must share the card width, not exceed it.
+// Its height is shared by CSS on landscape and short/mobile screens.
+{
+ const ui=setup();ui.click('offlineBtn');
+ for(const width of [390,844,1473]){
+  ui.scope.window.innerWidth=width;
+  ui.scope.window.__ghostTest.beginGameSelection('ghost');
+  const spin=ui.scope.window.__ghostTest.getSelection();
+  assert.ok(spin);
+  assert.equal(ui.elements.get('gameRoulette').style['--roulette-card-width'],
+   spin.winner.style.width,'selected frame matches width at '+width);
+  ui.scope.window.__ghostTest.updateGameSelection(spin.spinDuration);
+  assert.equal(ui.elements.get('gameRoulette').classList.contains('is-selected'),true);
+  ui.scope.window.__ghostTest.updateGameSelection(spin.holdDuration+.01);
+  ui.scope.window.__ghostTest.returnToLobby();
+ }
+ assert.match(css,/width:var\(--roulette-card-width,190px\)/);
+ assert.match(css,/height:var\(--roulette-card-height\)/);
+ assert.match(css,/transform:translate\(-50%,-50%\)/);
+}
+{
+ // QA controls must exist ONLY for all-bot GHOST ATTACK, never human rooms
+ // or other modes. Tapping a prop provides its true stable world coordinates.
+ const ui=setup('https://game.example/?host=1',false,null,
+  {left:0,top:0,width:960,height:540});
+ ui.click('offlineBtn');ui.scope.window.__ghostTest.startRound('ghost');
+ const api=ui.scope.window.__ghostTest,r=api.getRound();
+ assert.equal(r.mode,'ghost');
+ assert.equal(ui.elements.get('botGhostIdsBtn').classList.contains('hidden'),false);
+ assert.equal(ui.elements.get('ghostMapInspector').classList.contains('hidden'),true);
+ assert.equal(r.ghost.showObstacleIds,false);
+ const original=JSON.stringify(r.ghost.obstacles);
+ ui.click('botGhostIdsBtn');
+ assert.equal(r.ghost.showObstacleIds,true);
+ assert.equal(ui.elements.get('ghostMapInspector').classList.contains('hidden'),false);
+ assert.match(ui.elements.get('ghostMapName').textContent,/GHOST ATTACK/);
+ assert.ok(ui.elements.get('ghostMapName').textContent.includes(
+  ui.scope.window.GhostCemeteryArt.themeLabel(r.ghost.theme)));
+ assert.ok(ui.elements.get('ghostMapDetails').textContent.includes(
+  r.ghost.world.w+' × '+r.ghost.world.h));
+ const prop=r.ghost.obstacles[1],x=(prop.x+prop.w/2)*960/r.ghost.world.w,
+  y=(prop.y+prop.h/2)*540/r.ghost.world.h;
+ const canvas=ui.elements.get('arena');
+ canvas.fire('pointerdown',{pointerId:71,clientX:x,clientY:y});
+ canvas.fire('pointerup',{pointerId:71,clientX:x,clientY:y});
+ assert.equal(r.ghost.selectedObstacleId,prop.id);
+ assert.ok(ui.elements.get('ghostObjectDetails').textContent.includes(prop.id));
+ assert.ok(ui.elements.get('ghostObjectDetails').textContent.includes(prop.kind));
+ assert.equal(JSON.stringify(r.ghost.obstacles),original,
+  'inspection must never modify prop collision hitboxes');
+ ui.click('botGhostIdsBtn');
+ assert.equal(r.ghost.showObstacleIds,false);
+ assert.equal(ui.elements.get('ghostMapInspector').classList.contains('hidden'),true);
+ api.startRound('chickens');
+ assert.equal(ui.elements.get('botGhostIdsBtn').classList.contains('hidden'),true);
+ assert.equal(ui.elements.get('ghostMapInspector').classList.contains('hidden'),true);
+}
+{
+ const ui=setup();ui.click('hostBtn');const peer=ui.instances[0];peer.fire('open');
+ const conn=peer.connect();peer.fire('connection',conn);
+ conn.fire('data',{t:'join',name:'Human'});
+ ui.scope.window.__ghostTest.startRound('ghost');
+ assert.equal(ui.elements.get('botGhostIdsBtn').classList.contains('hidden'),true,
+  'human/phone rooms never expose private QA controls');
+ ui.click('botGhostIdsBtn');
+ assert.equal(ui.scope.window.__ghostTest.getRound().ghost.showObstacleIds,false);
 }
 // Host-only possession must NOT create a new player or touch other bot AI.
 {
