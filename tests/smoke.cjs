@@ -1488,7 +1488,9 @@ assert.equal(online.scope.document.fullscreenExits,0);
     bulk.click('cycleAllBotsBtn');
     assert.ok(local.every(p=>p.choice==='shopping_time'),'tenth game is SHOPPING TIME');
     bulk.click('cycleAllBotsBtn');
-    assert.ok(local.every(p=>p.choice==='ghost'),'tenth game wraps back to ghost');
+    assert.ok(local.every(p=>p.choice==='witching_snake'),'eleventh game is WITCHING SNAKE');
+     bulk.click('cycleAllBotsBtn');
+     assert.ok(local.every(p=>p.choice==='ghost'),'eleventh game wraps back to ghost');
  // Individual selection remains independent; bulk applies the NEXT
  // game of the first bot, synchronizing any mixed bot choices.
  const choice=bulk.elements.get('roster').children[0].children[3];
@@ -1783,11 +1785,11 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  assert.equal(api.pickRandomEndlessGame(null,()=>0),'ghost');
  assert.equal(api.pickRandomEndlessGame('ghost',()=>0),'chickens',
    'previous game is excluded, not replayed at next spin');
- assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'shopping_time',
+ assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'witching_snake',
    'new random value changes the game instead of following fixed order');
  ui.click('startBtn');
  assert.equal(api.getTournament().endless,true);
- assert.equal(api.getTournament().schedule.length,10);
+ assert.equal(api.getTournament().schedule.length,11);
  const first=api.getSelection();
  assert.ok(first,'roulette appears immediately on start, before game engine');
  assert.equal(api.getRound().phase,'roulette');
@@ -1801,7 +1803,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  api.updateGameSelection(1.45);
  assert.equal(ui.elements.get('rouletteHeading').textContent,
    ({ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',
-     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME'})[first.mode]);
+     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE'})[first.mode]);
  assert.ok(first.winner.classList.contains('is-selected'));
  assert.equal(first.track.style.transform,'translate3d(-'+first.final.toFixed(2)+'px,0,0)',
    'winning card stops precisely in the middle');
@@ -2160,13 +2162,14 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,10);
+assert.equal(phone.pickButtons.length,11);
 assert.equal(phone.pickButtons[4].dataset.pick,'color_switch');
 assert.equal(phone.pickButtons[5].dataset.pick,'pizza_time');
 assert.equal(phone.pickButtons[6].dataset.pick,'shopping_time');
  assert.equal(phone.pickButtons[7].dataset.pick,'knight_match');
 assert.equal(phone.pickButtons[8].dataset.pick,'boulder_bash');
 assert.equal(phone.pickButtons[9].dataset.pick,'snow_brawl');
+ assert.equal(phone.pickButtons[10].dataset.pick,'witching_snake');
 assert.match(phone.pickButtons[9].children[0].innerHTML,/<svg[\s>]/);
 assert.match(phone.pickButtons[4].children[0].innerHTML,/<svg[\s>]/);
 assert.equal(phone.pickButtons[4].children[1].textContent,'COLOR SWITCH');
