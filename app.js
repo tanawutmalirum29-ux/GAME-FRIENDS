@@ -16,8 +16,8 @@ function pickUnusedColor(){
   lastAssignedColor = color;
   return color;
 }
-const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE'};
-const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch',pizza_time:'PizzaTime',knight_match:'KnightMatch',boulder_bash:'BoulderBash',snow_brawl:'SnowBrawl',shopping_time:'ShoppingTime',witching_snake:'WitchingSnake'};
+const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER'};
+const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch',pizza_time:'PizzaTime',knight_match:'KnightMatch',boulder_bash:'BoulderBash',snow_brawl:'SnowBrawl',shopping_time:'ShoppingTime',witching_snake:'WitchingSnake',lawn_mower:'LawnMower'};
 const gameEngine=mode=>mode==='board'?BOARD_ENGINE:Object.hasOwn(ENGINES,mode)?window[ENGINES[mode]]:null;
 const BOARD_ENGINE={draw:(g,t)=>window.BoardArt.draw(g,t,boardSession),hud:()=>({survivors:boardSession?.players.length||0})};
 
@@ -43,6 +43,7 @@ const MODE_COVER_SVG={
  ,snow_brawl:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><defs><radialGradient id="snowIsle"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#aed8ed"/></radialGradient></defs><rect width="160" height="90" rx="9" fill="#0a385d"/><ellipse cx="82" cy="45" rx="61" ry="34" fill="#4d90a8"/><ellipse cx="80" cy="39" rx="58" ry="32" fill="url(#snowIsle)" stroke="#eaffff" stroke-width="3"/><circle cx="55" cy="43" r="9" fill="#ffb077" stroke="#17394f" stroke-width="2"/><circle cx="104" cy="42" r="13" fill="#f1fcff" stroke="#74b4d3" stroke-width="2"/><path d="M91 41q14-10 27 5" fill="none" stroke="#83bdd8" stroke-width="2"/><circle cx="73" cy="23" r="7" fill="#7be4d0" stroke="#1c6570" stroke-width="2"/><text x="80" y="87" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">SNOW BRAWL</text></svg>'
  ,shopping_time:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" fill="#deae84"/><rect x="80" width="80" height="90" fill="#9fd6eb"/><rect x="55" width="50" height="90" fill="#294d64"/><g fill="#76bcc7"><rect x="60" y="5" width="9" height="80"/><rect x="72" y="5" width="9" height="80"/><rect x="84" y="5" width="9" height="80"/><rect x="96" y="5" width="5" height="80"/></g><g fill="#f3ca72"><circle cx="64" cy="24" r="7"/><circle cx="87" cy="61" r="7"/></g><rect x="17" y="30" width="20" height="30" rx="4" fill="#d6515b"/><rect x="124" y="30" width="20" height="30" rx="4" fill="#3b89cf"/><g transform="translate(42 56)"><circle r="9" fill="#ffe0a1"/><rect x="4" y="-8" width="20" height="17" rx="2" stroke="#315f75" stroke-width="3" fill="#effffb"/></g><text x="80" y="86" fill="#162939" font-size="12" font-weight="900" text-anchor="middle">SHOPPING TIME</text></svg>'
  ,witching_snake:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#10132c"/><path d="M28 45 48 20 112 20 134 45 112 75 48 75Z" fill="#32265e" stroke="#b6a0eb" stroke-width="3"/><path d="M43 34q41-28 71 1M40 55q41-23 77 1" stroke="#8f67d9" stroke-width="2" fill="none"/><path d="M12 65q47-53 72-17t61-34" stroke="#ffce76" stroke-width="5" stroke-linecap="round" fill="none"/><g transform="translate(82 37) rotate(-28)"><path d="M-23 0H20" stroke="#e9c58b" stroke-width="4"/><path d="m-22-7-16 7 16 7" fill="#debb81"/><path d="M-12-3q8-14 22 0l-4 12h-15Z" fill="#c79aff"/><path d="m-9-10 4-22 12 22z" fill="#272142" stroke="#c79aff" stroke-width="2"/></g><text x="80" y="86" font-size="12" text-anchor="middle" font-weight="900" fill="#fff">WITCHING SNAKE</text></svg>'
+ ,lawn_mower:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="9" fill="#8fd06a"/><path d="M0 15h42v70H0Z" fill="#945b44"/><path d="M44 8h79v74H44Z" fill="#3e932e"/><g stroke="#8ee342" stroke-width="2"><path d="m52 21 5-12m8 22 5-15m7 31 6-22m9 30 6-19m7 17 9-20m-61 36 6-19m20 12 5-16m22 16 4-20"/></g><path d="M124 8h15v75h-15" fill="#dfd3b4"/><path d="M140 0h20v90h-20" fill="#a5b5ab"/><g transform="translate(81 49) rotate(15)"><rect x="-11" y="-19" width="22" height="34" rx="6" fill="#e64f4a" stroke="#59382a" stroke-width="3"/><circle cx="0" cy="7" r="7" fill="#f3d1a6"/><rect x="-13" y="-20" width="26" height="7" rx="3" fill="#edf3bb"/></g><circle cx="111" cy="22" r="7" fill="#ffdf57" stroke="#f9af29" stroke-width="2"/><text x="80" y="87" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">LAWN MOWER</text></svg>'
  ,pizza_time:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#d99e77"/><rect x="5" y="5" width="150" height="80" rx="5" fill="#edc7b0"/><rect x="14" y="20" width="39" height="50" rx="4" fill="#855438"/><rect x="107" y="20" width="39" height="50" rx="4" fill="#855438"/><circle cx="80" cy="43" r="24" fill="#ebba64" stroke="#f7dfb2" stroke-width="4"/><circle cx="72" cy="35" r="6" fill="#e54d48"/><circle cx="90" cy="48" r="6" fill="#e54d48"/><path d="M62 48q8-8 17 2 9 8 19-4" stroke="#59ba64" stroke-width="5" fill="none"/><text x="80" y="84" text-anchor="middle" font-size="13" font-weight="900" fill="#332d25">PIZZA TIME</text></svg>'
 };
 function gameCover(mode){
@@ -628,6 +629,11 @@ function sendPlayerInventory(conn){
   }
   if(round.mode==='witching_snake'){
      send(conn,{t:'witch-status',mode:round.mode,phase:networkPhase(),alive:!!p.ws?.alive,stars:p.ws?.stars||0});return;
+   }
+   if(round.mode==='lawn_mower'){
+    const status=window.LawnMower.playerStatus(p);
+    if(status)send(conn,{t:'lawn-status',phase:networkPhase(),...status});
+    return;
    }
    if(round.mode==='shopping_time'){
     const status=window.ShoppingTime.playerStatus(p);
@@ -1603,6 +1609,8 @@ function joinRoom(recovery=false){
         }
       }else if(data.t==='inventory'){
         renderPhoneInventory(data);
+       }else if(data.t==='lawn-status'){
+        renderPhoneLawnStatus(data);
       }else if(data.t==='shopping-status'){
         renderPhoneShoppingStatus(data);
       }else if(data.t==='pizza-status'){
@@ -1674,7 +1682,7 @@ function joinRoom(recovery=false){
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':data.mode==='witching_snake'?'WITCHING SNAKE • รอด '+(data.survivors??'?')+' คน':data.mode==='shopping_time'?'SHOPPING TIME • เหลือ '+Math.ceil(data.remaining||0)+' วิ':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
+          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':data.mode==='witching_snake'?'WITCHING SNAKE • รอด '+(data.survivors??'?')+' คน':data.mode==='lawn_mower'?'LAWN MOWER • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shopping_time'?'SHOPPING TIME • เหลือ '+Math.ceil(data.remaining||0)+' วิ':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
         if(data.mode==='board'&&data.phase==='playing')renderPhoneBoard();
       }else if(data.t==='closed'){
@@ -1709,7 +1717,7 @@ function controllerDisconnected(){
  retryPhone();
 }
 function isLiveGameContext(){
-  return controllerReady&&controllerPlayerActive&&['ghost','pizza_time','shopping_time','board','boulder_bash','snow_brawl'].includes(controllerGameMode)&&
+  return controllerReady&&controllerPlayerActive&&['ghost','pizza_time','shopping_time','lawn_mower','board','boulder_bash','snow_brawl'].includes(controllerGameMode)&&
     ['countdown','playing','paused'].includes(controllerGamePhase);
 }
 function setControllerGameContext(mode,phase,active){
@@ -1785,7 +1793,7 @@ function showControllerMode(mode){
     $('buttonA').title='';
   }
   if(!fruit)$('buttonA').disabled=false;
-   if(mode==='witching_snake'&&playing){$('buttonA').disabled=true;$('buttonB').disabled=true;}
+   if((mode==='witching_snake'||mode==='lawn_mower')&&playing){$('buttonA').disabled=true;$('buttonB').disabled=true;}
    else $('buttonB').disabled=false;
   $('buttonALabel').textContent=aLabel;
   $('buttonBLabel').textContent=bLabel;
@@ -1799,6 +1807,7 @@ function showControllerMode(mode){
     colorSwitch?'วิ่งทาสีสะสมคะแนน • A ต่อยสตั้น • B ระเบิดสี 3×3 • เก็บกล่องทองสะสมคะแนน':
      shockwave?'แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง':
      mode==='witching_snake'?'เลี้ยวไม้กวาดด้วยจอย • หลบหางเวทมนตร์และขอบสนาม • ดาวเพิ่มความยาวหาง • A/B ไม่ใช้':
+      mode==='lawn_mower'?'ขับรถตัดหญ้าด้วยจอย • สุ่มพระอาทิตย์ 1–3 ดวง • ดวงละ 5 คะแนน • A/B ไม่ใช้':
       mode==='snow_brawl'?'เดินปั้นลูกหิมะ • A หยุดเตรียม 0.15 วิแล้วปล่อย • B ไม่ใช้ • ผลักคู่แข่งตกเกาะ':
       mode==='boulder_bash'?'ทางลาดหิมะลื่น • A ผลักโดยไม่สตั้น • หลบหินจากขวา • ตกรอบแล้วมีโอกาสบังคับหิน':
      mode==='knight_match'?'ควบม้าใช้ทวนแทงลูกโป่งสีตัวเอง +1 สีอื่น -1 • A แทง / B ไม่ใช้':
@@ -1806,7 +1815,16 @@ function showControllerMode(mode){
       mode==='pizza_time'?'รับวัตถุดิบทีละชิ้น กลับไปส่งเชฟ • เดินรับชนิดใหม่เพื่อเปลี่ยนของ • A/B ไม่ใช้':
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
 }
-function renderPhoneShoppingStatus(info){
+function renderPhoneLawnStatus(info){
+  if(!isLiveGameContext()||controllerGameMode!=='lawn_mower'||!info||
+    info.id!==controllerId||info.phase!==controllerGamePhase)return;
+  $('controllerInventory').classList.remove('is-ghost');
+  $('controllerRole').textContent='คะแนน '+info.score+' • พระอาทิตย์ '+info.suns+' ดวง';
+  $('inventoryItem').textContent=info.score+' คะแนน';
+  $('inventoryGuide').textContent='บังคับด้วยจอย • A/B ไม่ใช้';
+  $('targetCycleControls').classList.add('hidden');
+ }
+ function renderPhoneShoppingStatus(info){
  if(!isLiveGameContext()||controllerGameMode!=='shopping_time'||!info||
    info.id!==controllerId||info.phase!==controllerGamePhase)return;
  $('controllerInventory').classList.remove('is-ghost');
@@ -2282,7 +2300,7 @@ function startRound(forcedMode=null){
     return;
   }
   $('results').querySelector('.eyebrow').textContent=MODES[mode];
-  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ทำคะแนนสูงสุด!':mode==='shopping_time'?'คิดเงินให้ได้คะแนนสูงสุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':(mode==='boulder_bash'||mode==='snow_brawl'||mode==='witching_snake')?'ผู้รอดชีวิตคนสุดท้าย!':'จับไก่ให้ได้มากที่สุด!';
+  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ทำคะแนนสูงสุด!':mode==='lawn_mower'?'ผู้สะสมพระอาทิตย์มากที่สุด!':mode==='shopping_time'?'คิดเงินให้ได้คะแนนสูงสุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':(mode==='boulder_bash'||mode==='snow_brawl'||mode==='witching_snake')?'ผู้รอดชีวิตคนสุดท้าย!':'จับไก่ให้ได้มากที่สุด!';
   // Countdown and player count now live in the solid map-corner HUD.
   $('gameBanner').textContent='';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
@@ -2538,6 +2556,7 @@ function endRound(){
    if(round.mode==='boulder_bash'){endBoulderBashRound();return;}
     if(round.mode==='witching_snake'){endWitchingSnakeRound();return;}
 
+   if(round.mode==='lawn_mower'){endLawnMowerRound();return;}
    if(round.mode==='shopping_time'){endShoppingTimeRound();return;}
    if(round.mode==='pizza_time'){endPizzaTimeRound();return;}
    if(round.mode==='knight_match'){endKnightMatchRound();return;}
@@ -2836,6 +2855,9 @@ function endKnightMatchRound(){
  $('results').classList.remove('hidden');$('gameBanner').textContent='';
  beginResultVoting();renderLeaderboard();
 }
+function endLawnMowerRound(){
+  endShoppingTimeRound();
+}
 function endShoppingTimeRound(){
  round.phase='results';round.paused=false;resetInputs();broadcastRoster();
  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
@@ -3071,6 +3093,17 @@ if(round.mode==='snow_brawl'){
       box.append(color,name,score,info);root.append(box);
     });return;
   }
+  if(round.mode==='lawn_mower'){
+     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
+       const box=document.createElement('div');box.className='leader-chip';
+       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+       const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' คะแนน';
+       const suns=document.createElement('span');suns.className='leader-item-slot';
+       suns.textContent=(p.mower?.suns||0)+' ดวง';
+       box.append(color,name,score,suns);root.append(box);
+     });return;
+   }
   if(round.mode==='shopping_time'){
      active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
        const box=document.createElement('div');box.className='leader-chip';
