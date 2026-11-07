@@ -226,13 +226,40 @@ function decorations(g,s){
   if(visible(zone.landmark))landmark(g,zone);
  }
 }
+// Visually split n3's Y-junction into two curved, rounded banks. Road
+// boundary lines no longer stack at the same straight crossing. Endpoints
+// stay on their real game tiles and the narrow travel corridor remains safe.
+function curvedForkRoad(g,from,to,a,b,lowDetail=false){
+ if(from!=='n3'||!['n4','b3_1'].includes(to))return false;
+ const control=to==='n4'?{x:1227,y:4734}:{x:1082,y:4664};
+ const layers=lowDetail?[
+  ['#f9ffff',92],['#bdd9df',65]
+ ]:[
+  ['#7da9b733',101],['#f9ffff',92],['#bdd9df',68],['#dbeef0',61]
+ ];
+ g.save();g.lineCap='round';g.lineJoin='round';
+ for(const [color,width] of layers){
+  g.beginPath();g.moveTo(a.x,a.y);
+  g.quadraticCurveTo(control.x,control.y,b.x,b.y);
+  g.strokeStyle=color;g.lineWidth=width;g.stroke();
+ }
+ g.restore();return true;
+}
 function scenery(g,map){
  g.fillStyle='#183e5d';g.fillRect(0,0,map.width,map.height);
  // Ocean texture is fixed too; gameplay RNG never enters the renderer.
  for(let i=0;i<160;i++){const x=(i*977+143)%map.width,y=(i*661+71)%map.height;line(g,x,y,x+52,y-5,'#81d9df16',2);}
  for(const zone of map.islands)island(g,zone);
  const bridgeKeys=new Set(map.bridges.map(([a,b])=>a+'>'+b));
- for(const n of Object.values(map.nodes))for(const id of n.nextNodes){if(bridgeKeys.has(n.id+'>'+id))continue;const p=map.nodes[id].position;line(g,n.position.x,n.position.y,p.x,p.y,'#7da9b733',101);line(g,n.position.x,n.position.y,p.x,p.y,'#f9ffff',92);line(g,n.position.x,n.position.y,p.x,p.y,'#bdd9df',68);line(g,n.position.x,n.position.y,p.x,p.y,'#dbeef0',61);}
+ for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
+  if(bridgeKeys.has(n.id+'>'+id))continue;
+  const p=map.nodes[id].position;
+  if(curvedForkRoad(g,n.id,id,n.position,p))continue;
+  line(g,n.position.x,n.position.y,p.x,p.y,'#7da9b733',101);
+  line(g,n.position.x,n.position.y,p.x,p.y,'#f9ffff',92);
+  line(g,n.position.x,n.position.y,p.x,p.y,'#bdd9df',68);
+  line(g,n.position.x,n.position.y,p.x,p.y,'#dbeef0',61);
+ }
  for(const [a,b]of map.bridges)bridge(g,map.nodes[a].position,map.nodes[b].position,map.bridgeStyles[a+'>'+b]);
 }
 // Allocation failure keeps the same island silhouette and walkable connections;
@@ -243,7 +270,12 @@ function sceneryLite(g,s){
  g.fillStyle='#183e5d';g.fillRect(0,0,map.width,map.height);
  for(const zone of map.islands||[]){const p=zone.outline;if(intersects({x:Math.min(...p.map(v=>v.x)),y:Math.min(...p.map(v=>v.y))},{x:Math.max(...p.map(v=>v.x)),y:Math.max(...p.map(v=>v.y))}))island(g,zone,true);}
  const bridges=new Set(map.bridges.map(([a,b])=>a+'>'+b));
- for(const n of Object.values(map.nodes))for(const id of n.nextNodes){const a=n.position,b=map.nodes[id].position;if(!intersects(a,b)||bridges.has(n.id+'>'+id))continue;line(g,a.x,a.y,b.x,b.y,'#f9ffff',92);line(g,a.x,a.y,b.x,b.y,'#bdd9df',65);}
+ for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
+  const a=n.position,b=map.nodes[id].position;
+  if(!intersects(a,b)||bridges.has(n.id+'>'+id))continue;
+  if(curvedForkRoad(g,n.id,id,a,b,true))continue;
+  line(g,a.x,a.y,b.x,b.y,'#f9ffff',92);line(g,a.x,a.y,b.x,b.y,'#bdd9df',65);
+ }
  for(const [from,to] of map.bridges){const a=map.nodes[from].position,b=map.nodes[to].position;if(intersects(a,b))bridge(g,a,b,map.bridgeStyles?.[from+'>'+to]||'wood');}
 }
 function ambience(g,s,t){
@@ -821,7 +853,7 @@ function pan(s,dx,dy){
  if(!canPan(s)||!Number.isFinite(dx)||!Number.isFinite(dy))return false;
  const c=s.camera,top=94,halfW=480/c.zoom,halfH=(mapBottom(s)-top)/2/c.zoom,b=bounds(s);
  c.x=clampCamera(c.x-dx/c.zoom,halfW,b.minX,b.maxX);
- c.y=clampCamera(c.y-dy/c.zoom,halfH,b.minY,b.maxY);c.panned=true;
+ c.y=clampCamera(c.y-dy/c.zoom,halfH,b.minY,b.maxY);c.panned=true;c.rescuedOffscreen=false;
  return true;
 }
 function bounds(s){return s.map.bounds||{minX:0,minY:0,maxX:s.map.width,maxY:s.map.height};}
@@ -829,13 +861,13 @@ function clampCamera(value,half,min,max){return half>=(max-min)/2?(min+max)/2:Ma
 function fitZoom(s){const h=mapBottom(s)-(94),b=bounds(s);return Math.min(916/(b.maxX-b.minX),(h-22)/(b.maxY-b.minY));}
 function overview(s){const c=s.camera,b=bounds(s);c.overview=true;c.explore=true;c.manualZoom=fitZoom(s);
  c.zoom=c.manualZoom;c.x=(b.minX+b.maxX)/2;c.y=(b.minY+b.maxY)/2;c.panned=false;return true;}
-function follow(s){if(s.phase==='overview')return false;const c=s.camera;c.overview=false;c.explore=false;c.manualZoom=null;c.panned=false;return true;}
+function follow(s){if(s.phase==='overview')return false;const c=s.camera;c.overview=false;c.explore=false;c.manualZoom=null;c.panned=false;c.rescuedOffscreen=false;return true;}
 function zoom(s,scale){
  if(!canPan(s)||!Number.isFinite(scale)||scale<=0)return false;
  const c=s.camera,b=bounds(s);c.zoom=Math.max(fitZoom(s),Math.min(2.2,c.zoom*scale));
  c.x=clampCamera(c.x,480/c.zoom,b.minX,b.maxX);
  c.y=clampCamera(c.y,(mapBottom(s)-(94))/2/c.zoom,b.minY,b.maxY);
- c.manualZoom=c.zoom;c.panned=true;return true;
+ c.manualZoom=c.zoom;c.panned=true;c.rescuedOffscreen=false;return true;
 }
 function toggleDebug(s){s.camera.debugNodes=!s.camera.debugNodes;return s.camera.debugNodes;}
 function inspect(s,x,y){
@@ -875,12 +907,22 @@ function draw(g,t,s){
  const pos=fork|| (bombing?s.effect.points[2]:s.skill||window.BoardItems.position(s,p));
  const wide=s.phase==='aim',overviewMode=s.phase==='overview'||s.camera.overview;
  const introZoom=s.phase==='intro_zoom',c=s.camera;
+ // A manually panned camera stays free until the actively walking player
+ // actually leaves the visible map. Rescue them gently at the CURRENT zoom,
+ // never snapping the map to 1x or spending a dice step.
+ if(walk&&c.panned&&s.move?.walking&&!c.paused&&!overviewMode){
+  const active=window.BoardItems.position(s,p);
+  const sx=480+(active.x-c.x)*c.zoom,sy=top+viewH/2+(active.y-c.y)*c.zoom;
+  if(sx<24||sx>936||sy<top+24||sy>bottom-24){
+   c.manualZoom=c.zoom;c.panned=false;c.explore=false;c.rescuedOffscreen=true;
+  }
+ }
  const freeView=canPan(s)&&c.panned;
  const trackPlayer=!overviewMode&&!introZoom&&!c.paused&&!freeView&&!(walk&&c.explore);
  const zoomTarget=overviewMode?(c.manualZoom||fitZoom(s)):
    c.paused?(c.manualZoom||c.zoom):
    freeView?(c.manualZoom||c.zoom):
-   bombing?.72:walk?(c.explore?.65:1):
+   bombing?.72:walk?(c.manualZoom||(c.explore?.65:1)):
    canPan(s)&&s.phase!=='dice'?(c.manualZoom||.65):wide?.65:fork?fork.zoom:1;
  const dt=Math.min(.05,Math.max(.001,t-(c.lastRenderTime??t-.016)));c.lastRenderTime=t;
  if(introZoom){
