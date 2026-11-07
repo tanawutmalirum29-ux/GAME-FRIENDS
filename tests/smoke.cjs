@@ -106,6 +106,35 @@ assert.equal(touchPng.readUInt32BE(16),180);
 assert.equal(touchPng.readUInt32BE(20),180);
 const appManifest=JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));
 assert.equal(appManifest.short_name,'GAME FRIENDS');
+assert.equal(appManifest.start_url,'./','controller install still starts at the normal root');
+const hostManifest=JSON.parse(fs.readFileSync('host.webmanifest','utf8'));
+assert.equal(hostManifest.id,'./host.html','HOST is a separate installable Web App');
+assert.equal(hostManifest.start_url,'./host.html','HOST icon opens the stable launch document');
+assert.equal(hostManifest.display,'standalone');
+assert.notEqual(new URL(hostManifest.start_url,'https://game.example/').href,
+ new URL(appManifest.start_url,'https://game.example/').href,
+ 'controller and host installed shortcuts may not launch the same URL');
+assert.match(hostLauncher,/rel="manifest" href="\.\/host\.webmanifest"/);
+assert.match(hostLauncher,/id="openHostBtn" href="\.\/\?host=1"/);
+assert.match(hostLauncher,/navigator\.standalone===true/,'installed iPad host launches directly');
+assert.match(html,/get\('host'\)==='1'[\s\S]*host\.webmanifest/,
+ 'direct /?host=1 install also selects the HOST manifest');
+const hostInline=hostLauncher.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+assert.ok(hostInline,'host installation has a standalone-launch bootstrap');
+function hostLaunch(standalone,pathname='/host.html'){
+ const href='https://game.example'+pathname,redirects=[];
+ const location={href,search:new URL(href).search,replace(u){redirects.push(u);}};
+ vm.runInNewContext(hostInline,{
+  navigator:{standalone},location,URL,URLSearchParams,
+  matchMedia:q=>({matches:standalone&&q.includes('standalone')})
+ });
+ return redirects;
+}
+assert.deepEqual(hostLaunch(false),[],'regular Safari stays on /host.html for Add to Home Screen');
+assert.deepEqual(hostLaunch(true),['https://game.example/?host=1'],
+ 'installed HOST icon navigates straight into the real host room');
+assert.deepEqual(hostLaunch(false,'/host.html?launch=1'),['https://game.example/?host=1'],
+ 'explicit launch also enters the host without visiting the controller');
 assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-icon.svg'));
 assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-touch-icon.png'));
 

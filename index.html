@@ -11,6 +11,16 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/game-friends-touch-icon.png">
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="apple-mobile-web-app-title" content="GAME FRIENDS">
+  <script>
+    // /?host=1 is a distinct installable app from the controller root.
+    // Change the manifest synchronously in the head, before Safari's
+    // Add-to-Home-Screen flow reads its start_url and app identity.
+    if(new URLSearchParams(location.search).get('host')==='1'){
+      document.querySelector('link[rel="manifest"]').setAttribute('href','./host.webmanifest');
+      document.querySelector('meta[name="apple-mobile-web-app-title"]').setAttribute('content','GF HOST');
+      document.title='GAME FRIENDS — จอหลัก';
+    }
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta property="og:type" content="website">
@@ -190,7 +200,7 @@
           <button id="webAppHelpBtn" class="btn btn-outline board-webapp-help-trigger hidden" type="button" aria-expanded="false" aria-controls="webAppHelp">เล่นเต็มจอบน iPad โดยไม่มีแถบ Chrome</button>
           <div id="webAppHelp" class="board-webapp-help hidden" role="note">
             <strong>วิธีใช้งานแบบแอปบนหน้าจอโฮม</strong>
-            <p>เปิดเว็บไซต์ GAME FRIENDS ใน Safari แล้วเลือก แชร์ → เพิ่มไปยังหน้าจอโฮม → เปิดเป็นเว็บแอป → เพิ่ม จากนั้นเข้าเกมผ่านไอคอนบนหน้าจอโฮม แถบแท็บและที่อยู่ Chrome จะไม่มารบกวนการลากแมพ</p>
+            <p>เปิด <strong>/host.html</strong> ของ GAME FRIENDS ใน Safari ก่อน (อย่ากดเพิ่มจากหน้า / ที่เป็นจอย) แล้วเลือก แชร์ → เพิ่มไปยังหน้าจอโฮม → เปิดเป็นเว็บแอป → เพิ่ม จากนั้นเปิดไอคอน <strong>GF HOST</strong> ที่สร้างใหม่เพื่อเข้าจอหลักโดยตรง ไม่มีแถบแท็บและที่อยู่ Chrome มารบกวนการลากแมพ</p>
             <small>เว็บป้องกันการเลื่อนภายในเกมได้ แต่ไม่สามารถปิดท่าทางระบบของ Chrome/iPadOS หรือบังคับกลับเข้า Fullscreen ได้เอง</small>
           </div>
           <div id="gameChoiceList" class="game-choice-list" aria-label="ผู้เล่นและเกมที่เลือก"></div>
