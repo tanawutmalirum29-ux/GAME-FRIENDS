@@ -1562,9 +1562,12 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  assert.match(heading.textContent,/เสมอ/);
  const rows=ui.elements.get('resultList').children;
  assert.equal(rows.length,3);
- assert.ok(rows[0].children[0].textContent.startsWith('อันดับ 1 •'));
- assert.ok(rows[1].children[0].textContent.startsWith('อันดับ 1 •'));
- assert.ok(rows[2].children[0].textContent.startsWith('อันดับ 3 •'));
+ assert.deepEqual(rows.map(r=>r.dataset.rank),['1','1','3']);
+ assert.ok(rows.every(r=>!r.children[0].textContent.includes('อันดับ')),
+  'plaque names do not repeat the metallic ranking number');
+ assert.equal(rows[0].children[3].textContent,'1ST');
+ assert.equal(rows[1].children[3].textContent,'1ST');
+ assert.equal(rows[2].children[3].textContent,'3RD');
  assert.match(rows[0].children[1].textContent,/อันดับร่วม/);
  assert.match(rows[1].children[1].textContent,/อันดับร่วม/);
  assert.match(rows[2].children[1].textContent,/ตกรอบ รอบ 1/);
@@ -1589,9 +1592,9 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  ui.scope.window.__ghostTest.endRound();
  const rows=ui.elements.get('resultList').children;
  assert.equal(rows.length,3);
- assert.match(rows[0].children[0].textContent,/อันดับ 1/);
- assert.match(rows[1].children[0].textContent,/อันดับ 2 ร่วม/);
- assert.match(rows[2].children[0].textContent,/อันดับ 2 ร่วม/);
+ assert.deepEqual(rows.map(r=>r.dataset.rank),['1','2','2']);
+ assert.ok(rows.every(r=>!r.children[0].textContent.includes('อันดับ')),
+  'ranking numbers appear only on the decorative ordinal');
  assert.equal(ui.elements.get('replayBtn').dataset.action,'A');
  assert.match(ui.elements.get('replayBtn').textContent,/^เล่นอีกครั้ง/);
  assert.equal(ui.elements.get('backBtn').dataset.action,'B');
@@ -1606,9 +1609,8 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  });
  ui.scope.window.__ghostTest.endRound();
  const simultaneous=ui.elements.get('resultList').children;
- assert.match(simultaneous[0].children[0].textContent,/อันดับ 1 ร่วม/);
- assert.match(simultaneous[1].children[0].textContent,/อันดับ 1 ร่วม/);
- assert.match(simultaneous[2].children[0].textContent,/อันดับ 3/);
+ assert.deepEqual(simultaneous.map(r=>r.dataset.rank),['1','1','3']);
+ assert.ok(simultaneous.every(r=>!r.children[0].textContent.includes('อันดับ')));
  assert.match(ui.elements.get('results').querySelector('h2').textContent,/เสมอ/);
 }
 // Display all 12 COLOR SWITCH ranks in a 4×3 grid on a wide host screen.
@@ -1640,8 +1642,8 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  assert.equal(list.style['--result-cols'],'4','four columns set on resultList');
  assert.equal(list.style['--result-rows'],'3','twelve players fit in exactly three rows');
  rows.forEach((row,i)=>{
-   assert.ok(row.children[0].textContent.startsWith('อันดับ '+(i+1)+' • '),
-     'each finishing position 1 through 12 is visible as a label');
+   assert.equal(row.children[0].textContent,people[i].name,
+     'each card displays the complete player name, not an extra ranking label');
    assert.equal(row.dataset.rank,String(i+1),'each row exposes its competition rank');
    assert.ok(row.children[1].textContent.includes('คะแนน'),'each row shows total score');
  });
@@ -1675,6 +1677,9 @@ assert.match(css,/#game \.result-card\{[\s\S]*?height:min\(86dvh,690px\)/,
   'result card reserves a real nonzero height');
 assert.match(css,/#game #resultList\{[\s\S]*?height:100%/,
   'result list stretches into the reserved grid row instead of collapsing');
+// Ranking card names and result details wrap instead of being clipped with ellipses.
+assert.match(css,/#game #resultList>\.result-player>div:first-child\{[\s\S]*?white-space:normal!important/);
+assert.match(css,/#game #resultList>\.result-player>span:not\(\.result-avatar\),[\s\S]*?white-space:normal!important/);
 assert.match(css,/grid-template-columns:repeat\(var\(--result-tracks,8\),minmax\(0,1fr\)\)/,
   'responsive ranking grid supports four landscape columns');
 
@@ -1728,6 +1733,8 @@ assert.match(css,/grid-template-columns:repeat\(var\(--result-tracks,8\),minmax\
      positions.push({row,column});
      assert.equal(card.dataset.rank,String(index<2&&count===9?1:index+1),
       'result rank survives visual placement, including ties');
+     assert.equal(card.children[0].textContent,'Bot '+(index+1),
+      'player name remains visible after rank metadata extraction');
      assert.equal(card.children[3].textContent,
       index<2&&count===9?'1ST':String(index+1)+(index+1===1?'ST':
        index+1===2?'ND':index+1===3?'RD':'TH'));
@@ -1745,6 +1752,13 @@ assert.match(css,/grid-template-columns:repeat\(var\(--result-tracks,8\),minmax\
     if(width===1473&&sampleRows[count]){
      assert.deepEqual([cols,top],sampleRows[count]);
     }
+    // Responsive re-layout must keep the original name and rank metadata.
+    api.layoutFinalResults();
+    cards.forEach((card,index)=>{
+     assert.equal(card.children[0].textContent,'Bot '+(index+1));
+     assert.equal(card.dataset.rank,String(index<2&&count===9?1:index+1));
+     assert.match(card.dataset.rankSource,/อันดับ /);
+    });
     assert.equal(list.children.length,count+(withHeading?1:0));
    }
   }
@@ -1858,7 +1872,8 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  ui.click('backBtn');
  const rows=ui.elements.get('resultList').children.filter(x=>x.className==='result-player');
  assert.equal(rows.length,2);
- assert.ok(rows.every(r=>r.children[0].textContent.startsWith('อันดับ 1 ร่วม')));
+ assert.ok(rows.every(r=>r.dataset.rank==='1'&&!r.children[0].textContent.includes('อันดับ')),
+  'tied winners show their names while rank remains on the metallic badge');
  ui.click('backBtn');
  assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false);
  assert.equal(api.getTournament(),null,'leaving ends continuous session');
