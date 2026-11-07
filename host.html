@@ -2,18 +2,68 @@
 <html lang="th">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>จอเจ้าของห้อง | STICK SQUAD PARTY</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0d1122">
+  <meta name="description" content="ติดตั้ง GAME FRIENDS จอหลักแยกจากจอย แล้วเปิดสร้างห้องได้โดยตรง">
   <meta name="robots" content="noindex">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GF HOST">
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/game-friends-touch-icon.png">
+  <link rel="icon" type="image/svg+xml" href="./assets/game-friends-icon.svg">
+  <link rel="manifest" href="./host.webmanifest">
+  <title>GAME FRIENDS — ติดตั้งจอหลัก</title>
+  <style>
+    *{box-sizing:border-box}
+    :root{color-scheme:dark;font-family:system-ui,-apple-system,"Noto Sans Thai",sans-serif}
+    html,body{margin:0;min-height:100%;background:#0b182c;color:#e9faff}
+    body{min-height:100svh;display:grid;place-items:center;padding:clamp(16px,4vw,42px)}
+    main{width:min(100%,510px);background:linear-gradient(150deg,#193a51,#0e243b);
+      padding:clamp(22px,5vw,36px);border-radius:22px;border:1px solid #5c99b5;
+      box-shadow:0 18px 56px #0006;text-align:center}
+    img{height:78px;width:78px;object-fit:contain}
+    h1{font-size:clamp(23px,5vw,30px);margin:12px 0 7px}
+    p{line-height:1.6;color:#bfe0ee;margin:10px 0}
+    .primary{display:block;background:#87e8cd;color:#0a2834;text-decoration:none;
+      font-size:17px;font-weight:800;padding:13px 15px;margin:22px 0 18px;border-radius:12px}
+    .guide{padding:14px;border-radius:12px;background:#0b2135;text-align:left;
+      border:1px solid #477b99;line-height:1.7}
+    .guide strong{color:#ffe59a}
+    .guide ol{margin:7px 0 0;padding-left:24px}
+    small{display:block;font-size:12px;color:#a2c7d7;margin-top:17px;line-height:1.5}
+  </style>
   <script>
-    // Explicit host entrypoint. Ordinary root URLs and /?join=... stay controller-only.
-    // This is a navigation boundary, not authentication; server-side auth is needed
-    // to prevent a visitor deliberately forging a host URL.
-    location.replace(new URL('./?host=1',location.href).href);
+    // Keep this exact /host.html URL on screen while Safari installs the icon.
+    // When launched as a Home Screen Web App, enter the actual host directly.
+    // Unlike the old immediate redirect to "/", this never installs the
+    // controller manifest or loses the host role from an iOS bookmark.
+    (function(){
+      var standalone=navigator.standalone===true ||
+        (typeof matchMedia==='function' &&
+          (matchMedia('(display-mode: standalone)').matches ||
+           matchMedia('(display-mode: fullscreen)').matches));
+      if(standalone || new URLSearchParams(location.search).get('launch')==='1'){
+        location.replace(new URL('./?host=1',location.href).href);
+      }
+    })();
   </script>
 </head>
-<body style="margin:0;background:#0d1122;color:white;font:16px system-ui;padding:30px">
-  <p>เปิดหน้าเจ้าของห้อง…</p>
-  <p><a style="color:#83e1f6" href="./?host=1">เปิดจอเจ้าของห้อง</a></p>
+<body>
+  <main>
+    <img src="./assets/game-friends-icon.svg" alt="GAME FRIENDS">
+    <h1>GAME FRIENDS — จอหลัก</h1>
+    <p>หน้านี้สำหรับติดตั้ง <strong>จอหลัก (HOST)</strong> ไม่ใช่จอยของผู้เล่น</p>
+    <a class="primary" id="openHostBtn" href="./?host=1">เปิดจอหลัก / สร้างห้อง</a>
+    <section class="guide" aria-label="วิธีติดตั้งจอหลัก">
+      <strong>เพิ่มจอหลักลงหน้าจอโฮมบน iPad</strong>
+      <ol>
+        <li>เปิดหน้านี้ (<code>/host.html</code>) ใน Safari และอยู่ที่หน้านี้ไว้</li>
+        <li>กด แชร์ → เพิ่มไปยังหน้าจอโฮม</li>
+        <li>เปิด <b>Open as Web App</b> แล้วกดเพิ่ม</li>
+        <li>เปิดไอคอน <b>GF HOST</b> ที่เพิ่มใหม่ ระบบจะพาเข้าจอสร้างห้องทันที</li>
+      </ol>
+    </section>
+    <small>จอหลักและจอยใช้ไอคอนคนละรายการ เมื่อเปิดผ่านไอคอน GF HOST จะไม่เริ่มที่หน้าเข้ารหัสจอย</small>
+  </main>
 </body>
 </html>
