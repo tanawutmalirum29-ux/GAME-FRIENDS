@@ -13,6 +13,17 @@ function buildTest(){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gf-auto-build-'));
   try{
     fs.copyFileSync(path.join(root,'index.html'),path.join(dir,'index.html'));
+    // The offline build computes content hashes for every shipped static asset.
+    const buildSource=fs.readFileSync(build,'utf8');
+    const assetList=buildSource.match(/const assets=\[([\s\S]*?)\];/);
+    assert.ok(assetList,'build asset list');
+    const assetPaths=[...assetList[1].matchAll(/'([^']+)'/g)].map(x=>x[1]);
+    assetPaths.push('host.html','host.webmanifest','service-worker.js');
+    for(const asset of new Set(assetPaths)){
+      const destination=path.join(dir,asset);
+      fs.mkdirSync(path.dirname(destination),{recursive:true});
+      fs.copyFileSync(path.join(root,asset),destination);
+    }
     const first='a'.repeat(40),second='b'.repeat(40);
     for(const rev of [first,second]){
       execFileSync(process.execPath,[build],{
