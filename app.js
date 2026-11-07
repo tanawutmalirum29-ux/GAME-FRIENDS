@@ -1089,7 +1089,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
       if(!onlineHost||!conn.playerId)return;
       const p=players.find(q=>q.id===conn.playerId&&q.conn===conn);
       if(!p)return;
-      p.conn=null;p.input=blankInput();holdSeat(p);
+      p.conn=null;p.input=blankInput();lobbyReadyVotes.delete(p.id);holdSeat(p);
       renderRoster();broadcastRoster();
       if(['results','summary'].includes(round?.phase))renderResultVotes(true);
     }
@@ -3199,7 +3199,7 @@ function updateGameSelection(dt){
   }
 }
 function beginParty(){
-  if(!players.length||round||gameSelection||currentView!=='hostLobby')return;
+  if(!players.length||gameSelection||(round&&!['results','summary'].includes(round.phase)))return;
   if(selectedSessionMode==='board'){beginBoard();return;}
   if(selectedSessionMode==='endless'){
     tournament={schedule:Object.keys(MODES),index:0,endless:true,roundsPlayed:0,lastMode:null};
