@@ -2700,6 +2700,39 @@ function endKnightMatchRound(){
  $('results').classList.remove('hidden');$('gameBanner').textContent='';
  beginResultVoting();renderLeaderboard();
 }
+function endShoppingTimeRound(){
+ round.phase='results';round.paused=false;resetInputs();broadcastRoster();
+ $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
+ const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
+ const top=ranked[0]?.score??0,winners=ranked.filter(p=>p.score===top);
+ awardRoundPoints(ranked,p=>1+ranked.filter(q=>q.score>p.score).length);
+ round.autoNextRemaining=canAutoAdvanceResults()?7:0;
+ $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ • อันดับ 1 ร่วม';
+ const list=$('resultList');list.replaceChildren();
+ const show=(people,useTotal=false)=>people.forEach(p=>{
+   const value=q=>useTotal?q.total:q.score;
+   const rank=1+people.filter(q=>value(q)>value(p)).length;
+   const tied=people.filter(q=>value(q)===value(p)).length>1;
+   const row=document.createElement('div');row.className='result-player';
+   const label=document.createElement('div');label.style.color=p.color;
+   label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
+   const score=document.createElement('span');
+   score.textContent=useTotal?p.total+' คะแนนรวม':p.score+' คะแนน'+totalScoreNote(p);
+   row.append(label,score);list.append(row);
+ });
+ show(ranked);
+ if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
+   list.replaceChildren();
+   const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
+   show(overall,true);
+   const first=overall.filter(p=>p.total===overall[0].total);
+   const title=document.createElement('div');title.className='tournament-header';
+   title.textContent=first.length===1?'ผู้ชนะรวม: '+first[0].name:'คะแนนรวมเสมอ: '+first.map(p=>p.name).join(', ');
+   list.prepend(title);
+ }
+ $('results').classList.remove('hidden');$('gameBanner').textContent='';
+ beginResultVoting();renderLeaderboard();
+}
 function endPizzaTimeRound(){
  round.phase='results';round.paused=false;resetInputs();broadcastRoster();
  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
@@ -2887,7 +2920,18 @@ function renderLeaderboard(){
       box.append(color,name,score,info);root.append(box);
     });return;
   }
-  if(round.mode==='pizza_time'){
+  if(round.mode==='shopping_time'){
+     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
+       const box=document.createElement('div');box.className='leader-chip';
+       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
+       const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' คะแนน';
+       const load=document.createElement('span');load.className='leader-item-slot';
+       load.textContent=p.shopping?.stun>0?'สตั้น':(p.shopping?.basket.length||0)+'/5';
+       box.append(color,name,score,load);root.append(box);
+     });return;
+   }
+   if(round.mode==='pizza_time'){
     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
       const box=document.createElement('div');box.className='leader-chip pizza-leader';
       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
