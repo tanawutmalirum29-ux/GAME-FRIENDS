@@ -271,10 +271,10 @@ async function main(){
    await host.evaluate(packets=>{const s=__boardTest.board;for(const p of packets)BoardParty.input(s,s.players[0].id,p);},packets);
   }
   await host.evaluate(()=>{const s=__boardTest.board;s.players[0].bag=['potion'];s.players[0].item='potion';s.players[0].hp=50;s.players[0].currentNodeId='n1';s.players[0].worldPosition=null;s.rng=()=>0;});
-  await refreshPhone();await noScroll(phone);await phone.screenshot({path:path.join(out,'phone.png')});
+  const readyInfo=await refreshPhone();await noScroll(phone);await phone.screenshot({path:path.join(out,'phone.png')});
    // Double-tapping the existing joystick before rolling closes the bag
    // and engages map drag/pinch; the second double-tap restores the SAME slot.
-   assert.equal(await phone.evaluate(()=>controllerBoard?.boardPhase),'ready');
+   assert.equal(readyInfo.boardPhase,'ready');
    assert.equal(await phone.locator('#controllerInventory').isVisible(),true);
    const slotBefore=await host.evaluate(()=>__boardTest.board.players[0].actionIndex);
    async function doubleTapReadyJoystick(){
