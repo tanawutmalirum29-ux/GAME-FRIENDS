@@ -356,6 +356,18 @@
     <footer>STICK SQUAD PARTY <span>•</span> Original browser party game <span>•</span> Built for GAME FRIENDS</footer>
   </div>
   <div id="uiToast" class="ui-toast" role="status" aria-live="polite"></div>
+  <div id="bulkBotPicker" class="bulk-bot-picker hidden" role="dialog" aria-modal="true" aria-labelledby="bulkBotPickerTitle" aria-describedby="bulkBotPickerHint">
+    <section class="bulk-bot-picker-card" role="document">
+      <div class="bulk-bot-picker-header">
+        <div>
+          <h2 id="bulkBotPickerTitle">เลือกเกมให้บอททั้งหมด</h2>
+          <p id="bulkBotPickerHint">เลือกเกมหนึ่งเกมเพื่อเปลี่ยนให้บอททุกตัวพร้อมกัน ผู้เล่นมือถือจะไม่ถูกเปลี่ยน</p>
+        </div>
+        <button id="bulkBotPickerClose" type="button" class="bulk-bot-picker-close" aria-label="ปิดหน้าต่างเลือกเกม">×</button>
+      </div>
+      <div id="bulkBotPickerChoices" class="bulk-bot-picker-choices" role="group" aria-label="มินิเกมสำหรับบอททั้งหมด"></div>
+    </section>
+  </div>
   <div id="uiModal" class="ui-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uiModalTitle">
     <div class="ui-modal-card">
       <h2 id="uiModalTitle">ยืนยันการทำรายการ</h2>

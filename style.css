@@ -5394,3 +5394,87 @@ body.host-playing #game .leader-chip span.leader-held-icon{
     line-height:1.1;
   }
 }
+
+
+/* Host bulk bot game picker — choose one of all twelve covers, no cycling. */
+#bulkBotPicker.bulk-bot-picker{
+  position:fixed;inset:0;z-index:405;
+  display:flex;justify-content:center;align-items:center;
+  padding:max(12px,env(safe-area-inset-top,0px))
+          max(12px,env(safe-area-inset-right,0px))
+          max(12px,env(safe-area-inset-bottom,0px))
+          max(12px,env(safe-area-inset-left,0px));
+  background:#061024df;backdrop-filter:blur(9px);
+}
+#bulkBotPicker.hidden{display:none!important}
+#bulkBotPicker .bulk-bot-picker-card{
+  display:flex;flex-direction:column;gap:clamp(10px,1.8dvh,17px);
+  width:min(94vw,860px);max-width:100%;
+  max-height:min(90dvh,800px);min-height:0;
+  padding:clamp(12px,1.9vw,23px);
+  background:linear-gradient(145deg,#223454,#111b32);
+  border:1px solid #8ca6c5;border-radius:18px;
+  box-shadow:0 24px 64px #000b;overflow:hidden;
+}
+#bulkBotPicker .bulk-bot-picker-header{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  flex:0 0 auto;min-width:0;
+}
+#bulkBotPicker .bulk-bot-picker-header h2{
+  margin:0 0 4px;color:#f6faff;font-size:clamp(17px,2vw,24px);line-height:1.2;
+}
+#bulkBotPicker .bulk-bot-picker-header p{
+  margin:0;color:#b9d5e6;font-size:clamp(11px,1.1vw,14px);line-height:1.35;
+}
+#bulkBotPicker .bulk-bot-picker-close{
+  display:grid;place-items:center;flex:0 0 38px;
+  width:38px;height:38px;padding:0;
+  border-radius:10px;border:1px solid #7e9db7;
+  background:#263955;color:#f7fbff;font-size:27px;line-height:1;
+  cursor:pointer;touch-action:manipulation;
+}
+#bulkBotPicker .bulk-bot-picker-choices{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:clamp(6px,1vw,12px);
+  min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding:2px;scrollbar-width:thin;
+}
+#bulkBotPicker .bulk-bot-game-choice{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;min-width:0;min-height:clamp(92px,14dvh,137px);
+  padding:clamp(6px,1vw,12px);
+  border-radius:12px;border:1px solid #547491;
+  background:#162d45;color:#e9f5ff;
+  font:800 clamp(10px,1.15vw,15px)/1.2 system-ui,sans-serif;
+  cursor:pointer;touch-action:manipulation;
+}
+#bulkBotPicker .bulk-bot-game-choice .mode-cover{
+  display:block;flex:0 0 auto;width:min(100%,148px);height:auto;
+  aspect-ratio:16/9;max-height:88px;overflow:hidden;border-radius:8px;
+}
+#bulkBotPicker .bulk-bot-game-choice .mode-cover svg{
+  display:block;width:100%;height:100%;
+}
+#bulkBotPicker .bulk-bot-game-name{
+  display:block;max-width:100%;text-align:center;
+  overflow-wrap:anywhere;white-space:normal;
+}
+#bulkBotPicker .bulk-bot-game-choice.selected{
+  background:#174c52;border:2px solid #68e4d6;color:#c6fff6;
+}
+#bulkBotPicker .bulk-bot-game-choice:focus-visible,
+#bulkBotPicker .bulk-bot-picker-close:focus-visible{
+  outline:3px solid #f7d983;outline-offset:2px;
+}
+@media(max-width:660px){
+  #bulkBotPicker .bulk-bot-picker-card{width:100%;max-height:92dvh}
+  #bulkBotPicker .bulk-bot-picker-choices{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #bulkBotPicker .bulk-bot-game-choice{min-height:93px}
+}
+@media(max-height:530px) and (min-width:661px){
+  #bulkBotPicker .bulk-bot-picker-card{max-height:95dvh;padding:9px;gap:7px}
+  #bulkBotPicker .bulk-bot-game-choice{min-height:75px;padding:4px;gap:3px}
+  #bulkBotPicker .bulk-bot-game-choice .mode-cover{max-height:45px;width:min(100%,95px)}
+  #bulkBotPicker .bulk-bot-picker-header p{font-size:10px}
+}

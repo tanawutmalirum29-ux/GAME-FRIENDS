@@ -207,6 +207,11 @@ assert.match(html,/data-session-mode="queue"/);
 assert.match(html,/data-session-mode="endless"/);
 assert.match(html,/เล่นทุกเกมไปเรื่อยๆ/);
 assert.match(html,/id="cycleAllBotsBtn"/);
+assert.match(html,/id="bulkBotPicker"[^>]*role="dialog"/);
+assert.match(html,/id="bulkBotPickerChoices"/);
+assert.match(html,/id="bulkBotPickerClose"/);
+assert.match(css,/#bulkBotPicker \.bulk-bot-picker-choices\{/);
+assert.match(css,/#bulkBotPicker \.bulk-bot-game-choice\{/);
 assert.doesNotMatch(html,/id="iosFullscreenBtn"/,'no obsolete iOS fake fullscreen button');
 assert.match(html,/apple-mobile-web-app-capable/,'standalone iPad Web App metadata is required');
 assert.doesNotMatch(source,/avoidIOSNativeFullscreen|canUseNativeHostFullscreen|iosNativeFullscreenEnabled|IOS_FULLSCREEN_PREF/);
@@ -1064,6 +1069,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
     set(){return true;}
   });
   for(const [,id] of html.matchAll(/\bid="([^"]+)"/g))elements.set(id,makeElement(id));
+  elements.get('bulkBotPicker').classList.add('hidden');
   elements.get('autoNext').checked=true;
   const sessionButtons=['queue','endless','board'].map(mode=>{
     const btn=makeElement('session-'+mode);btn.dataset.sessionMode=mode;return btn;
@@ -1439,12 +1445,11 @@ online.click('exitBtn');
 assert.equal(online.elements.get('hostLobby').classList.contains('hidden'),false);
 assert.equal(online.scope.document.fullscreenExits,0);
 
-// One tap must switch every BOT, never remote players, and keep 12 fixed
-// slots with the same start-button validation.
+// Bulk bot change now opens a twelve-cover modal, with explicit game choice.
 {
- const bulk=setup();
- assert.equal(bulk.elements.get('cycleAllBotsBtn').disabled,true,
-   'bulk switch is disabled in an empty room');
+ const bulk=setup(),overlay=bulk.elements.get('bulkBotPicker'),
+   choices=bulk.elements.get('bulkBotPickerChoices');
+ assert.equal(bulk.elements.get('cycleAllBotsBtn').disabled,true);
  bulk.click('offlineBtn');
  for(let i=0;i<7;i++)bulk.click('addLocalBtn');
  const local=bulk.scope.window.__ghostTest.getPlayers();
@@ -1452,46 +1457,51 @@ assert.equal(online.scope.document.fullscreenExits,0);
  assert.ok(local.every(p=>p.choice==='ghost'));
  assert.equal(bulk.elements.get('cycleAllBotsBtn').disabled,false);
  assert.equal(bulk.elements.get('roster').children.length,12);
+ assert.match(bulk.elements.get('cycleAllBotsBtn').textContent,/เปลี่ยนเกม 9 ตัว/);
  bulk.click('cycleAllBotsBtn');
- assert.ok(local.every(p=>p.choice==='chickens'),'all bots change together');
+ assert.equal(overlay.classList.contains('hidden'),false);
+ assert.equal(bulk.elements.get('cycleAllBotsBtn').attributes['aria-expanded'],'true');
+ assert.equal(choices.children.length,12,'all registered modes shown once');
+ assert.deepEqual(Array.from(choices.children,x=>x.dataset.mode),
+   ['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time',
+    'knight_match','boulder_bash','snow_brawl','shopping_time','witching_snake','lawn_mower']);
+ assert.ok(choices.children.every(x=>x.children[0].innerHTML.includes('<svg')),
+   'all 12 game choices have SVG covers');
+ assert.ok(choices.children.every(x=>x.children[1].textContent.length>0));
+ assert.equal(choices.children[0].attributes['aria-pressed'],'true');
+ assert.ok(local.every(p=>p.choice==='ghost'),'opening popup does not cycle games');
+ choices.children[5].fire('click');
+ assert.ok(local.every(p=>p.choice==='pizza_time'),'single choice directly selects PIZZA TIME');
+ assert.equal(overlay.classList.contains('hidden'),true);
+ assert.equal(bulk.elements.get('cycleAllBotsBtn').attributes['aria-expanded'],'false');
  assert.equal(bulk.elements.get('startBtn').disabled,false);
+ // Clicking an individual bot card still cycles only that bot, independently.
+ bulk.elements.get('roster').children[0].children[3].fire('click');
+ assert.equal(local[0].choice,'knight_match');
+ assert.ok(local.slice(1).every(p=>p.choice==='pizza_time'));
  bulk.click('cycleAllBotsBtn');
- assert.ok(local.every(p=>p.choice==='fruit_memory'));
+ assert.ok(choices.children.every(x=>x.attributes['aria-pressed']==='false'),
+   'different current choices do not mark any option selected');
+ bulk.click('bulkBotPickerClose');
+ assert.equal(overlay.classList.contains('hidden'),true);
+ assert.equal(local[0].choice,'knight_match','cancel does not change nominations');
  bulk.click('cycleAllBotsBtn');
- assert.ok(local.every(p=>p.choice==='shockwave'));
+ bulk.scope.document.fire('keydown',{key:'Escape'});
+ assert.equal(overlay.classList.contains('hidden'),true,'Escape closes popup');
  bulk.click('cycleAllBotsBtn');
- assert.ok(local.every(p=>p.choice==='color_switch'),'cycles through first five games');
-  bulk.click('cycleAllBotsBtn');
-  assert.ok(local.every(p=>p.choice==='pizza_time'),'sixth game is PIZZA TIME');
-  bulk.click('cycleAllBotsBtn');
-  assert.ok(local.every(p=>p.choice==='knight_match'),'seventh game is KNIGHT MATCH');
-  bulk.click('cycleAllBotsBtn');
-  assert.ok(local.every(p=>p.choice==='boulder_bash'),'eighth game is BOULDER BASH');
-   bulk.click('cycleAllBotsBtn');
-   assert.ok(local.every(p=>p.choice==='snow_brawl'),'ninth game is SNOW BRAWL');
-    bulk.click('cycleAllBotsBtn');
-    assert.ok(local.every(p=>p.choice==='shopping_time'),'tenth game is SHOPPING TIME');
-    bulk.click('cycleAllBotsBtn');
-    assert.ok(local.every(p=>p.choice==='witching_snake'),'eleventh game is WITCHING SNAKE');
-     bulk.click('cycleAllBotsBtn');
-     assert.ok(local.every(p=>p.choice==='lawn_mower'),'twelfth game is LAWN MOWER');
-     bulk.click('cycleAllBotsBtn');
-     assert.ok(local.every(p=>p.choice==='ghost'),'twelfth game wraps back to ghost');
- // Individual selection remains independent; bulk applies the NEXT
- // game of the first bot, synchronizing any mixed bot choices.
- const choice=bulk.elements.get('roster').children[0].children[3];
- choice.fire('click');
- assert.equal(local[0].choice,'chickens');
- assert.ok(local.slice(1).every(p=>p.choice==='ghost'));
+ overlay.fire('click',{target:overlay});
+ assert.equal(overlay.classList.contains('hidden'),true,'backdrop closes popup');
  bulk.click('cycleAllBotsBtn');
- assert.ok(local.every(p=>p.choice==='fruit_memory'),
-   'single-click bulk selection synchronizes a mixed bot roster');
+ choices.children[10].fire('click');
+ assert.ok(local.every(p=>p.choice==='witching_snake'),
+   'one click synchronizes a mixed bot roster');
  bulk.click('startBtn');
  assert.equal(bulk.elements.get('game').classList.contains('hidden'),false);
  const before=local.map(p=>p.choice);
  bulk.click('cycleAllBotsBtn');
  assert.deepEqual(local.map(p=>p.choice),before,
-   'bulk selection cannot mutate choices during a running round');
+   'bulk selection cannot mutate an active game');
+ assert.equal(overlay.classList.contains('hidden'),true);
 }
 {
  const mixed=setup('https://game.example/?host=1');
@@ -1506,11 +1516,12 @@ assert.equal(online.scope.document.fullscreenExits,0);
  const remotePlayer=players.find(p=>!p.isBot);
  assert.equal(remotePlayer.choice,'shockwave');
  mixed.click('cycleAllBotsBtn');
- assert.ok(players.filter(p=>p.isBot).every(p=>p.choice==='chickens'));
+ const options=mixed.elements.get('bulkBotPickerChoices').children;
+ options.find(x=>x.dataset.mode==='lawn_mower').fire('click');
+ assert.ok(players.filter(p=>p.isBot).every(p=>p.choice==='lawn_mower'));
  assert.equal(remotePlayer.choice,'shockwave',
-   'bulk changes do not override a real player using a controller');
- assert.equal(mixed.elements.get('startBtn').disabled,false,
-   'all nominations remain valid after bulk bot switch');
+   'bulk game choice does not change an actual controller player');
+ assert.equal(mixed.elements.get('startBtn').disabled,false);
 }
 
 // Twelve is the HARD CAP. The large empty lobby panel is filled by its cards,
@@ -1622,7 +1633,8 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  for(let i=0;i<10;i++)ui.click('addLocalBtn');
  const people=ui.scope.window.__ghostTest.getPlayers();
  assert.equal(people.length,12,'twelve bots occupy the match');
- for(let i=0;i<4;i++)ui.click('cycleAllBotsBtn');
+ ui.click('cycleAllBotsBtn');
+ ui.elements.get('bulkBotPickerChoices').children.find(x=>x.dataset.mode==='color_switch').fire('click');
  assert.ok(people.every(p=>p.choice==='color_switch'));
  ui.scope.window.innerWidth=1473; // reference: landscape tablet host
  ui.click('startBtn');
