@@ -73,9 +73,38 @@ function fixedLayoutRng(world,tier,theme){
   };
 }
 function mapId(world,tier,theme){
-  return 'GH-'+(theme==='egypt'?'EG':'GY')+'-'+world.w+'x'+world.h+'-T'+tier+'-v1';
+  const revision=theme==='graveyard'&&world.w===1080&&world.h===608&&tier===1?'v2':'v1';
+  return 'GH-'+(theme==='egypt'?'EG':'GY')+'-'+world.w+'x'+world.h+'-T'+tier+'-'+revision;
+}
+// GY-1080x608/T1: hand-arranged from the host's annotated map screenshot.
+// Coordinates are in WORLD space, not screenshot pixels (rendered at 960x540).
+// GY-06 is deliberately deleted (crossed out); GY-05 and GY-11 retain the
+// nearby lower-right landmarks. Large marked outlines are solid monument groups.
+const GRAVEYARD_ANNOTATED_1080=Object.freeze([
+  {id:'GY-01',x:883,y:429,w:115,h:119}, // lower right tall monument
+  {id:'GY-02',x:905,y:75,w:79,h:146},  // upper right tall monument
+  {id:'GY-03',x:615,y:466,w:71,h:42},  // small lower central slab
+  {id:'GY-04',x:279,y:455,w:125,h:53}, // lower left / red outline
+  {id:'GY-05',x:711,y:393,w:52,h:46},  // preserve unmarked stone
+  {id:'GY-07',x:509,y:245,w:77,h:133}, // central vertical pillar
+  {id:'GY-08',x:139,y:137,w:116,h:228},// long left vertical monument
+  {id:'GY-09',x:492,y:115,w:131,h:70}, // upper-middle horizontal monument
+  {id:'GY-10',x:899,y:264,w:161,h:86}, // mid-right horizontal wall
+  {id:'GY-11',x:933,y:356,w:52,h:42}  // retain small stone above GY-01
+]);
+function annotatedGraveyardObstacles(world,tier,theme){
+  if(theme!=='graveyard'||tier!==1||world.w!==1080||world.h!==608)return null;
+  const kinds=Art.kindsForTheme(theme);
+  return GRAVEYARD_ANNOTATED_1080.map((shape)=>{
+    const number=Number(shape.id.slice(-2)),index=number-1;
+    return {...shape,kind:index===0?'coffin':kinds[(index-1)%kinds.length],
+      style:index%3,variant:Math.floor(index/kinds.length)%3,
+      fixed:true,monumentGroup:shape.w>94||shape.h>94};
+  });
 }
 function makeObstacles(world,tier,reserved=[],theme='graveyard'){
+  const annotated=annotatedGraveyardObstacles(world,tier,theme);
+  if(annotated)return annotated;
   const fixedRandom=fixedLayoutRng(world,tier,theme);
   const themeKinds=Art.kindsForTheme(theme);
   const out=[];

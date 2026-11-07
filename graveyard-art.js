@@ -210,6 +210,23 @@
     const kind=KINDS.includes(o.kind)?o.kind:KINDS[Math.abs(o.style||0)%KINDS.length];
     const img=getObstacleImage(kind,o.variant||0);
     ctx.save();
+    if(o.monumentGroup){
+      // Large solid monuments must not look like a single tombstone enlarged
+      // to several times its normal proportions. Render tiled stone slabs
+      // inside the SAME rectangle used for real collisions and bot routing.
+      ctx.fillStyle='#34425e';ctx.fillRect(o.x,o.y+4,o.w,o.h);
+      ctx.fillStyle='#687992';ctx.fillRect(o.x,o.y,o.w,o.h-4);
+      ctx.lineWidth=3;ctx.strokeStyle='#b8c8d7';ctx.strokeRect(o.x+1.5,o.y+1.5,o.w-3,o.h-6);
+      const inset=8,innerW=o.w-2*inset,innerH=o.h-2*inset;
+      const cols=Math.max(1,Math.round(innerW/52)),rows=Math.max(1,Math.round(innerH/52));
+      const tileW=innerW/cols,tileH=innerH/rows;
+      for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
+        const x=o.x+inset+col*tileW,y=o.y+inset+row*tileH;
+        if(ready(img))ctx.drawImage(img,x+2,y+2,tileW-4,tileH-4);
+        else{ctx.fillStyle='#899bb0';ctx.fillRect(x+3,y+3,tileW-6,tileH-6);}
+      }
+      ctx.restore();return;
+    }
     ctx.fillStyle='#05162280';
     ctx.beginPath();ctx.ellipse(o.x+o.w*.52,o.y+o.h*.55,o.w*.5,o.h*.49,0,0,Math.PI*2);ctx.fill();
     if(ready(img))ctx.drawImage(img,o.x,o.y,o.w,o.h);
