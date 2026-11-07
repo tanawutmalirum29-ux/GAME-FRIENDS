@@ -140,20 +140,63 @@ function movePlayer(s,p,dt,v){
  p.x=pos.x;p.y=pos.y;p.vx=(p.x-from.x)/dt;p.vy=(p.y-from.y)/dt;
  steering(p,v,dt);cartPosition(s,p,dt);
 }
+// Keep each cart physically attached when another cart/body pushes its owner.
+function shiftCartOwner(s,p,dx,dy){
+ const q=p.shopping,at=constrain(s,p,p.x+dx,p.y+dy);
+ const movedX=at.x-p.x,movedY=at.y-p.y;
+ p.x=at.x;p.y=at.y;
+ q.cartX=clamp(q.cartX+movedX,20,s.world.w-20);
+ q.cartY=clamp(q.cartY+movedY,20,s.world.h-20);
+}
+// Both carts and bodies are solid. Each contact shifts the *whole* owner,
+// preserving the cart offset and allowing an approaching player to push another.
+function shoppingContact(s,a,b,ax,ay,bx,by,minDistance,pass){
+ let dx=bx-ax,dy=by-ay,dist=length(dx,dy);
+ if(dist>=minDistance-1e-5)return;
+ if(dist<1e-5){
+  dx=b.x-a.x;dy=b.y-a.y;dist=length(dx,dy);
+  if(dist<1e-5){dx=String(a.id)<String(b.id)?1:-1;dy=0;dist=1;}
+ }
+ const nx=dx/dist,ny=dy/dist,qa=a.shopping,qb=b.shopping;
+ const avx=qa.vx,avy=qa.vy+qa.flow,bvx=qb.vx,bvy=qb.vy+qb.flow;
+ const closing=(avx-bvx)*nx+(avy-bvy)*ny;
+ // Fast incoming carts have more leverage; equal opposing pushes balance.
+ const driveA=Math.max(0,avx*nx+avy*ny),driveB=Math.max(0,-bvx*nx-bvy*ny);
+ const powerA=1+Math.min(1.5,driveA/C.speed)*1.8;
+ const powerB=1+Math.min(1.5,driveB/C.speed)*1.8;
+ const shareA=powerB/(powerA+powerB);
+ const correction=Math.min(8,minDistance-dist+.12);
+ shiftCartOwner(s,a,-nx*correction*shareA,-ny*correction*shareA);
+ shiftCartOwner(s,b,nx*correction*(1-shareA),ny*correction*(1-shareA));
+ // Transfer a small amount of forward momentum once per contact per tick.
+ // This makes a moving cart genuinely push a stationary person/cart.
+ if(pass===0&&closing>10){
+  const impulse=Math.min(42,closing*.16);
+  qa.vx=clamp(qa.vx-nx*impulse*shareA,-C.speed,C.speed);
+  qa.vy=clamp(qa.vy-ny*impulse*shareA,-C.speed,C.speed);
+  qb.vx=clamp(qb.vx+nx*impulse*(1-shareA),-C.speed,C.speed);
+  qb.vy=clamp(qb.vy+ny*impulse*(1-shareA),-C.speed,C.speed);
+ }
+}
 function collide(s,players,dt){
- window.PartyCharacters.resolve(players,{radius:C.playerRadius,
-   bounds:{x:19,y:19,w:s.world.w-38,h:s.world.h-38},iterations:3,pressure:false});
- for(const p of players)cartPosition(s,p,dt);
- // Shopping carts cannot remain permanently inside one another. Resolve by
- // gently separating their owners, not by applying a self-collision impulse.
- for(let i=0;i<players.length;i++)for(let j=i+1;j<players.length;j++){
+ // 60 Hz host-authoritative simulation: stable for 1–12 mixed bot/human players.
+ // Exclude a cart's own owner; the two are attached at cartDistance.
+ for(let pass=0;pass<4;pass++){
+  const before=players.map(p=>({x:p.x,y:p.y}));
+  window.PartyCharacters.resolve(players,{radius:C.playerRadius,
+    bounds:{x:19,y:19,w:s.world.w-38,h:s.world.h-38},
+    iterations:1,maxShift:7,pressure:true,speedReference:C.speed});
+  for(let i=0;i<players.length;i++){
+   const p=players[i],q=p.shopping,dx=p.x-before[i].x,dy=p.y-before[i].y;
+   q.cartX=clamp(q.cartX+dx,20,s.world.w-20);
+   q.cartY=clamp(q.cartY+dy,20,s.world.h-20);
+  }
+  for(let i=0;i<players.length;i++)for(let j=i+1;j<players.length;j++){
    const a=players[i],b=players[j],ac=a.shopping,bc=b.shopping;
-   const dx=bc.cartX-ac.cartX,dy=bc.cartY-ac.cartY,d=length(dx,dy);
-   if(d>=C.cartRadius*2||d<1e-5)continue;
-   const shift=Math.min(4,(C.cartRadius*2-d)*.25),nx=dx/d,ny=dy/d;
-   let pos=constrain(s,a,a.x-nx*shift,a.y-ny*shift);a.x=pos.x;a.y=pos.y;
-   pos=constrain(s,b,b.x+nx*shift,b.y+ny*shift);b.x=pos.x;b.y=pos.y;
-   cartPosition(s,a,dt);cartPosition(s,b,dt);
+   shoppingContact(s,a,b,ac.cartX,ac.cartY,bc.cartX,bc.cartY,C.cartRadius*2,pass);
+   shoppingContact(s,a,b,ac.cartX,ac.cartY,b.x,b.y,C.cartRadius+C.playerRadius,pass);
+   shoppingContact(s,a,b,a.x,a.y,bc.cartX,bc.cartY,C.playerRadius+C.cartRadius,pass);
+  }
  }
 }
 function spawn(s,l){
