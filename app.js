@@ -764,6 +764,28 @@ function toggleInfiniteBotItems(){
  bp.debugUnlimitedItems=true;bp.actionIndex=0;bp.bagMessage='';
  renderBotTestPad();return true;
 }
+// Read-only scene inspection is ONLY for the all-bot local host and GHOST ATTACK.
+function canInspectGhostMap(){
+ return currentView==='game'&&round?.mode==='ghost'&&!!round.ghost&&
+  !gameSelection&&!['results','summary'].includes(round.phase)&&canUseBotTest();
+}
+function renderGhostMapInspector(){
+ const eligible=canInspectGhostMap(),state=round?.ghost;
+ const active=eligible&&!!state.showObstacleIds;
+ $('botGhostIdsBtn').classList.toggle('hidden',!eligible);
+ $('botGhostIdsBtn').setAttribute('aria-pressed',String(active));
+ $('ghostMapInspector').classList.toggle('hidden',!active);
+ if(!active)return;
+ const info=window.GhostAttack.mapInfo(round);
+ $('ghostMapName').textContent='GHOST ATTACK · '+info.name;
+ $('ghostMapDetails').textContent='แมพ '+info.id+' · '+info.width+' × '+info.height+
+  ' · สิ่งกีดขวาง '+info.count+' ชิ้น';
+ const prop=state.obstacles.find(o=>o.id===state.selectedObstacleId);
+ $('ghostObjectDetails').textContent=prop?
+  'ID '+prop.id+' · '+prop.kind+' (แบบ '+(prop.variant||0)+') · X '+Math.round(prop.x)+
+  ' Y '+Math.round(prop.y)+' · '+Math.round(prop.w)+' × '+Math.round(prop.h):
+  'แตะวัตถุบนแมพเพื่อดู ID ประเภท พิกัดและขนาด';
+}
 function renderBotTestPad(){
  const el=$('botTestPad');if(!el)return;
  const eligible=canUseBotTest(),active=eligible&&!!possessedBotId&&!!players.find(p=>p.id===possessedBotId);
@@ -781,8 +803,39 @@ function renderBotTestPad(){
  $('botUnlimitedBtn').setAttribute('aria-pressed',String(!!botUnlimitedBackup));
  $('botUnlimitedBtn').disabled=board&&round?.phase!=='playing';
  $('botTestName').textContent=players.find(p=>p.id===possessedBotId)?.name||'';
+ renderGhostMapInspector();
 }
 function bindHostBotPad(){
+ $('botGhostIdsBtn').addEventListener('click',()=>{
+  if(!canInspectGhostMap())return;
+  const state=round.ghost;
+  state.showObstacleIds=!state.showObstacleIds;
+  state.selectedObstacleId=null;
+  renderGhostMapInspector();
+  drawGame(graphicsClock);
+ });
+ // Tap a prop on the host arena: map screen pixels to collision coordinates.
+ // Ignore drags, multi-finger gestures and taps outside the actual arena.
+ const ghostTapStarts=new Map();
+ canvas.addEventListener('pointerdown',e=>{
+  if(canInspectGhostMap()&&round.ghost.showObstacleIds)
+   ghostTapStarts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ });
+ canvas.addEventListener('pointerup',e=>{
+  const start=ghostTapStarts.get(e.pointerId);ghostTapStarts.delete(e.pointerId);
+  if(!start||!canInspectGhostMap()||!round.ghost.showObstacleIds||
+   Math.hypot(e.clientX-start.x,e.clientY-start.y)>10)return;
+  const rect=arenaContentRect(canvas.getBoundingClientRect());
+  const px=(e.clientX-rect.left)/rect.scale,py=(e.clientY-rect.top)/rect.scale;
+  if(px<0||px>960||py<0||py>540)return;
+  const world=round.ghost.world;
+  const hit=window.GhostAttack.obstacleAt(round,px*world.w/960,py*world.h/540);
+  round.ghost.selectedObstacleId=hit?.id||null;
+  renderGhostMapInspector();
+  drawGame(graphicsClock);
+ });
+ for(const ev of ['pointercancel','lostpointercapture'])
+  canvas.addEventListener(ev,e=>ghostTapStarts.delete(e.pointerId));
  $('botPossessBtn').addEventListener('click',()=>{
   const first=players.find(p=>p.type==='local'&&p.isBot);
   if(first)possessBot(first.id);
@@ -2957,6 +3010,8 @@ function beginGameSelection(mode){
   const stage=$('gameRoulette'),track=$('rouletteTrack');
   track.replaceChildren();
   const width=Math.min(210,Math.max(130,Math.round((window.innerWidth||960)*.19)));
+  // The green center frame and the selected game card share exactly one width.
+  stage.style.setProperty('--roulette-card-width',width+'px');
   const gap=Math.round(width*.085);
   const winningIndex=9,totalCards=12;
   let previous=null,winner=null;
