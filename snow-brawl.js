@@ -366,7 +366,8 @@ function step(dt,round,ps){
  s.clock+=dt;s.tick++;
  if(s.clock>=C.suddenDeathTime&&!s.solo){
   s.suddenDeath=true;
-  s.radius=Math.max(68,s.baseRadius-(s.clock-C.suddenDeathTime)*C.shrinkSpeed);
+  s.radius=Math.max(0,s.baseRadius-(s.clock-C.suddenDeathTime)*C.shrinkSpeed);
+  // Finish is guaranteed even if 12 bots refuse to leave the center.
  }
  // Snapshot player positions for continuous swept ball/player collision.
  for(const p of alive(ps)){p.snow.oldX=p.x;p.snow.oldY=p.y;}
