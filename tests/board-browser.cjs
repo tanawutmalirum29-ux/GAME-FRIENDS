@@ -271,6 +271,33 @@ async function main(){
   }
   await host.evaluate(()=>{const s=__boardTest.board;s.players[0].bag=['potion'];s.players[0].item='potion';s.players[0].hp=50;s.players[0].currentNodeId='n1';s.players[0].worldPosition=null;s.rng=()=>0;});
   await refreshPhone();await noScroll(phone);await phone.screenshot({path:path.join(out,'phone.png')});
+   // Double-tapping the existing joystick before rolling closes the bag
+   // and engages map drag/pinch; the second double-tap restores the SAME slot.
+   assert.equal(await phone.evaluate(()=>controllerBoard?.boardPhase),'ready');
+   assert.equal(await phone.locator('#controllerInventory').isVisible(),true);
+   const slotBefore=await host.evaluate(()=>__boardTest.board.players[0].actionIndex);
+   async function doubleTapReadyJoystick(){
+    await phone.evaluate(()=>{
+     const zone=document.getElementById('joystickZone'),box=zone.getBoundingClientRect(),
+      x=box.left+box.width/2,y=box.top+box.height/2;
+     for(let i=0;i<2;i++){
+      const id=201+i;
+      zone.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,pointerId:id,clientX:x,clientY:y,pointerType:'touch',isPrimary:true}));
+      zone.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,cancelable:true,pointerId:id,clientX:x,clientY:y,pointerType:'touch',isPrimary:true}));
+     }
+    });
+   }
+   await doubleTapReadyJoystick();
+   assert.equal(await phone.locator('#controllerInventory').isVisible(),false,'pre-roll bag closes in map inspection');
+   assert.equal(await phone.locator('#joystickZone').evaluate(e=>e.classList.contains('board-camera-mode')),true);
+   assert.equal(await phone.evaluate(()=>__boardPackets.some(p=>p.t==='board-camera-mode'&&p.enabled===true)),true);
+   await tap('#buttonA');
+   assert.equal(await phone.evaluate(()=>__boardPackets.filter(p=>p.t==='input').at(-1)?.keys.action),false,
+    'button A cannot roll while camera inspection is active');
+   await doubleTapReadyJoystick();
+   assert.equal(await phone.locator('#controllerInventory').isVisible(),true,'double-tap returns to backpack');
+   assert.equal(await phone.locator('#joystickZone').evaluate(e=>e.classList.contains('board-camera-mode')),false);
+   assert.equal(await host.evaluate(()=>__boardTest.board.players[0].actionIndex),slotBefore,'inspect does not change selected item');
   assert.match(await phone.locator('#buttonBLabel').innerText(),/เปลี่ยนไอเทม/);await tap('#buttonB');
   await refreshPhone();assert.match(await phone.locator('#buttonALabel').innerText(),/ใช้ไอเทม/);
   await tap('#buttonA');assert.equal(await host.evaluate(()=>__boardTest.board.players[0].hp),100);
