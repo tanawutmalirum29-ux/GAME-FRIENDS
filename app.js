@@ -676,7 +676,6 @@ function renderRoster(){
   const nextChoice=choices[(choices.indexOf(firstBotChoice)+1)%choices.length];
   changeAll.classList.toggle('hidden',bots.length===0||selectedSessionMode==='board');
   document.body.classList.toggle('board-lobby',selectedSessionMode==='board');
-  $('boardLobbyNote').classList.toggle('hidden',selectedSessionMode!=='board');
   changeAll.disabled=bots.length===0||!!round;
   changeAll.textContent='เปลี่ยนบอท '+bots.length+' ตัว → '+MODES[nextChoice];
   changeAll.setAttribute('aria-label','ตั้งเกมบอททุกตัวเป็น '+MODES[nextChoice]);
