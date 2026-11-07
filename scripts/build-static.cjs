@@ -2,6 +2,7 @@
 'use strict';
 const fs=require('node:fs');
 const path=require('node:path');
+const crypto=require('node:crypto');
 const {execFileSync}=require('node:child_process');
 const root=path.resolve(process.env.GAME_BUILD_ROOT||path.join(__dirname,'..'));
 function getCommit(){
@@ -24,7 +25,7 @@ let html=fs.readFileSync(indexPath,'utf8');
 const assets=['style.css','arena-art.js','graveyard-art.js','combat-motion.js',
  'player-avatar.js','character-system.js','party-ui-art.js','ghost-attack.js','chickens.js','fruit-memory.js','shockwave.js','color-switch-mayan.js','color-switch.js','pizza-ingredient-art.js','pizza-time.js','knight-match.js','boulder-bash.js','snow-brawl.js','board-map.js','board-dice.js','board-dice-renderer.js','board-items.js','board-bots.js','board-minigame.js','board-party.js','board-art.js','app.js','auto-update.js','build-version.js',
  'assets/game-friends-cover.svg','assets/game-friends-icon.svg',
- 'assets/game-friends-touch-icon.png','manifest.webmanifest'];
+ 'assets/game-friends-touch-icon.png','manifest.webmanifest','offline-cache.js'];
 const seen=new Set();
 html=html.replace(/\b(src|href)="(\.\/[^"?]+)(?:\?v=[^"]*)?"/g,
  (raw,attr,url)=>{
@@ -35,4 +36,18 @@ html=html.replace(/\b(src|href)="(\.\/[^"?]+)(?:\?v=[^"]*)?"/g,
  });
 for(const asset of assets)if(!seen.has(asset))throw Error('Missing build asset: '+asset);
 fs.writeFileSync(indexPath,html);
+// Hash actual file bytes: unchanged game modules keep their cache key across deploys.
+const offlineFiles=[...new Set([...assets,'index.html','host.html','host.webmanifest'])];
+const files=offlineFiles.map(file=>{
+ const filename=path.join(root,file);
+ if(!fs.existsSync(filename))throw Error('Missing offline asset: '+file);
+ return {path:file,hash:crypto.createHash('sha256').update(fs.readFileSync(filename)).digest('hex').slice(0,24)};
+});
+fs.writeFileSync(path.join(root,'offline-assets.json'),JSON.stringify({version:id,files})+'\n');
+// The worker's source changes per release, so registration.update() detects new builds.
+const workerPath=path.join(root,'service-worker.js');
+const worker=fs.readFileSync(workerPath,'utf8').replace(
+ /const BUILD_ID='(?:__GAME_BUILD_ID__|[a-z0-9._-]{7,64})';/,
+ 'const BUILD_ID='+JSON.stringify(id)+';');
+fs.writeFileSync(workerPath,worker);
 process.stdout.write('Static deploy '+id.slice(0,12)+'\n');
