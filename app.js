@@ -79,6 +79,8 @@ let disconnectRequested=false;
 const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
 const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
 const seatTimers=new Map();let reconnectTimer=null,reconnectTries=0;
+// An obsolete PeerJS retry must never reopen a room that was closed.
+let hostOpenAttempt=0,hostRetryTimeout=null;
 function getSession(k){try{return JSON.parse(sessionStorage.getItem(k)||'null')}catch(_){return null}}
 function putSession(k,v){try{sessionStorage.setItem(k,JSON.stringify(v));return !!sessionStorage.getItem(k)}catch(_){return false}}
 function deleteSession(k){try{sessionStorage.removeItem?.(k)}catch(_){}}
@@ -839,7 +841,9 @@ bindHostBotPad();
 function resetInputs(){
   players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
 }
-function closeHost(){
+function closeHost({goHome=true}={}){
+  ++hostOpenAttempt;
+  if(hostRetryTimeout!==null){clearTimeout(hostRetryTimeout);hostRetryTimeout=null;}
   releaseBotPossession();
   stopAllHostVideoCalls();
   for(const id of [...seatTimers.keys()])cancelSeat(id);
@@ -848,9 +852,15 @@ function closeHost(){
   $('hostRoomBadge').textContent='ห้องปิดแล้ว';
   hostConnections.forEach(c=>{send(c,{t:'closed'});try{c.close();}catch(e){}});
   hostConnections.clear();
-  if(hostPeer){try{hostPeer.destroy();}catch(e){}hostPeer=null;}
+  if(hostPeer){const oldPeer=hostPeer;hostPeer=null;try{oldPeer.destroy();}catch(e){}}
   for(const p of players.filter(p=>p.type==='remote')){players.splice(players.indexOf(p),1);}
-  tournament=null;gameSelection=null;round=null;$('gameRoulette').classList.add('hidden');renderRoster();setStatus('พร้อมเล่น');
+  tournament=null;gameSelection=null;round=null;boardSession=null;boardStateToken=null;
+  document.body.classList.remove('board-playing');
+  $('boardTools').classList.add('hidden');
+  $('gameRoulette').classList.add('hidden');$('pauseMenu').classList.add('hidden');
+  renderRoster();setStatus('พร้อมเล่น');
+  // A closed room has no usable QR code or seats: return to the host HOME.
+  if(goHome&&(currentView==='hostLobby'||currentView==='game'))setView('home');
 }
 function shareUrl(code){
   const u=new URL(window.location.href);
@@ -865,17 +875,24 @@ function renderQr(code){
   }
   box.textContent='QR ไม่พร้อม กรุณาคัดลอกลิงก์';
 }
-function startHost(retries=0,resumeCode=null){
+function startHost(retries=0,resumeCode=null,expectedAttempt=null){
+  if(expectedAttempt!==null&&expectedAttempt!==hostOpenAttempt)return;
   if(onlineHost){setView('hostLobby');return;}
-  if(typeof Peer!=='function'){setStatus('โหลดระบบเชื่อมต่อไม่สำเร็จ',true);showToast('ยังโหลด PeerJS ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วโหลดหน้าใหม่',true);return;}
-  if(location.protocol==='file:'){showToast('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย',true);return;}
+  if(typeof Peer!=='function'){
+    closeHost();setStatus('โหลดระบบเชื่อมต่อไม่สำเร็จ',true);
+    showToast('ยังโหลด PeerJS ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วโหลดหน้าใหม่',true);return;
+  }
+  if(location.protocol==='file:'){
+    closeHost();showToast('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย',true);return;
+  }
+  const attempt=expectedAttempt??++hostOpenAttempt;
   const code=resumeCode||randomCode();
   if(!resumeCode)deleteSession(OFFLINE_SESSION);
   $('hostBtn').disabled=true;setStatus('กำลังสร้างห้อง...');
   const peer=new Peer('gf-party-'+code,{debug:0});
   hostPeer=peer;
   peer.on('open',()=>{
-    if(hostPeer!==peer)return;
+    if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
     roomCode=code;onlineHost=true;$('roomCode').textContent=code;
     deleteSession(OFFLINE_SESSION);
     $('roomPanel').classList.remove('hidden');$('offlineRoomHint').classList.add('hidden');
@@ -984,17 +1001,30 @@ function startHost(retries=0,resumeCode=null){
     }
     conn.on('close',lost);conn.on('error',lost);
   });
-  peer.on('disconnected',()=>setStatus('สัญญาณเซิร์ฟเวอร์ขาดชั่วคราว',true));
+  peer.on('disconnected',()=>{
+    if(hostPeer===peer&&attempt===hostOpenAttempt)
+      setStatus('สัญญาณเซิร์ฟเวอร์ขาดชั่วคราว',true);
+    // A temporary signaling disconnect is not a room closure.
+  });
+  peer.on('close',()=>{
+    if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
+    closeHost();
+    showToast('ห้องปิดแล้ว • กลับหน้าหลัก',true);
+  });
   peer.on('error',err=>{
-    if(hostPeer!==peer)return;
+    if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
     if(err.type==='unavailable-id'&&retries<(resumeCode?12:3)){
-      try{peer.destroy()}catch(_){}
-      hostPeer=null;setTimeout(()=>startHost(retries+1,resumeCode),resumeCode?1200+retries*350:250);
+      hostPeer=null;try{peer.destroy()}catch(_){}
+      hostRetryTimeout=setTimeout(()=>{
+        hostRetryTimeout=null;
+        if(attempt===hostOpenAttempt)startHost(retries+1,resumeCode,attempt);
+      },resumeCode?1200+retries*350:250);
       return;
     }
-    setStatus('เปิดห้องไม่สำเร็จ: '+(err.type||'network'),true);
-    if(resumeCode){$('hostBtn').disabled=false;showToast('คืนห้องเดิมไม่ได้ ลองโหลดใหม่',true)}
-    else{closeHost();setStatus('เปิดห้องไม่สำเร็จ',true)}
+    const type=err?.type||'network';
+    closeHost(); // Clears stale saved sessions, peers, board and lobby view.
+    setStatus('เปิดห้องไม่สำเร็จ: '+type,true);
+    showToast(resumeCode?'คืนห้องเดิมไม่ได้ • กลับหน้าหลัก':'เปิดห้องไม่สำเร็จ • กลับหน้าหลัก',true);
   });
 }
 function copyInvite(){
@@ -3002,7 +3032,7 @@ function advanceParty(){
   }else beginParty();
 }
 function openOfflineLobby(){
- if(onlineHost)closeHost();
+ if(onlineHost||hostPeer||hostRetryTimeout!==null)closeHost({goHome:false});
  deleteSession(HOST_SESSION);
  if(!players.length){addLocal();addLocal();}
  $('hostRoomBadge').textContent='OFFLINE';
@@ -3016,7 +3046,7 @@ $('offlineBtn').addEventListener('click',()=>{
 });
 $('startBtn').addEventListener('click',beginParty);
 function closeHostRoom(){
- if(onlineHost)closeHost();
+ if(onlineHost||hostPeer||hostRetryTimeout!==null)closeHost();
  deleteSession(HOST_SESSION);deleteSession(OFFLINE_SESSION);
  boardSession=null;document.body.classList.remove('board-playing');
  tournament=null;round=null;setView('home');
@@ -3186,7 +3216,9 @@ function restoreRoomOptions(snapshot){
 if(launchedHost&&!joinCode){
  if(savedHost&&parseRoomCode(savedHost.code)){
   restoreRoomOptions(savedHost);
-  setView('hostLobby');renderRoster();
+  // Keep HOME visible until PeerJS confirms the restored room actually opens.
+  // Never reveal a ghost "ห้องปิดแล้ว" lobby during failed restoration.
+  setView('home');renderRoster();
   startHost(0,savedHost.code);
  }else if(savedOffline&&Array.isArray(savedOffline.players)){
   restoreRoomOptions(savedOffline);
