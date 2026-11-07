@@ -16,8 +16,8 @@ function pickUnusedColor(){
   lastAssignedColor = color;
   return color;
 }
-const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH'};
-const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch',pizza_time:'PizzaTime',knight_match:'KnightMatch'};
+const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH'};
+const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch',pizza_time:'PizzaTime',knight_match:'KnightMatch',boulder_bash:'BoulderBash'};
 const gameEngine=mode=>mode==='board'?BOARD_ENGINE:Object.hasOwn(ENGINES,mode)?window[ENGINES[mode]]:null;
 const BOARD_ENGINE={draw:(g,t)=>window.BoardArt.draw(g,t,boardSession),hud:()=>({survivors:boardSession?.players.length||0})};
 
@@ -39,6 +39,7 @@ const MODE_COVER_SVG={
  ,shockwave:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#10263c"/><g fill="#28778a" stroke="#a4eaf5" stroke-width="1.5"><path d="M12 23h41v27H12zM60 23h41v27H60zM108 23h40v27h-40zM12 55h41v26H12zM60 55h41v26H60z"/></g><path d="M108 55h40v26h-40z" fill="#df4855" stroke="#ffcd82" stroke-width="3"/><path d="m115 62 9 12-11 4m11-4 14-12" fill="none" stroke="#ffe0bb" stroke-width="3"/><circle cx="79" cy="9" r="7" fill="#ffdc9b"/><path d="M76 17h8l8 10-6 5-6-7-7 8-8-5z" fill="#ffe18a"/></svg>'
  ,color_switch:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#3a754f"/><rect x="21" y="6" width="118" height="77" rx="6" fill="#6c4838" stroke="#edd49d" stroke-width="4"/><g stroke="#3e2c35" stroke-width="1.5"><path d="M22 25h116M22 44h116M22 63h116M45 7v75M68 7v75M91 7v75M114 7v75"/></g><path d="M24 9h19v14H24zM47 27h19v15H47zM70 46h19v15H70zM93 27h19v15H93zM116 65h20v15h-20z" fill="#4de4d1"/><path d="M70 9h19v14H70zM116 27h20v15h-20zM24 46h19v15H24zM93 65h19v15H93z" fill="#ff6b9c"/><rect x="96" y="12" width="17" height="15" rx="3" fill="#9e6ff7"/><path d="m104 14 2 4 5 1-4 3 1 4-4-2-4 2 1-4-3-3 5-1Z" fill="#ffe27c"/><circle cx="58" cy="53" r="7" fill="#ffeb79"/><path d="M54 48h8l2 13H52z" fill="#f8dfaa"/><text x="80" y="87" font-size="11" font-weight="900" text-anchor="middle" fill="#fff">COLOR SWITCH</text></svg>'
  ,knight_match:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#42734b"/><circle cx="81" cy="47" r="39" fill="#b58c53" stroke="#e4c28d" stroke-width="5"/><g fill="#eead69" stroke="#fff1ce" stroke-width="1.5"><circle cx="51" cy="37" r="7"/><circle cx="107" cy="27" r="7"/><circle cx="105" cy="64" r="7"/></g><g transform="translate(79 45) rotate(-22)"><ellipse cx="0" cy="4" rx="23" ry="10" fill="#9b6b49"/><circle cx="15" cy="0" r="8" fill="#c18b5d"/><path d="m-7-3 10-11 11 6-2 13z" fill="#b8d5e2"/><path d="M-2 3 57 3" stroke="#fff2d4" stroke-width="5"/><path d="m59-2 11 5-11 5z" fill="#e1f1f7"/><path d="m9-11 3-8 7 1-1 11z" fill="#ef789d"/></g><text x="80" y="84" text-anchor="middle" font-size="12" font-weight="900" fill="#fff8e9">KNIGHT MATCH</text></svg>'
+ ,boulder_bash:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><defs><linearGradient id="bbSnow"><stop stop-color="#f6ffff"/><stop offset="1" stop-color="#86c0e3"/></linearGradient></defs><rect width="160" height="90" rx="9" fill="#16445e"/><path d="M9 11h142v67H9z" fill="url(#bbSnow)"/><path d="M12 15v62" stroke="#547b94" stroke-width="9"/><circle cx="120" cy="35" r="18" fill="#657c90" stroke="#e9f7fa" stroke-width="3"/><path d="m110 30 8-6 9 8-3 11-11 2" fill="none" stroke="#354f65" stroke-width="3"/><g fill="#fda97c" stroke="#234c69" stroke-width="2"><circle cx="37" cy="41" r="7"/><circle cx="55" cy="56" r="7"/></g><text x="80" y="85" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">BOULDER BASH</text></svg>'
  ,pizza_time:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" class="mode-cover-svg" aria-hidden="true"><rect width="160" height="90" rx="10" fill="#d99e77"/><rect x="5" y="5" width="150" height="80" rx="5" fill="#edc7b0"/><rect x="14" y="20" width="39" height="50" rx="4" fill="#855438"/><rect x="107" y="20" width="39" height="50" rx="4" fill="#855438"/><circle cx="80" cy="43" r="24" fill="#ebba64" stroke="#f7dfb2" stroke-width="4"/><circle cx="72" cy="35" r="6" fill="#e54d48"/><circle cx="90" cy="48" r="6" fill="#e54d48"/><path d="M62 48q8-8 17 2 9 8 19-4" stroke="#59ba64" stroke-width="5" fill="none"/><text x="80" y="84" text-anchor="middle" font-size="13" font-weight="900" fill="#332d25">PIZZA TIME</text></svg>'
 };
 function gameCover(mode){
@@ -526,6 +527,13 @@ function sendPlayerInventory(conn){
      !['countdown','playing','paused'].includes(networkPhase()))return;
   const p=players.find(q=>q.id===conn.playerId);
   if(!p)return;
+  if(round.mode==='boulder_bash'){
+    const b=p.bb||{};
+    send(conn,{t:'boulder-status',mode:round.mode,phase:networkPhase(),
+      status:b.mode||'alive',cooldown:b.pushCooldown||0,
+      survivorCount:round.boulderBash?.roster.filter(q=>q.active&&q.bb?.alive).length||0});
+    return;
+  }
   if(round.mode==='pizza_time'){
     const status=window.PizzaTime.playerStatus(p);
     if(status)send(conn,{t:'pizza-status',phase:networkPhase(),...status});
@@ -1363,7 +1371,18 @@ function joinRoom(recovery=false){
           if(data.eliminated)$('controllerState').textContent='ตกรอบ • ดูการแข่งขันต่อ';
           else if(data.stun>0)$('controllerState').textContent='ถูกสตั้น • '+Number(data.stun).toFixed(1)+' วิ';
         }
-      }else if(data.t==='shockwave-status'){
+       }else if(data.t==='boulder-status'){
+         if(controllerReady&&controllerGameMode==='boulder_bash'&&data.mode==='boulder_bash'){
+           const mode=data.status||'alive',cd=Math.max(0,Number(data.cooldown)||0);
+           $('buttonA').disabled=mode!=='alive';
+           $('buttonA').classList.toggle('cooldown-active',mode==='alive'&&cd>.03);
+           $('buttonA').style.setProperty('--cooldown-sweep',Math.round(Math.min(1,cd/.6)*360)+'deg');
+           $('controllerRole').textContent=mode==='rock'?'หินสีของคุณ':mode==='alive'?'ผู้รอดชีวิต':'ตกรอบ';
+           $('controllerState').textContent=mode==='rock'?'กำลังควบคุมหิน • เลี้ยวด้วยอนาล็อก':
+             mode==='spectator'?'ตกรอบ • รอโอกาสเกิดเป็นหิน':
+             'หลบหิน • A ผลัก • เหลือ '+data.survivorCount+' คน';
+         }
+       }else if(data.t==='shockwave-status'){
          if(controllerReady&&controllerGameMode==='shockwave'&&data.mode==='shockwave'){
             controllerPlayerEliminated=!!data.eliminated;
             $('controllerState').textContent=data.eliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • WAVE '+data.wave;
@@ -1395,7 +1414,7 @@ function joinRoom(recovery=false){
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
+          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
         if(data.mode==='board'&&data.phase==='playing')renderPhoneBoard();
       }else if(data.t==='closed'){
@@ -1430,7 +1449,7 @@ function controllerDisconnected(){
  retryPhone();
 }
 function isLiveGameContext(){
-  return controllerReady&&controllerPlayerActive&&['ghost','pizza_time','board'].includes(controllerGameMode)&&
+  return controllerReady&&controllerPlayerActive&&['ghost','pizza_time','board','boulder_bash'].includes(controllerGameMode)&&
     ['countdown','playing','paused'].includes(controllerGamePhase);
 }
 function setControllerGameContext(mode,phase,active){
@@ -1469,13 +1488,13 @@ function showControllerMode(mode){
   const playing=controllerReady&&controllerPlayerActive&&
     ['countdown','playing','paused'].includes(controllerGamePhase);
   const ghost=playing&&mode==='ghost',chickens=playing&&mode==='chickens';
-  const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave',colorSwitch=playing&&mode==='color_switch',knight=playing&&mode==='knight_match';
+  const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave',colorSwitch=playing&&mode==='color_switch',knight=playing&&mode==='knight_match',boulder=playing&&mode==='boulder_bash';
   const voting=controllerReady&&['results','summary'].includes(controllerGamePhase)&&controllerPlayerActive;
   const aLabel=voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
     controllerResultVotes.nextLabel)+
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
-    ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':colorSwitch?'ต่อย':knight?'แทงทวน':'';
+    ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':colorSwitch?'ต่อย':knight?'แทงทวน':boulder?'ผลัก':'';
   const bLabel=voting?controllerResultVotes.backLabel+' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
     ghost?($('controllerButtons').classList.contains('has-target')?
     'ยืนยันสโลว์':'ใช้ไอเทม'):colorSwitch?'ระเบิดสี':'';
@@ -1506,6 +1525,7 @@ function showControllerMode(mode){
     fruit?'จำผลไม้แล้ววิ่งไปยังช่องที่ถูกต้อง • ดันกันได้ • A ต่อยให้สตั้น':
     colorSwitch?'วิ่งทาสีสะสมคะแนน • A ต่อยสตั้น • B ระเบิดสี 3×3 • เก็บกล่องทองสะสมคะแนน':
      shockwave?'แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง':
+     mode==='boulder_bash'?'ทางลาดหิมะลื่น • A ผลักโดยไม่สตั้น • หลบหินจากขวา • ตกรอบแล้วมีโอกาสบังคับหิน':
      mode==='knight_match'?'ควบม้าใช้ทวนแทงลูกโป่งสีตัวเอง +1 สีอื่น -1 • A แทง / B ไม่ใช้':
       mode==='pizza_time'?'รับวัตถุดิบทีละชิ้น กลับไปส่งเชฟ • เดินรับชนิดใหม่เพื่อเปลี่ยนของ • A/B ไม่ใช้':
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
@@ -1944,7 +1964,7 @@ function startRound(forcedMode=null){
     return;
   }
   $('results').querySelector('.eyebrow').textContent=MODES[mode];
-  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ทำคะแนนสูงสุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':'จับไก่ให้ได้มากที่สุด!';
+  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ทำคะแนนสูงสุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':mode==='boulder_bash'?'ผู้รอดชีวิตคนสุดท้าย!':'จับไก่ให้ได้มากที่สุด!';
   // Countdown and player count now live in the solid map-corner HUD.
   $('gameBanner').textContent='';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
@@ -2177,6 +2197,7 @@ function endRound(){
   // After returning to the board, any delayed minigame "end" callback must
   // not open the normal results page a second time.
   if(boardSession&&round.mode==='board')return;
+   if(round.mode==='boulder_bash'){endBoulderBashRound();return;}
    if(round.mode==='pizza_time'){endPizzaTimeRound();return;}
    if(round.mode==='knight_match'){endKnightMatchRound();return;}
    if(round.mode==='color_switch'){endColorSwitchRound();return;}
@@ -2275,6 +2296,43 @@ function endShockwaveRound(){
  $('results').classList.remove('hidden');$('gameBanner').textContent='';
   beginResultVoting();
   renderLeaderboard();
+}
+function endBoulderBashRound(){
+ const s=round.boulderBash,byId=new Map(s.ranking.map(r=>[r.id,r]));
+ round.phase='results';round.paused=false;resetInputs();broadcastRoster();
+ $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
+ const ranked=players.filter(p=>p.active).sort((a,b)=>(byId.get(a.id)?.rank||99)-(byId.get(b.id)?.rank||99));
+ const winners=ranked.filter(p=>s.winnerIds.includes(p.id));
+ awardRoundPoints(ranked,p=>byId.get(p.id)?.rank||ranked.length);
+ round.autoNextRemaining=canAutoAdvanceResults()?7:0;
+ $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:
+   winners.length>1?'เสมอ • อันดับ 1 ร่วม':'ไม่มีผู้รอดชีวิต';
+ const list=$('resultList');list.replaceChildren();
+ const render=(people,useTotal=false)=>{
+   const score=p=>useTotal?p.total:-(byId.get(p.id)?.rank||ranked.length);
+   for(const p of people){
+     const rank=1+people.filter(q=>score(q)>score(p)).length;
+     const tied=people.some(q=>q!==p&&score(q)===score(p));
+     const row=document.createElement('div');row.className='result-player';
+     const name=document.createElement('div');name.style.color=p.color;
+     name.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
+     const note=document.createElement('span');
+     note.textContent=useTotal?p.total+' คะแนนรวม':
+       (p.bb?.alive?'รอดชีวิต':(p.bb?.eliminatedAt||0).toFixed(1)+' วินาที')+totalScoreNote(p);
+     row.append(name,note);list.append(row);
+   }
+ };
+ render(ranked);
+ if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
+   list.replaceChildren();const overall=[...ranked].sort((a,b)=>b.total-a.total);
+   render(overall,true);
+   const joint=overall.filter(p=>p.total===overall[0].total);
+   const heading=document.createElement('div');heading.className='tournament-header';
+   heading.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
+   list.prepend(heading);
+ }
+ $('results').classList.remove('hidden');$('gameBanner').textContent='';
+ beginResultVoting();renderLeaderboard();
 }
 function endColorSwitchRound(){
  const s=round.colorSwitch;
@@ -2497,7 +2555,22 @@ function renderLeaderboard(){
   root.style.setProperty('--leader-cols-compact',String(Math.min(6,count)));
   root.style.setProperty('--leader-rows','1');
   if(!round||round.mode==='board')return;
-  if(round.mode==='knight_match'){
+  if(round.mode==='boulder_bash'){
+     const ordered=[...active].sort((a,b)=>Number(b.bb?.alive)-Number(a.bb?.alive)||
+       (b.bb?.eliminatedTick||0)-(a.bb?.eliminatedTick||0));
+     for(const p of ordered){
+       const box=document.createElement('div');box.className='leader-chip';
+       if(!p.bb?.alive)box.classList.add('shockwave-eliminated');
+       const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
+       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+       const role=document.createElement('small');role.className='leader-role';
+       role.textContent=p.bb?.alive?'รอด':p.bb?.mode==='rock'?'ควบคุมหิน':'ตกรอบ';
+       const empty=document.createElement('span');empty.className='leader-item-slot';empty.textContent=' ';
+       box.append(dot,name,role,empty);root.append(box);
+     }
+     return;
+   }
+   if(round.mode==='knight_match'){
     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
       const box=document.createElement('div');box.className='leader-chip knight-leader';
       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
