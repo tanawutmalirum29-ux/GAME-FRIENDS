@@ -1775,7 +1775,7 @@ function beginBoard(){
 // players zoom only from their authenticated phones.
 function hostCanControlBoardZoom(){
  const s=boardSession,p=s&&window.BoardParty?.current(s);
- return !!(round?.mode==='board'&&round.phase==='playing'&&!round.paused&&p&&
+ return !!(round?.mode==='board'&&round.phase==='playing'&&p&&
    players.some(q=>q.id===p.id&&q.type==='local'&&!q.isBot)&&
    window.BoardArt?.canPan?.(s));
 }
@@ -2735,7 +2735,7 @@ $('boardOverviewBtn').addEventListener('click',()=>{
  window.BoardArt.overview(boardSession);refreshBoardTools();
 });
 $('boardStartDiceBtn').addEventListener('click',()=>{if(boardSession&&window.BoardParty.startOrder(boardSession))refreshBoardTools();});
-$('boardFollowBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom()){window.BoardArt.follow(boardSession);refreshBoardTools();}});
+$('boardFollowBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom()){window.BoardArt.follow(boardSession);if(round.paused)resumeGame();refreshBoardTools();}});
 $('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;refreshBoardTools();}});
 $('boardZoomInBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,1.25);});
 $('boardZoomOutBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,.8);});
