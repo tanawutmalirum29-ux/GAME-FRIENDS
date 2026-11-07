@@ -4,7 +4,7 @@
 'use strict';
 const TAU=Math.PI*2, STEP=1/60, CELL=24;
 const CONFIG=Object.freeze({small:{w:960,h:540},large:{w:1280,h:720},
-  speed:145,bodyRadius:17,bladeHalfWidth:21,bladeDepth:23,
+  speed:72.5,bodyRadius:17,mowerHalfWidth:22,mowerHalfLength:31,bladeHalfWidth:21,bladeDepth:23,
   smallDuration:30,largeDuration:60,sunValue:5});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const active=ps=>ps.filter(p=>p.active);
@@ -68,6 +68,7 @@ function award(s,p,tuft){
 function cutTuft(s,p,tuft){
  if(tuft.cut)return false;
  tuft.cut=true;s.cutTotal=(s.cutTotal||0)+1;
+ if(s.cutTotal===s.grass.length)s.grassExhausted=true;
  // A blade may change leaves that straddle a cached tile boundary.
  for(const ox of [-13,0,13])for(const oy of [-13,0,13])
   s.dirty.add(tileId(s,tuft.x+ox,tuft.y+oy));
@@ -151,6 +152,69 @@ function steer(p,input,dt){
  q.heading+=clamp(angleDiff(q.heading,direction),-dt*10,dt*10);
  return {x:Math.cos(q.heading)*strength,y:Math.sin(q.heading)*strength};
 }
+/* Physical chassis is 44x62 world units, matching the rendered mower/wheels.
+   Resolve both players and their machines, never only their center circles. */
+function mowerAxes(p){
+ const h=p.mower.heading,fx=Math.cos(h),fy=Math.sin(h);
+ return {fx,fy,sx:-fy,sy:fx};
+}
+function mowerExtents(p){
+ const v=mowerAxes(p),l=CONFIG.mowerHalfLength,w=CONFIG.mowerHalfWidth;
+ return {x:Math.abs(v.fx)*l+Math.abs(v.sx)*w,
+         y:Math.abs(v.fy)*l+Math.abs(v.sy)*w};
+}
+function constrainMower(s,p,x,y){
+ const e=mowerExtents(p),f=s.field;
+ return {x:clamp(x,f.x+e.x,f.x+f.w-e.x),
+         y:clamp(y,f.y+e.y,f.y+f.h-e.y)};
+}
+function mowerOverlap(a,b){
+ const av=mowerAxes(a),bv=mowerAxes(b),dx=b.x-a.x,dy=b.y-a.y;
+ const axes=[[av.fx,av.fy],[av.sx,av.sy],[bv.fx,bv.fy],[bv.sx,bv.sy]];
+ let best=null,minimum=Infinity;
+ for(const [x,y] of axes){
+  const ra=CONFIG.mowerHalfLength*Math.abs(av.fx*x+av.fy*y)+
+           CONFIG.mowerHalfWidth*Math.abs(av.sx*x+av.sy*y);
+  const rb=CONFIG.mowerHalfLength*Math.abs(bv.fx*x+bv.fy*y)+
+           CONFIG.mowerHalfWidth*Math.abs(bv.sx*x+bv.sy*y);
+  const projection=dx*x+dy*y,overlap=ra+rb-Math.abs(projection);
+  if(overlap<=1e-7)return null;
+  if(overlap<minimum){
+   const sign=projection<0?-1:1;
+   minimum=overlap;best={nx:x*sign,ny:y*sign,depth:overlap};
+  }
+ }
+ return best;
+}
+function resolveMowerCollisions(s,people){
+ const cars=people.filter(p=>p.active&&p.mower).slice()
+  .sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+ let contacts=0;
+ for(let pass=0;pass<18;pass++){
+  let worst=0;
+  for(let i=0;i<cars.length;i++)for(let j=i+1;j<cars.length;j++){
+   const a=cars[i],b=cars[j],hit=mowerOverlap(a,b);
+   if(!hit)continue;
+   const {nx,ny,depth}=hit;
+   worst=Math.max(worst,depth);contacts++;
+   const full=depth+.012;
+   const move=(p,d)=>{
+    const beforeX=p.x,beforeY=p.y;
+    const q=constrainMower(s,p,p.x+nx*d,p.y+ny*d);
+    p.x=q.x;p.y=q.y;
+    return (p.x-beforeX)*nx+(p.y-beforeY)*ny;
+   };
+   const aMove=move(a,-full*.5),bMove=move(b,full*.5);
+   let remaining=full-(bMove-aMove);
+   if(remaining>.0001){
+    remaining+=move(a,-remaining);
+    if(remaining>.0001)move(b,remaining);
+   }
+  }
+  if(worst<.00005)break;
+ }
+ return contacts;
+}
 function step(dt,round,ps){
  const s=round.lawnMower;if(!s||s.finished)return;
  dt=Math.min(Math.max(0,dt),s.remaining);
@@ -161,21 +225,26 @@ function step(dt,round,ps){
   from.set(p.id,{x:p.x,y:p.y});
   const input=p.isBot?botControl(s,p,dt):window.PartyCharacters.control(p.input);
   const dir=steer(p,input,dt);
-  window.PartyCharacters.move(p,dir,dt,{speed:CONFIG.speed,radius:CONFIG.bodyRadius,bounds:s.field,lockHeading:true});
+  const center=constrainMower(s,p,p.x,p.y);p.x=center.x;p.y=center.y;
+  window.PartyCharacters.move(p,dir,dt,{speed:CONFIG.speed,radius:CONFIG.bodyRadius,
+   bounds:s.field,boundaryRadius:0,constrain:(car,x,y)=>constrainMower(s,car,x,y),
+   lockHeading:true});
   p.dir={x:Math.cos(p.mower.heading),y:Math.sin(p.mower.heading)};
   p.face=p.dir.x<0?-1:1;
  }
- window.PartyCharacters.resolve(people,{radius:CONFIG.bodyRadius,bounds:s.field,iterations:7});
+ resolveMowerCollisions(s,people);
  for(const p of people){
   const v=from.get(p.id),q=p.mower;
-  q.velocity=Math.hypot(p.x-v.x,p.y-v.y)/dt;
-  // A stationary car pushed by another car doesn't activate its blades.
-  if(q.moving&&q.velocity>1)cutSwath(s,p,v.x,v.y);
+  p.vx=(p.x-v.x)/dt;p.vy=(p.y-v.y)/dt;
+  q.velocity=Math.hypot(p.vx,p.vy);
+  const advancing=(p.x-v.x)*Math.cos(q.heading)+(p.y-v.y)*Math.sin(q.heading);
+  if(q.moving&&q.velocity>1&&advancing>.035)cutSwath(s,p,v.x,v.y);
   q.previousX=p.x;q.previousY=p.y;
  }
  for(const e of s.effects)e.life-=dt;
  s.effects=s.effects.filter(e=>e.life>0);
- if(s.remaining<=1e-8)finish(s,round,people);
+ if(s.grassExhausted||s.cutTotal===s.grass.length)finish(s,round,people,'cleared');
+ else if(s.remaining<=1e-8)finish(s,round,people,'timeout');
 }
 function update(dt,round,ps){
  const s=round.lawnMower;if(!s)return null;
@@ -187,9 +256,10 @@ function update(dt,round,ps){
  }
  return s.finished?'winner':null;
 }
-function finish(s,round,ps){
+function finish(s,round,ps,reason){
  if(s.finished)return;
- s.finished=true;s.remaining=0;round.remaining=0;
+ s.finished=true;s.finishReason=reason||((s.cutTotal||0)>=s.grass.length?'cleared':'timeout');
+ s.remaining=0;round.remaining=0;
  const people=active(ps).sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
  s.ranking=people.map(p=>({id:p.id,score:p.score,rank:1+people.filter(t=>t.score>p.score).length}));
  const top=people[0]?.score??0;s.winnerIds=people.filter(p=>p.score===top).map(p=>p.id);
@@ -389,5 +459,5 @@ function draw(ctx,time,round,ps){
  ctx.restore();
 }
 window.LawnMower=Object.freeze({setup,update,draw,hud,playerStatus,step,finish,cutSwath,cutTuft,
-  spawnPositions,generateGrass,botControl,size,config:CONFIG});
+  spawnPositions,generateGrass,botControl,size,mowerOverlap,mowerExtents,constrainMower,resolveMowerCollisions,config:CONFIG});
 })();
