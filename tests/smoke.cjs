@@ -17,6 +17,7 @@ const pizzaArtSource=fs.readFileSync('pizza-ingredient-art.js','utf8');
 const pizzaSource=fs.readFileSync('pizza-time.js','utf8');
 const knightSource=fs.readFileSync('knight-match.js','utf8');
 const boulderSource=fs.readFileSync('boulder-bash.js','utf8');
+const snowSource=fs.readFileSync('snow-brawl.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const chickensSource=fs.readFileSync('chickens.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
@@ -155,6 +156,8 @@ assert.match(html,/src="\.\/party-ui-art\.js"/);
 assert.match(html,/src="\.\/pizza-time\.js"/);
 assert.match(html,/src="\.\/knight-match\.js"/);
 assert.match(html,/src="\.\/boulder-bash\.js"/);
+assert.match(html,/src="\.\/snow-brawl\.js"/);
+assert.match(html,/data-pick="snow_brawl"/);
 assert.match(html,/data-pick="boulder_bash"/);
 assert.match(html,/data-pick="knight_match"/);
 assert.match(html,/src=".\/color-switch\.js"/);
@@ -166,7 +169,7 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH'\}/);
+assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
@@ -1241,6 +1244,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(pizzaSource,scope,{filename:'pizza-time.js'});
   vm.runInContext(knightSource,scope,{filename:'knight-match.js'});
    vm.runInContext(boulderSource,scope,{filename:'boulder-bash.js'});
+  vm.runInContext(snowSource,scope,{filename:'snow-brawl.js'});
   for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-bots','board-minigame','board-party','board-art'])
     vm.runInContext(fs.readFileSync(name+'.js','utf8'),scope,{filename:name+'.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
@@ -1472,7 +1476,9 @@ assert.equal(online.scope.document.fullscreenExits,0);
   bulk.click('cycleAllBotsBtn');
   assert.ok(local.every(p=>p.choice==='boulder_bash'),'eighth game is BOULDER BASH');
    bulk.click('cycleAllBotsBtn');
-   assert.ok(local.every(p=>p.choice==='ghost'),'eighth game wraps back to ghost');
+   assert.ok(local.every(p=>p.choice==='snow_brawl'),'ninth game is SNOW BRAWL');
+    bulk.click('cycleAllBotsBtn');
+    assert.ok(local.every(p=>p.choice==='ghost'),'ninth game wraps back to ghost');
  // Individual selection remains independent; bulk applies the NEXT
  // game of the first bot, synchronizing any mixed bot choices.
  const choice=bulk.elements.get('roster').children[0].children[3];
@@ -1767,11 +1773,11 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  assert.equal(api.pickRandomEndlessGame(null,()=>0),'ghost');
  assert.equal(api.pickRandomEndlessGame('ghost',()=>0),'chickens',
    'previous game is excluded, not replayed at next spin');
- assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'boulder_bash',
+ assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'snow_brawl',
    'new random value changes the game instead of following fixed order');
  ui.click('startBtn');
  assert.equal(api.getTournament().endless,true);
- assert.equal(api.getTournament().schedule.length,8);
+ assert.equal(api.getTournament().schedule.length,9);
  const first=api.getSelection();
  assert.ok(first,'roulette appears immediately on start, before game engine');
  assert.equal(api.getRound().phase,'roulette');
@@ -1785,7 +1791,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  api.updateGameSelection(1.45);
  assert.equal(ui.elements.get('rouletteHeading').textContent,
    ({ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',
-     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH'})[first.mode]);
+     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL'})[first.mode]);
  assert.ok(first.winner.classList.contains('is-selected'));
  assert.equal(first.track.style.transform,'translate3d(-'+first.final.toFixed(2)+'px,0,0)',
    'winning card stops precisely in the middle');
@@ -2144,11 +2150,13 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,8);
+assert.equal(phone.pickButtons.length,9);
 assert.equal(phone.pickButtons[4].dataset.pick,'color_switch');
 assert.equal(phone.pickButtons[5].dataset.pick,'pizza_time');
 assert.equal(phone.pickButtons[6].dataset.pick,'knight_match');
 assert.equal(phone.pickButtons[7].dataset.pick,'boulder_bash');
+assert.equal(phone.pickButtons[8].dataset.pick,'snow_brawl');
+assert.match(phone.pickButtons[8].children[0].innerHTML,/<svg[\s>]/);
 assert.match(phone.pickButtons[4].children[0].innerHTML,/<svg[\s>]/);
 assert.equal(phone.pickButtons[4].children[1].textContent,'COLOR SWITCH');
 assert.equal(phone.pickButtons[2].dataset.pick,'fruit_memory');
@@ -2736,7 +2744,7 @@ for(const count of [1,12]){
  api.updateGameSelection(3.5); // BOARD reel: 2s spin + 1.4s result hold
  assert.equal(api.getSelection(),null);assert.notEqual(api.getRound().mode,'board');
  const saved=JSON.stringify(P.snapshot(s));
- for(const mode of ['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time','knight_match','boulder_bash']){
+ for(const mode of ['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time','knight_match','boulder_bash','snow_brawl']){
   P.phase(s,'minigame');api.startRound(mode);
   for(let i=0;i<30000&&api.getRound().mode!=='board';i++)api.updateRound(.05);
   assert.equal(api.getRound().mode,'board',mode+' must finish via the normal engine outcome');
@@ -2904,4 +2912,4 @@ for(const count of [1,12]){
  const count=conn.sent.length;state();assert.equal(conn.sent.length,count,'unchanged token does not echo inputs unnecessarily');
  ui.padZones.alt.fire('pointerdown',{pointerId:3});forward();assert.equal(s.skill.angle,Math.PI/4,'next B press rotates without waiting for a heartbeat');
 }
-console.log('BOARD INTEGRATION PASS: all six actual engines at 1/12 players, return, finish/replay, normal regression, step/shield packets, remote tokens, immediate button releases and reconnect');
+console.log('BOARD INTEGRATION PASS: all nine actual engines at 1/12 players, return, finish/replay, normal regression, step/shield packets, remote tokens, immediate button releases and reconnect');
