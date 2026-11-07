@@ -128,8 +128,72 @@
     const n=Math.abs(Number(variant)||0)%3;
     return getImage(`grave/${type}/${n}`,obstacleSVG(type,n));
   }
+
+  // Render GY-07 as ONE large overhead coffin, never repeated stone tiles.
+  function singleLargeCoffinSVG(){
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 77 133">'+
+      '<defs><linearGradient id="lid" x1="0" y1="0" x2="1" y2="1">'+
+      '<stop stop-color="#d9e4ee"/><stop offset=".44" stop-color="#8d9db5"/>'+
+      '<stop offset="1" stop-color="#526982"/></linearGradient></defs>'+
+      '<g data-art="single-large-coffin" data-view="top-down">'+
+      '<path d="M23 6 H54 L72 32 L65 119 L12 119 L5 32 Z"'+
+      ' transform="translate(1 6)" fill="#18283d" opacity=".78"/>'+
+      '<path d="M23 5 H54 L71 30 L64 121 L13 121 L6 30 Z"'+
+      ' fill="#455872" stroke="#d8e2ef" stroke-width="3" stroke-linejoin="round"/>'+
+      '<path d="M25 12 H52 L64 34 L58 112 L19 112 L13 34 Z"'+
+      ' fill="url(#lid)" stroke="#283c57" stroke-width="3"/>'+
+      '<path d="M28 19 H49 L57 39 L53 103 L24 103 L20 39 Z"'+
+      ' fill="#b5c5d7" opacity=".62" stroke="#f1f5fc" stroke-width="1.8"/>'+
+      '<path d="M38.5 31 V90 M24 54 H53" stroke="#304865" stroke-width="10"'+
+      ' stroke-linecap="round"/>'+
+      '<path d="M38.5 31 V90 M24 54 H53" stroke="#f5f1e0" stroke-width="5"'+
+      ' stroke-linecap="round"/>'+
+      '<circle cx="17" cy="37" r="2.4" fill="#f2daa2"/>'+
+      '<circle cx="60" cy="37" r="2.4" fill="#f2daa2"/>'+
+      '<circle cx="25" cy="109" r="2.4" fill="#f2daa2"/>'+
+      '<circle cx="52" cy="109" r="2.4" fill="#f2daa2"/>'+
+      '</g></svg>';
+  }
+  // GY-08: six genuinely raised soil mounds, each with a headstone ABOVE
+  // (towards the top of the board). Stone, dirt and grass are distinct.
+  function burialMoundsSVG(){
+    let plots='';
+    for(let row=0;row<3;row++)for(let col=0;col<2;col++){
+      const x=col===0?29:87,y=42+row*70;
+      plots+=
+        '<g data-grave-plot="raised-mound" transform="translate('+x+' '+y+')">'+
+        '<ellipse cx="0" cy="14" rx="24" ry="29" fill="#172b30" opacity=".5"/>'+
+        '<ellipse cx="0" cy="9" rx="23" ry="28" fill="#4c5b3f" stroke="#203c36" stroke-width="2.6"/>'+
+        '<ellipse cx="0" cy="4" rx="19" ry="24" fill="#786c4c" stroke="#9da37a" stroke-width="1.5"/>'+
+        '<ellipse cx="-4" cy="-2" rx="10" ry="15" fill="#b1a47c" opacity=".62"/>'+
+        '<path d="M-12 6 Q-1 15 12 4" stroke="#4a5945" stroke-width="2" fill="none"/>'+
+        '<path d="M-13 -26 Q-13 -37 0 -37 Q13 -37 13 -26 V-17 H-13 Z"'+
+        ' fill="#9aabb8" stroke="#30445b" stroke-width="2.5"/>'+
+        '<path d="M-8 -28 H8 M-7 -23 H7" stroke="#435872" stroke-width="1.8"/>'+
+        '<path d="M-14 -17 H14" stroke="#d1dce4" stroke-width="2"/>'+
+        '</g>';
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 116 228">'+
+      '<g data-art="burial-mounds" data-view="top-down">'+
+      '<rect x="1" y="1" width="114" height="226" rx="5" fill="#394b3e"'+
+      ' fill-opacity=".25" stroke="#637b67" stroke-opacity=".55" stroke-width="2"/>'+
+      plots+'</g></svg>';
+  }
+  function specialObstacleSVG(type){
+    if(type==='single-large-coffin')return singleLargeCoffinSVG();
+    if(type==='burial-mounds')return burialMoundsSVG();
+    return null;
+  }
+  function getSpecialObstacleImage(type){
+    const content=specialObstacleSVG(type);
+    return content?getImage('grave/special/'+type+'/v1',content):null;
+  }
   function ready(img){return !!(img&&img.complete&&img.naturalWidth>0);}
   function preload(players=[],theme='graveyard'){
+    if(theme==='graveyard'){
+      getSpecialObstacleImage('single-large-coffin');
+      getSpecialObstacleImage('burial-mounds');
+    }
     for(const kind of kindsForTheme(theme))
       for(let v=0;v<3;v++)getObstacleImage(kind,v);
     getLootImage(theme);
@@ -208,8 +272,20 @@
   }
   function drawObstacle(ctx,o){
     const kind=KINDS.includes(o.kind)?o.kind:KINDS[Math.abs(o.style||0)%KINDS.length];
-    const img=getObstacleImage(kind,o.variant||0);
+    const special=o.artType?getSpecialObstacleImage(o.artType):null;
+    const img=special||getObstacleImage(kind,o.variant||0);
     ctx.save();
+    if(o.artType&&special){
+      // Dedicated artwork spans the same rectangle as the obstacle hitbox.
+      // No tiling: GY-07 is one coffin; GY-08 has raised soil and headstones.
+      if(ready(img))ctx.drawImage(img,o.x,o.y,o.w,o.h);
+      else{
+        ctx.fillStyle='#536b73';ctx.fillRect(o.x,o.y,o.w,o.h);
+        ctx.strokeStyle='#a8c4cc';ctx.lineWidth=2;
+        ctx.strokeRect(o.x+1,o.y+1,o.w-2,o.h-2);
+      }
+      ctx.restore();return;
+    }
     if(o.monumentGroup){
       // Large solid monuments must not look like a single tombstone enlarged
       // to several times its normal proportions. Render tiled stone slabs
@@ -245,5 +321,5 @@
   window.GhostCemeteryArt=Object.freeze({KINDS,THEMES,GRAVEYARD_KINDS,
     EGYPT_KINDS,kindsForTheme,themeLabel,pickTheme,actorSVG,pharaohGhostSVG,obstacleSVG,
     lootSVG,getLootImage,drawLootBox,getActorImage,getObstacleImage,
-    drawActor,drawObstacle,preload});
+    specialObstacleSVG,getSpecialObstacleImage,drawActor,drawObstacle,preload});
 })();
