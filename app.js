@@ -1644,6 +1644,7 @@ function isLiveGameContext(){
 function setControllerGameContext(mode,phase,active){
   controllerGameMode=mode||null;
   if(mode!=='shockwave'||!['countdown','playing','paused'].includes(phase))controllerPlayerEliminated=false;
+  const previousControllerPhase=controllerGamePhase;
   controllerGamePhase=phase||'lobby';
   // Remote board camera tools are never shown in a minigame or room lobby.
   const boardZoomActive=controllerReady&&mode==='board'&&
@@ -1652,7 +1653,8 @@ function setControllerGameContext(mode,phase,active){
    $(id).classList.toggle('hidden',!boardZoomActive);
    $(id).disabled=!boardZoomActive;
   }
-  if(!['results','summary'].includes(controllerGamePhase))
+  if(!['results','summary'].includes(controllerGamePhase)||
+     !['results','summary'].includes(previousControllerPhase))
     controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
   controllerPlayerActive=!!active;
   const visible=isLiveGameContext();
