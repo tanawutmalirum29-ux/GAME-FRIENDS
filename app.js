@@ -232,7 +232,8 @@ function syncArenaResolution(){
   const toolScale=content.scale,originX=content.left,originY=content.top;
   $('boardTools').style.cssText='left:'+(originX+600*toolScale)+'px;top:'+(originY+99*toolScale)+'px;transform:scale('+toolScale+');';
   $('pauseBtn').style.cssText='left:'+(originX+921*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
-   $('boardExitBtn').style.cssText='left:'+(originX+891*toolScale)+'px;top:'+(originY+144*toolScale)+'px;transform:scale('+toolScale+');';
+   // Right-align the full-size red Exit button with the tiny Pause control.
+   $('boardExitBtn').style.cssText='left:'+(originX+872*toolScale)+'px;top:'+(originY+135*toolScale)+'px;transform:scale('+toolScale+');';
  }else {$('pauseBtn').style.cssText='';$('boardExitBtn').style.cssText='';}
  // Long/short sides are intentional: portrait fallback may rotate the
  // host canvas by 90 degrees without changing the game world's coordinates.
@@ -275,13 +276,19 @@ function showToast(message,bad=false){
  if(toastHandle!==null&&typeof clearTimeout==='function')clearTimeout(toastHandle);
  toastHandle=setTimeout(()=>box.classList.remove('visible'),3000);
 }
-function confirmAction(message){
+function confirmAction(message,{title='ยืนยันการทำรายการ',confirmLabel='ตกลง',danger=false}={}){
  if(pendingConfirmation)return Promise.resolve(false);
+ $('uiModalTitle').textContent=title;
+ $('uiConfirmBtn').textContent=confirmLabel;
+ $('uiConfirmBtn').classList.toggle('confirm-danger',danger);
  $('uiModalText').textContent=message;$('uiModal').classList.remove('hidden');
  return new Promise(resolve=>{pendingConfirmation=resolve;});
 }
 function finishConfirmation(answer){
  $('uiModal').classList.add('hidden');
+ $('uiModalTitle').textContent='ยืนยันการทำรายการ';
+ $('uiConfirmBtn').textContent='ตกลง';
+ $('uiConfirmBtn').classList.remove('confirm-danger');
  const resolve=pendingConfirmation;pendingConfirmation=null;
  if(resolve)resolve(answer);
 }
@@ -2113,6 +2120,7 @@ function showBoard(){
   resetInputs();boardStateToken=null;
   $('gameRoulette').classList.add('hidden');$('results').classList.add('hidden');
   $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.remove('hidden');
+  $('boardExitBtn').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');$('gameBanner').textContent='';
   document.body.classList.add('board-playing');
   setView('game');
@@ -3276,7 +3284,15 @@ function returnToLobby(){
   setView('hostLobby');renderRoster();broadcastRoster();renderBotTestPad();
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
-$('boardExitBtn').addEventListener('click',()=>{if(round?.mode==='board'&&round.paused)returnToLobby();});
+$('boardExitBtn').addEventListener('click',()=>{
+ if(round?.mode!=='board'||!round.paused||!boardSession)return;
+ confirmAction('ต้องการออกจาก BOARD PARTY และกลับไปยังล็อบบี้หรือไม่? ความคืบหน้าบอร์ดเกมรอบนี้จะสิ้นสุด',{
+  title:'ยืนยันออกจากบอร์ดเกม',confirmLabel:'ยืนยันออกเกม',danger:true
+ }).then(confirmed=>{
+  // Cancel leaves the board paused; only an explicit confirmation exits.
+  if(confirmed&&round?.mode==='board'&&round.paused&&boardSession)returnToLobby();
+ });
+});
 // Re-enter native fullscreen only after a real user click (required by the API).
 $('restoreHostFullscreenBtn').addEventListener('click',()=>{
  if(currentView==='game')requestHostFullscreen();
