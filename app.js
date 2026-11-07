@@ -232,7 +232,8 @@ function syncArenaResolution(){
   const toolScale=content.scale,originX=content.left,originY=content.top;
   $('boardTools').style.cssText='left:'+(originX+600*toolScale)+'px;top:'+(originY+99*toolScale)+'px;transform:scale('+toolScale+');';
   $('pauseBtn').style.cssText='left:'+(originX+921*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
- }else $('pauseBtn').style.cssText='';
+   $('boardExitBtn').style.cssText='left:'+(originX+891*toolScale)+'px;top:'+(originY+144*toolScale)+'px;transform:scale('+toolScale+');';
+ }else {$('pauseBtn').style.cssText='';$('boardExitBtn').style.cssText='';}
  // Long/short sides are intentional: portrait fallback may rotate the
  // host canvas by 90 degrees without changing the game world's coordinates.
  const longSide=Math.max(Number(box?.width)||0,Number(box?.height)||0);
@@ -789,7 +790,15 @@ function releaseBotPossession(){
  disableInfiniteBotItems();
  const id=possessedBotId,p=players.find(p=>p.id===id),bp=botBoardPlayer(id);
  if(p){p.isBot=true;p.input=blankInput();}
- if(bp){bp.isBot=true;delete boardSession.inputs[id];}
+ if(bp){
+  bp.isBot=true;delete boardSession.inputs[id];
+  // An AI takeover must never inherit a half-aimed cast from a human.
+  // Refund the unchanged item and resume this turn from the roll selector.
+  if(boardSession.phase==='aim'&&boardSession.skill&&window.BoardParty.current(boardSession)?.id===id){
+   window.BoardParty.ready(boardSession);
+   bp.actionIndex=0;bp.botItemAttemptKey=boardSession.roundNumber+':'+boardSession.turnIndex;
+  }
+ }
  possessedBotId=null;
  renderBotTestPad();
 }
@@ -3233,7 +3242,8 @@ function pauseGame(){
   if(round.mode==='board'&&boardSession){
     boardSession.camera.paused=true;
     $('pauseMenu').classList.add('hidden'); // Keep the frozen map touchable.
-  }else $('pauseMenu').classList.remove('hidden');
+    $('boardExitBtn').classList.remove('hidden');
+  }else {$('pauseMenu').classList.remove('hidden');$('boardExitBtn').classList.add('hidden');}
   $('pauseBtn').setAttribute('aria-expanded',String(round.mode!=='board'));
   refreshBoardTools();
   broadcastRoster();
@@ -3245,6 +3255,7 @@ function resumeGame(){
   round.paused=false;
   if(round.mode==='board'&&boardSession){const s=boardSession;s.camera.paused=false;s.camera.overview=false;s.camera.manualZoom=null;s.inputs={};}
   $('pauseMenu').classList.add('hidden');
+  $('boardExitBtn').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
   refreshBoardTools();
   broadcastRoster();
@@ -3256,7 +3267,7 @@ function returnToLobby(){
   $('boardTools').classList.add('hidden');
   gameSelection=null;$('gameRoulette').classList.add('hidden');
   boardSession=null;boardStateToken=null;document.body.classList.remove('board-playing');
-  $('pauseBtn').style.cssText='';$('pauseBtn').classList.remove('board-resume');
+  $('pauseBtn').style.cssText='';$('boardExitBtn').style.cssText='';$('boardExitBtn').classList.add('hidden');$('pauseBtn').classList.remove('board-resume');
   tournament=null;round=null;resetInputs();
   stopAllHostVideoCalls();
   broadcast({t:'preview-reset'});
@@ -3266,6 +3277,7 @@ function returnToLobby(){
   setView('hostLobby');renderRoster();broadcastRoster();renderBotTestPad();
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
+$('boardExitBtn').addEventListener('click',()=>{if(round?.mode==='board'&&round.paused)returnToLobby();});
 // Re-enter native fullscreen only after a real user click (required by the API).
 $('restoreHostFullscreenBtn').addEventListener('click',()=>{
  if(currentView==='game')requestHostFullscreen();

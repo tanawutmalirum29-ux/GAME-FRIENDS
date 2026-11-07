@@ -72,8 +72,15 @@ function update(s,dt,api){
   // Selection is resolved by the host update before the confirmation arrives.
   if(s.move.kind==='rocket'&&s.branch.selected===to)send(s,p,api,0,0,'A');
  }else if(s.phase==='aim'){
-  const skill=s.skill,q=skill.kind==='ufo'?forwardTarget(s,p):s.players.find(q=>q.id!==p.id&&!api.isProtected(s,q));
-  if(!q)return;
+  const skill=s.skill;
+  if(!skill)return;
+  const q=skill.kind==='ufo'?forwardTarget(s,p):s.players.find(q=>q.id!==p.id&&!api.isProtected(s,q));
+  // Cancel an unreachable or timed-out aim, preserving the inventory.
+  if(!q||s.time-s.phaseAt>12){
+   api.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys:{cancel:true}});
+   p.botItemAttemptKey=s.roundNumber+':'+s.turnIndex;p.actionIndex=0;
+   return;
+  }
   const pos=window.BoardItems.position(s,q),dx=pos.x-skill.x,dy=pos.y-skill.y,d=Math.hypot(dx,dy);
   // UFO bots must also steer the marker before confirming. If the target is
   // already next to the caster, nudge away first to arm deliberate aiming.
