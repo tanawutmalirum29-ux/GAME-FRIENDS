@@ -2759,9 +2759,9 @@ for(const count of [1,12]){
  conn.fire('data',{t:'input',turnId:state.turnId,actionId:1,keys:{alt:true}});
  assert.equal(p.dice,null,'roll input rejected during map overview');
  api.updateBoard(1);api.updateBoard(1);
- assert.equal(s.phase,'overview','human can keep exploring');
+ assert.equal(s.phase,'intro_zoom','human overview automatically ends at two seconds');
  conn.fire('data',{t:'input',turnId:state.turnId,actionId:2,keys:{action:true}});
- assert.equal(s.phase,'intro_zoom','phone A starts camera fly-in');
+ assert.equal(s.phase,'intro_zoom','stale phone A cannot restart an automatic camera fly-in');
  state=conn.sent.filter(p=>p.t==='board-state').at(-1);
  conn.fire('data',{t:'input',turnId:state.turnId,actionId:3,keys:{alt:true}});
  assert.equal(p.dice,null,'roll input rejected while camera is zooming');
