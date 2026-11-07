@@ -616,6 +616,11 @@ function sendPlayerInventory(conn){
       survivorCount:round.boulderBash?.roster.filter(q=>q.active&&q.bb?.alive).length||0});
     return;
   }
+  if(round.mode==='shopping_time'){
+    const status=window.ShoppingTime.playerStatus(p);
+    if(status)send(conn,{t:'shopping-status',phase:networkPhase(),...status});
+    return;
+  }
   if(round.mode==='pizza_time'){
     const status=window.PizzaTime.playerStatus(p);
     if(status)send(conn,{t:'pizza-status',phase:networkPhase(),...status});
@@ -1538,6 +1543,8 @@ function joinRoom(recovery=false){
         }
       }else if(data.t==='inventory'){
         renderPhoneInventory(data);
+      }else if(data.t==='shopping-status'){
+        renderPhoneShoppingStatus(data);
       }else if(data.t==='pizza-status'){
         renderPhonePizzaStatus(data);
       }else if(data.t==='fruit-status'){
@@ -1604,7 +1611,7 @@ function joinRoom(recovery=false){
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
+          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':data.mode==='shopping_time'?'SHOPPING TIME • เหลือ '+Math.ceil(data.remaining||0)+' วิ':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
         if(data.mode==='board'&&data.phase==='playing')renderPhoneBoard();
       }else if(data.t==='closed'){
@@ -1639,7 +1646,7 @@ function controllerDisconnected(){
  retryPhone();
 }
 function isLiveGameContext(){
-  return controllerReady&&controllerPlayerActive&&['ghost','pizza_time','board','boulder_bash','snow_brawl'].includes(controllerGameMode)&&
+  return controllerReady&&controllerPlayerActive&&['ghost','pizza_time','shopping_time','board','boulder_bash','snow_brawl'].includes(controllerGameMode)&&
     ['countdown','playing','paused'].includes(controllerGamePhase);
 }
 function setControllerGameContext(mode,phase,active){
@@ -1723,8 +1730,20 @@ function showControllerMode(mode){
      mode==='snow_brawl'?'เดินปั้นลูกหิมะ • A หยุดเตรียม 0.15 วิแล้วปล่อย • B ไม่ใช้ • ผลักคู่แข่งตกเกาะ':
       mode==='boulder_bash'?'ทางลาดหิมะลื่น • A ผลักโดยไม่สตั้น • หลบหินจากขวา • ตกรอบแล้วมีโอกาสบังคับหิน':
      mode==='knight_match'?'ควบม้าใช้ทวนแทงลูกโป่งสีตัวเอง +1 สีอื่น -1 • A แทง / B ไม่ใช้':
+      mode==='shopping_time'?'เข็นรถรับของสูงสุด 5 ชิ้น ไป CHECKOUT ชิ้นละ 1 คะแนน • หลบระเบิด -5 • A/B ไม่ใช้':
       mode==='pizza_time'?'รับวัตถุดิบทีละชิ้น กลับไปส่งเชฟ • เดินรับชนิดใหม่เพื่อเปลี่ยนของ • A/B ไม่ใช้':
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
+}
+function renderPhoneShoppingStatus(info){
+ if(!isLiveGameContext()||controllerGameMode!=='shopping_time'||!info||
+   info.id!==controllerId||info.phase!==controllerGamePhase)return;
+ $('controllerInventory').classList.remove('is-ghost');
+ $('controllerRole').textContent='คะแนน '+info.score+' • รถเข็น '+info.count+'/5';
+ $('inventoryItem').classList.remove('pizza-order-icons','board-bag-icons');
+ $('inventoryItem').textContent=info.count+'/5';
+ $('inventoryGuide').textContent=info.stun>0?'โดนระเบิด • สตั้น '+info.stun.toFixed(1)+' วิ':
+   'เก็บสินค้า → CHECKOUT • ระเบิด -5 • A/B ไม่ใช้';
+ $('targetCycleControls').classList.add('hidden');
 }
 function renderPhonePizzaStatus(info){
  if(!isLiveGameContext()||controllerGameMode!=='pizza_time'||!info||
@@ -2174,7 +2193,7 @@ function startRound(forcedMode=null){
     return;
   }
   $('results').querySelector('.eyebrow').textContent=MODES[mode];
-  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ทำคะแนนสูงสุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':(mode==='boulder_bash'||mode==='snow_brawl')?'ผู้รอดชีวิตคนสุดท้าย!':'จับไก่ให้ได้มากที่สุด!';
+  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ทำคะแนนสูงสุด!':mode==='shopping_time'?'คิดเงินให้ได้คะแนนสูงสุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':(mode==='boulder_bash'||mode==='snow_brawl')?'ผู้รอดชีวิตคนสุดท้าย!':'จับไก่ให้ได้มากที่สุด!';
   // Countdown and player count now live in the solid map-corner HUD.
   $('gameBanner').textContent='';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
@@ -2429,6 +2448,7 @@ function endRound(){
    if(round.mode==='snow_brawl'){endSnowBrawlRound();return;}
    if(round.mode==='boulder_bash'){endBoulderBashRound();return;}
 
+   if(round.mode==='shopping_time'){endShoppingTimeRound();return;}
    if(round.mode==='pizza_time'){endPizzaTimeRound();return;}
    if(round.mode==='knight_match'){endKnightMatchRound();return;}
    if(round.mode==='color_switch'){endColorSwitchRound();return;}
