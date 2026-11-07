@@ -284,8 +284,8 @@ const init=n=>{const players=mkPlayers(n),round={mode:'ghost',phase:'countdown'}
 for(const n of [1,4,5,6,7,8,9,12]){
  const x=init(n);
  assert.equal(x.state.npcs.length,1,'one starting ghost at every player count');
- assert.equal(x.state.world.w,n>=9?1280:n>=5?1080:960);
- assert.equal(x.state.world.h,n>=9?720:n>=5?608:540);
+ assert.equal(x.state.world.w,n<=6?1080:1280);
+ assert.equal(x.state.world.h,n<=6?608:720);
  assert.equal(x.round.rules.viewMode,'topdown');
  assert.ok(x.state.obstacles.length>=6,'solid corner plus cemetery obstacles');
  assert.equal(x.state.obstacles[0].kind,'hud-blocker');
@@ -341,8 +341,8 @@ for(const n of [1,4,5,6,7,8,9,12]){
   ghost.setup(round,players);
   const state=round.ghost,info=ghost.mapInfo(round);
   assert.ok(['สุสานผี','อียิปต์ฟาโรห์'].includes(info.name));
-  assert.equal(info.width,n>=9?1280:n>=5?1080:960);
-  assert.equal(info.height,n>=9?720:n>=5?608:540);
+  assert.equal(info.width,n<=6?1080:1280);
+  assert.equal(info.height,n<=6?608:720);
   assert.equal(info.id,state.mapId);
   assert.equal(info.count,state.obstacles.length-1);
   const signature=JSON.stringify(state.obstacles);
@@ -387,8 +387,38 @@ for(const n of [1,4,5,6,7,8,9,12]){
   'GY-10':[899,264,161,86],
   'GY-11':[933,356,52,42]
  };
- assert.equal(x.state.mapId,'GH-GY-1080x608-T1-v2');
+ assert.equal(x.state.mapId,'GH-GY-1080x608-T1-v3');
  assert.equal(byId.size,Object.keys(expected).length);
+
+ // Each special obstacle has its own geometry and exactly one art image
+ // mapped onto the collision hitbox (not repeated slabs).
+ const coffin=byId.get('GY-07'),mounds=byId.get('GY-08');
+ assert.equal(coffin.kind,'coffin');
+ assert.equal(coffin.artType,'single-large-coffin');
+ assert.equal(coffin.monumentGroup,false,'GY-07 must not be a tiled slab group');
+ assert.equal(mounds.kind,'grave');
+ assert.equal(mounds.artType,'burial-mounds');
+ assert.equal(mounds.monumentGroup,false,'GY-08 uses original raised-earth graphics');
+ const coffinSVG=art.specialObstacleSVG('single-large-coffin');
+ const moundsSVG=art.specialObstacleSVG('burial-mounds');
+ assert.match(coffinSVG,/data-art="single-large-coffin"/);
+ assert.match(moundsSVG,/data-art="burial-mounds"/);
+ assert.equal((coffinSVG.match(/data-art="single-large-coffin"/g)||[]).length,1);
+ assert.equal((moundsSVG.match(/data-grave-plot="raised-mound"/g)||[]).length,6,
+  'six individual earth mounds instead of stone tiles');
+ assert.equal((moundsSVG.match(/stroke="#30445b"/g)||[]).length,6,
+  'each grave has a headstone on its upper edge');
+ for(const o of [coffin,mounds]){
+  const drawings=[];
+  const ctx={save(){},restore(){},drawImage(image,x,y,w,h){
+    drawings.push({image,x,y,w,h});
+   },fillRect(){},strokeRect(){}};
+  art.drawObstacle(ctx,o);
+  assert.equal(drawings.length,1,'render exactly one graphic for '+o.id);
+  assert.deepEqual([drawings[0].x,drawings[0].y,drawings[0].w,drawings[0].h],
+    [o.x,o.y,o.w,o.h],'graphics and hitbox match for '+o.id);
+ }
+
  assert.ok(!byId.has('GY-06'),'crossed-out GY-06 is absent');
  for(const [id,rect] of Object.entries(expected)){
   const o=byId.get(id);assert.ok(o,'missing annotated obstacle '+id);
@@ -411,6 +441,26 @@ for(const n of [1,4,5,6,7,8,9,12]){
  for(let i=0;i<80;i++)ghost.update(.016,x.round,x.players);
  assert.ok(x.players.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)),
   'players and bots remain in a finite world after custom obstacle collisions');
+}
+
+// No three-size legacy split: graveyard and Egypt share two stable arena sizes.
+{
+ const sizes=new Set();
+ for(let n=1;n<=12;n++){
+  const x=init(n),firstTheme=x.state.theme;
+  sizes.add(x.state.world.w+'x'+x.state.world.h);
+  assert.equal(x.state.tier,n<=6?1:2,'tier boundary is six players');
+  assert.equal(x.state.world.w,n<=6?1080:1280);
+  assert.equal(x.state.world.h,n<=6?608:720);
+  ghost.setup(x.round,x.players);
+  const alternate=x.round.ghost;
+  assert.notEqual(firstTheme,alternate.theme,'alternating themes are both tested');
+  assert.equal(alternate.world.w,n<=6?1080:1280);
+  assert.equal(alternate.world.h,n<=6?608:720);
+  assert.equal(alternate.tier,n<=6?1:2);
+ }
+ assert.equal(sizes.size,2,'exactly two supported GHOST ATTACK sizes');
+ assert.ok(sizes.has('1080x608')&&sizes.has('1280x720'));
 }
 assert.equal(ghost.constants.humanSpeed,172);
 assert.equal(ghost.constants.ghostSpeed,186,'modest ghost speed advantage');
