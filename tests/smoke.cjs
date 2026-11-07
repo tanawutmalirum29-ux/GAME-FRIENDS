@@ -1188,6 +1188,8 @@ assert.equal(tablet.elements.get('webAppHelpBtn').attributes['aria-expanded'],'t
 tablet.click('webAppHelpBtn');
 assert.equal(tablet.elements.get('webAppHelp').classList.contains('hidden'),true);
 assert.equal(tablet.elements.get('webAppHelpBtn').attributes['aria-expanded'],'false');
+// Browser first announces ENTER, then announces its native swipe EXIT.
+tablet.scope.document.fire('fullscreenchange');
 tablet.scope.document.fullscreenElement=null;
 tablet.scope.document.fire('fullscreenchange');
 assert.equal(tablet.elements.get('restoreHostFullscreenBtn').classList.contains('hidden'),false,
