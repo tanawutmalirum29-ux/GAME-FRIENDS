@@ -2,9 +2,10 @@
   'use strict';
   // Canvas scenes consume cached SVG images; sprites are not rebuilt per frame.
   // Both prop families use overhead slabs matched to their collision rectangles.
-  const GRAVEYARD_KINDS=['headstone','broken','cross','obelisk','coffin','plaque','slab','grave'];
+  const GRAVEYARD_KINDS=['headstone','broken','cross','obelisk','coffin','plaque','slab','grave',
+    'iron-fence','cemetery-wall'];
   const EGYPT_KINDS=['sarcophagus','egypt-obelisk','ankh-stele','sandstone-pillar',
-    'canopic-jar','pharaoh-bust','scarab-marker','broken-column'];
+    'canopic-jar','pharaoh-bust','scarab-marker','broken-column','sandstone-wall','temple-fence'];
   const THEMES=Object.freeze({
     graveyard:Object.freeze({label:'สุสานผี',kinds:GRAVEYARD_KINDS}),
     egypt:Object.freeze({label:'อียิปต์ฟาโรห์',kinds:EGYPT_KINDS})
@@ -70,6 +71,8 @@
   }
 
   function obstacleSVG(kind,variant=0){
+    if(kind==='sarcophagus')return sarcophagusSVG();
+    if(isBarrier(kind))return barrierSVG(kind,100,36);
     const n=Math.abs(Math.floor(Number(variant)||0))%3,egypt=EGYPT_KINDS.includes(kind);
     const top=egypt?['#dcb77b','#e8c68b','#cda56c'][n]:['#7d8ca8','#8997ad','#71839e'][n];
     const side=egypt?'#87623e':'#394762',rim=egypt?'#ffe0a0':'#bbc8d9';
@@ -106,6 +109,62 @@
       '<path d="M22 76 V23 H78" stroke="'+rim+'" stroke-width="3" fill="none" opacity=".75"/>'+carving+
       (egypt?'':'<path d="M15 73 L23 69 L29 78 M74 12 L81 19" stroke="'+accent+'" stroke-width="4" fill="none"/>')+'</g>');
   }
+  function isBarrier(kind){return /^(iron-fence|cemetery-wall|sandstone-wall|temple-fence)$/.test(kind);}
+  // Long barriers use their real aspect ratio, rather than stretching a square
+  // gravestone. The stone foot occupies the full collision rectangle.
+  function barrierSVG(kind,w,h){
+    const egypt=kind==='sandstone-wall'||kind==='temple-fence';
+    const fence=kind==='iron-fence'||kind==='temple-fence',vertical=h>w;
+    const length=vertical?h:w,depth=vertical?w:h;
+    const dark=egypt?'#67432c':'#252e46',side=egypt?'#ad6c35':'#465975';
+    const cap=egypt?'#f6c575':'#94aab9',light=egypt?'#ffe1a0':'#c6d9dd';
+    let blocks='';
+    if(fence){
+      blocks+='<path d="M4 9 H'+(length-4)+' M4 '+(depth-6)+' H'+(length-4)+'" stroke="'+dark+'" stroke-width="4"/>';
+      for(let x=10;x<length-5;x+=12)blocks+=
+        '<path d="M'+x+' 3 V'+(depth-3)+'" stroke="'+(egypt?'#e2b468':'#708596')+'" stroke-width="3"/>'+
+        '<path d="M'+(x-3)+' 6 L'+x+' 1 L'+(x+3)+' 6Z" fill="'+light+'"/>';
+      for(const x of [0,length-10])blocks+='<rect x="'+x+'" y="0" width="10" height="'+depth+'" rx="1" fill="'+side+'"/>'+
+        '<rect x="'+(x+1)+'" y="1" width="8" height="'+(depth-6)+'" fill="'+cap+'"/>';
+    }else{
+      const cells=Math.ceil(length/26),step=length/cells;
+      for(let i=0;i<cells;i++){
+        const x=i*step;
+        blocks+='<rect x="'+(x+1)+'" y="1" width="'+(step-2)+'" height="'+(depth-6)+'" rx="1" fill="'+cap+'"/>'+
+          '<path d="M'+(x+3)+' '+(depth-8)+' V3 H'+(x+step-3)+'" fill="none" stroke="'+light+'" stroke-width="1.4"/>'+
+          '<path d="M'+(x+step/2)+' 5 l4 4 -4 4 -4 -4Z" fill="'+side+'" opacity=".55"/>';
+      }
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+w+' '+h+'">'+
+      '<g data-prop="'+kind+'"'+(vertical?' transform="translate('+w+' 0) rotate(90)"':'')+'>'+
+      '<rect width="'+length+'" height="'+depth+'" rx="1" fill="'+dark+'"/>'+
+      '<rect y="1" width="'+length+'" height="'+(depth-3)+'" fill="'+side+'"/>'+blocks+'</g></svg>';
+  }
+  function sarcophagusSVG(){
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 180">'+
+      '<defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2=".5">'+
+      '<stop stop-color="#ac6428"/><stop offset=".35" stop-color="#ffe49a"/>'+
+      '<stop offset=".6" stop-color="#e8aa40"/><stop offset="1" stop-color="#b27630"/>'+
+      '</linearGradient><linearGradient id="stone" x1="0" y1="0" x2="1" y2="1">'+
+      '<stop stop-color="#d39458"/><stop offset="1" stop-color="#925330"/>'+
+      '</linearGradient></defs><g data-prop="sarcophagus" data-view="top-down">'+
+      '<rect x="1" y="1" width="88" height="178" rx="4" fill="#523528"/>'+
+      '<rect x="3" y="2" width="82" height="169" rx="3" fill="url(#stone)" stroke="#eeb96d" stroke-width="3"/>'+
+      '<rect x="10" y="9" width="68" height="153" rx="3" fill="#573e30" stroke="#ffcf71" stroke-width="2"/>'+
+      '<path d="M23 55 Q14 25 29 17 Q45 8 61 17 Q76 25 67 55 L66 83 L58 153 H32 L24 83Z" fill="url(#gold)" stroke="#ffe09a" stroke-width="2"/>'+
+      '<path d="M29 21 Q45 11 61 21 L66 55 L57 59 L54 37 H36 L33 59 L24 55Z" fill="#22727e"/>'+
+      '<path d="M27 28 H62 M26 36 H64 M25 45 H65 M25 53 H65" stroke="#f7cf71" stroke-width="4"/>'+
+      '<ellipse cx="45" cy="33" rx="11" ry="15" fill="url(#gold)" stroke="#ffe2a0" stroke-width="1.5"/>'+
+      '<path d="M37 31 H41 M49 31 H53 M42 41 H48" stroke="#69492c" stroke-width="2"/>'+
+      '<path d="M43 44 L42 55 H48 L47 44" fill="#14606c"/>'+
+      '<path d="M27 60 Q45 79 63 60 M28 68 Q45 87 62 68" fill="none" stroke="#236d70" stroke-width="4"/>'+
+      '<path d="M29 80 L58 98 M61 80 L32 98" stroke="#754822" stroke-width="8" stroke-linecap="round"/>'+
+      '<path d="M29 78 L58 96 M61 78 L32 96" stroke="#ffe3a0" stroke-width="5" stroke-linecap="round"/>'+
+      '<path d="M33 111 H57 M34 121 H56 M35 132 H55 M36 143 H54" stroke="#1e7278" stroke-width="4"/>'+
+      '<path d="M45 103 V148" stroke="#ffdb83" stroke-width="2"/>'+
+      '<path d="M6 20 H11 M6 57 H11 M6 94 H11 M6 131 H11 M78 20 H83 M78 57 H83 M78 94 H83 M78 131 H83" stroke="#ffe2a0" stroke-width="3"/>'+
+      '</g></svg>';
+  }
   function getImage(key,content){
     if(typeof Image==='undefined')return null;
     if(!imageCache.has(key)){
@@ -121,12 +180,17 @@
     // Human art is shared. Ghost caches must be separated by theme.
     const skin=ghost&&theme==='egypt'?'egypt': 'graveyard';
     const key=`actor/${ghost?'ghost':'human'}/${skin}/${safe}/${pose}`;
-    return getImage(key,actorSVG(ghost,safe,pose,skin));
+    return imageCache.get(key)||getImage(key,actorSVG(ghost,safe,pose,skin));
   }
   function getObstacleImage(kind,variant=0){
     const type=KINDS.includes(kind)?kind:'headstone';
     const n=Math.abs(Number(variant)||0)%3;
-    return getImage(`grave/${type}/${n}`,obstacleSVG(type,n));
+    const key=`grave/${type}/${n}`;
+    return imageCache.get(key)||getImage(key,obstacleSVG(type,n));
+  }
+  function getBarrierImage(kind,w,h){
+    const key='barrier/'+kind+'/'+w+'/'+h;
+    return imageCache.get(key)||getImage(key,barrierSVG(kind,w,h));
   }
 
   // Render GY-07 as ONE large overhead coffin, never repeated stone tiles.
@@ -185,17 +249,20 @@
     return null;
   }
   function getSpecialObstacleImage(type){
+    const cached=imageCache.get('grave/special/'+type+'/v1');
+    if(cached)return cached;
     const content=specialObstacleSVG(type);
     return content?getImage('grave/special/'+type+'/v1',content):null;
   }
   function ready(img){return !!(img&&img.complete&&img.naturalWidth>0);}
-  function preload(players=[],theme='graveyard'){
+  function preload(players=[],theme='graveyard',obstacles=[]){
     if(theme==='graveyard'){
       getSpecialObstacleImage('single-large-coffin');
       getSpecialObstacleImage('burial-mounds');
     }
     for(const kind of kindsForTheme(theme))
       for(let v=0;v<3;v++)getObstacleImage(kind,v);
+    for(const o of obstacles)if(!o.boundary&&isBarrier(o.kind))getBarrierImage(o.kind,o.w,o.h);
     getLootImage(theme);
     // Decode all three pharaoh floating frames before countdown ends,
     // including each participant's colored ghost form.
@@ -272,6 +339,14 @@
   }
   function drawObstacle(ctx,o){
     const kind=KINDS.includes(o.kind)?o.kind:KINDS[Math.abs(o.style||0)%KINDS.length];
+    if(isBarrier(kind)){
+      const img=getBarrierImage(kind,o.w,o.h);
+      ctx.save();
+      ctx.fillStyle='#0b122c45';ctx.fillRect(o.x+5,o.y+6,o.w,o.h);
+      if(ready(img))ctx.drawImage(img,o.x,o.y,o.w,o.h);
+      else{ctx.fillStyle=kind==='sandstone-wall'||kind==='temple-fence'?'#e2b067':'#6c8197';ctx.fillRect(o.x,o.y,o.w,o.h);}
+      ctx.restore();return;
+    }
     const special=o.artType?getSpecialObstacleImage(o.artType):null;
     const img=special||getObstacleImage(kind,o.variant||0);
     ctx.save();
@@ -283,6 +358,11 @@
         ctx.fillStyle='#536b73';ctx.fillRect(o.x,o.y,o.w,o.h);
         ctx.strokeStyle='#a8c4cc';ctx.lineWidth=2;
         ctx.strokeRect(o.x+1,o.y+1,o.w-2,o.h-2);
+      }
+      // Candles sit on the plinth, inside the physical footprint.
+      for(const [x,y] of [[o.x+9,o.y+18],[o.x+o.w-10,o.y+o.h-19]]){
+        ctx.shadowColor='#ffcf97';ctx.shadowBlur=13;ctx.fillStyle='#fff2cd';
+        ctx.fillRect(x-2,y-3,4,6);
       }
       ctx.restore();return;
     }

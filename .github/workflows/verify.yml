@@ -69,6 +69,8 @@ jobs:
         run: node tests/combat-motion.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
+      - name: GHOST ATTACK courtyards, wall collisions, reachable lanes and 1–12 bots
+        run: node tests/ghost-courtyards.cjs
       - name: BOARD PARTY phone double-tap camera gestures
         run: node tests/board-camera-controller.cjs
       - name: Lobby controller-A readiness and layout
@@ -127,6 +129,8 @@ jobs:
           BOARD_BROWSER=webkit node tests/mobile-host-lobby-browser.cjs
           node tests/board-startup.cjs
           BOARD_BROWSER=webkit node tests/board-startup.cjs
+          node tests/ghost-courtyards-browser.cjs
+          BOARD_BROWSER=webkit node tests/ghost-courtyards-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
