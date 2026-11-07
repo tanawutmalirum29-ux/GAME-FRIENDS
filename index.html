@@ -22,7 +22,25 @@
     }
   </script>
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Keep installed iPadOS web-app content below the system status bar. It cannot be hidden by a website. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <script>
+    // WebKit on iPadOS 26 can leave the OS status bar visible even in native fullscreen.
+    // Only reserve extra clearance while the Fullscreen API is active; ordinary
+    // standalone pages use Apple's opaque status-bar layout instead.
+    (function(){
+      var iPad=/iPad/i.test(navigator.userAgent) ||
+        (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+      if(!iPad)return;
+      function sync(){
+        document.documentElement.classList.toggle('ipad-native-fullscreen',
+          !!(document.fullscreenElement||document.webkitFullscreenElement));
+      }
+      document.addEventListener('fullscreenchange',sync);
+      document.addEventListener('webkitfullscreenchange',sync);
+      sync();
+    })();
+  </script>
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GAME FRIENDS">
   <meta property="og:title" content="GAME FRIENDS — Multiplayer Party Games">
