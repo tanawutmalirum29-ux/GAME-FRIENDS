@@ -543,8 +543,8 @@ function controls(s,id){
    (p.bagMessage?' • '+p.bagMessage:'')};
  }
  if(s.move?.kind==='walk')return{a:s.camera.explore?'เริ่มเดิน':'',b:'',
-   help:(s.camera.explore?'ลากหน้าจอหลักดูแผนที่ • A เริ่มเดิน หรือขยับจอยเพื่อล็อกกล้อง':
-     'ลากจอยเพื่อเดิน / ปล่อยเพื่อหยุด • ไม่มีการช่วยเดินอัตโนมัติ')+
+   help:(s.camera.explore?'ลากจอหรือซูมสำรวจ • A หรือขยับจอยเพื่อเริ่มเดิน':
+     'ลากจอยเดิน / ปล่อยเพื่อหยุด • หน้าจอหลักยังเลื่อนและซูมแผนที่ได้ตลอด')+
      ' • เหลือ '+s.move.remaining+' ก้าว'};
  if(s.phase==='rocket')return{a:'',b:'',help:'จรวด '+Math.max(0,s.move.expires-s.time).toFixed(1)+'s • คุมอนาล็อกไปข้างหน้า ไม่มีจำกัดช่อง'};
   if(s.phase==='branch')return{a:'',b:'',help:'ชี้ทิศทางที่แยกด้วยอนาล็อก'};
