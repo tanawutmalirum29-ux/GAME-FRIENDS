@@ -1455,7 +1455,9 @@ assert.equal(online.scope.document.fullscreenExits,0);
     bulk.click('cycleAllBotsBtn');
     assert.ok(local.every(p=>p.choice==='witching_snake'),'eleventh game is WITCHING SNAKE');
      bulk.click('cycleAllBotsBtn');
-     assert.ok(local.every(p=>p.choice==='ghost'),'eleventh game wraps back to ghost');
+     assert.ok(local.every(p=>p.choice==='lawn_mower'),'twelfth game is LAWN MOWER');
+     bulk.click('cycleAllBotsBtn');
+     assert.ok(local.every(p=>p.choice==='ghost'),'twelfth game wraps back to ghost');
  // Individual selection remains independent; bulk applies the NEXT
  // game of the first bot, synchronizing any mixed bot choices.
  const choice=bulk.elements.get('roster').children[0].children[3];
