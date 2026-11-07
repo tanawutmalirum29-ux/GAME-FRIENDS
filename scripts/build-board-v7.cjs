@@ -13,7 +13,10 @@ const ASSETS=[
 ];
 for(const [asset,destination,expected] of ASSETS){
  const location=path.join(root,'board-v7-source',asset);
- const packed=fs.readFileSync(location,'utf8').trim();
+ const packed=fs.readdirSync(path.dirname(location))
+  .filter(name=>name.startsWith(asset+'.part'))
+  .sort().map(name=>fs.readFileSync(path.join(path.dirname(location),name),'utf8').trim()).join('');
+ if(!packed)throw Error('Missing v7 source payload '+asset);
  if(!/^[A-Za-z0-9+/]+={0,2}$/.test(packed))throw Error('Invalid v7 source payload '+asset);
  const data=zlib.inflateSync(Buffer.from(packed,'base64'));
  const hash=createHash('sha256').update(data).digest('hex');
