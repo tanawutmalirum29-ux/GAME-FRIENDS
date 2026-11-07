@@ -15,6 +15,8 @@ function getCommit(){
   }catch(_){}
   throw Error('Unable to identify build: AWS_COMMIT_ID is required');
 }
+// Restore and integrity-check the committed v7 source bundle first.
+require('./build-board-v7.cjs');
 const id=getCommit();
 fs.writeFileSync(path.join(root,'version.json'),JSON.stringify({version:id})+'\n');
 fs.writeFileSync(path.join(root,'build-version.js'),
