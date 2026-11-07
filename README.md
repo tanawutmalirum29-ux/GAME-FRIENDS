@@ -198,3 +198,17 @@ python3 -m http.server 8080
 - **ป้องกันภาพไม่แสดง:** `pizza-time.js` ถูกเพิ่มในรายการ Versioned Assets ของ `scripts/build-static.cjs` และหากเอนจินหรือการเรนเดอร์ผิดพลาด ระบบจะแจ้งข้อผิดพลาดและกลับล็อบบี้แทนจอดำหรือทำให้แอนิเมชันค้าง
 
 ทดสอบ: `node tests/pizza-time.test.cjs`; ต้องการจำลองความยุติธรรมมากขึ้นใช้ `PIZZA_FAIR_SEEDS=1000 node tests/pizza-time.test.cjs` และตรวจสอบโหมดเข้มงวด 2% ด้วย `PIZZA_STRICT_FAIRNESS=1` (เกณฑ์ 2% ยังไม่ผ่านทุกจำนวนผู้เล่น จึงต้องดูรายงานจริง ไม่อ้างว่าผ่าน) การทดสอบโค้ดไม่แทนการลองเล่นและตรวจ Deploy บนอุปกรณ์จริง
+
+
+## WITCHING SNAKE — Magic broom survival
+
+- Available in NORMAL PARTY and BOARD PARTY, for **1–12 players**. Each witch flies forward automatically. Only the joystick changes the desired heading; turning uses angular acceleration and gentle lateral inertia. A/B have no attack, boost or braking effect.
+- **Host world sizes:** 960×540 (1–6 players) and 1280×720 (7–12 players), each with a faceted 12-sided oval arena. The renderer scales the world to the 960×540 host canvas without modifying physics.
+- A continuously sampled, dangerous **magic trail** follows each broom. Contact with your own older trail, any other active trail, or the arena boundary eliminates you. Dead trails fade and cease collision.
+- Trails start at **190 / 230** world units; a magic star adds **48 / 65**, up to **520 / 760** respectively. Star pickups are automatic and are not points.
+- Simulation uses **60 Hz fixed steps**, swept hit detection, bounded trail storage, spatial indexing, same-frame tie handling, shared player-body pushing, and deterministic tick-based elimination ranks.
+- Bots evaluate prospective curved flight trajectories, boundaries, trails and reachable stars using the same turning physics as human players. On-host bot possession can override an individual bot using the existing test joystick.
+- Single player survives for 60 seconds. Multiplayer ends with the last survivor, including genuine simultaneous ties. Overtime begins at 120 seconds with a visible shrinking safe boundary.
+- Results record rank, elimination/survival duration and collected stars. BOARD PARTY uses the normal \`BoardMinigame\` adapter.
+
+Development checks: \`node --check witching-snake.js\`, \`node tests/witching-snake.test.cjs\`, and the existing \`Verify static game\` GitHub Actions workflow.

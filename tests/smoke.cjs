@@ -20,6 +20,7 @@ const shoppingSource=fs.readFileSync('shopping-time.js','utf8');
 const knightSource=fs.readFileSync('knight-match.js','utf8');
 const boulderSource=fs.readFileSync('boulder-bash.js','utf8');
 const snowSource=fs.readFileSync('snow-brawl.js','utf8');
+const witchSource=fs.readFileSync('witching-snake.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const chickensSource=fs.readFileSync('chickens.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
@@ -143,7 +144,7 @@ assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-touch-i
 
 // Game catalog retains Ghost Attack and now adds CHICKENS as game two.
 assert.match(html,/data-pick="ghost"/);
-assert.equal([...html.matchAll(/data-pick="/g)].length,10);
+assert.equal([...html.matchAll(/data-pick="/g)].length,11);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
 assert.match(html,/src=".\/ghost-attack\.js"/);
 assert.match(html,/src=".\/chickens\.js"/);
@@ -162,6 +163,8 @@ assert.match(html,/src="\.\/knight-match\.js"/);
 assert.match(html,/src="\.\/boulder-bash\.js"/);
 assert.match(html,/src="\.\/snow-brawl\.js"/);
 assert.match(html,/data-pick="snow_brawl"/);
+assert.match(html,/data-pick="witching_snake"/);
+assert.match(html,/src="\.\/witching-snake\.js"/);
 assert.match(html,/data-pick="boulder_bash"/);
 assert.match(html,/data-pick="knight_match"/);
 assert.match(html,/src=".\/color-switch\.js"/);
@@ -173,7 +176,7 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME'\}/);
+assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
@@ -1251,6 +1254,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(knightSource,scope,{filename:'knight-match.js'});
    vm.runInContext(boulderSource,scope,{filename:'boulder-bash.js'});
   vm.runInContext(snowSource,scope,{filename:'snow-brawl.js'});
+   vm.runInContext(witchSource,scope,{filename:'witching-snake.js'});
   for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-bots','board-minigame','board-party','board-art'])
     vm.runInContext(fs.readFileSync(name+'.js','utf8'),scope,{filename:name+'.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
@@ -1264,6 +1268,19 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
 
 
 
+// WITCHING SNAKE smoke: actual host engine boot and BOARD PARTY rank adapter.
+{
+ const witchHost=setup();witchHost.click('addLocalBtn');
+ const api=witchHost.scope.window.__ghostTest;
+ api.startRound('witching_snake');
+ const round=api.getRound(),players=api.getPlayers();
+ assert.equal(round.mode,'witching_snake');
+ assert.ok(round.witchingSnake,'new survival engine boots inside the existing host');
+ assert.ok(players.every(p=>p.ws&&p.ws.alive),'witches enter the game alive');
+ const ranking=witchHost.scope.window.BoardMinigame.ranking(round,players);
+ assert.equal(ranking.length,players.length);
+ assert.ok(ranking.every(p=>p.rank===1),'all pre-start survivors are tied');
+}
 // Browser/controller integration: keep QR, multiplayer, native fullscreen and
 // WebRTC video transport while replacing only the minigame implementation.
 const bare=setup('https://game.example/');
@@ -1486,7 +1503,9 @@ assert.equal(online.scope.document.fullscreenExits,0);
     bulk.click('cycleAllBotsBtn');
     assert.ok(local.every(p=>p.choice==='shopping_time'),'tenth game is SHOPPING TIME');
     bulk.click('cycleAllBotsBtn');
-    assert.ok(local.every(p=>p.choice==='ghost'),'tenth game wraps back to ghost');
+    assert.ok(local.every(p=>p.choice==='witching_snake'),'eleventh game is WITCHING SNAKE');
+     bulk.click('cycleAllBotsBtn');
+     assert.ok(local.every(p=>p.choice==='ghost'),'eleventh game wraps back to ghost');
  // Individual selection remains independent; bulk applies the NEXT
  // game of the first bot, synchronizing any mixed bot choices.
  const choice=bulk.elements.get('roster').children[0].children[3];
@@ -1781,11 +1800,11 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  assert.equal(api.pickRandomEndlessGame(null,()=>0),'ghost');
  assert.equal(api.pickRandomEndlessGame('ghost',()=>0),'chickens',
    'previous game is excluded, not replayed at next spin');
- assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'shopping_time',
+ assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'witching_snake',
    'new random value changes the game instead of following fixed order');
  ui.click('startBtn');
  assert.equal(api.getTournament().endless,true);
- assert.equal(api.getTournament().schedule.length,10);
+ assert.equal(api.getTournament().schedule.length,11);
  const first=api.getSelection();
  assert.ok(first,'roulette appears immediately on start, before game engine');
  assert.equal(api.getRound().phase,'roulette');
@@ -1799,7 +1818,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  api.updateGameSelection(1.45);
  assert.equal(ui.elements.get('rouletteHeading').textContent,
    ({ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',
-     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME'})[first.mode]);
+     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE'})[first.mode]);
  assert.ok(first.winner.classList.contains('is-selected'));
  assert.equal(first.track.style.transform,'translate3d(-'+first.final.toFixed(2)+'px,0,0)',
    'winning card stops precisely in the middle');
@@ -2158,13 +2177,14 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,10);
+assert.equal(phone.pickButtons.length,11);
 assert.equal(phone.pickButtons[4].dataset.pick,'color_switch');
 assert.equal(phone.pickButtons[5].dataset.pick,'pizza_time');
 assert.equal(phone.pickButtons[6].dataset.pick,'shopping_time');
  assert.equal(phone.pickButtons[7].dataset.pick,'knight_match');
 assert.equal(phone.pickButtons[8].dataset.pick,'boulder_bash');
 assert.equal(phone.pickButtons[9].dataset.pick,'snow_brawl');
+ assert.equal(phone.pickButtons[10].dataset.pick,'witching_snake');
 assert.match(phone.pickButtons[9].children[0].innerHTML,/<svg[\s>]/);
 assert.match(phone.pickButtons[4].children[0].innerHTML,/<svg[\s>]/);
 assert.equal(phone.pickButtons[4].children[1].textContent,'COLOR SWITCH');

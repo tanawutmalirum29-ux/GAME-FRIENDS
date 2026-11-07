@@ -28,6 +28,8 @@ jobs:
           node --check shopping-time.js
           node --check tests/shopping-time.cjs
           node --check tests/snow-brawl.cjs
+          node --check witching-snake.js
+          node --check tests/witching-snake.test.cjs
           node --check tests/boulder-bash.cjs
           node --check tests/knight-match.cjs
           node --check tests/color-switch.test.js
@@ -43,6 +45,8 @@ jobs:
         run: node tests/shopping-time.cjs
       - name: BOULDER BASH fixed-step physics and multiplayer survival
         run: node tests/boulder-bash.cjs
+      - name: WITCHING SNAKE 60 Hz broom survival and integration checks
+        run: node tests/witching-snake.test.cjs
       - name: SNOW BRAWL fixed-step physics, momentum and rolling-speed checks
         run: node tests/snow-brawl.cjs
       - name: KNIGHT MATCH balloon lifecycle and 1–12 player regressions
