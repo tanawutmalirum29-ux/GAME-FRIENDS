@@ -4745,3 +4745,23 @@ body.controller-playing #controllerActive .gamepad-top-actions .gamepad-board-zo
   width:28px;min-width:28px;
  }
 }
+
+
+/* Lock the scrolling ROOT during full-screen gameplay as well as the body.
+   iOS WebKit may rubber-band the html scroller even when body overflow is
+   hidden; the non-passive game touchmove handler blocks in-page drags too.
+   Native browser chrome / OS edge gestures still belong to iOS/Chrome. */
+html:has(body.host-playing),html:has(body.controller-playing){
+ overscroll-behavior-x:none;
+ overscroll-behavior-y:none;
+ overflow:hidden!important;
+}
+body.host-playing #game.game-page,
+body.host-playing #game .game-frame,
+body.host-playing #game #arena{
+ overscroll-behavior:none;
+ touch-action:none;
+ -webkit-user-select:none;
+ user-select:none;
+}
+body.host-playing #game button{touch-action:manipulation}

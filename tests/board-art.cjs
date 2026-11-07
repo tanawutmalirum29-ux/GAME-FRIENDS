@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const surfaces=[],labels=[],labelDraws=[],avatarDraws=[],portraitDraws=[];let denyTerrain=false;
+const surfaces=[],labels=[],labelDraws=[],avatarDraws=[],portraitDraws=[],portraitPositions=[],ringArcs=[];let denyTerrain=false;
 const artSource=fs.readFileSync('board-art.js','utf8');
 assert.match(artSource,/else sceneryLite\(g,s\)/,
  'low-memory renderer must avoid repainting full scenery every frame');
@@ -10,10 +10,11 @@ assert.match(artSource,/if\(!visible\(x,y,75\)\)continue/,
 function brush(main=false){return new Proxy({globalAlpha:1},{get(target,key){
  if(key in target)return target[key];
  if(key==='createLinearGradient')return()=>({addColorStop(){}});
+  if(key==='arc')return (x,y,r)=>{if(main&&[27,32].includes(r))ringArcs.push({x,y,r});};
  if(key==='fillText')return (text,x,y,maxWidth)=>{if(main){labels.push(text);labelDraws.push({text:String(text),x,y,maxWidth,align:target.textAlign});}};
  return()=>{};
 },set(target,key,value){target[key]=value;return true;}});}
-const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(_g,p){avatarDraws.push(JSON.parse(JSON.stringify(p)));},drawFront(_g,p){portraitDraws.push(p.id);},costumeFor(){return 'standard';}}},console,document:{createElement(tag){
+const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(_g,p){avatarDraws.push(JSON.parse(JSON.stringify(p)));},drawFront(_g,p,x,y,size){portraitDraws.push(p.id);portraitPositions.push({id:p.id,x,y,size});},costumeFor(){return 'standard';}}},console,document:{createElement(tag){
  assert.equal(tag,'canvas');const surface={width:0,height:0,getContext(){
   assert.ok(this.width*this.height<=3500000,'terrain allocation stays below the mobile budget');
   return denyTerrain?null:brush();
@@ -250,11 +251,15 @@ const frameLabels=()=>{
  A.draw(g,intermission.time,intermission);
  return labels.slice(start).map(String);
 };
-assert.ok(frameLabels().includes('สรุปผลมินิเกมและรางวัล'));
+const cleanStandings=frameLabels();
+assert.ok(cleanStandings.includes('สรุปผลมินิเกม'));
+assert.ok(!cleanStandings.some(x=>x.includes('และรางวัล')||x.includes('อันดับการแข่งขันและสิทธิ์รางวัล')||
+ x.includes('ดำเนินต่ออัตโนมัติ')),'circled results copy removed');
+assert.ok(cleanStandings.some(x=>/^\d+ วินาที$/.test(x)),'results keep a clean countdown');
 for(let i=0;i<52;i++)P.update(intermission,.05);
 assert.equal(intermission.phase,'rewards');
 const firstReveal=frameLabels();
-assert.ok(firstReveal.includes('สรุปผลมินิเกมและรางวัล'));
+assert.ok(firstReveal.includes('สรุปผลมินิเกม'));
 assert.ok(!firstReveal.includes('กำลังสุ่ม...'),'result rewards reveal the assigned item without spinning');
 for(const earned of intermission.results.filter(r=>r.reward))
  assert.ok(firstReveal.includes('ได้รับ: '+ctx.window.BoardItems.names[earned.reward]),
@@ -263,15 +268,33 @@ for(let i=0;i<92;i++)P.update(intermission,.05); // 4.5s reward hold (+0.8s)
 assert.equal(intermission.phase,'returning');
 const back=frameLabels();
 assert.ok(!back.includes('กำลังสุ่ม...'),'returning cannot start a second spinner');
-assert.ok(!back.includes('สรุปผลมินิเกมและรางวัล'),
+assert.ok(!back.includes('สรุปผลมินิเกม'),
  'returning never repeats the results full-screen panel');
 for(let i=0;i<13;i++)P.update(intermission,.05);
 assert.equal(intermission.phase,'round_order');
 const newTurn=frameLabels();
 assert.ok(!newTurn.includes('กำลังสุ่ม...'));
-assert.ok(!newTurn.includes('สรุปผลมินิเกมและรางวัล'));
+assert.ok(!newTurn.includes('สรุปผลมินิเกม'));
 assert.ok(newTurn.some(x=>x.includes('เริ่มรอบที่ 2')),
  'new round shows a short on-map notice rather than a second result page');
+// Every portrait and its TWO medal rings must use exactly the same center,
+// including the tall five-player result cards in the provided screenshot.
+for(const n of [4,5,12]){
+ const ranked=P.create(Array.from({length:n},(_,i)=>({id:'portrait'+i,name:'Bot '+i,color:'#66aacc'})),{seed:580+n});
+ ranked.camera.overview=false;P.phase(ranked,'minigame');
+ const finish=ranked.players.map((p,i)=>({id:p.id,rank:i+1,label:'5 คะแนน'}));
+ P.minigameEnded(ranked,finish);
+ portraitPositions.length=0;ringArcs.length=0;
+ A.draw(g,ranked.time,ranked);
+ const portraits=portraitPositions.filter(p=>p.id.startsWith('portrait'));
+ assert.equal(portraits.length,n,'all result portraits are drawn for '+n+' players');
+ for(const p of portraits){
+  assert.ok(ringArcs.some(a=>a.r===32&&a.x===p.x&&a.y===p.y),
+   'outer medal ring centered on '+p.id);
+  assert.ok(ringArcs.some(a=>a.r===27&&a.x===p.x&&a.y===p.y),
+   'inner medal ring centered on '+p.id);
+ }
+}
 // A Lucky Star item reel must show the actual result, then the prize above
 // the landing player's head before any turn advancement.
 const lucky=game(2);

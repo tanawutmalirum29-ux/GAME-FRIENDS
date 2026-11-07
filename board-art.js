@@ -687,8 +687,8 @@ function overlay(g,s){
  if(!order&&!results)return;
  box(g,0,0,960,sceneHeight(s),0,'#0e2a40ed');
  label(g,'WINTER SNOW ADVENTURE',480,30,11,'#93c8d6','center',500);
- label(g,order?(s.phase==='order'?'ทอยลูกเต๋าเพื่อจัดลำดับ':'ลำดับการเดินพร้อมแล้ว'):'สรุปผลมินิเกมและรางวัล',480,63,25,'#eefbff','center');
- label(g,order?'A หรือ B • จัดลำดับเริ่มเดิน':'อันดับการแข่งขันและสิทธิ์รางวัล • ไอเทมเข้ากระเป๋าอัตโนมัติ • ไม่สุ่มซ้ำ',480,96,12,'#adccdc','center',500);
+ label(g,order?(s.phase==='order'?'ทอยลูกเต๋าเพื่อจัดลำดับ':'ลำดับการเดินพร้อมแล้ว'):'สรุปผลมินิเกม',480,63,25,'#eefbff','center');
+ if(order)label(g,'A หรือ B • จัดลำดับเริ่มเดิน',480,96,12,'#adccdc','center',500);
  const ids=order?(s.phase!=='order'?s.order:s.players.map(p=>p.id)):s.results.map(r=>r.id);
  const cols=order?(ids.length<=4?2:sceneHeight(s)>800&&ids.length>=9?3:4):ids.length<=4?1:ids.length<=8?2:3;
  const rows=Math.ceil(ids.length/cols),w=cols===1?700:cols===2?392:cols===3?286:211;
@@ -727,15 +727,17 @@ function overlay(g,s){
   tint.addColorStop(1,'#29264a');
   box(g,x,y,w,h,12,tint,r.rank===1?'#ffe5a5':'#fff7');
   g.save();g.beginPath();g.roundRect(x+1,y+1,w-2,h-2,11);g.clip();
+  // Use the same portrait center for both rings AND the avatar on tall cards.
+  const portraitX=x+41,portraitY=y+contentDy+Math.min(46,h/2);
   g.save();
   g.shadowColor='#ffe5a3';g.shadowBlur=8;
-  g.beginPath();g.arc(x+41,y+contentDy+contentDy+Math.min(46,h/2),32,0,Math.PI*2);
+  g.beginPath();g.arc(portraitX,portraitY,32,0,Math.PI*2);
   g.fillStyle='#ffda79';g.fill();
   g.shadowBlur=0;g.lineWidth=2;g.strokeStyle='#fff0b8';g.stroke();
-  g.beginPath();g.arc(x+41,y+Math.min(46,h/2),27,0,Math.PI*2);
+  g.beginPath();g.arc(portraitX,portraitY,27,0,Math.PI*2);
   g.fillStyle='#86cfee';g.fill();
   g.restore();
-  window.PartyPlayerAvatar.drawFront(g,p,x+41,y+Math.min(46,h/2),54);
+  window.PartyPlayerAvatar.drawFront(g,p,portraitX,portraitY,54);
   const rank=r.rank,suffix=rank%100>=11&&rank%100<=13?'TH':rank%10===1?'ST':rank%10===2?'ND':rank%10===3?'RD':'TH';
   const medal=rank===1?'#ffdf72':rank===2?'#eff5ff':rank===3?'#ffac69':'#ffe0b2';
   const tied=s.results.filter(q=>q.rank===rank).length>1;
@@ -754,7 +756,7 @@ function overlay(g,s){
   g.restore(); // outer result-card clipping scope
  });
 
- label(g,order?'รอผู้เล่นทุกคนกด A หรือ B เพื่อทอย':Math.max(0,Math.ceil(s.deadline-s.time))+' วินาที • ดำเนินต่ออัตโนมัติ',480,sceneHeight(s)-37,13,'#b8dce9','center',500);
+ label(g,order?'รอผู้เล่นทุกคนกด A หรือ B เพื่อทอย':Math.max(0,Math.ceil(s.deadline-s.time))+' วินาที',480,sceneHeight(s)-37,13,'#b8dce9','center',500);
 }
 // Clear, color-coded controller hints. These are drawn in game-space rather
 // than relying on external HTML labels, so split-screen/iPhone layouts share

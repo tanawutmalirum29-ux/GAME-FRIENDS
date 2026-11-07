@@ -9,7 +9,7 @@ const server=http.createServer((req,res)=>{
  if(!file.startsWith(root+path.sep)||!fs.existsSync(file)){res.writeHead(404).end();return;}
  const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.json':'application/json'};
  let data=fs.readFileSync(file);
- if(file===path.join(root,'app.js'))data=data.toString().replace('requestAnimationFrame(animate);\n})();','window.__boardStartup={get board(){return boardSession},get view(){return currentView}};requestAnimationFrame(animate);\n})();');
+ if(file===path.join(root,'app.js'))data=data.toString().replace('requestAnimationFrame(animate);\n})();','window.__boardStartup={get board(){return boardSession},get view(){return currentView},get locals(){return players},refreshBoardTools};requestAnimationFrame(animate);\n})();');
  res.writeHead(200,{'content-type':mime[path.extname(file)]||'application/octet-stream'});res.end(data);
 });
 async function main(){
@@ -67,6 +67,13 @@ async function main(){
    await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
    await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
    await page.screenshot({path:path.join(out,engine+'-terrain-'+(denyTerrain?'fallback':'normal')+'.png')});
+   // Spectators have no owner until a local player's walking turn starts.
+   // That owner can still inspect Overview then Follow back to the game.
+   await page.evaluate(()=>{
+    const s=__boardStartup.board,p=s.players[0];
+    __boardStartup.locals[0].isBot=false;p.isBot=false;
+    BoardParty.beginMove(s,p,2);__boardStartup.refreshBoardTools();
+   });
    await page.locator('#boardOverviewBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
    await page.locator('#boardFollowBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
    assert.deepEqual(errors,[]);await context.close();
