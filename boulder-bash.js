@@ -24,23 +24,29 @@ function setup(round,ps){
   const col=Math.floor(i/rows),row=i%rows;
   p.x=210+col*44;p.y=startY+(row-(rows-1)/2)*(n<=8?66:75);
   p.vx=0;p.vy=0;p.dir={x:1,y:0};p.face=1;
-  p.bb={alive:true,eliminatedAt:null,eliminatedTick:null,mode:'alive',rockIds:[],
+  p.bb={alive:true,eliminatedAt:null,eliminatedTick:null,mode:'alive',rockId:null,
    pushCooldown:0,botPhase:rng(s)*TAU,homeY:p.y,homeX:p.x,
    botAxisX:0,botAxisY:0,dodgeSides:Object.create(null)};
  });
  return s;
 }
-// Every eliminated player remains eligible on every spawn roll, even when already
-// steering one or more colored boulders. Each rock independently shares the owner's input.
-function eligible(s){return s.roster.filter(p=>p.active&&p.bb&&!p.bb.alive);}
+// Each eliminated player can steer only one active colored boulder. Other
+// eliminated players may steer theirs at the same time. Reserve pending spawns
+// so two warnings in a simultaneous wave cannot claim the same owner.
+function eligible(s){
+ const pending=new Set(s.warnings.map(w=>w.ownerId).filter(Boolean));
+ return s.roster.filter(p=>p.active&&p.bb&&!p.bb.alive&&p.bb.rockId===null&&!pending.has(p.id));
+}
 function rockAt(s,y,owner=null){
+ // A second rock for an already occupied owner becomes a normal boulder.
+ if(owner?.bb?.rockId!=null)owner=null;
  const r=owner?27:24+Math.floor(rng(s)*4)*5;
  const x=1000+r,vy=(rng(s)-.5)*85;
  const rock={id:s.nextId++,ownerId:owner?.id||null,color:owner?color(owner):null,
   x,y,oldX:x,oldY:y,vx:-145-rng(s)*58,vy,r,mass:r*r,angle:rng(s)*TAU,
   wobble:rng(s)*TAU,spin:0,trail:[],radius:r,age:0};
  s.rocks.push(rock);
- if(owner){owner.bb.rockIds.push(rock.id);owner.bb.mode='rock';}
+ if(owner){owner.bb.rockId=rock.id;owner.bb.mode='rock';}
  return rock;
 }
 function spawnWarning(s){
@@ -50,21 +56,27 @@ function spawnWarning(s){
   if(s.warnings.every(w=>Math.abs(w.y-y)>73)&&s.rocks.every(r=>r.x>855?Math.abs(r.y-y)>r.r+43:true))break;
   y=TOP+43+rng(s)*(BOTTOM-TOP-86);
  }
- // 35% independent chance for each new rock, then choose fairly among all dead players.
+ // 35% per boulder to be a controlled rock when an eligible player exists.
  const dead=eligible(s),owner=dead.length&&rng(s)<C.rockChance?dead[Math.floor(rng(s)*dead.length)]:null;
  s.warnings.push({y,ownerId:owner?.id||null,delay:.55});
+}
+function spawnWave(s){
+ // Every wave can randomly contain several boulders, of mixed kinds. The
+ // global rock limit is a performance ceiling, never a one-rock-per-wave limit.
+ const roll=rng(s);
+ const amount=roll<.38?1:roll<.78?2:3;
+ for(let i=0;i<amount;i++)spawnWarning(s);
 }
 function transferRock(s,r){
  if(!r.ownerId)return;
  const owner=s.roster.find(p=>p.id===r.ownerId);
  if(!owner?.bb)return;
- owner.bb.rockIds=owner.bb.rockIds.filter(id=>id!==r.id);
- owner.bb.mode=owner.bb.rockIds.length?'rock':'spectator';
+ if(owner.bb.rockId===r.id){owner.bb.rockId=null;owner.bb.mode='spectator';}
 }
 function eliminate(s,p,rock){
  if(!p?.bb?.alive)return false;
  p.bb.alive=false;p.bb.mode='spectator';p.bb.eliminatedAt=s.clock;p.bb.eliminatedTick=s.tick;
- p.bb.rockIds=[];p.bb.killedBy=rock?.ownerId||null;
+ p.bb.rockId=null;p.bb.killedBy=rock?.ownerId||null;
  s.effects.push({x:p.x,y:p.y,color:color(p),life:.7});
  return true;
 }
@@ -236,11 +248,11 @@ function step(dt,round,ps){
  for(const w of s.warnings)w.delay-=dt;
  for(let i=s.warnings.length-1;i>=0;i--){
   const w=s.warnings[i];if(w.delay>0)continue;
-  const owner=s.roster.find(p=>p.id===w.ownerId&&p.bb&&!p.bb.alive);
+  const owner=s.roster.find(p=>p.id===w.ownerId&&p.bb&&!p.bb.alive&&p.bb.rockId===null);
   rockAt(s,w.y,owner||null);s.warnings.splice(i,1);
  }
  if(s.clock>=s.nextSpawn){
-  spawnWarning(s);s.nextSpawn=s.clock+interval(s.clock)*(.9+rng(s)*.2);
+  spawnWave(s);s.nextSpawn=s.clock+interval(s.clock)*(.9+rng(s)*.2);
  }
  moveRocks(s,dt);
  // Same physics tick can eliminate multiple players: equal ranking for simultaneous deaths.
@@ -353,6 +365,6 @@ function draw(g,time,round,ps){
   'รอด '+living(ps).length+' • '+Math.floor(s.clock)+' วินาที',24,54);
  g.restore();
 }
-window.BoulderBash=Object.freeze({setup,update,draw,hud,step,spawnWarning,rockAt,eliminate,
+window.BoulderBash=Object.freeze({setup,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
  sweptHit,finish,interval,config:C});
 })();
