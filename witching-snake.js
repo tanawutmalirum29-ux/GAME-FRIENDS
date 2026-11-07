@@ -5,7 +5,8 @@ const TAU=Math.PI*2, STEP=1/60, CELL=40;
 const CONFIG=Object.freeze({
  small:Object.freeze({width:960,height:540,rx:442,ry:238,trailStart:190,trailGain:48,trailMax:520,stars:2}),
  large:Object.freeze({width:1280,height:720,rx:590,ry:317,trailStart:230,trailGain:65,trailMax:760,stars:4}),
- speed:173, turnMax:2.2, turnAcceleration:9, slip:.075, radius:12,
+ // 20% more steering authority; maintain original broom speed and light slip.
+ speed:173, turnMax:2.64, turnAcceleration:10.8, slip:.075, radius:12,
  trailRadius:3.4, selfGap:41, sample:8, soloDuration:60, overtimeStart:120,
  overtimeLength:75, minArenaScale:.18, starRadius:14
 });
