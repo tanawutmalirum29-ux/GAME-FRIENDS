@@ -73,7 +73,7 @@ function fixedLayoutRng(world,tier,theme){
   };
 }
 function mapId(world,tier,theme){
-  const revision=theme==='graveyard'&&world.w===1080&&world.h===608&&tier===1?'v2':'v1';
+  const revision=theme==='graveyard'&&world.w===1080&&world.h===608&&tier===1?'v3':'v1';
   return 'GH-'+(theme==='egypt'?'EG':'GY')+'-'+world.w+'x'+world.h+'-T'+tier+'-'+revision;
 }
 // GY-1080x608/T1: hand-arranged from the host's annotated map screenshot.
@@ -86,8 +86,8 @@ const GRAVEYARD_ANNOTATED_1080=Object.freeze([
   {id:'GY-03',x:615,y:466,w:71,h:42},  // small lower central slab
   {id:'GY-04',x:279,y:455,w:125,h:53}, // lower left / red outline
   {id:'GY-05',x:711,y:393,w:52,h:46},  // preserve unmarked stone
-  {id:'GY-07',x:509,y:245,w:77,h:133}, // central vertical pillar
-  {id:'GY-08',x:139,y:137,w:116,h:228},// long left vertical monument
+  {id:'GY-07',x:509,y:245,w:77,h:133}, // one large coffin
+  {id:'GY-08',x:139,y:137,w:116,h:228},// raised earth graves, headstones at top
   {id:'GY-09',x:492,y:115,w:131,h:70}, // upper-middle horizontal monument
   {id:'GY-10',x:899,y:264,w:161,h:86}, // mid-right horizontal wall
   {id:'GY-11',x:933,y:356,w:52,h:42}  // retain small stone above GY-01
@@ -95,11 +95,15 @@ const GRAVEYARD_ANNOTATED_1080=Object.freeze([
 function annotatedGraveyardObstacles(world,tier,theme){
   if(theme!=='graveyard'||tier!==1||world.w!==1080||world.h!==608)return null;
   const kinds=Art.kindsForTheme(theme);
-  return GRAVEYARD_ANNOTATED_1080.map((shape)=>{
+  return GRAVEYARD_ANNOTATED_1080.map(shape=>{
     const number=Number(shape.id.slice(-2)),index=number-1;
-    return {...shape,kind:index===0?'coffin':kinds[(index-1)%kinds.length],
+    const artType=number===7?'single-large-coffin':
+      number===8?'burial-mounds':null;
+    const kind=number===7?'coffin':number===8?'grave':
+      index===0?'coffin':kinds[(index-1)%kinds.length];
+    return {...shape,kind,artType,
       style:index%3,variant:Math.floor(index/kinds.length)%3,
-      fixed:true,monumentGroup:shape.w>94||shape.h>94};
+      fixed:true,monumentGroup:!artType&&(shape.w>94||shape.h>94)};
   });
 }
 function makeObstacles(world,tier,reserved=[],theme='graveyard'){
@@ -150,11 +154,11 @@ function setup(round,players){
   previousGhostTheme=theme;
   preloadItemIcons();
   Art.preload(players,theme);
-  // A maximum of 12 people, with a larger world for crowded rounds.
-  // The canvas/video output remains 960x540, with the world scaled into it.
+  // Exactly two arena sizes, shared by the graveyard and Egypt themes:
+  // 1–6 players use 1080x608; 7–12 players use 1280x720.
+  // Host output stays 960x540 and scales to the selected world.
   const tier=players.length<=6?1:2;
-  const world=players.length>=9?{w:1280,h:720}:
-    players.length>=5?{w:1080,h:608}:{w:960,h:540};
+  const world=tier===1?{w:1080,h:608}:{w:1280,h:720};
   round.rules={...(round.rules||{}),viewMode:round.rules?.viewMode||'topdown'};
   // Compact physical HUD: its visible SVG-sized panel AND hitbox shrink
   // together, using proportional dimensions at every arena size.
@@ -166,7 +170,7 @@ function setup(round,players){
   const used=[center];
   for(const p of players){
     // Humans spawn at random, dispersed locations away from the AI ghost plaza.
-    const spacing=players.length>=9?110:Math.max(80,world.w/13);
+    const spacing=tier===2?110:Math.max(80,world.w/13);
     let pos=freeSpot(world,obstacles,used,30,spacing);
     for(let tries=0;tries<35&&dist(pos,center)<Math.min(world.w,world.h)*.32;tries++)
       pos=freeSpot(world,obstacles,used,30,spacing);
