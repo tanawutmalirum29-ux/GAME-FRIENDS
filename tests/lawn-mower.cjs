@@ -123,7 +123,8 @@ for(const n of [1,2,4,6,7,9,12]){
   ellipse(){},arc(){},arcTo(){},moveTo(){},lineTo(){},closePath(){},
   quadraticCurveTo(){},stroke(){},strokeRect(){},fillText(){},strokeText(){},
   fill(){if(['#b33832','#fce87c','#283f32'].includes(this.fillStyle))calls.push('fill:'+this.fillStyle);},
-  fillRect(){if(this.fillStyle==='#408e26')calls.push('lawn');}
+  fillRect(){if(this.fillStyle==='#408e26')calls.push('lawn');
+   if(this.fillStyle==='#283f32')calls.push('fill:#283f32');}
  };
  G.draw(ctx,0,round,ps);
  const grass=calls.indexOf('lawn'),umbrella=calls.indexOf('fill:#b33832');
