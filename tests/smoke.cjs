@@ -2191,9 +2191,14 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.equal(hostA.scope.window.GAME_CAN_AUTO_RELOAD(),true,
    'a joined, idle host lobby must apply patches automatically');
  const hostB=setup('https://game.example/?host=1',false,hostA.sessionData);
- assert.equal(hostB.elements.get('hostLobby').classList.contains('hidden'),false);
+ assert.equal(hostB.elements.get('home').classList.contains('hidden'),false,
+  'restored HOST waits at home while signaling reconnects');
+ assert.equal(hostB.elements.get('hostLobby').classList.contains('hidden'),true,
+  'unconfirmed rooms never show a stale lobby');
  assert.equal(hostB.instances[0].id,'gf-party-'+code,'host restores the exact invite code');
  hostB.instances[0].fire('open');
+ assert.equal(hostB.elements.get('hostLobby').classList.contains('hidden'),false,
+  'lobby opens only after the saved room is confirmed');
  assert.equal(hostB.scope.window.__ghostTest.getPlayers().length,1);
  const peerB=hostB.instances[0],connB=peerB.connect();
  peerB.fire('connection',connB);
