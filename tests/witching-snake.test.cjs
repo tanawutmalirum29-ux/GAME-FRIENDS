@@ -71,6 +71,7 @@ check('continuous segment hit detects crossings and grazing',()=>{
  assert.equal(e.segmentsTouch(a,b,c,d,0),true);
  assert.equal(e.segmentsTouch({x:0,y:15},{x:20,y:15},c,d,0),true);
  assert.equal(e.segmentsTouch({x:0,y:35},{x:20,y:35},c,d,0),false);
+ assert.equal(e.segmentsTouch({x:0,y:10},{x:3,y:10},{x:25,y:10},{x:35,y:10},0),false);
  assert.equal(e.segmentsTouch({x:0,y:28},{x:20,y:28},c,d,9),true);
 });
 check('old self trails and enemy trails kill but own newest segment is exempt',()=>{
