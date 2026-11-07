@@ -56,6 +56,8 @@ self.addEventListener('fetch',event=>{
   if(request.method!=='GET')return;
   const url=new URL(request.url);
   if(url.origin!==self.location.origin||!url.pathname.startsWith(new URL(scope).pathname))return;
+  // A newly deployed HTML page must not receive stale JavaScript from the older active worker.
+  if(url.searchParams.has('v')&&url.searchParams.get('v')!==BUILD_ID)return;
   if(url.pathname.endsWith('/version.json')||url.pathname.endsWith('/offline-assets.json')||url.pathname.endsWith('/service-worker.js'))return;
   event.respondWith((async()=>{
     let manifest;
