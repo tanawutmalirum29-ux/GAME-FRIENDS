@@ -487,13 +487,13 @@ function drawPerson(g,p,time){
 function draw(ctx,time,round,ps){
  const s=round.snowBrawl;if(!s)return;
  ctx.save();ctx.clearRect(0,0,WIDTH,HEIGHT);
- const scale=drawIsland(ctx,s,time);
+ drawIsland(ctx,s,time);
  // The drawing coordinate system maps a whole island to the 960×540 canvas.
  for(const fx of s.effects){
-  ctx.save();ctx.translate(CX+fx.x*scale,CY+fx.y*scale);
+  ctx.save();ctx.translate(fx.x,fx.y);
   ctx.globalAlpha=Math.max(0,fx.life/fx.max);
   ctx.strokeStyle=fx.kind==='splash'?'#95e0ff':fx.kind==='crush'?'#eafcfc':'#ffffff';
-  ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,(fx.r+(1-fx.life/fx.max)*32)*scale,0,TAU);ctx.stroke();
+  ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,fx.r+(1-fx.life/fx.max)*32,0,TAU);ctx.stroke();
   ctx.restore();
  }
  for(const b of s.balls)if(b.state!=='DESTROYED')drawBall(ctx,b);
@@ -508,6 +508,7 @@ function draw(ctx,time,round,ps){
   'รอด '+alive(ps).length+' คน • '+Math.floor(s.clock)+' วินาที',25,58);
  if(s.suddenDeath){ctx.fillStyle='#ffe19c';ctx.textAlign='right';ctx.font='900 17px system-ui';
   ctx.fillText('SUDDEN DEATH',WIDTH-22,36);}
+ ctx.restore();
  ctx.restore();
 }
 // Diagnostic hooks are pure engine operations used by regression tests.
