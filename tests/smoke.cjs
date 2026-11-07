@@ -1837,7 +1837,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  const summary=ui.elements.get('resultList').children.filter(x=>x.className==='result-player');
  assert.equal(summary.length,12,'summary shows all twelve positions');
  summary.forEach((row,i)=>{
-   assert.match(row.children[0].textContent,new RegExp('^อันดับ '+(i+1)+' '));
+   assert.equal(row.children[0].textContent,ranked[i].name,'standings show only player name');
    assert.equal(row.dataset.rank,String(i+1));
    assert.ok(row.children[1].textContent.includes(String(11-i)+' คะแนนสะสม'));
  });
