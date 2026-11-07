@@ -10,7 +10,9 @@ const INGREDIENTS=Object.freeze([
  {id:'pepper',name:'พริกหวาน',color:'#58bd70'},
  {id:'onion',name:'หัวหอม',color:'#d8aaef'},
  {id:'pineapple',name:'สับปะรด',color:'#efdb60'},
- {id:'basil',name:'ใบโหระพา',color:'#4fbf6d'}
+ {id:'basil',name:'ใบโหระพา',color:'#4fbf6d'},
+ {id:'olive',name:'มะกอก',color:'#768b48'},
+ {id:'corn',name:'ข้าวโพด',color:'#f1c854'}
 ]);
 const byId=Object.fromEntries(INGREDIENTS.map(x=>[x.id,x]));
 const bound=(x,a,b)=>Math.max(a,Math.min(b,x));
@@ -23,17 +25,19 @@ const tableCount=n=>n<=4?2:n<=6?3:n<=9?4:5;
 const dims=s=>({w:s.world.w,h:s.world.h});
 function tableLayout(s){
  const count=tableCount(s.players);
- // Larger maps repeat ingredient types across DIFFERENT counters. Each of
- // the two slots on the same physical worktop must always differ.
- const kinds=Array.from({length:count*2},(_,i)=>INGREDIENTS[i%INGREDIENTS.length].id);
- for(let i=kinds.length-1;i>0;i--){const j=Math.floor(random(s)*(i+1));[kinds[i],kinds[j]]=[kinds[j],kinds[i]];}
- for(let i=0;i<kinds.length;i+=2)if(kinds[i]===kinds[i+1]){
-   const swapAt=kinds.findIndex((id,j)=>j!==i&&j!==i+1&&id!==kinds[i]&&
-     (j%2===0?kinds[j+1]!==kinds[i+1]:kinds[j-1]!==kinds[i]));
-   if(swapAt>=0)[kinds[i+1],kinds[swapAt]]=[kinds[swapAt],kinds[i+1]];
+ // Every visible ingredient slot must have a unique type for this match.
+ // Sample without replacement; never duplicate an ingredient across counters.
+ // Keep the layout at five worktops for 10–12 players (10 distinct types).
+ const available=INGREDIENTS.map(item=>item.id);
+ if(count*2>available.length)
+   throw Error('PIZZA TIME needs at least '+(count*2)+' unique ingredients for this map');
+ for(let i=available.length-1;i>0;i--){
+   const j=Math.floor(random(s)*(i+1));
+   [available[i],available[j]]=[available[j],available[i]];
  }
- if(kinds.some((id,i)=>!id||(i%2===0&&id===kinds[i+1])))
-   throw Error('PIZZA TIME could not create two distinct ingredients per worktop');
+ const kinds=available.slice(0,count*2);
+ if(new Set(kinds).size!==kinds.length)
+   throw Error('PIZZA TIME cannot assign duplicate ingredients to a single match');
  const locations=[];
  if(count<=3){
    for(let i=0;i<count;i++)locations.push({
