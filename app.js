@@ -1513,7 +1513,7 @@ function joinRoom(recovery=false){
             const windup=Math.max(0,Number(data.windup)||0),flat=Math.max(0,Number(data.flat)||0);
             $('buttonA').disabled=!data.alive||flat>.01||windup>.01;
             $('buttonA').classList.toggle('cooldown-active',windup>.01);
-            $('buttonA').style.setProperty('--cooldown-sweep',Math.round(Math.min(1,windup/.4)*360)+'deg');
+            $('buttonA').style.setProperty('--cooldown-sweep',Math.round(Math.min(1,windup/.15)*360)+'deg');
             $('controllerRole').textContent=data.alive?'ผู้รอดชีวิต':'ตกรอบ';
             $('controllerState').textContent=!data.alive?'ตกน้ำ • ตกรอบ':
               flat>.01?'ถูกลูกหิมะทับ • ฟื้นใน '+flat.toFixed(1)+' วิ':
@@ -1674,7 +1674,7 @@ function showControllerMode(mode){
     fruit?'จำผลไม้แล้ววิ่งไปยังช่องที่ถูกต้อง • ดันกันได้ • A ต่อยให้สตั้น':
     colorSwitch?'วิ่งทาสีสะสมคะแนน • A ต่อยสตั้น • B ระเบิดสี 3×3 • เก็บกล่องทองสะสมคะแนน':
      shockwave?'แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง':
-     mode==='snow_brawl'?'เดินปั้นลูกหิมะ • A หยุดเตรียม 0.4 วิแล้วปล่อย • B ไม่ใช้ • ผลักคู่แข่งตกเกาะ':
+     mode==='snow_brawl'?'เดินปั้นลูกหิมะ • A หยุดเตรียม 0.15 วิแล้วปล่อย • B ไม่ใช้ • ผลักคู่แข่งตกเกาะ':
       mode==='boulder_bash'?'ทางลาดหิมะลื่น • A ผลักโดยไม่สตั้น • หลบหินจากขวา • ตกรอบแล้วมีโอกาสบังคับหิน':
      mode==='knight_match'?'ควบม้าใช้ทวนแทงลูกโป่งสีตัวเอง +1 สีอื่น -1 • A แทง / B ไม่ใช้':
       mode==='pizza_time'?'รับวัตถุดิบทีละชิ้น กลับไปส่งเชฟ • เดินรับชนิดใหม่เพื่อเปลี่ยนของ • A/B ไม่ใช้':

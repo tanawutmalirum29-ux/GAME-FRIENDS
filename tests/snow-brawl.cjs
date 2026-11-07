@@ -27,7 +27,8 @@ for(let n=1;n<=12;n++){
   assert.ok(Math.max(...rs)-Math.min(...rs)<1e-6,'equal spawn distance from center');
  }
 }
-assert.equal(C.windup,.4);
+assert.equal(C.windup,.15);
+assert.equal(C.turnRate,3.6,'turning is intentionally slower than the previous 12rad/s');
 assert.equal(C.baseRadius,12);assert.equal(C.maxRadius,44);
 assert.equal(G.growthRadius(0),12);
 assert.equal(G.growthRadius(C.growthDistance),44);
@@ -63,15 +64,15 @@ assert.ok(G.rollSpeed(12)/G.rollSpeed(44)>1,'size affects travel speed');
  assert.ok(Math.hypot(b.x-p.x,b.y-p.y)>=C.playerRadius+b.r-1e-6);
 }
 {
- const g=match(2),p=g.ps[0];p.input.axisX=1;
+ const g=match(1),p=g.ps[0];p.input.axisX=1;
  tick(g,8);let ball=G.ballFor(g.s,p);
  assert.ok(ball);
  p.input.action=true;tick(g);
  assert.equal(p.snow.phase,'WINDUP');assert.equal(ball.state,'WINDUP');
  assert.equal(p.vx,0,'charging throw stops walking');
- tick(g,22);
- assert.equal(ball.state,'WINDUP','throw cannot bypass 0.4s windup');
- tick(g,3);
+ tick(g,7);
+ assert.equal(ball.state,'WINDUP','throw cannot bypass 0.15s windup');
+ tick(g,5);
  assert.equal(ball.state,'ROLLING','release occurs automatically');
  assert.equal(p.snow.ballId,null);
  assert.ok(Math.abs(Math.hypot(ball.vx,ball.vy)-G.rollSpeed(ball.r))<1e-6);
@@ -79,7 +80,7 @@ assert.ok(G.rollSpeed(12)/G.rollSpeed(44)>1,'size affects travel speed');
  tick(g,10);assert.equal(g.s.balls.length,n,'holding A cannot throw again instantly');
 }
 {
- const g=match(2),p=g.ps[0];p.input.axisX=1;
+ const g=match(1),p=g.ps[0];p.input.axisX=1;
  tick(g,5);const ball=G.ballFor(g.s,p);
  G.release(g.s,p,ball);
  assert.equal(ball.state,'ROLLING');
@@ -118,6 +119,92 @@ assert.ok(G.rollSpeed(12)/G.rollSpeed(44)>1,'size affects travel speed');
  assert.ok(!g.s.balls.some(b=>b.id===600),'shot breaks at first contact');
  assert.equal(p.snow.flat,0,'normal projectile never applies Snow Crush');
 }
+
+{
+ // Rate-limited turning changes actual travel direction and keeps the held
+ // physical snowball EXACTLY in front. No snap, teleport or sideways strafing.
+ const g=match(1),p=g.ps[0];
+ p.snow.faceX=1;p.snow.faceY=0;p.dir={x:1,y:0};
+ const ball=G.makeBall(g.s,p);
+ p.input.axisX=1;tick(g,8);
+ const oldX=p.x,oldY=p.y;
+ p.input.axisX=0;p.input.axisY=1;
+ let maxStep=0;
+ for(let i=0;i<20;i++){
+  const beforeX=ball.x,beforeY=ball.y;
+  tick(g);
+  assert.equal(ball.state,'FORMING','turning does not cancel held ball');
+  const dx=ball.x-p.x,dy=ball.y-p.y;
+  const facing=p.snow.faceX*dx+p.snow.faceY*dy;
+  assert.ok(facing>0,'ball always stays on the facing side');
+  assert.ok(Math.abs(facing-(C.playerRadius+ball.r+4))<1e-6,
+    'held ball is exactly at the rotating front contact point');
+  const lateral=Math.abs(p.snow.faceX*dy-p.snow.faceY*dx);
+  assert.ok(lateral<1e-6,'ball never trails beside or behind a sharp turn');
+  const traveled=Math.hypot(ball.x-beforeX,ball.y-beforeY);
+  maxStep=Math.max(maxStep,traveled);
+  assert.ok(traveled<12,'the angular constraint cannot teleport the snowball');
+ }
+ assert.ok(p.snow.faceX>.15&&p.snow.faceY>.8,
+  '20 fixed steps are not an instant ninety-degree snap');
+ assert.ok(p.y>oldY&&p.x>oldX,'movement follows the smoothly turned body');
+ assert.ok(maxStep<12);
+ // Turning 180 degrees requires nearly a whole second rather than reversing
+ // the character's velocity the same instant the analog changes direction.
+ p.input.axisX=-1;p.input.axisY=0;
+ const facingAtStart={x:p.snow.faceX,y:p.snow.faceY};
+ tick(g);
+ assert.ok(p.snow.faceX*facingAtStart.x+p.snow.faceY*facingAtStart.y>.99,
+  'U-turn cannot instantly flip the character or held snowball');
+}
+{
+ // A fired snowball colliding with an opponent's UNRELEASED ball cancels both,
+ // sends physical momentum into the holder, and interrupts charging.
+ function impact(shotRadius,heldRadius,charging=false,heldFirst=false,movingToward=false){
+  const g=match(2),[holder,shooter]=g.ps;
+  holder.x=0;holder.y=0;shooter.x=-205;shooter.y=0;
+  holder.vx=movingToward?-70:0;holder.vy=0;
+  holder.kvx=holder.kvy=0;
+  holder.snow.faceX=-1;holder.snow.faceY=0;
+  holder.dir={x:-1,y:0};
+  const held=G.makeBall(g.s,holder);
+  held.r=heldRadius;held.mass=G.ballMass(heldRadius);
+  const gap=C.playerRadius+heldRadius+4;
+  held.x=-gap;held.y=0;held.oldX=held.x;held.oldY=held.y;
+  if(charging){holder.snow.phase='WINDUP';holder.snow.windup=.12;held.state='WINDUP';}
+  const shot={id:60000,state:'ROLLING',ownerId:shooter.id,
+   x:held.x-held.r-shotRadius-2,y:0,
+   oldX:held.x-held.r-shotRadius-2,oldY:0,
+   r:shotRadius,mass:G.ballMass(shotRadius),
+   vx:G.rollSpeed(shotRadius),vy:0,age:0,ttl:5.8,angle:0};
+  g.s.balls=heldFirst?[held,shot]:[shot,held];
+  tick(g);
+  assert.equal(held.state,'DESTROYED',
+   'held ball must break when a released ball strikes it');
+  assert.equal(shot.state,'DESTROYED',
+   'the fired ball must also break, cancelling the exchange');
+  assert.equal(holder.snow.ballId,null,'holder must start collecting anew');
+  assert.equal(holder.snow.phase,'COLLECTING','WINDUP must be cancelled on contact');
+  assert.equal(holder.snow.windup,0,'no delayed shot after losing the snowball');
+  assert.equal(holder.snow.alive,true,'a blocked snowball is a recoil, not a kill');
+  assert.equal(holder.snow.flat,0,'block recoil is not Snow Crush');
+  assert.ok(holder.kvx>0,'the shot pushes the HOLDER back, despite their held ball');
+  assert.ok(g.s.effects.length>0,'the broken snowball pair has collision FX');
+  return holder.kvx;
+ }
+ const small=impact(12,18,false,false);
+ const reversed=impact(12,18,false,true);
+ assert.ok(Math.abs(small-reversed)<1e-6,
+  'impact direction and amount are independent of snowball array order');
+ const large=impact(44,18,false,true);
+ assert.ok(large>small*1.2,
+  'snowball mass and speed must affect recoil, not a fixed knockback constant');
+ const charged=impact(22,22,true);
+ assert.ok(charged>0,'a charging player is still pushed by a fired snowball');
+ const headOn=impact(12,18,false,false,true);
+ assert.ok(headOn>small,'running into an incoming snowball increases recoil');
+}
+
 {
  // Player-to-player chain uses each participant's current velocity.
  const g=match(3),[a,b,c]=g.ps;
@@ -199,4 +286,4 @@ assert.ok(G.rollSpeed(12)/G.rollSpeed(44)>1,'size affects travel speed');
   assert.ok(g.s.balls.every(b=>Math.hypot(b.vx,b.vy)<500));
  }
 }
-console.log('SNOW BRAWL PASS: 1–12 spawns, no weight slowdown, constant rolling speed <= 1.5x, windup, crush, physical chain collisions and bots');
+console.log('SNOW BRAWL PASS: 1–12 spawns, 0.15s windup, slow turns/front-locked ball, holder recoil, constant rolling speed <= 1.5x, chain impulses and bots');
