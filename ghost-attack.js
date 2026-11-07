@@ -56,15 +56,36 @@ function freeSpot(world,obstacles,others,margin=22,minDistance=52){
     {x:world.w-50,y:world.h-50}];
   return corner.find(q=>obstacles.every(o=>safeCircle(o,q.x,q.y,20)))||corner[0];
 }
+// Each arena + theme + obstacle tier has ONE reproducible, named layout.
+ // Players and pickups are still random; physical props are never rerolled
+ // across visits to the same map. Change the :v1 key deliberately to revise
+ // a layout, rather than consuming gameplay Math.random().
+function fixedLayoutRng(world,tier,theme){
+  const signature=theme+':'+world.w+'x'+world.h+':T'+tier+':v1';
+  let seed=2166136261;
+  for(const char of signature){seed^=char.charCodeAt(0);seed=Math.imul(seed,16777619);}
+  return ()=>{
+    seed+=0x6D2B79F5;
+    let x=seed;
+    x=Math.imul(x^(x>>>15),x|1);
+    x^=x+Math.imul(x^(x>>>7),x|61);
+    return ((x^(x>>>14))>>>0)/4294967296;
+  };
+}
+function mapId(world,tier,theme){
+  return 'GH-'+(theme==='egypt'?'EG':'GY')+'-'+world.w+'x'+world.h+'-T'+tier+'-v1';
+}
 function makeObstacles(world,tier,reserved=[],theme='graveyard'){
+  const fixedRandom=fixedLayoutRng(world,tier,theme);
   const themeKinds=Art.kindsForTheme(theme);
   const out=[];
   const count=7+tier*4+(world.w>=1200?3:0);
   const candidateW=world.w-150,candidateH=world.h-130;
   for(let k=0,tries=0;k<count&&tries<260;tries++){
-    const w=rand(43,84),h=rand(36,76);
-    const q={x:75+Math.random()*Math.max(1,candidateW-w),
-      y:65+Math.random()*Math.max(1,candidateH-h),w,h,style:k%3,
+    const w=43+fixedRandom()*41,h=36+fixedRandom()*40;
+    const q={x:75+fixedRandom()*Math.max(1,candidateW-w),
+      y:65+fixedRandom()*Math.max(1,candidateH-h),w,h,style:k%3,
+      id:(theme==='egypt'?'EG':'GY')+'-'+String(k+1).padStart(2,'0'),
       // The first monument establishes the theme immediately; every
       // subsequent kind cycles through its own matching prop set.
       kind:k===0?(theme==='egypt'?'sarcophagus':'coffin'):
@@ -110,7 +131,7 @@ function setup(round,players){
   // together, using proportional dimensions at every arena size.
   const hudBlocker={x:12*world.w/960,y:12*world.h/540,
     w:88*world.w/960,h:58*world.h/540,
-    kind:'hud-blocker',fixed:true,solid:true};
+    id:'HUD-00',kind:'hud-blocker',fixed:true,solid:true};
   const obstacles=[hudBlocker,...makeObstacles(world,tier,[hudBlocker],theme)];
   const center={x:world.w/2,y:world.h/2};
   const used=[center];
@@ -126,7 +147,9 @@ function setup(round,players){
   // players, not extra NPCs seeded into large rooms.
   const npcs=[{id:'ai-ghost-0',x:center.x+25,y:center.y,
     dir:{x:1,y:0},targetId:null,lockUntil:0,stun:0}];
-  round.ghost={world,obstacles,hudBlocker,theme,npcs,boxes:[],traps:[],time:0,
+  round.ghost={world,obstacles,hudBlocker,theme,tier,
+    mapId:mapId(world,tier,theme),showObstacleIds:false,selectedObstacleId:null,
+    npcs,boxes:[],traps:[],time:0,
     boxClock:4.5,maxBoxes:tier===1?2:3,
     winnerId:null,converted:[],lastHumanId:null,ghostSpawned:false};
   round.phase='countdown';round.countdown=3;
@@ -915,6 +938,41 @@ function drawCornerHud(ctx,round,players,state){
     cx,o.y+45.5*unit,maxWidth,8.2*unit,'bold','#aee4e7');
   ctx.restore();
 }
+// Inspection is read-only and only enabled by the host's bot-only
+// QA UI. ID, hitbox and coordinates match the actual collision obstacle.
+function mapInfo(round){
+ const s=round?.ghost;
+ return s?{id:s.mapId,name:Art.themeLabel(s.theme),theme:s.theme,
+   width:s.world.w,height:s.world.h,tier:s.tier,count:s.obstacles.length-1}:null;
+}
+function obstacleAt(round,x,y){
+ const s=round?.ghost;
+ if(!s||!Number.isFinite(x)||!Number.isFinite(y))return null;
+ const hit=s.obstacles.findLast?.(o=>x>=o.x&&x<=o.x+o.w&&y>=o.y&&y<=o.y+o.h)||
+   [...s.obstacles].reverse().find(o=>x>=o.x&&x<=o.x+o.w&&y>=o.y&&y<=o.y+o.h);
+ return hit?{id:hit.id,kind:hit.kind,variant:hit.variant||0,
+   x:hit.x,y:hit.y,w:hit.w,h:hit.h}:null;
+}
+function drawObstacleIds(ctx,s){
+ if(!s.showObstacleIds)return;
+ ctx.save();
+ ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.font='bold 13px system-ui,sans-serif';
+ for(const o of s.obstacles){
+  if(o.kind==='hud-blocker')continue; // Keep the countdown legible.
+  const selected=o.id===s.selectedObstacleId;
+  ctx.strokeStyle=selected?'#ffe57f':'#83f4d6';
+  ctx.lineWidth=selected?3:1.6;
+  ctx.strokeRect(o.x-1,o.y-1,o.w+2,o.h+2);
+  const cx=o.x+o.w/2,cy=o.y+o.h/2;
+  ctx.fillStyle='#081d31ed';
+  const textWidth=ctx.measureText?.(o.id)?.width||o.id.length*8;
+  ctx.fillRect(cx-textWidth/2-5,cy-10,textWidth+10,20);
+  ctx.fillStyle=selected?'#ffe57f':'#c4ffed';
+  ctx.fillText(o.id,cx,cy);
+ }
+ ctx.restore();
+}
 function drawThemeBackdrop(ctx,state,t,w,h){
   window.PartyArenaArt.draw(ctx,state.theme,state,w,h);
 }
@@ -966,8 +1024,10 @@ function draw(ctx,t,round,players){
   // The solid upper-left monument displays the only countdown and player
   // count, painted last so characters and FX cannot cover its information.
   drawCornerHud(ctx,round,players,state);
+  drawObstacleIds(ctx,state);
   ctx.restore();
 }
 window.GhostAttack={setup,update,draw,hud,itemStatus,cycleTarget,
+  mapInfo,obstacleAt,
   ITEM_NAMES,ITEM_SVG,getItemIconImage,constants:C};
 })();
