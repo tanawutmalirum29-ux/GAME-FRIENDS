@@ -4334,7 +4334,15 @@ body:has(#home:not(.hidden)) footer{
 @media(max-width:700px){#game .board-tools{left:7px;right:65px;top:4px;gap:3px;max-width:none}#game .board-tool{padding:4px 5px;font-size:9px}}
 
 /* Map controls occupy the Canvas header, leaving every route and player card clear. */
-.board-playing #game .board-tools{position:fixed;right:auto;width:557px;max-width:none;height:28px;flex-wrap:nowrap;gap:4px;justify-content:flex-end;transform-origin:top left;z-index:12}
+/* Map controls float BELOW the scoreboard, inside the top-right map area
+   (600..906 world X, 99+ Y), leaving iPad's OS clock/battery rail untouched. */
+.board-playing #game .board-tools{
+ position:fixed;right:auto;width:306px;max-width:none;height:auto;min-height:34px;
+ flex-wrap:wrap;gap:4px;padding:4px 6px;justify-content:flex-end;
+ transform-origin:top left;z-index:12;
+ background:#102e44e8;border:1px solid #79b9d2a3;border-radius:12px;
+ box-shadow:0 5px 18px #091b2ea8;backdrop-filter:blur(8px);
+}
 .board-playing #game .board-tool{height:27px;min-width:29px;padding:3px 7px;border-radius:7px;font:700 10px system-ui;background:#183d50;border-color:#4f8093}
 .board-playing #game .board-tool-primary{background:#a5e1cb;color:#123f3e;border-color:#ddfae7}
 .board-playing #game .board-tool[aria-pressed=true]{background:#765c2d;border-color:#efd18c;color:#fff2c6}
