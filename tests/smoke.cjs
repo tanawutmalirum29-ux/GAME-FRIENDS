@@ -20,6 +20,7 @@ const shoppingSource=fs.readFileSync('shopping-time.js','utf8');
 const knightSource=fs.readFileSync('knight-match.js','utf8');
 const boulderSource=fs.readFileSync('boulder-bash.js','utf8');
 const snowSource=fs.readFileSync('snow-brawl.js','utf8');
+const witchSource=fs.readFileSync('witching-snake.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const chickensSource=fs.readFileSync('chickens.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
@@ -1253,6 +1254,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(knightSource,scope,{filename:'knight-match.js'});
    vm.runInContext(boulderSource,scope,{filename:'boulder-bash.js'});
   vm.runInContext(snowSource,scope,{filename:'snow-brawl.js'});
+   vm.runInContext(witchSource,scope,{filename:'witching-snake.js'});
   for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-bots','board-minigame','board-party','board-art'])
     vm.runInContext(fs.readFileSync(name+'.js','utf8'),scope,{filename:name+'.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
@@ -1266,6 +1268,19 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
 
 
 
+// WITCHING SNAKE smoke: actual host engine boot and BOARD PARTY rank adapter.
+{
+ const witchHost=setup();witchHost.click('addLocalBtn');
+ const api=witchHost.scope.window.__ghostTest;
+ api.startRound('witching_snake');
+ const round=api.getRound(),players=api.getPlayers();
+ assert.equal(round.mode,'witching_snake');
+ assert.ok(round.witchingSnake,'new survival engine boots inside the existing host');
+ assert.ok(players.every(p=>p.ws&&p.ws.alive),'witches enter the game alive');
+ const ranking=witchHost.scope.window.BoardMinigame.ranking(round,players);
+ assert.equal(ranking.length,players.length);
+ assert.ok(ranking.every(p=>p.rank===1),'all pre-start survivors are tied');
+}
 // Browser/controller integration: keep QR, multiplayer, native fullscreen and
 // WebRTC video transport while replacing only the minigame implementation.
 const bare=setup('https://game.example/');
