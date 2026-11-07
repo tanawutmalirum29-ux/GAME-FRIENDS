@@ -2480,6 +2480,46 @@ function endShockwaveRound(){
   beginResultVoting();
   renderLeaderboard();
 }
+function endSnowBrawlRound(){
+ const state=round.snowBrawl,byId=new Map(state.ranking.map(x=>[x.id,x]));
+ round.phase='results';round.paused=false;resetInputs();broadcastRoster();
+ $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
+ const ranked=players.filter(p=>p.active).sort((a,b)=>
+  (byId.get(a.id)?.rank||99)-(byId.get(b.id)?.rank||99)||
+  String(a.id).localeCompare(String(b.id)));
+ const winners=ranked.filter(p=>state.winnerIds.includes(p.id));
+ awardRoundPoints(ranked,p=>byId.get(p.id)?.rank||ranked.length);
+ round.autoNextRemaining=canAutoAdvanceResults()?7:0;
+ $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:
+  winners.length>1?'เสมอ • อันดับ 1 ร่วม':'ไม่มีผู้รอดชีวิต';
+ const list=$('resultList');list.replaceChildren();
+ const render=(people,useTotal=false)=>{
+  const value=p=>useTotal?(p.total||0):-(byId.get(p.id)?.rank||people.length);
+  for(const p of people){
+   const rank=1+people.filter(q=>value(q)>value(p)).length;
+   const tied=people.filter(q=>value(q)===value(p)).length>1;
+   const row=document.createElement('div');row.className='result-player';
+   const name=document.createElement('div');name.style.color=p.color;
+   name.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
+   const detail=document.createElement('span');
+   detail.textContent=useTotal?p.total+' คะแนนรวม':
+     (p.snow?.alive?'รอดชีวิต':(p.snow?.eliminatedAt||0).toFixed(1)+' วินาที')+totalScoreNote(p);
+   row.append(name,detail);list.append(row);
+  }
+ };
+ render(ranked);
+ if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
+  list.replaceChildren();const overall=[...ranked].sort((a,b)=>b.total-a.total);
+  render(overall,true);
+  const joint=overall.filter(p=>p.total===overall[0].total);
+  const heading=document.createElement('div');heading.className='tournament-header';
+  heading.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:
+   'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
+  list.prepend(heading);
+ }
+ $('results').classList.remove('hidden');$('gameBanner').textContent='';
+ beginResultVoting();renderLeaderboard();
+}
 function endBoulderBashRound(){
  const s=round.boulderBash,byId=new Map(s.ranking.map(r=>[r.id,r]));
  round.phase='results';round.paused=false;resetInputs();broadcastRoster();
@@ -2738,7 +2778,22 @@ function renderLeaderboard(){
   root.style.setProperty('--leader-cols-compact',String(Math.min(6,count)));
   root.style.setProperty('--leader-rows','1');
   if(!round||round.mode==='board')return;
-  if(round.mode==='boulder_bash'){
+  if(round.mode==='snow_brawl'){
+     const ordered=[...active].sort((a,b)=>Number(b.snow?.alive)-Number(a.snow?.alive)||
+       (b.snow?.eliminatedTick||0)-(a.snow?.eliminatedTick||0));
+     for(const p of ordered){
+       const box=document.createElement('div');box.className='leader-chip';
+       if(!p.snow?.alive)box.classList.add('shockwave-eliminated');
+       const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
+       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+       const role=document.createElement('small');role.className='leader-role';
+       role.textContent=p.snow?.alive?(p.snow?.flat>0?'ถูกทับ':'รอด'):'ตกน้ำ';
+       const empty=document.createElement('span');empty.className='leader-item-slot';
+       box.append(dot,name,role,empty);root.append(box);
+     }
+     return;
+   }
+   if(round.mode==='boulder_bash'){
      const ordered=[...active].sort((a,b)=>Number(b.bb?.alive)-Number(a.bb?.alive)||
        (b.bb?.eliminatedTick||0)-(a.bb?.eliminatedTick||0));
      for(const p of ordered){
