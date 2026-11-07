@@ -1042,6 +1042,39 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         conn.previewEnabled=msg.enabled;
         if(msg.enabled){if(round)startHostVideoCall(conn);}
         else stopHostVideoCall(conn);
+      }else if(msg.t==='board-camera-mode'&&conn.playerId){
+        const s=boardSession;
+        const valid=round?.mode==='board'&&round.phase==='playing'&&!round.paused&&s&&
+          msg.turnId===s.turnId&&msg.mapVersion===s.map.version&&
+          window.BoardParty.current(s)?.id===conn.playerId&&
+          ['move_ready','branch','moving'].includes(s.phase)&&s.move?.kind==='walk'&&
+          window.BoardArt?.canPan?.(s)&&
+          players.some(p=>p.id===conn.playerId&&p.conn===conn&&p.active&&!p.isBot);
+        if(!valid){conn.boardCameraGestureToken=null;return;}
+        if(typeof msg.enabled!=='boolean')return;
+        conn.boardCameraGestureToken=msg.enabled?s.turnId:null;
+        const c=s.camera;
+        // Do not call BoardArt.follow here: that API deliberately resets zoom.
+        c.manualZoom=c.zoom;c.explore=false;c.panned=!!msg.enabled;
+        if(!msg.enabled)c.rescuedOffscreen=false;
+      }else if(msg.t==='board-camera-gesture'&&conn.playerId){
+        const s=boardSession;
+        if(round?.mode!=='board'||round.phase!=='playing'||round.paused||!s||
+          msg.turnId!==s.turnId||msg.mapVersion!==s.map.version||
+          conn.boardCameraGestureToken!==s.turnId||s.move?.kind!=='walk'||
+          !['move_ready','branch','moving'].includes(s.phase)||
+          window.BoardParty.current(s)?.id!==conn.playerId||
+          !window.BoardArt?.canPan?.(s)||
+          !players.some(p=>p.id===conn.playerId&&p.conn===conn&&p.active&&!p.isBot))return;
+        if(msg.kind==='pan'){
+          const dx=Number(msg.dx),dy=Number(msg.dy);
+          if(!Number.isFinite(dx)||!Number.isFinite(dy)||Math.abs(dx)>320||Math.abs(dy)>240)return;
+          window.BoardArt.pan(s,dx,dy);
+        }else if(msg.kind==='pinch'){
+          const scale=Number(msg.scale);
+          if(!Number.isFinite(scale)||scale<.75||scale>1.35)return;
+          window.BoardArt.zoom(s,scale);
+        }
       }else if(msg.t==='board-camera-zoom'&&conn.playerId){
         // Only an authenticated controller in an active BOARD game may
         // zoom the HOST map. Never interpret this packet as movement/A/B/C.
@@ -1085,7 +1118,12 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!p)return;
         p.lastInputAt=Date.now();
-        if(round?.mode==='board'&&boardSession){window.BoardParty.input(boardSession,p.id,msg);return;}
+        if(round?.mode==='board'&&boardSession){
+          const locked=conn.boardCameraGestureToken===boardSession.turnId;
+          const input=locked?{...msg,keys:{...msg.keys,left:false,right:false,jump:false,
+            down:false,axisX:0,axisY:0}}:msg;
+          window.BoardParty.input(boardSession,p.id,input);return;
+        }
         for(const k of INPUT_NAMES)p.input[k]=msg.keys&&msg.keys[k]===true;
         p.input.axisX=Number.isFinite(msg.keys&&msg.keys.axisX)?clamp(msg.keys.axisX,-1,1):0;
         p.input.axisY=Number.isFinite(msg.keys&&msg.keys.axisY)?clamp(msg.keys.axisY,-1,1):0;
