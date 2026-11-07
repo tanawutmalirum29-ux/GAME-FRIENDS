@@ -25,6 +25,8 @@ jobs:
           node --check knight-match.js
           node --check boulder-bash.js
           node --check snow-brawl.js
+          node --check shopping-time.js
+          node --check tests/shopping-time.cjs
           node --check tests/snow-brawl.cjs
           node --check tests/boulder-bash.cjs
           node --check tests/knight-match.cjs
@@ -37,6 +39,8 @@ jobs:
           node --check tests/combat-motion.cjs
           node --check auto-update.js
           node --check scripts/build-static.cjs
+      - name: SHOPPING TIME conveyor physics, checkout, bombs and bot regressions
+        run: node tests/shopping-time.cjs
       - name: BOULDER BASH fixed-step physics and multiplayer survival
         run: node tests/boulder-bash.cjs
       - name: SNOW BRAWL fixed-step physics, momentum and rolling-speed checks
