@@ -20,7 +20,9 @@ function engine(doc){
     a.x-=nx*v;a.y-=ny*v;b.x+=nx*v;b.y+=ny*v;}
   }
  }}};
- vm.runInNewContext(source,{window,Math,console,...(doc?{document:doc}:{})},{filename:'witching-snake.js'});
+ const sandbox={window,Math,console,...(doc?{document:doc}:{})};
+ vm.runInNewContext(fs.readFileSync('party-arena-scenes.js','utf8'),sandbox,{filename:'party-arena-scenes.js'});
+ vm.runInNewContext(source,sandbox,{filename:'witching-snake.js'});
  return window.WitchingSnake;
 }
 function roster(n){
@@ -46,8 +48,8 @@ check('supports 1, 2, 4, 6, 7, 9 and 12 separated, valid spawns',()=>{
   const {e,ps,s}=game(n);
   assert.equal(s.w,n<=6?960:1280);
   assert.equal(s.h,n<=6?540:720);
-  assert.ok(2*s.rx/s.w>.92,'arena playable width must cover at least 92% of the world');
-  assert.ok(2*s.ry/s.h>.87,'arena height must cover nearly the full canvas');
+  assert.ok(2*s.rx/s.w>.60&&2*s.rx/s.w<.78,'compact arena reserves visible margins for shrines and groves');
+  assert.ok(2*s.ry/s.h>.8&&2*s.ry/s.h<.85,'top and bottom rails remain fully in frame');
   for(const p of ps)assert.equal(e.inside(s,p.x,p.y,35),true,'invalid spawn '+n);
   for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)
    assert.ok(Math.hypot(ps[i].x-ps[j].x,ps[i].y-ps[j].y)>=24,'overlapping spawns');
@@ -73,7 +75,7 @@ check('new arena scenery is cached after first vector render',()=>{
   get(_,key){
    if(key==='createLinearGradient'||key==='createRadialGradient')return gradient;
    if(key==='drawImage')return()=>{blits++;};
-   if(key==='fillRect')return()=>{paint++;};
+   if(key==='fillRect'||key==='fill')return()=>{paint++;};
    return()=>{};
   },
   set(){return true;}
@@ -89,7 +91,7 @@ check('new arena scenery is cached after first vector render',()=>{
  assert.equal(allocations,1,'scenery canvas allocated only once per round');
  assert.ok(paint>25,'new detailed arena drawn into the backdrop');
  assert.equal(blits,2,'later frames reuse cached scenery');
- assert.ok(s.arenaBackdrop);
+ assert.equal(s.boundary.length,12,'cached scenery uses the authoritative 12-sided rail');
 });
 check('60Hz coasting, pause and no early trail during countdown',()=>{
  const {e,round,ps,s}=game(1),p=ps[0],start={x:p.x,y:p.y};

@@ -6,7 +6,7 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#151d30;color:#f3f4f7;font:15px system-ui,sans-serif}header{max-width:1520px;margin:auto;padding:28px 28px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}h1{font-size:26px;margin:0}p{color:#a9b7cc;margin:8px 0 0;font-size:14px}.controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}select,button{font:inherit;color:inherit;border:1px solid #52607a;border-radius:8px;background:#26334c;padding:9px 14px;cursor:pointer}button:hover{background:#354767}main{max-width:1520px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:0 28px 28px}section{overflow:hidden;border-radius:12px;background:#202b40}h2{font-size:13px;letter-spacing:1.3px;margin:15px 18px}canvas{width:100%;display:block}.characters{grid-column:1/-1}@media(max-width:760px){main{grid-template-columns:1fr;padding:0 12px 18px}header{padding:20px 16px}h1{font-size:22px}.characters{overflow-x:auto}.characters canvas{min-width:760px}}
 </style>
-<header><div><h1>GAME FRIENDS / ART PREVIEW</h1><p>ตัวละครมุมบนชุดเดียวกัน • ฟาร์ม • ลาวา • สวนผลไม้ • สุสาน • อียิปต์</p></div><div class="controls"><label for="count">ผู้เล่น</label><select id="count"><option>1</option><option>4</option><option selected>6</option><option>7</option><option>8</option><option>12</option></select><button id="motion" type="button" aria-pressed="false">ดูท่าเดิน</button><button id="reset" type="button">เริ่มฉากใหม่</button></div></header>
+<header><div><h1>GAME FRIENDS / ART PREVIEW</h1><p>ตัวละครมุมบนชุดเดียวกัน • ฟาร์ม • ลาวา • สวนผลไม้ • สุสาน • อียิปต์ • ตลาด • ขี่ม้า • แม่มด • ปกเกม 12 เกม</p></div><div class="controls"><label for="count">ผู้เล่น</label><select id="count"><option>1</option><option>4</option><option selected>6</option><option>7</option><option>8</option><option>12</option></select><button id="motion" type="button" aria-pressed="false">ดูท่าเดิน</button><button id="reset" type="button">เริ่มฉากใหม่</button></div></header>
 <main></main>
 <script src="../arena-art.js"></script>
 <script src="../player-avatar.js"></script>
@@ -18,6 +18,11 @@
 <script src="../chickens.js"></script>
 <script src="../fruit-memory.js"></script>
 <script src="../shockwave.js"></script>
+<script src="../party-arena-scenes.js"></script>
+<script src="../game-cover-art.js"></script>
+<script src="../shopping-time.js"></script>
+<script src="../knight-match.js"></script>
+<script src="../witching-snake.js"></script>
 <script>
 /* Local art review only. Uses real engines, no PeerJS, rooms or network state.
    Example phases are frozen so art can be compared without changing game rules. */
@@ -39,7 +44,8 @@
   PartyPlayerAvatar.preload(players(4));
   const themes=[['CHICKENS / ฟาร์ม','Chickens'],['SHOCKWAVE / วิหารลาวา','Shockwave'],
     ['FRUIT MEMORY / สวนผลไม้','FruitMemory'],['GHOST ATTACK / สุสาน','GhostAttack','graveyard'],
-    ['GHOST ATTACK / อียิปต์','GhostAttack','egypt']];
+    ['GHOST ATTACK / อียิปต์','GhostAttack','egypt'],['SHOPPING TIME / ตลาด','ShoppingTime'],
+    ['KNIGHT MATCH / ขี่ม้าแทงลูกโป่ง','KnightMatch'],['WITCHING SNAKE / ลานแม่มด','WitchingSnake']];
   for(const [title,key,theme] of themes){
    const ps=players(Number(document.querySelector('#count').value)),round={phase:'countdown',countdown:3},engine=window[key];
    engine.setup(round,ps);
@@ -55,11 +61,18 @@
     p.carriedChickenId=chicken.id;p.dir={x:1,y:0};
     Object.assign(chicken,{status:'carried',carrierId:p.id,dir:p.dir,x:p.x+37,y:p.y});
    }
+   if(key==='ShoppingTime'){
+    for(let i=0;i<200;i++)engine.update(1/60,round,ps);
+    ps[0].shopping.basket=['banana','milk','apple'];
+   }
+   if(key==='WitchingSnake')for(let i=0;i<60;i++)engine.update(1/60,round,ps);
    if(key==='FruitMemory')round.fruitMemory.elapsed=.5;
    if(theme){round.ghost.ghostSpawned=true;GhostCemeteryArt.preload(ps,theme);}
    PartyPlayerAvatar.preload(ps);
    scenes.push({canvas:canvas(title),engine,round,players:ps});
   }
+  const covers=document.createElement('section');covers.style='grid-column:1/-1;padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px';
+  covers.innerHTML=PartyGameCovers.ids.map(id=>'<div>'+PartyGameCovers.svg(id).replace('width="320" height="180"','style="width:100%;height:auto"')+'<h2>'+id.replaceAll('_',' ').toUpperCase()+'</h2></div>').join('');main.append(covers);
   paint(0);
  }
  function paint(time){

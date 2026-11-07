@@ -1,6 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const ctx=vm.createContext({window:{},console});
+vm.runInContext(fs.readFileSync('party-arena-scenes.js','utf8'),ctx,{filename:'party-arena-scenes.js'});
 vm.runInContext(fs.readFileSync('knight-match.js','utf8'),ctx,{filename:'knight-match.js'});
 const K=ctx.window.KnightMatch,plain=x=>JSON.parse(JSON.stringify(x));
 const colors=['#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0','#ff9b64','#7fb4ff','#f283e9','#e5ed78','#83e1c8','#f8a9b6','#c4aafa'];
