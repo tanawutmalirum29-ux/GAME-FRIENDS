@@ -10,12 +10,15 @@ const shapes=Object.freeze({
  pepper:'<path d="M24 11Q14 8 11 18C5 32 14 42 22 42c5-1 4-1 8 0 13-1 17-16 9-25-4-8-11-7-15-6Z" fill="#4cb95c" stroke="#278043" stroke-width="2"/><path d="M23 10q3-7 8-7" fill="none" stroke="#428b43" stroke-width="4" stroke-linecap="round"/><path d="M24 12Q17 21 20 40M29 12Q37 26 30 40" stroke="#83d27a" stroke-width="2.5" fill="none"/><ellipse cx="15" cy="22" rx="3" ry="8" fill="#a3e48f" opacity=".45"/>',
  onion:'<path d="M24 5Q12 15 10 25C8 39 16 44 24 44s16-5 14-19C36 15 27 9 24 5Z" fill="#ce98d6" stroke="#8f64b8" stroke-width="2"/><path d="M24 11c-11 13-13 26 0 32M25 11c11 13 13 26 0 32" fill="none" stroke="#f4d6f4" stroke-width="2.5"/><path d="M20 5q4-3 8 0" fill="none" stroke="#8d60a8" stroke-width="2.5"/><ellipse cx="17" cy="22" rx="3" ry="7" fill="#fff" opacity=".18"/>',
  pineapple:'<path d="M24 13 10 6l8 1L17 2l9 10 5-10-1 8 9-5-9 12Z" fill="#448e3b" stroke="#2f6e37" stroke-width="1.5"/><path d="M12 17Q15 11 24 12q11-1 13 7l-2 17Q30 43 24 43t-11-7Z" fill="#e9bf40" stroke="#ad822d" stroke-width="2"/><g fill="none" stroke="#bc9136" stroke-width="2"><path d="m12 21 23 17m-21-24 23 20M12 35l24-18M16 41l20-19"/></g><g fill="#ffe67b"><circle cx="23" cy="25" r="2"/><circle cx="29" cy="30" r="2"/></g>',
- basil:'<path d="M24 42V7" fill="none" stroke="#326e40" stroke-width="3" stroke-linecap="round"/><path d="M24 35C8 37 5 25 9 15c11-1 15 9 15 20ZM24 30c0-16 7-22 18-21 0 14-6 20-18 21Z" fill="#4bac6c" stroke="#287f46" stroke-width="2"/><path d="M24 36 12 19M24 30l13-16" stroke="#98df9b" stroke-width="2"/><path d="M25 18c-6-10-2-14 1-15 6 6 7 10-1 15Z" fill="#55b75b"/>'
+ basil:'<path d="M24 42V7" fill="none" stroke="#326e40" stroke-width="3" stroke-linecap="round"/><path d="M24 35C8 37 5 25 9 15c11-1 15 9 15 20ZM24 30c0-16 7-22 18-21 0 14-6 20-18 21Z" fill="#4bac6c" stroke="#287f46" stroke-width="2"/><path d="M24 36 12 19M24 30l13-16" stroke="#98df9b" stroke-width="2"/><path d="M25 18c-6-10-2-14 1-15 6 6 7 10-1 15Z" fill="#55b75b"/>',
+ olive:'<ellipse cx="24" cy="25" rx="15" ry="19" fill="#6d8d3d" stroke="#3c5826" stroke-width="2.5"/><ellipse cx="20" cy="20" rx="7" ry="12" fill="#9fb957" opacity=".65"/><circle cx="26" cy="26" r="7.2" fill="#bc4737" stroke="#8a352d" stroke-width="2"/><circle cx="25" cy="25" r="3" fill="#e47c56"/><path d="M24 8C21 3 20 2 18 2" fill="none" stroke="#527c39" stroke-width="3" stroke-linecap="round"/>',
+ corn:'<path d="M25 6C12 8 12 32 20 43c7 3 15-4 16-19C37 13 31 6 25 6Z" fill="#f2c948" stroke="#b78a2a" stroke-width="2"/><g fill="#fce67f" stroke="#d1a93b" stroke-width=".75"><ellipse cx="23" cy="13" rx="3.3" ry="4.6"/><ellipse cx="29" cy="15" rx="3.3" ry="4.6"/><ellipse cx="20" cy="22" rx="3.3" ry="4.6"/><ellipse cx="27" cy="24" rx="3.3" ry="4.6"/><ellipse cx="20" cy="31" rx="3.3" ry="4.6"/><ellipse cx="27" cy="33" rx="3.3" ry="4.6"/></g><path d="M19 42C6 35 6 20 11 12c1 13 6 18 11 22M32 42c12-9 12-24 9-31-3 13-8 20-13 24" fill="#4ba75a" stroke="#2c7d40" stroke-width="2"/>'
 });
 const SVG_NS='http://www.w3.org/2000/svg';
 const names=Object.freeze({
  tomato:'มะเขือเทศ',cheese:'ชีส',mushroom:'เห็ด',pepperoni:'เปปเปอโรนี',
- pepper:'พริกหวาน',onion:'หัวหอม',pineapple:'สับปะรด',basil:'ใบโหระพา'
+ pepper:'พริกหวาน',onion:'หัวหอม',pineapple:'สับปะรด',basil:'ใบโหระพา',
+ olive:'มะกอก',corn:'ข้าวโพด'
 });
 const cache=new Map();
 function svg(id,opts={}){
