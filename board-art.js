@@ -383,7 +383,7 @@ function nodes(g,s){
   g.save();g.translate(x,y);
   if(n.type==='movement'||n.type==='start'){const q=s.map.nodes[n.nextNodes[0]];if(q)g.rotate(Math.atan2(q.position.y-y,q.position.x-x));}
   icon(g,n.type,0,0,n.type==='sword'?25:n.type==='lucky'?23:20,'#f7ffff');g.restore();
-   if(c.debugNodes){
+   if(c.debugNodes&&s.players.every(p=>p.isBot)){
     g.save();g.translate(x,y-53);g.scale(1/c.zoom,1/c.zoom);
     box(g,-27,-9,54,18,4,'#0a2a43e9','#72b1cf');
     label(g,c.zoom<.2?n.id.replace(/^n/,''):n.id,0,0,9,'#fff','center',800,50);
@@ -581,8 +581,9 @@ function hud(g,s){
  // A single compact rail fits every player from 1 through 12 on ONE row.
  const n=s.players.length,cols=n,gap=n>=10?3:5,w=(936-gap*(cols-1))/cols,active=window.BoardParty.current(s);
  box(g,0,0,960,94,0,'#102d43f2');
- label(g,'BOARD PARTY',16,19,13,'#e9faff');label(g,'WINTER ISLANDS',142,19,8,'#8bbccc','left',500);
- label(g,'ROUND '+String(s.roundNumber).padStart(2,'0'),325,19,10,'#ffdf9d','right');
+ // Keep the iPadOS clock/date strip clear of the map title.
+ label(g,'BOARD PARTY',146,19,13,'#e9faff');label(g,'WINTER ISLANDS',277,19,8,'#8bbccc','left',500);
+ label(g,'ROUND '+String(s.roundNumber).padStart(2,'0'),468,19,10,'#ffdf9d','right');
  const ids=s.order.length?s.order:s.players.map(p=>p.id);
  ids.forEach((id,i)=>{
   const p=s.players.find(q=>q.id===id);
@@ -605,7 +606,7 @@ function hud(g,s){
  const p=active;
  if(s.phase==='overview'||s.camera.overview){
   label(g,'WINTER ISLANDS',30,footerY+18,14,'#ffe4a5');
-  label(g,(s.map.islands?.length||9)+' เกาะ • '+s.map.length+' ช่วง • A เริ่มทอยเมื่อพร้อม',30,footerY+40,10,'#b9d9e7','left',500,302);
+  label(g,(s.map.islands?.length||9)+' เกาะ • '+s.map.length+' ช่วง • เริ่มทอยลำดับอัตโนมัติใน 2 วินาที',30,footerY+40,10,'#b9d9e7','left',500,358);
   const legend=[['sword','ยึดพื้นที่'],['healing','ฟื้น HP'],['danger','อันตราย'],['lucky','ไอเทม']];
   legend.forEach(([type,name],i)=>{const x=410+i*135;circle(g,x,footerY+22,12,colors[type]);icon(g,type,x,footerY+22,type==='sword'?9:8);label(g,name,x,footerY+48,9,'#d6eaf2','center',600,100);});
  }else if(p){
@@ -810,7 +811,8 @@ function aimControls(g,s){
   'ขยับจอยเพื่อเล็งก่อนกด A',x+14,y+148,11,'#b6def0','left',700,w-27);
 }
 function turnDice(g,s){
- if(!['ready','dice'].includes(s.phase))return;
+ if(!['ready','dice'].includes(s.phase)||
+    (s.phase==='ready'&&s.camera.bagMapInspect))return;
  const p=window.BoardParty.current(s);if(!p)return;
  const cx=480,top=168,width=348,height=232,left=cx-width/2;
  const elapsed=Math.max(0,s.time-s.phaseAt);
@@ -865,7 +867,7 @@ function canPan(s){
  // Drag and pinch gestures are independent from the controller's walking
  // input. A moving player can keep steering WHILE the host views other pads.
  return !!(s?.phase==='overview'||s?.camera?.paused||s?.camera?.overview||
-  walkingCamera(s)||(s?.phase==='dice'&&s?.rolled));
+  walkingCamera(s)||s?.phase==='ready'||(s?.phase==='dice'&&s?.rolled));
 }
 function pan(s,dx,dy){
  if(!canPan(s)||!Number.isFinite(dx)||!Number.isFinite(dy))return false;
@@ -887,9 +889,14 @@ function zoom(s,scale){
  c.y=clampCamera(c.y,(mapBottom(s)-(94))/2/c.zoom,b.minY,b.maxY);
  c.manualZoom=c.zoom;c.panned=true;c.rescuedOffscreen=false;return true;
 }
-function toggleDebug(s){s.camera.debugNodes=!s.camera.debugNodes;return s.camera.debugNodes;}
+function toggleDebug(s){
+  // Debug identifiers are restricted to bot-only sessions.
+  if(s.players.some(p=>!p.isBot)){s.camera.debugNodes=false;s.camera.selectedId=null;return false;}
+  s.camera.debugNodes=!s.camera.debugNodes;if(!s.camera.debugNodes)s.camera.selectedId=null;
+  return s.camera.debugNodes;
+ }
 function inspect(s,x,y){
- if(!s.camera.debugNodes)return null;
+ if(!s.camera.debugNodes||s.players.some(p=>!p.isBot))return null;
  const top=94,viewH=mapBottom(s)-top,c=s.camera;
  if(y<top||y>mapBottom(s))return null;
  const wx=c.x+(x-480)/c.zoom,wy=c.y+(y-(top+viewH/2))/c.zoom;
@@ -991,7 +998,7 @@ function draw(g,t,s){
   turnDice(g,s);intermissionNotice(g,s);luckyRoulette(g,s);
   g.restore();overlay(g,s);
  }
- if(s.camera.debugNodes&&s.camera.selectedId){
+ if(s.camera.debugNodes&&s.players.every(p=>p.isBot)&&s.camera.selectedId){
   const n=s.map.nodes[s.camera.selectedId],t=s.map.territories[n.territoryId];
   box(g,207,bottom-49,546,57,8,'#0a2a43f5','#91cde7');
   label(g,n.id+' • '+n.type+' • progress '+n.progress+' • HP '+(n.effects.hp||0),

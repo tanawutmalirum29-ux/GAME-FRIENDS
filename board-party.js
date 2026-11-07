@@ -39,7 +39,7 @@ function movePhase(s,name,duration=8){
 const current=s=>s.players.find(p=>p.id===s.order[s.turnIndex]);
 function axes(s,id){const a=s.inputs[id];return a&&s.time-a.at<.9?{x:a.x,y:a.y}:{x:0,y:0};}
 function rollOrder(s,p){if(p.dice||s.phase!=='order')return false;p.dice=[D().roll(s.rng),D().roll(s.rng)];p.rollAt=s.time;return true;}
-function ready(s){s.move=null;s.skill=null;for(const p of s.players){p.bagOpen=false;if(p.id===current(s)?.id){p.actionIndex=0;p.bagMessage='';}}s.readyDeadline=Infinity;phase(s,'ready',Infinity);}
+function ready(s){s.camera.bagMapInspect=false;s.move=null;s.skill=null;for(const p of s.players){p.bagOpen=false;if(p.id===current(s)?.id){p.actionIndex=0;p.bagMessage='';}}s.readyDeadline=Infinity;phase(s,'ready',Infinity);}
 function startTurn(s){M().assertCompatible(s.map);s.camera.overview=false;s.camera.explore=false;s.rolled=false;s.die=null;s.moveDice=null;s.move=null;s.skill=null;ready(s);}
 function endTurn(s){
  if(s.phase==='finished')return;
@@ -482,7 +482,8 @@ function grant(s){
 function update(s,dt){
  M().assertCompatible(s.map);
  if(!Number.isFinite(dt)||dt<=0)return;dt=Math.min(dt,.1);s.time+=dt;
- if(s.phase==='overview'){if(s.players.every(p=>p.isBot)&&s.time-s.phaseAt>=INTRO_OVERVIEW_SECONDS-1e-6)beginIntroZoom(s);}
+ // The panorama is an automatic, fixed 2-second intro for bot AND human lobbies.
+  if(s.phase==='overview'){if(s.time-s.phaseAt>=INTRO_OVERVIEW_SECONDS-1e-6)beginIntroZoom(s);}
  else if(s.phase==='intro_zoom'){if(s.time+1e-6>=s.deadline)beginOrder(s);}
  else if(s.phase==='order'){
   for(const p of s.players)if(!p.dice&&p.isBot&&s.time-s.phaseAt>.6+s.players.indexOf(p)*.12)rollOrder(s,p);

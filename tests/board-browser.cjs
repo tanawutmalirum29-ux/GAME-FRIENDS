@@ -6,7 +6,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
 const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'..'),out=process.env.BOARD_SCREENSHOTS||'/tmp/game-friends-board';
-const injection=`window.__boardTest={get board(){return boardSession},get round(){return round},get players(){return players},beginBoard,updateBoard,updateRound,drawGame,addLocal,returnToLobby,layoutFinalResults,beginGameSelection,updateGameSelection,pulse:sendInputs,
+const injection=`window.__boardTest={get board(){return boardSession},get round(){return round},get players(){return players},beginBoard,updateBoard,updateRound,drawGame,refreshBoardTools,addLocal,returnToLobby,layoutFinalResults,beginGameSelection,updateGameSelection,pulse:sendInputs,
  phone(info){controllerReady=true;controllerPlayerActive=true;controllerId='p1';controllerSessionMode='board';
  controllerConn={open:true,send:msg=>window.__boardPackets.push(msg)};window.__boardPackets=[];
  $('controllerName').textContent='Snow explorer';$('controllerAvatar').style.background='#ff628c';
@@ -23,7 +23,7 @@ const server=http.createServer((req,res)=>{
 async function noScroll(page){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight),true);}
 async function toolbarInside(page){
    const toolBounds=await page.evaluate(()=>{const a=document.getElementById('arena').getBoundingClientRect(),b=document.getElementById('boardTools').getBoundingClientRect(),height=__boardTest.board.camera.viewHeight||540,scale=Math.min(a.width/960,a.height/height),x=a.left+(a.width-960*scale)/2,y=a.top+(a.height-height*scale)/2;return{left:(b.left-x)/scale,right:(b.right-x)/scale,top:(b.top-y)/scale,bottom:(b.bottom-y)/scale};});
-   assert.ok(toolBounds.left>=340&&toolBounds.right<=910&&toolBounds.top>=0&&toolBounds.bottom<=35,'toolbar stays in the header above map/player cards');
+   assert.ok(toolBounds.left>=580&&toolBounds.right<=915&&toolBounds.top>=94&&toolBounds.bottom<=185,'board tools float in map area below player cards');
 }
 async function main(){
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+server.address().port;
@@ -107,7 +107,9 @@ async function main(){
    await toolbarInside(host);
   }
   await host.screenshot({path:path.join(out,'overview-12.png')});
-  await host.locator('#boardStartDiceBtn').click();await host.evaluate(()=>{__boardTest.updateBoard(1);__boardTest.updateBoard(.5);__boardTest.drawGame(__boardTest.board.time);});
+  assert.equal(await host.locator('#boardStartDiceBtn').isVisible(),false);
+   await host.evaluate(()=>{for(let i=0;i<70;i++)__boardTest.updateBoard(.05);__boardTest.drawGame(__boardTest.board.time);});
+   assert.equal(await host.evaluate(()=>__boardTest.board.phase),'order','2s panorama + 1.5s fly-in begins automatically');
   await host.screenshot({path:path.join(out,'order-12.png')});
   await host.screenshot({path:path.join(out,'board-order.jpg'),type:'jpeg',quality:82,scale:'css'});
   async function drawnTexts(){return host.evaluate(()=>{
@@ -145,7 +147,7 @@ async function main(){
   await host.setViewportSize({width:1024,height:768});
   await host.evaluate(()=>__boardTest.drawGame(0));
   // The real host controls must explore the map without touching gameplay state.
-  await host.locator('#boardStartDiceBtn').click();
+  await host.evaluate(()=>{BoardParty.startOrder(__boardTest.board);});
   await host.evaluate(()=>{const a=__boardTest,s=a.board;
    s.order=s.players.map(p=>p.id);s.players.forEach(p=>p.isBot=false);
    a.players[0].isBot=false;BoardParty.startTurn(s);BoardParty.beginMove(s,s.players[0],2);
@@ -153,9 +155,16 @@ async function main(){
   });
   await host.locator('#pauseBtn').click();
   assert.equal(await host.evaluate(()=>__boardTest.round.paused),true);
-  const pausedPlayers=await host.evaluate(()=>JSON.stringify(__boardTest.board.players));
+  let pausedPlayers=await host.evaluate(()=>JSON.stringify(__boardTest.board.players));
   await host.locator('#boardOverviewBtn').click();
-  await host.locator('#boardNodeDebugBtn').click();
+  assert.equal(await host.locator('#boardNodeDebugBtn').isVisible(),false,'human sessions hide development ID');
+   await host.evaluate(()=>{
+    const a=__boardTest;a.board.players.forEach(p=>p.isBot=true);
+    a.players.forEach(p=>p.isBot=true);a.refreshBoardTools();
+   });
+   assert.equal(await host.locator('#boardNodeDebugBtn').isVisible(),true,'bot-only sessions expose ID');
+   pausedPlayers=await host.evaluate(()=>JSON.stringify(__boardTest.board.players));
+   await host.locator('#boardNodeDebugBtn').click();
   for(let i=0;i<7;i++)await host.locator('#boardZoomInBtn').click();
   await host.evaluate(()=>__boardTest.drawGame(0));
   const beforePan=await host.evaluate(()=>({...__boardTest.board.camera}));
@@ -252,7 +261,7 @@ async function main(){
   await mobile.addInitScript(()=>{window.requestAnimationFrame=()=>0;});
   const phone=await mobile.newPage();phone.on('pageerror',e=>errors.push(String(e)));await phone.goto(base+'/?join=ABC123');
   async function refreshPhone(){
-   const info=await host.evaluate(()=>{const s=__boardTest.board,p=s.players[0];return{phase:'playing',turnId:s.turnId,boardPhase:s.phase,round:s.roundNumber,hp:p.hp,stepsRemaining:BoardParty.remainingSteps(s,p.id),shieldTurns:p.shieldTurns,item:BoardItems.names[p.item]||'ไม่มีไอเทม',bag:BoardItems.bag(p).slice(),actionIndex:p.actionIndex||0,...BoardParty.controls(s,p.id)};});
+   const info=await host.evaluate(()=>{const s=__boardTest.board,p=s.players[0];return{phase:'playing',canZoom:BoardArt.canPan(s)&&BoardParty.current(s)?.id===p.id,turnId:s.turnId,boardPhase:s.phase,round:s.roundNumber,hp:p.hp,stepsRemaining:BoardParty.remainingSteps(s,p.id),shieldTurns:p.shieldTurns,item:BoardItems.names[p.item]||'ไม่มีไอเทม',bag:BoardItems.bag(p).slice(),actionIndex:p.actionIndex||0,...BoardParty.controls(s,p.id)};});
    await phone.evaluate(info=>__boardTest.phone(info),info);
    const packets=await phone.evaluate(()=>__boardPackets.filter(p=>p.t==='input'));
    await host.evaluate(packets=>{const s=__boardTest.board;for(const p of packets)BoardParty.input(s,s.players[0].id,p);},packets);return info;
@@ -262,7 +271,34 @@ async function main(){
    await host.evaluate(packets=>{const s=__boardTest.board;for(const p of packets)BoardParty.input(s,s.players[0].id,p);},packets);
   }
   await host.evaluate(()=>{const s=__boardTest.board;s.players[0].bag=['potion'];s.players[0].item='potion';s.players[0].hp=50;s.players[0].currentNodeId='n1';s.players[0].worldPosition=null;s.rng=()=>0;});
-  await refreshPhone();await noScroll(phone);await phone.screenshot({path:path.join(out,'phone.png')});
+  const readyInfo=await refreshPhone();await noScroll(phone);await phone.screenshot({path:path.join(out,'phone.png')});
+   // Double-tapping the existing joystick before rolling closes the bag
+   // and engages map drag/pinch; the second double-tap restores the SAME slot.
+   assert.equal(readyInfo.boardPhase,'ready');
+   assert.equal(await phone.locator('#controllerInventory').isVisible(),true);
+   const slotBefore=await host.evaluate(()=>__boardTest.board.players[0].actionIndex);
+   async function doubleTapReadyJoystick(){
+    await phone.evaluate(()=>{
+     const zone=document.getElementById('joystickZone'),box=zone.getBoundingClientRect(),
+      x=box.left+box.width/2,y=box.top+box.height/2;
+     for(let i=0;i<2;i++){
+      const id=201+i;
+      zone.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true,pointerId:id,clientX:x,clientY:y,pointerType:'touch',isPrimary:true}));
+      zone.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,cancelable:true,pointerId:id,clientX:x,clientY:y,pointerType:'touch',isPrimary:true}));
+     }
+    });
+   }
+   await doubleTapReadyJoystick();
+   assert.equal(await phone.locator('#controllerInventory').isVisible(),false,'pre-roll bag closes in map inspection');
+   assert.equal(await phone.locator('#joystickZone').evaluate(e=>e.classList.contains('board-camera-mode')),true);
+   assert.equal(await phone.evaluate(()=>__boardPackets.some(p=>p.t==='board-camera-mode'&&p.enabled===true)),true);
+   await tap('#buttonA');
+   assert.equal(await phone.evaluate(()=>__boardPackets.filter(p=>p.t==='input').at(-1)?.keys.action),false,
+    'button A cannot roll while camera inspection is active');
+   await doubleTapReadyJoystick();
+   assert.equal(await phone.locator('#controllerInventory').isVisible(),true,'double-tap returns to backpack');
+   assert.equal(await phone.locator('#joystickZone').evaluate(e=>e.classList.contains('board-camera-mode')),false);
+   assert.equal(await host.evaluate(()=>__boardTest.board.players[0].actionIndex),slotBefore,'inspect does not change selected item');
   assert.match(await phone.locator('#buttonBLabel').innerText(),/เปลี่ยนไอเทม/);await tap('#buttonB');
   await refreshPhone();assert.match(await phone.locator('#buttonALabel').innerText(),/ใช้ไอเทม/);
   await tap('#buttonA');assert.equal(await host.evaluate(()=>__boardTest.board.players[0].hp),100);

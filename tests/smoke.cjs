@@ -2691,8 +2691,9 @@ for(const count of [1,12]){
  assert.equal(s.deadline,Infinity,'exploration has no human timeout');
  api.updateBoard(1);api.updateBoard(.95);
  assert.equal(s.phase,'overview','full-map introduction remains visible before two seconds');
- ui.click('boardStartDiceBtn');
- assert.equal(s.phase,'intro_zoom','start button begins camera fly-in');
+ assert.equal(ui.elements.get('boardStartDiceBtn').classList.contains('hidden'),true,'manual skip is hidden now that intro is timed');
+ api.updateBoard(.05);
+ assert.equal(s.phase,'intro_zoom','camera fly-in begins automatically at two seconds');
  assert.ok(Math.abs(s.deadline-s.phaseAt-1.5)<1e-9,'intro zoom lasts 1.5 seconds');
  assert.ok(s.camera.introFrom&&Number.isFinite(s.camera.introFrom.zoom),
    'camera captures the current overview framing before zooming');
@@ -2709,7 +2710,7 @@ for(const count of [1,12]){
  assert.equal(s.phase,'intro_zoom','order cannot start until the fly-in finishes');
  api.updateBoard(.05);
  assert.equal(s.phase,'order','dice ordering starts automatically after 3.5 seconds');
- assert.equal(ui.elements.has('boardStartDiceBtn'),true,'host can end exploration when ready');
+ assert.equal(ui.elements.has('boardStartDiceBtn'),true,'legacy element remains for accessibility but auto intro needs no click');
  for(let i=0;i<10000&&s.phase!=='minigame';i++)api.updateBoard(.05);
  assert.equal(s.phase,'minigame','every turn completes and starts the reel');
  assert.ok(api.getSelection());
@@ -2758,9 +2759,9 @@ for(const count of [1,12]){
  conn.fire('data',{t:'input',turnId:state.turnId,actionId:1,keys:{alt:true}});
  assert.equal(p.dice,null,'roll input rejected during map overview');
  api.updateBoard(1);api.updateBoard(1);
- assert.equal(s.phase,'overview','human can keep exploring');
+ assert.equal(s.phase,'intro_zoom','human overview automatically ends at two seconds');
  conn.fire('data',{t:'input',turnId:state.turnId,actionId:2,keys:{action:true}});
- assert.equal(s.phase,'intro_zoom','phone A starts camera fly-in');
+ assert.equal(s.phase,'intro_zoom','stale phone A cannot restart an automatic camera fly-in');
  state=conn.sent.filter(p=>p.t==='board-state').at(-1);
  conn.fire('data',{t:'input',turnId:state.turnId,actionId:3,keys:{alt:true}});
  assert.equal(p.dice,null,'roll input rejected while camera is zooming');
@@ -2808,7 +2809,38 @@ for(const count of [1,12]){
  assert.equal(state.shieldTurns,1,'manually activated shield is active for this BOARD round');assert.equal(p.shieldRound,s.roundNumber);assert.equal(p.item,null);assert.equal(p.bag.length,0);
 }
 {
- // BOARD PARTY camera changes must be authorized by the current player on the
+ // Pre-roll camera mode: a real remote player may hide the item selector,
+// drag/zoom the board and double-tap back WITHOUT rolling or changing inventory.
+{
+ const ui=setup();ui.click('hostBtn');ui.instances[0].fire('open');
+ const peer=ui.instances[0],owner=peer.connect();peer.fire('connection',owner);
+ owner.fire('data',{t:'join',name:'Real board player',clientToken:'ready-camera-test'});
+ const api=ui.scope.window.__ghostTest,P=ui.scope.window.BoardParty;
+ ui.sessionButtons[2].fire('click');ui.click('startBtn');
+ const s=api.getBoard(),p=s.players[0];
+ s.order=[p.id];s.turnIndex=0;P.startTurn(s);
+ p.bag=['potion'];p.item='potion';p.actionIndex=1;p.hp=45;
+ api.updateBoard(.05);
+ assert.equal(s.phase,'ready');
+ assert.equal(owner.sent.filter(x=>x.t==='board-state').at(-1).canZoom,true,
+  'the currently playing human may inspect the map before the first dice roll');
+ const token={turnId:s.turnId,mapVersion:s.map.version};
+ owner.fire('data',{t:'board-camera-mode',enabled:true,...token});
+ assert.equal(owner.boardCameraGestureToken,s.turnId);
+ assert.equal(s.camera.bagMapInspect,true,'host renderer hides item selection panel');
+ const z=s.camera.zoom;
+ owner.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...token});
+ assert.ok(s.camera.zoom>z,'map can be zoomed during pre-roll selection');
+ owner.fire('data',{t:'input',...token,actionId:1,keys:{action:true,alt:true,axisX:1,axisY:1}});
+ assert.equal(s.phase,'ready','pressing A while exploring may not roll dice');
+ assert.equal(p.actionIndex,1,'pressing B while exploring may not switch items');
+ assert.deepEqual(p.bag,['potion']);
+ assert.equal(p.hp,45,'no item was consumed during inspection');
+ owner.fire('data',{t:'board-camera-mode',enabled:false,...token});
+ assert.equal(s.camera.bagMapInspect,false,'double-tap back restores original selector');
+ assert.equal(s.camera.panned,false);
+}
+// BOARD PARTY camera changes must be authorized by the current player on the
 // host. Even a valid spectator data packet cannot steal the shared map zoom.
 {
  const ui=setup();ui.click('hostBtn');ui.instances[0].fire('open');

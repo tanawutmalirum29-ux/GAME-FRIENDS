@@ -51,11 +51,14 @@ async function main(){
    const startup=await page.evaluate(()=>({time:__boardStartup.board.time,view:__boardStartup.view,texts:__drawnTexts,allocations:__terrainSizes,pixel:[...document.getElementById('arena').getContext('2d').getImageData(100,100,1,1).data]}));
    assert.equal(startup.view,'game');assert.equal(startup.time,0);assert.equal(startup.pixel[3],255,'overview is painted even before the first rAF');
    assert.ok(startup.texts.includes('BOARD PARTY'));assert.equal(startup.allocations.length,1);assert.ok(startup.allocations[0]<=3500000);
-   await page.locator('#boardStartDiceBtn').click();
+   assert.equal(await page.locator('#boardStartDiceBtn').isVisible(),false,
+    'BOARD preview is timed and does not require A or a manual Start button');
    // Order screen paints on the next frame; the initial overview already painted synchronously.
    await page.screenshot({path:path.join(out,engine+'-start-'+(denyTerrain?'fallback':'normal')+'.png')});
    await page.evaluate(()=>window.__resumeBoardFrame());
    await page.waitForFunction(()=>__boardStartup.board?.time>.05,{},{timeout:20000});
+   await page.waitForFunction(()=>__boardStartup.board?.phase==='order',{},{timeout:20000});
+   assert.ok(await page.evaluate(()=>__boardStartup.board.time>=3.49),'automatic 2-second overview and 1.5-second fly-in');
    assert.equal(await page.evaluate(()=>__boardStartup.view),'game','initial order must also survive real animation frames');
    await page.evaluate(()=>{
     const s=__boardStartup.board;s.order=s.players.map(p=>p.id);s.players.forEach(p=>p.isBot=false);BoardParty.startTurn(s);

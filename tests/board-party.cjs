@@ -61,20 +61,19 @@ test('1,000 seeds: connected DAG, reciprocal edges, all branches finish',()=>{
   }
  }
 });
-test('Explore until ready, then smooth 1.5s intro; all-bot games start automatically',()=>{
- const s=P.create(roster(3),{seed:37,rng:M.random(37)});
- tick(s,30);assert.equal(s.phase,'overview');assert.equal(s.deadline,Infinity);
- assert.ok(s.players.every(p=>p.dice===null));
- assert.equal(P.beginOrder(s),false);
- assert.equal(P.action(s,s.players[0].id,'A'),true);
- assert.equal(s.phase,'intro_zoom');
- assert.equal(P.startOrder(s),false,'duplicate start cannot restart the camera');
- tick(s,1.45);assert.equal(s.phase,'intro_zoom');
- tick(s,.05);assert.equal(s.phase,'order');
- assert.ok(s.players.every(p=>p.dice===null));
- const bots=P.create(roster(12,true),{seed:37});
- tick(bots,2);assert.equal(bots.phase,'intro_zoom');
- tick(bots,1.5);assert.equal(bots.phase,'order');
+test('Both human and bot games show the panorama for 2s, then zoom to START without A',()=>{
+ for(const botsOnly of [false,true]){
+  const s=P.create(roster(botsOnly?12:3,botsOnly),{seed:37,rng:M.random(37)});
+  tick(s,1.95);assert.equal(s.phase,'overview','panorama stays for two seconds');
+  assert.equal(s.deadline,Infinity);
+  assert.ok(s.players.every(p=>p.dice===null));
+  assert.equal(P.beginOrder(s),false);
+  tick(s,.05);assert.equal(s.phase,'intro_zoom','no controller A required');
+  assert.equal(P.startOrder(s),false,'duplicate start cannot restart camera');
+  tick(s,1.45);assert.equal(s.phase,'intro_zoom');
+  tick(s,.05);assert.equal(s.phase,'order','order starts automatically');
+  assert.ok(s.players.every(p=>p.dice===null),'human dice are not rolled for them');
+ }
 });
 test('1–12 players: manual A/B order rolls, no human timeout, double-input protection',()=>{
  for(let n=1;n<=12;n++){

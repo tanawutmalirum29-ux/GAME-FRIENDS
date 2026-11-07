@@ -31,6 +31,8 @@ function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,nam
  A.overview(s);const fit=A.fitZoom(s);
  assert.ok(Math.abs(s.camera.zoom-fit)<1e-7&&A.canPan(s));
  assert.ok(fit<.3,'the entire 2800-unit world must fit in the viewport');
+ assert.equal(A.toggleDebug(s),false,'a session containing humans cannot show development IDs');
+ s.players.forEach(p=>p.isBot=true);
  const original=JSON.stringify(s.players);
  assert.equal(A.zoom(s,1.5),true);assert.ok(s.camera.zoom>fit);
  assert.equal(A.toggleDebug(s),true);
@@ -471,6 +473,8 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  session.camera.zoom=1;
  const center=session.map.nodes.n35.position;
  session.camera.x=center.x;session.camera.y=center.y;
+ assert.equal(A.toggleDebug(session),false,'human sessions cannot inspect node IDs');
+ session.players.forEach(p=>p.isBot=true);
  A.toggleDebug(session);
  assert.equal(A.inspect(session,480,94+538/2)?.id,'n35',
   'map inspection uses the taller viewport center');
