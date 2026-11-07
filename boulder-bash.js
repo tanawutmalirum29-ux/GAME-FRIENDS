@@ -1,7 +1,10 @@
 /* BOULDER BASH — deterministic fixed-step, host-authoritative snow survival. */
 (() => {
 'use strict';
-const STEP=1/60,TAU=Math.PI*2,MIN_X=94,MAX_X=658,TOP=75,BOTTOM=468;
+const STEP=1/60,TAU=Math.PI*2,MIN_X=94,MAX_X=895,TOP=75,BOTTOM=468;
+// The snow stretches nearly to x=925; players must be able to reach it.
+// Spawn positions leave a safe inset from the icy borders and incoming rocks.
+const SPAWN_LEFT=190,SPAWN_RIGHT=784,SPAWN_TOP=145,SPAWN_BOTTOM=397;
 const C=Object.freeze({radius:15,accel:780,drag:2.4,maxSpeed:195,pushImpulse:98,pushRange:40,
  pushCooldown:.6,rockGravity:118,rockDrag:.14,rockLimit:18,rockChance:.35,soloDuration:60});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -12,17 +15,34 @@ function vector(i){let x=Number(i?.axisX)||Number(!!i?.right)-Number(!!i?.left);
  let y=Number(i?.axisY)||Number(!!i?.down)-Number(!!i?.jump);
  const m=Math.hypot(x,y);if(m>1){x/=m;y/=m;}return{x,y};}
 function interval(t){return t<15?2.5:t<30?2:t<45?1.5:t<60?1:.75;}
+function spawnPositions(count){
+ // Evenly cover the whole usable slope instead of bunching up at x=210.
+ // Partial rows are centered so 5, 7, 10, 11 players do not leave a corner pile.
+ const columns=count<=3?count:count===4?2:count<=6?3:count<=8?4:count===9?3:4;
+ const rows=Math.ceil(count/columns);
+ const positions=[];
+ for(let i=0;i<count;i++){
+  const row=Math.floor(i/columns),inRow=Math.min(columns,count-row*columns);
+  const col=i-row*columns;
+  const spacing=columns>1?(SPAWN_RIGHT-SPAWN_LEFT)/(columns-1):0;
+  const offset=(columns-inRow)*spacing/2;
+  positions.push({
+   x:columns===1?(SPAWN_LEFT+SPAWN_RIGHT)/2:SPAWN_LEFT+offset+col*spacing,
+   y:rows===1?(SPAWN_TOP+SPAWN_BOTTOM)/2:SPAWN_TOP+row*(SPAWN_BOTTOM-SPAWN_TOP)/(rows-1)
+  });
+ }
+ return positions;
+}
 function setup(round,ps){
  if(!ps.length||ps.length>12)throw Error('BOULDER BASH supports 1–12 players');
  const n=ps.length,s={clock:0,tick:0,accumulator:0,seed:(Number(round.boulderSeed)||(Date.now()^0x1a59c3e))>>>0||1,
   rocks:[],warnings:[],effects:[],queue:[],nextSpawn:1.2,nextId:1,finished:false,
   winnerIds:[],ranking:[],roster:ps,originalCount:n};
  round.boulderBash=s;round.remaining=null;
- const rows=n<=4?1:n<=8?2:3,cols=Math.ceil(n/rows),startY=n<=4?270:n<=8?232:190;
+ const positions=spawnPositions(n);
  ps.forEach((p,i)=>{
   p.active=true;p.score=0;
-  const col=Math.floor(i/rows),row=i%rows;
-  p.x=210+col*44;p.y=startY+(row-(rows-1)/2)*(n<=8?66:75);
+  p.x=positions[i].x;p.y=positions[i].y;
   p.vx=0;p.vy=0;p.dir={x:1,y:0};p.face=1;
   p.bb={alive:true,eliminatedAt:null,eliminatedTick:null,mode:'alive',rockId:null,
    pushCooldown:0,botPhase:rng(s)*TAU,homeY:p.y,homeX:p.x,
@@ -365,6 +385,6 @@ function draw(g,time,round,ps){
   'รอด '+living(ps).length+' • '+Math.floor(s.clock)+' วินาที',24,54);
  g.restore();
 }
-window.BoulderBash=Object.freeze({setup,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
+window.BoulderBash=Object.freeze({setup,spawnPositions,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
  sweptHit,finish,interval,config:C});
 })();
