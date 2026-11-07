@@ -2809,7 +2809,38 @@ for(const count of [1,12]){
  assert.equal(state.shieldTurns,1,'manually activated shield is active for this BOARD round');assert.equal(p.shieldRound,s.roundNumber);assert.equal(p.item,null);assert.equal(p.bag.length,0);
 }
 {
- // BOARD PARTY camera changes must be authorized by the current player on the
+ // Pre-roll camera mode: a real remote player may hide the item selector,
+// drag/zoom the board and double-tap back WITHOUT rolling or changing inventory.
+{
+ const ui=setup();ui.click('hostBtn');ui.instances[0].fire('open');
+ const peer=ui.instances[0],owner=peer.connect();peer.fire('connection',owner);
+ owner.fire('data',{t:'join',name:'Real board player',clientToken:'ready-camera-test'});
+ const api=ui.scope.window.__ghostTest,P=ui.scope.window.BoardParty;
+ ui.sessionButtons[2].fire('click');ui.click('startBtn');
+ const s=api.getBoard(),p=s.players[0];
+ s.order=[p.id];s.turnIndex=0;P.startTurn(s);
+ p.bag=['potion'];p.item='potion';p.actionIndex=1;p.hp=45;
+ api.updateBoard(.05);
+ assert.equal(s.phase,'ready');
+ assert.equal(owner.sent.filter(x=>x.t==='board-state').at(-1).canZoom,true,
+  'the currently playing human may inspect the map before the first dice roll');
+ const token={turnId:s.turnId,mapVersion:s.map.version};
+ owner.fire('data',{t:'board-camera-mode',enabled:true,...token});
+ assert.equal(owner.boardCameraGestureToken,s.turnId);
+ assert.equal(s.camera.bagMapInspect,true,'host renderer hides item selection panel');
+ const z=s.camera.zoom;
+ owner.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...token});
+ assert.ok(s.camera.zoom>z,'map can be zoomed during pre-roll selection');
+ owner.fire('data',{t:'input',...token,actionId:1,keys:{action:true,alt:true,axisX:1,axisY:1}});
+ assert.equal(s.phase,'ready','pressing A while exploring may not roll dice');
+ assert.equal(p.actionIndex,1,'pressing B while exploring may not switch items');
+ assert.deepEqual(p.bag,['potion']);
+ assert.equal(p.hp,45,'no item was consumed during inspection');
+ owner.fire('data',{t:'board-camera-mode',enabled:false,...token});
+ assert.equal(s.camera.bagMapInspect,false,'double-tap back restores original selector');
+ assert.equal(s.camera.panned,false);
+}
+// BOARD PARTY camera changes must be authorized by the current player on the
 // host. Even a valid spectator data packet cannot steal the shared map zoom.
 {
  const ui=setup();ui.click('hostBtn');ui.instances[0].fire('open');
