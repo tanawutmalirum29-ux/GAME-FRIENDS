@@ -3906,6 +3906,7 @@ body.controller-playing #controller #controllerActive .controller-buttons{
   text-shadow:0 4px 20px #0b1528cc;
 }
 #game #gameRoulette .roulette-viewport{
+  --roulette-card-height:clamp(106px,27dvh,195px);
   position:relative;
   height:clamp(122px,31dvh,244px);
   width:100%;
@@ -3929,7 +3930,7 @@ body.controller-playing #controller #controllerActive .controller-buttons{
 }
 #game #gameRoulette .roulette-option{
   flex:0 0 auto;
-  height:clamp(106px,27dvh,195px);
+  height:var(--roulette-card-height);
   min-width:0;
   display:flex;
   flex-direction:column;
@@ -3977,11 +3978,13 @@ body.controller-playing #controller #controllerActive .controller-buttons{
 #game #gameRoulette .roulette-center-mark{
   position:absolute;
   z-index:2;
-  top:0;
-  bottom:0;
+  top:50%;
+  bottom:auto;
   left:50%;
-  width:clamp(132px,19.5vw,220px);
-  transform:translateX(-50%);
+  box-sizing:border-box;
+  width:var(--roulette-card-width,190px);
+  height:var(--roulette-card-height);
+  transform:translate(-50%,-50%);
   border:3px solid #83f5ca;
   border-radius:clamp(13px,2vw,23px);
   background:linear-gradient(180deg,#9ef8d019,transparent 55%,#8cebc514);
@@ -4016,7 +4019,7 @@ body.controller-playing #controller #controllerActive .controller-buttons{
   #game #gameRoulette .roulette-eyebrow{font-size:10px}
   #game #gameRoulette .roulette-heading{font-size:clamp(16px,4.6dvh,25px)}
   #game #gameRoulette .roulette-viewport{height:clamp(94px,34dvh,155px)}
-  #game #gameRoulette .roulette-option{height:clamp(82px,30dvh,139px)}
+  #game #gameRoulette .roulette-viewport{--roulette-card-height:clamp(82px,30dvh,139px)}
   #game #gameRoulette .roulette-message{font-size:11px}
 }
 
@@ -4795,3 +4798,23 @@ body.host-playing #game .game-fullscreen-restore{
 #game .board-webapp-help strong{font-weight:900}
 #game .board-webapp-help p{margin:5px 0;line-height:1.4}
 #game .board-webapp-help small{display:block;color:#a7cedf;line-height:1.35}
+
+/* GHOST ATTACK stable-map inspector: QA only, never covers normal rooms. */
+#game #botGhostIdsBtn[aria-pressed="true"]{
+ background:#f3d889;color:#102539;border-color:#fff0b8;
+}
+#game .ghost-map-inspector{
+ position:absolute;z-index:8;
+ right:max(10px,env(safe-area-inset-right,0px));
+ bottom:max(10px,env(safe-area-inset-bottom,0px));
+ max-width:min(340px,46vw);
+ padding:7px 10px;
+ border:1px solid #7dd8d0;border-radius:10px;
+ background:#0c2136e8;color:#efffff;
+ font:700 clamp(10px,1.2vw,14px)/1.35 system-ui,sans-serif;
+ box-shadow:0 4px 18px #0009;
+ pointer-events:none;user-select:none;-webkit-user-select:none;
+}
+#game .ghost-map-inspector strong{display:block;color:#8ef2d0;font-weight:900}
+#game .ghost-map-inspector span{display:block;font-size:.88em;color:#b7e1ed;margin-top:3px}
+#game .ghost-map-inspector.hidden{display:none!important}
