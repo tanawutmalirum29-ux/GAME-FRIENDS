@@ -16,7 +16,7 @@ const injection=`window.__boardTest={get board(){return boardSession},get round(
 const server=http.createServer((req,res)=>{
  const url=new URL(req.url,'http://localhost'),file=path.resolve(root,'.'+(url.pathname==='/'?'/index.html':url.pathname));
  if(!file.startsWith(root+path.sep)||!fs.existsSync(file)){res.writeHead(404).end();return;}
- const type=path.extname(file),mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.json':'application/json','.png':'image/png'}[type]||'application/octet-stream';
+ const type=path.extname(file),mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.json':'application/json','.webmanifest':'application/manifest+json','.png':'image/png'}[type]||'application/octet-stream';
  let body=fs.readFileSync(file);if(file===path.join(root,'app.js'))body=body.toString().replace('requestAnimationFrame(animate);\n})();',injection);
  res.writeHead(200,{'content-type':mime});res.end(body);
 });
@@ -34,6 +34,49 @@ async function main(){
   const context=await browser.newContext({viewport:{width:1440,height:900},deviceScaleFactor:2});
   await context.route('https://**/*',route=>route.fulfill({body:'',contentType:'text/javascript'}));
   await context.addInitScript(()=>{window.requestAnimationFrame=()=>0;});
+  // Safari must be able to stay on /host.html while adding a distinct HOST
+  // Web App, rather than being redirected immediately to the controller root.
+  const installer=await context.newPage(),installErrors=[];
+  installer.on('pageerror',e=>installErrors.push(String(e)));
+  await installer.goto(base+'/host.html');
+  assert.ok(installer.url().endsWith('/host.html'),
+   'Safari installation must stay on the host launcher URL');
+  assert.equal(await installer.locator('link[rel="manifest"]').getAttribute('href'),
+   './host.webmanifest');
+  const hostApp=await installer.evaluate(async()=>{
+   const response=await fetch('./host.webmanifest');return response.json();
+  });
+  assert.equal(hostApp.id,'./host.html');
+  assert.equal(hostApp.start_url,'./host.html');
+  assert.equal(await installer.locator('h1').innerText(),'GAME FRIENDS — จอหลัก');
+  await installer.locator('#openHostBtn').click();
+  assert.ok(installer.url().includes('?host=1'),'host entry must retain the host role');
+  assert.equal(await installer.locator('link[rel="manifest"]').getAttribute('href'),
+   './host.webmanifest','direct host entry also installs as HOST');
+  assert.equal(await installer.locator('meta[name="apple-mobile-web-app-title"]').getAttribute('content'),'GF HOST');
+  assert.equal(await installer.locator('#home').isVisible(),true,'host opens room creation, not a controller');
+  await installer.goto(base+'/');
+  assert.equal(await installer.locator('link[rel="manifest"]').getAttribute('href'),
+   './manifest.webmanifest','root install remains the separate controller');
+  assert.equal(await installer.locator('#controller').isVisible(),true);
+  assert.deepEqual(installErrors,[],'install and host launch produce no JS errors');
+  await installer.close();
+  // iPad Safari may capture the page URL instead of manifest start_url.
+  // The installed /host.html must still open HOST immediately on standalone.
+  const installedContext=await browser.newContext({viewport:{width:1024,height:768}});
+  await installedContext.route('https://**/*',route=>route.fulfill({body:'',contentType:'text/javascript'}));
+  await installedContext.addInitScript(()=>{
+   Object.defineProperty(navigator,'standalone',{configurable:true,get:()=>true});
+  });
+  const shortcut=await installedContext.newPage();
+  await shortcut.goto(base+'/host.html');
+  await shortcut.waitForURL(url=>url.searchParams.get('host')==='1');
+  assert.equal(await shortcut.locator('#home').isVisible(),true,
+   'installed iPad GF HOST shortcut lands directly on the host home');
+  assert.equal(await shortcut.locator('#controller').isVisible(),false);
+  assert.equal(await shortcut.locator('link[rel="manifest"]').getAttribute('href'),
+   './host.webmanifest');
+  await installedContext.close();
   const host=await context.newPage(),errors=[];host.on('pageerror',e=>errors.push(String(e)));
   await host.goto(base);await host.evaluate(()=>document.getElementById('offlineBtn').click());
   for(let n=1;n<=12;n++){
