@@ -4916,3 +4916,306 @@ body.controller-playing #controller #controllerActive #phoneGameChoices .mode-ch
 body.controller-playing #controller #controllerActive #phoneGameChoices .phone-game-choice.selected::after{
   font-size:clamp(6px,1dvh,9px)!important;right:3px!important;bottom:2px!important;
 }
+
+/* MOBILE HOST LOBBY — 2026-11-07
+   Keep the invite QR, link and copy button in ONE compact horizontal row.
+   The old 255–315px minimum QR panel wasted half the portrait viewport and
+   compressed the fixed 12-slot roster so selected game names were clipped. */
+@media (orientation:portrait) and (max-width:720px){
+  #hostLobby.host-lobby{
+    gap:clamp(4px,.65dvh,7px);
+    padding:max(6px,env(safe-area-inset-top,0px))
+      max(7px,env(safe-area-inset-right,0px))
+      max(7px,env(safe-area-inset-bottom,0px))
+      max(7px,env(safe-area-inset-left,0px));
+  }
+  #hostLobby .host-lobby-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:clamp(138px,22dvh,160px) minmax(0,1fr);
+    gap:clamp(4px,.65dvh,7px);
+    min-height:0;
+  }
+  #hostLobby .lobby-qr-panel{
+    padding:clamp(5px,1vw,8px);
+    min-height:0;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden!important;
+  }
+  #hostLobby #roomPanel{
+    display:flex;
+    flex-direction:column;
+    flex:1 1 0;
+    gap:clamp(3px,.5dvh,6px);
+    min-height:0;
+    overflow:hidden!important;
+  }
+  #hostLobby .room-top{
+    display:flex;
+    align-items:center;
+    min-height:0;
+    padding:0 4px;
+    flex:0 0 auto;
+  }
+  #hostLobby .room-top strong{
+    font-size:clamp(17px,4.5vw,23px);
+    letter-spacing:2px;
+  }
+  #hostLobby .room-top small{font-size:9px}
+  #hostLobby .room-top .live-pill{
+    font-size:clamp(9px,2.2vw,12px);
+    padding:3px 7px;
+  }
+  #hostLobby .share-layout{
+    flex:1 1 0;
+    display:flex;
+    flex-direction:row;
+    justify-content:center;
+    align-items:center;
+    width:100%;
+    min-height:0;
+    overflow:hidden!important;
+    padding:0;
+    margin:0;
+  }
+  #hostLobby .qr-share-stack{
+    display:grid;
+    grid-template-columns:clamp(94px,15dvh,116px) minmax(0,1fr);
+    grid-template-rows:minmax(0,1fr);
+    width:100%;
+    max-width:100%;
+    max-height:100%;
+    flex:1 1 0;
+    align-items:center;
+    justify-content:center;
+    gap:clamp(9px,2.5vw,16px);
+    min-width:0;
+    min-height:0;
+    padding-inline:clamp(3px,1vw,7px);
+  }
+  #hostLobby .qr-share-stack .qr-box{
+    grid-column:1;
+    width:100%;
+    height:auto;
+    aspect-ratio:1/1;
+    min-width:0;
+    min-height:0;
+    max-width:100%;
+    max-height:100%;
+    padding:clamp(4px,.85vw,7px);
+    flex:0 0 auto;
+    overflow:hidden!important;
+  }
+  #hostLobby .qr-share-stack .qr-box img,
+  #hostLobby .qr-share-stack .qr-box canvas{
+    display:block;
+    width:100%!important;
+    height:100%!important;
+    max-width:100%!important;
+    max-height:100%!important;
+    object-fit:contain!important;
+    image-rendering:pixelated;
+  }
+  #hostLobby .qr-share-stack .share-content{
+    grid-column:2;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:center;
+    width:100%;
+    min-width:0;
+    min-height:0;
+    gap:clamp(6px,1dvh,10px);
+    overflow:hidden!important;
+  }
+  #hostLobby .qr-share-stack .share-content #roomUrl,
+  #hostLobby .qr-share-stack .share-content #copyBtn{
+    width:100%;
+    max-width:100%;
+    height:clamp(31px,5dvh,39px);
+    min-height:0;
+    margin:0;
+    padding:5px 8px;
+    border-radius:8px;
+    font-size:clamp(10px,2.55vw,12px);
+    line-height:1.15;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  #hostLobby .lobby-player-panel{
+    padding:clamp(5px,1vw,8px);
+    gap:clamp(3px,.5dvh,6px);
+    min-height:0;
+  }
+  #hostLobby .lobby-section-title{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    flex-wrap:nowrap;
+    gap:clamp(4px,1vw,8px);
+    min-width:0;
+    min-height:clamp(24px,4dvh,34px);
+    margin:0;
+  }
+  #hostLobby .lobby-player-panel h2{
+    font-size:clamp(11px,2.65vw,14px);
+    line-height:1.1;
+    flex:0 1 auto;
+    min-width:0;
+  }
+  #hostLobby .lobby-section-title #rosterCount{
+    font-size:clamp(11px,3vw,15px);
+    white-space:nowrap;
+    flex:0 0 auto;
+  }
+  #hostLobby .lobby-section-title .bulk-bot-switch{
+    flex:0 1 auto;
+    margin-left:auto;
+    min-width:0;
+    max-width:47%;
+    min-height:26px;
+    height:clamp(26px,4dvh,32px);
+    padding:3px 5px;
+    font-size:clamp(9px,2.1vw,11px);
+  }
+  #hostLobby .lobby-roster{
+    flex:1 1 0;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:repeat(6,minmax(0,1fr));
+    gap:clamp(2px,.35dvh,4px);
+    width:100%;
+    height:100%;
+    min-height:0;
+    max-height:100%;
+    overflow:hidden!important;
+    align-items:stretch;
+    align-content:stretch;
+  }
+  #hostLobby .lobby-roster .roster-item{
+    display:grid;
+    grid-template-columns:9px minmax(0,1fr) 20px;
+    grid-template-rows:minmax(15px,auto) minmax(17px,1fr);
+    align-items:center;
+    column-gap:clamp(2px,.75vw,5px);
+    row-gap:1px;
+    padding:2px 4px;
+    width:100%;
+    height:100%;
+    min-width:0;
+    min-height:0;
+    overflow:hidden;
+    border-radius:7px;
+  }
+  #hostLobby .lobby-roster .roster-item .swatch{
+    grid-column:1;grid-row:1;
+    width:9px;height:9px;min-width:0;
+  }
+  #hostLobby .lobby-roster .roster-item b{
+    grid-column:2;grid-row:1;
+    font-size:clamp(10px,2.5vw,13px);
+    line-height:1.1;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  #hostLobby .lobby-roster .roster-item button{
+    grid-column:3;grid-row:1;
+    width:20px;height:20px;min-height:0;min-width:0;
+  }
+  #hostLobby .lobby-roster .roster-pick,
+  #hostLobby .lobby-roster .roster-pick.picked{
+    grid-column:1/-1;grid-row:2;
+    display:flex;
+    flex-direction:row;
+    justify-content:flex-start;
+    align-items:center;
+    width:100%;
+    height:100%;
+    min-width:0;
+    min-height:0;
+    gap:4px;
+    padding:1px 4px;
+    border-radius:5px;
+    white-space:normal;
+    overflow:hidden;
+  }
+  #hostLobby .lobby-roster .roster-pick.picked .mode-cover{
+    display:inline-flex;
+    flex:0 0 clamp(22px,6vw,30px);
+    width:clamp(22px,6vw,30px);
+    height:clamp(15px,4dvh,22px);
+    max-height:100%;
+    max-width:none;
+  }
+  #hostLobby .lobby-roster .roster-pick.picked .mode-choice-title{
+    display:-webkit-box;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+    flex:1 1 auto;
+    width:auto;
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    overflow-wrap:normal;
+    white-space:normal;
+    text-align:left;
+    font-size:clamp(9px,2.4vw,11px);
+    line-height:1.1;
+  }
+  #hostLobby .lobby-roster .roster-empty .roster-waiting{
+    grid-column:1/-1;
+    grid-row:2;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:0;
+    font-size:clamp(9px,2.2vw,11px);
+    padding:1px 3px;
+  }
+  #hostLobby .lobby-controls{
+    padding:clamp(5px,1vw,8px)!important;
+    gap:clamp(4px,.7dvh,7px)!important;
+    max-height:min(32dvh,158px)!important;
+    overflow:hidden!important;
+  }
+  #hostLobby .lobby-controls .seg-option{
+    min-height:clamp(31px,5dvh,40px);
+    padding:4px 5px;
+    font-size:clamp(9px,2.1vw,11px);
+  }
+  #hostLobby .lobby-controls>.lobby-room-actions{
+    width:100%!important;
+    justify-content:flex-end!important;
+  }
+  #hostLobby .lobby-controls>.lobby-room-actions>.btn{
+    flex:0 1 auto;
+    min-height:clamp(34px,5.5dvh,42px);
+    padding:5px 9px;
+    font-size:clamp(10px,2.3vw,12px);
+    white-space:nowrap!important;
+  }
+}
+/* Extra-short portrait screens: give the roster priority without hiding
+   the six lower slots or blocking the start controls. */
+@media (orientation:portrait) and (max-width:720px) and (max-height:610px){
+  #hostLobby .host-lobby-grid{
+    grid-template-rows:clamp(112px,21dvh,136px) minmax(0,1fr);
+  }
+  #hostLobby .qr-share-stack{
+    grid-template-columns:clamp(78px,16dvh,96px) minmax(0,1fr);
+  }
+  #hostLobby .lobby-section-title{min-height:22px}
+  #hostLobby .lobby-roster .roster-item{
+    grid-template-rows:minmax(14px,auto) minmax(14px,1fr);
+    padding:1px 3px;
+  }
+  #hostLobby .lobby-roster .roster-pick.picked .mode-cover{
+    flex-basis:20px;width:20px;height:14px;
+  }
+  #hostLobby .lobby-controls{max-height:140px!important}
+}
