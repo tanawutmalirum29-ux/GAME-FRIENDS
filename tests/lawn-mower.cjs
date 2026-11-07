@@ -6,7 +6,10 @@ const sandbox={window:{},Math,Date};
 for(const f of ['character-system.js','lawn-mower.js'])
  vm.runInNewContext(fs.readFileSync(path.join(root,f),'utf8'),sandbox,{filename:f});
 const G=sandbox.window.LawnMower;
-assert.equal(G.config.speed,72.5,'half of previous 145-unit/second mowing speed');
+assert.equal(G.config.speed,50.75,'30% slower than the previous 72.5 units/second');
+assert.equal(G.config.bladeHalfWidth,15,'cutting strip follows the 30px-wide mower deck');
+assert.equal(G.config.bladeStart,16);
+assert.equal(G.config.bladeDepth,28);
 assert.equal(G.config.mowerHalfWidth,22);
 assert.equal(G.config.mowerHalfLength,31);
 assert.ok(['setup','update','draw','hud','playerStatus','finish','cutTuft'].every(k=>typeof G[k]==='function'));
@@ -97,6 +100,38 @@ for(const n of [1,2,4,6,7,9,12]){
  assert.equal(round.remaining,0);
  assert.equal(s.ranking[0].id,ps[0].id);
 }
+// Blade must not mow grass behind the vehicle, through the chassis,
+// too far forward, or beyond the physical width of its cutting deck.
+{const {s,ps}=start(1,145,false),p=ps[0],x=p.x,y=p.y;
+ p.mower.heading=0;p.x=x+1;
+ const locs=[[x+20,y],[x+20,y+14],[x+20,y+19],[x+11,y],[x+33,y]];
+ s.grass=locs.map(([px,py],id)=>({id,x:px,y:py,cut:false,variant:0,rotation:0,size:9}));
+ s.grid=new Map();
+ for(const tuft of s.grass){
+  const ix=Math.floor((tuft.x-s.field.x)/24),iy=Math.floor((tuft.y-s.field.y)/24);
+  const k=ix+':'+iy,list=s.grid.get(k)||[];list.push(tuft.id);s.grid.set(k,list);
+ }
+ assert.equal(G.cutSwath(s,p,x,y),2,'only the two tufts under the moving blade are cut');
+ assert.deepEqual(s.grass.map(t=>t.cut),[true,true,false,false,false]);
+}
+// Foreground umbrella and flowers must be painted over the opaque grass layer.
+{const {s,ps,round}=start(1,146,false);
+ const calls=[];
+ const ctx={
+  fillStyle:'#000',strokeStyle:'#000',
+  save(){},restore(){},scale(){},translate(){},rotate(){},beginPath(){},
+  ellipse(){},arc(){},arcTo(){},moveTo(){},lineTo(){},closePath(){},
+  quadraticCurveTo(){},stroke(){},strokeRect(){},fillText(){},strokeText(){},
+  fill(){if(['#b33832','#fce87c','#283f32'].includes(this.fillStyle))calls.push('fill:'+this.fillStyle);},
+  fillRect(){if(this.fillStyle==='#408e26')calls.push('lawn');
+   if(this.fillStyle==='#283f32')calls.push('fill:#283f32');}
+ };
+ G.draw(ctx,0,round,ps);
+ const grass=calls.indexOf('lawn'),umbrella=calls.indexOf('fill:#b33832');
+ const flower=calls.indexOf('fill:#fce87c'),mower=calls.indexOf('fill:#283f32');
+ assert.ok(grass>=0&&umbrella>grass,'the parasol paints on top of grass');
+ assert.ok(flower>umbrella&&mower>flower,'flowers paint above grass but under the mower');
+}
 // A single clump pays once even if two cars both cross it.
 {const {s,ps}=start(2,99,false),tuft=s.grass[0];
  assert.equal(G.cutTuft(s,ps[0],tuft),true);
@@ -113,7 +148,7 @@ for(const n of [1,2,4,6,7,9,12]){
  for(let i=0;i<80;i++)G.update(1/60,round,ps);
  assert.ok(s.cutTotal>0);
 }
-// Distribution of 0/1/2/3 sun outcomes approximates 55/15/15/15.
+// Distribution of 0/1/2/3 sun outcomes approximates 55/20/15/10.
 {let hist=[0,0,0,0],sample=0;
  for(let seed=10;seed<28;seed++){
   const {s,ps}=start(1,seed,false),p=ps[0];
@@ -124,7 +159,7 @@ for(const n of [1,2,4,6,7,9,12]){
    assert.ok([0,1,2,3].includes(amount));hist[amount]++;sample++;
   }
  }
- for(const [i,expected] of [0.55,.15,.15,.15].entries())
+ for(const [i,expected] of [0.55,.20,.15,.10].entries())
   assert.ok(Math.abs(hist[i]/sample-expected)<.026,'sun distribution '+i+': '+hist[i]+'/'+sample);
 }
 // Board + browser deployment references must remain in sync.
@@ -135,4 +170,4 @@ const app=fs.readFileSync(path.join(root,'app.js'),'utf8'),
 for(const re of [/lawn_mower:'LawnMower'/,/endLawnMowerRound/,/renderPhoneLawnStatus/,/lawn-status/])assert.match(app,re);
 assert.match(html,/data-pick="lawn_mower"/);assert.match(html,/src="\.\/lawn-mower\.js"/);
 assert.match(board,/case 'lawn_mower':/);assert.match(build,/'lawn-mower\.js'/);
-console.log('LAWN MOWER: 50% speed, solid rotated chassis, fast grass-clear finish, 1–12 bots, odds and integration PASS');
+console.log('LAWN MOWER: 30% slower movement, deck-aligned mowing, garden foreground, 55/20/15/10 odds, collisions and 1–12 bots PASS');
