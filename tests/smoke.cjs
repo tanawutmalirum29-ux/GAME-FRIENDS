@@ -1394,7 +1394,10 @@ assert.equal(tablet.elements.get('hostLobby').classList.contains('hidden'),false
 assert.ok(source.includes("isStandaloneWebApp=()=>"),
   'iOS has a supported browser-free Home Screen Web App mode');
 assert.match(html,/<meta name="apple-mobile-web-app-capable" content="yes">/);
-assert.match(html,/<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">/);
+assert.match(html,/<meta name="apple-mobile-web-app-status-bar-style" content="black">/,
+    'iPad web app reserves the status bar instead of covering header and controls');
+  assert.doesNotMatch(html,/apple-mobile-web-app-status-bar-style" content="black-translucent"/,
+    'translucent status bar must not overlap home header');
 assert.match(html,/<button id="webAppHelpBtn"[^>]*hidden/);
 assert.match(html,/<button id="restoreHostFullscreenBtn"[^>]*hidden/);
 assert.equal(tablet.elements.get('webAppHelpBtn').classList.contains('hidden'),true,
