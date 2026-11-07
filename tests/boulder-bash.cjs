@@ -19,6 +19,47 @@ for(let n=1;n<=12;n++){
  assert.equal(new Set(x.ps.map(p=>p.x+','+p.y)).size,n,'distinct safe spawns');
  assert.equal(G.hud(x.ps,x.round).survivors,n);
 }
+
+{
+ // Gameplay uses the entire snowfield, not only the crowded upper-left corner.
+ // Check every supported roster size for bounds, spacing, and deterministic layout.
+ for(let n=1;n<=12;n++){
+  const x=game(n),positions=x.ps.map(p=>({x:p.x,y:p.y}));
+  const again=game(n,42).ps.map(p=>({x:p.x,y:p.y}));
+  assert.deepEqual(positions,again,'spawns do not change with seed');
+  assert.ok(positions.every(p=>p.x>=110&&p.x<=880&&p.y>=100&&p.y<=445),
+    'every spawn is within the safe playable snowfield for '+n+' players');
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)
+   assert.ok(Math.hypot(positions[i].x-positions[j].x,positions[i].y-positions[j].y)>75,
+    'players must not overlap at spawn for '+n+' players');
+  if(n>=3){
+   assert.ok(Math.max(...positions.map(p=>p.x))-Math.min(...positions.map(p=>p.x))>=450,
+    'spawns must cover a wide stretch of the field for '+n);
+  }
+  if(n>=4){
+   assert.ok(Math.max(...positions.map(p=>p.y))-Math.min(...positions.map(p=>p.y))>=200,
+    'spawns must cover multiple heights of the field for '+n);
+  }
+  for(const p of x.ps){
+   assert.equal(p.bb.homeX,p.x,'bot has new spread-out home position');
+   assert.equal(p.bb.homeY,p.y,'bot remembers its own row');
+  }
+ }
+ const seven=game(7);
+ const top=seven.ps.filter(p=>p.y===Math.min(...seven.ps.map(q=>q.y)));
+ const bottom=seven.ps.filter(p=>p.y===Math.max(...seven.ps.map(q=>q.y)));
+ assert.equal(top.length,4,'seven players fill four positions along the upper row');
+ assert.equal(bottom.length,3,'three remaining players are centered on the lower row');
+ assert.ok(Math.min(...bottom.map(p=>p.x))>Math.min(...top.map(p=>p.x)),
+  'partial row has a centered left inset');
+ assert.ok(Math.max(...bottom.map(p=>p.x))<Math.max(...top.map(p=>p.x)),
+  'partial row has a centered right inset');
+ // Left/right traversal must extend close to the snowfield's right edge.
+ const runner=seven.ps[0];runner.x=874;runner.y=260;runner.input.axisX=1;
+ tick(seven,20);
+ assert.ok(runner.x>860,'right-side world bounds no longer stop players at x=658');
+}
+
 {
  const x=game(2);x.round.phase='countdown';x.ps[0].input.axisX=1;
  const before=x.ps[0].x;G.update(1,x.round,x.ps);
