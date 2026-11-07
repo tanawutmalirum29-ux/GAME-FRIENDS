@@ -1536,9 +1536,81 @@ assert.match(css,/#game \.result-card\{[\s\S]*?height:min\(86dvh,690px\)/,
   'result card reserves a real nonzero height');
 assert.match(css,/#game #resultList\{[\s\S]*?height:100%/,
   'result list stretches into the reserved grid row instead of collapsing');
-assert.match(css,/grid-template-columns:repeat\(var\(--result-cols,4\),minmax\(0,1fr\)\)/,
+assert.match(css,/grid-template-columns:repeat\(var\(--result-tracks,8\),minmax\(0,1fr\)\)/,
   'responsive ranking grid supports four landscape columns');
 
+// The result grid fills from below, and centers the small top group.
+// Verify all 1–12 counts, landscape/tablet/mobile breakpoints, header, ties,
+// unique grid placement, and that visual ordering never rewrites DOM order.
+{
+ const ui=setup(),api=ui.scope.window.__ghostTest,doc=ui.scope.document,
+  list=ui.elements.get('resultList');
+ const sampleRows={
+  5:[4,1],6:[4,2],7:[4,3],8:[4,4],
+  9:[4,1],10:[4,2],11:[4,3],12:[4,4]
+ };
+ for(const width of [1473,900,390]){
+  ui.scope.window.innerWidth=width;
+  for(let count=1;count<=12;count++){
+   for(const withHeading of [false,true]){
+    const nodes=[];
+    if(withHeading){
+     const h=doc.createElement('div');h.className='tournament-header';
+     h.textContent='ผู้ชนะรวม';nodes.push(h);
+    }
+    for(let i=0;i<count;i++){
+     const card=doc.createElement('div');card.className='result-player';
+     const label=doc.createElement('div'),detail=doc.createElement('span');
+     const rank=i<2&&count===9?1:i+1;
+     label.textContent='อันดับ '+rank+' • Bot '+(i+1);
+     label.style.color='#63afed';detail.textContent=(count-i)+' คะแนน';
+     card.append(label,detail);nodes.push(card);
+    }
+    list.replaceChildren(...nodes);api.layoutFinalResults();
+    const cards=nodes.filter(e=>e.className==='result-player');
+    const cols=Number(list.dataset.cols),lines=Number(list.style['--result-rows']),
+      top=Number(list.dataset.topCount);
+    const expectedCols=count<=4?Math.max(1,Math.min(count-1,width>=620?3:2)):
+      width>=1060?4:width>=620?3:2;
+    assert.equal(cols,expectedCols,'columns for '+count+' at '+width);
+    assert.equal(lines,Math.ceil(count/cols));
+    assert.equal(top,count%cols||cols);
+    assert.equal(list.style['--result-tracks'],String(cols*2));
+    const used=new Set(),positions=[];
+    cards.forEach((card,index)=>{
+     const row=Number(card.style.gridRow)-(withHeading?1:0);
+     const [column,span]=card.style.gridColumn.split(' / span ').map(Number);
+     assert.equal(span,2,'cards occupy two half-column tracks');
+     assert.ok(row>=1&&row<=lines&&column>=1&&column+1<=cols*2);
+     for(const slot of [column,column+1]){
+      const key=row+':'+slot;assert.ok(!used.has(key),'overlapping result '+key);
+      used.add(key);
+     }
+     positions.push({row,column});
+     assert.equal(card.dataset.rank,String(index<2&&count===9?1:index+1),
+      'result rank survives visual placement, including ties');
+     assert.equal(card.children[3].textContent,
+      index<2&&count===9?'1ST':String(index+1)+(index+1===1?'ST':
+       index+1===2?'ND':index+1===3?'RD':'TH'));
+    });
+    assert.equal(positions[0].row,1,'rank 1 always on the top row');
+    assert.equal(positions[0].column,cols-top+1,'top row centered');
+    for(let i=0;i<top;i++){
+     assert.deepEqual(positions[i],{row:1,column:cols-top+1+i*2});
+    }
+    for(let i=top;i<count;i++){
+     assert.deepEqual(positions[i],
+      {row:2+Math.floor((i-top)/cols),column:1+2*((i-top)%cols)},
+      'lower rows fill every position in rank order');
+    }
+    if(width===1473&&sampleRows[count]){
+     assert.deepEqual([cols,top],sampleRows[count]);
+    }
+    assert.equal(list.children.length,count+(withHeading?1:0));
+   }
+  }
+ }
+}
 // Endless mode draws a new truly randomized game EVERY round (never a
 // predetermined six-game list). The 2.63-second sideways reel ends with the
 // PRESELECTED winning game precisely at the center marker.
