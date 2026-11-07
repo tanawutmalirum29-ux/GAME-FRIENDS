@@ -1209,6 +1209,8 @@ assert.equal(tablet.elements.get('restoreHostFullscreenBtn').classList.contains(
  'fullscreen restore is hidden after returning to lobby');
 const standaloneTablet=setup('https://game.example/?host=1',false,null,null,{...ipadUA,standalone:true});
 standaloneTablet.click('addLocalBtn');standaloneTablet.click('offlineBtn');standaloneTablet.click('startBtn');
+assert.equal(standaloneTablet.scope.document.fullscreenRequests,0,
+ 'installed Web App does not enter native fullscreen with a swipe-dismiss path');
 assert.equal(standaloneTablet.elements.get('webAppHelpBtn').classList.contains('hidden'),true,
  'installed Home Screen Web App never displays irrelevant browser install instructions');
 assert.equal(standaloneTablet.elements.get('restoreHostFullscreenBtn').classList.contains('hidden'),true);
