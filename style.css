@@ -5307,3 +5307,59 @@ body.controller-playing #controllerActive #joystickZone .board-camera-mode-hint.
     padding-top:max(28px,env(safe-area-inset-top,0px));
   }
 }
+
+
+/* HUD polish: the third scoreboard row can contain a score / sun count,
+   not just a 23px inventory icon. Keep the small icon hitbox only for SVGs. */
+body.host-playing #game .leader-chip span.leader-item-slot:not(.leader-held-icon):not(.pizza-order-icons){
+  grid-column:1/-1;
+  grid-row:3;
+  display:flex;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  height:18px;
+  min-height:18px;
+  padding:0 2px;
+  align-items:center;
+  justify-content:center;
+  justify-self:stretch;
+  overflow:visible;
+  text-overflow:clip;
+  white-space:nowrap;
+  font-size:clamp(9px,.86vw,12px);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0;
+  line-height:18px;
+}
+body.host-playing #game .leader-chip small.leader-role{
+  min-width:0;
+  max-width:100%;
+  overflow:visible;
+  text-overflow:clip;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+body.host-playing #game .leader-chip span.leader-held-icon{
+  width:23px;
+  min-width:23px;
+  max-width:23px;
+  overflow:hidden;
+}
+/* Pause occupies a compact, consistent square rather than a text-width button.
+   BOARD PARTY's more specific 29px map control and resume indicator remain. */
+#game .game-pause-btn{
+  display:grid;
+  place-items:center;
+  width:clamp(36px,3.5vw,44px);
+  min-width:36px;
+  height:clamp(36px,3.5vw,44px);
+  min-height:36px;
+  padding:0;
+  gap:0;
+}
+#game .game-pause-btn svg{
+  display:block;
+  width:20px;
+  height:20px;
+}
