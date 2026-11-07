@@ -173,7 +173,7 @@ function arenaContentRect(rect){
   const old=pointers.get(e.pointerId),pt=coords(e);pointers.set(e.pointerId,pt);
   if(pointers.size===2){
    const q=[...pointers.values()],newDistance=Math.hypot(q[0].x-q[1].x,q[0].y-q[1].y)||1;
-   if(pinchDistance>0)window.BoardArt.zoom(boardSession,newDistance/pinchDistance);
+   if(pinchDistance>0&&hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,newDistance/pinchDistance);
    pinchDistance=newDistance;gestureMoved=true;
   }else{
    const dx=pt.x-old.x,dy=pt.y-old.y;
@@ -327,6 +327,12 @@ for(const type of ['gesturestart','gesturechange','gestureend']){
 document.addEventListener('touchmove',e=>{
   if(gameZoomLocked()&&e.touches&&e.touches.length>1&&e.cancelable)e.preventDefault();
 },{passive:false});
+// Block document scrolling/rubber-banding during a host game, but keep
+// Pointer Events for map panning, canvas input and the user's normal taps.
+document.addEventListener('touchmove',e=>{
+  if(currentView==='game'&&e.cancelable&&e.target?.closest?.('#game'))
+    e.preventDefault();
+},{passive:false,capture:true});
 document.addEventListener('dblclick',e=>{
   if(gameZoomLocked()&&e.cancelable)e.preventDefault();
 },{passive:false});
@@ -878,8 +884,11 @@ function startHost(retries=0,resumeCode=null){
       }else if(msg.t==='board-camera-zoom'&&conn.playerId){
         // Only an authenticated controller in an active BOARD game may
         // zoom the HOST map. Never interpret this packet as movement/A/B/C.
-        if(round?.mode!=='board'||round.phase!=='playing'||!boardSession||
+        if(round?.mode!=='board'||round.phase!=='playing'||round.paused||!boardSession||
            ![1,-1].includes(msg.direction)||!window.BoardArt?.canPan?.(boardSession))return;
+        // Always validate on the host; spoofed zoom packets from spectators
+        // cannot alter the shared camera even if they bypass the phone UI.
+        if(window.BoardParty.current(boardSession)?.id!==conn.playerId)return;
         const player=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!player||!player.active)return;
         const now=Date.now();
@@ -1439,7 +1448,7 @@ function setControllerGameContext(mode,phase,active){
   controllerGamePhase=phase||'lobby';
   // Remote board camera tools are never shown in a minigame or room lobby.
   const boardZoomActive=controllerReady&&mode==='board'&&
-   ['playing','paused'].includes(controllerGamePhase);
+   controllerGamePhase==='playing'&&controllerBoard?.canZoom===true;
   for(const id of ['controllerBoardZoomInBtn','controllerBoardZoomOutBtn']){
    $(id).classList.toggle('hidden',!boardZoomActive);
    $(id).disabled=!boardZoomActive;
@@ -1762,6 +1771,14 @@ function beginBoard(){
     showToast('เริ่ม BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
   }
 }
+// Host-screen zoom requires a local human in their OWN BOARD turn; remote
+// players zoom only from their authenticated phones.
+function hostCanControlBoardZoom(){
+ const s=boardSession,p=s&&window.BoardParty?.current(s);
+ return !!(round?.mode==='board'&&round.phase==='playing'&&!round.paused&&p&&
+   players.some(q=>q.id===p.id&&q.type==='local'&&!q.isBot)&&
+   window.BoardArt?.canPan?.(s));
+}
 function refreshBoardTools(){
  const active=round?.mode==='board'&&!!boardSession;
  $('boardTools').classList.toggle('hidden',!active);
@@ -1772,8 +1789,8 @@ function refreshBoardTools(){
   $('boardStartDiceBtn').classList.toggle('hidden',boardSession.phase!=='overview');
   $('boardFollowBtn').disabled=['overview','intro_zoom'].includes(boardSession.phase);
   $('boardOverviewBtn').disabled=boardSession.phase==='intro_zoom';
-  const inspect=window.BoardArt.canPan(boardSession);
-  $('boardZoomInBtn').disabled=!inspect;$('boardZoomOutBtn').disabled=!inspect;
+  const canZoom=hostCanControlBoardZoom();
+  $('boardZoomInBtn').disabled=!canZoom;$('boardZoomOutBtn').disabled=!canZoom;
  }
  if(active&&round.paused){
   $('pauseBtn').title='เล่นต่อ';$('pauseBtn').setAttribute('aria-label','เล่นต่อ');
@@ -1833,6 +1850,8 @@ function broadcastBoardState(){
     const p=boardSession.players.find(p=>p.id===conn.playerId);if(!p)continue;
     send(conn,{t:'board-state',mapVersion:boardSession.map.version,phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
       round:boardSession.roundNumber,hp:p.hp,usedRound:p.usedRound||0,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:window.BoardParty.isProtected(boardSession,p)?1:0,
+      canZoom:round.phase==='playing'&&!round.paused&&window.BoardParty.current(boardSession)?.id===p.id&&
+        window.BoardArt.canPan(boardSession),
       item:window.BoardItems.names[p.item]||'ไม่มีไอเทม',
       bag:window.BoardItems.bag(p).slice(),actionIndex:p.actionIndex||0,bagMessage:p.bagMessage||'',
       ...window.BoardParty.controls(boardSession,p.id)});
@@ -2715,8 +2734,8 @@ $('boardOverviewBtn').addEventListener('click',()=>{
 $('boardStartDiceBtn').addEventListener('click',()=>{if(boardSession&&window.BoardParty.startOrder(boardSession))refreshBoardTools();});
 $('boardFollowBtn').addEventListener('click',()=>{if(round?.mode==='board'&&boardSession){window.BoardArt.follow(boardSession);if(round.paused)resumeGame();refreshBoardTools();}});
 $('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;refreshBoardTools();}});
-$('boardZoomInBtn').addEventListener('click',()=>{if(boardSession)window.BoardArt.zoom(boardSession,1.25);});
-$('boardZoomOutBtn').addEventListener('click',()=>{if(boardSession)window.BoardArt.zoom(boardSession,.8);});
+$('boardZoomInBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,1.25);});
+$('boardZoomOutBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,.8);});
 $('boardNodeDebugBtn').addEventListener('click',()=>{if(boardSession){window.BoardArt.toggleDebug(boardSession);refreshBoardTools();}});
 $('resumeBtn').addEventListener('click',resumeGame);
 document.addEventListener('keydown',e=>{
@@ -2935,7 +2954,7 @@ document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener
 for(const [id,direction] of [['controllerBoardZoomInBtn',1],['controllerBoardZoomOutBtn',-1]]){
  $(id).addEventListener('click',()=>{
   if(!controllerReady||controllerGameMode!=='board'||
-     !['playing','paused'].includes(controllerGamePhase))return;
+     controllerGamePhase!=='playing'||controllerBoard?.canZoom!==true)return;
   send(controllerConn,{t:'board-camera-zoom',direction});
  });
 }
