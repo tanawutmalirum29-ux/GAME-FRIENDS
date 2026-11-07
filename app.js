@@ -3032,7 +3032,7 @@ function advanceParty(){
   }else beginParty();
 }
 function openOfflineLobby(){
- if(onlineHost||hostPeer)closeHost({goHome:false});
+ if(onlineHost||hostPeer||hostRetryTimeout!==null)closeHost({goHome:false});
  deleteSession(HOST_SESSION);
  if(!players.length){addLocal();addLocal();}
  $('hostRoomBadge').textContent='OFFLINE';
@@ -3046,7 +3046,7 @@ $('offlineBtn').addEventListener('click',()=>{
 });
 $('startBtn').addEventListener('click',beginParty);
 function closeHostRoom(){
- if(onlineHost||hostPeer)closeHost();
+ if(onlineHost||hostPeer||hostRetryTimeout!==null)closeHost();
  deleteSession(HOST_SESSION);deleteSession(OFFLINE_SESSION);
  boardSession=null;document.body.classList.remove('board-playing');
  tournament=null;round=null;setView('home');
