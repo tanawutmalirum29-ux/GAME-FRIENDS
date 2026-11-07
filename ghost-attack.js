@@ -51,87 +51,90 @@ function freeSpot(world,obstacles,others,margin=22,minDistance=52){
     if(obstacles.every(o=>safeCircle(o,q.x,q.y,margin))&&
        others.every(o=>dist(q,o)>minDistance))return q;
   }
-  // Guaranteed fallback; every side has a clear navigation lane.
-  const corner=[{x:50,y:50},{x:world.w-50,y:50},{x:50,y:world.h-50},
-    {x:world.w-50,y:world.h-50}];
-  return corner.find(q=>obstacles.every(o=>safeCircle(o,q.x,q.y,20)))||corner[0];
-}
-// Each arena + theme + obstacle tier has ONE reproducible, named layout.
- // Players and pickups are still random; physical props are never rerolled
- // across visits to the same map. Change the :v1 key deliberately to revise
- // a layout, rather than consuming gameplay Math.random().
-function fixedLayoutRng(world,tier,theme){
-  const signature=theme+':'+world.w+'x'+world.h+':T'+tier+':v1';
-  let seed=2166136261;
-  for(const char of signature){seed^=char.charCodeAt(0);seed=Math.imul(seed,16777619);}
-  return ()=>{
-    seed+=0x6D2B79F5;
-    let x=seed;
-    x=Math.imul(x^(x>>>15),x|1);
-    x^=x+Math.imul(x^(x>>>7),x|61);
-    return ((x^(x>>>14))>>>0)/4294967296;
-  };
-}
-function mapId(world,tier,theme){
-  const revision=theme==='graveyard'&&world.w===1080&&world.h===608&&tier===1?'v3':'v1';
-  return 'GH-'+(theme==='egypt'?'EG':'GY')+'-'+world.w+'x'+world.h+'-T'+tier+'-'+revision;
-}
-// GY-1080x608/T1: hand-arranged from the host's annotated map screenshot.
-// Coordinates are in WORLD space, not screenshot pixels (rendered at 960x540).
-// GY-06 is deliberately deleted (crossed out); GY-05 and GY-11 retain the
-// nearby lower-right landmarks. Large marked outlines are solid monument groups.
-const GRAVEYARD_ANNOTATED_1080=Object.freeze([
-  {id:'GY-01',x:883,y:429,w:115,h:119}, // lower right tall monument
-  {id:'GY-02',x:905,y:75,w:79,h:146},  // upper right tall monument
-  {id:'GY-03',x:615,y:466,w:71,h:42},  // small lower central slab
-  {id:'GY-04',x:279,y:455,w:125,h:53}, // lower left / red outline
-  {id:'GY-05',x:711,y:393,w:52,h:46},  // preserve unmarked stone
-  {id:'GY-07',x:509,y:245,w:77,h:133}, // one large coffin
-  {id:'GY-08',x:139,y:137,w:116,h:228},// raised earth graves, headstones at top
-  {id:'GY-09',x:492,y:115,w:131,h:70}, // upper-middle horizontal monument
-  {id:'GY-10',x:899,y:264,w:161,h:86}, // mid-right horizontal wall
-  {id:'GY-11',x:933,y:356,w:52,h:42}  // retain small stone above GY-01
-]);
-function annotatedGraveyardObstacles(world,tier,theme){
-  if(theme!=='graveyard'||tier!==1||world.w!==1080||world.h!==608)return null;
-  const kinds=Art.kindsForTheme(theme);
-  return GRAVEYARD_ANNOTATED_1080.map(shape=>{
-    const number=Number(shape.id.slice(-2)),index=number-1;
-    const artType=number===7?'single-large-coffin':
-      number===8?'burial-mounds':null;
-    const kind=number===7?'coffin':number===8?'grave':
-      index===0?'coffin':kinds[(index-1)%kinds.length];
-    return {...shape,kind,artType,
-      style:index%3,variant:Math.floor(index/kinds.length)%3,
-      fixed:true,monumentGroup:!artType&&(shape.w>94||shape.h>94)};
-  });
-}
-function makeObstacles(world,tier,reserved=[],theme='graveyard'){
-  const annotated=annotatedGraveyardObstacles(world,tier,theme);
-  if(annotated)return annotated;
-  const fixedRandom=fixedLayoutRng(world,tier,theme);
-  const themeKinds=Art.kindsForTheme(theme);
-  const out=[];
-  const count=7+tier*4+(world.w>=1200?3:0);
-  const candidateW=world.w-150,candidateH=world.h-130;
-  for(let k=0,tries=0;k<count&&tries<260;tries++){
-    const w=43+fixedRandom()*41,h=36+fixedRandom()*40;
-    const q={x:75+fixedRandom()*Math.max(1,candidateW-w),
-      y:65+fixedRandom()*Math.max(1,candidateH-h),w,h,style:k%3,
-      id:(theme==='egypt'?'EG':'GY')+'-'+String(k+1).padStart(2,'0'),
-      // The first monument establishes the theme immediately; every
-      // subsequent kind cycles through its own matching prop set.
-      kind:k===0?(theme==='egypt'?'sarcophagus':'coffin'):
-        themeKinds[(k-1)%themeKinds.length],
-      variant:Math.floor(k/themeKinds.length)%3};
-    const center={x:q.x+w/2,y:q.y+h/2};
-    // Keep a generous center spawn plaza clear for the starting AI ghost(s).
-    if(Math.hypot(center.x-world.w/2,center.y-world.h/2)<133)continue;
-    if([...reserved,...out].some(o=>!(q.x>o.x+o.w+26||q.x+q.w+26<o.x||
-      q.y>o.y+o.h+26||q.y+q.h+26<o.y)))continue;
-    out.push(q);k++;
+  // A deterministic search still finds separated, walkable ground when an
+  // unlucky RNG repeatedly samples walls. Never fall back into a forest corner.
+  let best=null,clearance=-1;
+  for(let y=margin;y<=world.h-margin;y+=24)for(let x=margin;x<=world.w-margin;x+=24){
+    if(!obstacles.every(o=>safeCircle(o,x,y,margin)))continue;
+    const q={x,y},space=Math.min(...others.map(o=>dist(q,o)),world.w);
+    if(space>clearance){best=q;clearance=space;}
   }
-  return out;
+  if(!best)throw new Error('GHOST ATTACK layout has no clear spawn');
+  return best;
+}
+// Four authored courtyards. Coordinates are WORLD pixels, shared by the art,
+// hitboxes, spawn clearance, inspector and bot navigation. No seeded scatter.
+// Compact and large are independently arranged; large is not a stretched image.
+// The v4 map ID deliberately replaces the old v1/v3 monument layouts.
+const COURTYARDS={
+ graveyard:[{
+  arena:{x:164,y:36,w:752,h:536},spawn:{x:520,y:265},
+  props:[
+   [370,185,74,142,'coffin'],[552,276,72,142,'coffin'],
+   [788,394,64,118,'coffin'],[233,190,56,66,'headstone'],
+   [321,421,64,59,'broken'],[461,446,56,42,'slab'],
+   [710,442,52,46,'headstone'],[803,230,54,70,'obelisk'],
+   [710,132,66,54,'grave'],[482,103,63,42,'plaque'],
+   [620,117,52,58,'cross'],[246,338,88,18,'iron-fence'],
+   [690,326,90,18,'iron-fence']
+  ]
+ },{
+  arena:{x:112,y:36,w:1056,h:648},spawn:{x:640,y:335},
+  props:[
+   [390,174,76,146,'coffin'],[685,281,78,150,'coffin'],
+   [925,469,70,134,'coffin'],[329,468,72,130,'coffin'],
+   [199,169,62,73,'headstone'],[503,457,64,49,'grave'],
+   [584,119,65,54,'broken'],[964,180,60,82,'obelisk'],
+   [830,116,55,64,'cross'],[805,534,62,46,'plaque'],
+   [1046,352,56,65,'headstone'],[588,578,65,47,'grave'],
+   [208,362,124,20,'iron-fence'],[506,357,103,20,'iron-fence'],
+   [830,377,102,20,'iron-fence'],[966,96,108,22,'cemetery-wall'],
+   [1080,480,20,100,'iron-fence']
+  ]
+ }],
+ egypt:[{
+  arena:{x:164,y:36,w:752,h:536},spawn:{x:540,y:300},
+  props:[
+   [437,218,72,155,'sarcophagus'],[579,218,72,155,'sarcophagus'],
+   [250,140,140,24,'sandstone-wall'],[366,164,24,74,'sandstone-wall'],
+   [690,140,140,24,'sandstone-wall'],[690,164,24,74,'sandstone-wall'],
+   [250,440,140,24,'sandstone-wall'],[366,366,24,74,'sandstone-wall'],
+   [690,440,140,24,'sandstone-wall'],[690,366,24,74,'sandstone-wall'],
+   [244,288,46,50,'sandstone-pillar'],[790,288,46,50,'sandstone-pillar'],
+   [479,119,120,22,'temple-fence'],[479,471,120,22,'temple-fence']
+  ]
+ },{
+  arena:{x:112,y:36,w:1056,h:648},spawn:{x:640,y:354},
+  props:[
+   [510,273,78,163,'sarcophagus'],[692,273,78,163,'sarcophagus'],
+   [244,160,164,26,'sandstone-wall'],[382,186,26,94,'sandstone-wall'],
+   [872,160,164,26,'sandstone-wall'],[872,186,26,94,'sandstone-wall'],
+   [244,534,164,26,'sandstone-wall'],[382,440,26,94,'sandstone-wall'],
+   [872,534,164,26,'sandstone-wall'],[872,440,26,94,'sandstone-wall'],
+   [225,336,56,60,'sandstone-pillar'],[1000,336,56,60,'sandstone-pillar'],
+   [534,141,84,24,'temple-fence'],[678,141,84,24,'temple-fence'],
+   [534,555,84,24,'temple-fence'],[678,555,84,24,'temple-fence']
+  ]
+ }]
+};
+function makeCourtyard(world,tier,theme){
+ const layout=COURTYARDS[theme][tier-1],arena={...layout.arena};
+ const prefix=theme==='egypt'?'EG':'GY';
+ const obstacles=layout.props.map(([x,y,w,h,kind],i)=>({
+  id:prefix+'-'+String(i+1).padStart(2,'0'),x,y,w,h,kind,
+  variant:i%3,fixed:true,
+  ...(kind==='coffin'?{artType:'single-large-coffin'}:{})
+ }));
+ // The scenery outside the fence is a physical boundary for humans AND
+ // ghosts. Interior monuments still allow ghosts to phase, as before.
+ const {x,y,w,h}=arena;
+ for(const [side,bx,by,bw,bh] of [
+  ['N',0,0,world.w,y],['S',0,y+h,world.w,world.h-y-h],
+  ['W',0,y,x,h],['E',x+w,y,world.w-x-w,h]
+ ])obstacles.push({id:prefix+'-R'+side,x:bx,y:by,w:bw,h:bh,
+  kind:theme==='egypt'?'sandstone-wall':'cemetery-wall',boundary:true,fixed:true});
+ return {arena,spawn:{...layout.spawn},obstacles,
+  mapId:'GH-'+prefix+'-'+world.w+'x'+world.h+'-T'+tier+'-v4'};
 }
 function resetPlayer(p,pos){
   p.x=pos.x;p.y=pos.y;p.vx=0;p.vy=0;p.face=1;
@@ -153,7 +156,6 @@ function setup(round,players){
   const theme=Art.pickTheme(previousGhostTheme);
   previousGhostTheme=theme;
   preloadItemIcons();
-  Art.preload(players,theme);
   // Exactly two arena sizes, shared by the graveyard and Egypt themes:
   // 1–6 players use 1080x608; 7–12 players use 1280x720.
   // Host output stays 960x540 and scales to the selected world.
@@ -165,8 +167,10 @@ function setup(round,players){
   const hudBlocker={x:12*world.w/960,y:12*world.h/540,
     w:88*world.w/960,h:58*world.h/540,
     id:'HUD-00',kind:'hud-blocker',fixed:true,solid:true};
-  const obstacles=[hudBlocker,...makeObstacles(world,tier,[hudBlocker],theme)];
-  const center={x:world.w/2,y:world.h/2};
+  const layout=makeCourtyard(world,tier,theme);
+  const obstacles=[hudBlocker,...layout.obstacles];
+  Art.preload(players,theme,obstacles);
+  const center=layout.spawn;
   const used=[center];
   for(const p of players){
     // Humans spawn at random, dispersed locations away from the AI ghost plaza.
@@ -178,10 +182,10 @@ function setup(round,players){
   }
   // Always one starting ghost. Additional ghost hunters are converted
   // players, not extra NPCs seeded into large rooms.
-  const npcs=[{id:'ai-ghost-0',x:center.x+25,y:center.y,
+  const npcs=[{id:'ai-ghost-0',x:center.x,y:center.y,
     dir:{x:1,y:0},targetId:null,lockUntil:0,stun:0}];
-  round.ghost={world,obstacles,hudBlocker,theme,tier,
-    mapId:mapId(world,tier,theme),showObstacleIds:false,selectedObstacleId:null,
+  round.ghost={world,obstacles,hudBlocker,theme,tier,arena:layout.arena,
+    spawn:layout.spawn,mapId:layout.mapId,showObstacleIds:false,selectedObstacleId:null,
     npcs,boxes:[],traps:[],time:0,
     boxClock:4.5,maxBoxes:tier===1?2:3,
     winnerId:null,converted:[],lastHumanId:null,ghostSpawned:false};
@@ -189,13 +193,18 @@ function setup(round,players){
 }
 function walk(entity,vx,vy,dt,world,obstacles,ignoreObstacles=false){
   const radius=15;
-  const x=clamp(entity.x+vx*dt,radius+6,world.w-radius-6);
-  const y=clamp(entity.y+vy*dt,radius+6,world.h-radius-6);
-  // Ghosts pass regular tombstones, but NOT the solid upper-left HUD.
+  // Ghosts phase through interior props, but stay inside the courtyard and HUD.
   const clear=(xx,yy)=>obstacles.every(o=>
-    (ignoreObstacles&&o.kind!=='hud-blocker')||safeCircle(o,xx,yy,radius));
-  if(clear(x,entity.y))entity.x=x;
-  if(clear(entity.x,y))entity.y=y;
+    (ignoreObstacles&&!o.boundary&&o.kind!=='hud-blocker')||safeCircle(o,xx,yy,radius));
+  // A speed boost or delayed frame must not hop across a thin fence. Substeps
+  // retain axis sliding at corners while keeping every displacement < radius.
+  const steps=Math.max(1,Math.ceil(Math.max(Math.abs(vx*dt),Math.abs(vy*dt))/12));
+  for(let i=0;i<steps;i++){
+    const x=clamp(entity.x+vx*dt/steps,radius+6,world.w-radius-6);
+    const y=clamp(entity.y+vy*dt/steps,radius+6,world.h-radius-6);
+    if(clear(x,entity.y))entity.x=x;
+    if(clear(entity.x,y))entity.y=y;
+  }
 }
 function turnTowards(current,wanted,seconds,turnSpeed){
   const len=Math.hypot(wanted.x,wanted.y);
@@ -240,11 +249,14 @@ function convert(p,state){
 function visiblePrey(players){
   return players.filter(p=>p.active&&!p.ghost&&p.cloak<=0);
 }
+function courtyardGoal(state,x,y){
+  const b=state.arena||{x:0,y:0,w:state.world.w,h:state.world.h};
+  return {x:clamp(x,b.x+24,b.x+b.w-24),y:clamp(y,b.y+24,b.y+b.h-24)};
+}
 function ghostForecast(hunter,prey,state,lead=1){
   // Observe current movement for a short lead; never read future controls.
   const time=clamp(dist(hunter,prey)/(C.ghostSpeed*2.15),.13,.85)*lead;
-  return {x:clamp(prey.x+(prey.vx||0)*time,24,state.world.w-24),
-    y:clamp(prey.y+(prey.vy||0)*time,24,state.world.h-24)};
+  return courtyardGoal(state,prey.x+(prey.vx||0)*time,prey.y+(prey.vy||0)*time);
 }
 function ghostInterceptGoal(hunter,prey,role,group,state){
   const predicted=ghostForecast(hunter,prey,state,role==='chase'?1:1.23);
@@ -263,8 +275,7 @@ function ghostInterceptGoal(hunter,prey,role,group,state){
     x+=escape.x*lead*.42-escape.y*side*lead*.79;
     y+=escape.y*lead*.42+escape.x*side*lead*.79;
   }
-  return {x:clamp(x,24,state.world.w-24),
-    y:clamp(y,24,state.world.h-24)};
+  return courtyardGoal(state,x,y);
 }
 function ghostLineHitsRect(a,b,rect){
   let enter=0,leave=1;
@@ -508,7 +519,7 @@ function resolvePlayerCollisions(players,state){
      const radius=15,edge=radius+6;
      const nextX=clamp(x,edge,state.world.w-edge),nextY=clamp(y,edge,state.world.h-edge);
      const clear=(xx,yy)=>state.obstacles.every(o=>
-       (p.ghost&&o.kind!=='hud-blocker')||safeCircle(o,xx,yy,radius));
+       (p.ghost&&!o.boundary&&o.kind!=='hud-blocker')||safeCircle(o,xx,yy,radius));
      if(clear(nextX,nextY))return {x:nextX,y:nextY};
      if(clear(nextX,p.y))return {x:nextX,y:p.y};
      if(clear(p.x,nextY))return {x:p.x,y:nextY};
@@ -1017,13 +1028,14 @@ function draw(ctx,t,round,players){
   drawThemeBackdrop(ctx,state,t,w,h);
   // SVG visuals sit on the SAME collision rectangles and nav grid blockers.
   for(const o of state.obstacles)
-    if(o.kind!=='hud-blocker')Art.drawObstacle(ctx,o);
-  const center={x:w/2,y:h/2};
-  ctx.save();ctx.strokeStyle=state.theme==='egypt'?'#ffdc873b':'#c6eaff2c';ctx.lineWidth=3;
-  ctx.beginPath();ctx.arc(center.x,center.y,70+5*Math.sin(t*2),0,TAU);ctx.stroke();
-  ctx.fillStyle=state.theme==='egypt'?'#f0c87e21':'#ceeaff19';
-  ctx.beginPath();ctx.arc(center.x,center.y,62,0,TAU);ctx.fill();
-  ctx.restore();
+    if(o.kind!=='hud-blocker'&&!o.boundary)Art.drawObstacle(ctx,o);
+  // The warning marks the actual initial ghost position, then disappears.
+  if(!state.ghostSpawned){
+    const center=state.spawn||{x:w/2,y:h/2};
+    ctx.save();ctx.strokeStyle=state.theme==='egypt'?'#ffe2a080':'#c6eaff80';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(center.x,center.y,24+3*Math.sin(t*2),0,TAU);ctx.stroke();
+    ctx.restore();
+  }
   for(const trap of state.traps){
     ctx.fillStyle='#2b1e29';ctx.strokeStyle='#f2a052';ctx.lineWidth=3;
     ctx.beginPath();ctx.arc(trap.x,trap.y,16,0,TAU);ctx.fill();ctx.stroke();
