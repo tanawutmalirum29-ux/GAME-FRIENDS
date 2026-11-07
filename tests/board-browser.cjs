@@ -79,7 +79,7 @@ async function main(){
   await installedContext.close();
   // Inspect the actual Chrome geometry: the glowing selection bezel must
   // cover exactly one card, without the oversized green frame in the image.
-  const roulette=await context.newPage();await roulette.goto(base);
+  const roulette=await context.newPage();await roulette.goto(base+'/?host=1');
   await roulette.locator('#offlineBtn').click();
   for(const size of [{width:1440,height:900},{width:844,height:390},{width:390,height:844}]){
    await roulette.setViewportSize(size);
