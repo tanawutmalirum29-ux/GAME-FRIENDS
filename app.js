@@ -1787,9 +1787,11 @@ function refreshBoardTools(){
   $('boardNodeDebugBtn').setAttribute('aria-pressed',String(!!c.debugNodes));
   $('boardEffectsBtn').setAttribute('aria-pressed',String(!!c.lowDetail));
   $('boardStartDiceBtn').classList.toggle('hidden',boardSession.phase!=='overview');
-  $('boardFollowBtn').disabled=['overview','intro_zoom'].includes(boardSession.phase);
-  $('boardOverviewBtn').disabled=boardSession.phase==='intro_zoom';
   const canZoom=hostCanControlBoardZoom();
+  // Overview/follow change zoom implicitly; treat them as zoom controls too.
+  $('boardFollowBtn').disabled=['overview','intro_zoom'].includes(boardSession.phase)||!canZoom;
+  $('boardOverviewBtn').disabled=boardSession.phase==='intro_zoom'||
+    (boardSession.phase!=='overview'&&!canZoom);
   $('boardZoomInBtn').disabled=!canZoom;$('boardZoomOutBtn').disabled=!canZoom;
  }
  if(active&&round.paused){
@@ -2727,12 +2729,13 @@ function returnToLobby(){
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
 $('boardOverviewBtn').addEventListener('click',()=>{
- if(round?.mode!=='board'||!boardSession||boardSession.phase==='intro_zoom')return;
+ if(round?.mode!=='board'||!boardSession||boardSession.phase==='intro_zoom'||
+   (boardSession.phase!=='overview'&&!hostCanControlBoardZoom()))return;
  if(boardSession.phase!=='overview')pauseGame();
  window.BoardArt.overview(boardSession);refreshBoardTools();
 });
 $('boardStartDiceBtn').addEventListener('click',()=>{if(boardSession&&window.BoardParty.startOrder(boardSession))refreshBoardTools();});
-$('boardFollowBtn').addEventListener('click',()=>{if(round?.mode==='board'&&boardSession){window.BoardArt.follow(boardSession);if(round.paused)resumeGame();refreshBoardTools();}});
+$('boardFollowBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom()){window.BoardArt.follow(boardSession);refreshBoardTools();}});
 $('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;refreshBoardTools();}});
 $('boardZoomInBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,1.25);});
 $('boardZoomOutBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,.8);});
