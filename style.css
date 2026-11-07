@@ -4704,3 +4704,44 @@ body.controller-playing #controller #controllerActive
 }
 /* Maintain the third-row cancellation target on the rotated iPhone fallback
    while leaving the existing ghost target arrows and other minigames alone. */
+
+/* Board-only remote camera controls in the controller top rail.
+   The gamepad order is zoom+ / zoom− / preview / graphics / other tools. */
+body.controller-playing #controllerActive .gamepad-top-actions #controllerBoardZoomInBtn{order:-3}
+body.controller-playing #controllerActive .gamepad-top-actions #controllerBoardZoomOutBtn{order:-2}
+body.controller-playing #controllerActive .gamepad-top-actions .gamepad-preview-toggle{order:-1}
+body.controller-playing #controllerActive .gamepad-top-actions .gamepad-quality-btn{order:0}
+body.controller-playing #controllerActive .gamepad-top-actions .gamepad-board-zoom{
+ width:clamp(27px,5dvh,38px);
+ min-width:clamp(27px,5dvh,38px);
+ height:clamp(29px,5.1dvh,37px);
+ min-height:clamp(29px,5.1dvh,37px);
+ padding:0;
+ display:grid;
+ place-items:center;
+ border:1px solid #79c0d4;
+ border-radius:9px;
+ background:#205574;
+ color:#f5fcff;
+ font:900 clamp(16px,3dvh,23px)/1 system-ui,sans-serif;
+ touch-action:manipulation;
+ flex:0 0 auto;
+}
+body.controller-playing #controllerActive .gamepad-top-actions .gamepad-board-zoom:active{
+ background:#357c99;transform:scale(.95);
+}
+body.controller-playing #controllerActive .gamepad-top-actions .gamepad-board-zoom.hidden{
+ display:none!important;
+}
+@media (orientation:portrait) and (max-width:600px){
+ body.controller-playing #controllerActive .gamepad-top-actions{gap:2px}
+ body.controller-playing #controllerActive .gamepad-top-actions .gamepad-board-zoom{
+  width:27px;min-width:27px;height:30px;min-height:30px;
+ }
+ body.controller-playing #controllerActive .gamepad-top-actions .gamepad-preview-toggle{
+  width:40px;min-width:40px;
+ }
+ body.controller-playing #controllerActive .gamepad-top-actions .gamepad-quality-btn{
+  width:28px;min-width:28px;
+ }
+}
