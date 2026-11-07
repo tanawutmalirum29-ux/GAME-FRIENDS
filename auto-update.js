@@ -15,6 +15,7 @@ function onSafePoint(){
   // Do not reload-loop while a CDN still serves an obsolete index.html.
   if(url.searchParams.get('_gf_build')===pending)return false;
   if(window.GAME_PREPARE_AUTO_RELOAD?.()===false)return false;
+  window.GameOfflineCache?.activateWhenSafe();
   reloading=true;
   url.searchParams.set('_gf_build',pending);
   window.location.replace(url.href);
@@ -32,6 +33,8 @@ async function check(){
       const next=String(manifest?.version||'');
       if(!/^[a-z0-9._-]{7,64}$/i.test(next)||next===loaded)return false;
       pending=next;
+      // Stage the new worker but never activate it during a live match.
+      void window.GameOfflineCache?.checkForUpdate();
       if(onSafePoint())return true;
       if(!notified){notified=true;window.GAME_NOTIFY_UPDATE?.();}
       return true;
