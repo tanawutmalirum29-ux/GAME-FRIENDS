@@ -11,6 +11,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/game-friends-touch-icon.png">
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="apple-mobile-web-app-title" content="GAME FRIENDS">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GAME FRIENDS">
   <meta property="og:title" content="GAME FRIENDS — Multiplayer Party Games">
@@ -177,13 +179,21 @@
         <div class="game-center-hud">
           <div id="leaderboard" class="leaderboard" aria-label="ชื่อผู้เล่นและข้อมูลตามโหมดเกม"></div>
         </div>
+        <button id="restoreHostFullscreenBtn" class="game-fullscreen-restore hidden" type="button" aria-label="กลับเข้าโหมดเต็มจอ" title="กลับเข้าโหมดเต็มจอ">เต็มจออีกครั้ง</button>
         <button id="pauseBtn" class="game-pause-btn" type="button" aria-label="หยุดเกม" aria-haspopup="dialog" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg> <span>หยุดเกม</span></button>
       </div>
       <div id="pauseMenu" class="game-pause-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pauseHeading">
         <div class="game-pause-card">
           <div class="pause-icon" aria-hidden="true">Ⅱ</div>
           <h2 id="pauseHeading">หยุดเกมชั่วคราว</h2>
-          <p>ทุกเกมและตัวจับเวลาจะหยุดจนกว่าจะกดเล่นต่อ</p><div id="gameChoiceList" class="game-choice-list" aria-label="ผู้เล่นและเกมที่เลือก"></div>
+          <p>ทุกเกมและตัวจับเวลาจะหยุดจนกว่าจะกดเล่นต่อ</p>
+          <button id="webAppHelpBtn" class="btn btn-outline board-webapp-help-trigger hidden" type="button" aria-expanded="false" aria-controls="webAppHelp">เล่นเต็มจอบน iPad โดยไม่มีแถบ Chrome</button>
+          <div id="webAppHelp" class="board-webapp-help hidden" role="note">
+            <strong>วิธีใช้งานแบบแอปบนหน้าจอโฮม</strong>
+            <p>เปิดเว็บไซต์ GAME FRIENDS ใน Safari แล้วเลือก แชร์ → เพิ่มไปยังหน้าจอโฮม → เปิดเป็นเว็บแอป → เพิ่ม จากนั้นเข้าเกมผ่านไอคอนบนหน้าจอโฮม แถบแท็บและที่อยู่ Chrome จะไม่มารบกวนการลากแมพ</p>
+            <small>เว็บป้องกันการเลื่อนภายในเกมได้ แต่ไม่สามารถปิดท่าทางระบบของ Chrome/iPadOS หรือบังคับกลับเข้า Fullscreen ได้เอง</small>
+          </div>
+          <div id="gameChoiceList" class="game-choice-list" aria-label="ผู้เล่นและเกมที่เลือก"></div>
           <button id="resumeBtn" class="btn btn-green" type="button">▶ เล่นต่อ</button>
           <button id="exitBtn" class="btn btn-outline pause-exit" type="button">ออกจากเกม / กลับล็อบบี้</button>
         </div>
