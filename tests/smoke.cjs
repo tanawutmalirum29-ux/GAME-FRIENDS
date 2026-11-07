@@ -38,6 +38,18 @@ assert.ok(source.includes("t:'board-camera-zoom',direction"),
  'phone zoom buttons send the host a dedicated board-camera packet');
 assert.ok(source.includes('conn.lastBoardCameraZoomAt'),
  'the host rate-limits remote zoom packets');
+assert.ok(source.includes("window.BoardParty.current(boardSession)?.id!==conn.playerId"),
+ 'remote zoom requires ownership of the active BOARD turn');
+assert.ok(source.includes("controllerBoard?.canZoom===true"),
+ 'controller zoom buttons remain hidden for spectators');
+assert.ok(source.includes("controllerBoard?.canZoom!==true"),
+ 'phone client refuses zoom when the host has not granted permission');
+assert.ok(source.includes("hostCanControlBoardZoom()"),
+ 'host toolbar and pinch must honor local turn ownership');
+assert.match(css,/html:has\(body\.host-playing\),html:has\(body\.controller-playing\)\{/,
+ 'root scroller is locked while playing');
+assert.ok(source.includes("e.target?.closest?.('#game')"),
+ 'non-passive game swipe handler prevents in-document rubber-banding');
 
 // Cover/social assets are checked into GitHub: no external hotlink or
 // missing favicon fallback that browsers would otherwise show as a globe.
@@ -2393,7 +2405,66 @@ for(const count of [1,12]){
  assert.equal(state.shieldTurns,1,'manually activated shield is active for this BOARD round');assert.equal(p.shieldRound,s.roundNumber);assert.equal(p.item,null);assert.equal(p.bag.length,0);
 }
 {
- // No timer ticks between taps: a new host token must immediately repair a
+ // BOARD PARTY camera changes must be authorized by the current player on the
+// host. Even a valid spectator data packet cannot steal the shared map zoom.
+{
+ const ui=setup();ui.click('hostBtn');ui.instances[0].fire('open');
+ const peer=ui.instances[0],connect=name=>{
+  const c=peer.connect();peer.fire('connection',c);
+  c.fire('data',{t:'join',name,clientToken:'zoom-'+name});return c;
+ };
+ const owner=connect('Zoom owner'),spectator=connect('Zoom spectator');
+ const api=ui.scope.window.__ghostTest,P=ui.scope.window.BoardParty;
+ ui.sessionButtons[2].fire('click');ui.click('startBtn');
+ const s=api.getBoard();assert.equal(s.players.length,2);
+ const [first,second]=s.players;
+ s.order=[first.id,second.id];s.turnIndex=0;P.startTurn(s);P.beginMove(s,first,3);
+ api.updateBoard(.05);
+ let one=owner.sent.filter(m=>m.t==='board-state').at(-1),
+   two=spectator.sent.filter(m=>m.t==='board-state').at(-1);
+ assert.equal(one.canZoom,true,'current player receives zoom permission');
+ assert.equal(two.canZoom,false,'spectator receives no zoom permission');
+ const initial=s.camera.zoom;
+ spectator.fire('data',{t:'board-camera-zoom',direction:1});
+ assert.equal(s.camera.zoom,initial,'spectator zoom rejected by host');
+ ui.click('boardZoomInBtn');
+ assert.equal(s.camera.zoom,initial,'host screen cannot bypass a REMOTE current turn');
+ owner.fire('data',{t:'board-camera-zoom',direction:1});
+ assert.ok(s.camera.zoom>initial,'authorized current player can zoom');
+ s.turnIndex=1;P.startTurn(s);P.beginMove(s,second,3);api.updateBoard(.05);
+ one=owner.sent.filter(m=>m.t==='board-state').at(-1);
+ two=spectator.sent.filter(m=>m.t==='board-state').at(-1);
+ assert.equal(one.canZoom,false);assert.equal(two.canZoom,true,'permission follows turn rotation');
+ const now=s.camera.zoom;
+ owner.fire('data',{t:'board-camera-zoom',direction:-1});
+ assert.equal(s.camera.zoom,now,'former owner loses zoom rights immediately');
+ spectator.fire('data',{t:'board-camera-zoom',direction:-1});
+ assert.ok(s.camera.zoom<now,'new owner may now zoom');
+}
+{
+ const phone=setup('https://game.example/?join=CAMERA');
+ phone.elements.get('nick').value='Phone owner';phone.click('joinBtn');phone.instances[0].fire('open');
+ const conn=phone.instances[0].conn;conn.fire('open');
+ conn.fire('data',{t:'welcome',id:'z',name:'Phone owner',color:'#66aacc',mode:'board',phase:'playing'});
+ const frame={t:'board-state',phase:'playing',boardPhase:'move_ready',
+  round:1,turnId:'z-1',hp:100,stepsRemaining:3,bag:[],canZoom:false,a:'',b:'',help:''};
+ conn.fire('data',frame);
+ assert.equal(phone.elements.get('controllerBoardZoomInBtn').classList.contains('hidden'),true);
+ assert.equal(phone.elements.get('controllerBoardZoomInBtn').disabled,true);
+ const before=conn.sent.filter(m=>m.t==='board-camera-zoom').length;
+ phone.click('controllerBoardZoomInBtn');
+ assert.equal(conn.sent.filter(m=>m.t==='board-camera-zoom').length,before,
+  'spectator phone does not send camera commands');
+ conn.fire('data',{...frame,turnId:'z-2',canZoom:true});
+ assert.equal(phone.elements.get('controllerBoardZoomInBtn').classList.contains('hidden'),false);
+ assert.equal(phone.elements.get('controllerBoardZoomInBtn').disabled,false);
+ phone.click('controllerBoardZoomInBtn');
+ assert.equal(conn.sent.filter(m=>m.t==='board-camera-zoom').length,before+1,
+  'turn-owner phone can send the host zoom command');
+ conn.fire('data',{...frame,turnId:'z-3',canZoom:false});
+ assert.equal(phone.elements.get('controllerBoardZoomInBtn').disabled,true,'zoom permission is revoked');
+}
+// No timer ticks between taps: a new host token must immediately repair a
  // button release that was sent with the previous phase's token.
  const ui=setup('https://game.example/?join=ABCDE3');ui.elements.get('nick').value='Board phone';ui.click('joinBtn');ui.instances[0].fire('open');
  const conn=ui.instances[0].conn;conn.fire('open');conn.fire('data',{t:'welcome',id:'p1',name:'Board phone',color:'#66aacc',mode:'board',phase:'playing'});
