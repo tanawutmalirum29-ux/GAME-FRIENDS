@@ -11,7 +11,7 @@ function ranking(round,players){
    case 'shockwave':return p.id===round.shockwave.winnerId?Infinity:(p.shockEliminatedAt||0);
     case 'boulder_bash':return p.bb?.alive?Infinity:(p.bb?.eliminatedTick??0);
     case 'snow_brawl':return p.snow?.alive?Infinity:(p.snow?.eliminatedTick??0);
-   case 'color_switch':case 'chickens':case 'pizza_time':case 'knight_match':return Number(p.score)||0;
+   case 'color_switch':case 'chickens':case 'pizza_time':case 'shopping_time':case 'knight_match':return Number(p.score)||0;
    default:throw Error('Missing result adapter for '+round.mode);
   }
  };
