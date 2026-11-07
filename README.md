@@ -203,7 +203,8 @@ python3 -m http.server 8080
 ## WITCHING SNAKE — Magic broom survival
 
 - Available in NORMAL PARTY and BOARD PARTY, for **1–12 players**. Each witch flies forward automatically. Only the joystick changes the desired heading; turning uses angular acceleration and gentle lateral inertia. A/B have no attack, boost or braking effect.
-- **Host world sizes:** 960×540 (1–6 players) and 1280×720 (7–12 players), each with a faceted 12-sided oval arena. The renderer scales the world to the 960×540 host canvas without modifying physics.
+- **Host world sizes:** 960×540 (1–6 players) and 1280×720 (7–12 players). The widened, 12-facet oval now spans **884 / 960 world units (92.1%)** in small rooms and **1180 / 1280 (92.2%)** in large rooms; this increases actual playable space, not merely camera zoom. Both use the same collision polygon as the visible neon rail. Rendering scales to the 960×540 host canvas without modifying physics.
+- **Arena art:** screenshot-inspired deep-blue stone floor, understated slate mosaics, segmented magenta/gold glowing perimeter, steel corner joints, four colored shingled shrines, and golden straw fans outside the playable rail. Detailed scenery is drawn once into a cached vector Canvas; moving witches, stars, and trails remain live.
 - A continuously sampled, dangerous **magic trail** follows each broom. Contact with your own older trail, any other active trail, or the arena boundary eliminates you. Dead trails fade and cease collision.
 - Trails start at **190 / 230** world units; a magic star adds **48 / 65**, up to **520 / 760** respectively. Star pickups are automatic and are not points.
 - Simulation uses **60 Hz fixed steps**, swept hit detection, bounded trail storage, spatial indexing, same-frame tie handling, shared player-body pushing, and deterministic tick-based elimination ranks.

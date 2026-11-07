@@ -6,7 +6,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync('witching-snake.js','utf8');
 const tests=[];
 const check=(name,run)=>tests.push({name,run});
-function engine(){
+function engine(doc){
  const window={PartyCharacters:{control:(i={})=>{
   let x=Number(i.axisX)||Number(!!i.right)-Number(!!i.left);
   let y=Number(i.axisY)||Number(!!i.down)-Number(!!i.jump);
@@ -20,15 +20,15 @@ function engine(){
     a.x-=nx*v;a.y-=ny*v;b.x+=nx*v;b.y+=ny*v;}
   }
  }}};
- vm.runInNewContext(source,{window,Math,console},{filename:'witching-snake.js'});
+ vm.runInNewContext(source,{window,Math,console,...(doc?{document:doc}:{})},{filename:'witching-snake.js'});
  return window.WitchingSnake;
 }
 function roster(n){
  return Array.from({length:n},(_,i)=>({id:'p'+i,name:'แม่มด '+i,color:'#ff628c',
   active:true,isBot:false,input:{axisX:0,axisY:0,action:false,alt:false}}));
 }
-function game(n){
- const e=engine(),round={mode:'witching_snake',phase:'playing',paused:false},ps=roster(n);
+function game(n,doc){
+ const e=engine(doc),round={mode:'witching_snake',phase:'playing',paused:false},ps=roster(n);
  const s=e.setup(round,ps);return{e,round,ps,s};
 }
 function approx(a,b,eps=1e-6){assert.ok(Math.abs(a-b)<=eps,a+' !== '+b);}
@@ -37,10 +37,50 @@ check('supports 1, 2, 4, 6, 7, 9 and 12 separated, valid spawns',()=>{
   const {e,ps,s}=game(n);
   assert.equal(s.w,n<=6?960:1280);
   assert.equal(s.h,n<=6?540:720);
+  assert.ok(2*s.rx/s.w>.92,'arena playable width must cover at least 92% of the world');
+  assert.ok(2*s.ry/s.h>.87,'arena height must cover nearly the full canvas');
   for(const p of ps)assert.equal(e.inside(s,p.x,p.y,35),true,'invalid spawn '+n);
   for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)
    assert.ok(Math.hypot(ps[i].x-ps[j].x,ps[i].y-ps[j].y)>=24,'overlapping spawns');
  }
+});
+check('broad faceted oval has matching playable and collision bounds',()=>{
+ for(const n of [1,6,7,12]){
+  const {e,s}=game(n),x=s.w/2,y=s.h/2;
+  assert.equal(e.inside(s,x,y,20),true);
+  // Faceted ends stay wide; the actual right rail is almost at the world edge.
+  assert.equal(e.inside(s,x+s.rx-36,y,12),true);
+  assert.equal(e.inside(s,x+s.rx-7,y,12),false);
+  assert.equal(e.inside(s,x+s.rx+1,y),false);
+  assert.equal(e.inside(s,x,y-s.ry+27,12),true);
+  assert.equal(e.inside(s,x,y-s.ry+2,12),false);
+  assert.equal(e.inside(s,x+s.rx*.97,y-s.ry*.92,0),false,'facet corners clip the playfield');
+ }
+});
+check('new arena scenery is cached after first vector render',()=>{
+ let allocations=0,blits=0,paint=0;
+ const gradient=()=>({addColorStop(){}});
+ const mock=new Proxy({},{
+  get(_,key){
+   if(key==='createLinearGradient'||key==='createRadialGradient')return gradient;
+   if(key==='drawImage')return()=>{blits++;};
+   if(key==='fillRect')return()=>{paint++;};
+   return()=>{};
+  },
+  set(){return true;}
+ });
+ const doc={createElement(tag){
+  assert.equal(tag,'canvas');allocations++;
+  return{width:0,height:0,getContext:()=>mock};
+ }};
+ const {e,ps,s,round}=game(12,doc);
+ assert.equal(s.w,1280);
+ e.draw(mock,.1,round,ps);
+ e.draw(mock,.2,round,ps);
+ assert.equal(allocations,1,'scenery canvas allocated only once per round');
+ assert.ok(paint>25,'new detailed arena drawn into the backdrop');
+ assert.equal(blits,2,'later frames reuse cached scenery');
+ assert.ok(s.arenaBackdrop);
 });
 check('60Hz coasting, pause and no early trail during countdown',()=>{
  const {e,round,ps,s}=game(1),p=ps[0],start={x:p.x,y:p.y};

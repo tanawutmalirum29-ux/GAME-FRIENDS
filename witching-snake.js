@@ -3,8 +3,8 @@
 'use strict';
 const TAU=Math.PI*2, STEP=1/60, CELL=40;
 const CONFIG=Object.freeze({
- small:Object.freeze({width:960,height:540,rx:319,ry:206,trailStart:190,trailGain:48,trailMax:520,stars:2}),
- large:Object.freeze({width:1280,height:720,rx:437,ry:281,trailStart:230,trailGain:65,trailMax:760,stars:4}),
+ small:Object.freeze({width:960,height:540,rx:442,ry:238,trailStart:190,trailGain:48,trailMax:520,stars:2}),
+ large:Object.freeze({width:1280,height:720,rx:590,ry:317,trailStart:230,trailGain:65,trailMax:760,stars:4}),
  speed:173, turnMax:2.2, turnAcceleration:9, slip:.075, radius:12,
  trailRadius:3.4, selfGap:41, sample:8, soloDuration:60, overtimeStart:120,
  overtimeLength:75, minArenaScale:.18, starRadius:14
@@ -14,12 +14,12 @@ const angleDiff=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
 const living=ps=>ps.filter(p=>p.active&&p.ws?.alive);
 const random=s=>{let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1;return(s.seed>>>0)/4294967296;};
 function polygon(s,scale=1){
- const result=[];
- for(let i=0;i<12;i++){
-  const a=i*TAU/12;
-  result.push({x:s.w/2+Math.cos(a)*s.rx*scale,y:s.h/2+Math.sin(a)*s.ry*scale});
- }
- return result;
+ // A broad, 12-facet oval: long upper/lower rails and gently chamfered ends.
+ // The identical world polygon drives rendering, pickups, bots and collision.
+ const shape=[[-.65,-.98],[.65,-.98],[.9,-.8],[1,-.38],
+  [1,.38],[.9,.8],[.65,.98],[-.65,.98],
+  [-.9,.8],[-1,.38],[-1,-.38],[-.9,-.8]];
+ return shape.map(([x,y])=>({x:s.w/2+x*s.rx*scale,y:s.h/2+y*s.ry*scale}));
 }
 function inside(s,x,y,padding=0,scale=s.arenaScale){
  const poly=polygon(s,scale);let sign=0;
@@ -273,29 +273,161 @@ function hud(ps,round){
  return {survivors:living(ps).length,remaining:round.remaining,elapsed:s?.clock||0,
   winnerIds:s?.winnerIds||[],statuses:ps.filter(p=>p.active).map(p=>({id:p.id,alive:!!p.ws?.alive,stars:p.ws?.stars||0}))};
 }
-function circle(g,x,y,r,fill){g.fillStyle=fill;g.beginPath();g.arc(x,y,r,0,TAU);g.fill();}
-function artArena(g,s,time){
- g.fillStyle='#080d26';g.fillRect(0,0,s.w,s.h);
- const poly=polygon(s);g.beginPath();poly.forEach((v,i)=>i?g.lineTo(v.x,v.y):g.moveTo(v.x,v.y));g.closePath();
- g.fillStyle='#222346';g.fill();g.strokeStyle='#9574d8';g.lineWidth=11;g.stroke();
- g.save();g.clip();
- for(let i=0;i<6;i++){
-  g.beginPath();g.ellipse(s.w/2,s.h/2,s.rx*(.25+i*.12),s.ry*(.25+i*.12),0,0,TAU);
-  g.strokeStyle=i%2?'#4b4776':'#686193';g.globalAlpha=.24;g.lineWidth=2;g.stroke();
+function circle(g,x,y,r,fill){
+ g.fillStyle=fill;g.beginPath();g.arc(x,y,r,0,TAU);g.fill();
+}
+function traceArena(g,points){
+ g.beginPath();
+ for(let i=0;i<points.length;i++){
+  const v=points[i];if(i===0)g.moveTo(v.x,v.y);else g.lineTo(v.x,v.y);
  }
- g.globalAlpha=.18;g.strokeStyle='#b8a4e7';g.lineWidth=1;
- for(let a=0;a<TAU;a+=Math.PI/6){
-  g.beginPath();g.moveTo(s.w/2,s.h/2);
-  g.lineTo(s.w/2+s.rx*Math.cos(a),s.h/2+s.ry*Math.sin(a));g.stroke();
+ g.closePath();
+}
+function coloredRoof(g,x,y,rotation,roof,trim){
+ g.save();g.translate(x,y);g.rotate(rotation);
+ // Color-coded shrines sit outside the flight zone, underneath its polygon mask.
+ g.fillStyle='#121a30';g.fillRect(-108,-60,216,124);
+ g.fillStyle='#4f5667';g.fillRect(-97,-51,194,112);
+ g.fillStyle='#232f44';g.fillRect(-89,-43,178,97);
+ g.beginPath();g.moveTo(-119,-50);g.lineTo(0,-84);g.lineTo(119,-50);
+ g.lineTo(101,66);g.lineTo(-101,66);g.closePath();g.fillStyle=roof;g.fill();
+ g.lineWidth=5;g.strokeStyle=trim;g.stroke();
+ // Layered rectangular shingles echo the screenshot, but are drawn as vectors.
+ g.strokeStyle='rgba(11,19,39,.42)';g.lineWidth=2;
+ for(let row=0;row<6;row++){
+  const yy=-44+row*17,shift=row%2?12:0;
+  g.beginPath();g.moveTo(-106,yy);g.lineTo(106,yy);g.stroke();
+  for(let col=0;col<8;col++){
+   const xx=-94+col*26+shift;
+   g.beginPath();g.moveTo(xx,yy-17);g.lineTo(xx+5,yy);g.stroke();
+  }
+ }
+ g.fillStyle='rgba(255,255,255,.12)';
+ g.beginPath();g.moveTo(-100,-47);g.lineTo(0,-72);g.lineTo(96,-47);
+ g.lineTo(90,-33);g.lineTo(0,-58);g.lineTo(-90,-33);g.closePath();g.fill();
+ // Gold mushroom/lantern caps at the corner towers.
+ for(const [dx,dy,size] of [[77,-39,20],[48,-63,13]]){
+  g.shadowColor='#eaa94e';g.shadowBlur=7;
+  circle(g,dx,dy,size,'#9c602c');circle(g,dx-2,dy-3,size*.72,'#efb65f');
+  circle(g,dx-5,dy-7,size*.35,'#ffe1a1');
  }
  g.restore();
- if(s.arenaScale<1){
-  const sh=polygon(s,s.arenaScale);g.beginPath();g.rect(0,0,s.w,s.h);sh.forEach((v,i)=>i?g.lineTo(v.x,v.y):g.moveTo(v.x,v.y));g.closePath();
-  g.fillStyle='rgba(5,8,25,.46)';g.fill('evenodd');
-  g.strokeStyle='#f4ae64';g.lineWidth=5;g.stroke();
+}
+function strawGrove(g,x,y,flipped=false){
+ g.save();g.translate(x,y);g.scale(flipped?-1:1,1);
+ // Gold thatch fans along the outer edge, clipped by the playable floor.
+ g.fillStyle='#483116';g.beginPath();g.ellipse(0,0,116,112,-.24,0,TAU);g.fill();
+ for(let i=0;i<32;i++){
+  const a=-1.35+i/31*2.8,rad=58+(i%4)*10;
+  const tipX=Math.cos(a)*rad+14,tipY=Math.sin(a)*99;
+  g.beginPath();
+  g.moveTo(-12+Math.sin(i*5)*19,0);
+  g.quadraticCurveTo(tipX*.5-5,tipY*.75,tipX+12,tipY);
+  g.quadraticCurveTo(tipX*.7+17,tipY*.95,tipX*.58,tipY*.42);
+  g.closePath();
+  g.fillStyle=i%3===0?'#dd9b29':i%3===1?'#a56c1d':'#c98921';g.fill();
  }
- for(let i=0;i<12;i++){
-  const p=poly[i];circle(g,p.x,p.y,4,'#d5b5ff');
+ g.restore();
+}
+function floorStones(g){
+ // Sparse slate mosaics leave the danger trails and players unmistakable.
+ const patches=[[255,166],[482,204],[710,162],[277,391],[517,354],[737,386]];
+ for(let p=0;p<patches.length;p++){
+  const [x,y]=patches[p];
+  for(let row=0;row<4;row++)for(let col=0;col<5;col++){
+   const xx=x+col*22+(row%2?10:0),yy=y+row*22;
+   g.fillStyle=(col+row+p)%3===0?'rgba(137,163,218,.085)':'rgba(13,19,54,.12)';
+   g.fillRect(xx,yy,19,19);
+   g.strokeStyle='rgba(152,161,202,.045)';g.lineWidth=1;g.strokeRect(xx+.5,yy+.5,19,19);
+  }
+ }
+}
+function paintStaticArena(g,s){
+ // Decor is rendered at a shared reference size; large and small maps keep
+ // the same visual proportions while physics always uses real world units.
+ const unit=s.w/960,poly=polygon(s).map(v=>({x:v.x/unit,y:v.y/unit}));
+ g.save();g.scale(unit,unit);
+ const night=g.createLinearGradient(0,0,960,540);
+ night.addColorStop(0,'#141832');night.addColorStop(.5,'#080f24');
+ night.addColorStop(1,'#22243e');
+ g.fillStyle=night;g.fillRect(0,0,960,540);
+ // Low-contrast stonework beyond the rail.
+ g.fillStyle='#1f2a3c';
+ for(let i=0;i<28;i++){
+  const col=i%7,row=Math.floor(i/7);
+  g.fillRect(col*146-14+(row%2?18:0),row*166-16,137,143);
+ }
+ coloredRoof(g,178,-8,-.3,'#cfb72f','#f2d759');
+ coloredRoof(g,782,-8,.3,'#0b9bc9','#62daf4');
+ coloredRoof(g,176,558,.3,'#b72b31','#f46263');
+ coloredRoof(g,789,558,-.3,'#38a941','#76e65c');
+ strawGrove(g,20,266,false);strawGrove(g,940,268,true);
+ // Polygonal collision boundary and rendered inner rail are exactly aligned.
+ traceArena(g,poly);g.strokeStyle='#090b20';g.lineWidth=29;g.stroke();
+ traceArena(g,poly);g.strokeStyle='#303449';g.lineWidth=23;g.stroke();
+ const floor=g.createLinearGradient(0,40,860,510);
+ floor.addColorStop(0,'#344370');floor.addColorStop(.5,'#303b68');
+ floor.addColorStop(1,'#293357');
+ traceArena(g,poly);g.fillStyle=floor;g.fill();
+ g.save();traceArena(g,poly);g.clip();
+ floorStones(g);
+ g.save();g.translate(480,270);
+ for(let i=0;i<3;i++){
+  g.strokeStyle=i===1?'rgba(146,161,220,.07)':'rgba(197,178,241,.065)';
+  g.lineWidth=2;g.beginPath();g.ellipse(0,0,95+i*92,47+i*65,0,0,TAU);g.stroke();
+ }
+ for(let i=0;i<8;i++){
+  const angle=i*TAU/8;
+  g.beginPath();g.moveTo(Math.cos(angle)*42,Math.sin(angle)*42);
+  g.lineTo(Math.cos(angle)*80,Math.sin(angle)*80);
+  g.strokeStyle='rgba(196,190,230,.09)';g.lineWidth=2;g.stroke();
+ }
+ g.restore();g.restore();
+ // Protective masonry, segmented magenta/red-gold spell rails and metal joints.
+ traceArena(g,poly);g.strokeStyle='#171b31';g.lineWidth=23;g.stroke();
+ traceArena(g,poly);g.strokeStyle='#6d7284';g.lineWidth=14;g.stroke();
+ for(let i=0;i<poly.length;i++){
+  const a=poly[i],b=poly[(i+1)%poly.length],dx=b.x-a.x,dy=b.y-a.y;
+  const length=Math.hypot(dx,dy);
+  const inset=Math.min(.17,12/length);
+  const x1=a.x+dx*inset,y1=a.y+dy*inset;
+  const x2=b.x-dx*inset,y2=b.y-dy*inset;
+  g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);
+  g.strokeStyle='#36263c';g.lineWidth=10;g.stroke();
+  g.shadowColor='#f94e82';g.shadowBlur=9;
+  g.strokeStyle='#e64e78';g.lineWidth=5.5;g.stroke();
+  g.shadowBlur=0;g.strokeStyle='#ffc66a';g.lineWidth=2;g.stroke();
+  const midX=(x1+x2)/2,midY=(y1+y2)/2;
+  circle(g,midX,midY,2.5,'#fff0c3');
+ }
+ for(let i=0;i<poly.length;i++){
+  const v=poly[i];
+  circle(g,v.x,v.y,11,'#2c304a');
+  circle(g,v.x,v.y,8,'#9296a5');
+  circle(g,v.x-1.8,v.y-2.1,4.5,'#e1dce1');
+  circle(g,v.x-2.6,v.y-3.2,1.8,'#fff8dd');
+ }
+ g.restore();
+}
+function artArena(g,s,time){
+ // Bake detailed static decorations once rather than rerender shingles and
+ // slate every animation frame on low-end phones.
+ if(!s.arenaBackdrop&&typeof document!=='undefined'&&typeof document.createElement==='function'){
+  const canvas=document.createElement('canvas');
+  canvas.width=s.w;canvas.height=s.h;
+  const context=canvas.getContext?.('2d');
+  if(context){paintStaticArena(context,s);s.arenaBackdrop=canvas;}
+ }
+ if(s.arenaBackdrop)g.drawImage(s.arenaBackdrop,0,0);
+ else paintStaticArena(g,s);
+ if(s.arenaScale<1){
+  const safe=polygon(s,s.arenaScale);
+  g.save();g.beginPath();g.rect(0,0,s.w,s.h);
+  safe.forEach((v,i)=>i?g.lineTo(v.x,v.y):g.moveTo(v.x,v.y));g.closePath();
+  g.fillStyle='rgba(6,9,28,.52)';g.fill('evenodd');
+  g.shadowColor='#ffd27d';g.shadowBlur=12;
+  g.strokeStyle='#efac64';g.lineWidth=5;g.stroke();
+  g.restore();
  }
 }
 function artStar(g,p,t){
