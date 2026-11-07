@@ -9,12 +9,13 @@ function ranking(round,players){
    case 'ghost':return !p.ghost?Infinity:Math.floor((Number.isFinite(p.infectedAt)?p.infectedAt:p.survival||0)*10+1e-7);
    case 'fruit_memory':return p.id===round.fruitMemory.winnerId?Infinity:(p.fruitEliminatedRound||p.fruitRounds||0);
    case 'shockwave':return p.id===round.shockwave.winnerId?Infinity:(p.shockEliminatedAt||0);
+    case 'boulder_bash':return p.bb?.alive?Infinity:(p.bb?.eliminatedTick??0);
    case 'color_switch':case 'chickens':case 'pizza_time':case 'knight_match':return Number(p.score)||0;
    default:throw Error('Missing result adapter for '+round.mode);
   }
  };
  const list=players.filter(p=>p.active).map(p=>({id:p.id,value:value(p)}));
- for(const p of list){p.rank=1+list.filter(q=>q.value>p.value).length;p.label=p.value===Infinity?'ผู้รอดชีวิต':round.mode==='ghost'?(p.value/10).toFixed(1)+' วินาที':round.mode==='shockwave'?'ตกรอบชุดที่ '+p.value:round.mode==='fruit_memory'?'รอดถึงรอบ '+p.value:p.value+' คะแนน';}
+ for(const p of list){p.rank=1+list.filter(q=>q.value>p.value).length;p.label=p.value===Infinity?'ผู้รอดชีวิต':round.mode==='ghost'?(p.value/10).toFixed(1)+' วินาที':round.mode==='shockwave'?'ตกรอบชุดที่ '+p.value:round.mode==='fruit_memory'?'รอดถึงรอบ '+p.value:round.mode==='boulder_bash'?'ตกรอบรอบฟิสิกส์ '+p.value:p.value+' คะแนน';}
  return list.sort((a,b)=>a.rank-b.rank||String(a.id).localeCompare(String(b.id)));
 }
 function rewards(ranking,count,rng=Math.random){

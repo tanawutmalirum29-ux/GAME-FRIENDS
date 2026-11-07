@@ -257,7 +257,7 @@ function scenery(g,s){
   circle(g,x+4,y-4,3,'#adbec2');
  }
 }
-function drawRock(g,r){
+function drawRock(g,r,s){
  g.save();
  for(let i=0;i<r.trail.length;i++){
   const p=r.trail[i];circle(g,p.x+6,p.y+7,r.r*.28,'#6596af28');
@@ -282,7 +282,7 @@ function drawRock(g,r){
  g.lineTo(r.r*.12,0);g.lineTo(r.r*.5,-r.r*.1);g.moveTo(r.r*.12,0);g.lineTo(r.r*.1,r.r*.45);g.stroke();
  g.restore();
  if(r.ownerId){
-  const owner=window.BoulderBash._roster?.find(p=>p.id===r.ownerId);
+  const owner=s.roster.find(p=>p.id===r.ownerId);
   if(owner){g.fillStyle='#183d58bb';g.fillRect(r.x-31,r.y-r.r-26,62,18);
    g.fillStyle='#ffffff';g.font='bold 11px sans-serif';g.textAlign='center';
    g.fillText(String(owner.name||'').slice(0,9),r.x,r.y-r.r-13);}
@@ -296,7 +296,7 @@ function draw(g,time,round,ps){
   g.strokeStyle=w.ownerId?'#f7b4ce':'#e8faff';g.lineWidth=3;
   g.beginPath();g.ellipse(921,w.y,26,40,0,0,TAU);g.stroke();g.restore();
  }
- for(const r of s.rocks)drawRock(g,r);
+ for(const r of s.rocks)drawRock(g,r,s);
  for(const p of living(ps)){
   if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:s.clock});
   else{circle(g,p.x,p.y,C.radius,color(p));}
@@ -310,5 +310,5 @@ function draw(g,time,round,ps){
  g.restore();
 }
 window.BoulderBash=Object.freeze({setup,update,draw,hud,step,spawnWarning,rockAt,eliminate,
- sweptHit,finish,interval,config:C,get _roster(){return null;}});
+ sweptHit,finish,interval,config:C});
 })();
