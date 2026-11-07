@@ -2450,7 +2450,11 @@ function layoutFinalResults(){
     row.style.setProperty('--rank-delay',String(index));
 
     const label=row.children[0],detail=row.children[1];
-    const name=String(label?.textContent||'');
+    // Result engines still supply the original rank/name label. Preserve it as
+    // metadata so repeated responsive layouts never lose the real competition
+    // rank after we display only the player's name on the plaque.
+    const name=String(row.dataset.rankSource||label?.textContent||'');
+    if(!row.dataset.rankSource)row.dataset.rankSource=name;
     const color=label?.style?.color||'#9fb9da';
     const match=name.match(/อันดับ\s*(\d+)|(?:^|\s)(\d+)\.\s*/);
     const rank=Number(match?.[1]||match?.[2]||index+1);
@@ -2459,7 +2463,11 @@ function layoutFinalResults(){
     row.classList.toggle('is-podium',rank<=3);
     row.style.setProperty('--result-accent',color);
     // Distinct player-owned banner colors, NEVER fixed purple/silver/green by rank.
-    const playerName=name.split(' • ').pop().trim();
+    const playerName=(name.includes(' • ')?name.split(' • ').pop():
+      name.replace(/^(?:ผู้ชนะ\s*)?อันดับ\s*\d+(?:\s*ร่วม)?\s*[.\-–]?\s*/, '')).trim();
+    // The shiny 1ST/2ND/3RD ordinal already communicates position. The text
+    // line should be just "บอท 4", never "อันดับ 1 • บอท 4".
+    if(label){label.textContent=playerName;label.title=playerName;}
     const p=roster.find(q=>q.name===playerName&&q.color===color)||
       roster.find(q=>q.name===playerName)||{color};
     row.dataset.playerId=String(p.id||'');
@@ -2480,6 +2488,7 @@ function layoutFinalResults(){
     const suffix=rank%100>=11&&rank%100<=13?'TH':rank%10===1?'ST':rank%10===2?'ND':rank%10===3?'RD':'TH';
     badge.textContent=String(rank)+suffix;
     row.title=name+' • '+(detail?.textContent||'');
+    row.setAttribute('aria-label',row.title);
   });
 }
 
