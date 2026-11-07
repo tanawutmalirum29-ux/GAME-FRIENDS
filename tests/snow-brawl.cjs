@@ -221,6 +221,59 @@ assert.ok(G.rollSpeed(12)/G.rollSpeed(44)>1,'size affects travel speed');
   'U-turn cannot instantly flip the character or held snowball');
 }
 {
+// Crushing a person from the side OPPOSITE their held ball must not destroy
+// the attacking, still-pushed snowball. The victim immediately loses theirs
+// and cannot steer away during the 0.7-second crush (knockback may persist).
+for(const direction of [1,-1]){
+ const g=match(2),[attacker,victim]=g.ps;
+ victim.x=0;victim.y=0;
+ victim.snow.faceX=direction;victim.snow.faceY=0;
+ victim.snow.oldX=0;victim.snow.oldY=0;
+ attacker.x=-direction*66.37;attacker.y=0;
+ attacker.snow.faceX=direction;attacker.snow.faceY=0;
+ attacker.snow.oldX=attacker.x;attacker.snow.oldY=0;
+ const pushed=G.makeBall(g.s,attacker);
+ const defending=G.makeBall(g.s,victim);
+ pushed.x=attacker.x+direction*(C.playerRadius+pushed.r+5);
+ pushed.oldX=pushed.x-direction*1.83;
+ pushed.y=pushed.oldY=0;
+ pushed.vx=direction*C.maxMoveSpeed;pushed.vy=0;
+ assert.ok(Math.hypot(pushed.x-defending.x,pushed.y-defending.y)>pushed.r+defending.r,
+  'side-impact setup must not overlap the other snowball');
+ G.solveBallCollisions(g.s,g.ps);
+ assert.equal(pushed.state,'FORMING','pushed attacker snow survives crushing a person');
+ assert.equal(attacker.snow.ballId,pushed.id,'attacker remains the holder after crush');
+ assert.equal(defending.state,'DESTROYED','victim held snow breaks even on opposite-side crush');
+ assert.equal(victim.snow.ballId,null,'victim immediately releases the destroyed ball');
+ assert.equal(victim.snow.flat,C.flattenTime,'crush freezes the victim');
+ const previousKnockback=victim.kvx;
+ G.solveBallCollisions(g.s,g.ps);
+ assert.equal(victim.kvx,previousKnockback,
+  'one retained held snowball must not stack knockback on an immune victim');
+ victim.input.axisX=direction;
+ G.step(1/60,g.round,g.ps);
+ assert.equal(victim.vx,0,'flattened victim cannot move under joystick input');
+ assert.equal(victim.snow.ballId,null,'victim cannot form a new ball while flattened');
+ assert.equal(attacker.snow.ballId,pushed.id,'attacker can continue pushing the same ball');
+}
+}
+{
+// True held-ball-to-held-ball contact still breaks BOTH balls, as before.
+const g=match(2),[left,right]=g.ps;
+left.x=-110;left.y=0;right.x=110;right.y=0;
+left.snow.faceX=1;left.snow.faceY=0;
+right.snow.faceX=-1;right.snow.faceY=0;
+left.snow.oldX=left.x;left.snow.oldY=0;
+right.snow.oldX=right.x;right.snow.oldY=0;
+const a=G.makeBall(g.s,left),b=G.makeBall(g.s,right);
+a.oldX=-18;a.x=-10;a.oldY=a.y=0;a.vx=480;
+b.oldX=18;b.x=10;b.oldY=b.y=0;b.vx=-480;
+G.solveBallCollisions(g.s,g.ps);
+assert.equal(a.state,'DESTROYED','direct snowball contact breaks attacker ball');
+assert.equal(b.state,'DESTROYED','direct snowball contact breaks defender ball');
+assert.equal(left.snow.ballId,null);assert.equal(right.snow.ballId,null);
+}
+{
  // A fired snowball colliding with an opponent's UNRELEASED ball cancels both,
  // sends physical momentum into the holder, and interrupts charging.
  function impact(shotRadius,heldRadius,charging=false,heldFirst=false,movingToward=false){
