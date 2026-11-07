@@ -155,7 +155,7 @@ async function main(){
   });
   await host.locator('#pauseBtn').click();
   assert.equal(await host.evaluate(()=>__boardTest.round.paused),true);
-  const pausedPlayers=await host.evaluate(()=>JSON.stringify(__boardTest.board.players));
+  let pausedPlayers=await host.evaluate(()=>JSON.stringify(__boardTest.board.players));
   await host.locator('#boardOverviewBtn').click();
   assert.equal(await host.locator('#boardNodeDebugBtn').isVisible(),false,'human sessions hide development ID');
    await host.evaluate(()=>{
@@ -163,6 +163,7 @@ async function main(){
     a.players.forEach(p=>p.isBot=true);a.refreshBoardTools();
    });
    assert.equal(await host.locator('#boardNodeDebugBtn').isVisible(),true,'bot-only sessions expose ID');
+   pausedPlayers=await host.evaluate(()=>JSON.stringify(__boardTest.board.players));
    await host.locator('#boardNodeDebugBtn').click();
   for(let i=0;i<7;i++)await host.locator('#boardZoomInBtn').click();
   await host.evaluate(()=>__boardTest.drawGame(0));
