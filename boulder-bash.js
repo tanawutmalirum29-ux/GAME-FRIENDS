@@ -3,7 +3,7 @@
 'use strict';
 const STEP=1/60,TAU=Math.PI*2,MIN_X=94,MAX_X=658,TOP=75,BOTTOM=468;
 const C=Object.freeze({radius:15,accel:780,drag:2.4,maxSpeed:195,pushImpulse:98,pushRange:40,
- pushCooldown:.6,rockGravity:118,rockDrag:.14,rockLimit:18,rockChance:.25,soloDuration:60});
+ pushCooldown:.6,rockGravity:118,rockDrag:.14,rockLimit:18,rockChance:.35,soloDuration:60});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const living=ps=>ps.filter(p=>p.active&&p.bb?.alive);
 const rng=s=>{let x=s.seed|0;x^=x<<13;x^=x>>>17;x^=x<<5;s.seed=x||0x12345;return(s.seed>>>0)/4294967296;};
@@ -16,7 +16,7 @@ function setup(round,ps){
  if(!ps.length||ps.length>12)throw Error('BOULDER BASH supports 1–12 players');
  const n=ps.length,s={clock:0,tick:0,accumulator:0,seed:(Number(round.boulderSeed)||(Date.now()^0x1a59c3e))>>>0||1,
   rocks:[],warnings:[],effects:[],queue:[],nextSpawn:1.2,nextId:1,finished:false,
-  winnerIds:[],ranking:[],roster:ps,originalCount:n,spawnCursor:0};
+  winnerIds:[],ranking:[],roster:ps,originalCount:n};
  round.boulderBash=s;round.remaining=null;
  const rows=n<=4?1:n<=8?2:3,cols=Math.ceil(n/rows),startY=n<=4?270:n<=8?232:190;
  ps.forEach((p,i)=>{
@@ -25,12 +25,21 @@ function setup(round,ps){
   p.x=210+col*44;p.y=startY+(row-(rows-1)/2)*(n<=8?66:75);
   p.vx=0;p.vy=0;p.dir={x:1,y:0};p.face=1;
   p.bb={alive:true,eliminatedAt:null,eliminatedTick:null,mode:'alive',rockId:null,
-   pushCooldown:0,botPhase:rng(s)*TAU,homeY:p.y,homeX:p.x,botTarget:null};
+   pushCooldown:0,botPhase:rng(s)*TAU,homeY:p.y,homeX:p.x,
+   botAxisX:0,botAxisY:0,dodgeSides:Object.create(null)};
  });
  return s;
 }
-function eligible(s){return s.roster.filter(p=>p.active&&!p.bb.alive&&p.bb.rockId===null);}
+// Each eliminated player can steer only one active colored boulder. Other
+// eliminated players may steer theirs at the same time. Reserve pending spawns
+// so two warnings in a simultaneous wave cannot claim the same owner.
+function eligible(s){
+ const pending=new Set(s.warnings.map(w=>w.ownerId).filter(Boolean));
+ return s.roster.filter(p=>p.active&&p.bb&&!p.bb.alive&&p.bb.rockId===null&&!pending.has(p.id));
+}
 function rockAt(s,y,owner=null){
+ // A second rock for an already occupied owner becomes a normal boulder.
+ if(owner?.bb?.rockId!=null)owner=null;
  const r=owner?27:24+Math.floor(rng(s)*4)*5;
  const x=1000+r,vy=(rng(s)-.5)*85;
  const rock={id:s.nextId++,ownerId:owner?.id||null,color:owner?color(owner):null,
@@ -47,12 +56,22 @@ function spawnWarning(s){
   if(s.warnings.every(w=>Math.abs(w.y-y)>73)&&s.rocks.every(r=>r.x>855?Math.abs(r.y-y)>r.r+43:true))break;
   y=TOP+43+rng(s)*(BOTTOM-TOP-86);
  }
- const dead=eligible(s),owner=dead.length&&rng(s)<C.rockChance?dead[s.spawnCursor++%dead.length]:null;
+ // 35% per boulder to be a controlled rock when an eligible player exists.
+ const dead=eligible(s),owner=dead.length&&rng(s)<C.rockChance?dead[Math.floor(rng(s)*dead.length)]:null;
  s.warnings.push({y,ownerId:owner?.id||null,delay:.55});
 }
+function spawnWave(s){
+ // Every wave can randomly contain several boulders, of mixed kinds. The
+ // global rock limit is a performance ceiling, never a one-rock-per-wave limit.
+ const roll=rng(s);
+ const amount=roll<.38?1:roll<.78?2:3;
+ for(let i=0;i<amount;i++)spawnWarning(s);
+}
 function transferRock(s,r){
- if(r.ownerId){const owner=s.roster.find(p=>p.id===r.ownerId);
-  if(owner&&owner.bb.rockId===r.id){owner.bb.rockId=null;owner.bb.mode='spectator';}}
+ if(!r.ownerId)return;
+ const owner=s.roster.find(p=>p.id===r.ownerId);
+ if(!owner?.bb)return;
+ if(owner.bb.rockId===r.id){owner.bb.rockId=null;owner.bb.mode='spectator';}
 }
 function eliminate(s,p,rock){
  if(!p?.bb?.alive)return false;
@@ -61,39 +80,74 @@ function eliminate(s,p,rock){
  s.effects.push({x:p.x,y:p.y,color:color(p),life:.7});
  return true;
 }
-function botSteer(s,p){
+function botSteer(s,p,dt){
  const b=p.bb;
- let vx=0,vy=0,pressure=0;
+ let vx=(b.homeX-p.x)*.008;
+ let vy=(b.homeY+Math.sin(s.clock*.65+b.botPhase)*60-p.y)*.014;
+ let pressure=0;
+ // Remember the dodge direction for each boulder; recalculating the sign near
+ // its center line made bots alternate left/right sixty times per second.
  for(const r of s.rocks){
   const rx=r.x-p.x,ry=r.y-p.y,relX=r.vx-p.vx,relY=r.vy-p.vy;
   const t=clamp(-(rx*relX+ry*relY)/(relX*relX+relY*relY+1),0,1.6);
-  const delta=Math.hypot(rx+relX*t,ry+relY*t);
-  if(rx>-35&&delta<r.r+80){
-   const weight=(r.r+85-delta)/(r.r+85);
-   const sign=(ry+relY*t)>0?-1:1;
-   vy+=sign*weight*2.5;vx+=rx>0?-weight*.7:weight*.35;pressure=Math.max(pressure,weight);
+  const predictedY=ry+relY*t;
+  const delta=Math.hypot(rx+relX*t,predictedY);
+  if(rx<=-r.r-40||delta>=r.r+80)continue;
+  const weight=clamp((r.r+85-delta)/(r.r+85),0,1);
+  let side=b.dodgeSides[r.id];
+  if(!side){
+   side=Math.abs(predictedY)<12?(p.y<(TOP+BOTTOM)/2?1:-1):(predictedY>0?-1:1);
+   b.dodgeSides[r.id]=side;
   }
+  vy+=side*weight*2.5;
+  vx+=(rx>0?-1:0.45)*weight*.7;
+  pressure=Math.max(pressure,weight);
  }
- vx+=(b.homeX-p.x)*.008;
- vy+=(b.homeY+Math.sin(s.clock*.65+b.botPhase)*60-p.y)*.014;
- if(p.y<TOP+38)vy+=2;if(p.y>BOTTOM-38)vy-=2;
- const m=Math.hypot(vx,vy)||1;
- const nearest=living(s.roster).filter(q=>q!==p).sort((a,c)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(c.x-p.x,c.y-p.y))[0];
- const act=nearest&&Math.hypot(nearest.x-p.x,nearest.y-p.y)<C.pushRange&&s.clock>.8&&rng(s)<.025;
- return {x:clamp(vx/m,-1,1),y:clamp(vy/m,-1,1),push:!!act,pressure};
+ // Old threats are forgotten without changing the direction mid-encounter.
+ if(s.tick%90===0){
+  const activeIds=new Set(s.rocks.map(r=>String(r.id)));
+  for(const id of Object.keys(b.dodgeSides))if(!activeIds.has(id))delete b.dodgeSides[id];
+ }
+ if(p.y<TOP+38)vy+=2;
+ if(p.y>BOTTOM-38)vy-=2;
+ const magnitude=Math.hypot(vx,vy);
+ const desiredX=magnitude<.15?0:clamp(vx/Math.max(1.2,magnitude),-1,1);
+ const desiredY=magnitude<.15?0:clamp(vy/Math.max(1.2,magnitude),-1,1);
+ // Damped steering eliminates rapid direction flips without canceling icy inertia.
+ const alpha=1-Math.exp(-(pressure>.3?10:5.5)*dt);
+ b.botAxisX+=(desiredX-b.botAxisX)*alpha;
+ b.botAxisY+=(desiredY-b.botAxisY)*alpha;
+ const nearest=living(s.roster).filter(q=>q!==p).sort((a,c)=>
+  Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(c.x-p.x,c.y-p.y))[0];
+ const act=nearest&&Math.hypot(nearest.x-p.x,nearest.y-p.y)<C.pushRange&&
+  s.clock>.8&&rng(s)<.025;
+ return {x:b.botAxisX,y:b.botAxisY,push:!!act};
 }
 function playerMove(s,p,dt){
  const b=p.bb;
  if(!b.alive)return;
  b.pushCooldown=Math.max(0,b.pushCooldown-dt);
- const inp=p.isBot?botSteer(s,p):{...vector(p.input),push:!!p.input?.action};
+ const inp=p.isBot?botSteer(s,p,dt):{...vector(p.input),push:!!p.input?.action};
  let x=inp.x,y=inp.y;
  const scale=clamp(Math.hypot(x,y),0,1);
  p.vx+=x*C.accel*dt;p.vy+=y*C.accel*dt;
  const damp=Math.exp(-C.drag*dt);p.vx*=damp;p.vy*=damp;
  const speed=Math.hypot(p.vx,p.vy);
  if(speed>C.maxSpeed+45){const a=(C.maxSpeed+45)/speed;p.vx*=a;p.vy*=a;}
- if(scale>.1){const m=scale||1;p.dir={x:x/m,y:y/m};p.face=p.dir.x<0?-1:1;}
+ if(p.isBot){
+  // Face the actual sliding velocity and limit the rotation rate. A bot can
+  // steer to dodge a rock without instantly snapping its visible heading.
+  const speed=Math.hypot(p.vx,p.vy);
+  if(speed>14){
+   const prior=Math.atan2(p.dir?.y||0,p.dir?.x??1);
+   const wanted=Math.atan2(p.vy,p.vx);
+   const delta=Math.atan2(Math.sin(wanted-prior),Math.cos(wanted-prior));
+   const heading=prior+clamp(delta,-6*dt,6*dt);
+   p.dir={x:Math.cos(heading),y:Math.sin(heading)};
+   if(p.dir.x>.3)p.face=1;
+   else if(p.dir.x<-.3)p.face=-1;
+  }
+ }else if(scale>.1){const m=scale||1;p.dir={x:x/m,y:y/m};p.face=p.dir.x<0?-1:1;}
  p.x+=p.vx*dt;p.y+=p.vy*dt;
  if(p.x<MIN_X+C.radius){p.x=MIN_X+C.radius;p.vx=Math.max(0,p.vx);}
  if(p.x>MAX_X-C.radius){p.x=MAX_X-C.radius;p.vx=Math.min(0,p.vx);}
@@ -194,11 +248,11 @@ function step(dt,round,ps){
  for(const w of s.warnings)w.delay-=dt;
  for(let i=s.warnings.length-1;i>=0;i--){
   const w=s.warnings[i];if(w.delay>0)continue;
-  const owner=s.roster.find(p=>p.id===w.ownerId&&p.bb.rockId===null&&!p.bb.alive);
+  const owner=s.roster.find(p=>p.id===w.ownerId&&p.bb&&!p.bb.alive&&p.bb.rockId===null);
   rockAt(s,w.y,owner||null);s.warnings.splice(i,1);
  }
  if(s.clock>=s.nextSpawn){
-  spawnWarning(s);s.nextSpawn=s.clock+interval(s.clock)*(.9+rng(s)*.2);
+  spawnWave(s);s.nextSpawn=s.clock+interval(s.clock)*(.9+rng(s)*.2);
  }
  moveRocks(s,dt);
  // Same physics tick can eliminate multiple players: equal ranking for simultaneous deaths.
@@ -311,6 +365,6 @@ function draw(g,time,round,ps){
   'รอด '+living(ps).length+' • '+Math.floor(s.clock)+' วินาที',24,54);
  g.restore();
 }
-window.BoulderBash=Object.freeze({setup,update,draw,hud,step,spawnWarning,rockAt,eliminate,
+window.BoulderBash=Object.freeze({setup,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
  sweptHit,finish,interval,config:C});
 })();

@@ -4,7 +4,8 @@ const code=fs.readFileSync('boulder-bash.js','utf8');
 const context={window:{},Date,Math};
 vm.runInNewContext(code,context,{filename:'boulder-bash.js'});
 const G=context.window.BoulderBash;
-assert.ok(G.setup&&G.update&&G.draw&&G.hud&&G.sweptHit);
+assert.ok(G.setup&&G.update&&G.draw&&G.hud&&G.sweptHit&&G.spawnWave);
+assert.equal(G.config.rockChance,.35,'colored boulder roll is 35%');
 function make(n,bot=false){return Array.from({length:n},(_,i)=>({
  id:'p'+i,name:'Player '+i,color:'#ffad63',type:bot?'local':'remote',isBot:bot,active:false,
  input:{axisX:0,axisY:0,action:false},score:0
@@ -66,6 +67,68 @@ for(let n=1;n<=12;n++){
  assert.equal(x.s.finished,false,'solo game must not end on start');
  x.s.clock=59.99;tick(x,2);assert.equal(x.s.finished,true,'solo survives 60 seconds');
 }
+{
+ // Multiple colored rocks can coexist, but not two belonging to one player.
+ const x=game(5);G.eliminate(x.s,x.ps[0]);G.eliminate(x.s,x.ps[1]);
+ const one=G.rockAt(x.s,260,x.ps[0]),two=G.rockAt(x.s,360,x.ps[1]);
+ assert.equal(x.ps[0].bb.rockId,one.id);
+ assert.equal(x.ps[1].bb.rockId,two.id);
+ const normal=G.rockAt(x.s,180,x.ps[0]);
+ assert.equal(normal.ownerId,null,'cannot assign a second controlled rock to one player');
+ assert.equal(x.ps[0].bb.rockId,one.id);
+ one.x=-one.r;tick(x,1);
+ assert.equal(x.ps[0].bb.rockId,null,'exiting boulder releases its owner');
+ assert.equal(x.ps[1].bb.rockId,two.id,'other players retain their colored rocks');
+}
+{
+ // Batch spawn should sometimes produce more than one rock on the same tick.
+ let multi=false;
+ for(let seed=1;seed<=100&&!multi;seed++){
+  const x=game(5,seed);x.s.nextSpawn=0;tick(x);
+  if(x.s.warnings.length>1){
+   multi=true;
+   assert.ok(x.s.warnings.every(w=>w.delay>0),'wave warnings start together');
+  }
+ }
+ assert.ok(multi,'spawner supports multiple rocks in one simultaneous wave');
+}
+{
+ // Reservations must prevent one eliminated owner from appearing twice in a batch.
+ const x=game(5,61);G.eliminate(x.s,x.ps[0]);G.eliminate(x.s,x.ps[1]);
+ G.eliminate(x.s,x.ps[2]);
+ for(let i=0;i<12;i++)G.spawnWarning(x.s);
+ const colored=x.s.warnings.map(w=>w.ownerId).filter(Boolean);
+ assert.equal(new Set(colored).size,colored.length,'pending colored rocks have distinct owners');
+ assert.ok(x.s.warnings.length>1,'ordinary and colored rocks coexist in pending spawns');
+ // Make all warnings resolve together; each reserved owner gets only one rock.
+ x.s.warnings.forEach(w=>w.delay=0);
+ tick(x,1);
+ const owners=x.s.rocks.map(r=>r.ownerId).filter(Boolean);
+ assert.equal(new Set(owners).size,owners.length,'active colored boulders have distinct owners');
+}
+{
+ // Independent per-rock 35% roll (with one permanently eligible player).
+ const x=game(5,42);G.eliminate(x.s,x.ps[0]);
+ let colored=0;
+ for(let i=0;i<1000;i++){
+  x.s.warnings.length=0;
+  G.spawnWarning(x.s);
+  if(x.s.warnings[0]?.ownerId===x.ps[0].id)colored++;
+ }
+ assert.ok(colored>=290&&colored<=410,'35% spawn rate within deterministic statistical range: '+colored);
+}
+{
+ // Smooth steering: no instant reversal of orientation over one physics frame.
+ const x=game(3,23,true),bot=x.ps[0];bot.bb.homeX=bot.x+60;bot.bb.homeY=bot.y+80;
+ tick(x,10);
+ const start=Math.atan2(bot.dir.y,bot.dir.x);
+ bot.bb.homeX=bot.x-400;bot.bb.homeY=bot.y-400;
+ tick(x);
+ const end=Math.atan2(bot.dir.y,bot.dir.x);
+ const diff=Math.abs(Math.atan2(Math.sin(end-start),Math.cos(end-start)));
+ assert.ok(diff<=6/60+1e-6,'bot heading turns at a capped speed, no visible flickering');
+}
+
 for(const n of [2,6,12]){
  for(const seed of [1,7,18]){
   const x=game(n,seed,true);
