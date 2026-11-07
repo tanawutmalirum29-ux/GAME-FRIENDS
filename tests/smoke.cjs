@@ -2691,8 +2691,9 @@ for(const count of [1,12]){
  assert.equal(s.deadline,Infinity,'exploration has no human timeout');
  api.updateBoard(1);api.updateBoard(.95);
  assert.equal(s.phase,'overview','full-map introduction remains visible before two seconds');
- ui.click('boardStartDiceBtn');
- assert.equal(s.phase,'intro_zoom','start button begins camera fly-in');
+ assert.equal(ui.elements.get('boardStartDiceBtn').classList.contains('hidden'),true,'manual skip is hidden now that intro is timed');
+ api.updateBoard(.05);
+ assert.equal(s.phase,'intro_zoom','camera fly-in begins automatically at two seconds');
  assert.ok(Math.abs(s.deadline-s.phaseAt-1.5)<1e-9,'intro zoom lasts 1.5 seconds');
  assert.ok(s.camera.introFrom&&Number.isFinite(s.camera.introFrom.zoom),
    'camera captures the current overview framing before zooming');
@@ -2709,7 +2710,7 @@ for(const count of [1,12]){
  assert.equal(s.phase,'intro_zoom','order cannot start until the fly-in finishes');
  api.updateBoard(.05);
  assert.equal(s.phase,'order','dice ordering starts automatically after 3.5 seconds');
- assert.equal(ui.elements.has('boardStartDiceBtn'),true,'host can end exploration when ready');
+ assert.equal(ui.elements.has('boardStartDiceBtn'),true,'legacy element remains for accessibility but auto intro needs no click');
  for(let i=0;i<10000&&s.phase!=='minigame';i++)api.updateBoard(.05);
  assert.equal(s.phase,'minigame','every turn completes and starts the reel');
  assert.ok(api.getSelection());
