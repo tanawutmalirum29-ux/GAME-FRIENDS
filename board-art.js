@@ -727,17 +727,29 @@ function overlay(g,s){
   tint.addColorStop(1,'#29264a');
   box(g,x,y,w,h,12,tint,r.rank===1?'#ffe5a5':'#fff7');
   g.save();g.beginPath();g.roundRect(x+1,y+1,w-2,h-2,11);g.clip();
-  // Use the same portrait center for both rings AND the avatar on tall cards.
+  // Medal frame is a real FOREGROUND bezel, not a halo behind the head.
+  // Keep one center for every card height, clip the sprite to its inset and
+  // stroke the gold rim AFTER the avatar so shoulders cannot cover the ring.
   const portraitX=x+41,portraitY=y+contentDy+Math.min(46,h/2);
   g.save();
   g.shadowColor='#ffe5a3';g.shadowBlur=8;
   g.beginPath();g.arc(portraitX,portraitY,32,0,Math.PI*2);
   g.fillStyle='#ffda79';g.fill();
-  g.shadowBlur=0;g.lineWidth=2;g.strokeStyle='#fff0b8';g.stroke();
+  g.shadowBlur=0;g.lineWidth=1;g.strokeStyle='#fff0b8';g.stroke();
   g.beginPath();g.arc(portraitX,portraitY,27,0,Math.PI*2);
   g.fillStyle='#86cfee';g.fill();
   g.restore();
+  g.save();
+  g.beginPath();g.arc(portraitX,portraitY,26.5,0,Math.PI*2);g.clip();
   window.PartyPlayerAvatar.drawFront(g,p,portraitX,portraitY,54);
+  g.restore();
+  // Draw both concentric bezel strokes on TOP of the portrait.
+  g.save();
+  g.beginPath();g.arc(portraitX,portraitY,29.5,0,Math.PI*2);
+  g.lineWidth=5;g.strokeStyle='#ffe4a1';g.stroke();
+  g.beginPath();g.arc(portraitX,portraitY,26.5,0,Math.PI*2);
+  g.lineWidth=1.5;g.strokeStyle='#fff8dc';g.stroke();
+  g.restore();
   const rank=r.rank,suffix=rank%100>=11&&rank%100<=13?'TH':rank%10===1?'ST':rank%10===2?'ND':rank%10===3?'RD':'TH';
   const medal=rank===1?'#ffdf72':rank===2?'#eff5ff':rank===3?'#ffac69':'#ffe0b2';
   const tied=s.results.filter(q=>q.rank===rank).length>1;
