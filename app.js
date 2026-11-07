@@ -1051,7 +1051,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         const valid=round?.mode==='board'&&round.phase==='playing'&&!round.paused&&s&&
           msg.turnId===s.turnId&&msg.mapVersion===s.map.version&&
           window.BoardParty.current(s)?.id===conn.playerId&&
-          ['move_ready','branch','moving'].includes(s.phase)&&s.move?.kind==='walk'&&
+          (s.phase==='ready'||(['move_ready','branch','moving'].includes(s.phase)&&s.move?.kind==='walk'))&&
           window.BoardArt?.canPan?.(s)&&
           players.some(p=>p.id===conn.playerId&&p.conn===conn&&p.active&&!p.isBot);
         if(!valid){conn.boardCameraGestureToken=null;return;}
@@ -1065,8 +1065,8 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         const s=boardSession;
         if(round?.mode!=='board'||round.phase!=='playing'||round.paused||!s||
           msg.turnId!==s.turnId||msg.mapVersion!==s.map.version||
-          conn.boardCameraGestureToken!==s.turnId||s.move?.kind!=='walk'||
-          !['move_ready','branch','moving'].includes(s.phase)||
+          conn.boardCameraGestureToken!==s.turnId||
+          !(s.phase==='ready'||(['move_ready','branch','moving'].includes(s.phase)&&s.move?.kind==='walk'))||
           window.BoardParty.current(s)?.id!==conn.playerId||
           !window.BoardArt?.canPan?.(s)||
           !players.some(p=>p.id===conn.playerId&&p.conn===conn&&p.active&&!p.isBot))return;
@@ -1125,7 +1125,8 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         if(round?.mode==='board'&&boardSession){
           const locked=conn.boardCameraGestureToken===boardSession.turnId;
           const input=locked?{...msg,keys:{...msg.keys,left:false,right:false,jump:false,
-            down:false,axisX:0,axisY:0}}:msg;
+            down:false,axisX:0,axisY:0,
+             ...(boardSession.phase==='ready'?{action:false,alt:false,cancel:false}:{})}}:msg;
           window.BoardParty.input(boardSession,p.id,input);return;
         }
         for(const k of INPUT_NAMES)p.input[k]=msg.keys&&msg.keys[k]===true;
@@ -1715,7 +1716,7 @@ function setControllerGameContext(mode,phase,active){
   if(boardCameraController?.enabled()&&(!controllerReady||mode!=='board'||
       controllerGamePhase!=='playing'||!controllerPlayerActive||
       controllerBoard?.canZoom!==true||
-      !['move_ready','branch','moving'].includes(controllerBoard?.boardPhase)))
+      !['ready','move_ready','branch','moving'].includes(controllerBoard?.boardPhase)))
     boardCameraController.reset();
   const visible=isLiveGameContext();
   document.body.classList.toggle('pizza-controller-game',visible&&mode==='pizza_time');
@@ -1851,6 +1852,7 @@ function sendInputs(){
  // while that player's controller is in camera inspection mode.
  if(boardCameraController?.enabled()){
    keys.axisX=0;keys.axisY=0;keys.left=false;keys.right=false;keys.jump=false;keys.down=false;
+   if(controllerBoard?.boardPhase==='ready'){keys.action=false;keys.alt=false;keys.cancel=false;}
  }
  send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId});
 }
@@ -2178,8 +2180,10 @@ function renderPhoneBoard(){
  $('controllerModeName').textContent='BOARD PARTY • ROUND '+info.round;
  $('buttonALabel').textContent=info.a||'';$('buttonBLabel').textContent=info.b||'';
  $('buttonA').setAttribute('aria-label','A '+(info.a||''));$('buttonB').setAttribute('aria-label','B '+(info.b||''));
- $('controllerHelp').textContent=info.help||'';
- $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing');
+ $('controllerHelp').textContent=info.boardPhase==='ready'&&boardCameraController?.enabled()?
+    'ดูแผนที่ • ลากจอยเพื่อเลื่อน / หุบกางเพื่อซูม • ดับเบิลแท็บเพื่อกลับกระเป๋า':info.help||'';
+ $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing'||
+   (info.boardPhase==='ready'&&!!boardCameraController?.enabled()));
  const bag=Array.isArray(info.bag)?info.bag:[],ready=info.boardPhase==='ready';
  const options=['roll',...window.BoardItems.ids],stock=Object.fromEntries(window.BoardItems.ids.map(id=>[id,0]));
  for(const id of bag)if(Object.hasOwn(stock,id))stock[id]++;
@@ -2204,8 +2208,9 @@ function renderPhoneBoard(){
    host.append(cell);
  }
  const guide=$('inventoryGuide');
+ const mapInspection=info.boardPhase==='ready'&&!!boardCameraController?.enabled();
  const slot=options[selected]||'roll';
- guide.textContent=info.boardPhase==='aim'?
+ guide.textContent=mapInspection?'กำลังดูแผนที่ • ดับเบิลแท็บบนจอยอีกครั้งเพื่อเปิดกระเป๋า':info.boardPhase==='aim'?
    'เล็งเป้า • A '+(info.a||'ยืนยัน')+' • B '+(info.b||'ไม่ใช้')+' • C '+(info.c||'ยกเลิก'):
    ready?(info.usedRound===info.round?'ใช้ไอเทมแล้ว 1 ชิ้น • A ทอยลูกเต๋าต่อ':
      'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[slot]||slot)+
@@ -3585,11 +3590,12 @@ bindAnalogStick($('joystickZone'),$('joystickBase'),$('joystickKnob'),controller
 boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
   allowed:()=>controllerReady&&controllerPlayerActive&&controllerGameMode==='board'&&
     controllerGamePhase==='playing'&&controllerBoard?.canZoom===true&&
-    ['move_ready','branch','moving'].includes(controllerBoard?.boardPhase),
+    ['ready','move_ready','branch','moving'].includes(controllerBoard?.boardPhase),
   isRotated:()=>document.body.classList.contains('portrait-fallback')&&isPortraitScreen(),
   releaseStick:()=>releaseStick(),
   onMode:(enabled,notify)=>{
     $('boardCameraModeHint').classList.toggle('hidden',!enabled);
+    if(controllerBoard?.boardPhase==='ready')renderPhoneBoard();
     if(notify&&controllerConn?.open)
       send(controllerConn,{t:'board-camera-mode',enabled,
         turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
