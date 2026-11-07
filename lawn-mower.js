@@ -68,7 +68,9 @@ function award(s,p,tuft){
 function cutTuft(s,p,tuft){
  if(tuft.cut)return false;
  tuft.cut=true;s.cutTotal=(s.cutTotal||0)+1;
- const tile=tileId(s,tuft.x,tuft.y);s.dirty.add(tile);
+ // A blade may change leaves that straddle a cached tile boundary.
+ for(const ox of [-13,0,13])for(const oy of [-13,0,13])
+  s.dirty.add(tileId(s,tuft.x+ox,tuft.y+oy));
  award(s,p,tuft);return true;
 }
 function nearby(s,minX,minY,maxX,maxY){
@@ -243,7 +245,8 @@ function grassTile(s,id){
  g.translate(-tile.x,-tile.y);
  rect(g,tile.x,tile.y,tile.w,tile.h,'#408e26');
  // Blending short turf and dark sod under cropped plants.
- for(const tuft of s.grass){
+ for(const id of nearby(s,tile.x-14,tile.y-14,tile.x+tile.w+14,tile.y+tile.h+14)){
+  const tuft=s.grass[id];
   if(tuft.x<tile.x-14||tuft.x>tile.x+tile.w+14||tuft.y<tile.y-14||tuft.y>tile.y+tile.h+14)continue;
   if(tuft.cut){disk(g,tuft.x,tuft.y,9,'#65a934');drawGrass(g,tuft,true);}
   else{disk(g,tuft.x+1,tuft.y+2,5,'#286a27');drawGrass(g,tuft);}
