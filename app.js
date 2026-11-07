@@ -684,15 +684,16 @@ function renderRoster(){
   const el=$('roster');el.replaceChildren();
   const bots=players.filter(p=>p.isBot);
   const changeAll=$('cycleAllBotsBtn');
-  const choices=Object.keys(MODES);
-  const firstBotChoice=bots[0]?.choice;
-  const nextChoice=choices[(choices.indexOf(firstBotChoice)+1)%choices.length];
+  const canBulkSelect=bots.length>0&&selectedSessionMode!=='board'&&!round;
   changeAll.classList.toggle('hidden',bots.length===0||selectedSessionMode==='board');
   document.body.classList.toggle('board-lobby',selectedSessionMode==='board');
-  changeAll.disabled=bots.length===0||!!round;
-  changeAll.textContent='เปลี่ยนบอท '+bots.length+' ตัว → '+MODES[nextChoice];
-  changeAll.setAttribute('aria-label','ตั้งเกมบอททุกตัวเป็น '+MODES[nextChoice]);
-  changeAll.title='กดครั้งเดียวเพื่อเปลี่ยนเกมของบอททั้งหมดเป็น '+MODES[nextChoice]+' โดยไม่เปลี่ยนเกมของผู้เล่นมือถือ';
+  changeAll.disabled=!canBulkSelect;
+  changeAll.textContent='เปลี่ยนเกม '+bots.length+' ตัว';
+  changeAll.setAttribute('aria-label','เปิดรายการเลือกเกมสำหรับบอท '+bots.length+' ตัว');
+  changeAll.setAttribute('aria-haspopup','dialog');
+  changeAll.setAttribute('aria-expanded',String(!$('bulkBotPicker').classList.contains('hidden')));
+  changeAll.title='เลือกเกมหนึ่งเกมสำหรับบอททุกตัว โดยไม่เปลี่ยนเกมของผู้เล่นมือถือ';
+  if(!canBulkSelect)closeBulkBotPicker(false);
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
   // Reserve ALL twelve positions from room creation. Joined players replace
   // numbered placeholders, never change the number or size of grid rows.
@@ -752,6 +753,53 @@ function renderRoster(){
     el.append(item);
   }
   if(onlineHost)saveHost();else saveOffline();
+}
+// Host-only modal: choose a specific game for all local bots without cycling.
+function closeBulkBotPicker(returnFocus=true){
+  const overlay=$('bulkBotPicker');
+  if(overlay.classList.contains('hidden'))return;
+  overlay.classList.add('hidden');
+  $('cycleAllBotsBtn').setAttribute('aria-expanded','false');
+  if(returnFocus&&currentView==='hostLobby')$('cycleAllBotsBtn').focus?.();
+}
+function openBulkBotPicker(){
+  if(round||currentView!=='hostLobby'||selectedSessionMode==='board')return;
+  const bots=players.filter(p=>p.isBot);
+  if(!bots.length)return;
+  const overlay=$('bulkBotPicker'),choices=$('bulkBotPickerChoices');
+  choices.replaceChildren();
+  $('bulkBotPickerTitle').textContent='เลือกเกมให้บอท '+bots.length+' ตัว';
+  const common=bots.every(p=>p.choice===bots[0].choice)?bots[0].choice:null;
+  let focusChoice=null;
+  for(const [mode,title] of Object.entries(MODES)){
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='bulk-bot-game-choice';
+    button.dataset.mode=mode;
+    const selected=mode===common;
+    button.classList.toggle('selected',selected);
+    button.setAttribute('aria-pressed',String(selected));
+    button.setAttribute('aria-label',title+' • เลือกให้บอททั้งหมด');
+    const label=document.createElement('span');
+    label.className='bulk-bot-game-name';label.textContent=title;
+    button.append(gameCover(mode),label);
+    button.addEventListener('click',()=>{
+      if(overlay.classList.contains('hidden')||round||currentView!=='hostLobby'||
+         selectedSessionMode==='board')return;
+      const currentBots=players.filter(p=>p.isBot);
+      if(!currentBots.length){closeBulkBotPicker(false);return;}
+      currentBots.forEach(p=>{p.choice=mode;lobbyReadyVotes.delete(p.id);});
+      closeBulkBotPicker(false);
+      renderRoster();
+      broadcastRoster();
+      $('cycleAllBotsBtn').focus?.();
+    });
+    choices.append(button);
+    if(selected||!focusChoice)focusChoice=button;
+  }
+  overlay.classList.remove('hidden');
+  $('cycleAllBotsBtn').setAttribute('aria-expanded','true');
+  focusChoice?.focus?.();
 }
 function addLocal(){
   if(players.length>=MAX_PLAYERS){showToast('ห้องเต็ม '+MAX_PLAYERS+' คน',true);return;}
@@ -3365,17 +3413,20 @@ document.addEventListener('keydown',e=>{
   }
 });
 $('addLocalBtn').addEventListener('click',addLocal);
-$('cycleAllBotsBtn').addEventListener('click',()=>{
-  // In the lobby, apply the next choice of the first bot to ALL local bots
-  // in one action. Real/remote players retain their independently chosen game.
-  if(round||currentView!=='hostLobby')return;
-  const bots=players.filter(p=>p.isBot);
-  if(!bots.length)return;
-  const choices=Object.keys(MODES);
-  const mode=choices[(choices.indexOf(bots[0].choice)+1)%choices.length];
-  bots.forEach(p=>{p.choice=mode;});
-  renderRoster();
-  broadcastRoster();
+$('cycleAllBotsBtn').addEventListener('click',openBulkBotPicker);
+$('bulkBotPickerClose').addEventListener('click',()=>closeBulkBotPicker());
+$('bulkBotPicker').addEventListener('click',e=>{
+  if(e.target===$('bulkBotPicker'))closeBulkBotPicker();
+});
+document.addEventListener('keydown',e=>{
+  if($('bulkBotPicker').classList.contains('hidden'))return;
+  if(e.key==='Escape'){e.preventDefault();closeBulkBotPicker();return;}
+  if(e.key==='Tab'){
+    const buttons=[...$('bulkBotPickerChoices').querySelectorAll('button'),$('bulkBotPickerClose')];
+    const first=buttons[0],last=buttons[buttons.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+  }
 });
 $('hostBtn').addEventListener('click',()=>startHost());
 function shuffleGames(items){
