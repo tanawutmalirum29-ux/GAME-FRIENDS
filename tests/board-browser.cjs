@@ -6,7 +6,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
 const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'..'),out=process.env.BOARD_SCREENSHOTS||'/tmp/game-friends-board';
-const injection=`window.__boardTest={get board(){return boardSession},get round(){return round},get players(){return players},beginBoard,updateBoard,updateRound,drawGame,addLocal,returnToLobby,layoutFinalResults,pulse:sendInputs,
+const injection=`window.__boardTest={get board(){return boardSession},get round(){return round},get players(){return players},beginBoard,updateBoard,updateRound,drawGame,addLocal,returnToLobby,layoutFinalResults,beginGameSelection,updateGameSelection,pulse:sendInputs,
  phone(info){controllerReady=true;controllerPlayerActive=true;controllerId='p1';controllerSessionMode='board';
  controllerConn={open:true,send:msg=>window.__boardPackets.push(msg)};window.__boardPackets=[];
  $('controllerName').textContent='Snow explorer';$('controllerAvatar').style.background='#ff628c';
@@ -77,6 +77,28 @@ async function main(){
   assert.equal(await shortcut.locator('link[rel="manifest"]').getAttribute('href'),
    './host.webmanifest');
   await installedContext.close();
+  // Inspect the actual Chrome geometry: the glowing selection bezel must
+  // cover exactly one card, without the oversized green frame in the image.
+  const roulette=await context.newPage();await roulette.goto(base);
+  await roulette.locator('#offlineBtn').click();
+  for(const size of [{width:1440,height:900},{width:844,height:390},{width:390,height:844}]){
+   await roulette.setViewportSize(size);
+   const boxes=await roulette.evaluate(()=>{
+    __boardTest.returnToLobby();
+    __boardTest.beginGameSelection('ghost');
+    __boardTest.updateGameSelection(1.45);
+    const mark=document.querySelector('#gameRoulette .roulette-center-mark'),
+     card=document.querySelectorAll('#rouletteTrack .roulette-option')[9];
+    const box=e=>{const b=e.getBoundingClientRect();return{x:b.x,y:b.y,w:b.width,h:b.height};};
+    return{mark:box(mark),card:box(card)};
+   });
+   for(const key of ['x','y','w','h'])
+    assert.ok(Math.abs(boxes.mark[key]-boxes.card[key])<2.5,
+     size.width+'x'+size.height+' '+key+': selection frame matches the chosen card');
+   if(size.width===1440)
+    await roulette.screenshot({path:path.join(out,'roulette-aligned.png')});
+  }
+  await roulette.close();
   const host=await context.newPage(),errors=[];host.on('pageerror',e=>errors.push(String(e)));
   await host.goto(base);await host.evaluate(()=>document.getElementById('offlineBtn').click());
   for(let n=1;n<=12;n++){
