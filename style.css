@@ -5363,3 +5363,34 @@ body.host-playing #game .leader-chip span.leader-held-icon{
   width:20px;
   height:20px;
 }
+
+
+/* Result plaque copy: the 1ST/2ND rank badge is the only visible ranking.
+   Names and scores should wrap within their own tracks, never show ellipses. */
+#game #resultList>.result-player>div:first-child{
+  white-space:normal!important;
+  text-overflow:clip!important;
+  overflow:visible!important;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  max-width:100%;
+  line-height:1.18;
+}
+#game #resultList>.result-player>span:not(.result-avatar),
+#game #resultList>.result-player>small{
+  white-space:normal!important;
+  text-overflow:clip!important;
+  overflow:visible!important;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  max-width:100%;
+  font-size:clamp(10px,1.1vw,14px)!important;
+  line-height:1.2;
+}
+@media(max-height:440px){
+  #game #resultList>.result-player>span:not(.result-avatar),
+  #game #resultList>.result-player>small{
+    font-size:clamp(8px,2.05dvh,11px)!important;
+    line-height:1.1;
+  }
+}
