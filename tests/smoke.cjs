@@ -141,7 +141,7 @@ assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-touch-i
 
 // Game catalog retains Ghost Attack and now adds CHICKENS as game two.
 assert.match(html,/data-pick="ghost"/);
-assert.equal([...html.matchAll(/data-pick="/g)].length,9);
+assert.equal([...html.matchAll(/data-pick="/g)].length,10);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
 assert.match(html,/src=".\/ghost-attack\.js"/);
 assert.match(html,/src=".\/chickens\.js"/);
@@ -154,6 +154,8 @@ assert.match(html,/data-pick="color_switch"/);
 assert.match(html,/src="\.\/pizza-ingredient-art\.js"/);
 assert.match(html,/src="\.\/party-ui-art\.js"/);
 assert.match(html,/src="\.\/pizza-time\.js"/);
+assert.match(html,/src="\.\/shopping-time\.js"/);
+assert.match(html,/data-pick="shopping_time"/);
 assert.match(html,/src="\.\/knight-match\.js"/);
 assert.match(html,/src="\.\/boulder-bash\.js"/);
 assert.match(html,/src="\.\/snow-brawl\.js"/);
@@ -169,7 +171,7 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL'\}/);
+assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/MODE_COVER_SVG/);
 assert.match(html,/data-session-mode="queue"/);
