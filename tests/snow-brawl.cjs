@@ -27,6 +27,41 @@ for(let n=1;n<=12;n++){
   assert.ok(Math.max(...rs)-Math.min(...rs)<1e-6,'equal spawn distance from center');
  }
 }
+
+// Character scale is deliberately local to SNOW BRAWL. Visuals and physics
+// must grow together, without modifying the shared sprite or other modes.
+{
+ assert.equal(C.playerRadius,19.2,'16 world-unit player radius increased by exactly 20%');
+ assert.equal(C.avatarScale,1.2,'shared 52px avatar is drawn 20% larger only here');
+ const g=match(2),person=g.ps[0];
+ let drawing=null;
+ const previous=ctx.window.PartyPlayerAvatar.draw;
+ ctx.window.PartyPlayerAvatar.draw=(_canvas,p,opts)=>{
+  if(p===person)drawing={...opts};
+ };
+ const gradient={addColorStop(){}};
+ const context=new Proxy({}, {get(_,key){
+  if(key==='createLinearGradient'||key==='createRadialGradient')return()=>gradient;
+  return()=>{};
+ },set(){return true;}});
+ G.draw(context,1,g.round,g.ps);
+ assert.equal(drawing?.scale,1.2,'actual avatar renderer receives new scale');
+ assert.equal(drawing?.label,false,'Snow Brawl renders its own raised player labels');
+ ctx.window.PartyPlayerAvatar.draw=previous;
+ const q=g.ps[1];
+ person.x=-18;person.y=0;q.x=18;q.y=0;
+ G.resolveBodies(g.s,g.ps);
+ assert.ok(Math.hypot(q.x-person.x,q.y-person.y)>=C.playerRadius*2-1e-6,
+  'player-to-player collisions use the enlarged radius');
+ const snow=G.makeBall(g.s,person);
+ assert.ok(Math.abs(Math.hypot(snow.x-person.x,snow.y-person.y)-
+  (C.playerRadius+C.baseRadius+5))<1e-6,
+  'new 20% larger player also pushes their snowball farther forward');
+ assert.equal(C.maxMoveSpeed,183,'enlarging visuals must never change walking speed');
+ assert.equal(C.rollSmallSpeed,320,'snowball launch speed remains unchanged');
+ assert.equal(C.rollLargeSpeed,224,'snowball size speed balance remains unchanged');
+}
+
 assert.equal(C.windup,.15);
 assert.equal(C.turnRate,3.6,'turning is intentionally slower than the previous 12rad/s');
 assert.equal(C.baseRadius,12);assert.equal(C.maxRadius,44);
