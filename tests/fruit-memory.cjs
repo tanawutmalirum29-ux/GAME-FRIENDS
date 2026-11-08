@@ -197,8 +197,9 @@ for(const n of [1,6,7,12]){
    },set(){return true;}
  });
  E.drawSideScreens(ctx,state,round);
- assert.equal(images.length,0,'neither monitor appears during the shared countdown');
- assert.equal(texts.length,0,'no memory countdown on side panels before the match begins');
+ assert.equal(images.length,2,'both orange monitor housings stay visible during prestart');
+ assert.equal(images[0][0],images[1][0],'the two prestart monitors use the same orange screen');
+ assert.equal(texts.length,0,'neither monitor displays any countdown or fruit before the match begins');
  round.paused=true;
  E.update(1/60,round,g.ps);
  assert.equal(human.x,p0.x,'pause also stops pre-start movement');
@@ -221,8 +222,9 @@ for(const n of [1,6,7,12]){
  assert.equal(Object.keys(state.botMemories[bot.id]).length,0,
    'bots cannot inspect any fruit during the pregame countdown');
  round.phase='playing';
+ images.length=0;texts.length=0;
  E.drawSideScreens(ctx,state,round);
- assert.equal(images.length,2,'both side monitors appear as the host starts playing');
+ assert.equal(images.length,2,'the same two orange monitor housings remain visible at transition');
  assert.deepEqual(texts,['13','13'],'both monitors now begin their own 13-second timer');
  E.update(1/60,round,g.ps);
  assert.ok(state.elapsed>0,'the memorization clock starts after the shared 3-second clock');

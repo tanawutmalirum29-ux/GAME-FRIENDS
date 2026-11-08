@@ -528,10 +528,11 @@ function screenImage(tint){
  panelCache[tint]=img;return img;
 }
 function drawSideScreens(ctx,state,round){
- // Keep the two monitor structures and their timers hidden until the host's
- // shared three-second game-start countdown has actually finished.
- if(round?.phase==='countdown')return;
- const target=['target','move','collapse'].includes(state.phase)&&!!state.target;
+ // Keep both SVG monitor housings visible from the first countdown frame.
+ // The orange screens stay blank until the shared host countdown ends;
+ // only then does the independent memorize timer begin displaying numbers.
+ const prestart=round?.phase==='countdown';
+ const target=!prestart&&['target','move','collapse'].includes(state.phase)&&!!state.target;
  const img=screenImage(target?state.target:'timer');
  const seconds=String(Math.max(1,Math.ceil(state.memorizeSeconds-state.elapsed)));
  for(const right of [false,true]){
@@ -540,7 +541,7 @@ function drawSideScreens(ctx,state,round){
    if(right)ctx.scale(-1,1);
    if(img?.complete&&img.naturalWidth>0)ctx.drawImage(img,0,0,150,440);
    ctx.restore();
-   if(state.phase!=='memorize'&&!target)continue;
+   if(prestart||(state.phase!=='memorize'&&!target))continue;
    ctx.save();ctx.translate(x+75,y+221);ctx.rotate(right?Math.PI/2:-Math.PI/2);
    if(target){
      const fruitImg=fruitImage(state.target),fruit=FRUIT_BY_ID[state.target];
