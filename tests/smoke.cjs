@@ -25,6 +25,8 @@ const boulderSource=fs.readFileSync('boulder-bash.js','utf8');
 const snowSource=fs.readFileSync('snow-brawl.js','utf8');
 const witchSource=fs.readFileSync('witching-snake.js','utf8');
 const lawnSource=fs.readFileSync('lawn-mower.js','utf8');
+const gladiatorsArtSource=fs.readFileSync('gladiators-art.js','utf8');
+const gladiatorsSource=fs.readFileSync('gladiators.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const farmIceSource=fs.readFileSync('farm-ice-art.js','utf8');
 const chickensSource=fs.readFileSync('chickens.js','utf8');
@@ -1215,6 +1217,8 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(snowSource,scope,{filename:'snow-brawl.js'});
    vm.runInContext(witchSource,scope,{filename:'witching-snake.js'});
    vm.runInContext(lawnSource,scope,{filename:'lawn-mower.js'});
+   vm.runInContext(gladiatorsArtSource,scope,{filename:'gladiators-art.js'});
+   vm.runInContext(gladiatorsSource,scope,{filename:'gladiators.js'});
   for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-bots','board-minigame','board-party','board-art'])
     vm.runInContext(fs.readFileSync(name+'.js','utf8'),scope,{filename:name+'.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
