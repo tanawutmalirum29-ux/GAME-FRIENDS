@@ -80,6 +80,7 @@ jobs:
         run: |
           for source in board-*.js; do node --check "$source"; done
           node tests/board-v7.cjs
+          node tests/board-v8-layout.cjs
           node tests/board-party.cjs
           node tests/board-art.cjs
           node tests/board-dice-renderer.cjs
