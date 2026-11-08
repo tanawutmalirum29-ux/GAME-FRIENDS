@@ -153,3 +153,26 @@ test('ball-wall collision cannot escape arena',()=>{
   assert.ok(b.x>=s.bounds.x);
  }
 });
+
+
+test('2, 6 and 12 bot matches finish, keep finite physics, and rank all players',()=>{
+ for(const n of [2,6,12])for(let trial=0;trial<3;trial++){
+  const {api,ps,round,s}=match(n);
+  round.gladiatorsSeed=1000+n+trial;
+  ps.forEach(p=>p.isBot=true);
+  // Seed variety in real bot decisions. All simulated physics remain at 60Hz.
+  s.seed=1000+n*89+trial*101;
+  for(let tick=0;tick<60*180&&!s.finished;tick++){
+   api.step(1/60,round,ps);
+   if(tick%60===0)for(const p of ps){
+    const b=p.gladiator.ball;
+    assert.ok(Number.isFinite(b.x+b.y+b.vx+b.vy+p.x+p.y));
+    assert.ok(Math.hypot(b.x-p.gladiator.anchorX,b.y-p.gladiator.anchorY)<=api.config.chain+2);
+   }
+  }
+  assert.equal(s.finished,true,n+' bots failed to finish trial '+trial);
+  assert.equal(s.ranking.length,n);
+  assert.equal(new Set(s.ranking.map(x=>x.id)).size,n);
+  assert.ok(s.ranking.every(x=>Number.isInteger(x.rank)&&x.rank>=1&&x.rank<=n));
+ }
+});
