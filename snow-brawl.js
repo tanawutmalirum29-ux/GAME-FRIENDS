@@ -150,10 +150,11 @@ function botInput(s,p){
    if(face.x*aim.x+face.y*aim.y>.9&&s.clock>=b.botReplan){
     attack=true;b.botReplan=s.clock+.65;
    }
-  }else if(d<72&&s.clock>=b.botAggroUntil){
-   // Give a bot carrying a small ball room to rebuild, without a permanent orbit.
-   desiredX=-to.x*.65-to.y*b.botOrbit*.35;
-   desiredY=-to.y*.65+to.x*b.botOrbit*.35;
+  }else if((!held||held.r<20)&&d<190){
+   // Back away far enough to rebuild a snowball; close-range head-on balls otherwise
+   // cancel before either ball grows and the bots get stuck pressing together.
+   desiredX=-to.x*.92-to.y*b.botOrbit*.18;
+   desiredY=-to.y*.92+to.x*b.botOrbit*.18;
   }else{
    desiredX=to.x;desiredY=to.y;
   }
