@@ -1,0 +1,41 @@
+name: GLADIATORS Physics QA
+on:
+  pull_request:
+    paths:
+      - 'gladiators.js'
+      - 'gladiators-art.js'
+      - 'tests/gladiators.test.cjs'
+      - 'app.js'
+      - 'board-minigame.js'
+      - 'index.html'
+      - 'game-cover-art.js'
+  push:
+    branches:
+      - feat/gladiators-physics-arena-v1
+    paths:
+      - 'gladiators.js'
+      - 'gladiators-art.js'
+      - 'tests/gladiators.test.cjs'
+      - 'app.js'
+      - 'board-minigame.js'
+      - 'index.html'
+      - 'game-cover-art.js'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          node --check gladiators.js
+          node --check gladiators-art.js
+          node --check app.js
+          node --check board-minigame.js
+          node --check game-cover-art.js
+      - name: GLADIATORS regression tests
+        run: node --test tests/gladiators.test.cjs

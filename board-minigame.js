@@ -13,12 +13,13 @@ function ranking(round,players){
     case 'snow_brawl':return p.snow?.alive?Infinity:(p.snow?.eliminatedTick??0);
      case 'witching_snake':return p.ws?.alive?Infinity:(p.ws?.eliminatedTick??0);
    case 'color_claim':return round.colorClaim?.counts[p.cc?.slot]||0;
+    case 'gladiators':return p.gladiator?.alive?Infinity:(p.gladiator?.eliminatedTick??-1);
    case 'color_switch':case 'chickens':case 'pizza_time':case 'shopping_time':case 'lawn_mower':case 'knight_match':case 'ice_race':return Number(p.score)||0;
    default:throw Error('Missing result adapter for '+round.mode);
   }
  };
  const list=players.filter(p=>p.active).map(p=>({id:p.id,value:value(p)}));
- for(const p of list){p.rank=1+list.filter(q=>q.value>p.value).length;p.label=p.value===Infinity?(round.mode==='shockwave'&&round.shockwave.winnerIds?.length>1?'ผู้ชนะร่วม':'ผู้รอดชีวิต'):round.mode==='ghost'?(p.value/10).toFixed(1)+' วินาที':round.mode==='shockwave'?'ตกรอบชุดที่ '+p.value:round.mode==='fruit_memory'?'รอดถึงรอบ '+p.value:round.mode==='boulder_bash'?'ตกรอบรอบฟิสิกส์ '+p.value:round.mode==='snow_brawl'?'ตกรอบรอบฟิสิกส์ '+p.value:round.mode==='witching_snake'?'ตกรอบ Tick '+p.value:p.value+(round.mode==='color_claim'?' ช่องพื้นที่':' คะแนน');}
+ for(const p of list){p.rank=1+list.filter(q=>q.value>p.value).length;p.label=p.value===Infinity?(round.mode==='shockwave'&&round.shockwave.winnerIds?.length>1?'ผู้ชนะร่วม':'ผู้รอดชีวิต'):round.mode==='ghost'?(p.value/10).toFixed(1)+' วินาที':round.mode==='shockwave'?'ตกรอบชุดที่ '+p.value:round.mode==='fruit_memory'?'รอดถึงรอบ '+p.value:round.mode==='boulder_bash'?'ตกรอบรอบฟิสิกส์ '+p.value:round.mode==='snow_brawl'?'ตกรอบรอบฟิสิกส์ '+p.value:round.mode==='witching_snake'?'ตกรอบ Tick '+p.value:round.mode==='gladiators'?'ตกรอบ Tick '+p.value:p.value+(round.mode==='color_claim'?' ช่องพื้นที่':' คะแนน');}
  return list.sort((a,b)=>a.rank-b.rank||String(a.id).localeCompare(String(b.id)));
 }
 function rewards(ranking,count,rng=Math.random){
