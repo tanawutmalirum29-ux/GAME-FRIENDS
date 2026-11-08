@@ -3267,6 +3267,9 @@ function drawGame(t){
     const survivors=gameEngine(round.mode).hud?.(players,round)?.survivors;
     if(Number.isFinite(survivors))window.PartyArenaScenes?.playerCount?.(g,survivors);
   }
+  // Draw the fruit-memory targets AFTER the shared clock/headcount so the
+  // three real safe fruits sit as one centered row directly beneath it.
+  if(round.mode==='fruit_memory')window.FruitMemory?.drawTargetFruits?.(g,round);
 }
 function animate(ts){
   const elapsed=Math.max(0,(ts-frameLast)/1000||.016);
