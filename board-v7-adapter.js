@@ -252,8 +252,11 @@ function validate(m){
    if(!territory||territory.nodeIds.length!==2||!territory.nodeIds.includes(id))
     throw Error('Unpaired sword tile '+id);
    const [a,b]=territory.nodeIds;
-   if(!m.nodes[a]?.nextNodes.includes(b)||m.nodes[a].islandId!==m.nodes[b].islandId)
-    throw Error('Swords must form an adjacent same-island pair '+id);
+   if(!m.nodes[a]?.nextNodes.includes(b))
+    throw Error('Swords must form an adjacent pair '+id);
+   if(n.territoryId.startsWith('v8-court-')&&
+      (m.nodes[a].islandId!==m.nodes[b].islandId||!m.nodes[a].islandId))
+    throw Error('v8 sword court must be placed fully on one island '+id);
   }
  }
  for(let i=0;i<Base.MAIN_LENGTH;i++)if(!m.nodes['n'+i].nextNodes.includes('n'+(i+1)))
