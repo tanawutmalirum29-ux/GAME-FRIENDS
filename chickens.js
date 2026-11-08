@@ -452,8 +452,7 @@ function draw(ctx,time,round,players){
   }
   for(const c of s.chickens)if(c.status==='free')drawChicken(ctx,c,time,.82*s.unit);
   for(const p of players)if(p.active){
-    window.PartyCharacters.draw(ctx,p,{time,scale:s.unit,
-      holding:p.carriedChickenId!=null,attacking:Combat.isAttacking(p),label:false});
+    drawPlayer(ctx,p,time,s.unit);
     const c=s.chickens.find(q=>q.id===p.carriedChickenId&&q.status==='carried');
     if(c){
       window.FarmIceArt.heldChicken(ctx,c,p,time,s.unit);
