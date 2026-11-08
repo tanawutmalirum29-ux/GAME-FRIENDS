@@ -496,11 +496,13 @@ function draw(ctx,time,round,players){
     ctx.font='bold 25px sans-serif';ctx.textAlign='center';
     ctx.fillText(e.text,e.x,e.y-e.life*24);ctx.restore();
   }
-  ctx.fillStyle='#101d31de';ctx.fillRect(12,12,228,65);
-  ctx.fillStyle='#ffffff';ctx.font='bold 23px sans-serif';ctx.textAlign='left';
-  ctx.fillText(round.phase==='countdown'?Math.ceil(round.countdown)+'':'เวลา '+Math.ceil(s.remaining),22,38);
+  // The host draws a shared stopwatch at top centre; this panel is only
+  // for the current chicken inventory, never a duplicate plain-text timer.
+  ctx.fillStyle='#101d31de';ctx.fillRect(12,12,228,54);
+  ctx.fillStyle='#ffffff';ctx.font='bold 19px sans-serif';ctx.textAlign='left';
+  ctx.fillText('CHICKENS',22,34);
   ctx.font='14px sans-serif';ctx.fillStyle='#b9f0d9';
-  ctx.fillText('ไก่สนาม '+s.chickens.filter(c=>c.status==='free').length+' · เหลือ '+(s.totalChickens-s.scoredCount)+'/'+s.totalChickens,22,61);
+  ctx.fillText('ไก่สนาม '+s.chickens.filter(c=>c.status==='free').length+' · เหลือ '+(s.totalChickens-s.scoredCount)+'/'+s.totalChickens,22,56);
   ctx.restore();
 }
 window.Chickens=Object.freeze({setup,update,draw,hud,dropChicken,gateInside,goalHead,drawHeldChicken,
