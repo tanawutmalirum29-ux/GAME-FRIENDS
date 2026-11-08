@@ -62,7 +62,7 @@ test('idle mace never develops energy or kills its own wielder',()=>{
  for(let i=0;i<120;i++)api.step(1/60,round,ps);
  assert.equal(p.gladiator.alive,true);
  assert.ok(hypot(start,b)<.01);
- assert.equal(b.vx,0);assert.equal(b.vy,0);
+ assert.ok(Math.abs(b.vx)<1e-7);assert.ok(Math.abs(b.vy)<1e-7); // floating-point constraint noise
 });
 test('turning and movement drive the ball while chain length remains bounded',()=>{
  const {api,ps,round,s}=match(1),p=ps[0],ball=p.gladiator.ball;
