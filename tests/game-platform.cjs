@@ -92,11 +92,15 @@ async function platform(){
   addEventListener(type,fn){(listeners[type]??=[]).push(fn);},
   dispatchEvent(){},
  };
- const document={hidden:false,head:{appendChild(){throw Error('Adopted legacy engine should not reload scripts');}},
+ let attempted=0;
+ const document={hidden:false,
+  createElement(){return {remove(){}};},
+  head:{appendChild(tag){attempted++;queueMicrotask(()=>tag.onerror());}},
   addEventListener(){}};
+ let outage=false;
  const ctx={window,document,location:{origin:'https://example.org',href:'https://example.org/?host=1'},
   URL,Date,CustomEvent:class{constructor(){}},setInterval(){},console,
-  fetch:async()=>({ok:true,json:async()=>JSON.parse(JSON.stringify(data))})};
+  fetch:async()=>{if(outage)throw Error('offline');return {ok:true,json:async()=>JSON.parse(JSON.stringify(data))};}};
  vm.runInNewContext(moduleSource,ctx);
  await window.GamePlatform.initialize();
  assert.equal(window.GamePlatform.revision,1);
@@ -104,13 +108,47 @@ async function platform(){
  assert.equal(window.GamePlatform.engine('ghost'),window.GhostAttack);
  assert.equal(window.GamePlatform.ready('ghost'),true);
  assert.equal(await window.GamePlatform.ensure('ghost'),window.GhostAttack);
+ assert.equal(attempted,0,'adopted legacy engine must not fetch again');
+ const failingHash='c'.repeat(24);
+ data.games[0]={...data.games[0],hash:failingHash,
+  entryUrl:'/game-assets/ghost/'+failingHash+'/game.js',
+  legacyUrls:['/game-assets/ghost/'+failingHash+'/legacy/ghost-attack.js']};
+ assert.equal(await window.GamePlatform.refresh(),true);
+ assert.equal(window.GamePlatform.ready('ghost'),false,'new hash must not reuse old engine');
+ assert.equal(await window.GamePlatform.ensure('ghost'),window.GhostAttack,
+  'a failed patch falls back to the last loaded engine');
+ assert.equal(window.GamePlatform.ready('ghost'),true);
+ assert.equal(window.GamePlatform.descriptor('ghost').hash,'b'.repeat(24));
+ assert.equal(window.GamePlatform.getRejected()[0].hash,failingHash);
+ const attemptsAfterFailure=attempted;
+ assert.equal(await window.GamePlatform.refresh(),false,
+  'unchanged broken hash is quarantined, not repeatedly published');
+ assert.equal(attempted,attemptsAfterFailure);
+ const missingHash='d'.repeat(24);
+ data.games.push({...data.games[0],id:'missing',name:'BROKEN NEW GAME',
+  global:'MissingGame',hash:missingHash,
+  entryUrl:'/game-assets/missing/'+missingHash+'/game.js',
+  legacyUrls:['/game-assets/missing/'+missingHash+'/legacy/game.js']});
+ assert.equal(await window.GamePlatform.refresh(),true);
+ await assert.rejects(window.GamePlatform.ensure('missing'),/Unable to fetch game dependency/,
+  'fresh broken game must fail closed');
+ assert.equal(window.GamePlatform.descriptor('missing'),null,'unplayable new game is hidden');
+ assert.equal(window.GamePlatform.games().length,1);
+ outage=true;
+ await assert.rejects(window.GamePlatform.refresh(),/offline/);
+ assert.equal(window.GamePlatform.ready('ghost'),true,'catalog outage preserves last good engine');
+ outage=false;
  data.games[0].enabled=false;
  assert.equal(await window.GamePlatform.refresh(),true);
- assert.equal(window.GamePlatform.games().length,0,'disabled manifest must disappear');
+ assert.equal(window.GamePlatform.games().length,0,'disabled game must not fall back to cached engine');
+ assert.equal(window.GamePlatform.getRejected().some(x=>x.id==='ghost'),false,
+  'disable clears the failed-hash quarantine');
+ assert.equal(window.GamePlatform.descriptor('missing'),null,
+  'quarantined new game stays hidden');
  assert.equal(await window.GamePlatform.refresh(),false,'unchanged disabled catalog does not rerender');
  data.coreHash='c'.repeat(20);
  assert.equal(await window.GamePlatform.refresh(),false,'core changes cannot hot-activate');
  assert.equal(window.GamePlatform.pendingCoreUpdate,true);
 }
-platform().then(()=>console.log('GAME PLATFORM PASS: 15 manifests, atomic assets, runtime core guard, legacy adapter'))
+platform().then(()=>console.log('GAME PLATFORM PASS: manifests, rollback, broken-game quarantine, offline recovery, disable and core guard'))
  .catch(error=>{console.error(error);process.exitCode=1;});
