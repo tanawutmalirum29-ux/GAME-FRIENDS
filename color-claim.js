@@ -201,13 +201,15 @@ function segmentsTouch(a,b,c,d,r=0){
   pointSegment2(c,a,b)<=limit||pointSegment2(d,a,b)<=limit;
 }
 function gridTrails(s,ps){
- const map=new Map(),bucket=32;
+ // The broad-phase index must use the same world-space thickness as
+ // trailHits(); otherwise 7–12-player cuts can miss bucket boundaries.
+ const map=new Map(),bucket=32,padding=6*(s.w/960);
  for(const p of ps){
   const cc=p.cc;if(!cc?.alive||cc.trail.length<2)continue;
   for(let k=1;k<cc.trail.length;k++){
    const a=cc.trail[k-1],b=cc.trail[k],segment={a,b,owner:p,at:b.d};
-   const x0=Math.floor((Math.min(a.x,b.x)-6)/bucket),x1=Math.floor((Math.max(a.x,b.x)+6)/bucket);
-   const y0=Math.floor((Math.min(a.y,b.y)-6)/bucket),y1=Math.floor((Math.max(a.y,b.y)+6)/bucket);
+   const x0=Math.floor((Math.min(a.x,b.x)-padding)/bucket),x1=Math.floor((Math.max(a.x,b.x)+padding)/bucket);
+   const y0=Math.floor((Math.min(a.y,b.y)-padding)/bucket),y1=Math.floor((Math.max(a.y,b.y)+padding)/bucket);
    for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){
     const key=x+','+y;if(!map.has(key))map.set(key,[]);map.get(key).push(segment);
    }
