@@ -1796,8 +1796,8 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  assert.ok(first,'roulette appears immediately on start, before game engine');
  assert.equal(api.getRound().phase,'roulette');
  assert.equal(api.getRound().mode,first.mode);
- assert.equal(ui.elements.get('rouletteTrack').children.length,13,
-   'the horizontal ribbon displays 13 candidate cards');
+ assert.equal(ui.elements.get('rouletteTrack').children.length,12,
+   'the horizontal ribbon displays 12 animated cards for thirteen possible modes');
  assert.equal(ui.elements.get('rouletteTrack').children[first.winningIndex].dataset.mode,first.mode,
    'the selected game is physically centered when the animation stops');
  assert.ok(!ui.elements.get('gameRoulette').classList.contains('hidden'));
