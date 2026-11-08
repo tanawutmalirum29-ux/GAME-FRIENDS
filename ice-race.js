@@ -84,7 +84,7 @@ function initialSpawns(s,ps){
   p.ice={state:'racing',vx:0,vy:0,heading:Math.atan2(at.ty,at.tx),
    angularVelocity:0,driftAngle:0,lastCheckpoint:0,nextCheckpoint:1,
    invulnerable:0,respawnLeft:0,fallLeft:0,botOffset:(rand(s)-.5)*s.halfWidth*.4,
-   botSpeed:(.74+rand(s)*.18)*C.maxSpeed,botReaction:.10+rand(s)*.14,
+   botSpeed:(.35+rand(s)*.08)*C.maxSpeed,botReaction:.035+rand(s)*.035,
    botClock:0,botInput:{x:0,y:0},botSkill:.75+rand(s)*.5,
    fallingVelocity:{x:0,y:0}};
  }
@@ -111,26 +111,26 @@ function setup(round,players){
 function botVector(s,p){
  const ice=p.ice,near=nearest(s,p.x,p.y);
  const speed=Math.hypot(ice.vx,ice.vy);
- const forward=sample(s,near.progress+clamp(56+speed*.33,65,143));
+ const forward=sample(s,near.progress+clamp(95+speed*.35,95,215));
  const next=sample(s,near.progress+clamp(115+speed*.6,125,240));
  const turn=Math.acos(clamp(forward.tx*next.tx+forward.ty*next.ty,-1,1));
  const edge=near.dist/s.halfWidth;
- const targetSpeed=clamp(ice.botSpeed*(1-turn*.85)*(1-edge*.27),95,ice.botSpeed);
+ const targetSpeed=clamp(ice.botSpeed*(1-turn*.85)*(1-edge*.27),70,ice.botSpeed);
  const tx=forward.x-forward.ty*ice.botOffset,ty=forward.y+forward.tx*ice.botOffset;
- const lead=.18+Math.min(.42,speed/500);
+ const lead=.30+Math.min(.30,speed/500);
  let dx=tx-(p.x+ice.vx*lead),dy=ty-(p.y+ice.vy*lead);
  if(Math.hypot(dx,dy)<1){dx=forward.tx;dy=forward.ty;}
  const aim=Math.atan2(dy,dx),velocityDot=ice.vx*Math.cos(aim)+ice.vy*Math.sin(aim);
- const d=Math.hypot(dx,dy),throttle=speed>targetSpeed?0:speed>targetSpeed*.87?.45:1;
+ const d=Math.hypot(dx,dy),throttle=speed>targetSpeed?0:speed>targetSpeed*.88?.25:1;
  // The AI uses exactly the same acceleration, angular inertia, drag and
  // fall physics as a human; stopping input to coast is not a teleport brake.
  return{x:Math.cos(aim)*throttle*(d>2?1:0),y:Math.sin(aim)*throttle*(d>2?1:0),
-  velocityDot};
+  velocityDot,aim};
 }
 function steer(p,control,dt){
  const w=p.ice,size=clamp(Math.hypot(control.x,control.y),0,1);
- if(size>.11){
-  const aim=Math.atan2(control.y,control.x);
+ if(size>.11||Number.isFinite(control.aim)){
+  const aim=Number.isFinite(control.aim)?control.aim:Math.atan2(control.y,control.x);
   const wanted=clamp(angleDiff(aim,w.heading)*4.7,-C.turnSpeed,C.turnSpeed);
   w.angularVelocity+=clamp(wanted-w.angularVelocity,
    -C.turnAcceleration*dt,C.turnAcceleration*dt);
