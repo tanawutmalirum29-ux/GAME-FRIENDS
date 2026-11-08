@@ -13,7 +13,7 @@ const C=Object.freeze({
  turnRate:3.6, // rad/s: ~0.87s for a U-turn instead of the old 0.26s
  rollSmallSpeed:320,rollLargeSpeed:224,rollMaxAge:5.8,
  flattenTime:.7,flattenImmunity:.3,soloDuration:60,suddenDeathTime:90,
- shrinkSpeed:12,maxImpactSpeed:560,
+ shrinkSpeed:16,botSuddenDeathTime:45,maxImpactSpeed:560,
  // Keep the five player-count tiers, but reduce the real and visible island radius by 20%.
  arenaScale:.8,spawnInset:.1,
  sizes:[470,540,610,690,780]
@@ -48,7 +48,7 @@ function setup(round,players){
  const s={clock:0,tick:0,accumulator:0,radius:r,baseRadius:r,balls:[],
   nextBallId:1,effects:[],finished:false,ranking:[],winnerIds:[],
   originalCount:players.length,roster:players,solo:players.length===1,
-  suddenDeath:false};
+  suddenDeath:false,suddenDeathAt:null};
  round.snowBrawl=s;round.remaining=s.solo?C.soloDuration:null;window.FarmIceArt?.preload('snow');
  const n=players.length;
  // Spawn each player 10% of the island radius inward from its outer rim,
@@ -62,7 +62,8 @@ function setup(round,players){
   p.snow={alive:true,ballId:null,phase:'COLLECTING',windup:0,
    flat:0,flatImmunity:0,prevA:false,rebuildCooldown:0,eliminatedTick:null,eliminatedAt:null,
    faceX:p.dir.x,faceY:p.dir.y,botOrbit:i%2?1:-1,botReplan:0,
-   botTarget:null,botAim:false};
+   botTarget:null,botTargetUntil:0,botAim:false,shotsFired:0,
+   botProbeX:p.x,botProbeY:p.y,botProbeAt:2.5,botAggroUntil:0};
  });
  return s;
 }
@@ -114,47 +115,81 @@ function finish(s,round,players){
 function botInput(s,p){
  const b=p.snow;
  const opponents=alive(s.roster).filter(q=>q!==p);
- const q=opponents.sort((a,c)=>mag(a.x-p.x,a.y-p.y)-mag(c.x-p.x,c.y-p.y))[0];
- const radial=mag(p.x,p.y);
- // Ghosts are not in this game. Bots obey the same acceleration and windup.
- let desiredX=0,desiredY=0;
- if(radial>s.radius*.67){
-  desiredX=-p.x;desiredY=-p.y;
- }else if(q){
-  const to=normal(q.x-p.x,q.y-p.y);
+ const nearest=opponents.slice().sort((a,c)=>
+  mag(a.x-p.x,a.y-p.y)-mag(c.x-p.x,c.y-p.y))[0]||null;
+ // Target locking prevents rapid opponent switching when several bots cross.
+ let q=opponents.find(candidate=>candidate.id===b.botTarget)||null;
+ if(!q||(nearest&&nearest!==q&&s.clock>=b.botTargetUntil&&
+  mag(nearest.x-p.x,nearest.y-p.y)<mag(q.x-p.x,q.y-p.y)*.72)){
+  q=nearest;b.botTarget=q?.id??null;b.botTargetUntil=s.clock+1.6;
+ }
+ const held=ballFor(s,p),radial=mag(p.x,p.y);
+ let desiredX=0,desiredY=0,attack=false;
+ b.botAim=false;
+ if(q){
   const d=mag(q.x-p.x,q.y-p.y);
-  if(d>120){desiredX=to.x;desiredY=to.y;}
-  else if(d<57){desiredX=-to.x*.3-to.y*b.botOrbit;desiredY=-to.y*.3+to.x*b.botOrbit;}
-  else{desiredX=-to.y*b.botOrbit*.65+to.x*.35;
-   desiredY=to.x*b.botOrbit*.65+to.y*.35;}
-  // Prefer dodging projectiles over standing and repeatedly being hit.
+  const to=normal(q.x-p.x,q.y-p.y);
+  const aimTime=held?clamp(d/rollSpeed(held.r)*.7,.06,.3):.15;
+  const aim=normal(q.x-p.x+(q.vx+q.kvx)*aimTime,
+   q.y-p.y+(q.vy+q.kvy)*aimTime,to.x,to.y);
+  const shootingRange=held?Math.max(210,held.r*5.1):210;
+  const canAim=!!held&&held.r>=20&&d<shootingRange;
+  b.botAim=canAim;
+  if(s.clock>=b.botProbeAt){
+   // A bot that has made almost no progress must commit to a direct approach
+   // rather than repeating the same path around a cluster.
+   if(mag(p.x-b.botProbeX,p.y-b.botProbeY)<25&&d>75)
+    b.botAggroUntil=s.clock+3;
+   b.botProbeX=p.x;b.botProbeY=p.y;b.botProbeAt=s.clock+2.5;
+  }
+  if(canAim){
+   // Heading is movement-coupled. Steer toward the predicted shot until
+   // the actual facing vector aligns, then press A to release the ball.
+   desiredX=aim.x*.55;desiredY=aim.y*.55;
+   const face=normal(b.faceX,b.faceY);
+   if(face.x*aim.x+face.y*aim.y>.9&&s.clock>=b.botReplan){
+    attack=true;b.botReplan=s.clock+.65;
+   }
+  }else if(d<72&&s.clock>=b.botAggroUntil){
+   // Give a bot carrying a small ball room to rebuild, without a permanent orbit.
+   desiredX=-to.x*.65-to.y*b.botOrbit*.35;
+   desiredY=-to.y*.65+to.x*b.botOrbit*.35;
+  }else{
+   desiredX=to.x;desiredY=to.y;
+  }
+  // Evade imminent rolling snowballs, but do not orbit absent a real threat.
   for(const ball of s.balls){
    if(ball.state!=='ROLLING'||ball.ownerId===p.id)continue;
    const rx=p.x-ball.x,ry=p.y-ball.y;
-   const travel=(rx*ball.vx+ry*ball.vy)/(ball.vx*ball.vx+ball.vy*ball.vy);
-   if(travel<0||travel>.65)continue;
+   const speedSquared=ball.vx*ball.vx+ball.vy*ball.vy;
+   if(speedSquared<1)continue;
+   const travel=(rx*ball.vx+ry*ball.vy)/speedSquared;
+   if(travel<0||travel>.5)continue;
    const awayX=rx-ball.vx*travel,awayY=ry-ball.vy*travel;
-   if(mag(awayX,awayY)<ball.r+47){
-    desiredX+=-ball.vy/Math.max(1,mag(ball.vx,ball.vy))*2*b.botOrbit;
-    desiredY+=ball.vx/Math.max(1,mag(ball.vx,ball.vy))*2*b.botOrbit;
+   if(mag(awayX,awayY)<ball.r+C.playerRadius+18){
+    const sign=b.botOrbit;
+    desiredX+=-ball.vy/Math.sqrt(speedSquared)*1.7*sign;
+    desiredY+=ball.vx/Math.sqrt(speedSquared)*1.7*sign;
    }
   }
  }else{
-  desiredX=-p.x+Math.sin(s.clock+p.x)*42;
-  desiredY=-p.y+Math.cos(s.clock*.7+p.y)*42;
+  desiredX=-p.x;desiredY=-p.y;
  }
- const v=normal(desiredX,desiredY,0,0);
- const held=ballFor(s,p);
- const d=q?mag(q.x-p.x,q.y-p.y):Infinity;
- let attack=false;
- if(held&&q&&s.clock>b.botReplan&&held.r>=20&&d<Math.max(240,held.r*5.1)){
-  const f=normal(b.faceX,b.faceY);
-  const aim=normal(q.x-p.x+q.vx*.3,q.y-p.y+q.vy*.3);
-  if(f.x*aim.x+f.y*aim.y>.77){
-   attack=true;b.botReplan=s.clock+.8;
+ // Keep the body inside the kill rim. Retreat only when the chosen motion
+ // would remain sideways/outward, so chasing an enemy near the rim still works.
+ if(radial>s.radius-C.playerRadius*2.2&&radial>0){
+  const inward=normal(-p.x,-p.y);
+  const inwardDot=(desiredX*inward.x+desiredY*inward.y)/
+   Math.max(.001,mag(desiredX,desiredY));
+  if(inwardDot<.2){
+   desiredX=inward.x-inward.y*b.botOrbit*.15;
+   desiredY=inward.y+inward.x*b.botOrbit*.15;
+   attack=false;
   }
  }
- return {...v,action:attack};
+ const v=normal(desiredX,desiredY,0,0);
+ return {x:v.x*clamp(mag(desiredX,desiredY),0,1),
+  y:v.y*clamp(mag(desiredX,desiredY),0,1),action:attack};
 }
 function setHeading(p,x,y,dt){
  const b=p.snow,m=mag(x,y);
@@ -180,6 +215,7 @@ function release(s,p,ball){
  ball.ttl=C.rollMaxAge;ball.age=0;
  // The ball has its own independent trajectory and cannot be controlled.
  p.snow.ballId=null;p.snow.phase='COLLECTING';p.snow.windup=0;
+ p.snow.shotsFired=(p.snow.shotsFired||0)+1;
  // Prevent a newly forming ball from immediately hitting the departing shot.
  p.snow.rebuildCooldown=.28;
  burst(s,ball.x,ball.y,ball.r*.45,'powder',.24);
@@ -392,11 +428,15 @@ function step(dt,round,ps){
  const s=round.snowBrawl;
  if(s.finished)return;
  s.clock+=dt;s.tick++;
- if(s.clock>=C.suddenDeathTime&&!s.solo){
-  s.suddenDeath=true;
-  s.radius=Math.max(0,s.baseRadius-(s.clock-C.suddenDeathTime)*C.shrinkSpeed);
-  // Finish is guaranteed even if 12 bots refuse to leave the center.
+ // A bot-only stalemate enters sudden death sooner; human games retain 90s.
+ // Starting from the CURRENT clock avoids jumping the rim on transition.
+ if(!s.solo&&!s.suddenDeath&&
+  (s.clock>=C.suddenDeathTime||
+   (s.clock>=C.botSuddenDeathTime&&alive(ps).every(p=>p.isBot)))){
+  s.suddenDeath=true;s.suddenDeathAt=s.clock;
  }
+ if(s.suddenDeath)
+  s.radius=Math.max(0,s.baseRadius-(s.clock-s.suddenDeathAt)*C.shrinkSpeed);
  // Snapshot player positions for continuous swept ball/player collision.
  for(const p of alive(ps)){p.snow.oldX=p.x;p.snow.oldY=p.y;}
  for(const p of alive(ps))playerStep(s,p,dt);
