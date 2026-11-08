@@ -336,6 +336,28 @@ function collideOwnMaces(s,ps,dt,resolveChain=true){
   if(resolveChain)solveChain(s,p,dt,10);
  }
 }
+// Last contact projection after tether tension: the mace may never sink
+// back into its owner's body. Resolve on the character first (knockback),
+// then the ball only when a wall prevents the character from stepping away.
+function keepOwnMacesSolid(s,ps,dt){
+ const b=s.bounds,r=C.body+C.ball+C.spike*.65;
+ for(const p of living(ps)){
+  const st=p.gladiator,ball=st.ball;
+  let dx=ball.x-p.x,dy=ball.y-p.y,d=hyp(dx,dy);
+  if(d>=r)continue;
+  if(d<EPS){dx=-p.dir.x;dy=-p.dir.y;d=hyp(dx,dy)||1;}
+  const nx=dx/d,ny=dy/d,overlap=r-d+.02;
+  const ox=p.x,oy=p.y;
+  p.x=clamp(p.x-nx*overlap,b.x+C.body,b.right-C.body);
+  p.y=clamp(p.y-ny*overlap,b.y+C.body,b.bottom-C.body);
+  const moved=(ox-p.x)*nx+(oy-p.y)*ny;
+  const left=Math.max(0,overlap-moved);
+  if(left){ball.x+=nx*left;ball.y+=ny*left;wall(s,ball);}
+  p.vx=(p.x-st.lastX)/dt;p.vy=(p.y-st.lastY)/dt;
+  // Keep the articulated links for the next physics frame; do not snap
+  // them into a straight line to conceal the impact.
+ }
+}
 // Continuous relative segment test — one-frame tunneling cannot bypass a mace.
 function swept(a0,a1,b0,b1,r){
  const x=a0.x-b0.x,y=a0.y-b0.y;
@@ -396,6 +418,7 @@ function step(dt,round,ps){
  collideBalls(s,ps);
  collideOwnMaces(s,ps,dt);
  for(const p of living(ps))capTether(p);
+ keepOwnMacesSolid(s,ps,dt);
  resolveDeaths(s,ps);
  const remaining=living(ps).length;
  if(ps.filter(p=>p.active).length===1){
