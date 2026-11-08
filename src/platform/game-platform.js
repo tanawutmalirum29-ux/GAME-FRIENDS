@@ -3,7 +3,9 @@
  * can activate in a running room; a core release still waits for safe reload. */
 (()=>{
 'use strict';
-const current=new Map(),catalog=new Map(),pending=new Map();
+const current=new Map(),catalog=new Map(),pending=new Map(),rejected=new Map();
+// Broken immutable assets must not trap a running BOARD PARTY in a failed roulette.
+const RETRY_DELAY_MS=90_000;
 let coreHash='',pendingCore=false,refreshing=null,revision=0;
 const emitted=()=>{if(typeof window.dispatchEvent==='function'&&typeof CustomEvent==='function')
  window.dispatchEvent(new CustomEvent('gameplatform:catalog',{detail:{revision}}));};
@@ -41,7 +43,19 @@ async function refresh(){
   const initial=String(window.GAME_CORE_VERSION||'');
   if(initial&&data.coreHash!==initial){pendingCore=true;return false;}
   if(coreHash&&coreHash!==data.coreHash){pendingCore=true;return false;}
-  const enabled=next.filter(g=>g.enabled);
+  const enabled=[];
+  for(const g of next){
+   if(!g.enabled){rejected.delete(g.id);continue;}
+   const failure=rejected.get(g.id);
+   if(failure&&failure.hash===g.hash&&failure.until>Date.now()){
+    // Keep the last verified in-memory engine while the broken release cools down.
+    const stable=current.get(g.id);
+    if(stable?.descriptor?.enabled&&stable.hash!==g.hash)enabled.push(stable.descriptor);
+    continue;
+   }
+   if(failure)rejected.delete(g.id);
+   enabled.push(g);
+  }
   const changed=!coreHash||enabled.length!==catalog.size||enabled.some(g=>{
    const old=catalog.get(g.id);return !old||old.hash!==g.hash||old.name!==g.name||
     old.version!==g.version||old.players.min!==g.players.min||
@@ -95,8 +109,27 @@ async function ensure(id){
      (!d.global&&typeof plugin.getResult!=='function'))
    throw Error('Invalid Game Plugin API: '+id);
   if(descriptor(id)?.hash!==d.hash)throw Error('Superseded plug-in version: '+id);
-  current.set(id,{hash:d.hash,engine:plugin});
+  current.set(id,{hash:d.hash,engine:plugin,descriptor:d});
+  rejected.delete(id);
   return plugin;
+ }).catch(error=>{
+  // A newer catalog can supersede this request; it must not be quarantined.
+  if(descriptor(id)?.hash!==d.hash)throw error;
+  rejected.set(id,{
+   hash:d.hash,until:Date.now()+RETRY_DELAY_MS,
+   message:String(error?.message||error).slice(0,160)
+  });
+  const stable=current.get(id);
+  if(stable?.descriptor?.enabled&&stable.hash!==d.hash){
+   catalog.set(id,stable.descriptor);
+   revision++;emitted();
+   console.warn('Game update failed; retaining previously loaded engine',id,error);
+   return stable.engine;
+  }
+  // Never offer a newly discovered, unplayable game in either party mode.
+  catalog.delete(id);
+  revision++;emitted();
+  throw error;
  });
  const tracked=task.finally(()=>{
   pending.delete(key);
@@ -111,13 +144,15 @@ function adoptLegacy(){
      (!window.GAME_GAME_HASHES||window.GAME_GAME_HASHES[g.id]===g.hash)){
    const plugin=window[g.global];
    if(plugin&&typeof plugin.setup==='function'&&typeof plugin.update==='function'&&typeof plugin.draw==='function')
-    current.set(g.id,{hash:g.hash,engine:plugin});
+    current.set(g.id,{hash:g.hash,engine:plugin,descriptor:g});
   }
  }
 }
 async function initialize(){try{await refresh();adoptLegacy();}catch(e){console.warn('Game catalog unavailable; retaining legacy engines',e);}}
 window.GamePlatform=Object.freeze({initialize,refresh,games,descriptor,engine,ready,ensure,adoptLegacy,
- get pendingCoreUpdate(){return pendingCore;},get revision(){return revision;}});
+ get pendingCoreUpdate(){return pendingCore;},get revision(){return revision;},
+ getRejected:()=>[...rejected.entries()].filter(([,v])=>v.until>Date.now())
+  .map(([id,v])=>({id,hash:v.hash,retryAfter:v.until,message:v.message}))});
 if(typeof window.addEventListener==='function'){
  window.addEventListener('focus',()=>{void refresh().catch(()=>{});});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh().catch(()=>{});});
