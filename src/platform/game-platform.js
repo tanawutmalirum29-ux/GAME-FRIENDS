@@ -114,5 +114,9 @@ if(typeof window.addEventListener==='function'){
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh().catch(()=>{});});
  setInterval(()=>{if(!document.hidden)void refresh().catch(()=>{});},45000);
 }
+// Service worker never reloads a room; it caches only hashed assets.
+if(typeof navigator!=='undefined'&&navigator.serviceWorker&&location.protocol==='https:'){
+ void navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(()=>{});
+}
 void initialize();
 })();
