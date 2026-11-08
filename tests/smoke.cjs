@@ -2167,7 +2167,8 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,12);
+assert.equal(phone.pickButtons.length,13);
+assert.equal(phone.pickButtons[12].dataset.pick,'gladiators');
 assert.equal(phone.pickButtons[4].dataset.pick,'color_switch');
 assert.equal(phone.pickButtons[5].dataset.pick,'pizza_time');
 assert.equal(phone.pickButtons[6].dataset.pick,'shopping_time');
