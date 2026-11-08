@@ -52,7 +52,8 @@ test('all minigame timers are drawn by one host dispatcher', () => {
 
 test('clock and SVG count share the same safe screen position', () => {
  const scenes=read('party-arena-scenes.js');
- assert.match(scenes,/HUD_BADGE_DROP=45/);
+ assert.match(scenes,/HUD_BADGE_MIN_DROP=0/);
+ assert.match(scenes,/HUD_BADGE_ROSTER_GAP_PX=4/);
  assert.match(scenes,/function hudBadgeDrop\(\)/);
  assert.match(scenes,/function clock\(g,value[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
  assert.match(scenes,/function playerCount\(g,value\)[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
@@ -112,7 +113,44 @@ test('central badge clears actual one-row and two-row player headers', () => {
   const scale=Math.min(view.width/960,view.height/540);
   const contentTop=(view.height-540*scale)/2;
   const badgeTop=contentTop+(offsets[0]+5)*scale;
-  assert.ok(badgeTop>=view.bottom+5,
+  assert.ok(badgeTop>=view.bottom+3,
    'badge must clear '+view.width+'px viewport player roster');
+  assert.ok(badgeTop<=view.bottom+7,
+   'badge should sit just below the roster, not deep inside the game arena');
  }
+});
+
+test('the iPad screenshot layout no longer leaves a large blank HUD gap', () => {
+ const source=read('party-arena-scenes.js');
+ const view={width:1473,height:1024,bottom:112};
+ const window={innerWidth:1473,innerHeight:1024};
+ const document={
+  getElementById(id){
+   if(id==='arena')return {getBoundingClientRect:()=>({
+    left:0,top:0,width:view.width,height:view.height
+   })};
+   if(id==='leaderboard')return {getBoundingClientRect:()=>({
+    left:165,top:40,width:1200,height:view.bottom-40,bottom:view.bottom
+   })};
+   return null;
+  }
+ };
+ class MockImage{constructor(){this.complete=true;this.naturalWidth=24;}set src(v){this._src=v;}}
+ const scene=new Function('window','document','Image',source+';return window.PartyArenaScenes;')(
+  window,document,MockImage);
+ const positions=[];
+ const context=new Proxy({},{
+  get(_t,k){return k==='translate'?(_x,y)=>positions.push(y):()=>{};},
+  set(){return true;}
+ });
+ scene.clock(context,60);scene.playerCount(context,6);
+ assert.equal(positions.length,2);
+ assert.equal(positions[0],positions[1],'both modes use one placement');
+ const scale=Math.min(view.width/960,view.height/540);
+ const contentTop=(view.height-540*scale)/2;
+ const screenY=contentTop+(positions[0]+5)*scale;
+ assert.ok(screenY>=view.bottom+3&&screenY<=view.bottom+7,
+  'badge is within 3–7 physical pixels below the player cards');
+ assert.ok(positions[0]<15,
+  'landscape iPad must not retain the old 45-world-unit drop');
 });
