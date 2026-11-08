@@ -350,8 +350,10 @@ assert.match(avatars,/data:image\/svg\+xml/);
  E.draw(ctx,0,{shockwave:s,phase:'playing'},ps);
  assert.ok(circles.some(a=>a[0]===ps[1].x&&a[1]===ps[1].y&&a[2]===29),
    'full-body blast ring uses the same logical center as the sprite');
- assert.ok(labels.some(v=>v.includes('WAVE ')),'wave number still visible');
- assert.ok(labels.some(v=>v.includes('ผู้รอด')),'survivor count still visible');
+ assert.ok(!labels.some(v=>v.includes('WAVE ')||v.includes('ผู้รอด')),
+  'the engine no longer renders redundant wave/survivor side HUD');
+ assert.equal(E.hud(ps,{shockwave:s}).survivors,ps.filter(p=>p.shockAlive&&p.active).length,
+  'survivor count is still available to the shared top-centre SVG badge');
  assert.ok(labels.every(v=>!/ปลอดภัย|ระเบิดใน|เริ่มใน|\\d+(?:\\.\\d+)?\\s*วิ/.test(v)),
    'no redundant warning seconds or safe tile count is painted');
 }
