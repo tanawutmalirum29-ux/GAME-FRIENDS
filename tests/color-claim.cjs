@@ -85,15 +85,94 @@ check('self cutting old segments kills owner, but the immediate head is ignored'
  assert.equal(p.cc.alive,false);
  assert.equal(p.cc.trail.length,0);
 });
-check('zero-land death creates new claim and protected respawn, protection ends on exit',()=>{
+check('zero land is a permanent elimination and can never regenerate an island',()=>{
  const z=make(2),[a,b]=z.ps,s=z.s;
  s.owner.fill(b.cc.slot);z.e.recount(s,z.ps);
  assert.equal(count(s,a.cc.slot),0);
- z.e.kill(s,a);tick(z,46);
+ assert.equal(a.cc.alive,false);
+ assert.equal(a.cc.eliminated,true);
+ z.e.kill(s,a);tick(z,120);
+ assert.equal(a.cc.alive,false);
+ assert.equal(z.e.revive(s,a,z.ps),false);
+ assert.equal(count(s,a.cc.slot),0);
+ assert.equal(a.score,0);
+ assert.equal(z.e.hud(z.ps,z.round).survivors,1);
+});
+check('temporary death revives only on the largest connected owner island',()=>{
+ const z=make(2),[a,b]=z.ps,s=z.s;
+ s.owner.fill(-1);
+ z.e.claimDisk(s,a.cc.slot,130,125,21);
+ z.e.claimDisk(s,a.cc.slot,680,345,55);
+ z.e.claimDisk(s,b.cc.slot,470,260,30);
+ z.e.recount(s,z.ps);
+ const land=z.e.largestTerritory(s,a.cc.slot);
+ assert.ok(land.size>40,'dominant island exists');
+ const small=z.e.index(s,130,125),large=z.e.index(s,680,345);
+ assert.equal(s.owner[small],a.cc.slot);
+ assert.equal(s.owner[large],a.cc.slot);
+ z.e.kill(s,a);tick(z,45);
+ assert.equal(a.cc.alive,true);
+ assert.equal(a.cc.eliminated,false);
+ assert.ok(z.e.owned(s,a,a.x,a.y));
+ assert.ok(Math.hypot(a.x-680,a.y-345)<65,'must spawn on larger island');
+ assert.ok(Math.hypot(a.x-130,a.y-125)>200,'must not choose smaller fragment');
+ assert.ok(a.cc.invulnerable>0);
+});
+check('stolen origin during open loop kills instantly and respawns on remaining own land',()=>{
+ const z=make(2),[a,b]=z.ps,s=z.s;
+ const origin={x:a.x,y:a.y},anchor=z.e.index(s,a.x,a.y);
+ a.cc.anchor=anchor;a.cc.origin=origin;
+ a.cc.trail=poly([origin,{x:origin.x+70,y:origin.y+10}]);
+ a.cc.distance=71;
+ const before=count(s,a.cc.slot);
+ z.e.claimDisk(s,b.cc.slot,origin.x,origin.y,11);
+ z.e.recount(s,z.ps);
+ assert.equal(s.owner[anchor],b.cc.slot);
+ assert.ok(count(s,a.cc.slot)>0&&count(s,a.cc.slot)<before);
+ assert.equal(a.cc.alive,false,'original loop no longer connects to this colour');
+ assert.equal(a.cc.eliminated,false,'other friendly land remains');
+ assert.equal(a.cc.trail.length,0);
+ assert.equal(a.cc.anchor,null);
+ tick(z,43);
  assert.equal(a.cc.alive,true);
  assert.ok(z.e.owned(s,a,a.x,a.y));
- assert.ok(count(s,a.cc.slot)>0);
+ assert.notEqual(z.e.index(s,a.x,a.y),anchor);
+});
+check('captured respawn tile triggers new death instead of leaving protected player on enemy land',()=>{
+ const z=make(2),[a,b]=z.ps,s=z.s;
+ z.e.kill(s,a);tick(z,43);
+ assert.equal(a.cc.alive,true);
  assert.ok(a.cc.invulnerable>0);
+ const spawn={x:a.x,y:a.y};
+ z.e.claimDisk(s,b.cc.slot,spawn.x,spawn.y,11);
+ z.e.recount(s,z.ps);
+ assert.equal(a.cc.alive,false);
+ assert.equal(a.cc.eliminated,false);
+ tick(z,43);
+ assert.equal(a.cc.alive,true);
+ assert.ok(z.e.owned(s,a,a.x,a.y));
+ assert.ok(Math.hypot(a.x-spawn.x,a.y-spawn.y)>1,'must pick a new owned tile');
+});
+check('smooth territory contours follow ownership and are cached between captures',()=>{
+ const z=make(2),s=z.s;
+ const original=z.e.buildContours(s);
+ assert.equal(original.length,2);
+ assert.ok(original.every(loops=>loops.length>0));
+ const stats={curves:0,rectangles:0};
+ const no=()=>{};
+ const g=new Proxy({quadraticCurveTo(){stats.curves++;},fillRect(){stats.rectangles++;}},
+  {get(target,key){return key in target?target[key]:no;},set(target,key,value){target[key]=value;return true;}});
+ z.e.draw(g,0,z.round,z.ps);
+ assert.ok(stats.curves>12,'SVG-like quadratic contours are rendered');
+ assert.ok(stats.rectangles<20,'no per-tile rectangle paints remain');
+ assert.equal(s.dirty,false);
+ const cached=s.contours;
+ z.e.draw(g,0,z.round,z.ps);
+ assert.equal(s.contours,cached,'no contour rebuild without ownership change');
+ z.e.claimDisk(s,z.ps[0].cc.slot,470,260,35);
+ z.e.recount(s,z.ps);z.e.draw(g,0,z.round,z.ps);
+ assert.notEqual(s.contours,cached,'capture invalidates curved contour cache');
+ assert.equal(s.dirty,false);
 });
 check('FREEZE lasts 4 simulation seconds, excludes collector, pauses and cancels on finish',()=>{
  const z=make(2),[a,b]=z.ps,s=z.s;

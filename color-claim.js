@@ -41,6 +41,19 @@ function recount(s,ps){
  s.counts.fill(0);
  for(const slot of s.owner)if(slot>=0&&slot<s.counts.length)s.counts[slot]++;
  for(const p of ps)if(p.cc)p.score=s.counts[p.cc.slot]/s.owner.length*100;
+ // Ownership changes are authoritative immediately, including during a
+ // different player's capture. Never wait for the victim's next movement.
+ for(const p of ps){
+  const q=p.cc;if(!q||q.eliminated)continue;
+  if(s.counts[q.slot]===0){eliminate(s,p);continue;}
+  if(q.alive&&q.trail.length&&q.anchor!==null&&s.owner[q.anchor]!==q.slot){
+   kill(s,p);continue;
+  }
+  // A respawn loses its protection if its very spawn tile is captured.
+  // Kill and choose a fresh owned location rather than drawing from enemy land.
+  if(q.alive&&q.invulnerable>0&&!q.trail.length&&!owned(s,p,p.x,p.y))
+   kill(s,p);
+ }
  s.dirty=true;
 }
 function startPositions(s,count){
@@ -69,7 +82,7 @@ function setup(round,ps){
   const q=positions[slot];p.active=true;p.score=0;p.x=q.x;p.y=q.y;
   p.vx=0;p.vy=0;p.dir={x:1,y:0};p.face=1;
   p.cc={slot,alive:true,respawn:0,invulnerable:0,trail:[],distance:0,
-   origin:null,deaths:0,bot:null,shieldClock:0};
+   origin:null,anchor:null,eliminated:false,deaths:0,bot:null,shieldClock:0};
  });
  // Small, equal circular home territories with enough space to respawn.
  for(const p of ps)claimDisk(s,p.cc.slot,p.x,p.y,ps.length>6?25:27);
@@ -115,41 +128,86 @@ function trailHits(map,a,b,r=5){
  return [...seen].filter(e=>segmentsTouch(a,b,e.a,e.b,r));
 }
 function freezeActive(s,p){return !!s.freeze&&s.elapsed<s.freeze.until&&s.freeze.ownerId!==p.id;}
+// Find connected components of the player's CURRENT land. Respawning on
+// scattered pixels or on land once owned by the player is never allowed.
+function largestTerritory(s,slot){
+ const n=s.owner.length,visited=new Uint8Array(n),queue=new Int32Array(n);
+ let biggest=[],centroidX=0,centroidY=0;
+ for(let root=0;root<n;root++){
+  if(s.owner[root]!==slot||visited[root])continue;
+  let head=0,tail=1,xSum=0,ySum=0;queue[0]=root;visited[root]=1;
+  while(head<tail){
+   const i=queue[head++],x=i%s.cols,y=Math.floor(i/s.cols);
+   xSum+=x;ySum+=y;
+   const near=[x>0?i-1:-1,x<s.cols-1?i+1:-1,
+    y>0?i-s.cols:-1,y<s.rows-1?i+s.cols:-1];
+   for(const j of near)if(j>=0&&!visited[j]&&s.owner[j]===slot){
+    visited[j]=1;queue[tail++]=j;
+   }
+  }
+  if(tail>biggest.length){
+   biggest=Array.from(queue.subarray(0,tail));
+   centroidX=xSum/tail;centroidY=ySum/tail;
+  }
+ }
+ return{cells:biggest,cx:centroidX,cy:centroidY,size:biggest.length};
+}
 function spawnPlace(s,p,ps){
- let best=null,bestScore=-INF;
- for(let i=0;i<s.owner.length;i++){
-  if(s.owner[i]!==p.cc.slot)continue;
-  const v=center(s,i);
-  let score=15;
-  for(const o of ps)if(o!==p&&o.cc?.alive){
-   const d=dist(v,o);score+=Math.min(120,d)*.08;
-   if(d<32)score-=200;
-  }
-  if(score>bestScore){bestScore=score;best=v;}
- }
- if(best)return best;
- // Total capture does not eliminate a player: restore a small owned island.
- for(let k=0;k<80;k++){
-  const v={x:s.field.x+30+rng(s)*(s.field.w-60),
-   y:s.field.y+30+rng(s)*(s.field.h-60)};
-  if(ps.every(o=>o===p||!o.cc?.alive||dist(o,v)>65)){
-   claimDisk(s,p.cc.slot,v.x,v.y,25);recount(s,ps);return v;
+ const land=largestTerritory(s,p.cc.slot);
+ if(!land.size)return null;
+ // Multi-source distance transform: the best tile is deep inside the largest
+ // territory, near its centre and away from other players.
+ const chosen=new Uint8Array(s.owner.length),depth=new Int16Array(s.owner.length);
+ const queue=new Int32Array(land.size);let head=0,tail=0;
+ for(const i of land.cells)chosen[i]=1;
+ for(const i of land.cells){
+  const x=i%s.cols,y=Math.floor(i/s.cols);
+  if(x===0||y===0||x===s.cols-1||y===s.rows-1||
+    !chosen[i-1]||!chosen[i+1]||!chosen[i-s.cols]||!chosen[i+s.cols]){
+   depth[i]=1;queue[tail++]=i;
   }
  }
- const v={x:s.field.x+s.field.w*.5,y:s.field.y+s.field.h*.5};
- claimDisk(s,p.cc.slot,v.x,v.y,25);recount(s,ps);return v;
+ while(head<tail){
+  const i=queue[head++],x=i%s.cols,y=Math.floor(i/s.cols);
+  const near=[x>0?i-1:-1,x<s.cols-1?i+1:-1,
+   y>0?i-s.cols:-1,y<s.rows-1?i+s.cols:-1];
+  for(const j of near)if(j>=0&&chosen[j]&&!depth[j]){
+   depth[j]=depth[i]+1;queue[tail++]=j;
+  }
+ }
+ const enemies=ps.filter(o=>o!==p&&o.cc?.alive);
+ let best=land.cells[0],bestScore=-INF;
+ for(const i of land.cells){
+  const x=i%s.cols,y=Math.floor(i/s.cols),pos=center(s,i);
+  const enemyDist=enemies.length?Math.min(...enemies.map(o=>dist(pos,o))):150;
+  const score=depth[i]*100-Math.hypot(x-land.cx,y-land.cy)*.20+
+   Math.min(150,enemyDist)*.025;
+  if(score>bestScore){bestScore=score;best=i;}
+ }
+ return center(s,best);
+}
+function eliminate(s,p){
+ const q=p.cc;if(!q||q.eliminated)return;
+ q.alive=false;q.eliminated=true;q.respawn=0;q.invulnerable=0;
+ q.trail=[];q.distance=0;q.origin=null;q.anchor=null;q.bot=null;
+ p.vx=0;p.vy=0;
 }
 function kill(s,p){
- const q=p.cc;if(!q.alive)return;
+ const q=p.cc;if(!q||q.eliminated)return;
+ if(s.counts[q.slot]===0){eliminate(s,p);return;}
+ if(!q.alive)return;
  q.alive=false;q.respawn=SETTINGS.respawn;q.invulnerable=0;
- q.trail=[];q.distance=0;q.origin=null;q.deaths++;q.bot=null;
+ q.trail=[];q.distance=0;q.origin=null;q.anchor=null;q.deaths++;q.bot=null;
  p.vx=0;p.vy=0;
 }
 function revive(s,p,ps){
- const q=p.cc,pos=spawnPlace(s,p,ps);
+ const q=p.cc;if(q.eliminated)return false;
+ const pos=spawnPlace(s,p,ps);
+ if(!pos){eliminate(s,p);return false;}
  p.x=pos.x;p.y=pos.y;p.vx=0;p.vy=0;
  q.alive=true;q.respawn=0;q.invulnerable=SETTINGS.protection;
- q.trail=[];q.distance=0;q.origin=null;q.bot=null;
+ q.trail=[];q.distance=0;q.origin=null;q.anchor=null;q.bot=null;
+ return true;
 }
 function captureMask(s,p){
  const own=p.cc.slot,barrier=new Uint8Array(s.owner.length),reachable=new Uint8Array(s.owner.length);
@@ -175,15 +233,24 @@ function captureMask(s,p){
 }
 function applyCaptures(s,closing,ps){
  if(!closing.length)return;
- // Resolve simultaneous captures from one ownership snapshot; contested
- // tiles keep their old owner rather than awarding precedence to player IDs.
+ // A returning trail is invalid if its original connection was stolen.
+ const valid=closing.filter(p=>{
+  const q=p.cc;
+  if(!q.alive||q.eliminated)return false;
+  if(q.anchor!==null&&s.owner[q.anchor]!==q.slot){kill(s,p);return false;}
+  return true;
+ });
+ if(!valid.length)return;
+ // Resolve simultaneous captures from one ownership snapshot. Contested
+ // tiles retain previous ownership; the survivor check runs AFTER transfers.
  const count=new Uint8Array(s.owner.length),slot=new Int16Array(s.owner.length).fill(-1);
- for(const p of closing){
+ for(const p of valid)
   for(const i of captureMask(s,p)){count[i]++;if(count[i]===1)slot[i]=p.cc.slot;}
- }
  for(let i=0;i<s.owner.length;i++)if(count[i]===1)s.owner[i]=slot[i];
- for(const p of closing){p.cc.trail=[];p.cc.distance=0;p.cc.origin=null;p.cc.bot=null;}
  recount(s,ps);
+ for(const p of valid)if(p.cc.alive){
+  p.cc.trail=[];p.cc.distance=0;p.cc.origin=null;p.cc.anchor=null;p.cc.bot=null;
+ }
 }
 function vector(p){
  const v=window.PartyCharacters?.control?.(p.input);
@@ -268,6 +335,7 @@ function step(dt,round,ps){
  if(s.freeze&&s.elapsed>=s.freeze.until){s.freeze=null;s.nextItem=s.elapsed+SETTINGS.itemMin+rng(s)*(SETTINGS.itemMax-SETTINGS.itemMin);}
  for(const p of active(ps)){
   const q=p.cc;
+  if(q.eliminated)continue;
   if(!q.alive){q.respawn-=dt;if(q.respawn<=0)revive(s,p,ps);continue;}
   if(freezeActive(s,p)){p.vx=0;p.vy=0;continue;}
   old.set(p.id,{x:p.x,y:p.y});
@@ -285,7 +353,11 @@ function step(dt,round,ps){
   const q=p.cc,from=old.get(p.id),to={x:p.x,y:p.y};
   const outside=!owned(s,p,to.x,to.y);
   if(outside){
-   if(!q.trail.length){q.origin=from;q.trail.push({...from,d:0});q.distance=0;}
+   if(!q.trail.length){
+    const originCell=index(s,from.x,from.y);
+    if(originCell<0||s.owner[originCell]!==q.slot){kill(s,p);continue;}
+    q.origin=from;q.anchor=originCell;q.trail.push({...from,d:0});q.distance=0;
+   }
    const last=q.trail[q.trail.length-1];q.distance+=dist(last,to);
    q.trail.push({...to,d:q.distance});newTrails.set(p.id,{a:from,b:to,p});
   }else if(q.trail.length){
@@ -348,8 +420,9 @@ function update(dt,round,ps){
 }
 function hud(ps,round){
  const s=round.colorClaim;
- return {remaining:round.remaining,survivors:active(ps).length,
-  percentages:active(ps).map(p=>({id:p.id,percent:p.score,tiles:s.counts[p.cc.slot]})),
+ return {remaining:round.remaining,survivors:active(ps).filter(p=>!p.cc.eliminated).length,
+  percentages:active(ps).map(p=>({id:p.id,percent:p.score,tiles:s.counts[p.cc.slot],
+   eliminated:!!p.cc.eliminated})),
   freezeOwner:s.freeze?.ownerId||null,freezeRemaining:s.freeze?Math.max(0,s.freeze.until-s.elapsed):0};
 }
 const FREEZE_SVG='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><radialGradient id="a"><stop stop-color="#f2ffff"/><stop offset="1" stop-color="#42adfa"/></radialGradient></defs><path d="M32 2 40 19 59 11 51 30 62 32 51 36 58 53 40 46 32 62 24 46 6 53 13 36 2 32 13 28 6 11 24 19Z" fill="url(#a)" stroke="#e5ffff" stroke-width="3"/><path d="M32 12v40M12 32h40M18 18l28 28M46 18 18 46" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/></svg>';
@@ -362,6 +435,66 @@ function frostImage(){
 function disk(g,x,y,r,color){
  g.beginPath();g.arc(x,y,r,0,TAU);g.fillStyle=color;g.fill();
 }
+// Extract directed boundaries from the authoritative ownership mask once per
+// capture. The engine remains grid-based for fair scoring, while the *visible*
+// shape is traced as anti-aliased quadratic curves rather than tile rectangles.
+function buildContours(s){
+ const byStart=new Map(),edges=[],groups=Array.from({length:s.roster.length},()=>[]);
+ const node=(x,y)=>y*(s.cols+1)+x,span=(s.cols+1)*(s.rows+1);
+ const add=(slot,x,y,tx,ty)=>{
+  const a=slot*span+node(x,y),b=slot*span+node(tx,ty);
+  const dir=tx>x?0:ty>y?1:tx<x?2:3;
+  const e={slot,x,y,a,b,dir,used:false};
+  edges.push(e);if(!byStart.has(a))byStart.set(a,[]);byStart.get(a).push(e);
+ };
+ for(let y=0;y<s.rows;y++)for(let x=0;x<s.cols;x++){
+  const i=y*s.cols+x,slot=s.owner[i];if(slot<0||slot>=groups.length)continue;
+  if(y===0||s.owner[i-s.cols]!==slot)add(slot,x,y,x+1,y);
+  if(x===s.cols-1||s.owner[i+1]!==slot)add(slot,x+1,y,x+1,y+1);
+  if(y===s.rows-1||s.owner[i+s.cols]!==slot)add(slot,x+1,y+1,x,y+1);
+  if(x===0||s.owner[i-1]!==slot)add(slot,x,y+1,x,y);
+ }
+ for(const entry of edges){
+  if(entry.used)continue;
+  let e=entry,contour=[],closed=false;
+  for(let step=0;step<=edges.length;step++){
+   if(e.used)break;
+   e.used=true;contour.push({x:e.x,y:e.y});
+   if(e.b===entry.a){closed=true;break;}
+   const options=(byStart.get(e.b)||[]).filter(v=>!v.used);
+   if(!options.length)break;
+   // Right turns first: diagonal-touching islands stay separate instead
+   // of accidentally stitching their perimeters into a bow-tie polygon.
+   const preference=[1,0,3,2];
+   options.sort((a,b)=>preference.indexOf((a.dir-e.dir+4)%4)-
+    preference.indexOf((b.dir-e.dir+4)%4));
+   e=options[0];
+  }
+  if(closed&&contour.length>=3)groups[entry.slot].push(contour);
+ }
+ return groups;
+}
+function smoothLoop(g,s,points){
+ const f=s.field,n=points.length;
+ if(n<3)return;
+ const coord=p=>({x:f.x+p.x*CELL,y:f.y+p.y*CELL});
+ const start=coord(points[n-1]),first=coord(points[0]);
+ g.moveTo((start.x+first.x)*.5,(start.y+first.y)*.5);
+ for(let i=0;i<n;i++){
+  const p=coord(points[i]),next=coord(points[(i+1)%n]);
+  g.quadraticCurveTo(p.x,p.y,(p.x+next.x)*.5,(p.y+next.y)*.5);
+ }
+ g.closePath();
+}
+function traceSmoothTrail(g,path){
+ if(path.length<2)return;
+ g.beginPath();g.moveTo(path[0].x,path[0].y);
+ for(let i=1;i<path.length-1;i++){
+  const a=path[i],b=path[i+1];
+  g.quadraticCurveTo(a.x,a.y,(a.x+b.x)*.5,(a.y+b.y)*.5);
+ }
+ g.lineTo(path[path.length-1].x,path[path.length-1].y);
+}
 function drawScene(g,s){
  const f=s.field;
  g.fillStyle='#140d34';g.fillRect(0,0,s.w,s.h);
@@ -373,15 +506,16 @@ function drawScene(g,s){
  g.lineWidth=1;g.strokeStyle='rgba(120,154,239,.13)';
  for(let x=f.x;x<=f.x+f.w;x+=32){g.beginPath();g.moveTo(x,f.y);g.lineTo(x,f.y+f.h);g.stroke();}
  for(let y=f.y;y<=f.y+f.h;y+=32){g.beginPath();g.moveTo(f.x,y);g.lineTo(f.x+f.w,y);g.stroke();}
- for(let y=0;y<s.rows;y++){
-  let x=0;
-  while(x<s.cols){
-   const slot=s.owner[y*s.cols+x];if(slot<0){x++;continue;}
-   let end=x+1;while(end<s.cols&&s.owner[y*s.cols+end]===slot)end++;
-   const p=s.roster[slot];
-   g.globalAlpha=.77;g.fillStyle=p?.color||'#9ad5ff';
-   g.fillRect(f.x+x*CELL,f.y+y*CELL,(end-x)*CELL,CELL+.3);x=end;
-  }
+ if(s.dirty||!s.contours){s.contours=buildContours(s);s.dirty=false;}
+ g.globalAlpha=.79;
+ for(let slot=0;slot<s.contours.length;slot++){
+  const loops=s.contours[slot];if(!loops.length)continue;
+  g.beginPath();for(const loop of loops)smoothLoop(g,s,loop);
+  g.fillStyle=s.roster[slot]?.color||'#9ad5ff';g.fill('evenodd');
+  // Subtle continuous curved edge, without a tile-grid outline.
+  g.strokeStyle=s.roster[slot]?.color||'#9ad5ff';
+  g.globalAlpha=.3;g.lineWidth=1.5;g.stroke();
+  g.globalAlpha=.79;
  }
  g.globalAlpha=1;g.restore();
  g.save();g.lineWidth=6;g.strokeStyle='#ff2789';g.shadowColor='#ff2185';g.shadowBlur=18;
@@ -401,8 +535,7 @@ function draw(g,t,round,ps){
   const q=p.cc;if(!q.alive||q.trail.length<2)continue;
   g.save();g.lineCap='round';g.lineJoin='round';
   for(const [width,alpha,blur] of [[13,.25,14],[7,.95,5]]){
-   g.beginPath();g.moveTo(q.trail[0].x,q.trail[0].y);
-   for(let i=1;i<q.trail.length;i++)g.lineTo(q.trail[i].x,q.trail[i].y);
+   traceSmoothTrail(g,q.trail);
    g.strokeStyle=p.color;g.globalAlpha=alpha;g.lineWidth=width;
    g.shadowColor=p.color;g.shadowBlur=blur;g.stroke();
   }
@@ -441,6 +574,7 @@ function draw(g,t,round,ps){
  g.restore();
 }
 window.ColorClaim=Object.freeze({setup,update,step,draw,hud,finish,index,owned,claimDisk,
- recount,captureMask,applyCaptures,segmentsTouch,pointSegment2,kill,revive,freezeActive,
+ recount,captureMask,applyCaptures,segmentsTouch,pointSegment2,kill,revive,eliminate,
+ largestTerritory,spawnPlace,buildContours,traceSmoothTrail,freezeActive,
  config:SETTINGS});
 })();

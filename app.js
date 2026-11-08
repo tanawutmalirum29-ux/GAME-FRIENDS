@@ -604,7 +604,8 @@ function sendPlayerInventory(conn){
   }
   if(round.mode==='color_claim'){
     send(conn,{t:'claim-status',mode:round.mode,phase:networkPhase(),percent:p.score||0,
-      frozen:window.ColorClaim.freezeActive(round.colorClaim,p)});return;
+      frozen:window.ColorClaim.freezeActive(round.colorClaim,p),
+      eliminated:!!p.cc?.eliminated,alive:!!p.cc?.alive});return;
   }
   if(round.mode==='witching_snake'){
      send(conn,{t:'witch-status',mode:round.mode,phase:networkPhase(),alive:!!p.ws?.alive,stars:p.ws?.stars||0});return;
@@ -1669,7 +1670,9 @@ function joinRoom(recovery=false){
           }
         }else if(data.t==='claim-status'){
           if(controllerReady&&controllerGameMode==='color_claim')
-            $('controllerState').textContent='COLOR CLAIM • '+Number(data.percent||0).toFixed(1)+'%'+(data.frozen?' • แช่แข็ง':'');
+            $('controllerState').textContent=data.eliminated?'COLOR CLAIM • พื้นที่หมด • ตกรอบถาวร':
+              'COLOR CLAIM • '+Number(data.percent||0).toFixed(1)+'%'+
+              (!data.alive?' • รอเกิดใหม่':data.frozen?' • แช่แข็ง':'');
         }else if(data.t==='ice-status'){
           if(controllerReady&&controllerGameMode==='ice_race')
             $('controllerState').textContent='เช็กพอยต์ '+data.score+' คะแนน'+(data.falling?' • กำลังเกิดใหม่':'');
@@ -2686,7 +2689,8 @@ function endColorClaimRound(){
    const label=document.createElement('div');label.style.color=p.color;
    label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
    const detail=document.createElement('span');
-   detail.textContent=totals?p.total+' คะแนนรวม':p.score.toFixed(2)+'% ของสนาม'+totalScoreNote(p);
+   detail.textContent=totals?p.total+' คะแนนรวม':
+    p.score.toFixed(2)+'% ของสนาม'+(p.cc?.eliminated?' • พื้นที่หมด • ตกรอบถาวร':'')+totalScoreNote(p);
    row.append(label,detail);list.append(row);
   }
  };
@@ -3138,7 +3142,8 @@ function renderLeaderboard(){
       const score=document.createElement('small');score.className='leader-role';
       score.textContent=(p.score||0).toFixed(1)+'%';
       const status=document.createElement('span');status.className='leader-item-slot';
-      status.textContent=!p.cc?.alive?'เกิดใหม่':window.ColorClaim.freezeActive(round.colorClaim,p)?'แช่แข็ง':'';
+      status.textContent=p.cc?.eliminated?'ตกรอบถาวร':!p.cc?.alive?'เกิดใหม่':
+        window.ColorClaim.freezeActive(round.colorClaim,p)?'แช่แข็ง':'';
       box.append(dot,name,score,status);root.append(box);
     }
     return;
