@@ -71,6 +71,11 @@ function stable(base,now,label){
    page.on('pageerror',e=>errors.push(String(e)));
    await page.goto('http://127.0.0.1:'+server.address().port+'/?host=1');
    await page.locator('#offlineBtn').click();
+   // Offline setup deliberately starts with 2 demo bots. Remove them to
+   // compare genuine 0-to-12 additions against the same initial geometry.
+   while(await page.locator('#roster .roster-item:not(.roster-empty)').count()){
+    await page.locator('#roster .roster-item:not(.roster-empty) button[aria-label^="เอา"]').last().click();
+   }
    // Show identical QR/link content at every stage, like an actual hosted room.
    await page.evaluate(()=>{
     document.getElementById('roomPanel').classList.remove('hidden');
