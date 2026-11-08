@@ -18,6 +18,7 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
 {
  const {ps,s}=make(6);
  eq(s.cols,11,'small width');eq(s.rows,9,'small height');eq(s.tiles.length,99,'small tiles');
+ eq(s.size,44,'small grid stays 44 world units per cell');
  ok(s.tiles.every(t=>t.ownerId===null),'tiles begin neutral');
  eq(s.duration,40,'small round lasts exactly 40 seconds');
  ok(ps.every(p=>p.score===0),'scores reset');
@@ -27,6 +28,9 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
 {
  const {s,ps}=make(7);
  eq(s.cols,13,'large width (+1 column)');eq(s.rows,11,'large height (+1 row)');eq(s.tiles.length,143,'large tiles');
+ eq(s.size,44,'large grid must not shrink the physical tile');
+ eq(s.board.w,572,'13 equal cells produce a wider physical arena');
+ eq(s.board.h,484,'11 equal cells produce a taller physical arena');
  eq(s.duration,60,'large round lasts exactly 60 seconds');ok(ps.every(p=>p.cs),'7 players initialized');
 }
 {

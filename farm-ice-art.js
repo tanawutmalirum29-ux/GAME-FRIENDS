@@ -246,11 +246,15 @@ function chicken(g,c,t,scale=1){
  else{oval(g,0,0,size*.22,size*.16,'#fff7e7');oval(g,size*.14,0,size*.11,size*.11,'#fff');}
  g.restore();
 }
-function heldChicken(g,bird,p,time){
+function heldChicken(g,bird,p,time,scale=1){
  const v=p.dir||{x:1,y:0},t={x:-v.y,y:v.x};
- // Two small hands visibly support the bird, with no floating caption or halo.
- for(const side of [-1,1])oval(g,bird.x-v.x*8+t.x*9*side,bird.y-v.y*8+t.y*9*side,4,3,'#f1d7af');
- chicken(g,bird,time,1);
+ // Carry geometry and collision use the same world-space magnification.
+ for(const side of [-1,1])oval(g,bird.x+(-v.x*8+t.x*9*side)*scale,
+   bird.y+(-v.y*8+t.y*9*side)*scale,4*scale,3*scale,'#f1d7af');
+ const held=bird.status==='carried',size=held?48:40;
+ // Paint at a world-space scale around the chicken's actual pickup center.
+ g.save();g.translate(bird.x,bird.y);g.scale(scale,scale);g.translate(-bird.x,-bird.y);
+ chicken(g,bird,time,1);g.restore();
 }
 function paintSea(g){
  const sea=asset('water');if(ready(sea))g.drawImage(sea,0,0,960,540);else{g.fillStyle='#179ed6';g.fillRect(0,0,960,540);}

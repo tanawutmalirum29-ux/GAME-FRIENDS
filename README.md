@@ -164,16 +164,12 @@ for (const p of players) if (p.active) characters.draw(ctx, p, {time:clock});
 
 ## FRUIT MEMORY (third mini-game)
 
-- 1–6 entrants: compact 5×5 board (25 tiles), five fruits × five tiles, 5-second move.
-- 7–12 entrants: compact 6×6 board (36 tiles), six fruits × six tiles, 7-second move.
-- FRUIT MEMORY HUD is 250×42 canvas units at (16, 30), above the playfield. The 5×5 / 6×6 boards are **stretched into the unused arena space** (small: 820×390 at 70,110; large: 840×390 at 60,110). This is a world-layout adjustment, **not a canvas zoom**: player sizes, fruit SVG dimensions, marker dimensions, speed, hitbox sizes, time limits and fruit counts remain unchanged.
-- Memorization is **completion-driven**, with no fixed 20/28-second limit: shuffled batches contain randomly 2–4 unique cards (never a single leftover card). The last batch must finish displaying before all cards close and the target appears.
-- New rounds retain the exact board geometry, tile object identity, and survivor/bot coordinates. Only hidden fruit assignments change after fallen tiles rise back up, so the new round does not teleport characters.
-- Each elimination uses the host's fixed-step snapshot and a circle/rectangle foot-contact area check. At least 50% safe support is needed; an exact tie follows the foot-center tile.
-- Free 360-degree movement, physical pushing, and a front-facing A punch with 0.15/0.10/0.15-second phases, 1.2-second cooldown, and 0.55-second stun. B is hidden only for FRUIT MEMORY.
-- If everyone falls simultaneously, only the entrants of that elimination replay. No overall time limit; the match ends with one survivor. Single-player games run a full trial before the win screen.
-- Source: `fruit-memory.js`; controller, lobby and tournament integration: `app.js`, `index.html`, `style.css`.
-- Run `node tests/fruit-memory.cjs` and `node tests/smoke.cjs` to validate engine and cross-game integration.
+- 1–6 players: **4×4** grid, **80 world units per tile**, 320×320 board centered at (320, 110); 4 selected fruit types and a 5-second move phase.
+- 7–12 players: **5×5** grid, **80 world units per tile**, 400×400 board centered at (280, 70); 5 selected fruit types and a 7-second move phase.
+- Player collision radius stays 13 world units in both tiers. Foot support, movement bounds, first-round spawn, and bot targets derive from these actual tile rectangles.
+- On the shared 3-second start countdown, both orange monitors are present and blank while players and bots may move. Only after countdown does the independently timed memorize/reveal phase begin. Fruit images reveal in four randomized batches with full tile coverage.
+- Each elimination uses fixed-step snapshots and safe tile foot-contact area; simultaneous elimination can cause a replay. Survivors and tile geometry remain in place between memorization rounds.
+- See [MAP-001–007 map scale rules](docs/MAP_SCALE_RULES.md) and [per-game audit](docs/MAP_SCALE_AUDIT.md). Run `node tests/fruit-memory.cjs`, `node tests/map-scale-regression.cjs` and `node tests/smoke.cjs`.
 
 ## ภาพตัวละครและธีมมุมบน (Overhead art)
 
