@@ -288,32 +288,37 @@ for(const side of ['behind','far']){
  assert.equal(x.players.filter(p=>p.fruitAlive).length,0);
 }
 {
- // Both amber side panels clip text and use bounded, left-aligned Thai lines.
+ // Old amber side panels are gone, but the target fruit cue remains needed
+ // so human players can choose a tile during 'target' and 'move' phases.
  for(const n of [4,12]){
-  const x=init(n),s=x.state;
-  const textCalls=[],origins=[],clipCount={value:0};
-  const ctx=new Proxy({},{
-   get(_obj,key){
-    if(key==='translate')return (...args)=>origins.push(args);
-    if(key==='clip')return ()=>{clipCount.value++;};
-    if(key==='fillText')return (...args)=>textCalls.push(args);
+  const x=init(n),state=x.state;
+  const draws=[],texts=[],panels=[];
+  const ctx=new Proxy({}, {
+   get(_target,key){
+    if(key==='drawImage')return (...args)=>draws.push(args);
+    if(key==='fillText')return text=>texts.push(String(text));
+    if(key==='roundRect')return (...args)=>panels.push(args);
     return ()=>{};
    },set(){return true;}
   });
-  for(const phase of ['memorize','hide','move','collapse','rebuild']){
-   s.phase=phase;s.target='apple';
-   game.drawSideDisplays(ctx,s,{phase:'playing'},x.players);
+  state.target='apple';
+  for(const phase of ['memorize','hide','collapse','rebuild']){
+   state.phase=phase;draws.length=0;
+   game.drawSideDisplays(ctx,state,{phase:'playing'},x.players);
+   assert.equal(draws.length,0,'no fruit side/target overlay during '+phase);
   }
-  assert.equal(clipCount.value,10,'clip each side panel in each game phase');
-  assert.equal(origins.length,10);assert.ok(textCalls.length>20);
-  for(const [label,xPos,yPos,maxWidth] of textCalls){
-   assert.ok(xPos>=17&&xPos<=73,'label is anchored in the panel');
-   assert.ok(yPos>=0&&yPos<=350,'vertical text location stays in bounds');
-   assert.ok(maxWidth<=112,'text width never extends beyond panel');
+  for(const phase of ['target','move']){
+   state.phase=phase;draws.length=0;
+   game.drawSideDisplays(ctx,state,{phase:'playing'},x.players);
+   assert.equal(draws.length,1,'target fruit remains visible in '+phase);
+   assert.equal(draws[0][1],state.board.x+state.board.w+6,
+     'small fruit icon stays outside the tile board');
   }
-  assert.ok(textCalls.some(t=>t[0]==='จำตำแหน่ง'));
-  assert.ok(textCalls.some(t=>t[0]==='ให้ดี'));
-  assert.ok(textCalls.some(t=>t[0]==='/ '+s.tiles.length+' ช่อง'));
+  assert.equal(texts.length,0,'removed side HUD must not draw any text');
+  assert.equal(panels.length,0,'removed side HUD must not draw a box');
+  draws.length=0;
+  game.drawSideDisplays(ctx,state,{phase:'countdown'},x.players);
+  assert.equal(draws.length,0,'no target icon during initial countdown');
  }
 }
 console.log('FRUIT MEMORY PASS: variable 4–6/6–8 card reveal, completion-only transition, preserved map and bot positions, existing physics and gameplay');
