@@ -19,3 +19,5 @@ jobs:
         run: node scripts/build-board-v7.cjs
       - name: Print island density and route geometry
         run: node tests/board-layout-audit.cjs
+      - name: Enforce BOARD PARTY v8 node, bridge and sword geometry
+        run: node tests/board-v8-layout.cjs
