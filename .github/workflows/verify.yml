@@ -13,6 +13,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Restore BOARD PARTY v7 source assets
         run: node scripts/build-board-v7.cjs
+      - name: Audit BOARD PARTY island density, crossings and swords
+        run: node tests/board-layout-audit.cjs
       - name: JavaScript syntax
         run: |
           node --check app.js
@@ -78,6 +80,7 @@ jobs:
         run: |
           for source in board-*.js; do node --check "$source"; done
           node tests/board-v7.cjs
+          node tests/board-v8-layout.cjs
           node tests/board-party.cjs
           node tests/board-art.cjs
           node tests/board-dice-renderer.cjs
