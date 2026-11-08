@@ -73,7 +73,7 @@ const server=http.createServer((req,res)=>{
   const page=await ctx.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(String(e)));
   await page.goto('http://127.0.0.1:'+server.address().port+'/?host=1');
-  await page.waitForFunction(()=>window.GamePlatform?.revision===1);
+  await page.waitForFunction(()=>window.GamePlatform?.revision===1,null,{polling:100,timeout:15000});
   assert.equal(await page.evaluate(()=>window.GhostAttack),undefined,
    'host/controller start does not fetch unused minigame code');
   await page.locator('#offlineBtn').click();
@@ -90,7 +90,7 @@ const server=http.createServer((req,res)=>{
   page.on('console',msg=>{if(msg.type()==='error')console.log('LAZY CONSOLE '+msg.text());});
 
   await page.waitForFunction(()=>window.__lazyGameTest?.selection?.ready===true||
-   !!window.__lazyGameTest?.selection?.error,{timeout:15000}).catch(async err=>{
+   !!window.__lazyGameTest?.selection?.error,null,{polling:100,timeout:15000}).catch(async err=>{
     console.error('LAZY DIAGNOSTIC',JSON.stringify(await page.evaluate(()=>({
      url:location.href,view:__lazyGameTest?.view,players:__lazyGameTest?.players.length,
      selection:__lazyGameTest?.selection&&{
