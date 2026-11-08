@@ -377,9 +377,9 @@ function v8RoadGuides(g,s){
    g.lineTo(e.b.x+nx*r*side,e.b.y+ny*r*side);g.stroke();
   }
  }
- // Graph-projected directional markers. This is display-only: gameplay
- // still follows nextNodes and ignores pathArrowOverrides.
- const degree=id=>(map.nodes[id]?.nextNodes.length||0)+(map.nodes[id]?.previousNodes.length||0);
+ // Every arrow follows the actual directed graph edge from -> to.
+ // At forks, incoming roads still point INTO the junction, not away from it.
+ // Visual symmetry must never invent a traversal direction.
  function arrowPoint(e,t){
   if(e.from==='n3'&&(e.to==='n4'||e.to==='b3_1')){
    const q=e.to==='n4'?{x:1227,y:4734}:{x:1082,y:4664},v=1-t;
@@ -396,16 +396,16 @@ function v8RoadGuides(g,s){
   }
   return{x:e.b.x-e.a.x,y:e.b.y-e.a.y};
  }
- function arrowHead(e,reversed=false){
+ function arrowHead(e){
   const L=Math.hypot(e.b.x-e.a.x,e.b.y-e.a.y);
   if(L<1)return;
   const inset=Math.min(BOARD_NODE_DIAMETER*.56,L*.39),
-   free=Math.max(1,L-2*inset),direction=reversed?-1:1,
+   free=Math.max(1,L-2*inset),
    length=Math.max(5,Math.min(44,free*.62)),
    width=Math.max(8,Math.min(56,free*.88));
-  const from=reversed?1-inset/L:inset/L;
-  const to=reversed?inset/L:1-inset/L;
-  const neck=Math.max(0,Math.min(1,to-direction*length/L));
+  const from=inset/L;
+  const to=1-inset/L;
+  const neck=Math.max(from,to-length/L);
   const a=arrowPoint(e,from),b=arrowPoint(e,neck),tip=arrowPoint(e,to);
   const tangent=arrowTangent(e,to),d=Math.hypot(tangent.x,tangent.y)||1;
   const nx=-tangent.y/d,ny=tangent.x/d;
@@ -427,15 +427,9 @@ function v8RoadGuides(g,s){
   g.lineTo(b.x-nx*width/2,b.y-ny*width/2);
   g.closePath();g.fill();g.restore();
  }
- // Every edge gets a single head, including every leg of a multi-way fork.
- // Incoming legs point outward from the fork (tail-to-tail). Neighbouring
- // forks do not add a second opposing head on the same physical segment.
- for(const e of [...regular,...crossings]){
-  const setting=map.pathArrowOverrides?.[e.from+'>'+e.to];
-  const reverse=setting==='reverse'||
-   (setting!=='forward'&&degree(e.to)>=3&&degree(e.from)<3);
-  arrowHead(e,reverse);
- }
+ // At junctions, both inbound and outbound legs keep their own true arrow.
+ // Every road and bridge marker is a direct projection of nextNodes.
+ for(const e of [...regular,...crossings])arrowHead(e);
  // Only the canonical route gets a subtle dashed guide; side paths remain
  // undecorated to avoid another tangled web of marks on smaller screens.
  if(z>.25&&!c.lowDetail){
@@ -499,14 +493,10 @@ function nodes(g,s){
   if(!edgeVisible(a,b))continue;
   const branch=s.map.branches.find(v=>v.nodeIds.includes(id));
   const tint=branch?.kind==='risky'?'#b78964':branch?'#6e9d91':'#5c8ea5';
-  // Align the chevrons with the side guide, not the middle of the walkway.
-  const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;
-  const markerX=a.x+dx*.52+dy/d*BOARD_GUIDE_SIDE_OFFSET;
-  const markerY=a.y+dy*.52-dx/d*BOARD_GUIDE_SIDE_OFFSET;
-  g.save();g.translate(markerX,markerY);g.rotate(Math.atan2(dy,dx));
-  for(const shift of [-5,5])path(g,[[shift-4,-5],[shift+2,0],[shift-4,5]],null,tint,2.5);g.restore();
+  // Old blue double-chevrons are intentionally removed. Only the large
+  // ivory direction arrows in v8RoadGuides remain visible on roads.
   if(branch&&id===branch.nodeIds[0]&&c.zoom>.55){
-   const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),x=(a.x+b.x)/2-dy/d*58,y=(a.y+b.y)/2+dx/d*58;
+   const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,x=(a.x+b.x)/2-dy/d*58,y=(a.y+b.y)/2+dx/d*58;
    box(g,x-44,y-10,88,20,6,'#edf9f8ef',tint);label(g,branch.kind==='risky'?'ลัด • เสี่ยง':'อ้อม • ฮีล / โชค',x,y,9,'#36596c','center',700,80);
   }
  }

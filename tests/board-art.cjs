@@ -32,12 +32,16 @@ assert.deepEqual(JSON.parse(JSON.stringify(A.roadWidths)),
  {node:88,road:88,bridge:88,guideOffset:32});
 assert.match(artSource,/strokeEdge\(e,'#f9f3dc',3\.6,-BOARD_GUIDE_SIDE_OFFSET\)/,
  'the canonical route guide belongs on the side of the road, not its centre');
-assert.match(artSource,/g\.translate\(markerX,markerY\)/,
- 'direction chevrons use world positions offset toward the road shoulder');
-assert.match(artSource,/markerX=a\.x\+dx\*\.52\+dy\/d\*BOARD_GUIDE_SIDE_OFFSET/,
- 'chevron X uses perpendicular offset from the segment centre');
-assert.match(artSource,/markerY=a\.y\+dy\*\.52-dx\/d\*BOARD_GUIDE_SIDE_OFFSET/,
- 'chevron Y uses perpendicular offset from the segment centre');
+// Graph direction is authoritative: incoming arrows must point into the
+// junction, and no visual override or topology heuristic can invert them.
+assert.match(artSource,/function arrowHead\(e\)\{/);
+assert.match(artSource,/const from=inset\/L;/);
+assert.match(artSource,/const to=1-inset\/L;/);
+assert.match(artSource,/for\(const e of \[\.\.\.regular,\.\.\.crossings\]\)arrowHead\(e\)/);
+assert.doesNotMatch(artSource,/pathArrowOverrides|reversed\?-1:1|degree\(e\.to\)/,
+ 'never reverse a real incoming road for junction symmetry');
+assert.doesNotMatch(artSource,/markerX|markerY|for\(const shift of \[-5,5\]\)/,
+ 'the previous blue side-of-road chevrons must not be painted');
 assert.doesNotMatch(artSource,/g\.strokeStyle='#263b60b3'|g\.lineWidth=105\s*;\s*g\.beginPath/,
  'no dark shadow band may connect adjacent sword tiles');
 {
@@ -61,6 +65,39 @@ assert.doesNotMatch(artSource,/g\.strokeStyle='#263b60b3'|g\.lineWidth=105\s*;\s
   'the old dark sword-connection shadow is never rendered');
 }
 
+
+// Capture real painted arrowhead tips at an inbound/outbound fork.
+// This prevents direction flips for future geometry or styling changes.
+{
+ const s=game(8891);s.map.version='winter-expedition-152-v9';
+ s.camera.overview=true;s.camera.zoom=.65;s.camera.manualZoom=.65;
+ s.camera.x=s.map.nodes.n3.position.x;s.camera.y=s.map.nodes.n3.position.y;
+ const arrowTips=[],spy=brush(),points=[];
+ spy.beginPath=()=>{points.length=0;};
+ spy.moveTo=(x,y)=>{points.push({x,y});};
+ spy.lineTo=(x,y)=>{points.push({x,y});};
+ spy.fill=()=>{if(spy.fillStyle==='#fff4db'&&points.length===3)
+  arrowTips.push({...points[0]});};
+ A.draw(spy,0,s);
+ assert.ok(arrowTips.length>0,'the v9 layer must paint its route arrows');
+ for(const [source,target] of [['n2','n3'],['n3','n4'],['n3','b3_1']]){
+  const a=s.map.nodes[source].position,b=s.map.nodes[target].position;
+  assert.ok(s.map.nodes[source].nextNodes.includes(target),
+   'this test requires a real directed edge: '+source+'>'+target);
+  const len=Math.hypot(b.x-a.x,b.y-a.y),inset=Math.min(88*.56,len*.39);
+  const t=1-inset/len;
+  let tip={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
+  if(source==='n3'){
+   const q=target==='n4'?{x:1227,y:4734}:{x:1082,y:4664},v=1-t;
+   tip={x:v*v*a.x+2*v*t*q.x+t*t*b.x,y:v*v*a.y+2*v*t*q.y+t*t*b.y};
+  }
+  const actual=arrowTips.reduce((best,p)=>
+   Math.hypot(p.x-tip.x,p.y-tip.y)<Math.hypot(best.x-tip.x,best.y-tip.y)?p:best,
+   {x:Infinity,y:Infinity});
+  assert.ok(Math.hypot(actual.x-tip.x,actual.y-tip.y)<.05,
+   'the arrow on '+source+'>'+target+' must point at the legal destination');
+ }
+}
 
 // Host overview starts at the full-board fitted zoom, with manual map
 // inspection and debug labels that never modify tile positions or HP.

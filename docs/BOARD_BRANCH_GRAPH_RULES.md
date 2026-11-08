@@ -49,19 +49,21 @@ base-map territories intact.
 
 ## Arrow rendering
 
-Every arrow is computed from a real, surviving `nextNodes` edge. Edges
-with three-way or multiway junctions use one arrow **per leg**; incoming
-legs may reverse their *graphic* orientation so the tails meet at the
-fork while each head points outward. A pair of neighbouring forks shares
-one marker on their connecting edge to avoid opposing arrowheads.
+Every arrow is projected from a real, surviving **directed** `nextNodes`
+edge. It MUST point source → destination, even if its destination is
+a junction. An incoming branch points INTO the junction and an outgoing
+branch points AWAY. Junction symmetry, node degree and visual overrides
+must never reverse a legal edge or visually invent a route.
+
 Curved `n3` junctions use the authored quadratic Bezier position and
 tangent, including a sampled curved arrow shaft. Short edges shrink their
 arrows to stay clear of tile disks; broad/zoomed-out views still display
-recognizable heads. All bridge styles receive arrows.
+recognizable heads. All bridge styles receive arrows. The previous tiny
+blue double-chevron graphics have been removed, leaving only the large
+ivory arrow per directed edge.
 
-Visual directions can later be configured independently via:
-`map.pathArrowOverrides['source>destination'] = 'forward' | 'reverse'`.
-This optional rendering setting does not alter game graph traversal.
+To change traffic direction in the future, change and validate the actual
+game graph; do not override arrow orientation separately from traversal.
 
 ## Hierarchical display/path IDs
 
