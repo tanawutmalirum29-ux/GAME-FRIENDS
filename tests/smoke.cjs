@@ -214,7 +214,7 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER'\}/);
+assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',gladiators:'GLADIATORS'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/window\.PartyGameCovers\.svg\(mode\)/);
 assert.doesNotMatch(gameCoverSource,/<(?:text|tspan)\b/i,'SVG cover art never duplicates game names');
@@ -1449,12 +1449,12 @@ assert.equal(online.scope.document.fullscreenExits,0);
  bulk.click('cycleAllBotsBtn');
  assert.equal(overlay.classList.contains('hidden'),false);
  assert.equal(bulk.elements.get('cycleAllBotsBtn').attributes['aria-expanded'],'true');
- assert.equal(choices.children.length,12,'all registered modes shown once');
+ assert.equal(choices.children.length,13,'all registered modes shown once');
  assert.deepEqual(Array.from(choices.children,x=>x.dataset.mode),
    ['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time',
-    'knight_match','boulder_bash','snow_brawl','shopping_time','witching_snake','lawn_mower']);
+    'knight_match','boulder_bash','snow_brawl','shopping_time','witching_snake','lawn_mower','gladiators']);
  assert.ok(choices.children.every(x=>x.children[0].innerHTML.includes('<svg')),
-   'all 12 game choices have SVG covers');
+   'all 13 game choices have SVG covers');
  assert.ok(choices.children.every(x=>x.children[1].textContent.length>0));
  assert.equal(choices.children[0].attributes['aria-pressed'],'true');
  assert.ok(local.every(p=>p.choice==='ghost'),'opening popup does not cycle games');
