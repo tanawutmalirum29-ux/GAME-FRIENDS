@@ -1,24 +1,24 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const ctx=vm.createContext({window:{},console,Math,Date});
-for(const file of ['board-map.js','board-v7-design.js','board-v7-art.js','board-v7-adapter.js']){
+for(const file of ['board-map.js','board-v7-design.js','board-v7-art.js','board-branch-naming.js','board-v7-adapter.js']){
  vm.runInContext(fs.readFileSync(file,'utf8'),ctx,{filename:file});
 }
 const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D,BOARD_PARTY_V7_ART:A}=ctx.window;
-assert.equal(M.MAP_VERSION,'winter-expedition-152-v8');
+assert.equal(M.MAP_VERSION,'winter-expedition-152-v9');
 assert.equal(D.islands.length,17);
-assert.equal(D.newNodes.length,146);
-assert.equal(D.bridges.length,20);
-assert.equal(Object.keys(D.allNodePositions).length,359);
+assert.equal(D.newNodes.length,97);
+assert.equal(D.bridges.length,15);
+assert.equal(Object.keys(D.allNodePositions).length,310);
 const expected=JSON.stringify(Object.entries(M.create(0).nodes).map(([id,n])=>[id,n.type]).sort());
 for(const seed of [0,1,25,9987]){
  const map=M.create(seed),ids=Object.keys(map.nodes);
  assert.equal(map.version,M.MAP_VERSION);
- assert.equal(ids.length,359);
+ assert.equal(ids.length,310);
  assert.equal(map.islands.length,17);
- assert.equal(map.bridgeRoutes.length,35);
+ assert.equal(map.bridgeRoutes.length,30);
  assert.equal(M.validate(map),true);
- assert.equal(new Set(ids).size,359);
+ assert.equal(new Set(ids).size,310);
  assert.equal(JSON.stringify(Object.entries(map.nodes).map(([id,n])=>[id,n.type]).sort()),expected,
   'tile-type assignment must not change between runs');
  for(const n of Object.values(map.nodes)){
@@ -33,7 +33,7 @@ for(const seed of [0,1,25,9987]){
 }
 const map=M.create(0),seen=new Set(),todo=['n152'];
 while(todo.length){const id=todo.pop();if(seen.has(id))continue;seen.add(id);todo.push(...map.nodes[id].previousNodes);}
-assert.equal(seen.size,359,'all nodes lead to the existing finish');
+assert.equal(seen.size,310,'all nodes lead to the existing finish');
 for(const route of D.bridges)for(let i=1;i<route.nodeIds.length;i++){
  const from=route.nodeIds[i-1],to=route.nodeIds[i],key=from+'>'+to;
  assert.ok(map.nodes[from].nextNodes.includes(to),'v7 bridge is traversable');
@@ -61,7 +61,7 @@ const originalGraph=JSON.stringify(map);
 const painted=A.render(g,D,{layers:{nodes:0,labels:0}});
 assert.equal(saves,restores,'board art must restore Canvas state');
 assert.ok(painted.islands>=17,'all authored islands rendered');
-assert.ok(painted.bridges>=20,'v7 bridges have visual representation');
+assert.ok(painted.bridges>=15,'v7 bridges have visual representation');
 assert.equal(JSON.stringify(map),originalGraph,'art must not mutate gameplay world');
 assert.equal(typeof A.createEffects,'function');
 const effects=A.createEffects(D,1);
@@ -69,4 +69,4 @@ assert.equal(typeof effects.draw,'function');
 effects.draw(g,{x:0,y:0,w:7350,h:5800,zoom:.2},10);
 assert.equal(saves,restores,'FX layer must restore Canvas state');
 assert.equal(M.validate(map),true);
-console.log('BOARD v7 PASS: 359 nodes, 17 islands, 20 new bridges, v6 main and tile types preserved, loops and Phase 5 renderer');
+console.log('BOARD v7 PASS: 310 nodes, 17 islands, 15 new bridges, v6 main and tile types preserved, loops and Phase 5 renderer');

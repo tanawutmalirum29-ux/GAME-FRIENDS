@@ -191,3 +191,11 @@ BOARD_BROWSER=webkit node tests/board-startup.cjs
 - รถบังคับใช้จอยขับอย่างอิสระภายในทาง ไม่อนุญาตให้ย้อนกลับไป Node ที่ผ่านแล้ว จรวดมีเวลา 5.0s และรถมีเวลา 6.0s
 - ลักกี้สตาร์และช่องฟื้นฟูห้ามติดกันกับชนิดเดียวกันโดยตรงแม้ผ่านจุดเชื่อมต่อทางแยก (ตรวจจาก Graph)
 - ช่องถ้วยรางวัลที่ไม่มีระบบใช้งานจริงถูกเปลี่ยนเป็นช่อง Movement ปกติ ช่อง Healing ฟื้น +20 HP และ Potion ฟื้น +50 HP
+
+## BOARD PARTY V9 — hierarchical path IDs and directional graph arrows
+
+For the current 310-node / 331-edge board, authoritative edges, deletion audit,
+relocated linked sword courts, deterministic branch names and the full
+old/internal/display ID export, see [BOARD_BRANCH_GRAPH_RULES.md](BOARD_BRANCH_GRAPH_RULES.md).
+The live movement graph and display-only arrow directions are deliberately
+separate; no new routes are introduced by V9.

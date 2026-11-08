@@ -322,7 +322,7 @@ const BOARD_BRIDGE_WIDTH=BOARD_NODE_DIAMETER;
 // Guide graphics sit on the left shoulder rather than the centre walking lane.
 const BOARD_GUIDE_SIDE_OFFSET=32;
 function v8RoadGuides(g,s){
- if(s.map.version!=='winter-expedition-152-v8')return;
+ if(!/^winter-expedition-152-v(8|9)$/.test(s.map.version))return;
  const map=s.map,c=s.camera,z=Math.max(.06,c.zoom||1);
  const hw=480/z+150,hh=(mapBottom(s)-94)/(2*z)+150;
  const isVisible=(a,b)=>Math.max(a.x,b.x)>=c.x-hw&&Math.min(a.x,b.x)<=c.x+hw&&
@@ -376,6 +376,65 @@ function v8RoadGuides(g,s){
    g.beginPath();g.moveTo(e.a.x+nx*r*side,e.a.y+ny*r*side);
    g.lineTo(e.b.x+nx*r*side,e.b.y+ny*r*side);g.stroke();
   }
+ }
+ // Graph-projected directional markers. This is display-only: gameplay
+ // still follows nextNodes and ignores pathArrowOverrides.
+ const degree=id=>(map.nodes[id]?.nextNodes.length||0)+(map.nodes[id]?.previousNodes.length||0);
+ function arrowPoint(e,t){
+  if(e.from==='n3'&&(e.to==='n4'||e.to==='b3_1')){
+   const q=e.to==='n4'?{x:1227,y:4734}:{x:1082,y:4664},v=1-t;
+   return{x:v*v*e.a.x+2*v*t*q.x+t*t*e.b.x,
+          y:v*v*e.a.y+2*v*t*q.y+t*t*e.b.y};
+  }
+  return{x:e.a.x+(e.b.x-e.a.x)*t,y:e.a.y+(e.b.y-e.a.y)*t};
+ }
+ function arrowTangent(e,t){
+  if(e.from==='n3'&&(e.to==='n4'||e.to==='b3_1')){
+   const q=e.to==='n4'?{x:1227,y:4734}:{x:1082,y:4664};
+   return{x:2*(1-t)*(q.x-e.a.x)+2*t*(e.b.x-q.x),
+          y:2*(1-t)*(q.y-e.a.y)+2*t*(e.b.y-q.y)};
+  }
+  return{x:e.b.x-e.a.x,y:e.b.y-e.a.y};
+ }
+ function arrowHead(e,reversed=false){
+  const L=Math.hypot(e.b.x-e.a.x,e.b.y-e.a.y);
+  if(L<1)return;
+  const inset=Math.min(BOARD_NODE_DIAMETER*.56,L*.39),
+   free=Math.max(1,L-2*inset),direction=reversed?-1:1,
+   length=Math.max(5,Math.min(44,free*.62)),
+   width=Math.max(8,Math.min(56,free*.88));
+  const from=reversed?1-inset/L:inset/L;
+  const to=reversed?inset/L:1-inset/L;
+  const neck=Math.max(0,Math.min(1,to-direction*length/L));
+  const a=arrowPoint(e,from),b=arrowPoint(e,neck),tip=arrowPoint(e,to);
+  const tangent=arrowTangent(e,to),d=Math.hypot(tangent.x,tangent.y)||1;
+  const nx=-tangent.y/d,ny=tangent.x/d;
+  g.save();g.globalAlpha=z<.18?.85:1;
+  g.strokeStyle='#fff4db';g.fillStyle='#fff4db';
+  g.lineCap='round';g.lineJoin='round';g.lineWidth=Math.max(3,Math.min(26,free*.40));
+  // The shaft samples the actual curved path, not its straight endpoint chord.
+  // Its final section meets the tangent-oriented head without a visual gap.
+  const curved=e.from==='n3'&&(e.to==='n4'||e.to==='b3_1');
+  const samples=curved?8:1;
+  g.beginPath();g.moveTo(a.x,a.y);
+  for(let i=1;i<=samples;i++){
+   const point=arrowPoint(e,from+(neck-from)*i/samples);
+   g.lineTo(point.x,point.y);
+  }
+  g.stroke();
+  g.beginPath();g.moveTo(tip.x,tip.y);
+  g.lineTo(b.x+nx*width/2,b.y+ny*width/2);
+  g.lineTo(b.x-nx*width/2,b.y-ny*width/2);
+  g.closePath();g.fill();g.restore();
+ }
+ // Every edge gets a single head, including every leg of a multi-way fork.
+ // Incoming legs point outward from the fork (tail-to-tail). Neighbouring
+ // forks do not add a second opposing head on the same physical segment.
+ for(const e of [...regular,...crossings]){
+  const setting=map.pathArrowOverrides?.[e.from+'>'+e.to];
+  const reverse=setting==='reverse'||
+   (setting!=='forward'&&degree(e.to)>=3&&degree(e.from)<3);
+  arrowHead(e,reverse);
  }
  // Only the canonical route gets a subtle dashed guide; side paths remain
  // undecorated to avoid another tangled web of marks on smaller screens.
@@ -1088,7 +1147,7 @@ function draw(g,t,s){
  if(s.camera.debugNodes&&s.players.every(p=>p.isBot)&&s.camera.selectedId){
   const n=s.map.nodes[s.camera.selectedId],t=s.map.territories[n.territoryId];
   box(g,207,bottom-49,546,57,8,'#0a2a43f5','#91cde7');
-  label(g,n.id+' • '+n.type+' • progress '+n.progress+' • HP '+(n.effects.hp||0),
+  label(g,(s.map.nodePathIds?.[n.id]||n.id)+' ['+n.id+'] • '+n.type+' • progress '+n.progress+' • HP '+(n.effects.hp||0),
    221,bottom-31,12,'#ffe9a1','left',800,512);
   label(g,'ก่อน: '+n.previousNodes.join(',')+'  ต่อ: '+n.nextNodes.join(',')+
     '  x='+Math.round(n.position.x)+' y='+Math.round(n.position.y)+'  พื้นที่: '+(n.islandId||n.bridgeId)+
