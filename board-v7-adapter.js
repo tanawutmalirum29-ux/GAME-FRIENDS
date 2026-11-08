@@ -486,6 +486,14 @@ function rebalanceV10(){
  }
  D.roads=roads;
  D.overpasses=D.overpasses.filter(o=>actual.has(o.upper));
+ // The only two additional geometric crossovers are the arched Workshop
+ // viaduct passing ABOVE the inbound/outbound Meadow connector routes.
+ // They do not create graph junctions, dice moves, or tile connections.
+ for(const [x,y,upper] of [[2902,1524,'xmw_2>xmw_3'],
+  [2974,1850,'xmw_4>xmw_5']]){
+  if(!actual.has(upper))throw Error('V10 overpass lost its upper deck '+upper);
+  D.overpasses.push({x,y,upper,crossesOld:false});
+ }
  // Decoration collision clearance uses the same 88-unit road/bridge deck
  // and 44-unit tile radius as the renderer and manual-walking physics.
  D.isDecorationSpotClear=(x,y,r=25,pad=14)=>{

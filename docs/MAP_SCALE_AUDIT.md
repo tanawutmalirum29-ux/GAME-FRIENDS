@@ -42,3 +42,22 @@
 ## Mandatory gate
 
 Do not merge until `verify.yml` tests and browser checks finish without failures. If any engine remains visibly too small, reports inaccessible gaps, or colliders misregister, add exact measured before/after metrics and update this audit before merging.
+
+
+### BOARD PARTY V10 island tour audit (2026-11-09)
+
+- Board physical road and bridge deck: 88 world units before and after.
+  Walkable half-width: 44, with 10-unit avatar clearance, unchanged.
+- 17 distinct islands remain; source playable checkpoints 302 (unchanged).
+  Directed edges: 321 → 318; removed the three loops returning to the
+  same tile while preserving other alternate routes and all territory pairs.
+- Meadow n51→n108 bypass cut: replaced with a n51→Meadow ring→n56
+  forward loop; no 46-checkpoint skip. Workshop and Iceberg receive one-way
+  entry and exit routing instead of using same-tile circulation.
+- Two additional raised-bridge crossing markers identify geometry where
+  the Workshop viaduct crosses inbound/outbound Meadow connections; other
+  original two markers remain. The crossings do not connect in graph physics.
+- Harbor/Gingerbread footprints shrink to match three/two surviving nodes;
+  all other original node sizes and walking collision radii remain unchanged.
+- Static browser simulations for 1–12 players, WebKit and Chromium required
+  on final PR head. Mobile/iPad physical device behavior is not certified by CI.
