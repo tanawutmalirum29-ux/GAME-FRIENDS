@@ -1,0 +1,155 @@
+/* GLADIATORS regression tests — run with node --test tests/gladiators.test.cjs */
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const src=fs.readFileSync(path.join(root,'gladiators.js'),'utf8');
+function harness(){
+ const win={
+  PartyCharacters:{
+   control(input){const k=input||{};let x=Number(k.axisX)||0,y=Number(k.axisY)||0;let l=Math.hypot(x,y);if(l>1){x/=l;y/=l;}return{x,y};},
+   move(p,v,dt,o){
+    const {bounds:b,radius:r,speed}=o;
+    const fromX=p.x,fromY=p.y;
+    p.x=Math.max(b.x+r,Math.min(b.x+b.w-r,p.x+v.x*dt*speed));
+    p.y=Math.max(b.y+r,Math.min(b.y+b.h-r,p.y+v.y*dt*speed));
+    p.vx=(p.x-fromX)/dt;p.vy=(p.y-fromY)/dt;
+    if(Math.hypot(v.x,v.y)>.12)p.dir={x:v.x,y:v.y};
+   },
+   resolve(){return {contacts:0};}
+  }
+ };
+ const ctx=vm.createContext({window:win,Date,Math,Number,Object,Array,Map,Set});
+ vm.runInContext(src,ctx,{filename:'gladiators.js'});
+ return win.Gladiators;
+}
+const player=(id,isBot=false)=>({id:'p'+id,name:'Player'+id,color:'#ee5588',isBot,input:{axisX:0,axisY:0},active:true,dir:{x:0,y:-1}});
+function match(n){const api=harness(),ps=Array.from({length:n},(_,i)=>player(i+1));const round={mode:'gladiators',phase:'playing',paused:false,gladiatorsSeed:123456};
+ const state=api.setup(round,ps);return {api,ps,round,s:state};}
+function hypot(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+test('registration and scripts are connected to both party modes',()=>{
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+ const board=fs.readFileSync(path.join(root,'board-minigame.js'),'utf8');
+ const cover=fs.readFileSync(path.join(root,'game-cover-art.js'),'utf8');
+ assert.match(app,/gladiators:'GLADIATORS'/);assert.match(app,/gladiators:'Gladiators'/);
+ assert.match(app,/function endGladiatorsRound\(/);
+ assert.match(board,/case 'gladiators'/);
+ assert.match(html,/data-pick="gladiators"/);
+ assert.ok(html.indexOf('gladiators-art.js')<html.indexOf('gladiators.js'));
+ assert.ok(html.indexOf('gladiators.js')<html.indexOf('app.js'));
+ assert.match(cover,/gladiators:gladiatorsScene/);
+});
+test('1, 6, 7, 12 active players get isolated spawns and two world scales',()=>{
+ for(const n of [1,6,7,12]){
+  const {ps,s}=match(n);
+  assert.equal(ps.length,n);
+  assert.equal(s.bounds.w,n>6?1280:960);
+  assert.equal(s.bounds.h,n>6?720:540);
+  for(const p of ps){assert.equal(p.gladiator.alive,true);
+   assert.ok(p.x>s.bounds.x+15&&p.x<s.bounds.right-15);
+   assert.ok(p.y>s.bounds.y+15&&p.y<s.bounds.bottom-15);
+   for(const other of ps)if(other!==p)assert.ok(hypot(p,other)>31);
+  }
+ }
+});
+test('idle mace never develops energy or kills its own wielder',()=>{
+ const {api,ps,round,s}=match(1),p=ps[0],b=p.gladiator.ball;
+ const start={x:b.x,y:b.y};
+ for(let i=0;i<120;i++)api.step(1/60,round,ps);
+ assert.equal(p.gladiator.alive,true);
+ assert.ok(hypot(start,b)<.01);
+ assert.equal(b.vx,0);assert.equal(b.vy,0);
+});
+test('turning and movement drive the ball while chain length remains bounded',()=>{
+ const {api,ps,round,s}=match(1),p=ps[0],ball=p.gladiator.ball;
+ const start={x:ball.x,y:ball.y};
+ for(let tick=0;tick<150;tick++){
+  const a=tick/150*Math.PI*4;
+  p.input.axisX=Math.cos(a);p.input.axisY=Math.sin(a);
+  api.step(1/60,round,ps);
+  const dx=ball.x-p.gladiator.anchorX,dy=ball.y-p.gladiator.anchorY;
+  assert.ok(Math.hypot(dx,dy)<=api.config.chain+2,'chain overstretch');
+  assert.ok(Number.isFinite(ball.x+ball.y+ball.vx+ball.vy));
+ }
+ assert.ok(hypot(start,ball)>1,'mace failed to move from physics');
+ assert.equal(p.gladiator.alive,true,'owner cannot kill self');
+});
+test('opposing mace touches cause simultaneous eliminations and tied ranks',()=>{
+ const {api,ps,round,s}=match(2),[a,b]=ps;
+ a.x=430;a.y=270;b.x=550;b.y=270;
+ a.dir={x:-1,y:0};b.dir={x:1,y:0};
+ a.gladiator.anchorX=440;a.gladiator.anchorY=270;
+ b.gladiator.anchorX=540;b.gladiator.anchorY=270;
+ Object.assign(a.gladiator.ball,{x:550,y:270,px:550,py:270,vx:0,vy:0});
+ Object.assign(b.gladiator.ball,{x:430,y:270,px:430,py:270,vx:0,vy:0});
+ api.step(1/60,round,ps);
+ assert.equal(a.gladiator.alive,false);assert.equal(b.gladiator.alive,false);
+ assert.equal(a.gladiator.eliminatedTick,b.gladiator.eliminatedTick);
+ assert.equal(s.finished,true);
+ assert.equal(s.winnerIds.length,0);
+ assert.equal(s.ranking[0].rank,1);
+ assert.equal(s.ranking[1].rank,1);
+});
+test('mace stays at its final position and remains deadly after owner dies',()=>{
+ const {api,ps,round,s}=match(3);
+ const owner=ps[0],victim=ps[1],third=ps[2];
+ const mace=owner.gladiator.ball;
+ Object.assign(mace,{x:520,y:250,px:520,py:250,vx:90,vy:70});
+ owner.gladiator.anchorX=470;owner.gladiator.anchorY=240;
+ api.eliminate(s,owner,'test');
+ assert.equal(mace.static,true);
+ assert.equal(mace.vx,0);
+ assert.equal(mace.x,520);
+ victim.x=539;victim.y=250;victim.dir={x:0,y:-1};
+ // Keep the other maces away from the test collision.
+ third.x=650;third.y=400;
+ api.step(1/60,round,ps);
+ assert.equal(victim.gladiator.alive,false,'frozen mace must kill');
+ assert.equal(mace.x,520,'dead owner mace moved');
+ assert.equal(mace.y,250,'dead owner mace moved');
+ assert.equal(owner.gladiator.deadAnchorX,470);
+});
+test('chain does not kill and friendly mace collisions do not harm the owner',()=>{
+ const {api,ps,round,s}=match(1),p=ps[0];
+ p.gladiator.ball.x=p.x;p.gladiator.ball.y=p.y;
+ api.step(1/60,round,ps);
+ assert.equal(p.gladiator.alive,true);
+});
+test('swept collision detects fast crossing missed by endpoint overlap',()=>{
+ const {api}=match(1);
+ assert.equal(api.swept({x:0,y:0},{x:100,y:0},{x:50,y:-30},{x:50,y:30},5),true);
+ assert.equal(api.swept({x:0,y:0},{x:100,y:0},{x:50,y:20},{x:50,y:25},5),false);
+});
+test('static mace does not move when another moving mace collides',()=>{
+ const {api}=match(2);
+ const moving={x:0,y:0,vx:100,vy:0},fixed={x:30,y:0,vx:0,vy:0,static:true};
+ assert.equal(api.impact(moving,fixed,20,20),true);
+ assert.equal(fixed.x,30);assert.equal(fixed.y,0);
+ assert.ok(moving.vx<0,'moving mace must reflect');
+});
+test('paused round does not advance time, and frame-rate accumulator is bounded',()=>{
+ const {api,ps,round,s}=match(2);round.paused=true;
+ api.update(.5,round,ps);assert.equal(s.tick,0);
+ round.paused=false;api.update(.2,round,ps);assert.equal(s.tick,12);
+});
+test('bots navigate via joystick vectors, never command their ball directly',()=>{
+ const {api,ps,round,s}=match(3);
+ ps.forEach(p=>p.isBot=true);
+ const start=ps.map(p=>({x:p.x,y:p.y}));
+ for(let i=0;i<30&&!s.finished;i++)api.step(1/60,round,ps);
+ assert.ok(ps.some((p,i)=>hypot(p,start[i])>1),'bots never moved');
+ for(const p of ps)assert.ok(Number.isFinite(p.gladiator.ball.x));
+});
+test('ball-wall collision cannot escape arena',()=>{
+ const {api,ps,round,s}=match(1),b=ps[0].gladiator.ball;
+ for(let i=0;i<50;i++){
+  b.x=s.bounds.right-api.config.ball-1;b.y=ps[0].y;b.vx=900;
+  api.step(1/60,round,ps);
+  assert.ok(b.x<=s.bounds.right);
+  assert.ok(b.x>=s.bounds.x);
+ }
+});
