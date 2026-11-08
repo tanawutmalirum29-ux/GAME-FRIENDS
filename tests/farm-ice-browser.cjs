@@ -73,7 +73,7 @@ const server=http.createServer((req,res)=>{
      p.x=s.center.x;p.y=s.center.y;p.dir={x:1,y:0};
      bird.x=p.x+12;bird.y=p.y;bird.invulnerable=0;protectOthers();Chickens.update(1/60,a.round,a.players);
      const caught=p.carriedChickenId===bird.id&&bird.status==='carried';
-     const carryError=Math.hypot(bird.x-p.x-p.dir.x*37,bird.y-p.y-p.dir.y*37);
+     const carryError=Math.hypot(bird.x-p.x-p.dir.x*37*s.unit,bird.y-p.y-p.dir.y*37*s.unit);
      p.x=s.center.x+pen.normal.x*(s.radius-16);p.y=s.center.y+pen.normal.y*(s.radius-16);p.dir=pen.normal;
      for(let i=0;i<10;i++){protectOthers();Chickens.update(1/60,a.round,a.players);}
      const deposited=bird.status==='penned'&&bird.penId===pen.id,score=p.score;
