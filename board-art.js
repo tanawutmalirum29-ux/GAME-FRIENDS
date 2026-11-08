@@ -310,6 +310,40 @@ function ground(g,s){
   g.drawImage(layer,x*sx,y*sy,w*sx,h*sy,x,y,w,h);
  }else sceneryLite(g,s);
 }
+
+/* BOARD v8: emphasize a clean main route and pair each sword territory with
+   one visible plaza. World coordinates are the same ones used by the graph. */
+function v8RoadGuides(g,s){
+ if(s.map.version!=='winter-expedition-152-v8')return;
+ const c=s.camera,z=Math.max(.06,c.zoom||1),hw=480/z+180,hh=(mapBottom(s)-94)/2/z+180;
+ const visible=(a,b)=>Math.max(a.x,b.x)>c.x-hw&&Math.min(a.x,b.x)<c.x+hw&&
+  Math.max(a.y,b.y)>c.y-hh&&Math.min(a.y,b.y)<c.y+hh;
+ if(z>.22){
+  g.save();g.lineCap='round';g.strokeStyle='#efffffb0';g.lineWidth=3.4;
+  g.setLineDash?.([18,30]);
+  for(let i=0;i<(window.BoardMap?.MAIN_LENGTH||152);i++){
+   const a=s.map.nodes['n'+i]?.position,b=s.map.nodes['n'+(i+1)]?.position;
+   if(!a||!b||!visible(a,b))continue;
+   g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
+  }
+  g.setLineDash?.([]);g.restore();
+ }
+ for(const territory of Object.values(s.map.territories)){
+  if(territory.nodeIds.length!==2)continue;
+  const [a,b]=territory.nodeIds.map(id=>s.map.nodes[id]?.position);
+  if(!a||!b||!visible(a,b))continue;
+  const owner=s.players.find(p=>p.id===territory.ownerId);
+  g.save();g.lineCap='round';
+  g.strokeStyle='#263b60b3';g.lineWidth=105;
+  g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
+  g.strokeStyle=owner?.color||'#aaa9cc';g.globalAlpha=.37;g.lineWidth=96;
+  g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
+  g.globalAlpha=.86;g.strokeStyle='#e1d7ec';g.lineWidth=3;
+  g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
+  g.restore();
+ }
+}
+
 const regionLabelCache=new WeakMap();
 function regionLabelPositions(map,zoom){
  const bucket=Math.max(3,Math.ceil(zoom*20)),scale=Math.max(1,.64/(bucket/20));
@@ -981,6 +1015,7 @@ function draw(g,t,s){
  c.x=clampCamera(c.x,halfW,b.minX,b.maxX);c.y=clampCamera(c.y,halfH,b.minY,b.maxY);
  g.clearRect(0,0,960,sceneHeight(s));g.fillStyle='#183e5d';g.fillRect(0,top,960,viewH);g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();g.translate(480,top+viewH/2);g.scale(c.zoom,c.zoom);g.translate(-c.x,-c.y);
  ground(g,s);
+ v8RoadGuides(g,s);
   const v7D=window.BOARD_PARTY_V7_DESIGN,v7A=window.BOARD_PARTY_V7_ART;
   if(v7D&&v7A){
    if(!c.lowDetail){
