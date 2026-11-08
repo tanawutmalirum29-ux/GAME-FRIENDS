@@ -165,14 +165,77 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  const dangerId=s.danger[0];
  for(const p of [ps[1],ps[2]])put(p,center(s,dangerId));
  E.triggerExplosion(s,ps);
- assert.deepEqual([...s.pendingWinnerIds],['p1','p2']);
- assert.equal(s.finished,false,'finish after explosion animation');
- round.phase='playing';run(g,.4);
- assert.equal(s.finished,true);
+ assert.equal(s.blastSchedule.length,24,'all dangerous tiles are scheduled');
+ assert.equal(s.finished,false,'a single ignited tile does not finish a wave');
+ round.phase='playing';run(g,1.25);
+ assert.equal(s.finished,true,'game ends only after all scheduled tiles ignite');
  assert.deepEqual([...s.winnerIds],['p1','p2']);
  assert.equal(s.winnerId,null,'two winners are not forced into one winnerId');
  assert.equal(ps[0].shockAlive,false,'previous losers cannot return');
  assert.equal(s.tiles.length,25);
+}
+// The outer rim ignites before the inner ring and the center,
+// each threatened tile at a unique offset, all within 0.8 seconds.
+for(let wave=1;wave<=14;wave++){
+ const g=game(12,100+wave),s=g.state;
+ s.wave=wave;
+ E.startWarning(s,g.ps);
+ const plan=E.buildBlastSchedule(s);
+ assert.equal(plan.length,s.danger.length);
+ assert.equal(new Set(plan.map(t=>t.id)).size,plan.length);
+ const ring=id=>{
+  const t=s.tiles[id];return Math.max(Math.abs(t.col-2),Math.abs(t.row-2));
+ };
+ for(let i=1;i<plan.length;i++){
+  assert.ok(plan[i].at>plan[i-1].at,'blast offsets are strictly ordered');
+  assert.ok(ring(plan[i].id)<=ring(plan[i-1].id),
+   'outside tiles must explode before inner tiles');
+ }
+ assert.ok(plan.at(-1).at<.8,'all tile detonations occur within 0.8s');
+ assert.equal(plan[0].at,0,'the first tile explodes immediately');
+}
+{
+ // Three players on three different rings die in three DIFFERENT events.
+ // The latest victim wins without a replay or an artificial tie.
+ const g=game(3,610),{state:s,ps,round}=g;
+ E.startWave(s,ps);
+ s.danger=[0,6,12];
+ for(const id of s.danger){s.tiles[id].state='warning';s.tiles[id].wave=s.wave;}
+ s.phase='WARNING';s.warningStarted=true;s.warningDuration=1;
+ for(let i=0;i<3;i++)put(ps[i],center(s,s.danger[i]));
+ E.triggerExplosion(s,ps);
+ assert.equal(s.blastSchedule.length,3);
+ assert.equal(s.blastCursor,1);
+ assert.equal(s.events.length,1);
+ assert.equal(s.events[0].tileId,0);
+ assert.equal(ps[0].shockAlive,false);
+ assert.equal(ps[1].shockAlive,true);assert.equal(ps[2].shockAlive,true);
+ assert.equal(s.finished,false,'do not declare one survivor mid-cascade');
+ round.phase='playing';run(g,1.2);
+ assert.equal(s.finished,true);
+ assert.equal(s.blastCursor,3);
+ assert.equal(s.events.length,3,'three separate per-tile eliminations');
+ assert.deepEqual(s.events.map(e=>e.tileId),[0,6,12]);
+ assert.deepEqual(s.events.map(e=>e.event),[1,2,3]);
+ assert.deepEqual(ps.map(p=>p.shockEliminatedAt),[1,2,3]);
+ assert.deepEqual([...s.winnerIds],[ps[2].id]);
+ assert.equal(s.winnerId,ps[2].id);
+ assert.ok(ps.every(p=>!p.shockAlive),'all players are eliminated over time');
+}
+{
+ // Two people actually touching ONE explosion are legitimately tied.
+ const g=game(2,345),{state:s,ps,round}=g;
+ E.startWave(s,ps);
+ s.danger=[0,12];
+ for(const id of s.danger){s.tiles[id].state='warning';s.tiles[id].wave=s.wave;}
+ s.phase='WARNING';s.warningStarted=true;
+ ps.forEach(p=>put(p,center(s,0)));
+ E.triggerExplosion(s,ps);
+ assert.equal(s.events.length,1);
+ assert.equal(s.events[0].ids.length,2);
+ round.phase='playing';run(g,1.2);
+ assert.equal(s.finished,true);
+ assert.equal(s.winnerIds.length,2,'same-tile victims can share a rank');
 }
 for(const n of [2,3,4,12]){
  const g=game(n,500+n),{state:s,ps,round}=g;
