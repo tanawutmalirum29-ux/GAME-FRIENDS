@@ -171,6 +171,14 @@ function clock(g,value,accent='#e8d2a1'){
 const personIconSVG=()=>svg(24,24,
  '<circle cx="12" cy="6.5" r="3.8" fill="#fff7dc"/><path d="M3.1 21v-1.3c0-4.5 3.8-7.1 8.9-7.1s8.9 2.6 8.9 7.1V21Z" fill="#fff7dc"/>');
 /* Shared headcount badge for survival modes without a countdown clock. */
+// Dedicated number-only survival badge for Fruit Memory V2.
+function bareCount(g,value){
+ g.save();g.translate(0,hudBadgeDrop());
+ g.lineWidth=1.5;box(g,460,5,40,25,5,'#25323ce8','#e8d2a1');
+ g.font='900 19px system-ui';g.textAlign='center';g.fillStyle='#fff8e9';
+ g.fillText(String(Math.max(0,Math.floor(Number(value)||0))),480,23);
+ g.restore();
+}
 function playerCount(g,value){
  g.save();g.translate(0,hudBadgeDrop());
  g.lineWidth=1.5;box(g,450,5,60,25,5,'#25323ce8','#e8d2a1');
@@ -390,6 +398,6 @@ function witchRider(g,s,p,time){
  else oval(g,p.x,p.y,12,12,p.color);
  g.restore();
 }
-window.PartyArenaScenes=Object.freeze({preload,shopping,shoppingCart,knight,knightHorse,witch,witchRider,clock,playerCount,badgeBottomY,product,productSVG,productIds,assetSVG,
+window.PartyArenaScenes=Object.freeze({preload,shopping,shoppingCart,knight,knightHorse,witch,witchRider,clock,playerCount,bareCount,badgeBottomY,product,productSVG,productIds,assetSVG,
  treeSVG,tentSVG,roofSVG,horseSVG,broomSVG,cache,grass,sprite,oval,box,line,noise});
 })();
