@@ -31,7 +31,12 @@ function syncGameCatalog(){
  for(const game of platform.games()){
   MODES[game.id]=game.name;ENGINES[game.id]=game.global;
  }
+ const permitted=modesFor('normal');
+ for(const player of players){
+  if(player.choice&&!permitted.includes(player.choice))player.choice=permitted[0]||null;
+ }
  renderModeChoices();
+ if(currentView==='hostLobby'){renderRoster();broadcastRoster();}
  if(boardSession&&round?.mode==='board')warmBoardGames();
 }
 const BOARD_ENGINE={draw:(g,t)=>window.BoardArt.draw(g,t,boardSession),hud:()=>({survivors:boardSession?.players.length||0})};
@@ -64,7 +69,9 @@ function renderModeChoices(){
  }
  for(const button of document.querySelectorAll('[data-pick]')){
   const mode=button.dataset.pick;
-  if(!Object.hasOwn(MODES,mode))continue;
+  const enabled=modesFor('normal').includes(mode);
+  button.hidden=!enabled;button.disabled=!enabled;
+  if(!Object.hasOwn(MODES,mode)||!enabled)continue;
   const label=document.createElement('span');label.className='mode-choice-title';
   label.textContent=MODES[mode];button.replaceChildren(gameCover(mode),label);
   button.title=MODES[mode];
@@ -1206,7 +1213,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         conn.videoAutoHeight=autoHeight;
         if(round&&conn.previewEnabled===true&&(changed||!hostVideoCalls.has(conn)))startHostVideoCall(conn);
       }else if(msg.t==='pick'&&conn.playerId){
-        if(round||selectedSessionMode==='board'||currentView!=='hostLobby'||!Object.hasOwn(MODES,msg.mode))return;
+        if(round||selectedSessionMode==='board'||currentView!=='hostLobby'||!modesFor('normal').includes(msg.mode))return;
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!p||p.choice===msg.mode)return;
         p.choice=msg.mode;lobbyReadyVotes.delete(p.id);renderRoster();broadcastRoster();
@@ -3726,7 +3733,7 @@ function pickRandomEndlessGame(previous=null,random=Math.random){
   return candidates[index];
 }
 function beginGameSelection(mode){
-  if(!players.length||!Object.hasOwn(MODES,mode)||gameSelection)return;
+  if(!players.length||!modesFor(boardSession?'board':'normal').includes(mode)||gameSelection)return;
   // No actual engine starts until the reel settles; this also guards the
   // seven-second auto-next from launching twice during its last frame.
   const options=boardSession?window.BoardMinigame.eligible(boardRegistry(),players.length):tournament?.endless?modesFor('normal'):
@@ -3916,7 +3923,7 @@ renderModeChoices();
 window.addEventListener('gameplatform:catalog',syncGameCatalog);
 syncGameCatalog();
 function onPhoneGamePick(mode){
-  if(!phoneSelectionOpen||!controllerReady||!Object.hasOwn(MODES,mode))return;
+  if(!phoneSelectionOpen||!controllerReady||!modesFor('normal').includes(mode))return;
   updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
 }
