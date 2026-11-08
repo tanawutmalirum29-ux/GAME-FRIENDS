@@ -33,8 +33,16 @@ for(const [from,mid,to] of [
 assert.equal(map.territories['v8-court-workshop-watch'].nodeIds.join(','),'w6,w7',
  'do not delete/move the two adjacent workshop swords');
 const visible=new Set(D.allPathSegments.map(p=>p.from_+'>'+p.to));
-assert.ok(!JSON.stringify(D).match(/["']ws\\d+_\\d+["']/),
- 'precompiled vector metadata must not retain removed ws node IDs');
+const artworkMetadata={
+ nodes:D.newNodes,positions:D.allNodePositions,roads:D.roads,
+ paths:D.allPathSegments,roadSegments:D.existingRoadSegments,
+ bridgeSegments:D.existingBridgeSegments,bridges:D.bridges,
+ patches:D.patchOldNextNodes
+};
+assert.doesNotMatch(JSON.stringify(artworkMetadata),/\bws\d+_\d+\b/,
+ 'playable and drawn map metadata must contain no old ws node references');
+// Migration report deliberately keeps old IDs in its audit history only.
+assert.equal(oldWorkshop.filter(id=>M.GRAPH_MIGRATION.removedExplicit.includes(id)).length,8);
 assert.deepEqual([...visible].sort(),[...new Set(edges)].sort(),
  'no ghost or missing vector path; full physical/visual parity');
 assert.equal(map.idMigration.length,302);assert.equal(Object.keys(map.nodePathIds).length,302);
