@@ -10,7 +10,8 @@ const browserName=process.env.BOARD_BROWSER||'chromium';
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'gf-plugin-browser-'));
 const ROOT=path.resolve(__dirname,'..');
 const CORE='a'.repeat(20);
-const H1='1'.repeat(24),H2='2'.repeat(24),H3='3'.repeat(24);
+const H1='1'.repeat(24),H2='2'.repeat(24),H3='3'.repeat(24),
+ H4='4'.repeat(24),H5='5'.repeat(24),H6='6'.repeat(24),H7='7'.repeat(24);
 function file(name,value){
  const p=path.join(tmp,name);
  fs.mkdirSync(path.dirname(p),{recursive:true});
@@ -88,18 +89,90 @@ async function run(){
   assert.equal(after.old,'v1','previous round is never modified by update');
   assert.equal(after.ready,true);
   assert.equal(await page.evaluate(async()=>(await GamePlatform.ensure('extra')).version),'new');
-  current={schema:1,coreHash:'b'.repeat(20),games:[two,extra]};sendCatalog();
+  // Publish an invalid API under the same core. The old engine remains usable.
+  const broken=makeGame('pilot',H4,'invalid-api');
+  file('game-assets/pilot/'+H4+'/game.js','export default null;\\n');
+  current={schema:1,coreHash:CORE,games:[broken,extra]};sendCatalog();
+  assert.equal(await page.evaluate(()=>GamePlatform.refresh()),true);
+  const recovered=await page.evaluate(async()=>{
+   const engine=await GamePlatform.ensure('pilot');
+   return {version:engine.version,ready:GamePlatform.ready('pilot'),
+    published:GamePlatform.descriptor('pilot').hash,old:window.__ongoing.version,
+    rejected:GamePlatform.getRejected()};
+  });
+  assert.equal(recovered.version,'v2','invalid update falls back to last good in-memory engine');
+  assert.equal(recovered.old,'v1','running round remains pinned');
+  assert.equal(recovered.ready,true);
+  assert.equal(recovered.published,H2);
+  assert.equal(recovered.rejected.length,1);
+  assert.equal(recovered.rejected[0].hash,H4);
+  assert.equal(await page.evaluate(()=>GamePlatform.refresh()),false,
+   'same broken version stays quarantined');
+
+  // A new game with missing immutable assets disappears from both selection modes.
+  const missing=makeGame('unavailable',H5,'not-found');
+  fs.rmSync(path.join(tmp,'game-assets/unavailable/'+H5+'/game.js'));
+  current={schema:1,coreHash:CORE,games:[broken,extra,missing]};sendCatalog();
+  await page.evaluate(()=>GamePlatform.refresh());
+  const hidden=await page.evaluate(async()=>{
+   let error='';
+   try{await GamePlatform.ensure('unavailable');}
+   catch(e){error=String(e.message||e);}
+   return {error,found:!!GamePlatform.descriptor('unavailable'),
+    selectable:GamePlatform.games('board').map(g=>g.id)};
+  });
+  assert.ok(hidden.error,'an uncached missing module must fail');
+  assert.equal(hidden.found,false);
+  assert.deepEqual(hidden.selectable.sort(),['extra','pilot']);
+  assert.equal(await page.evaluate(()=>GamePlatform.refresh()),false,
+   'quarantine also prevents re-listing a missing newly added game');
+
+  // After the cooldown, the quarantined hash can be tried again.
+  const expired=await page.evaluate(async()=>{
+   const actual=Date.now;
+   Date.now=()=>actual()+95_000;
+   try{await GamePlatform.refresh();return GamePlatform.descriptor('pilot').hash;}
+   finally{Date.now=actual;}
+  });
+  assert.equal(expired,H4,'expired hash is retried without forcing page navigation');
+  const rolledBackAgain=await page.evaluate(async()=>(
+   await GamePlatform.ensure('pilot')).version);
+  assert.equal(rolledBackAgain,'v2');
+
+  // Publishing a valid *different* hash recovers immediately, no wait for TTL.
+  const valid=makeGame('pilot',H6,'v3');
+  const restored=makeGame('unavailable',H7,'restored');
+  current={schema:1,coreHash:CORE,games:[valid,extra,restored]};sendCatalog();
+  assert.equal(await page.evaluate(()=>GamePlatform.refresh()),true);
+  const healthy=await page.evaluate(async()=>({
+   pilot:(await GamePlatform.ensure('pilot')).version,
+   newGame:(await GamePlatform.ensure('unavailable')).version,
+   rejected:GamePlatform.getRejected().length,
+   pinned:window.__ongoing.version,
+   count:GamePlatform.games().length
+  }));
+  assert.equal(healthy.pilot,'v3');
+  assert.equal(healthy.newGame,'restored');
+  assert.equal(healthy.rejected,0);
+  assert.equal(healthy.pinned,'v1');
+  assert.equal(healthy.count,3);
+
+  current={schema:1,coreHash:CORE,games:[{...valid,enabled:false},extra,restored]};sendCatalog();
+  await page.evaluate(()=>GamePlatform.refresh());
+  assert.equal(await page.evaluate(()=>GamePlatform.descriptor('pilot')),null,
+   'a disabled game is never resurrected by last-known-good fallback');
+  current={schema:1,coreHash:'b'.repeat(20),games:[valid,extra,restored]};sendCatalog();
   const coreUpdate=await page.evaluate(async()=>{
    const applied=await GamePlatform.refresh();
    return {applied,pending:GamePlatform.pendingCoreUpdate,count:GamePlatform.games().length};
   });
   assert.equal(coreUpdate.applied,false);
   assert.equal(coreUpdate.pending,true);
-  assert.equal(coreUpdate.count,2);
+  assert.equal(coreUpdate.count,2,'the incompatible core cannot reenable the disabled game');
   assert.equal(page.url(),url,'neither a game update nor a core mismatch navigates');
   assert.deepEqual(errors,[],'no unhandled script errors in '+browserName);
   console.log('GAME PLATFORM BROWSER PASS '+browserName+
-    ': hot activation, pinned round, new discovery, core mismatch, no navigation');
+    ': live rollback, quarantine/TTL, missing assets, hash recovery, disable and core guard');
   await page.close();
  }finally{await browser.close();}
 }

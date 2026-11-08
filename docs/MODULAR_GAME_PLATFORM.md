@@ -63,3 +63,23 @@ The production HTML omits the 2 third-party defer tags for PeerJS and QRCode. `s
 
 ### Lightweight page bootstrap
 The production page uses `src/platform/main-loader.js` as its first application entrypoint, rather than an unconditional `app.js` script tag. A fresh `?host=1` welcome screen downloads the full host app only after the user chooses online/offline mode; controller join links and existing host sessions eagerly load the app for immediate restoration. The first host click requests fullscreen synchronously before the async download (subject to platform permission). This is a **real network reduction on fresh host welcome**, not just build-time source organization. Full per-feature code splitting inside the single host/controller closure would require an additional API-boundary migration and is not claimed here.
+
+## Same-core hot-patch failure recovery
+
+A failed engine download, missing module or invalid plug-in API is quarantined by
+its exact **content hash** for 90 seconds. When a previously verified engine
+object is already in memory, both NORMAL and BOARD can keep using that engine
+for *new* rounds until a working catalog revision arrives. Existing rounds never
+lose their pinned engine object. An entirely new broken game is temporarily
+hidden from both pickers (instead of entering an impossible roulette). The
+registry exposes `GamePlatform.getRejected()` for diagnostics; every rejected
+hash is retried after its quarantine expires or bypassed immediately when the
+publisher deploys a different hash. Disabling a game in the catalog always
+removes it, even if an older engine is cached. In-flight superseded game loads
+are not quarantined; the roulette retries the newest revision once.
+
+Rollback is strictly **in-memory**: no guarantee that AWS retains an older
+versioned asset after a new deployment. A fresh browser without an old engine
+will still fail safely and return to the lobby. Browser integration checks
+cover missing modules, invalid APIs, a freshly broken game, recovery after a
+good replacement and continued BOARD mounting without navigation.

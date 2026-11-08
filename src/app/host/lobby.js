@@ -66,9 +66,15 @@ function beginGameSelection(mode){
     selection.ready=false;
     void (async()=>{
       if(!platform.revision)await platform.refresh();
-      await platform.ensure(mode);
-      selection.ready=true;
-    })().catch(error=>{selection.error=error;});
+      try{await platform.ensure(mode);}
+      catch(error){
+        // A catalog can change during the roulette. Retry its new hash once.
+        if(String(error?.message||'').startsWith('Superseded plug-in version:')&&
+           platform.descriptor(mode))await platform.ensure(mode);
+        else throw error;
+      }
+      if(gameSelection===selection)selection.ready=true;
+    })().catch(error=>{if(gameSelection===selection)selection.error=error;});
   }
   if(boardSession){gameSelection.spinDuration=2;gameSelection.holdDuration=1.4;}
   setView('game');
