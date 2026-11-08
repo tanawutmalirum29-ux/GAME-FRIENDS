@@ -1787,7 +1787,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  assert.equal(api.pickRandomEndlessGame(null,()=>0),'ghost');
  assert.equal(api.pickRandomEndlessGame('ghost',()=>0),'chickens',
    'previous game is excluded, not replayed at next spin');
- assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'lawn_mower',
+ assert.equal(api.pickRandomEndlessGame('ghost',()=>.99999),'color_claim',
    'new random value changes the game instead of following fixed order');
  ui.click('startBtn');
  assert.equal(api.getTournament().endless,true);
