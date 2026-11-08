@@ -83,7 +83,8 @@ test('drift retains sideways momentum; A/B are not gameplay actions',()=>{
  assert.ok(Math.hypot(a.x-before.x,a.y-before.y)>1,'no instant stop');
  const h=a.ice.heading;
  a.input={axisX:-Math.sin(h),axisY:Math.cos(h)};
- x.e.update(1/60,x.round,x.ps);
+ for(let i=0;i<7;i++)x.e.update(1/60,x.round,x.ps);
+ assert.equal(a.ice.state,'racing');
  assert.ok(Math.abs(a.ice.driftAngle)>.01,'heading must differ from travel');
  assert.ok(Math.abs(a.ice.angularVelocity)<x.e.config.turnSpeed);
  x.round.paused=true;const frozen={x:a.x,y:a.y,t:x.s.tick};
