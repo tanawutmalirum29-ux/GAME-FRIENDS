@@ -37,7 +37,7 @@ const used=new Set(),territories=Object.values(m.territories);
 for(const t of territories){
  assert.equal(t.nodeIds.length,2,'sword territories always contain exactly two tiles: '+t.id);
  const [a,b]=t.nodeIds.map(get);
- assert.ok(a&&b&&a.nextNodes.includes(b),'two sword tiles must be directly linked: '+t.id);
+ assert.ok(a&&b&&a.nextNodes.includes(b.id),'two sword tiles must be directly linked: '+t.id);
  assert.ok(dist(a.position,b.position)>=88,'two tiles must have distinct readable positions: '+t.id);
  if(t.id.startsWith('v8-court-'))assert.ok(a.islandId&&a.islandId===b.islandId,'new sword plaza stays entirely on one island');
  for(const n of [a,b]){
