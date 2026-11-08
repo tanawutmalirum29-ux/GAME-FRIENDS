@@ -42,3 +42,24 @@ Production game-engine lazy-loading and compatibility adapters can ship without 
 Full page-specific lazy loading, splitting `app.js`, centralizing *all* legacy
 HUD/round result paths, and browser-tested core recovery must be checked as
 separate migration gates before claiming the complete six-phase refactor.
+
+## Source architecture: maintained app modules
+`app.js` is now a **generated, byte-for-byte compatibility bundle**. Make application edits in `src/app/` instead; `src/app/modules.json` defines the ordered source modules that are assembled into one lexical runtime by `scripts/build-app.cjs`. The CI `--check` gate rejects divergence, and AWS runs the generator before calculating the core fingerprint. This avoids `eval` and changes no current host/controller API contracts. Named modules:
+
+- `core/runtime.js` — shared state, reusable UI, layout, player and host canvas primitives
+- `host/room.js` — host room lifecycle, QR, player and peer management
+- `controller/connection.js` — join/return, phone previews, orientation and controller input
+- `board/integration.js` — BOARD session and controller bridge
+- `rounds/engine.js` — round setup and fixed-step update
+- `rounds/results.js` — shared ranking, legacy result adapters, result UI
+- `rounds/render.js` — HUD, camera and main animation loop
+- `host/lobby.js` — lobby/start/roulette flow and UI bindings
+- `main.js` — launch route, room restoration and update guards
+
+Run `node scripts/build-app.cjs --write` after source edits, then `node scripts/build-app.cjs --check`. The existing `app.js` file is not the source of truth. **These are source modules assembled at build-time, not independent network chunks:** interdependent functions still share one lexical runtime for multiplayer/host safety. Actual route-level network chunking is a separate gate and must not be assumed from the source split.
+
+### On-demand remote connection stack
+The production HTML omits the 2 third-party defer tags for PeerJS and QRCode. `src/platform/runtime-deps.js` loads PeerJS only when a controller joins; when the host creates a room it loads both PeerJS and QRCode. Offline bots and initial controller join screens no longer download these online libraries. A cancelled host-room load is guarded by `hostOpenAttempt`, so a late network response cannot reopen an abandoned room. Legacy development HTML retains CDN tags for test harness compatibility.
+
+### Lightweight page bootstrap
+The production page uses `src/platform/main-loader.js` as its first application entrypoint, rather than an unconditional `app.js` script tag. A fresh `?host=1` welcome screen downloads the full host app only after the user chooses online/offline mode; controller join links and existing host sessions eagerly load the app for immediate restoration. The first host click requests fullscreen synchronously before the async download (subject to platform permission). This is a **real network reduction on fresh host welcome**, not just build-time source organization. Full per-feature code splitting inside the single host/controller closure would require an additional API-boundary migration and is not claimed here.

@@ -8,7 +8,7 @@ const http=require('node:http');
 const {chromium,webkit}=require('playwright');
 const root=path.resolve(__dirname,'..'),kind=process.env.BOARD_BROWSER||'chromium';
 const {build}=require('../scripts/build-game-catalog.cjs');
-const {pruneLegacy,pruneBoardCore}=require('../scripts/lazy-game-scripts.cjs');
+const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot}=require('../scripts/lazy-game-scripts.cjs');
 const catalog=build();
 const manifests=new Map();
 for(const dir of fs.readdirSync(path.join(root,'src/games'),{withFileTypes:true}).filter(x=>x.isDirectory())){
@@ -16,7 +16,7 @@ for(const dir of fs.readdirSync(path.join(root,'src/games'),{withFileTypes:true}
  manifests.set(manifest.id,{folder,manifest});
 }
 const source=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const html=pruneBoardCore(pruneLegacy(source,catalog));
+const html=pruneAppBoot(pruneExternal(pruneBoardCore(pruneLegacy(source,catalog))));
 assert.ok(!html.includes('src="./ghost-attack.js"'),'production must strip eager ghost engine');
 assert.ok(!html.includes('src="./board-party.js"'),'production must defer BOARD core');
 const buildVersion='window.GAME_BUILD_VERSION="lazy-browser-test";'+
@@ -78,7 +78,9 @@ const server=http.createServer((req,res)=>{
   assert.equal(await page.evaluate(()=>window.BoardParty),undefined,'BOARD core must not load at startup');
   assert.equal(await page.evaluate(()=>window.GhostAttack),undefined,
    'host/controller start does not fetch unused minigame code');
+  assert.equal(await page.evaluate(()=>window.__lazyGameTest),undefined,'fresh welcome defers app.js');
   await page.locator('#offlineBtn').click();
+  await page.waitForFunction(()=>!!window.__lazyGameTest,null,{polling:100,timeout:15000});
   await page.evaluate(()=>window.__lazyGameTest.beginGameSelection('ghost'));
   const initialSelection=await page.evaluate(()=>({
     url:location.href,view:__lazyGameTest.view,players:__lazyGameTest.players.length,

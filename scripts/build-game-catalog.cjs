@@ -61,8 +61,8 @@ function coreHash(){
   "board-party.js",
   "board-art.js",
   "board-controller-camera.js",
-  "src/platform/game-platform.js",
-  "src/platform/board-runtime.js"
+  "src/platform/game-platform.js","src/platform/runtime-deps.js",
+  "src/platform/board-runtime.js","src/platform/main-loader.js"
 ]){
   if(fs.existsSync(path.join(root,relative))){
    h.update(relative+'\0');h.update(fs.readFileSync(path.join(root,relative)));

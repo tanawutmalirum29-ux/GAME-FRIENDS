@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "description": "Source-of-truth components of app.js, assembled in order within the same lexical closure. Do not edit app.js directly.",
+  "parts": [
+    "src/app/core/runtime.js",
+    "src/app/host/room.js",
+    "src/app/controller/connection.js",
+    "src/app/board/integration.js",
+    "src/app/rounds/engine.js",
+    "src/app/rounds/results.js",
+    "src/app/rounds/render.js",
+    "src/app/host/lobby.js",
+    "src/app/main.js"
+  ]
+}

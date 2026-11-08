@@ -1,0 +1,227 @@
+function boardRegistry(){return Object.fromEntries(modesFor('board').map(id=>{
+ const platform=window.GamePlatform,d=platform?.descriptor(id);
+ if(d&&(players.length<d.players.min||players.length>d.players.max))return [id,null];
+ const engine=gameEngine(id);
+ if(engine&&(!d||platform.ready(id)))return [id,engine];
+ if(!d)return [id,engine];
+ const unavailable=()=>{throw Error('Minigame not preloaded: '+id);};
+ return [id,{minPlayers:d.players.min,maxPlayers:d.players.max,
+  setup:unavailable,update:unavailable,draw:unavailable}];
+}));}
+function warmBoardGames(){
+ const platform=window.GamePlatform;
+ if(!platform?.revision||round?.mode!=='board'||navigator?.connection?.saveData)return;
+ // Warm only two candidates per visit. Never download every game just to open
+ // BOARD PARTY on a metered mobile connection.
+ const candidates=platform.games('board').filter(g=>
+  players.length>=g.players.min&&players.length<=g.players.max&&!platform.ready(g.id));
+ for(const game of candidates.slice(0,2)){
+  void platform.ensure(game.id).catch(error=>console.warn('Board game unavailable: '+game.id,error));
+ }
+}
+let boardCatalogPending=false,boardCorePending=null;
+function beginBoard(){
+  const platform=window.GamePlatform;
+  // Production no longer downloads legacy minigame engines at initial page load.
+  // Wait for the versioned registry rather than mistaking them for missing games.
+  if(window.GAME_CORE_VERSION&&platform&&!platform.revision){
+    if(boardCatalogPending)return;
+    boardCatalogPending=true;
+    void platform.refresh().then(()=>{
+      boardCatalogPending=false;
+      if(currentView!=='hostLobby'||selectedSessionMode!=='board'||!players.length)return;
+      if(platform.revision)beginBoard();
+      else showToast('กำลังรอรายชื่อมินิเกมจากเซิร์ฟเวอร์',true);
+    }).catch(error=>{
+      boardCatalogPending=false;
+      showToast('โหลดรายชื่อมินิเกมไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
+    });
+    return;
+  }
+  // Fetch BOARD core only for BOARD; preserve the idle lobby while loading.
+  const core=window.BoardRuntime;
+  if(core&&!core.ready()){
+    if(boardCorePending)return boardCorePending;
+    const sessionMode=selectedSessionMode;
+    boardCorePending=core.ensure().then(()=>{
+      boardCorePending=null;
+      if(currentView==='hostLobby'&&!round&&!boardSession&&players.length&&
+         selectedSessionMode===sessionMode)return beginBoard();
+    }).catch(error=>{
+      boardCorePending=null;
+      console.error('BOARD PARTY asset load failed',error);
+      showToast('โหลด BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
+    });
+    return boardCorePending;
+  }
+  const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt','PartyPlayerAvatar'];
+  if(required.some(name=>!window[name])){showToast('โหลด BOARD PARTY ไม่ครบ กรุณาโหลดหน้าใหม่',true);return;}
+  if(!window.BoardMinigame.eligible(boardRegistry(),players.length).length){showToast('ไม่มีมินิเกมที่พร้อมเล่น',true);return;}
+  try{
+    tournament=null;gameSelection=null;
+    boardSession=window.BoardParty.create(players);
+    boardSession.camera.lowDetail=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
+    window.BoardArt.overview(boardSession);
+    players.forEach(p=>{p.active=true;});
+    window.PartyPlayerAvatar.preload(boardSession.players);
+    showBoard();warmBoardGames();requestHostFullscreen();
+  }catch(error){
+    console.error('BOARD PARTY start failed',error);returnToLobby();
+    showToast('เริ่ม BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
+  }
+}
+// Host-screen zoom requires a local human in their OWN BOARD turn; remote
+// players zoom only from their authenticated phones.
+function hostCanControlBoardZoom(){
+ const s=boardSession,p=s&&window.BoardParty?.current(s);
+ return !!(round?.mode==='board'&&round.phase==='playing'&&p&&
+   (players.some(q=>q.id===p.id&&q.type==='local'&&!q.isBot)||s.players.every(q=>q.isBot))&&
+   window.BoardArt?.canPan?.(s));
+}
+function refreshBoardTools(){
+ const active=round?.mode==='board'&&!!boardSession;
+ $('boardTools').classList.toggle('hidden',!active);
+ if(active){
+  const c=boardSession.camera;
+  const botsOnly=boardSession.players.every(p=>p.isBot);
+   if(!botsOnly){c.debugNodes=false;c.selectedId=null;}
+   $('boardNodeDebugBtn').classList.toggle('hidden',!botsOnly);
+   $('boardNodeDebugBtn').setAttribute('aria-pressed',String(botsOnly&&!!c.debugNodes));
+  $('boardEffectsBtn').setAttribute('aria-pressed',String(!!c.lowDetail));
+  $('boardStartDiceBtn').classList.add('hidden'); // Automatic 2-second panorama, no manual start required.
+  const canZoom=hostCanControlBoardZoom();
+  // Overview/follow change zoom implicitly; treat them as zoom controls too.
+  $('boardFollowBtn').disabled=['overview','intro_zoom'].includes(boardSession.phase)||!canZoom;
+  $('boardOverviewBtn').disabled=boardSession.phase==='intro_zoom'||
+    (boardSession.phase!=='overview'&&!canZoom);
+  $('boardZoomInBtn').disabled=!canZoom;$('boardZoomOutBtn').disabled=!canZoom;
+ }
+ if(active&&round.paused){
+  $('pauseBtn').title='เล่นต่อ';$('pauseBtn').setAttribute('aria-label','เล่นต่อ');
+  $('pauseBtn').classList.add('board-resume');
+ }else{
+  $('pauseBtn').title='หยุดเกม';$('pauseBtn').setAttribute('aria-label','หยุดเกม');
+  $('pauseBtn').classList.remove('board-resume');
+ }
+}
+function showBoard(){
+  round={mode:'board',phase:'playing',paused:false,remaining:null,autoNextRemaining:0};
+  resetInputs();boardStateToken=null;
+  $('gameRoulette').classList.add('hidden');$('results').classList.add('hidden');
+  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.remove('hidden');
+  $('boardExitBtn').classList.add('hidden');
+  $('pauseBtn').setAttribute('aria-expanded','false');$('gameBanner').textContent='';
+  document.body.classList.add('board-playing');
+  setView('game');
+  // Paint the order/result screen in the Start event itself. Safari can delay
+  // its first animation frame during fullscreen; old minigame clips must not survive.
+  canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
+  renderLeaderboard();broadcastRoster();renderBotTestPad();
+  remotePreviewClock=1.1;
+  for(const conn of hostConnections)startHostVideoCall(conn);
+}
+function updateBoard(dt){
+  const s=boardSession;if(!s||round.phase==='results')return;
+  // Local human keys follow the same sequence- and turn-checked path.
+  for(const p of players.filter(p=>p.type==='local'&&!p.isBot)){
+    const keys={...p.input,axisX:p.input.axisX||Number(p.input.right)-Number(p.input.left),axisY:p.input.axisY||Number(p.input.down)-Number(p.input.jump)};
+    window.BoardParty.input(s,p.id,{turnId:s.turnId,actionId:(s.lastActions[p.id]??0)+1,keys});
+  }
+  // Board is turn-based: catch up to elapsed wall-clock time in short,
+  // bounded steps. Never let low FPS stretch control timeouts indefinitely.
+  let pending=Math.max(0,Math.min(1,Number(dt)||0));
+  for(let ticks=0;ticks<20&&pending>1e-6;ticks++){
+    const step=Math.min(.05,pending);
+    window.BoardParty.update(s,step);
+    pending-=step;
+    if(s.phase==='minigame_pending'||s.phase==='minigame'||s.phase==='finished')break;
+  }
+  refreshBoardTools();
+   if(s.phase==='minigame_pending'){
+    const mode=window.BoardMinigame.pick(boardRegistry(),s.players.length,s.lastMinigame,s.rng);
+    if(!mode)throw Error('No compatible minigame');
+    s.savedBoard=window.BoardParty.snapshot(s);
+    if(window.BoardParty.minigameStarted(s,mode))beginGameSelection(mode);
+    return;
+  }
+  if(s.phase==='finished'){if(s.time-s.phaseAt>=1.8)finishBoard();return;}
+  boardStateClock+=dt;
+  const stateKey=s.turnId+':'+s.phase+':'+window.BoardParty.remainingSteps(s,window.BoardParty.current(s)?.id);
+  if(boardStateToken!==stateKey||boardStateClock>.2){broadcastBoardState();boardStateClock=0;boardStateToken=stateKey;}
+}
+function broadcastBoardState(){
+  if(!boardSession||round?.mode!=='board')return;
+  for(const conn of hostConnections){
+    const p=boardSession.players.find(p=>p.id===conn.playerId);if(!p)continue;
+    send(conn,{t:'board-state',mapVersion:boardSession.map.version,phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
+      round:boardSession.roundNumber,hp:p.hp,usedRound:p.usedRound||0,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:window.BoardParty.isProtected(boardSession,p)?1:0,
+      canZoom:round.phase==='playing'&&!round.paused&&window.BoardParty.current(boardSession)?.id===p.id&&
+        window.BoardArt.canPan(boardSession),
+      item:window.BoardItems.names[p.item]||'ไม่มีไอเทม',
+      bag:window.BoardItems.bag(p).slice(),actionIndex:p.actionIndex||0,bagMessage:p.bagMessage||'',
+      ...window.BoardParty.controls(boardSession,p.id)});
+  }
+}
+function receiveBoardState(info){
+  const previousToken=controllerBoard?.turnId;
+  controllerBoard=info;setControllerGameContext('board',info.phase,true);
+  if(info.phase!=='results')renderPhoneBoard();
+  // A release sent with the previous token may have been rejected by the host.
+  // Resend the physical button/stick state as soon as the new control phase arrives.
+  if(info.phase==='playing'&&info.turnId!==previousToken)sendInputs();
+}
+function renderPhoneBoard(){
+ const info=controllerBoard;if(!info||controllerGameMode!=='board')return;
+ $('buttonA').disabled=false;$('buttonB').disabled=false;
+ for(const cls of ['chickens-mode','fruit-memory-mode','color-switch-mode','shockwave-mode','has-target'])$('controllerButtons').classList.remove(cls);
+ // The existing on-screen C button cancels either UFO or bomber targeting.
+ // Reuse the aim-layout class so the control stays visible on narrow phones.
+ const itemAim=info.boardPhase==='aim'&&info.c==='ยกเลิก';
+ $('controllerButtons').classList.toggle('board-bomber-aim',itemAim);
+ $('buttonC').disabled=!itemAim;
+ $('buttonCLabel').textContent=itemAim?'ยกเลิก':'';
+ $('buttonC').setAttribute('aria-label',itemAim?'C ยกเลิกการเล็งไอเทม':'C');
+ $('targetCycleControls').classList.add('hidden');
+ for(const id of ['buttonA','buttonB']){$(id).classList.remove('cooldown-active','color-boost-ready');$(id).style.removeProperty('--cooldown-sweep');}
+ $('controllerModeName').textContent='BOARD PARTY • ROUND '+info.round;
+ $('buttonALabel').textContent=info.a||'';$('buttonBLabel').textContent=info.b||'';
+ $('buttonA').setAttribute('aria-label','A '+(info.a||''));$('buttonB').setAttribute('aria-label','B '+(info.b||''));
+ $('controllerHelp').textContent=info.boardPhase==='ready'&&boardCameraController?.enabled()?
+    'ดูแผนที่ • ลากจอยเพื่อเลื่อน / หุบกางเพื่อซูม • ดับเบิลแท็บเพื่อกลับกระเป๋า':info.help||'';
+ $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing'||
+   (info.boardPhase==='ready'&&!!boardCameraController?.enabled()));
+ const bag=Array.isArray(info.bag)?info.bag:[],ready=info.boardPhase==='ready';
+ const options=['roll',...window.BoardItems.ids],stock=Object.fromEntries(window.BoardItems.ids.map(id=>[id,0]));
+ for(const id of bag)if(Object.hasOwn(stock,id))stock[id]++;
+ const selected=ready&&Number.isInteger(info.actionIndex)?Math.max(0,Math.min(options.length-1,info.actionIndex)):0;
+ $('controllerRole').textContent='HP '+info.hp+'/100 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • ไอเทม '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
+ const host=$('inventoryItem');host.classList.remove('pizza-order-icons','board-bag-icons');host.replaceChildren();
+ host.classList.add('board-bag-icons');
+ const svg=window.PartyUiArt,doc=host.ownerDocument||document;
+ const rollIcon='<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="7" width="22" height="22" rx="5" fill="#fff4dc" stroke="#d2a85b" stroke-width="2"/><rect x="24" y="18" width="20" height="20" rx="5" fill="#f9f5ec" stroke="#d2a85b" stroke-width="2"/><g fill="#4c5e73"><circle cx="10" cy="13" r="2.5"/><circle cx="20" cy="23" r="2.5"/><circle cx="30" cy="24" r="2.5"/><circle cx="38" cy="32" r="2.5"/></g></svg>';
+ for(let i=0;i<options.length;i++){
+   const id=options[i],qty=id==='roll'?null:stock[id],cell=doc.createElement('span');
+   const locked=id!=='roll'&&info.usedRound===info.round;
+   cell.className='board-bag-item'+(qty===0?' is-empty':'')+(locked?' is-locked':'')+(ready&&i===selected&&!locked&&qty!==0?' is-selected':'');
+   cell.innerHTML=id==='roll'?rollIcon:svg?.svg(id)||'';
+   cell.title=id==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[id]||id;
+   cell.setAttribute('aria-label',cell.title+(qty===null?'':' จำนวน '+qty));
+   if(qty!==null){
+     const badge=doc.createElement('span');
+     badge.className='board-item-count';badge.textContent=String(qty);
+     cell.append(badge);
+   }
+   host.append(cell);
+ }
+ const guide=$('inventoryGuide');
+ const mapInspection=info.boardPhase==='ready'&&!!boardCameraController?.enabled();
+ const slot=options[selected]||'roll';
+ guide.textContent=mapInspection?'กำลังดูแผนที่ • ดับเบิลแท็บบนจอยอีกครั้งเพื่อเปิดกระเป๋า':info.boardPhase==='aim'?
+   'เล็งเป้า • A '+(info.a||'ยืนยัน')+' • B '+(info.b||'ไม่ใช้')+' • C '+(info.c||'ยกเลิก'):
+   ready?(info.usedRound===info.round?'ใช้ไอเทมแล้ว 1 ชิ้น • A ทอยลูกเต๋าต่อ':
+     'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[slot]||slot)+
+     ' • A '+(info.a||'ยืนยัน')+' • B '+(info.b||'เปลี่ยนไอเทม')+
+     (info.bagMessage?' • '+info.bagMessage:'')):
+   'ทอยลูกเต๋า + ไอเทมทั้ง 6 ชนิด';
+ $('controllerState').textContent=info.help||'';
+}
