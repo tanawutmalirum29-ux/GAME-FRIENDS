@@ -2,7 +2,10 @@
 (() => {
 'use strict';
 const STEP=1/60,TAU=Math.PI*2;
-const BOUNDS=Object.freeze({x:218,y:58,w:677,h:428});
+// The ice field is fully playable to both visible screen edges; only the
+// avatar radius and a small safety inset stop players from exiting the view.
+const BOUNDS=Object.freeze({x:20,y:58,w:920,h:428});
+const SCREEN_LEFT=0,SCREEN_RIGHT=960,ROCK_EDGE_MARGIN=12;
 const MIN_X=BOUNDS.x,MAX_X=BOUNDS.x+BOUNDS.w,TOP=BOUNDS.y,BOTTOM=BOUNDS.y+BOUNDS.h;
 // The reachable snow ends at MAX_X; the right-hand chute remains visible.
 // Start formation is the left/front edge of the slope, not across its width.
@@ -67,7 +70,8 @@ function rockAt(s,y,owner=null){
  // A second rock for an already occupied owner becomes a normal boulder.
  if(owner?.bb?.rockId!=null)owner=null;
  const r=owner?27:24+Math.floor(rng(s)*4)*5;
- const x=1000+r,vy=(rng(s)-.5)*85;
+ // Spawn fully beyond the RIGHT edge, then roll into view organically.
+ const x=SCREEN_RIGHT+r+ROCK_EDGE_MARGIN,vy=(rng(s)-.5)*85;
  const rock={id:s.nextId++,ownerId:owner?.id||null,color:owner?color(owner):null,
   x,y,oldX:x,oldY:y,vx:-145-rng(s)*58,vy,r,mass:r*r,angle:rng(s)*TAU,
   wobble:rng(s)*TAU,spin:0,trail:[],radius:r,age:0};
@@ -286,7 +290,11 @@ function step(dt,round,ps){
   if(sweptHit(p,r,p.bb.oldX,p.bb.oldY))eliminate(s,p,r);
  }
  for(let i=s.rocks.length-1;i>=0;i--){
-  if(s.rocks[i].x<-s.rocks[i].r+36){transferRock(s,s.rocks[i]);s.rocks.splice(i,1);}
+  // Keep rocks (and owner control) until the entire sprite has crossed the
+  // LEFT screen boundary. The old +36 removed them while still visible.
+  if(s.rocks[i].x<SCREEN_LEFT-s.rocks[i].r-ROCK_EDGE_MARGIN){
+   transferRock(s,s.rocks[i]);s.rocks.splice(i,1);
+  }
  }
  for(const e of s.effects)e.life-=dt;
  s.effects=s.effects.filter(e=>e.life>0).slice(-40);
@@ -316,7 +324,7 @@ function circle(g,x,y,r,fill){g.fillStyle=fill;g.beginPath();g.arc(x,y,r,0,TAU);
 function drawRock(g,r,s){window.FarmIceArt.rock(g,r,s);}
 function draw(g,time,round,ps){
  const s=round.boulderBash;if(!s)return;
- g.save();window.FarmIceArt.beginScene(g,'#d3f2ee');window.FarmIceArt.boulder(g,s);
+ g.save();window.FarmIceArt.beginScene(g,'#d3f2ee',{fullWidth:true});window.FarmIceArt.boulder(g,s);
  for(const w of s.warnings){
   g.save();g.globalAlpha=.34+.2*Math.sin(s.clock*20);
   g.strokeStyle=w.ownerId?'#f7b4ce':'#e8faff';g.lineWidth=3;
