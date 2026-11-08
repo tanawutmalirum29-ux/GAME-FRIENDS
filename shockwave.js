@@ -70,14 +70,15 @@ function calculateDangerContact(s,p,dangerIds){
 function inputVector(p,s){
  if(p.isBot){
    const t=tileAt(s,p.x,p.y);
-   // React to any part of the character touching a warning square.
-   if(!t||calculateDangerContact(s,p,new Set(s.danger))===0)return {x:0,y:0};
+   // During a rolling blast, already-exploded tiles no longer threaten bots.
+   const pending=s.phase==='EXPLOSION'?s.danger.filter(id=>s.tiles[id].state==='warning'):s.danger;
+   if(!t||calculateDangerContact(s,p,pending)===0)return {x:0,y:0};
    if(p.shockBotWave!==s.wave){
      p.shockBotWave=s.wave;p.shockBotReadyAt=s.clock+.18+
        random(s)*Math.min(1.7,s.warningDuration*.83);
    }
    if(s.clock<p.shockBotReadyAt)return {x:0,y:0};
-   const safe=s.tiles.filter(t=>t.state==='safe');
+   const safe=s.tiles.filter(t=>t.state==='safe'||t.state==='exploding');
    if(!safe.length)return {x:0,y:0};
    safe.sort((a,b)=>{const aa=tileCenter(s,a),bb=tileCenter(s,b);
      return Math.hypot(p.x-aa.x,p.y-aa.y)-Math.hypot(p.x-bb.x,p.y-bb.y);});
