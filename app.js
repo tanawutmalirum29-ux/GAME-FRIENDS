@@ -1666,6 +1666,12 @@ function joinRoom(recovery=false){
               windup>.01?'เตรียมปล่อยลูกหิมะ • '+windup.toFixed(1)+' วิ':
               'รอด '+data.survivors+' คน • A ปล่อยลูกหิมะ • B ไม่ใช้';
           }
+        }else if(data.t==='gladiators-status'){
+          if(controllerReady&&controllerGameMode==='gladiators'&&data.mode==='gladiators'){
+           controllerPlayerEliminated=!data.alive;
+           $('controllerRole').textContent=data.alive?'ผู้รอดชีวิต':'ตกรอบ';
+           $('controllerState').textContent=data.alive?'GLADIATORS • รอด '+data.survivors+' คน':'ตกรอบ • ดูเกมต่อ';
+          }
         }else if(data.t==='witch-status'){
           if(controllerReady&&controllerGameMode==='witching_snake')
            $('controllerState').textContent=data.alive?'บินหลบเส้นแสง • ดาว '+data.stars:'ตกรอบ • ดูเกมต่อ';
@@ -1712,7 +1718,7 @@ function joinRoom(recovery=false){
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':data.mode==='witching_snake'?'WITCHING SNAKE • รอด '+(data.survivors??'?')+' คน':data.mode==='lawn_mower'?'LAWN MOWER • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shopping_time'?'SHOPPING TIME • เหลือ '+Math.ceil(data.remaining||0)+' วิ':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
+          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':data.mode==='witching_snake'?'WITCHING SNAKE • รอด '+(data.survivors??'?')+' คน':data.mode==='gladiators'?'GLADIATORS • รอด '+(data.survivors??'?')+' คน':data.mode==='lawn_mower'?'LAWN MOWER • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shopping_time'?'SHOPPING TIME • เหลือ '+Math.ceil(data.remaining||0)+' วิ':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
         if(data.mode==='board'&&data.phase==='playing')renderPhoneBoard();
       }else if(data.t==='closed'){
