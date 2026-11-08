@@ -534,12 +534,10 @@ function draw(ctx,time,round,ps){
  for(const p of ps)drawPerson(ctx,p,time);
  ctx.restore(); // drawIsland leaves a translated/scaled world transform
  ctx.save();
- ctx.fillStyle='#123c58dd';ctx.beginPath();ctx.roundRect(14,12,230,64,11);ctx.fill();
+ ctx.fillStyle='#123c58dd';ctx.beginPath();ctx.roundRect(14,12,230,44,11);ctx.fill();
  ctx.fillStyle='#f3fdff';ctx.textAlign='left';ctx.font='900 19px system-ui';
  ctx.fillText('SNOW BRAWL',25,36);
- // Countdown and solo time use the universal clock badge.
- ctx.font='bold 13px system-ui';
- ctx.fillText('รอด '+alive(ps).length+' คน',25,58);
+ // Shared HUD displays solo time or multiplayer survivors; no duplicate label.
  if(s.suddenDeath){ctx.fillStyle='#ffe19c';ctx.textAlign='right';ctx.font='900 17px system-ui';
   ctx.fillText('SUDDEN DEATH',WIDTH-22,36);}
  ctx.restore();
