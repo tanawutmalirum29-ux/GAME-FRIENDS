@@ -30,9 +30,9 @@ function bound(state,point,margin){
   point.y=state.center.y+dy*r/l;
 }
 function goalHead(player){
-  const v=player.dir||{x:1,y:0};
-  return {x:player.x+v.x*(C.carryOffset+C.headOffset),
-    y:player.y+v.y*(C.carryOffset+C.headOffset)};
+  const v=player.dir||{x:1,y:0},u=player.chickenUnit||1;
+  return {x:player.x+v.x*(C.carryOffset+C.headOffset)*u,
+    y:player.y+v.y*(C.carryOffset+C.headOffset)*u};
 }
 function penPosition(state,pen,radius,side=0){
   return {x:state.center.x+pen.normal.x*radius+pen.tangent.x*side,
@@ -42,7 +42,7 @@ function gateInside(state,pen,head){
   const relative={x:head.x-pen.gatePosition.x,y:head.y-pen.gatePosition.y};
   const depth=dot(relative,pen.gateNormal),side=dot(relative,pen.tangent);
   return depth>=pen.entryDepth && depth<=pen.depth-5 &&
-    Math.abs(side)<=pen.gateWidth/2-C.chickenRadius*.45;
+    Math.abs(side)<=pen.gateWidth/2-C.chickenRadius*pen.unit*.45;
 }
 function freePosition(state,occupied,minDist=25){
   for(let attempt=0;attempt<320;attempt++){
@@ -60,10 +60,10 @@ function freePosition(state,occupied,minDist=25){
 }
 function makeChicken(state,players){
   const occupied=[...players.filter(p=>p.active),...state.chickens.filter(c=>c.status==='free')];
-  const p=freePosition(state,occupied,23);
+  const p=freePosition(state,occupied,23*state.unit);
   const angle=rand(0,TAU),dir=normal(angle);
   return {id:++state.nextChickenId,x:p.x,y:p.y,dir,
-    vx:dir.x*65*SPEED_SCALE,vy:dir.y*65*SPEED_SCALE,
+    vx:dir.x*65*SPEED_SCALE*state.unit,vy:dir.y*65*SPEED_SCALE*state.unit,
     status:'free',carrierId:null,penId:null,depositPenId:null,depositFor:0,
     decision:rand(0,.18),escapeAngle:angle,invulnerable:0,flap:rand(0,TAU),stuckFor:0,
     panicFor:0,panicRecharge:rand(0,.35)};
@@ -87,11 +87,11 @@ function penLayout(center,radius,world,players){
     n===3?[-3*Math.PI/4,-Math.PI/4,Math.PI/2]:[-3*Math.PI/4,-Math.PI/4,3*Math.PI/4,Math.PI/4];
   return players.map((p,i)=>{
     const angle=n<=4?smallAngles[i]:-Math.PI/2+TAU*i/n;
-    const v=normal(angle),t=right(v),gateWidth=n>=10?66:74;
+    const v=normal(angle),t=right(v),gateWidth=(n>=10?66:74)*u;
     const gatePosition={x:center.x+v.x*(radius-2),y:center.y+v.y*(radius-2)};
     const pen={id:'pen-'+p.id,ownerId:p.id,color:p.color,name:p.name,
       angle,normal:v,gateNormal:v,tangent:t,gatePosition,gateWidth,
-      entryDepth:C.entryDepth,depth:n<=4?96:n<=8?78:96,width:n<=8?126:140,points:0,slots:[]};
+      entryDepth:C.entryDepth*u,depth:n<=4?96:n<=8?78:96,width:(n<=8?126:140)*Math.min(u,1.1),points:0,slots:[],unit:u};
     if(n<=4&&!(n===3&&i===2)){
       const left=v.x<0,top=v.y<0;
       pen.rect={x:(left?150:556)*u,y:(top?26:291)*u,w:254*u,h:223*u};
@@ -112,6 +112,7 @@ function penLayout(center,radius,world,players){
 function setup(round,players){
   const n=Math.max(1,Math.min(12,players.length));
   const world=n<=4?{w:960,h:540}:n<=8?{w:1200,h:675}:{w:1440,h:810};
+  const unit=world.w/960;
   const center={x:world.w/2,y:world.h/2};
   // Include the whole outer pen within the fixed 16:9 world/canvas.
   const radius=Math.min(world.h*.365,world.w*.24);
@@ -123,15 +124,15 @@ function setup(round,players){
   // impossible if every chicken is deposited. Leading ties remain legal.
   // Spawn only 20 at a time; scored birds never return to the reserve.
   const totalChickens=n*5+1;
-  const state={world,center,radius,pens,chickens:[],nextChickenId:0,
+  const state={world,unit,center,radius,pens,chickens:[],nextChickenId:0,
     totalChickens,spawnLimit:Math.min(20,totalChickens),
     remainingReserve:totalChickens,spawnedCount:0,scoredCount:0,
     remaining:n<=4?20:n<=8?30:40,effects:[],time:0};
   for(const [i,p] of players.entries()){
     const a=-Math.PI/2+TAU*(i+.45)/n;
-    const radial=Math.min(radius*.54,110);
+    const radial=Math.min(radius*.54,110*unit);
     p.x=center.x+Math.cos(a)*radial;p.y=center.y+Math.sin(a)*radial;
-    p.vx=0;p.vy=0;p.dir=normal(a);p.face=1;
+    p.vx=0;p.vy=0;p.dir=normal(a);p.face=1;p.chickenUnit=unit;
     p.active=true;p.alive=true;p.score=0;p.ghost=false;p.stun=0;
     p.item=null;p.selecting=false;p.targetId=null;
     p.carriedChickenId=null;p.chickenAttackCooldown=0;p.chickenActionLatch=false;
@@ -149,11 +150,11 @@ function dropChicken(state,p,force={x:0,y:0}){
   p.carriedChickenId=null;
   if(!chicken||chicken.status!=='carried'||chicken.carrierId!==p.id)return;
   const face=p.dir||{x:1,y:0};
-  chicken.x=p.x+face.x*23+force.x*12;
-  chicken.y=p.y+face.y*23+force.y*12;
-  bound(state,chicken,C.chickenRadius+4);
+  chicken.x=p.x+(face.x*23+force.x*12)*state.unit;
+  chicken.y=p.y+(face.y*23+force.y*12)*state.unit;
+  bound(state,chicken,(C.chickenRadius+4)*state.unit);
   chicken.dir=unit(face.x+force.x,face.y+force.y);
-  chicken.vx=chicken.dir.x*150;chicken.vy=chicken.dir.y*150;
+  chicken.vx=chicken.dir.x*150*state.unit;chicken.vy=chicken.dir.y*150*state.unit;
   chicken.status='free';chicken.carrierId=null;chicken.penId=null;
   chicken.depositFor=0;chicken.depositPenId=null;
   chicken.invulnerable=C.dropImmunity;chicken.decision=0;
@@ -172,9 +173,9 @@ function botMove(state,p,players){
   let target,aim,attack=false;
   if(p.carriedChickenId!=null){
     const pen=state.pens.find(x=>x.ownerId===p.id)||state.pens[0];
-    const point=penPosition(state,pen,state.radius-C.playerRadius-1);
+    const point=penPosition(state,pen,state.radius-(C.playerRadius+1)*state.unit);
     const dd=distance(p,point);
-    if(dd<12){aim={x:0,y:0};p.dir=pen.normal;}
+    if(dd<12*state.unit){aim={x:0,y:0};p.dir=pen.normal;}
     else aim=unit(point.x-p.x,point.y-p.y);
   }else{
     target=chooseBotTarget(state,p,players);
@@ -184,7 +185,7 @@ function botMove(state,p,players){
       aim=unit(goal.x-p.x,goal.y-p.y);
     }else aim={x:0,y:0};
     const attacker=players.find(q=>q!==p&&q.active&&q.carriedChickenId!=null&&
-      distance(p,q)<C.punchRange&&dot(p.dir,unit(q.x-p.x,q.y-p.y))>.65);
+      distance(p,q)<C.punchRange*state.unit&&dot(p.dir,unit(q.x-p.x,q.y-p.y))>.65);
     if(attacker)attack=true;
   }
   return {x:aim.x,y:aim.y,action:attack};
@@ -210,7 +211,7 @@ function punch(state,p,players){
  // The shared normal punch stuns ALL touched friends for 0.8 seconds.
  // Chicken-specific rule: anyone struck while carrying drops their chicken.
  return window.PartyCharacters.punchFriends(p,players,{
-   range:C.punchRange+C.playerRadius,coneCos:Math.cos(C.punchHalfAngle),
+   range:(C.punchRange+C.playerRadius)*state.unit,coneCos:Math.cos(C.punchHalfAngle),
    onHit:q=>{
      if(q.carriedChickenId!=null)dropChicken(state,q,p.dir||{x:1,y:0});
      state.effects.push({x:q.x,y:q.y,text:'!',color:p.color,life:.46});
@@ -229,9 +230,9 @@ function advancePlayer(state,p,players,dt){
  if(canMove&&(input.x||input.y)){
    p.dir=unit(input.x,input.y);p.face=p.dir.x<0?-1:1;
  }
- p.vx=canMove?input.x*C.playerSpeed:0;
- p.vy=canMove?input.y*C.playerSpeed:0;
- moveCircle(state,p,p.vx,p.vy,dt,C.playerRadius+1);
+ p.vx=canMove?input.x*C.playerSpeed*state.unit:0;
+ p.vy=canMove?input.y*C.playerSpeed*state.unit:0;
+ moveCircle(state,p,p.vx,p.vy,dt,(C.playerRadius+1)*state.unit);
  p.chickenPunchFlash=Math.max(0,(p.chickenPunchFlash||0)-dt);
  if(!input.action)p.chickenActionLatch=false;
  if(input.action&&!p.chickenActionLatch){
@@ -244,7 +245,7 @@ function advancePlayer(state,p,players,dt){
 }
 function separatePlayers(state,players){
  return window.PartyCharacters.resolve(players,{
-   radius:C.playerRadius,iterations:5,
+   radius:C.playerRadius*state.unit,iterations:5,
    constrain:(p,x,y,r)=>{
      const dx=x-state.center.x,dy=y-state.center.y;
      const distance=Math.hypot(dx,dy),limit=Math.max(0,state.radius-r-1);
@@ -256,9 +257,9 @@ function separatePlayers(state,players){
  });
 }
 function chooseEscape(state,c,players){
-  const threatened=players.filter(p=>p.active&&distance(p,c)<215);
+  const threatened=players.filter(p=>p.active&&distance(p,c)<215*state.unit);
   const wallRoom=state.radius-distance(c,state.center);
-  if(!threatened.length&&wallRoom>64){
+  if(!threatened.length&&wallRoom>64*state.unit){
     return Math.atan2(c.dir.y,c.dir.x)+rand(-.35,.35);
   }
   const current=Math.atan2(c.dir.y,c.dir.x);
@@ -266,23 +267,23 @@ function chooseEscape(state,c,players){
   // Candidate-angle scoring accounts for predicted interception,
   // neighbors and available room in front of each possible turn.
   for(const offset of [0,-.42,.42,-.86,.86,-1.45,1.45,-2.15,2.15]){
-    const a=current+offset,v=normal(a),travel=70;
+    const a=current+offset,v=normal(a),travel=70*state.unit;
     const pred={x:c.x+v.x*travel,y:c.y+v.y*travel};
     const wallClear=state.radius-distance(pred,state.center);
-    let score=Math.min(120,wallClear)*.7-Math.max(0,24-wallClear)*8-Math.abs(offset)*5;
+    let score=Math.min(120*state.unit,wallClear)*.7-Math.max(0,24*state.unit-wallClear)*8-Math.abs(offset)*5*state.unit;
     for(const p of threatened){
       const future={x:p.x+(p.vx||0)*.38,y:p.y+(p.vy||0)*.38};
       const gap=distance(pred,future);
       const approach=dot(v,unit(p.x-c.x,p.y-c.y));
-      score+=Math.min(175,gap)*.65-Math.max(0,95-gap)*2.2-approach*12;
+      score+=Math.min(175*state.unit,gap)*.65-Math.max(0,95*state.unit-gap)*2.2-approach*12*state.unit;
     }
     // Prefer travelling tangentially around the circular fence.
     // Without this, an unthreatened chicken can press against the wall.
     const radial=unit(c.x-state.center.x,c.y-state.center.y);
-    score-=Math.max(0,75-wallRoom)*Math.max(0,dot(v,radial))*1.9;
+    score-=Math.max(0,75*state.unit-wallRoom)*Math.max(0,dot(v,radial))*1.9;
     for(const other of state.chickens){
-      if(other===c||other.status!=='free'||distance(c,other)>45)continue;
-      score-=Math.max(0,30-distance(pred,other))*.85;
+      if(other===c||other.status!=='free'||distance(c,other)>45*state.unit)continue;
+      score-=Math.max(0,30*state.unit-distance(pred,other))*.85;
     }
     if(score>bestScore){bestScore=score;best=a;}
   }
@@ -294,16 +295,16 @@ function advanceChicken(state,c,players,dt){
   c.flap+=dt*C.chickenFlapRate;
   c.decision-=dt;
   const wallRoom=state.radius-distance(c,state.center);
-  if(c.decision<=0||wallRoom<26){
+  if(c.decision<=0||wallRoom<26*state.unit){
     c.escapeAngle=chooseEscape(state,c,players);
-    c.decision=wallRoom<26?.028:rand(.09,.19);
+    c.decision=wallRoom<26*state.unit?.028:rand(.09,.19);
   }
   const old=Math.atan2(c.dir.y,c.dir.x);
   const delta=deltaAngle(old,c.escapeAngle);
   const angle=old+clamp(delta,-C.chickenTurnRate*dt,C.chickenTurnRate*dt);
   c.dir=normal(angle);
-  const danger=players.some(p=>p.active&&distance(c,p)<205);
-  const close=players.some(p=>p.active&&distance(c,p)<105);
+  const danger=players.some(p=>p.active&&distance(c,p)<205*state.unit);
+  const close=players.some(p=>p.active&&distance(c,p)<105*state.unit);
   c.panicRecharge=Math.max(0,(c.panicRecharge||0)-dt);
   c.panicFor=Math.max(0,(c.panicFor||0)-dt);
   if(close&&c.panicRecharge<=0){
@@ -313,10 +314,10 @@ function advanceChicken(state,c,players,dt){
   }
   // Short acceleration pulses, frequent smooth evasive turns, and livelier
   // cruising; the burst is brief so humans and bots can still intercept.
-  const speed=c.panicFor>0?C.panicChickenSpeed:danger?C.chickenSpeed:C.idleChickenSpeed;
+  const speed=(c.panicFor>0?C.panicChickenSpeed:danger?C.chickenSpeed:C.idleChickenSpeed)*state.unit;
   c.vx=c.dir.x*speed;c.vy=c.dir.y*speed;
   const oldX=c.x,oldY=c.y;
-  moveCircle(state,c,c.vx,c.vy,dt,C.chickenRadius+2);
+  moveCircle(state,c,c.vx,c.vy,dt,(C.chickenRadius+2)*state.unit);
   if(length(c.x-oldX,c.y-oldY)<speed*dt*.18)c.stuckFor+=dt;
   else c.stuckFor=0;
   if(c.stuckFor>.35){
@@ -325,18 +326,18 @@ function advanceChicken(state,c,players,dt){
     c.escapeAngle=Math.atan2(tangent.y,tangent.x)+rand(-.15,.15);
     c.decision=.32;c.stuckFor=0;
   }
-  if(!inside(state,c.x+c.dir.x*22,c.y+c.dir.y*22,12))c.decision=0;
+  if(!inside(state,c.x+c.dir.x*22*state.unit,c.y+c.dir.y*22*state.unit,12*state.unit))c.decision=0;
 }
 function separateChickens(state){
   const free=state.chickens.filter(c=>c.status==='free');
   for(let i=0;i<free.length;i++)for(let j=i+1;j<free.length;j++){
     const a=free[i],b=free[j],dx=b.x-a.x,dy=b.y-a.y,d=length(dx,dy);
-    if(d>=C.chickenRadius*2+1)continue;
+    if(d>=(C.chickenRadius*2+1)*state.unit)continue;
     const axis=d>1e-5?{x:dx/d,y:dy/d}:normal((i*31+j*13)*2.399963);
-    const shift=(C.chickenRadius*2+1-d)*.5;
+    const shift=((C.chickenRadius*2+1)*state.unit-d)*.5;
     a.x-=axis.x*shift;a.y-=axis.y*shift;
     b.x+=axis.x*shift;b.y+=axis.y*shift;
-    bound(state,a,C.chickenRadius+2);bound(state,b,C.chickenRadius+2);
+    bound(state,a,(C.chickenRadius+2)*state.unit);bound(state,b,(C.chickenRadius+2)*state.unit);
     a.decision=0;b.decision=0;
   }
 }
@@ -374,7 +375,7 @@ function step(state,players,dt){
     if(lost)dropChicken(state,lost);
     else{
       c.status='free';c.carrierId=null;c.depositFor=0;c.depositPenId=null;c.invulnerable=.35;
-      bound(state,c,13);
+      bound(state,c,13*state.unit);
     }
   }
   for(const p of players)advancePlayer(state,p,players,dt);
@@ -384,13 +385,13 @@ function step(state,players,dt){
   // The host resolves every pickup sequentially, so a chicken has one carrier.
   for(const c of state.chickens)if(c.status==='free'&&c.invulnerable<=0){
     for(const p of players)if(p.active&&p.stun<=0&&p.carriedChickenId==null&&
-      distance(p,c)<=C.pickupRadius&&collect(state,c,p))break;
+      distance(p,c)<=C.pickupRadius*state.unit&&collect(state,c,p))break;
   }
   for(const c of state.chickens)if(c.status==='carried'){
     const p=state.playersById[c.carrierId];
     if(!p||!p.active)continue;
     const v=p.dir||{x:1,y:0};
-    c.x=p.x+v.x*C.carryOffset;c.y=p.y+v.y*C.carryOffset;
+    c.x=p.x+v.x*C.carryOffset*state.unit;c.y=p.y+v.y*C.carryOffset*state.unit;
     c.dir=v;advanceDeposit(state,c,p,dt);
   }
   state.effects=state.effects.filter(e=>(e.life-=dt)>0);
@@ -441,17 +442,18 @@ function draw(ctx,time,round,players){
   // Pen residents remain visible and inert, never re-entering the arena.
   for(const c of s.chickens)if(c.status==='penned'){
     const crowded=s.pens.find(p=>p.id===c.penId)?.points>20;
-    drawChicken(ctx,c,time,crowded ? .54 : .70);
+    drawChicken(ctx,c,time,(crowded ? .54 : .70)*s.unit);
   }
-  for(const c of s.chickens)if(c.status==='free')drawChicken(ctx,c,time,.82);
+  for(const c of s.chickens)if(c.status==='free')drawChicken(ctx,c,time,.82*s.unit);
   for(const p of players)if(p.active){
-    drawPlayer(ctx,p,time);
+    window.PartyCharacters.draw(ctx,p,{time,scale:s.unit,
+      holding:p.carriedChickenId!=null,attacking:Combat.isAttacking(p),label:false});
     const c=s.chickens.find(q=>q.id===p.carriedChickenId&&q.status==='carried');
     if(c){
-      drawHeldChicken(ctx,c,p,time);
+      window.FarmIceArt.heldChicken(ctx,c,p,time,s.unit);
       if(c.depositPenId&&c.depositFor>0){
-        ctx.save();ctx.strokeStyle='#ffee7a';ctx.lineWidth=4;
-        ctx.beginPath();ctx.arc(c.x,c.y,18,-Math.PI/2,-Math.PI/2+
+        ctx.save();ctx.strokeStyle='#ffee7a';ctx.lineWidth=4*s.unit;
+        ctx.beginPath();ctx.arc(c.x,c.y,18*s.unit,-Math.PI/2,-Math.PI/2+
           TAU*Math.min(1,c.depositFor/C.depositTime));ctx.stroke();ctx.restore();
       }
     }
