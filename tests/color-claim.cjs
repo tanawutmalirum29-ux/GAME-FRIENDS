@@ -133,6 +133,7 @@ check('disconnected small islands become neutral and respawn uses only the retai
 });
 check('stolen origin during open loop kills instantly and respawns on remaining own land',()=>{
  const z=make(2),[a,b]=z.ps,s=z.s;
+ z.e.claimDisk(s,a.cc.slot,a.x,a.y,70);z.e.recount(s,z.ps);
  const origin={x:a.x,y:a.y},anchor=z.e.index(s,a.x,a.y);
  a.cc.anchor=anchor;a.cc.origin=origin;
  a.cc.trail=poly([origin,{x:origin.x+70,y:origin.y+10}]);
@@ -140,7 +141,7 @@ check('stolen origin during open loop kills instantly and respawns on remaining 
  const before=count(s,a.cc.slot);
  landPath(s,b.cc.slot,b,origin);
  z.e.recount(s,z.ps);
- assert.equal(s.owner[anchor],b.cc.slot);
+ assert.notEqual(s.owner[anchor],a.cc.slot,'unplayable enemy stripe still severs the anchor');
  assert.ok(count(s,a.cc.slot)>0&&count(s,a.cc.slot)<before);
  assert.equal(a.cc.alive,false,'original loop no longer connects to this colour');
  assert.equal(a.cc.eliminated,false,'other friendly land remains');
@@ -153,6 +154,7 @@ check('stolen origin during open loop kills instantly and respawns on remaining 
 });
 check('captured respawn tile triggers new death instead of leaving protected player on enemy land',()=>{
  const z=make(2),[a,b]=z.ps,s=z.s;
+ z.e.claimDisk(s,a.cc.slot,a.x,a.y,65);z.e.recount(s,z.ps);
  z.e.kill(s,a);tick(z,43);
  assert.equal(a.cc.alive,true);
  assert.ok(a.cc.invulnerable>0);
@@ -184,8 +186,8 @@ check('a capture slices enemy land: retain the largest side, neutralize every sm
  z.e.recount(s,z.ps);
  assert.equal(count(s,victim.cc.slot),27*18,'only 27-column right side remains');
  assert.equal(s.owner[15*cols+9],-1,'cut off 10-column piece is neutral');
- assert.equal(s.owner[15*cols+17],attacker.cc.slot,
-  'cut line belongs to the attacker only when legitimately captured');
+ assert.equal(s.owner[15*cols+17],-1,
+  'too-narrow attacker stroke is also neutral rather than unfairly owned');
  assert.equal(s.owner[15*cols+35],victim.cc.slot);
  assert.ok(count(s,victim.cc.slot)<before);
  assert.ok(Math.abs(victim.score-count(s,victim.cc.slot)/s.owner.length*100)<1e-9);
@@ -212,32 +214,70 @@ check('a cut makes three pieces: two smaller pieces vanish simultaneously',()=>{
  assert.equal(s.owner[10*cols+10],-1);
  assert.equal(s.owner[10*cols+23],-1);
  assert.equal(s.owner[10*cols+43],victim.cc.slot);
- assert.equal(s.owner[10*cols+30],attacker.cc.slot);
- assert.equal(s.owner[10*cols+14],attacker.cc.slot);
+ assert.equal(s.owner[10*cols+30],-1,'a one-cell attacker cut cannot be retained');
+ assert.equal(s.owner[10*cols+14],-1,'both hairline cuts are neutral');
 });
-check('no loss when a thin bridge remains; diagonal-only touch is disconnected',()=>{
+check('a one-cell bridge fails clearance, while a three-cell-wide bridge stays playable',()=>{
+ const mk=(width)=>{
+  const z=make(2),[a,b]=z.ps,s=z.s;
+  s.owner.fill(-1);
+  for(let y=10;y<25;y++)for(let x=5;x<18;x++)s.owner[y*s.cols+x]=a.cc.slot;
+  for(let y=10;y<25;y++)for(let x=39;x<57;x++)s.owner[y*s.cols+x]=a.cc.slot;
+  for(let y=17;y<17+width;y++)for(let x=18;x<39;x++)s.owner[y*s.cols+x]=a.cc.slot;
+  z.e.claimDisk(s,b.cc.slot,690,370,35);
+  z.e.recount(s,z.ps);
+  return {z,s,a};
+ };
+ const narrow=mk(1),wide=mk(3);
+ assert.equal(narrow.s.owner[17*narrow.s.cols+27],-1,
+  'one-cell bottleneck is impossible for the avatar');
+ assert.equal(narrow.s.owner[14*narrow.s.cols+10],-1,
+  'small left lobe is no longer reachable');
+ assert.equal(narrow.s.owner[14*narrow.s.cols+46],narrow.a.cc.slot);
+ assert.equal(wide.s.owner[18*wide.s.cols+27],wide.a.cc.slot,
+  'three-cell-wide bridge remains traversable');
+ assert.equal(wide.s.owner[14*wide.s.cols+10],wide.a.cc.slot,
+  'wide bridge keeps both lobes connected');
+});
+check('diagonal-only connections do not preserve a smaller detached island',()=>{
  const z=make(2),[a,b]=z.ps,s=z.s;
  s.owner.fill(-1);
- const i=(x,y)=>y*s.cols+x;
- // Diagonal does not connect regions.
- s.owner[i(8,9)]=a.cc.slot;s.owner[i(9,10)]=a.cc.slot;
- z.e.claimDisk(s,b.cc.slot,600,300,25);
- z.e.recount(s,z.ps);
- assert.equal(count(s,a.cc.slot),1);
- assert.equal(s.owner[i(8,9)],a.cc.slot,'first top-left component wins a tie');
- assert.equal(s.owner[i(9,10)],-1,'diagonal touch is not a bridge');
- // A genuine four-directional chain survives pruning.
+ for(let y=5;y<14;y++)for(let x=5;x<14;x++)s.owner[y*s.cols+x]=a.cc.slot;
+ for(let y=14;y<27;y++)for(let x=14;x<27;x++)s.owner[y*s.cols+x]=a.cc.slot;
+ z.e.claimDisk(s,b.cc.slot,680,360,35);z.e.recount(s,z.ps);
+ assert.equal(s.owner[8*s.cols+8],-1);
+ assert.equal(s.owner[20*s.cols+20],a.cc.slot);
+});
+check('thin fingers vanish but a broad peninsula survives repeated recounts',()=>{
+ const z=make(2),[a,b]=z.ps,s=z.s;
  s.owner.fill(-1);
- for(let x=5;x<25;x++)s.owner[i(x,15)]=a.cc.slot;
- for(let y=10;y<=20;y++)s.owner[i(5,y)]=a.cc.slot;
- for(let y=10;y<=20;y++)s.owner[i(24,y)]=a.cc.slot;
- z.e.claimDisk(s,b.cc.slot,600,300,25);
+ for(let y=15;y<32;y++)for(let x=12;x<30;x++)s.owner[y*s.cols+x]=a.cc.slot;
+ for(let y=30;y<46;y++){
+  s.owner[y*s.cols+17]=a.cc.slot;
+  s.owner[y*s.cols+18]=a.cc.slot;
+ }
+ // A 3-cell-wide extension is genuinely wide enough to navigate.
+ for(let y=30;y<43;y++)for(let x=22;x<25;x++)s.owner[y*s.cols+x]=a.cc.slot;
+ z.e.claimDisk(s,b.cc.slot,710,320,35);
  z.e.recount(s,z.ps);
- const value=count(s,a.cc.slot);
- assert.equal(value,20+10+10);
- assert.equal(s.owner[i(5,10)],a.cc.slot);
- assert.equal(s.owner[i(24,20)],a.cc.slot);
- assert.equal(s.owner[i(15,15)],a.cc.slot);
+ const before=count(s,a.cc.slot);
+ assert.equal(s.owner[41*s.cols+17],-1,'narrow finger is stripped');
+ assert.equal(s.owner[38*s.cols+23],a.cc.slot,'broad extension survives');
+ assert.equal(s.owner[23*s.cols+18],a.cc.slot,'main area is not eroded away');
+ z.e.recount(s,z.ps);
+ assert.equal(count(s,a.cc.slot),before,'normalization is idempotent');
+ assert.ok(Math.abs(a.score-before/s.owner.length*100)<1e-9);
+ const outline=z.e.buildContours(s);
+ assert.equal(outline[a.cc.slot].length,1,'one practical continuous island');
+});
+check('a territory thinner than avatar diameter has zero score and no respawn',()=>{
+ const z=make(2),[a,b]=z.ps,s=z.s;
+ s.owner.fill(-1);
+ for(let y=8;y<35;y++)for(let x=8;x<10;x++)s.owner[y*s.cols+x]=a.cc.slot;
+ z.e.claimDisk(s,b.cc.slot,650,330,35);z.e.recount(s,z.ps);
+ assert.equal(count(s,a.cc.slot),0);
+ assert.equal(a.cc.eliminated,true);
+ assert.equal(z.e.spawnPlace(s,a,z.ps),null);
 });
 check('victim on a detached patch dies and respawns on surviving main region',()=>{
  const z=make(2),[victim,attacker]=z.ps,s=z.s,cols=s.cols;
@@ -297,9 +337,10 @@ check('FREEZE lasts 4 simulation seconds, excludes collector, pauses and cancels
 check('board integration and ties rank by raw tile count',()=>{
  const z=make(3),s=z.s,[a,b,c]=z.ps;
  s.owner.fill(-1);
- s.owner[0]=a.cc.slot;s.owner[1]=a.cc.slot;
- s.owner[2]=b.cc.slot;s.owner[3]=b.cc.slot;
- s.owner[4]=c.cc.slot;
+ // Every ranking fixture must represent land an actual character can stand on.
+ for(let y=6;y<11;y++)for(let x=6;x<11;x++)s.owner[y*s.cols+x]=a.cc.slot;
+ for(let y=6;y<11;y++)for(let x=18;x<23;x++)s.owner[y*s.cols+x]=b.cc.slot;
+ for(let y=6;y<9;y++)for(let x=32;x<35;x++)s.owner[y*s.cols+x]=c.cc.slot;
  z.e.recount(s,z.ps);z.e.finish(s,z.round,z.ps);
  const ranked=z.ctx.window.BoardMinigame.ranking(z.round,z.ps);
  assert.equal(ranked.length,3);
