@@ -20,6 +20,7 @@ jobs:
           node --check app.js
           node --check arena-scale.js
           node --check tests/map-scale-regression.cjs
+          node --check tests/map-scale-browser.cjs
           node --check arena-art.js
           node --check player-avatar.js
           node --check ghost-attack.js
@@ -178,6 +179,8 @@ jobs:
           BOARD_BROWSER=webkit node tests/pizza-kitchen-browser.cjs
           node tests/party-arenas-browser.cjs
           BOARD_BROWSER=webkit node tests/party-arenas-browser.cjs
+          node tests/map-scale-browser.cjs
+          BOARD_BROWSER=webkit node tests/map-scale-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
