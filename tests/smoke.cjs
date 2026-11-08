@@ -1793,7 +1793,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
    'new random value changes the game instead of following fixed order');
  ui.click('startBtn');
  assert.equal(api.getTournament().endless,true);
- assert.equal(api.getTournament().schedule.length,12);
+ assert.equal(api.getTournament().schedule.length,13);
  const first=api.getSelection();
  assert.ok(first,'roulette appears immediately on start, before game engine');
  assert.equal(api.getRound().phase,'roulette');
