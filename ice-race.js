@@ -50,7 +50,11 @@ function makeTrack(s){
  });
  s.path=segments;s.trackLength=length;
  s.checkpoints=Array.from({length:4},(_,id)=>{
-  const at=sample(s,length*id/4);
+  // On the small course, the first quarter lands on the inside of a tight
+  // bend. Move its gate onto the following straight, so racers actually
+  // cross the gate in its forward direction rather than cutting past it.
+  const gateOffset=s.sizeClass==='small'&&id===1?45:0;
+  const at=sample(s,length*id/4+gateOffset);
   return {id,x:at.x,y:at.y,tx:at.tx,ty:at.ty,progress:at.progress};
  });
 }
