@@ -12,8 +12,11 @@ function rand(s){let n=s.seed|0;n^=n<<13;n^=n>>>17;n^=n<<5;s.seed=n||1234567;ret
 function active(ps){return ps.filter(p=>p.active);}
 function createArena(s,count){
  s.cols=count<=6?11:13;s.rows=count<=6?9:11;
- s.size=count<=6?44:41;
- s.board={x:(960-s.cols*s.size)/2,y:(540-s.rows*s.size)/2,w:s.cols*s.size,h:s.rows*s.size};
+ // Keep cell-to-character proportions constant; large matches gain area,
+ // not smaller cells. This also keeps territory hit-testing world-aligned.
+ s.size=44;
+ s.board=window.PartyArenaScale?.centeredGrid?.(s.cols,s.rows,s.size)
+   ||{x:(960-s.cols*s.size)/2,y:(540-s.rows*s.size)/2,w:s.cols*s.size,h:s.rows*s.size};
  s.tiles=Array.from({length:s.cols*s.rows},(_,id)=>({
   id,row:Math.floor(id/s.cols),column:id%s.cols,
   x:s.board.x+(id%s.cols)*s.size,y:s.board.y+Math.floor(id/s.cols)*s.size,
