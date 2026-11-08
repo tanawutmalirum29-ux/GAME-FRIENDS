@@ -69,7 +69,10 @@ for(const [name,engine,stateKey] of entries){
     name+' '+n+': invalid spawn positions');
   const coords=new Set(ps.map(p=>p.x.toFixed(3)+','+p.y.toFixed(3)));
   assert.equal(coords.size,n,name+' '+n+': overlapping spawn centers');
-  const world=s.world||((s.w&&s.h)?{w:s.w,h:s.h}:
+  // Boulder uses a full 960x540 viewport with a narrower navigable runway.
+  // Its bounds rectangle is not the physical screen/world dimensions.
+  const world=engine==='BoulderBash'?{w:960,h:540}:
+    s.world||((s.w&&s.h)?{w:s.w,h:s.h}:
     (s.bounds?.w&&s.bounds?.h)?s.bounds:{w:960,h:540});
   assert.ok(world.w>0&&world.h>0,name+' '+n+': invalid world');
   if(engine!=='SnowBrawl')assert.ok(Math.abs(world.w/world.h-16/9)<.015,name+' '+n+': aspect ratio');
