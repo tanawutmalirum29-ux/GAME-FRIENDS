@@ -143,7 +143,26 @@ function lawnScene(){
  for(const [x,y] of [[193,108],[242,37],[84,93]])a+=circle(x,y,11,'#f4bc34','#ffe79c',2)+circle(x,y,7,'#eaa231','#f9d368',1)+path(`M${x} ${y-4}v8`,'none','#ffe8a1',2);
  return a+tree(-49,-43,.8)+tree(271,128,.8);
 }
-const scenes=Object.freeze({ghost:ghostScene,chickens:chickenScene,fruit_memory:memoryScene,shockwave:shockScene,color_switch:colorScene,pizza_time:pizzaScene,knight_match:knightScene,boulder_bash:boulderScene,snow_brawl:snowScene,shopping_time:shoppingScene,witching_snake:witchScene,lawn_mower:lawnScene});
+function claimScene(){
+ let a=rect(0,0,320,180,'#161039')+rect(13,12,294,156,'#312454',8,'#ff319a',5);
+ for(let x=17;x<306;x+=18)a+=path('M'+x+' 14V165','none','#6686e027',1.1);
+ for(let y=16;y<166;y+=18)a+=path('M15 '+y+'H305','none','#6686e027',1.1);
+ a+=path('M45 25 124 24 142 62 111 84 47 71Z','#f7d446','#fef09d',2);
+ a+=path('M171 19 249 28 279 58 257 119 188 101 154 63Z','#31c5ff','#90eaff',2);
+ a+=path('M37 108 86 97 121 137 108 160 42 156Z','#f8485c','#ff99a8',2);
+ a+=path('M236 123 270 93 295 131 282 157 219 158Z','#4fe26b','#b5ffb8',2);
+ a+=path('M88 96 153 91 182 131 205 115','none','#fa748a',6);
+ a+=path('M126 51 163 69 169 110 211 104','none','#fde26c',6);
+ a+=path('M211 104 248 113 254 147','none','#66f58f',6);
+ for(const [x,y,c,angle,sc] of [[71,57,palette[2],-30,.8],[183,59,palette[1],55,.85],[79,128,palette[0],-20,.85],[270,137,palette[3],60,.82],[160,102,palette[0],20,.53],[240,77,palette[1],-40,.55],[113,43,palette[2],20,.5],[265,35,palette[3],-25,.5]]){
+  a+=avatar(x,y,c,angle,sc);
+ }
+ for(const [x,y] of [[145,135],[197,39],[251,63]])a+=group(x,y,0,.6,
+  path('M0-21 6-7 21-7 11 2 16 17 0 9-16 17-11 2-21-7-6-7Z','#c8f8ff','#63bdfb',2)+
+  path('M0-15V13M-13 0H13','none','#ffffff',2));
+ return a;
+}
+const scenes=Object.freeze({color_claim:claimScene,ghost:ghostScene,chickens:chickenScene,fruit_memory:memoryScene,shockwave:shockScene,color_switch:colorScene,pizza_time:pizzaScene,knight_match:knightScene,boulder_bash:boulderScene,snow_brawl:snowScene,shopping_time:shoppingScene,witching_snake:witchScene,lawn_mower:lawnScene});
 const templates=new Map();
 function svg(mode){
  if(!Object.hasOwn(scenes,mode))return '';
