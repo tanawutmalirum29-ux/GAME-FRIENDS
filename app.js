@@ -2174,7 +2174,11 @@ window.addEventListener('blur',()=>{
 });
 
 // BOARD PARTY owns a session, not a seventh entry in the minigame registry.
-function boardRegistry(){return Object.fromEntries(modesFor('board').map(id=>[id,gameEngine(id)]));}
+function boardRegistry(){return Object.fromEntries(modesFor('board').map(id=>{
+ const platform=window.GamePlatform;
+ const ready=!platform?.descriptor(id)||platform.ready(id);
+ return [id,ready?gameEngine(id):null];
+}));}
 function warmBoardGames(){
  const platform=window.GamePlatform;
  if(!platform?.revision||round?.mode!=='board')return;

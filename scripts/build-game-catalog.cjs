@@ -79,10 +79,12 @@ function build({write=false}={}){
     fs.copyFileSync(abs,dest);
    }
   }
+  if(meta.cover!==undefined&&(typeof meta.cover!=='string'||meta.cover.startsWith('/')||meta.cover.includes('..')||!local.includes(meta.cover)))throw Error('Invalid cover: '+slug);
   out.push({id:meta.id,name:meta.name,version:meta.version,apiVersion:1,
    enabled:meta.enabled,players:meta.players,modes:meta.modes,controls:meta.controls,
    hash:fingerprint,entryUrl:'/'+base+entry,
-   legacyUrls:legacy.map(x=>'/'+base+'legacy/'+x.name),global:meta.global||null});
+   legacyUrls:legacy.map(x=>'/'+base+'legacy/'+x.name),global:meta.global||null,
+   coverUrl:meta.cover?'/'+base+meta.cover:null});
  }
  const catalog={schema,coreHash:coreHash(),games:out};
  if(write)fs.writeFileSync(path.join(root,'game-catalog.json'),JSON.stringify(catalog,null,2)+'\n');
