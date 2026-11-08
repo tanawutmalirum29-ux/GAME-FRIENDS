@@ -387,6 +387,17 @@ function create(seed=Date.now()){
   n.remainingSteps=d;n.longestRemainingSteps=d;
   if(seen.has(n.id))n.progress=Math.max(0,Base.MAIN_LENGTH-d);
  }
+ const resolver=window.BoardBranchNaming;
+ if(resolver?.fromGraph){
+  const labels=resolver.fromGraph(m);
+  m.nodePathIds=labels.nodePathIds;
+  m.pathIdCollisions=labels.collisions;
+  m.pathBranchCodes=labels.branchCodes;
+  m.idMigration=Object.keys(m.nodes).sort().map(oldId=>({
+   oldId,internalId:oldId,displayId:labels.nodePathIds[oldId]
+  }));
+  for(const entry of m.idMigration)m.nodes[entry.internalId].pathId=entry.displayId;
+ }
  return m;
 }
 function assertCompatible(map){
@@ -396,6 +407,19 @@ function assertCompatible(map){
 function validate(m){
  assertCompatible(m);
  const all=Object.entries(m.nodes),idSet=new Set(all.map(([id])=>id));
+ if(window.BoardBranchNaming?.fromGraph){
+  if(!m.nodePathIds||Object.keys(m.nodePathIds).length!==all.length||
+     !Array.isArray(m.idMigration)||m.idMigration.length!==all.length)
+   throw Error('Missing V9 path IDs');
+  const seenIds=new Set();
+  for(const entry of m.idMigration){
+   if(!m.nodes[entry.internalId]||entry.oldId!==entry.internalId||
+      m.nodePathIds[entry.internalId]!==entry.displayId||
+      m.nodes[entry.internalId].pathId!==entry.displayId||
+      seenIds.has(entry.internalId))throw Error('Invalid branch identity mapping');
+   seenIds.add(entry.internalId);
+  }
+ }
  if(all.length!==V9_GRAPH.nodes||idSet.size!==all.length||
  m.islands.length!==ISLANDS||m.startId!=='n0'||m.finishId!=='n152'||
  m.nodes.n0.type!=='start'||m.nodes.n152.type!=='finish'||

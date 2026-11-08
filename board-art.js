@@ -322,7 +322,7 @@ const BOARD_BRIDGE_WIDTH=BOARD_NODE_DIAMETER;
 // Guide graphics sit on the left shoulder rather than the centre walking lane.
 const BOARD_GUIDE_SIDE_OFFSET=32;
 function v8RoadGuides(g,s){
- if(s.map.version!=='winter-expedition-152-v8')return;
+ if(!/^winter-expedition-152-v(8|9)$/.test(s.map.version))return;
  const map=s.map,c=s.camera,z=Math.max(.06,c.zoom||1);
  const hw=480/z+150,hh=(mapBottom(s)-94)/(2*z)+150;
  const isVisible=(a,b)=>Math.max(a.x,b.x)>=c.x-hw&&Math.min(a.x,b.x)<=c.x+hw&&
@@ -1138,7 +1138,7 @@ function draw(g,t,s){
  if(s.camera.debugNodes&&s.players.every(p=>p.isBot)&&s.camera.selectedId){
   const n=s.map.nodes[s.camera.selectedId],t=s.map.territories[n.territoryId];
   box(g,207,bottom-49,546,57,8,'#0a2a43f5','#91cde7');
-  label(g,n.id+' • '+n.type+' • progress '+n.progress+' • HP '+(n.effects.hp||0),
+  label(g,(s.map.nodePathIds?.[n.id]||n.id)+' ['+n.id+'] • '+n.type+' • progress '+n.progress+' • HP '+(n.effects.hp||0),
    221,bottom-31,12,'#ffe9a1','left',800,512);
   label(g,'ก่อน: '+n.previousNodes.join(',')+'  ต่อ: '+n.nextNodes.join(',')+
     '  x='+Math.round(n.position.x)+' y='+Math.round(n.position.y)+'  พื้นที่: '+(n.islandId||n.bridgeId)+

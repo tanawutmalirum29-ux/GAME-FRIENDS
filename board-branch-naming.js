@@ -60,7 +60,7 @@
    const parent=r.parentId||'n',target=r.terminalBranchId||'n';
    if(target!=='n'&&!byId.has(target))throw Error('Unknown terminal branch '+target);
    const displayPrefix=names.get(r.internalId)+
-      (target==='n'||target===parent?'':names.get(target));
+      (target==='n'||target===parent||target===r.internalId?'':names.get(target));
    r.nodeIds.forEach((nodeId,index)=>{
     if(nodeIds.has(nodeId))throw Error('Internal node occurs in multiple branches '+nodeId);
     nodeIds.add(nodeId);
@@ -77,5 +77,65 @@
    collisions:[...byDisplay].filter(([,ids])=>ids.length>1)
     .map(([displayId,internalIds])=>({displayId,internalIds}))};
  }
- return Object.freeze({alphabet,assign});
+
+function fromGraph(map){
+ if(!map?.nodes||!Number.isSafeInteger(map.length))throw Error('Missing board graph');
+ const main=[],mainSet=new Set();
+ for(let i=0;i<=map.length;i++){
+  const id='n'+i,n=map.nodes[id];
+  if(!n||i<map.length&&!n.nextNodes.includes('n'+(i+1)))
+   throw Error('Broken main graph at '+id);
+  main.push(id);mainSet.add(id);
+ }
+ const seen=new Set(main),owner=new Map(),records=[];
+ const node=id=>{const n=map.nodes[id];if(!n)throw Error('Unknown graph node '+id);return n;};
+ const angle=(a,b)=>{const x=node(a).position,y=node(b).position;
+  return Math.atan2(y.y-x.y,y.x-x.x);};
+ function visit(from,to,parentId,order){
+  if(seen.has(to))return;
+  const id='branch@'+from+'>'+to,children=[];
+  const branch={internalId:id,parentId,sourceOrder:order,
+   sourceAngle:angle(from,to),terminalNodeId:null,terminalBranchId:'n',nodeIds:[]};
+  let previous=from,current=to;
+  while(!seen.has(current)){
+   const n=node(current);seen.add(current);owner.set(current,id);
+   branch.nodeIds.push(current);
+   const options=n.nextNodes.map(dest=>{
+    const a=node(previous).position,p=n.position,q=node(dest).position;
+    const ux=p.x-a.x,uy=p.y-a.y,vx=q.x-p.x,vy=q.y-p.y;
+    return{dest,newNode:!seen.has(dest)&&!mainSet.has(dest),
+     straight:(ux*vx+uy*vy)/
+      (Math.max(1e-6,Math.hypot(ux,uy))*Math.max(1e-6,Math.hypot(vx,vy)))};
+   }).sort((a,b)=>Number(b.newNode)-Number(a.newNode)||
+      b.straight-a.straight||a.dest.localeCompare(b.dest));
+   if(!options.length)throw Error('Dead end while naming '+current);
+   const primary=options[0];
+   for(const choice of options.slice(1))
+    children.push({from:current,to:choice.dest,order:branch.nodeIds.length-1});
+   previous=current;current=primary.dest;
+  }
+  branch.terminalNodeId=current;records.push(branch);
+  children.sort((a,b)=>a.order-b.order||angle(a.from,a.to)-angle(b.from,b.to));
+  for(const c of children)visit(c.from,c.to,id,c.order);
+ }
+ for(let i=0;i<main.length;i++){
+  const from=main[i];
+  const other=node(from).nextNodes.filter(to=>to!=='n'+(i+1))
+   .sort((a,b)=>angle(from,a)-angle(from,b));
+  for(const to of other)visit(from,to,'n',i);
+ }
+ const missing=Object.keys(map.nodes).filter(id=>!seen.has(id));
+ if(missing.length)throw Error('Unassigned graph node '+missing.join(','));
+ for(const rec of records){
+  rec.terminalBranchId=mainSet.has(rec.terminalNodeId)?'n':owner.get(rec.terminalNodeId);
+  if(!rec.terminalBranchId)throw Error('Missing destination for '+rec.internalId);
+ }
+ const resolved=assign(records),nodePathIds=Object.create(null);
+ for(const id of main)nodePathIds[id]=id;
+ for(const item of resolved.mapping)nodePathIds[item.internalId]=item.displayId;
+ if(Object.keys(nodePathIds).length!==Object.keys(map.nodes).length)
+  throw Error('Incomplete branch naming');
+ return{...resolved,nodePathIds,descriptors:records};
+}
+ return Object.freeze({alphabet,assign,fromGraph});
 });
