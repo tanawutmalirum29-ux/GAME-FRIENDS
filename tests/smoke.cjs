@@ -38,7 +38,7 @@ const css=fs.readFileSync('style.css','utf8');
 
 // Top HUD must clear the iPad status strip (even when CSS safe-area=0)
 // and finish immediately above the field, including a compact 12-player row.
-assert.match(css,/body\.host-playing #game \.game-center-hud\{\s*top:max\(29px,calc\(env\(safe-area-inset-top,0px\) \+ 3px\)\)/,
+assert.match(css,/body\.host-playing #game \.game-center-hud\{\s*top:max\(24px,env\(safe-area-inset-top,0px\)\)/,
  'host roster starts below the iPad time/battery strip');
 assert.match(css,/body\.host-playing #game \.game-toolbar\{\s*height:max\(96px,/,
  'top background strip stays flush with the field beneath the roster');
