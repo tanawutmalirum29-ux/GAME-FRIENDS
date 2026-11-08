@@ -71,6 +71,7 @@ function renderModeChoices(){
   const mode=button.dataset.pick;
   const enabled=modesFor('normal').includes(mode);
   button.hidden=!enabled;button.disabled=!enabled;
+  button.classList.toggle('hidden',!enabled);
   if(!Object.hasOwn(MODES,mode)||!enabled)continue;
   const label=document.createElement('span');label.className='mode-choice-title';
   label.textContent=MODES[mode];button.replaceChildren(gameCover(mode),label);

@@ -70,15 +70,19 @@ function addScript(url){
   document.head.appendChild(tag);
  });
 }
+// Serialize the same game ID even when its catalog revision changes mid-download.
+const loadQueue=new Map();
 async function ensure(id){
  const d=descriptor(id);
  if(!d)throw Error('Unknown/disabled minigame: '+id);
  if(ready(id))return engine(id);
  const key=id+':'+d.hash;
  if(pending.has(key))return pending.get(key);
- const load=(async()=>{
+ const previous=loadQueue.get(id)||Promise.resolve();
+ const task=previous.catch(()=>{}).then(async()=>{
+  if(descriptor(id)?.hash!==d.hash)throw Error('Superseded plug-in version: '+id);
   if(d.legacyUrls.length){
-   // Initial, already-loaded legacy engines need no duplicate download.
+   // Built-time fingerprints prove whether old embedded engines match catalog.
    if(!(d.global&&window[d.global]&&!current.has(id)&&
       (!window.GAME_GAME_HASHES||window.GAME_GAME_HASHES[id]===d.hash))){
     for(const url of d.legacyUrls)await addScript(url);
@@ -87,14 +91,19 @@ async function ensure(id){
   const namespace=await import(validUrl(d.entryUrl));
   const plugin=namespace.default;
   if(!plugin||typeof plugin.setup!=='function'||typeof plugin.update!=='function'||
-     typeof plugin.draw!=='function'||typeof plugin.hud!=='function')throw Error('Invalid Game Plugin API: '+id);
-  // An update might have landed while the files downloaded. Keep this old
-  // version cached but never activate it over a newer catalog revision.
-  if(descriptor(id)?.hash===d.hash){current.set(id,{hash:d.hash,engine:plugin});return plugin;}
-  throw Error('Superseded plug-in version: '+id);
- })().finally(()=>pending.delete(key));
- pending.set(key,load);
- return load;
+     typeof plugin.draw!=='function'||typeof plugin.hud!=='function'||
+     (!d.global&&typeof plugin.getResult!=='function'))
+   throw Error('Invalid Game Plugin API: '+id);
+  if(descriptor(id)?.hash!==d.hash)throw Error('Superseded plug-in version: '+id);
+  current.set(id,{hash:d.hash,engine:plugin});
+  return plugin;
+ });
+ const tracked=task.finally(()=>{
+  pending.delete(key);
+  if(loadQueue.get(id)===tracked)loadQueue.delete(id);
+ });
+ pending.set(key,tracked);loadQueue.set(id,tracked);
+ return tracked;
 }
 function adoptLegacy(){
  for(const g of games()){
