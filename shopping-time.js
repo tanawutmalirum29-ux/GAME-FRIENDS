@@ -342,7 +342,7 @@ function draw(ctx,time,round,ps){
    ctx.fillText(fx.text,fx.x,fx.y-(1-fx.life)*24*u);ctx.restore();
  }
  ctx.restore();
- art.clock(ctx,round.phase==='countdown'?round.countdown||0:s.remaining);
+ // app.js draws the standardized clock after the engine render.
 }
 window.ShoppingTime=Object.freeze({setup,update,draw,hud,playerStatus,size,flowAt,spawn,step,
   bombHit,pickup,checkoutPlayer,finish,config:C});
