@@ -24,7 +24,8 @@ test('all minigame timers are drawn by one host dispatcher', () => {
  const cases=[
   ['ghost','countdown',null,3,'clock'],['ghost','playing',null,0,'person'],
   ['shockwave','countdown',null,2,'person'],['shockwave','playing',2,null,'person'],
-  ['fruit_memory','playing',null,null,'person'],['fruit_memory','playing',5,null,'clock'],
+  ['fruit_memory','playing',null,null,'person'],['fruit_memory','playing',5,null,'person'],
+   ['fruit_memory','countdown',null,3,'person'],
   ['boulder_bash','playing',null,null,'person'],['boulder_bash','playing',35,null,'clock'],
   ['snow_brawl','playing',null,null,'person'],['snow_brawl','playing',42,null,'clock'],
   ['witching_snake','playing',null,null,'person'],['witching_snake','playing',18,null,'clock'],
@@ -74,12 +75,12 @@ test('no duplicate mode-level clocks or top-left information banners', () => {
   'fruit-memory.js': /label\('FRUIT MEMORY'/
  };
  for(const [name,re] of Object.entries(forbidden))assert.doesNotMatch(read(name),re,name);
- assert.match(read('fruit-memory.js'),/ctx\.drawImage\(img,x-12,y-12,24,24\)/,
-  'the same safe fruit icon is repeated three times beneath the HUD');
- assert.match(read('party-arena-scenes.js'),/function badgeBottomY\(\)/,
-  'FRUIT MEMORY target row uses the shared HUD anchor');
- assert.match(read('app.js'),/if\(round\.mode==='fruit_memory'\)window\.FruitMemory\?\.drawTargetFruits\?\.\(g,round\)/,
-  'the host draws fruit cues after the shared timer');
+ assert.match(read('fruit-memory.js'),/function drawSideScreens\(ctx,state\)/,
+  'Fruit Memory uses mirrored SVG side screens');
+ assert.match(read('app.js'),/r\.mode==='fruit_memory'/,
+  'Fruit Memory has no host center countdown');
+ assert.doesNotMatch(read('app.js'),/drawTargetFruits/,
+  'old three-fruit HUD is removed');
 });
 
 test('central badge clears actual one-row and two-row player headers', () => {
