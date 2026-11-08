@@ -116,7 +116,7 @@ function newMemorize(state,players,entrants){
  state.revealTimeline=buildRevealTimeline(state.revealGroups,pace.revealFactor);
  state.revealCursor=0;
  state.revealDuration=state.revealTimeline.at(-1).end;
- state.target=null;state.targets=[];state.rounds=nextRound;
+ state.target=null;state.rounds=nextRound;
  state.fallEntries=[];state.pendingWinner=null;state.botTargets={};
  state.pendingTie=false;state.tieIds=[];
  for(const p of players){
@@ -146,7 +146,7 @@ function setup(round,players){
  const large=startCount>6;
  const state={startCount,big:large,cols:large?6:5,rows:large?6:5,
    moveSeconds:large?7:5,collapseSeconds:large?1.8:1.5,
-   tiles:[],elapsed:0,accumulator:0,rounds:0,phase:'memorize',previousTarget:null,targets:[],
+   tiles:[],elapsed:0,accumulator:0,rounds:0,phase:'memorize',previousTarget:null,
    winnerId:null,finished:false,totalElapsed:0,pendingTie:false,tieIds:[]};
  configureBoard(state);
  round.fruitMemory=state;
@@ -159,23 +159,10 @@ function inputVector(input){
  const y=Number(input?.axisY)||Number(!!input?.down)-Number(!!input?.jump);
  const len=Math.hypot(x,y);return len>1?{x:x/len,y:y/len}:{x,y};
 }
-// The three displayed fruits are also the three ACTUAL safe fruit types.
-// Legacy single-target test scenarios still work when targets is empty.
-function selectedFruitIds(state){
- return Array.isArray(state.targets)&&state.targets.length
-   ?state.targets:state.target?[state.target]:[];
-}
-function isSafeFruit(state,id){return selectedFruitIds(state).includes(id);}
 function chooseTargetFruit(state){
  const ids=[...new Set(state.tiles.map(t=>t.fruitType))];
- if(ids.length<3)throw Error('FRUIT MEMORY needs at least three fruit types per round');
- const previous=state.previousTarget;
- // Keep three DISTINCT targets from the actual tiles; avoid last wave's
- // primary target in the first slot so the on-screen cue changes each wave.
- const pool=shuffle(ids.filter(id=>id!==previous));
- const selected=pool.slice(0,3);
- state.targets=selected;
- state.target=selected[0]; // Existing integrations can still read primary fruit.
+ const possibilities=ids.filter(id=>id!==state.previousTarget);
+ state.target=possibilities[Math.floor(Math.random()*possibilities.length)]||ids[0];
  state.previousTarget=state.target;
  state.botTargets={};
 }
@@ -184,7 +171,7 @@ function botVector(p,state){
  if(!state.botTargets[p.id]){
    // Bots remember most tiles but can misremember, so bot-only matches can conclude.
    const mistake=state.startCount>1&&Math.random()<.24;
-   const options=state.tiles.filter(t=>mistake?!isSafeFruit(state,t.fruitType):isSafeFruit(state,t.fruitType));
+   const options=state.tiles.filter(t=>mistake?t.fruitType!==state.target:t.fruitType===state.target);
    const sorted=options.map(t=>({t,x:tileRect(state,t).x+state.tileW*.5,
      y:tileRect(state,t).y+state.tileH*.5})).sort((a,b)=>
      Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y));
@@ -263,14 +250,14 @@ function calculateFootSupport(state,p){
    if(Math.abs(p.x-(r.x+r.w/2))>r.w/2+C.footRadius||
       Math.abs(p.y-(r.y+r.h/2))>r.h/2+C.footRadius)continue;
    const area=circleRectArea(p.x,p.y,C.footRadius,r);
-   if(isSafeFruit(state,t.fruitType))safeArea+=area;
+   if(t.fruitType===state.target)safeArea+=area;
    else otherArea+=area;
  }
  const ratio=clamp(safeArea/footArea,0,1);
  const center=tileAt(state,p.x,p.y);
  const tie=Math.abs(ratio-.5)<=.002;
  return {ratio,area:safeArea,covered:clamp((safeArea+otherArea)/footArea,0,1),
-   survive:ratio>.5+.002||(tie&&isSafeFruit(state,center?.fruitType))};
+   survive:ratio>.5+.002||(tie&&center?.fruitType===state.target)};
 }
 function evaluateSurvivors(state,players){
  // Every judgment reads the SAME position snapshot, before any fall animation.
@@ -292,7 +279,7 @@ function evaluateSurvivors(state,players){
  state.replayEntrants=null;
  const remaining=living(players);
  state.pendingWinner=remaining.length===1?remaining[0].id:null;
- for(const t of state.tiles)t.collapseState=isSafeFruit(state,t.fruitType)?'safe':'falling';
+ for(const t of state.tiles)t.collapseState=t.fruitType===state.target?'safe':'falling';
  setPhase(state,'collapse');
 }
 function step(state,players,dt){
@@ -364,11 +351,10 @@ function update(dt,round,players){
 function hud(players,round){
  const state=round.fruitMemory;
  return {survivors:living(players).length,remaining:round.remaining||0,
-   phase:state?.phase||'countdown',fruit:state?.target||null,
-   fruits:state?selectedFruitIds(state):[]};
+   phase:state?.phase||'countdown',fruit:state?.target||null};
 }
 function drawTile(ctx,state,t,time){
- const r=tileRect(state,t),pad=3,correct=isSafeFruit(state,t.fruitType);
+ const r=tileRect(state,t),pad=3,correct=t.fruitType===state.target;
  const collapsing=state.phase==='collapse',falling=collapsing&&!correct;
  const rebuilding=state.phase==='rebuild'&&t.collapseState==='falling';
  const fallProgress=falling?clamp((state.elapsed-.12)/(state.collapseSeconds-.2),0,1):
@@ -430,25 +416,24 @@ function drawPlayer(ctx,p,state,time){
    color:p.color,attacking:Combat.isAttacking(p)});
  ctx.restore();
 }
-// A minimal, centered row of three target fruit SVGs immediately below the
-// SAME host badge used by clocks and player counts; never another side panel.
+// Three identical icons make the SINGLE safe fruit stand out without changing
+// gameplay. Use the shared clock/headcount's bottom edge, not a side panel.
 function drawTargetFruits(ctx,round){
  const state=round?.fruitMemory;
  if(!state||round.phase==='countdown'||
     !['target','move','collapse'].includes(state.phase))return;
- const ids=selectedFruitIds(state);
- if(ids.length!==3)return; // Never imply an incomplete/misleading safe set.
+ const fruit=FRUIT_BY_ID[state.target],img=fruitImage(state.target);
+ if(!fruit)return;
  const y=(window.PartyArenaScenes?.badgeBottomY?.()??38)+18;
- const centerX=480,spacing=38,radius=15.5;
+ const spacing=38,radius=15.5;
  ctx.save();
- for(let i=0;i<3;i++){
-   const id=ids[i],fruit=FRUIT_BY_ID[id],x=centerX+(i-1)*spacing;
-   if(!fruit)continue;
+ for(let i=-1;i<=1;i++){
+   const x=480+i*spacing;
    ctx.beginPath();ctx.arc(x,y,radius,0,TAU);
    ctx.fillStyle='#263242e8';ctx.fill();
    ctx.lineWidth=2;ctx.strokeStyle='#fff1c9';ctx.stroke();
-   const img=fruitImage(id);
-   if(img?.complete&&img.naturalWidth>0)ctx.drawImage(img,x-12,y-12,24,24);
+   if(img?.complete&&img.naturalWidth>0)
+     ctx.drawImage(img,x-12,y-12,24,24);
    else{ctx.beginPath();ctx.arc(x,y,9,0,TAU);ctx.fillStyle=fruit.color;ctx.fill();}
  }
  ctx.restore();
@@ -462,5 +447,5 @@ function draw(ctx,time,round,players){
  ctx.restore();
 }
 window.FruitMemory=Object.freeze({setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
- calculateFootSupport,evaluateSurvivors,chooseTargetFruit,selectedFruitIds,isSafeFruit,resolvePlayerCollisions,drawPlayer,drawTargetFruits,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
+ calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawTargetFruits,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();
