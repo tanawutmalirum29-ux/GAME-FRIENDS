@@ -87,6 +87,13 @@
         "chromium": 12,
         "webkit": 20
       }
+    },
+    {
+      "file": "tests/lazy-boot-browser.cjs",
+      "browsers": {
+        "chromium": 15,
+        "webkit": 25
+      }
     }
   ]
 }
