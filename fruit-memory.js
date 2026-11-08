@@ -397,10 +397,11 @@ function drawTile(ctx,state,t,time){
    const batch=state.revealTimeline[state.revealCursor];
    if(batch){
      const within=state.elapsed-batch.start;
-     revealed=batch.ids.includes(t.tileId)&&within>.12&&within<batch.duration-.17;
+     const flip=Math.min(.12,batch.duration*.14);
+     revealed=batch.ids.includes(t.tileId)&&within>=flip&&within<=batch.duration-flip;
      if(revealed){
-       const edge=Math.min(within-.12,batch.duration-.17-within);
-       flipping=clamp(edge/.17,0,1);
+       const edge=Math.min(within-flip,batch.duration-flip-within);
+       flipping=clamp(edge/Math.max(.03,flip),0,1);
      }
    }
  }else if(collapsing)revealed=true;
@@ -410,7 +411,9 @@ function drawTile(ctx,state,t,time){
  const w=(r.w-pad*2)*(revealed?Math.max(.06,flipping):1),h=r.h-pad*2;
  // Only revealed cards get fruit-specific colors. Hidden cards remain identical.
  const face=revealed?TILE_COLORS[t.fruitType]:'#68648d';
+ ctx.shadowColor='#174d1c77';ctx.shadowBlur=10;ctx.shadowOffsetY=7;
  ctx.fillStyle='#302e4f';ctx.beginPath();ctx.roundRect(-w/2,-h/2+5,w,h,8);ctx.fill();
+ ctx.shadowBlur=0;ctx.shadowOffsetY=0;
  ctx.fillStyle=face;ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h-3,8);ctx.fill();
  ctx.strokeStyle=revealed?'#fff2c9':'#b7b1d2';ctx.lineWidth=2;
  ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);
@@ -448,36 +451,76 @@ function drawPlayer(ctx,p,state,time){
    color:p.color,attacking:Combat.isAttacking(p)});
  ctx.restore();
 }
-// Three identical icons make the SINGLE safe fruit stand out without changing
-// gameplay. Use the shared clock/headcount's bottom edge, not a side panel.
-function drawTargetFruits(ctx,round){
- const state=round?.fruitMemory;
- if(!state||round.phase==='countdown'||
-    !['target','move','collapse'].includes(state.phase))return;
- const fruit=FRUIT_BY_ID[state.target],img=fruitImage(state.target);
- if(!fruit)return;
- const y=(window.PartyArenaScenes?.badgeBottomY?.()??38)+18;
- const spacing=38,radius=15.5;
- ctx.save();
- for(let i=-1;i<=1;i++){
-   const x=480+i*spacing;
-   ctx.beginPath();ctx.arc(x,y,radius,0,TAU);
-   ctx.fillStyle='#263242e8';ctx.fill();
-   ctx.lineWidth=2;ctx.strokeStyle='#fff1c9';ctx.stroke();
-   if(img?.complete&&img.naturalWidth>0)
-     ctx.drawImage(img,x-12,y-12,24,24);
-   else{ctx.beginPath();ctx.arc(x,y,9,0,TAU);ctx.fillStyle=fruit.color;ctx.fill();}
+
+const panelCache={};
+function screenImage(tint){
+ if(panelCache[tint])return panelCache[tint];
+ if(typeof Image==='undefined')return null;
+ const warm=tint==='timer',light=warm?'#ffe456':(TILE_COLORS[tint]||'#76e8e3');
+ const mid=warm?'#ff982e':(FRUIT_BY_ID[tint]?.color||'#23cdea');
+ const svg=[
+ '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 440">',
+ '<defs><linearGradient id="metal"><stop stop-color="#3b2676"/><stop offset=".3" stop-color="#bb7ef2"/><stop offset=".65" stop-color="#683ca8"/><stop offset="1" stop-color="#301e72"/></linearGradient>',
+ '<linearGradient id="glass" x2=".85" y2="1"><stop stop-color="'+light+'"/><stop offset=".48" stop-color="'+mid+'"/><stop offset="1" stop-color="'+light+'"/></linearGradient>',
+ '<linearGradient id="shine" x2="1" y2="1"><stop stop-color="#fff" stop-opacity=".55"/><stop offset=".7" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>',
+ '<ellipse cx="76" cy="426" rx="65" ry="10" fill="#1a5b22" opacity=".3"/>',
+ '<rect x="31" y="41" width="16" height="361" rx="7" fill="url(#metal)" stroke="#42277e" stroke-width="3"/>',
+ '<rect x="103" y="41" width="16" height="361" rx="7" fill="url(#metal)" stroke="#42277e" stroke-width="3"/>',
+ '<g fill="none" stroke="#dbffe8" stroke-width="4"><path d="M28 55q-25 14 0 28t0 28t0 28M122 55q25 14 0 28t0 28t0 28"/>',
+ '<path d="M28 306q-25 14 0 28t0 28t0 28M122 306q25 14 0 28t0 28t0 28"/></g>',
+ '<rect x="22" y="29" width="106" height="381" rx="17" fill="#311c72" stroke="#bd8cf3" stroke-width="6"/>',
+ '<rect x="28" y="36" width="94" height="365" rx="12" fill="url(#metal)" stroke="#e7b8ff" stroke-width="2"/>',
+ '<rect x="8" y="111" width="21" height="219" rx="6" fill="#f59c3d" stroke="#a25180" stroke-width="4"/>',
+ '<rect x="121" y="111" width="21" height="219" rx="6" fill="#f59c3d" stroke="#a25180" stroke-width="4"/>',
+ '<rect x="34" y="69" width="82" height="307" rx="7" fill="#261d5a" stroke="#281463" stroke-width="6"/>',
+ '<rect x="41" y="78" width="68" height="287" rx="3" fill="url(#glass)" stroke="#ffe1a0" stroke-width="2"/>',
+ '<rect x="41" y="78" width="68" height="287" rx="3" fill="url(#shine)"/>',
+ '<g opacity=".18" stroke="#fff" stroke-width="2"><path d="M42 128 109 195M42 210l67 67M42 293l67 67"/></g>',
+ '<g fill="#fffaab" stroke="#79538c" stroke-width="3"><circle cx="20" cy="155" r="5"/><circle cx="20" cy="183" r="5"/><circle cx="131" cy="272" r="5"/><circle cx="131" cy="299" r="5"/></g>',
+ '<rect x="34" y="65" width="82" height="13" rx="5" fill="#ae7af0" stroke="#58349b" stroke-width="2"/>',
+ '<rect x="34" y="366" width="82" height="13" rx="5" fill="#ae7af0" stroke="#58349b" stroke-width="2"/>',
+ '<g transform="rotate(-7 75 29)"><rect x="41" y="9" width="68" height="39" rx="18" fill="#392276" stroke="#ae74e5" stroke-width="5"/>',
+ '<rect x="46" y="15" width="58" height="26" rx="13" fill="'+(warm?'#f3ce3c':'#2dc4f4')+'" stroke="#fff0a8" stroke-width="2"/></g>',
+ '<g transform="rotate(7 75 411)"><rect x="41" y="393" width="68" height="39" rx="18" fill="#392276" stroke="#ae74e5" stroke-width="5"/>',
+ '<rect x="46" y="399" width="58" height="26" rx="13" fill="'+(warm?'#eb4d51':'#50d869')+'" stroke="#fff0a8" stroke-width="2"/></g>',
+ '</svg>'
+ ].join('');
+ const img=new Image();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+ panelCache[tint]=img;return img;
+}
+function drawSideScreens(ctx,state){
+ const target=['target','move','collapse'].includes(state.phase)&&!!state.target;
+ const img=screenImage(target?state.target:'timer');
+ const seconds=String(Math.max(1,Math.ceil(state.memorizeSeconds-state.elapsed)));
+ for(const right of [false,true]){
+   const x=right?686:124,y=64;
+   ctx.save();ctx.translate(x+(right?150:0),y);
+   if(right)ctx.scale(-1,1);
+   if(img?.complete&&img.naturalWidth>0)ctx.drawImage(img,0,0,150,440);
+   ctx.restore();
+   if(state.phase!=='memorize'&&!target)continue;
+   ctx.save();ctx.translate(x+75,y+221);ctx.rotate(right?Math.PI/2:-Math.PI/2);
+   if(target){
+     const fruitImg=fruitImage(state.target),fruit=FRUIT_BY_ID[state.target];
+     if(fruitImg?.complete&&fruitImg.naturalWidth>0)ctx.drawImage(fruitImg,-46,-46,92,92);
+     else if(fruit){ctx.fillStyle=fruit.color;ctx.beginPath();ctx.arc(0,0,33,0,TAU);ctx.fill();}
+   }else{
+     ctx.font='900 76px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+     ctx.lineWidth=5;ctx.strokeStyle='#e09128';if(ctx.strokeText)ctx.strokeText(seconds,0,2);
+     ctx.fillStyle='#fff';ctx.fillText(seconds,0,0);
+   }
+   ctx.restore();
  }
- ctx.restore();
 }
 function draw(ctx,time,round,players){
  const state=round.fruitMemory;if(!state)return;
  ctx.save();ctx.clearRect(0,0,960,540);
  window.PartyArenaArt.draw(ctx,'orchard',state);
+ drawSideScreens(ctx,state);
  for(const tile of state.tiles)drawTile(ctx,state,tile,time);
  for(const p of players)drawPlayer(ctx,p,state,time);
  ctx.restore();
 }
 window.FruitMemory=Object.freeze({setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
- calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawTargetFruits,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
+ calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawSideScreens,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();
