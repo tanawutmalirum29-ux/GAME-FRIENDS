@@ -73,7 +73,7 @@ async function platform(){
  };
  const document={hidden:false,head:{appendChild(){throw Error('Adopted legacy engine should not reload scripts');}},
   addEventListener(){}};
- const ctx={window,document,location:{origin:'https://example.org/',href:'https://example.org/?host=1'},
+ const ctx={window,document,location:{origin:'https://example.org',href:'https://example.org/?host=1'},
   URL,Date,CustomEvent:class{constructor(){}},setInterval(){},console,
   fetch:async()=>({ok:true,json:async()=>JSON.parse(JSON.stringify(data))})};
  vm.runInNewContext(moduleSource,ctx);
@@ -86,6 +86,7 @@ async function platform(){
  data.games[0].enabled=false;
  assert.equal(await window.GamePlatform.refresh(),true);
  assert.equal(window.GamePlatform.games().length,0,'disabled manifest must disappear');
+ assert.equal(await window.GamePlatform.refresh(),false,'unchanged disabled catalog does not rerender');
  data.coreHash='c'.repeat(20);
  assert.equal(await window.GamePlatform.refresh(),false,'core changes cannot hot-activate');
  assert.equal(window.GamePlatform.pendingCoreUpdate,true);

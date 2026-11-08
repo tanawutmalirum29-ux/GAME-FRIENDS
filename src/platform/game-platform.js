@@ -41,13 +41,16 @@ async function refresh(){
   const initial=String(window.GAME_CORE_VERSION||'');
   if(initial&&data.coreHash!==initial){pendingCore=true;return false;}
   if(coreHash&&coreHash!==data.coreHash){pendingCore=true;return false;}
-  const changed=!coreHash||next.length!==catalog.size||next.some(g=>{
-   const old=catalog.get(g.id);return !old||old.hash!==g.hash||old.enabled!==g.enabled;
+  const enabled=next.filter(g=>g.enabled);
+  const changed=!coreHash||enabled.length!==catalog.size||enabled.some(g=>{
+   const old=catalog.get(g.id);return !old||old.hash!==g.hash||old.name!==g.name||
+    old.version!==g.version||old.players.min!==g.players.min||
+    old.players.max!==g.players.max||old.modes.join(',')!==g.modes.join(',');
   });
   coreHash=data.coreHash;
   if(changed){
    catalog.clear();
-   for(const g of next)if(g.enabled)catalog.set(g.id,g);
+   for(const g of enabled)catalog.set(g.id,g);
    revision++;emitted();
   }
   return changed;
