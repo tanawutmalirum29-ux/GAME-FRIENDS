@@ -377,6 +377,56 @@ function v8RoadGuides(g,s){
    g.lineTo(e.b.x+nx*r*side,e.b.y+ny*r*side);g.stroke();
   }
  }
+ // Graph-projected directional markers. This is display-only: gameplay
+ // still follows nextNodes and ignores pathArrowOverrides.
+ const degree=id=>(map.nodes[id]?.nextNodes.length||0)+(map.nodes[id]?.previousNodes.length||0);
+ function arrowPoint(e,t){
+  if(e.from==='n3'&&(e.to==='n4'||e.to==='b3_1')){
+   const q=e.to==='n4'?{x:1227,y:4734}:{x:1082,y:4664},v=1-t;
+   return{x:v*v*e.a.x+2*v*t*q.x+t*t*e.b.x,
+          y:v*v*e.a.y+2*v*t*q.y+t*t*e.b.y};
+  }
+  return{x:e.a.x+(e.b.x-e.a.x)*t,y:e.a.y+(e.b.y-e.a.y)*t};
+ }
+ function arrowTangent(e,t){
+  if(e.from==='n3'&&(e.to==='n4'||e.to==='b3_1')){
+   const q=e.to==='n4'?{x:1227,y:4734}:{x:1082,y:4664};
+   return{x:2*(1-t)*(q.x-e.a.x)+2*t*(e.b.x-q.x),
+          y:2*(1-t)*(q.y-e.a.y)+2*t*(e.b.y-q.y)};
+  }
+  return{x:e.b.x-e.a.x,y:e.b.y-e.a.y};
+ }
+ function arrowHead(e,reversed=false){
+  const L=Math.hypot(e.b.x-e.a.x,e.b.y-e.a.y);
+  if(L<1)return;
+  const inset=Math.min(BOARD_NODE_DIAMETER*.56,L*.39),
+   free=Math.max(1,L-2*inset),direction=reversed?-1:1,
+   length=Math.max(5,Math.min(25,free*.62)),
+   width=Math.max(8,Math.min(25,free*.66));
+  const from=reversed?1-inset/L:inset/L;
+  const to=reversed?inset/L:1-inset/L;
+  const neck=Math.max(0,Math.min(1,to-direction*length/L));
+  const a=arrowPoint(e,from),b=arrowPoint(e,neck),tip=arrowPoint(e,to);
+  const tangent=arrowTangent(e,to),d=Math.hypot(tangent.x,tangent.y)||1;
+  const nx=-tangent.y/d,ny=tangent.x/d;
+  g.save();g.globalAlpha=z<.18?.85:1;
+  g.strokeStyle='#fff4db';g.fillStyle='#fff4db';
+  g.lineCap='round';g.lineJoin='round';g.lineWidth=Math.max(3,Math.min(10,free*.22));
+  g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
+  g.beginPath();g.moveTo(tip.x,tip.y);
+  g.lineTo(b.x+nx*width/2,b.y+ny*width/2);
+  g.lineTo(b.x-nx*width/2,b.y-ny*width/2);
+  g.closePath();g.fill();g.restore();
+ }
+ // Every edge gets a single head, including every leg of a multi-way fork.
+ // Incoming legs point outward from the fork (tail-to-tail). Neighbouring
+ // forks do not add a second opposing head on the same physical segment.
+ for(const e of [...regular,...crossings]){
+  const setting=map.pathArrowOverrides?.[e.from+'>'+e.to];
+  const reverse=setting==='reverse'||
+   (setting!=='forward'&&degree(e.to)>=3&&degree(e.from)<3);
+  arrowHead(e,reverse);
+ }
  // Only the canonical route gets a subtle dashed guide; side paths remain
  // undecorated to avoid another tangled web of marks on smaller screens.
  if(z>.25&&!c.lowDetail){
