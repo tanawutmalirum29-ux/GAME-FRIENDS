@@ -80,6 +80,13 @@
         "chromium": 35,
         "webkit": 65
       }
+    },
+    {
+      "file": "tests/game-platform-browser.cjs",
+      "browsers": {
+        "chromium": 12,
+        "webkit": 20
+      }
     }
   ]
 }
