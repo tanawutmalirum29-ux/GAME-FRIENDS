@@ -355,7 +355,8 @@ function draw(g,t,round,ps){
  for(const star of s.stars)artStar(g,star,t);
  for(const p of ps)if(p.ws)window.PartyArenaScenes.witchRider(g,s,p,t);
  g.restore();
- window.PartyArenaScenes.clock(g,round.phase==='countdown'?round.countdown:s.clock,'#b4a4d7');
+ // app.js paints the common clock for countdown/solo, or SVG headcount for
+ // multiplayer survival; avoid painting a competing elapsed-time badge here.
 }
 window.WitchingSnake=Object.freeze({setup,update,draw,hud,step,spawnPositions,
  inside,segmentsTouch,distPointSegment2,addTrail,indexTrails,strikesTrail,
