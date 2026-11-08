@@ -465,8 +465,7 @@ function drawSideDisplays(ctx,state,round,players){
      ctx.fillStyle='#fff2c9';ctx.beginPath();ctx.arc(w/2,178,43,0,TAU);ctx.fill();
      if(img?.complete&&img.naturalWidth)ctx.drawImage(img,(w-size)/2,140,size,size);
      label(target.name,239,16);
-     if(state.phase==='collapse')label('รอด '+living(players).length+' คน',287,16);
-     else{label('วิ่งไปช่องที่ถูก',290,15);label('ก่อนหมดเวลา',326,15);}
+     if(state.phase!=='collapse'){label('วิ่งไปช่องที่ถูก',290,15);label('ก่อนหมดเวลา',326,15);}
    }else if(state.phase==='memorize'||state.phase==='hide'){
      label('เปิดแล้ว',92,19);
      number(opened,165,62);
@@ -477,7 +476,7 @@ function drawSideDisplays(ctx,state,round,players){
    }else{
      label('รอบถัดไป',99,19);
      label('เตรียมจำใหม่',175,17);
-     label('ผู้รอด '+living(players).length+' คน',273,16);
+     // Survivor total lives in the shared SVG person badge, not this panel.
    }
    ctx.restore();
  }
