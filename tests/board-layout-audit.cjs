@@ -50,16 +50,16 @@ console.log('DESIGN_POS_SAMPLE '+JSON.stringify(Object.entries(D.allNodePosition
 console.log('DESIGN_SHAPES '+JSON.stringify({
  version:D.version,
  map:D.map,
- roadsLength:D.roads?.length,roads:D.roads?.slice(0,4),
- overpasses:D.overpasses?.slice(0,3),
+ roadsLength:D.roads?.length,roads:D.roads?.slice?.(0,4),
+ overpasses:D.overpasses?.slice?.(0,3),
  newNodes:D.newNodes?.slice(0,3),
  oldNodes:D.oldNodes?.slice(0,3),
  bridges:D.bridges?.slice(0,2),
  islands:D.islands?.slice(0,2),
- decorZones:D.decorZones?.slice(0,2),
+ decorZones:D.decorZones?.slice?.(0,2),
  oldNodePositions:Object.entries(D.oldNodePositions||{}).slice(0,3),
- existingRoadSegments:D.existingRoadSegments?.slice(0,2),
- allPathSegments:D.allPathSegments?.slice(0,3),
+ existingRoadSegments:D.existingRoadSegments?.slice?.(0,2),
+ allPathSegments:D.allPathSegments?.slice?.(0,3),
  frozen:Object.isFrozen(D),
  frozenPos:Object.isFrozen(D.allNodePositions)
 }));
