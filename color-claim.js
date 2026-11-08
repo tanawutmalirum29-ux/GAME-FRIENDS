@@ -594,6 +594,8 @@ function traceSmoothTrail(g,path){
  g.lineTo(path[path.length-1].x,path[path.length-1].y);
 }
 function drawScene(g,s){
+ if(s.dirty||!s.contours){s.contours=buildContours(s);s.dirty=false;}
+ if(window.ReferenceArenaArt?.claim(g,s,CELL))return;
  const f=s.field;
  g.fillStyle='#140d34';g.fillRect(0,0,s.w,s.h);
  g.save();g.shadowColor='#fa278e';g.shadowBlur=19;
@@ -604,7 +606,6 @@ function drawScene(g,s){
  g.lineWidth=1;g.strokeStyle='rgba(120,154,239,.13)';
  for(let x=f.x;x<=f.x+f.w;x+=32){g.beginPath();g.moveTo(x,f.y);g.lineTo(x,f.y+f.h);g.stroke();}
  for(let y=f.y;y<=f.y+f.h;y+=32){g.beginPath();g.moveTo(f.x,y);g.lineTo(f.x+f.w,y);g.stroke();}
- if(s.dirty||!s.contours){s.contours=buildContours(s);s.dirty=false;}
  g.globalAlpha=.79;
  for(let slot=0;slot<s.contours.length;slot++){
   const loops=s.contours[slot];if(!loops.length)continue;
@@ -657,8 +658,10 @@ function draw(g,t,round,ps){
   if(!q.alive)continue;
   g.save();g.shadowColor=p.color;g.shadowBlur=7;
   disk(g,p.x,p.y+5*unit,(SETTINGS.radius+3)*unit,'rgba(0,0,0,.23)');g.restore();
-  if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:t,combat:false,scale:unit});
-  else{disk(g,p.x,p.y,SETTINGS.radius*unit,p.color||'#80efff');}
+  if(!window.ReferenceArenaArt?.claimCar(g,p,SETTINGS.radius*unit)){
+   if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:t,combat:false,scale:unit});
+   else{disk(g,p.x,p.y,SETTINGS.radius*unit,p.color||'#80efff');}
+  }
   if(freezeActive(s,p)){
    g.save();g.globalAlpha=.75;g.strokeStyle='#b9efff';g.lineWidth=3;
    g.beginPath();g.arc(p.x,p.y,(SETTINGS.radius+5)*unit,0,TAU);g.stroke();

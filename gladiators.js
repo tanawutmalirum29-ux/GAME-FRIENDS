@@ -444,6 +444,7 @@ function hud(ps,round){
 function mace(g,p){
  const st=p.gladiator,ball=st.ball,ax=st.alive?st.anchorX:st.deadAnchorX,ay=st.alive?st.anchorY:st.deadAnchorY;
  const joints=[{x:ax,y:ay},...st.links,ball];
+ if(window.ReferenceArenaArt?.chainMace(g,p,joints,C))return;
  g.save();g.lineCap='round';g.lineJoin='round';
  g.strokeStyle='#11161d';g.lineWidth=5.2;
  g.beginPath();g.moveTo(joints[0].x+2,joints[0].y+3);
