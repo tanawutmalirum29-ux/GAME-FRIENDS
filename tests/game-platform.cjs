@@ -22,7 +22,8 @@ for(const game of catalog.games){
 }
 assert.ok(lazyHTML.includes('src="./app.js"'));
 assert.ok(lazyHTML.includes('src="./game-cover-art.js"'));
-assert.ok(lazyHTML.includes('src="./board-party.js"'));
+assert.ok(lazyHTML.includes('src="./src/platform/board-runtime.js"'),
+ 'production loads BOARD through the deferred core runtime');
 assert.equal(catalog.games.length,15,'all 15 legacy games must be automatically discovered');
 assert.equal(new Set(catalog.games.map(g=>g.id)).size,15);
 for(const game of catalog.games){
