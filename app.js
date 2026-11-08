@@ -16,8 +16,8 @@ function pickUnusedColor(){
   lastAssignedColor = color;
   return color;
 }
-const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',color_claim:'COLOR CLAIM',ice_race:'ICE RACE'};
-const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch',pizza_time:'PizzaTime',knight_match:'KnightMatch',boulder_bash:'BoulderBash',snow_brawl:'SnowBrawl',shopping_time:'ShoppingTime',witching_snake:'WitchingSnake',lawn_mower:'LawnMower',color_claim:'ColorClaim',ice_race:'IceRace'};
+const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',color_claim:'COLOR CLAIM',ice_race:'ICE RACE',gladiators:'GLADIATORS'};
+const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch',pizza_time:'PizzaTime',knight_match:'KnightMatch',boulder_bash:'BoulderBash',snow_brawl:'SnowBrawl',shopping_time:'ShoppingTime',witching_snake:'WitchingSnake',lawn_mower:'LawnMower',color_claim:'ColorClaim',ice_race:'IceRace',gladiators:'Gladiators'};
 const gameEngine=mode=>mode==='board'?BOARD_ENGINE:Object.hasOwn(ENGINES,mode)?window[ENGINES[mode]]:null;
 const BOARD_ENGINE={draw:(g,t)=>window.BoardArt.draw(g,t,boardSession),hud:()=>({survivors:boardSession?.players.length||0})};
 
@@ -418,7 +418,7 @@ function removePlayer(id) {
   renderRoster();broadcastRoster();
   if(['results','summary'].includes(round?.phase))renderResultVotes(true);
 }
-function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active,choice:p.choice,eliminated:!!((round?.mode==='shockwave'&&p.active&&!p.shockAlive)||(round?.mode==='witching_snake'&&p.active&&!p.ws?.alive))};}
+function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active,choice:p.choice,eliminated:!!((round?.mode==='shockwave'&&p.active&&!p.shockAlive)||(round?.mode==='witching_snake'&&p.active&&!p.ws?.alive)||(round?.mode==='gladiators'&&p.active&&!p.gladiator?.alive))};}
 function send(conn,msg){if(conn&&conn.open){try{conn.send(msg);}catch(e){/* peer disconnected */}}}
 function broadcast(msg){hostConnections.forEach(c=>send(c,msg));}
 // Low-bandwidth game view for phone controllers (no microphone, no screen capture).
@@ -606,6 +606,13 @@ function sendPlayerInventory(conn){
     send(conn,{t:'claim-status',mode:round.mode,phase:networkPhase(),percent:p.score||0,
       frozen:window.ColorClaim.freezeActive(round.colorClaim,p),
       eliminated:!!p.cc?.eliminated,alive:!!p.cc?.alive});return;
+  }
+  if(round.mode==='gladiators'){
+    const st=p.gladiator||{},ball=st.ball||{};
+    send(conn,{t:'gladiators-status',mode:round.mode,phase:networkPhase(),alive:!!st.alive,
+      survivors:window.Gladiators.hud(players,round).survivors,
+      ball:{x:ball.x||0,y:ball.y||0,vx:ball.vx||0,vy:ball.vy||0},
+      chain:{x:st.anchorX||0,y:st.anchorY||0},eliminatedTick:st.eliminatedTick});return;
   }
   if(round.mode==='witching_snake'){
      send(conn,{t:'witch-status',mode:round.mode,phase:networkPhase(),alive:!!p.ws?.alive,stars:p.ws?.stars||0});return;
@@ -1676,6 +1683,12 @@ function joinRoom(recovery=false){
         }else if(data.t==='ice-status'){
           if(controllerReady&&controllerGameMode==='ice_race')
             $('controllerState').textContent='เช็กพอยต์ '+data.score+' คะแนน'+(data.falling?' • กำลังเกิดใหม่':'');
+        }else if(data.t==='gladiators-status'){
+          if(controllerReady&&controllerGameMode==='gladiators'&&data.mode==='gladiators'){
+           controllerPlayerEliminated=!data.alive;
+           $('controllerRole').textContent=data.alive?'ผู้รอดชีวิต':'ตกรอบ';
+           $('controllerState').textContent=data.alive?'GLADIATORS • รอด '+data.survivors+' คน':'ตกรอบ • ดูเกมต่อ';
+          }
         }else if(data.t==='witch-status'){
           if(controllerReady&&controllerGameMode==='witching_snake')
            $('controllerState').textContent=data.alive?'บินหลบเส้นแสง • ดาว '+data.stars:'ตกรอบ • ดูเกมต่อ';
@@ -1722,7 +1735,7 @@ function joinRoom(recovery=false){
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='color_claim'?'COLOR CLAIM • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':data.mode==='witching_snake'?'WITCHING SNAKE • รอด '+(data.survivors??'?')+' คน':data.mode==='ice_race'?'ICE RACE • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='lawn_mower'?'LAWN MOWER • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shopping_time'?'SHOPPING TIME • เหลือ '+Math.ceil(data.remaining||0)+' วิ':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
+          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='color_claim'?'COLOR CLAIM • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':data.mode==='witching_snake'?'WITCHING SNAKE • รอด '+(data.survivors??'?')+' คน':data.mode==='ice_race'?'ICE RACE • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='lawn_mower'?'LAWN MOWER • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shopping_time'?'SHOPPING TIME • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='gladiators'?'GLADIATORS • รอด '+(data.survivors??'?')+' คน':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
         if(data.mode==='board'&&data.phase==='playing')renderPhoneBoard();
       }else if(data.t==='closed'){
@@ -1833,7 +1846,7 @@ function showControllerMode(mode){
     $('buttonA').title='';
   }
   if(!fruit)$('buttonA').disabled=false;
-   if((mode==='witching_snake'||mode==='lawn_mower'||mode==='color_claim'||mode==='ice_race')&&playing){$('buttonA').disabled=true;$('buttonB').disabled=true;}
+   if((mode==='witching_snake'||mode==='lawn_mower'||mode==='color_claim'||mode==='ice_race'||mode==='gladiators')&&playing){$('buttonA').disabled=true;$('buttonB').disabled=true;}
    else $('buttonB').disabled=false;
   $('buttonALabel').textContent=aLabel;
   $('buttonBLabel').textContent=bLabel;
@@ -1847,6 +1860,7 @@ function showControllerMode(mode){
     colorSwitch?'วิ่งทาสีสะสมคะแนน • A ต่อยสตั้น • B ระเบิดสี 3×3 • เก็บกล่องทองสะสมคะแนน':
      shockwave?'แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง':
      mode==='color_claim'?'ลากเส้นสีออกนอกเขตแล้วกลับมาปิดวง • ตัดเส้นคู่แข่งให้ตาย • เก็บเกล็ดหิมะเพื่อแช่แข็งทุกคน 4 วิ • A/B ไม่ใช้':
+     mode==='gladiators'?'เดิน หมุน และเปลี่ยนทิศเพื่อเหวี่ยงลูกตุ้มหนาม • โซ่ไม่ฆ่า • A/B ไม่ใช้':
      mode==='witching_snake'?'เลี้ยวไม้กวาดด้วยจอย • หลบหางเวทมนตร์และขอบสนาม • ดาวเพิ่มความยาวหาง • A/B ไม่ใช้':
       mode==='ice_race'?'เลื่อนน้ำแข็งลื่นมาก • ดริฟต์วนผ่านเช็กพอยต์ตามลำดับ • ตกแล้วเกิดใหม่ • A/B ไม่ใช้':
       mode==='lawn_mower'?'ขับรถตัดหญ้าด้วยจอย • สุ่มพระอาทิตย์ 1–3 ดวง • ดวงละ 5 คะแนน • A/B ไม่ใช้':
@@ -2342,7 +2356,7 @@ function startRound(forcedMode=null){
     return;
   }
   $('results').querySelector('.eyebrow').textContent=MODES[mode];
-  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ทำคะแนนสูงสุด!':mode==='color_claim'?'ผู้ยึดพื้นที่มากที่สุด!':mode==='ice_race'?'ผ่านเช็กพอยต์มากที่สุด!':mode==='lawn_mower'?'ผู้สะสมพระอาทิตย์มากที่สุด!':mode==='shopping_time'?'คิดเงินให้ได้คะแนนสูงสุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':(mode==='boulder_bash'||mode==='snow_brawl'||mode==='witching_snake')?'ผู้รอดชีวิตคนสุดท้าย!':'จับไก่ให้ได้มากที่สุด!';
+  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ทำคะแนนสูงสุด!':mode==='color_claim'?'ผู้ยึดพื้นที่มากที่สุด!':mode==='ice_race'?'ผ่านเช็กพอยต์มากที่สุด!':mode==='lawn_mower'?'ผู้สะสมพระอาทิตย์มากที่สุด!':mode==='shopping_time'?'คิดเงินให้ได้คะแนนสูงสุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':(mode==='boulder_bash'||mode==='snow_brawl'||mode==='witching_snake'||mode==='gladiators')?'ผู้รอดชีวิตคนสุดท้าย!':'จับไก่ให้ได้มากที่สุด!';
   // Countdown and player count now live in the solid map-corner HUD.
   $('gameBanner').textContent='';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
@@ -2607,6 +2621,7 @@ function endRound(){
    if(round.mode==='color_claim'){endColorClaimRound();return;}
    if(round.mode==='snow_brawl'){endSnowBrawlRound();return;}
    if(round.mode==='boulder_bash'){endBoulderBashRound();return;}
+    if(round.mode==='gladiators'){endGladiatorsRound();return;}
     if(round.mode==='witching_snake'){endWitchingSnakeRound();return;}
 
    if(round.mode==='lawn_mower'){endLawnMowerRound();return;}
@@ -2704,6 +2719,48 @@ function endColorClaimRound(){
   head.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:
    'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
   list.prepend(head);
+ }
+ $('results').classList.remove('hidden');$('gameBanner').textContent='';
+ beginResultVoting();renderLeaderboard();
+}
+function endGladiatorsRound(){
+ const s=round.gladiators;
+ round.phase='results';round.paused=false;resetInputs();broadcastRoster();
+ $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
+ const value=p=>p.gladiator?.alive?Infinity:(p.gladiator?.eliminatedTick??-1);
+ const ranked=players.filter(p=>p.active).slice().sort((a,b)=>value(b)-value(a)||String(a.id).localeCompare(String(b.id)));
+ const rankOf=p=>1+ranked.filter(q=>value(q)>value(p)).length;
+ awardRoundPoints(ranked,rankOf);
+ round.autoNextRemaining=canAutoAdvanceResults()?7:0;
+ const top=ranked.filter(p=>rankOf(p)===1);
+ $('results').querySelector('h2').textContent=ranked.length===1?
+  (top[0]?.gladiator?.alive?'รอดชีวิตครบ 60 วินาที!':'เอาตัวรอดไม่สำเร็จ'):
+  top.length>1?'เสมอ! อันดับ 1 ร่วม':
+  top[0]?.gladiator?.alive?'ผู้ชนะ: '+top[0].name:'อยู่รอดนานที่สุด: '+top[0]?.name;
+ const list=$('resultList');list.replaceChildren();
+ const show=(people,useTotal=false)=>{
+  const get=p=>useTotal?p.total:value(p);
+  for(const p of people){
+   const rank=1+people.filter(q=>get(q)>get(p)).length;
+   const tied=people.some(q=>q!==p&&get(q)===get(p));
+   const row=document.createElement('div');row.className='result-player';
+   const label=document.createElement('div');label.style.color=p.color;
+   label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
+   const detail=document.createElement('span');
+   detail.textContent=useTotal?p.total+' คะแนนรวม':
+    (p.gladiator?.alive?'ผู้รอดชีวิต':'ตกรอบ')+' • '+
+     (p.gladiator?.eliminatedAt??s.clock).toFixed(1)+' วิ'+totalScoreNote(p);
+   row.append(label,detail);list.append(row);
+  }
+ };
+ show(ranked);
+ if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
+  list.replaceChildren();const overall=ranked.slice().sort((a,b)=>b.total-a.total);
+  show(overall,true);
+  const leaders=overall.filter(p=>p.total===overall[0].total);
+  const title=document.createElement('div');title.className='tournament-header';
+  title.textContent=leaders.length>1?'คะแนนรวมเสมอ: '+leaders.map(p=>p.name).join(', '):
+   'ผู้ชนะรวม: '+leaders[0].name;list.prepend(title);
  }
  $('results').classList.remove('hidden');$('gameBanner').textContent='';
  beginResultVoting();renderLeaderboard();
@@ -3148,6 +3205,22 @@ function renderLeaderboard(){
       box.append(dot,name,score,status);root.append(box);
     }
     return;
+  }
+  if(round.mode==='gladiators'){
+   const ordered=active.slice().sort((a,b)=>
+     Number(!!b.gladiator?.alive)-Number(!!a.gladiator?.alive)||
+     (b.gladiator?.eliminatedTick??0)-(a.gladiator?.eliminatedTick??0));
+   for(const p of ordered){
+    const box=document.createElement('div');box.className='leader-chip';
+    if(!p.gladiator?.alive)box.classList.add('shockwave-eliminated');
+    const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
+    const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+    const status=document.createElement('small');status.className='leader-role';
+    status.textContent=p.gladiator?.alive?'รอด':'ตกรอบ';
+    const empty=document.createElement('span');empty.className='leader-item-slot';
+    box.append(dot,name,status,empty);root.append(box);
+   }
+   return;
   }
     if(round.mode==='witching_snake'){
    const ordered=[...active].sort((a,b)=>Number(!!b.ws?.alive)-Number(!!a.ws?.alive)||
