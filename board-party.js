@@ -204,7 +204,7 @@ const JUNCTION_SWITCH_RADIUS=130,JUNCTION_TURN_LANE=86;
 const bound=(x,a,b)=>Math.max(a,Math.min(b,x));
 function step(s,to){
  const m=s.move,p=current(s);
- if(!m||m.to||!s.map.nodes[p.currentNodeId].nextNodes.includes(to)||(s.map.version!=='winter-expedition-152-v7'&&m.visited.includes(to)))return false;
+ if(!m||m.to||!s.map.nodes[p.currentNodeId].nextNodes.includes(to)||(s.map.version!==M().MAP_VERSION&&m.visited.includes(to)))return false;
  const pos=I().position(s,p),a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position;
  m.from=p.currentNodeId;m.to=to;m.intent=null;m.intentTime=0;
  if(m.kind==='walk'){
