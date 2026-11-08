@@ -5781,3 +5781,22 @@ body.host-playing #game .game-center-hud{
 #hostLobby .lobby-controls .btn:active{
   transform:none!important;
 }
+
+/* BOARD PARTY has a complete, independently painted Canvas HUD. Host minigame
+   CSS still leaves a 96/148px near-opaque gradient toolbar over its scoreboard
+   and dice-order headings on landscape iPad. Remove that DECORATIVE backdrop,
+   not the toolbar itself: pause/tool controls remain fixed and interactive. */
+body.host-playing.board-playing #game .game-toolbar{
+ height:0!important;
+ min-height:0!important;
+ max-height:0!important;
+ padding:0!important;
+ background:none!important;
+ background-image:none!important;
+ box-shadow:none!important;
+ overflow:visible!important;
+ pointer-events:none;
+}
+/* The external minigame roster is already hidden for BOARD PARTY; keep that
+   contract even when host-playing media queries change their dimensions. */
+body.host-playing.board-playing #game .game-center-hud{display:none!important}

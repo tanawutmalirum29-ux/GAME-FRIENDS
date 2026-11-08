@@ -129,3 +129,24 @@ must pass on the **latest** PR SHA before merge. NORMAL PARTY is unchanged.
 To modify the board in the future, read this document and
 `AGENTS.md`, recompute graph reachability, regenerate mapping and
 keep renderer, bridge metadata and gameplay in sync.
+
+## 9 November 2026 — WS waypoint retirement and top HUD fix
+
+- All eight `ws*` nodes were retired: `ws0_0`, `ws1_0`, `ws2_0`,
+  `ws5_0`, `ws8_0`, `ws9_0`, `ws9_1`, `ws9_2`.
+- The four existing through-roads on Workshop Island were contracted without
+  changing their travel permissions: `w0→w1`, `w1→w2`, `w2→w3`, `w5→w6`.
+  Each edge replaces the exact former `w→ws→w` path. The optional
+  `ws8/ws9` detours were removed instead of drawing long diagonal shortcuts.
+- The Workshop sword pair `w6/w7`, all island entry/exit bridges, and
+  downstream `fa/fb` routes are retained.
+- The authoritative graph has **302 nodes, 321 directed edges**, 17 islands,
+  and 15 retained authored new bridges. The migration removes 44 explicit
+  checkpoints (36 previously requested + 8 WS) and 13 previously stranded
+  nodes. It creates no unrelated new route.
+- A host-specific `body.host-playing.board-playing` CSS override removes the
+  *external minigame HUD gradient* from BOARD PARTY; BOARD's own Canvas header,
+  order/roll text, map tools and interactive pause button remain in place.
+- Regression checks assert no remaining WS graph/visual identifiers, complete
+  reachability, four contracted routes, all sword pairs, no ghost edges,
+  plus transparent zero-height host toolbar for the browser's BOARD view.

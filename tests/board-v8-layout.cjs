@@ -21,9 +21,9 @@ function inside(p,poly){
 }
 const m=M.create(73129),nodes=Object.values(m.nodes),edges=nodes.flatMap(n=>n.nextNodes.map(id=>[n,m.nodes[id]]));
 assert.equal(m.version,'winter-expedition-152-v9');
-assert.equal(nodes.length,310);assert.equal(m.islands.length,17);
+assert.equal(nodes.length,302);assert.equal(m.islands.length,17);
 assert.equal(M.validate(m),true);
-assert.equal(edges.length,331,'preserve authored board choices while rerouting them');
+assert.equal(edges.length,321,'preserve authored board choices while rerouting them');
 const get=id=>m.nodes[id];
 const q=[m.startId],reached=new Set();
 while(q.length){const id=q.pop();if(reached.has(id))continue;reached.add(id);q.push(...get(id).nextNodes);}

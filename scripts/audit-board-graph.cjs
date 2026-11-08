@@ -26,12 +26,12 @@ const report={version:m.version,baseline:{nodes:graph.baselineNodes,edges:graph.
  directM2M3Removed:!edgeSet.has('m2>m3'),
  detourM2Ms20M3:edgeSet.has('m2>ms20_0')&&edgeSet.has('ms20_0>m3'),
  missing,deadEnds,inaccessible,cannotFinish,invalidTerritories,incorrectBridgeRoutes,
- missingVisual,staleVisual,missingNames,displayNameCollisions:m.pathIdCollisions,
+ missingVisual,staleVisual,missingNames,retainedWS:ids.filter(id=>id.startsWith('ws')),displayNameCollisions:m.pathIdCollisions,
  blocked:false};
 try{M.validate(m);}catch(e){report.validationError=String(e);}
-report.blocked=!!(report.validationError||report.after.nodes!==310||report.after.edges!==331||
+report.blocked=!!(report.validationError||report.after.nodes!==302||report.after.edges!==321||
  !report.directM2M3Removed||!report.detourM2Ms20M3||
  [missing,deadEnds,inaccessible,cannotFinish,invalidTerritories,incorrectBridgeRoutes,
- missingVisual,staleVisual,missingNames].some(list=>list.length));
+ missingVisual,staleVisual,missingNames,report.retainedWS].some(list=>list.length));
 console.log(JSON.stringify(report,null,2));
 if(process.argv.includes('--strict')&&report.blocked)process.exitCode=1;
