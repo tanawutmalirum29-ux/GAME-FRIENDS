@@ -339,16 +339,21 @@ assert.match(avatars,/data:image\/svg\+xml/);
  ps[0].x=boundary+E.constants.avatarRadius+.0001;
  assert.equal(E.calculateDangerContact(s,ps[0],danger),0);
  s.phase='WARNING';s.danger=[6];
- const circles=[],ctx=new Proxy({},{
+ const circles=[],labels=[],ctx=new Proxy({},{
   get(_obj,key){
    if(key==='createLinearGradient'||key==='createRadialGradient')return ()=>({addColorStop(){}});
    if(key==='arc')return (...args)=>circles.push(args);
+   if(key==='fillText')return value=>labels.push(String(value));
    return ()=>{};
   },set(){return true;}
  });
  E.draw(ctx,0,{shockwave:s,phase:'playing'},ps);
  assert.ok(circles.some(a=>a[0]===ps[1].x&&a[1]===ps[1].y&&a[2]===29),
    'full-body blast ring uses the same logical center as the sprite');
+ assert.ok(labels.some(v=>v.includes('WAVE ')),'wave number still visible');
+ assert.ok(labels.some(v=>v.includes('ผู้รอด')),'survivor count still visible');
+ assert.ok(labels.every(v=>!/ปลอดภัย|ระเบิดใน|เริ่มใน|\\d+(?:\\.\\d+)?\\s*วิ/.test(v)),
+   'no redundant warning seconds or safe tile count is painted');
 }
 {
  // Body contact at the diagonal corner, not just horizontal and vertical edges.
