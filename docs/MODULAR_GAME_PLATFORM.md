@@ -60,3 +60,6 @@ Run `node scripts/build-app.cjs --write` after source edits, then `node scripts/
 
 ### On-demand remote connection stack
 The production HTML omits the 2 third-party defer tags for PeerJS and QRCode. `src/platform/runtime-deps.js` loads PeerJS only when a controller joins; when the host creates a room it loads both PeerJS and QRCode. Offline bots and initial controller join screens no longer download these online libraries. A cancelled host-room load is guarded by `hostOpenAttempt`, so a late network response cannot reopen an abandoned room. Legacy development HTML retains CDN tags for test harness compatibility.
+
+### Lightweight page bootstrap
+The production page uses `src/platform/main-loader.js` as its first application entrypoint, rather than an unconditional `app.js` script tag. A fresh `?host=1` welcome screen downloads the full host app only after the user chooses online/offline mode; controller join links and existing host sessions eagerly load the app for immediate restoration. The first host click requests fullscreen synchronously before the async download (subject to platform permission). This is a **real network reduction on fresh host welcome**, not just build-time source organization. Full per-feature code splitting inside the single host/controller closure would require an additional API-boundary migration and is not claimed here.

@@ -32,4 +32,10 @@ function pruneExternal(html){
  const tag=/^[ \t]*<script\s+defer\s+src="(https:\/\/[^\"]+)"\s*><\/script>\s*$/gm;
  return html.replace(tag,(whole,url)=>CDN_LIBRARIES.has(url)?'':whole);
 }
-module.exports={pruneLegacy,pruneBoardCore,pruneExternal,BOARD_CORE_SCRIPTS,CDN_LIBRARIES};
+function pruneAppBoot(html){
+ assert(typeof html==='string','index source must be a string');
+ // Production routes call app.js through main-loader; tests retain source HTML.
+ const tag=/^[ \t]*<script\s+defer\s+src="\.\/app\.js(?:\?v=[^"]*)?"\s*><\/script>\s*$/gm;
+ return html.replace(tag,'');
+}
+module.exports={pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,BOARD_CORE_SCRIPTS,CDN_LIBRARIES};

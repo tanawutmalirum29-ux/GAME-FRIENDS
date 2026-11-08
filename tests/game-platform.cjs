@@ -8,10 +8,10 @@ const {execFileSync,spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..');
 const builder=require('../scripts/build-game-catalog.cjs');
 const catalog=builder.build();
-const {pruneLegacy,pruneBoardCore,pruneExternal,BOARD_CORE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
+const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,BOARD_CORE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
 assert.equal(catalog.schema,1);
 const originalHTML=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const lazyHTML=pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog)));
+const lazyHTML=pruneAppBoot(pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog))));
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/peerjs@'),'offline bootstrap never fetches PeerJS');
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/qrcodejs@'),'controller bootstrap never fetches QRCode');
 assert.ok(lazyHTML.includes('src="./src/platform/runtime-deps.js"'));
@@ -24,7 +24,9 @@ for(const game of catalog.games){
    'production HTML must not eagerly download '+asset);
  }
 }
-assert.ok(lazyHTML.includes('src="./app.js"'));
+assert.ok(!lazyHTML.includes('src="./app.js"'));
+assert.ok(lazyHTML.includes('src="./src/platform/main-loader.js"'));
+assert.ok(originalHTML.includes('src="./app.js"'),'local dev retains immediate compatibility bundle');
 assert.ok(lazyHTML.includes('src="./game-cover-art.js"'));
 assert.ok(lazyHTML.includes('src="./src/platform/board-runtime.js"'),
  'production loads BOARD through the deferred core runtime');
