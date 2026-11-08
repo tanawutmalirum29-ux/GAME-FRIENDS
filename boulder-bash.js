@@ -382,10 +382,9 @@ function draw(g,time,round,ps){
  }
  for(const e of s.effects){g.save();g.globalAlpha=clamp(e.life/.7,0,1);
   g.strokeStyle=e.color;g.lineWidth=4;g.beginPath();g.arc(e.x,e.y,35*(1-e.life/.7)+12,0,TAU);g.stroke();g.restore();}
- g.fillStyle='#174158e0';g.beginPath();g.roundRect(12,10,205,57,10);g.fill();
+ g.fillStyle='#174158e0';g.beginPath();g.roundRect(12,10,205,45,10);g.fill();
  g.fillStyle='#f4fdff';g.textAlign='left';g.font='900 20px system-ui';g.fillText('BOULDER BASH',24,34);
- // Survival count is separate from the shared countdown/solo stopwatch.
- g.font='bold 14px system-ui';g.fillText('รอด '+living(ps).length+' คน',24,54);
+ // Survivor count is shown once, in the shared SVG person badge.
  g.restore();
 }
 window.BoulderBash=Object.freeze({setup,spawnPositions,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
