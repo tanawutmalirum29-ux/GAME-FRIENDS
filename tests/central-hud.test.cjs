@@ -74,8 +74,12 @@ test('no duplicate mode-level clocks or top-left information banners', () => {
   'fruit-memory.js': /label\('FRUIT MEMORY'/
  };
  for(const [name,re] of Object.entries(forbidden))assert.doesNotMatch(read(name),re,name);
- assert.match(read('fruit-memory.js'),/ctx\.drawImage\(img,x-22,y-22,44,44\)/,
-  'essential fruit target must remain visible to humans');
+ assert.match(read('fruit-memory.js'),/ctx\.drawImage\(img,x-12,y-12,24,24\)/,
+  'the same safe fruit icon is repeated three times beneath the HUD');
+ assert.match(read('party-arena-scenes.js'),/function badgeBottomY\(\)/,
+  'FRUIT MEMORY target row uses the shared HUD anchor');
+ assert.match(read('app.js'),/if\(round\.mode==='fruit_memory'\)window\.FruitMemory\?\.drawTargetFruits\?\.\(g,round\)/,
+  'the host draws fruit cues after the shared timer');
 });
 
 test('central badge clears actual one-row and two-row player headers', () => {

@@ -288,37 +288,51 @@ for(const side of ['behind','far']){
  assert.equal(x.players.filter(p=>p.fruitAlive).length,0);
 }
 {
- // Old amber side panels are gone, but the target fruit cue remains needed
- // so human players can choose a tile during 'target' and 'move' phases.
+ // The target is still ONE safe fruit type. The three identical cue icons
+ // under the shared timer emphasize it, not three separate safe fruits.
  for(const n of [4,12]){
   const x=init(n),state=x.state;
-  const draws=[],texts=[],panels=[];
+  const images=[],texts=[],circles=[];
   const ctx=new Proxy({}, {
    get(_target,key){
-    if(key==='drawImage')return (...args)=>draws.push(args);
+    if(key==='drawImage')return (...args)=>images.push(args);
     if(key==='fillText')return text=>texts.push(String(text));
-    if(key==='roundRect')return (...args)=>panels.push(args);
+    if(key==='arc')return (...args)=>circles.push(args);
     return ()=>{};
    },set(){return true;}
   });
+  context.window.PartyArenaScenes={badgeBottomY:()=>50};
   state.target='apple';
-  for(const phase of ['memorize','hide','collapse','rebuild']){
-   state.phase=phase;draws.length=0;
-   game.drawSideDisplays(ctx,state,{phase:'playing'},x.players);
-   assert.equal(draws.length,0,'no fruit side/target overlay during '+phase);
+  for(const phase of ['memorize','hide','rebuild']){
+   state.phase=phase;images.length=0;
+   game.drawTargetFruits(ctx,{fruitMemory:state,phase:'playing'});
+   assert.equal(images.length,0,'no cue until target is announced: '+phase);
   }
-  for(const phase of ['target','move']){
-   state.phase=phase;draws.length=0;
-   game.drawSideDisplays(ctx,state,{phase:'playing'},x.players);
-   assert.equal(draws.length,1,'target fruit remains visible in '+phase);
-   assert.equal(draws[0][1],state.board.x+state.board.w+6,
-     'small fruit icon stays outside the tile board');
+  for(const phase of ['target','move','collapse']){
+   state.phase=phase;images.length=0;circles.length=0;
+   game.drawTargetFruits(ctx,{fruitMemory:state,phase:'playing'});
+   assert.equal(images.length,3,'exactly three target icons during '+phase);
+   assert.ok(images.every(call=>call[0]===images[0][0]),
+    'all three icons depict the exact same safe fruit');
+   assert.deepEqual(images.map(call=>call[1]),[430,468,506],
+    'three icons are spaced equally around x=480');
+   assert.ok(images.every(call=>call[2]===56),
+    'target row is anchored directly below the common clock');
   }
-  assert.equal(texts.length,0,'removed side HUD must not draw any text');
-  assert.equal(panels.length,0,'removed side HUD must not draw a box');
-  draws.length=0;
-  game.drawSideDisplays(ctx,state,{phase:'countdown'},x.players);
-  assert.equal(draws.length,0,'no target icon during initial countdown');
+  assert.equal(texts.length,0,'no separate side information labels');
+  images.length=0;
+  game.drawTargetFruits(ctx,{fruitMemory:state,phase:'countdown'});
+  assert.equal(images.length,0,'no target fruit during start countdown');
+  // A banana tile stays unsafe even though the apple icon appears 3 times.
+  state.phase='move';
+  const p=x.players[0],t=state.tiles[0];
+  for(const tile of state.tiles)tile.fruitType='banana';
+  t.fruitType='apple';p.x=state.board.x+state.tileW/2;
+  p.y=state.board.y+state.tileH/2;
+  assert.equal(game.calculateFootSupport(state,p).survive,true);
+  p.x=state.board.x+state.tileW*1.5;
+  assert.equal(game.calculateFootSupport(state,p).survive,false,
+   'other fruit types remain unsafe');
  }
 }
 console.log('FRUIT MEMORY PASS: variable 4–6/6–8 card reveal, completion-only transition, preserved map and bot positions, existing physics and gameplay');

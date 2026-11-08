@@ -416,17 +416,27 @@ function drawPlayer(ctx,p,state,time){
    color:p.color,attacking:Combat.isAttacking(p)});
  ctx.restore();
 }
-// The removed two side panels carried the target fruit image. Preserve only
-// this essential play cue (not an information panel) so humans can pick a tile.
-// It appears outside the board while the target is active and has no text.
-function drawSideDisplays(ctx,state,round){
- if(round.phase==='countdown'||!['target','move'].includes(state.phase))return;
- const target=FRUIT_BY_ID[state.target],img=fruitImage(state.target);
- if(!target||!img?.complete||!img.naturalWidth)return;
- const x=state.board.x+state.board.w+28,y=state.board.y+44;
- ctx.save();ctx.fillStyle='#fff0c9';ctx.strokeStyle=target.color;ctx.lineWidth=3;
- ctx.beginPath();ctx.arc(x,y,26,0,TAU);ctx.fill();ctx.stroke();
- ctx.drawImage(img,x-22,y-22,44,44);ctx.restore();
+// Three identical icons make the SINGLE safe fruit stand out without changing
+// gameplay. Use the shared clock/headcount's bottom edge, not a side panel.
+function drawTargetFruits(ctx,round){
+ const state=round?.fruitMemory;
+ if(!state||round.phase==='countdown'||
+    !['target','move','collapse'].includes(state.phase))return;
+ const fruit=FRUIT_BY_ID[state.target],img=fruitImage(state.target);
+ if(!fruit)return;
+ const y=(window.PartyArenaScenes?.badgeBottomY?.()??38)+18;
+ const spacing=38,radius=15.5;
+ ctx.save();
+ for(let i=-1;i<=1;i++){
+   const x=480+i*spacing;
+   ctx.beginPath();ctx.arc(x,y,radius,0,TAU);
+   ctx.fillStyle='#263242e8';ctx.fill();
+   ctx.lineWidth=2;ctx.strokeStyle='#fff1c9';ctx.stroke();
+   if(img?.complete&&img.naturalWidth>0)
+     ctx.drawImage(img,x-12,y-12,24,24);
+   else{ctx.beginPath();ctx.arc(x,y,9,0,TAU);ctx.fillStyle=fruit.color;ctx.fill();}
+ }
+ ctx.restore();
 }
 function draw(ctx,time,round,players){
  const state=round.fruitMemory;if(!state)return;
@@ -434,9 +444,8 @@ function draw(ctx,time,round,players){
  window.PartyArenaArt.draw(ctx,'orchard',state);
  for(const tile of state.tiles)drawTile(ctx,state,tile,time);
  for(const p of players)drawPlayer(ctx,p,state,time);
- drawSideDisplays(ctx,state,round,players);
  ctx.restore();
 }
 window.FruitMemory=Object.freeze({setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
- calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawSideDisplays,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
+ calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawTargetFruits,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();
