@@ -100,6 +100,79 @@ test('equal mass vehicle collision changes both velocities and separates bodies'
  assert.ok(b.ice.vx>-75,'struck car receives impulse');
  assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>=27.99);
 });
+test('exact +20% max speed and acceleration; less ice grip and forward drag',()=>{
+ const C=engine().config;
+ almost(C.maxSpeed,255*1.2);
+ almost(C.thrust,355*1.2);
+ assert.ok(C.lateralGrip<1.35&&C.forwardDrag<.22,'ice should preserve more slide');
+ assert.equal(C.hullHalfLength,24);
+ assert.equal(C.hullHalfWidth,18);
+});
+test('every starting ski footprint is physically separated, including 12-player grid',()=>{
+ for(const n of [2,4,6,7,9,12]){
+  const {e,ps}=match(n,true);
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)
+   assert.equal(e.hullContact(ps[i],ps[j]),null,'intersecting skis '+n+' '+i+'/'+j);
+ }
+});
+test('front ski hits before centre-body circles meet',()=>{
+ const {e,ps}=match(2),[a,b]=ps;
+ a.x=400;a.y=250;b.x=440;b.y=250;
+ a.ice.heading=0;b.ice.heading=0;
+ a.ice.vx=180;a.ice.vy=0;b.ice.vx=0;b.ice.vy=0;
+ assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>2*e.config.radius);
+ assert.ok(e.hullContact(a,b),'front skis must touch');
+ e.collide(ps);
+ assert.ok(a.ice.vx<180&&b.ice.vx>0,'momentum from front collision');
+ assert.equal(e.hullContact(a,b),null,'no body clipping after collision');
+ almost(a.ice.vx+b.ice.vx,180,.0001);
+});
+test('left/right ski edges collide and transmit sideways force',()=>{
+ const {e,ps}=match(2),[a,b]=ps;
+ a.x=400;a.y=250;b.x=400;b.y=284;
+ a.ice.heading=0;b.ice.heading=0;
+ a.ice.vx=0;a.ice.vy=130;b.ice.vx=0;b.ice.vy=0;
+ assert.ok(Math.abs(a.y-b.y)>2*e.config.radius);
+ assert.ok(e.hullContact(a,b),'edge of ski must collide');
+ e.collide(ps);
+ assert.ok(a.ice.vy<130&&b.ice.vy>0,'side collision transmits force');
+ assert.equal(e.hullContact(a,b),null);
+ almost(a.ice.vy+b.ice.vy,130,.0001);
+});
+test('off-centre impacts impart rotation and conserve linear momentum',()=>{
+ const {e,ps}=match(2),[a,b]=ps;
+ a.x=400;a.y=250;b.x=441;b.y=262;
+ a.ice.heading=0;b.ice.heading=0;
+ a.ice.vx=175;a.ice.vy=0;b.ice.vx=-25;b.ice.vy=0;
+ const px=a.ice.vx+b.ice.vx,py=a.ice.vy+b.ice.vy;
+ assert.ok(e.hullContact(a,b));
+ e.collide(ps);
+ assert.ok(Math.abs(a.ice.angularVelocity)>.1,'attacker spins');
+ assert.ok(Math.abs(b.ice.angularVelocity)>.1,'target spins');
+ assert.equal(e.hullContact(a,b),null);
+ almost(a.ice.vx+b.ice.vx,px,.0001);
+ almost(a.ice.vy+b.ice.vy,py,.0001);
+});
+test('skis collide while respawn glow is active, never ghost through opponents',()=>{
+ const {e,ps}=match(2),[a,b]=ps;
+ a.x=400;a.y=250;b.x=440;b.y=250;
+ a.ice.heading=0;b.ice.heading=0;
+ a.ice.vx=130;a.ice.vy=0;b.ice.vx=0;b.ice.vy=0;
+ a.ice.invulnerable=.4;b.ice.invulnerable=.6;
+ assert.ok(e.hullContact(a,b));
+ e.collide(ps);
+ assert.ok(b.ice.vx>0,'respawn protection must not disable collision');
+ assert.equal(e.hullContact(a,b),null);
+});
+test('separated or diagonally missed skis do not exchange velocity',()=>{
+ const {e,ps}=match(2),[a,b]=ps;
+ a.x=400;a.y=250;b.x=460;b.y=299;
+ a.ice.heading=0;b.ice.heading=Math.PI/2;
+ a.ice.vx=100;a.ice.vy=0;b.ice.vx=0;b.ice.vy=-70;
+ assert.equal(e.hullContact(a,b),null);
+ e.collide(ps);
+ almost(a.ice.vx,100);almost(b.ice.vy,-70);
+});
 test('fall/respawn retains score, target and cancels old velocity',()=>{
  const {e,s,ps,round}=match(3),p=ps[0];
  p.score=3;p.ice.lastCheckpoint=3;p.ice.nextCheckpoint=0;

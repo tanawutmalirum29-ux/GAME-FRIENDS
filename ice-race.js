@@ -7,8 +7,8 @@ const TAU=Math.PI*2, STEP=1/60;
 const C=Object.freeze({
  small:Object.freeze({w:960,h:540,halfWidth:39,duration:40}),
  large:Object.freeze({w:1280,h:720,halfWidth:53,duration:70}),
- radius:14,maxSpeed:255,thrust:355,forwardDrag:.22,lateralGrip:1.35,
- turnSpeed:3.65,turnAcceleration:12.5,restitution:.58,
+ radius:14,hullHalfLength:24,hullHalfWidth:18,maxSpeed:306,thrust:426,forwardDrag:.16,lateralGrip:.82,
+ turnSpeed:3.65,turnAcceleration:12.5,restitution:.62,impactInertia:900,impactFriction:.08,
  fallDelay:.8,spawnProtection:.6
 });
 const ANCHORS=Object.freeze([
@@ -76,14 +76,14 @@ function inputVector(input){
 function initialSpawns(s,ps){
  for(let i=0;i<ps.length;i++){
   const p=ps[i],lane=i%2?1:-1,row=Math.floor(i/2);
-  const at=sample(s,s.trackLength-38-row*37);
-  p.x=at.x-at.ty*lane*(s.halfWidth*.40);
-  p.y=at.y+at.tx*lane*(s.halfWidth*.40);
+  const at=sample(s,s.trackLength-44-row*90);
+  p.x=at.x-at.ty*lane*(s.halfWidth*.50);
+  p.y=at.y+at.tx*lane*(s.halfWidth*.50);
   p.vx=0;p.vy=0;p.score=0;p.active=true;
   p.dir={x:at.tx,y:at.ty};p.face=at.tx<0?-1:1;
   p.ice={state:'racing',vx:0,vy:0,heading:Math.atan2(at.ty,at.tx),
    angularVelocity:0,driftAngle:0,lastCheckpoint:0,nextCheckpoint:1,
-   invulnerable:0,respawnLeft:0,fallLeft:0,botOffset:(rand(s)-.5)*s.halfWidth*.4,
+   invulnerable:0,respawnLeft:0,fallLeft:0,botOffset:(rand(s)-.5)*s.halfWidth*.12,
    botSpeed:(.35+rand(s)*.08)*C.maxSpeed,botReaction:.035+rand(s)*.035,
    botClock:0,botInput:{x:0,y:0},botSkill:.75+rand(s)*.5,
    fallingVelocity:{x:0,y:0}};
@@ -113,9 +113,10 @@ function botVector(s,p){
  const speed=Math.hypot(ice.vx,ice.vy);
  const forward=sample(s,near.progress+clamp(95+speed*.35,95,215));
  const next=sample(s,near.progress+clamp(115+speed*.6,125,240));
- const turn=Math.acos(clamp(forward.tx*next.tx+forward.ty*next.ty,-1,1));
+ const turn=Math.max(Math.acos(clamp(forward.tx*next.tx+forward.ty*next.ty,-1,1)),
+  Math.acos(clamp(near.tx*forward.tx+near.ty*forward.ty,-1,1)));
  const edge=near.dist/s.halfWidth;
- const targetSpeed=clamp(ice.botSpeed*(1-turn*.85)*(1-edge*.27),70,ice.botSpeed);
+ const targetSpeed=clamp(ice.botSpeed*(1-turn*1.4)*(1-edge*.4),48,ice.botSpeed);
  const tx=forward.x-forward.ty*ice.botOffset,ty=forward.y+forward.tx*ice.botOffset;
  const lead=.30+Math.min(.30,speed/500);
  let dx=tx-(p.x+ice.vx*lead),dy=ty-(p.y+ice.vy*lead);
@@ -175,32 +176,104 @@ function respawn(s,p){
  w.respawnLeft=0;w.invulnerable=C.spawnProtection;
  p.dir={x:at.tx,y:at.ty};p.face=at.tx<0?-1:1;
 }
+// The visible skis extend to x=±23 and y=±17. Collision uses the *whole*
+// rotated sled rather than the tiny centre-circle of the old character.
+function hullPoints(p){
+ const a=p.ice.heading,fx=Math.cos(a),fy=Math.sin(a),rx=-fy,ry=fx;
+ const L=C.hullHalfLength,W=C.hullHalfWidth;
+ return [[-L,-W],[L,-W],[L,W],[-L,W]].map(([x,y])=>
+  ({x:p.x+fx*x+rx*y,y:p.y+fy*x+ry*y}));
+}
+function hullContact(a,b){
+ const L=C.hullHalfLength,W=C.hullHalfWidth;
+ const dx=b.x-a.x,dy=b.y-a.y;
+ if(dx*dx+dy*dy>4*(L*L+W*W))return null;
+ const af={x:Math.cos(a.ice.heading),y:Math.sin(a.ice.heading)};
+ const ar={x:-af.y,y:af.x};
+ const bf={x:Math.cos(b.ice.heading),y:Math.sin(b.ice.heading)};
+ const br={x:-bf.y,y:bf.x};
+ let depth=Infinity,nx=0,ny=0;
+ for(const axis of [af,ar,bf,br]){
+  const d=dx*axis.x+dy*axis.y;
+  const ra=L*Math.abs(af.x*axis.x+af.y*axis.y)+W*Math.abs(ar.x*axis.x+ar.y*axis.y);
+  const rb=L*Math.abs(bf.x*axis.x+bf.y*axis.y)+W*Math.abs(br.x*axis.x+br.y*axis.y);
+  const overlap=ra+rb-Math.abs(d);
+  if(overlap<=1e-7)return null;
+  if(overlap<depth){depth=overlap;nx=axis.x*(d<0?-1:1);ny=axis.y*(d<0?-1:1);}
+ }
+ // Clip the overlapping rectangles and use their contact patch centroid.
+ // It gives nose, broadside and off-centre hits different angular impulses.
+ let polygon=hullPoints(a),clip=hullPoints(b);
+ for(let k=0;k<4;k++){
+  const e=clip[k],next=clip[(k+1)%4],ex=next.x-e.x,ey=next.y-e.y;
+  const signed=p=>ex*(p.y-e.y)-ey*(p.x-e.x);
+  const input=polygon;polygon=[];
+  if(!input.length)break;
+  let prev=input[input.length-1],prevDist=signed(prev);
+  for(const curr of input){
+   const currDist=signed(curr);
+   if((prevDist<0)!==(currDist<0)){
+    const ratio=clamp(prevDist/(prevDist-currDist),0,1);
+    polygon.push({x:prev.x+(curr.x-prev.x)*ratio,y:prev.y+(curr.y-prev.y)*ratio});
+   }
+   if(currDist>=0)polygon.push(curr);
+   prev=curr;prevDist=currDist;
+  }
+ }
+ const point=polygon.length?
+  {x:polygon.reduce((v,p)=>v+p.x,0)/polygon.length,
+   y:polygon.reduce((v,p)=>v+p.y,0)/polygon.length}:
+  {x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+ return {nx,ny,depth,point};
+}
 function collide(ps){
  const alive=ps.filter(racing);
- for(let pass=0;pass<3;pass++)for(let i=0;i<alive.length;i++)
+ // Resolve contacts in several iterations so three-way pileups don't
+ // leave another sled embedded in the first one.
+ for(let pass=0;pass<5;pass++)for(let i=0;i<alive.length;i++)
   for(let j=i+1;j<alive.length;j++){
    const a=alive[i],b=alive[j],aw=a.ice,bw=b.ice;
-   if(aw.invulnerable>0||bw.invulnerable>0)continue;
-   const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),min=2*C.radius;
-   if(d>=min)continue;
-   const nx=d>.00001?dx/d:1,ny=d>.00001?dy/d:0;
-   const overlap=(min-d+.001)*.5;
-   a.x-=nx*overlap;a.y-=ny*overlap;b.x+=nx*overlap;b.y+=ny*overlap;
-   const relative=(bw.vx-aw.vx)*nx+(bw.vy-aw.vy)*ny;
-   if(relative>=0)continue;
-   const impulse=-(1+C.restitution)*relative/2;
-   aw.vx-=impulse*nx;aw.vy-=impulse*ny;
-   bw.vx+=impulse*nx;bw.vy+=impulse*ny;
-   const slip=(bw.vx-aw.vx)*(-ny)+(bw.vy-aw.vy)*nx;
-   const spin=clamp(slip*.0011,-.3,.3);
-   aw.angularVelocity=clamp(aw.angularVelocity+spin,-C.turnSpeed,C.turnSpeed);
-   bw.angularVelocity=clamp(bw.angularVelocity-spin,-C.turnSpeed,C.turnSpeed);
+   // Respawn glow is cosmetic: newly spawned sleds are SOLID too.
+   const hit=hullContact(a,b);
+   if(!hit)continue;
+   const {nx,ny,depth,point}=hit;
+   const push=(depth+.001)*.5;
+   a.x-=nx*push;a.y-=ny*push;
+   b.x+=nx*push;b.y+=ny*push;
+   const ax=point.x-a.x,ay=point.y-a.y;
+   const bx=point.x-b.x,by=point.y-b.y;
+   const avx=aw.vx-aw.angularVelocity*ay,avy=aw.vy+aw.angularVelocity*ax;
+   const bvx=bw.vx-bw.angularVelocity*by,bvy=bw.vy+bw.angularVelocity*bx;
+   const rel=(bvx-avx)*nx+(bvy-avy)*ny;
+   if(rel>=0)continue; // already separating; positional separation only
+   const an=ax*ny-ay*nx,bn=bx*ny-by*nx;
+   const invInertia=1/C.impactInertia;
+   const impulse=-(1+C.restitution)*rel/(2+(an*an+bn*bn)*invInertia);
+   const ix=impulse*nx,iy=impulse*ny;
+   aw.vx-=ix;aw.vy-=iy;bw.vx+=ix;bw.vy+=iy;
+   aw.angularVelocity-=an*impulse*invInertia;
+   bw.angularVelocity+=bn*impulse*invInertia;
+   // Ice has very weak tangential collision friction: most side momentum
+   // survives an impact, rather than snapping either sled straight.
+   const tx=-ny,ty=nx;
+   const vaT=(bw.vx-bw.angularVelocity*by-aw.vx+aw.angularVelocity*ay)*tx+
+    (bw.vy+bw.angularVelocity*bx-aw.vy-aw.angularVelocity*ax)*ty;
+   const at=ax*ty-ay*tx,bt=bx*ty-by*tx;
+   const tangential=clamp(-vaT/(2+(at*at+bt*bt)*invInertia),
+    -C.impactFriction*impulse,C.impactFriction*impulse);
+   aw.vx-=tangential*tx;aw.vy-=tangential*ty;
+   bw.vx+=tangential*tx;bw.vy+=tangential*ty;
+   aw.angularVelocity-=at*tangential*invInertia;
+   bw.angularVelocity+=bt*tangential*invInertia;
    for(const p of [a,b]){
-    const w=p.ice,velocity=Math.hypot(w.vx,w.vy);
-    if(velocity>C.maxSpeed*1.2){
-     w.vx*=C.maxSpeed*1.2/velocity;w.vy*=C.maxSpeed*1.2/velocity;
+    const w=p.ice,speed=Math.hypot(w.vx,w.vy);
+    if(speed>C.maxSpeed*1.2){
+     const scale=C.maxSpeed*1.2/speed;w.vx*=scale;w.vy*=scale;
     }
+    w.angularVelocity=clamp(w.angularVelocity,-C.turnSpeed*1.5,C.turnSpeed*1.5);
     p.vx=w.vx;p.vy=w.vy;
+    const fx=Math.cos(w.heading),fy=Math.sin(w.heading);
+    w.driftAngle=Math.atan2(w.vx*(-fy)+w.vy*fx,w.vx*fx+w.vy*fy);
    }
   }
 }
@@ -376,5 +449,5 @@ function draw(g,t,round,ps){
  g.restore();
 }
 window.IceRace=Object.freeze({setup,update,draw,hud,step,finish,checkpoint,
- nearest,sample,collide,fall,respawn,makeTrack,botVector,config:C});
+ nearest,sample,collide,hullContact,hullPoints,fall,respawn,makeTrack,botVector,config:C});
 })();
