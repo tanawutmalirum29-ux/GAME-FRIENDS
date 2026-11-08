@@ -24,7 +24,7 @@ const buildVersion='window.GAME_BUILD_VERSION="lazy-browser-test";'+
 const injection=`window.__lazyGameTest={get round(){return round},
  get board(){return boardSession},get selection(){return gameSelection},
  beginBoard,beginGameSelection,updateGameSelection,returnToLobby,addLocal};
- requestAnimationFrame(animate);\\n})();`;
+ requestAnimationFrame(animate);\n})();`;
 const server=http.createServer((req,res)=>{
  const url=new URL(req.url,'http://localhost'),pathname=url.pathname;
  let content,ext='.js';
@@ -47,8 +47,8 @@ const server=http.createServer((req,res)=>{
   content=fs.readFileSync(filename);ext=path.extname(filename);
   if(filename===path.join(root,'app.js')){
    const text=content.toString('utf8');
-   assert.ok(text.includes('requestAnimationFrame(animate);\\n})();'));
-   content=text.replace('requestAnimationFrame(animate);\\n})();',injection);
+   assert.ok(text.includes('requestAnimationFrame(animate);\n})();'));
+   content=text.replace('requestAnimationFrame(animate);\n})();',injection);
   }
  }
  const mime={'.html':'text/html','.json':'application/json','.js':'text/javascript',
