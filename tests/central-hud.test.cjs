@@ -24,8 +24,8 @@ test('all minigame timers are drawn by one host dispatcher', () => {
  const cases=[
   ['ghost','countdown',null,3,'clock'],['ghost','playing',null,0,'person'],
   ['shockwave','countdown',null,2,'person'],['shockwave','playing',2,null,'person'],
-  ['fruit_memory','playing',null,null,'person'],['fruit_memory','playing',5,null,'person'],
-   ['fruit_memory','countdown',null,3,'person'],
+  ['fruit_memory','playing',null,null,'bare'],['fruit_memory','playing',5,null,'bare'],
+   ['fruit_memory','countdown',null,3,'bare'],
   ['boulder_bash','playing',null,null,'person'],['boulder_bash','playing',35,null,'clock'],
   ['snow_brawl','playing',null,null,'person'],['snow_brawl','playing',42,null,'clock'],
   ['witching_snake','playing',null,null,'person'],['witching_snake','playing',18,null,'clock'],
@@ -38,7 +38,8 @@ test('all minigame timers are drawn by one host dispatcher', () => {
   const calls=[];
   const window={PartyArenaScenes:{
    clock:(_g,v)=>calls.push(['clock',v]),
-   playerCount:(_g,n)=>calls.push(['person',n])
+   playerCount:(_g,n)=>calls.push(['person',n]),
+    bareCount:(_g,n)=>calls.push(['bare',n])
   }};
   const round={mode,phase,remaining,countdown};
   runner(window,()=>({draw(){},hud(){return {survivors:6}}}),()=>{},{},[],round,0);
@@ -46,7 +47,7 @@ test('all minigame timers are drawn by one host dispatcher', () => {
   else{
    assert.equal(calls.length,1,mode+' displays exactly one badge');
    assert.equal(calls[0][0],expected,mode+' badge mode');
-   if(expected==='person')assert.equal(calls[0][1],6,mode+' survivor total');
+   if(expected==='person'||expected==='bare')assert.equal(calls[0][1],6,mode+' survivor total');
   }
  }
 });
@@ -58,6 +59,7 @@ test('clock and SVG count share the same safe screen position', () => {
  assert.match(scenes,/function hudBadgeDrop\(\)/);
  assert.match(scenes,/function clock\(g,value[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
  assert.match(scenes,/function playerCount\(g,value\)[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
+  assert.match(scenes,/function bareCount\(g,value\)[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
  assert.match(scenes,/personIconSVG=\(\)=>svg\(24,24/);
 });
 
