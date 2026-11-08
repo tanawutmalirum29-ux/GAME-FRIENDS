@@ -465,9 +465,9 @@ function step(dt,round,ps){
  const map=gridTrails(s,ps);
  for(const p of movable){
   const q=p.cc,from=old.get(p.id),to={x:p.x,y:p.y};
-  for(const e of trailHits(map,from,to,5)){
+  for(const e of trailHits(map,from,to,5*s.w/960)){
    if(e.owner===p){
-    if(q.distance-e.at<27)continue; // attached head, not a self-cut
+    if(q.distance-e.at<27*s.w/960)continue; // attached head, not a self-cut
     dead.add(p);
    }else if(q.invulnerable<=0)dead.add(e.owner);
   }
@@ -476,7 +476,7 @@ function step(dt,round,ps){
  const strokes=[...newTrails.values()];
  for(let i=0;i<strokes.length;i++)for(let j=i+1;j<strokes.length;j++){
   const a=strokes[i],b=strokes[j];
-  if(segmentsTouch(a.a,a.b,b.a,b.b,5)){
+  if(segmentsTouch(a.a,a.b,b.a,b.b,5*s.w/960)){
    if(a.p.cc.invulnerable<=0)dead.add(b.p);
    if(b.p.cc.invulnerable<=0)dead.add(a.p);
   }
@@ -496,7 +496,7 @@ function step(dt,round,ps){
  // Pickups are host-owned and use swept segments, not frame-only centres.
  if(s.item&&!s.freeze){
   const winner=movable.find(p=>p.cc.alive&&
-   pointSegment2(s.item,old.get(p.id),p)<(SETTINGS.radius+14)**2);
+   pointSegment2(s.item,old.get(p.id),p)<((SETTINGS.radius+14)*(s.w/960))**2);
   if(winner){s.freeze={ownerId:winner.id,until:s.elapsed+SETTINGS.freezeDuration};s.item=null;
    for(const p of ps)if(p.id!==winner.id){p.vx=0;p.vy=0;}
   }
@@ -627,25 +627,26 @@ function drawScene(g,s){
 function draw(g,t,round,ps){
  const s=round.colorClaim;if(!s)return;
  g.save();g.scale(960/s.w,540/s.h);drawScene(g,s);
+ const unit=s.w/960; // World collision and SVG metrics share one screen scale.
  for(const p of active(ps)){
   const q=p.cc;if(!q.alive||q.trail.length<2)continue;
   g.save();g.lineCap='round';g.lineJoin='round';
   for(const [width,alpha,blur] of [[13,.25,14],[7,.95,5]]){
    traceSmoothTrail(g,q.trail);
-   g.strokeStyle=p.color;g.globalAlpha=alpha;g.lineWidth=width;
-   g.shadowColor=p.color;g.shadowBlur=blur;g.stroke();
+   g.strokeStyle=p.color;g.globalAlpha=alpha;g.lineWidth=width*unit;
+   g.shadowColor=p.color;g.shadowBlur=blur*unit;g.stroke();
   }
   g.restore();
  }
  if(s.item){
   const img=frostImage(),pulse=1+Math.sin(t*5)*.08;
   g.save();g.translate(s.item.x,s.item.y);g.scale(pulse,pulse);
-  disk(g,0,0,23,'rgba(75,196,255,.14)');
-  if(img?.complete&&img.naturalWidth)g.drawImage(img,-17,-17,34,34);
+  disk(g,0,0,23*unit,'rgba(75,196,255,.14)');
+  if(img?.complete&&img.naturalWidth)g.drawImage(img,-17*unit,-17*unit,34*unit,34*unit);
   else{
    g.strokeStyle='#adf5ff';g.lineWidth=3;
    for(let i=0;i<6;i++){const a=i*TAU/6;g.beginPath();g.moveTo(0,0);
-    g.lineTo(Math.cos(a)*15,Math.sin(a)*15);g.stroke();}
+    g.lineTo(Math.cos(a)*15*unit,Math.sin(a)*15*unit);g.stroke();}
   }
   g.restore();
  }
@@ -653,18 +654,18 @@ function draw(g,t,round,ps){
   const q=p.cc;
   if(!q.alive)continue;
   g.save();g.shadowColor=p.color;g.shadowBlur=7;
-  disk(g,p.x,p.y+5,SETTINGS.radius+3,'rgba(0,0,0,.23)');g.restore();
-  if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:t,combat:false});
-  else{disk(g,p.x,p.y,SETTINGS.radius,p.color||'#80efff');}
+  disk(g,p.x,p.y+5*unit,(SETTINGS.radius+3)*unit,'rgba(0,0,0,.23)');g.restore();
+  if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:t,combat:false,scale:unit});
+  else{disk(g,p.x,p.y,SETTINGS.radius*unit,p.color||'#80efff');}
   if(freezeActive(s,p)){
    g.save();g.globalAlpha=.75;g.strokeStyle='#b9efff';g.lineWidth=3;
-   g.beginPath();g.arc(p.x,p.y,SETTINGS.radius+5,0,TAU);g.stroke();
-   g.beginPath();g.moveTo(p.x-10,p.y);g.lineTo(p.x+10,p.y);
-   g.moveTo(p.x,p.y-10);g.lineTo(p.x,p.y+10);g.stroke();g.restore();
+   g.beginPath();g.arc(p.x,p.y,(SETTINGS.radius+5)*unit,0,TAU);g.stroke();
+   g.beginPath();g.moveTo(p.x-10*unit,p.y);g.lineTo(p.x+10*unit,p.y);
+   g.moveTo(p.x,p.y-10*unit);g.lineTo(p.x,p.y+10*unit);g.stroke();g.restore();
   }
   if(q.invulnerable>0){
    g.save();g.strokeStyle='#fff8be';g.lineWidth=2;
-   g.beginPath();g.arc(p.x,p.y,SETTINGS.radius+9,0,TAU);g.stroke();g.restore();
+   g.beginPath();g.arc(p.x,p.y,(SETTINGS.radius+9)*unit,0,TAU);g.stroke();g.restore();
   }
  }
  g.restore();
