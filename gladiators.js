@@ -63,7 +63,18 @@ function makeLinks(s,start,ball,side){
  const a=make(side<0?-1:1),b=make(side<0?1:-1);
  return score(a)<=score(b)?a:b;
 }
-function solveChain(s,p,dt,passes=12){
+// Final length stop: a physical set of rigid links cannot reach farther than
+// their combined lengths. Only engages at full extension; slack stays flexible.
+function capTether(p){
+ const st=p.gladiator,ball=st.ball,a=anchor(p);
+ const dx=ball.x-a.x,dy=ball.y-a.y,d=hyp(dx,dy);
+ if(d<=C.chain||d<EPS)return;
+ const nx=dx/d,ny=dy/d;
+ ball.x=a.x+nx*C.chain;ball.y=a.y+ny*C.chain;
+ const movingOut=ball.vx*nx+ball.vy*ny;
+ if(movingOut>0){ball.vx-=movingOut*nx;ball.vy-=movingOut*ny;}
+}
+function solveChain(s,p,dt,passes=22){
  const st=p.gladiator,ball=st.ball;if(ball.static)return;
  const a=anchor(p);
  st.anchorX=a.x;st.anchorY=a.y;
@@ -93,6 +104,7 @@ function solveChain(s,p,dt,passes=12){
   }
   wall(s,ball);
  }
+ capTether(p);
  // Chain tension changes the mace's momentum; not just its rendered position.
  ball.vx+=clamp((ball.x-beforeX)/dt*.55,-260,260);
  ball.vy+=clamp((ball.y-beforeY)/dt*.55,-260,260);
@@ -241,6 +253,9 @@ function ballMotion(s,ps,dt){
    pin.px=pin.x;pin.py=pin.y;
    pin.x+=vx*.987;pin.y+=vy*.987;
   }
+  // Resolve player-vs-own-mace contact BEFORE the articulated chain tugs
+  // on its ball, so a solid impact cannot disappear inside a solver pass.
+  collideOwnMaces(s,[p],dt,false);
   solveChain(s,p,dt);
   if(!Number.isFinite(ball.x+ball.y+ball.vx+ball.vy)){
    ball.x=old.x+50;ball.y=old.y;ball.vx=ball.vy=0;
@@ -274,12 +289,12 @@ function collideBalls(s,ps){
  }
  for(const p of people){
   const q=p.gladiator.ball;
-  if(p.gladiator.alive){wall(s,q);solveChain(s,p,STEP,7);}
+  if(p.gladiator.alive){wall(s,q);solveChain(s,p,STEP,12);}
  }
 }
 // Own mace is SOLID but never lethal. The impact pushes the wielder instead
 // of letting the ball pass through their body or teleporting to the other side.
-function collideOwnMaces(s,ps,dt){
+function collideOwnMaces(s,ps,dt,resolveChain=true){
  const b=s.bounds,radius=C.body+C.ball+C.spike*.65;
  for(const p of living(ps)){
   const st=p.gladiator,ball=st.ball;
@@ -318,7 +333,7 @@ function collideOwnMaces(s,ps,dt){
   }
   p.vx=(p.x-st.lastX)/dt;p.vy=(p.y-st.lastY)/dt;
   wall(s,ball);
-  solveChain(s,p,dt,6);
+  if(resolveChain)solveChain(s,p,dt,10);
  }
 }
 // Continuous relative segment test — one-frame tunneling cannot bypass a mace.
@@ -380,6 +395,7 @@ function step(dt,round,ps){
  ballMotion(s,ps,dt);
  collideBalls(s,ps);
  collideOwnMaces(s,ps,dt);
+ for(const p of living(ps))capTether(p);
  resolveDeaths(s,ps);
  const remaining=living(ps).length;
  if(ps.filter(p=>p.active).length===1){
