@@ -58,118 +58,7 @@ test('shared start countdown advances Fruit Memory movement before memorization'
  const start=app.indexOf('function updateRound(dt)');
  const end=app.indexOf('// Result decisions are host-authoritative.',start);
  assert.ok(start>=0&&end>start,'host round update dispatcher exists');
- const runner=new Function('window','round','players','dt','
- const scenes=read('party-arena-scenes.js');
- assert.match(scenes,/HUD_BADGE_MIN_DROP=0/);
- assert.match(scenes,/HUD_BADGE_ROSTER_GAP_PX=4/);
- assert.match(scenes,/function hudBadgeDrop\(\)/);
- assert.match(scenes,/function clock\(g,value[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
- assert.match(scenes,/function playerCount\(g,value\)[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
- assert.match(scenes,/personIconSVG=\(\)=>svg\(24,24/);
- assert.doesNotMatch(scenes,/function bareCount\(/,'avoid number-only Fruit Memory renderer');
- assert.match(scenes,/const icon=imageFor\('hud:player-count',personIconSVG\)/,
-  'shared survivor HUD renders the cached person SVG');
-});
-
-test('no duplicate mode-level clocks or top-left information banners', () => {
- for(const name of ['shopping-time.js','pizza-time.js','knight-match.js','witching-snake.js'])
-  assert.doesNotMatch(read(name),/PartyArenaScenes\.clock\(|art\.clock\(|art\.drawClock\(/,name);
- const forbidden={
-  'chickens.js': /ctx\.fillText\('CHICKENS'/,
-  'ghost-attack.js': /drawCornerHud\(|id:'HUD-00'/,
-  'shockwave.js': /ctx\.fillText\('SHOCKWAVE'/,
-  'boulder-bash.js': /g\.fillText\('BOULDER BASH'/,
-  'snow-brawl.js': /ctx\.fillText\('SNOW BRAWL'/,
-  'lawn-mower.js': /ctx\.fillText\('LAWN MOWER'/,
-  'color-switch.js': /ctx\.fillText\('COLOR SWITCH'/,
-  'fruit-memory.js': /label\('FRUIT MEMORY'/
- };
- for(const [name,re] of Object.entries(forbidden))assert.doesNotMatch(read(name),re,name);
- assert.match(read('fruit-memory.js'),/function drawSideScreens\(ctx,state\)/,
-  'Fruit Memory uses mirrored SVG side screens');
- assert.match(read('app.js'),/r\.mode==='fruit_memory'/,
-  'Fruit Memory uses the host three-second clock before playing, not a memory timer');
- assert.doesNotMatch(read('app.js'),/drawTargetFruits/,
-  'old three-fruit HUD is removed');
-});
-
-test('central badge clears actual one-row and two-row player headers', () => {
- const source=read('party-arena-scenes.js');
- const view={width:1473,height:1024,bottom:112};
- const screen={innerWidth:1473,innerHeight:1024};
- const document={
-  getElementById(id){
-   if(id==='arena')return {getBoundingClientRect:()=>({
-    left:0,top:0,width:view.width,height:view.height
-   })};
-   if(id==='leaderboard')return {getBoundingClientRect:()=>({
-    left:0,top:40,width:view.width,height:view.bottom-40,bottom:view.bottom
-   })};
-   return null;
-  }
- };
- class MockImage{constructor(){this.complete=true;this.naturalWidth=24;}set src(v){this._src=v;}}
- const scene=new Function('window','document','Image',source+';return window.PartyArenaScenes;')(screen,document,MockImage);
- const offsets=[];
- const g=new Proxy({},{
-  get(_target,k){if(k==='translate')return (_x,y)=>offsets.push(y);return ()=>{};},
-  set(){return true;}
- });
- for(const bounds of [
-  {width:1473,height:1024,bottom:112},
-  {width:900,height:510,bottom:148},
-  {width:780,height:438,bottom:148}
- ]){
-  Object.assign(view,bounds);screen.innerWidth=bounds.width;screen.innerHeight=bounds.height;
-  offsets.length=0;
-  scene.clock(g,20);scene.playerCount(g,6);
-  assert.equal(offsets.length,2);
-  assert.equal(offsets[0],offsets[1],'both badges share exactly the same Y offset');
-  const scale=Math.min(view.width/960,view.height/540);
-  const contentTop=(view.height-540*scale)/2;
-  const badgeTop=contentTop+(offsets[0]+5)*scale;
-  assert.ok(badgeTop>=view.bottom+3,
-   'badge must clear '+view.width+'px viewport player roster');
-  assert.ok(badgeTop<=view.bottom+7,
-   'badge should sit just below the roster, not deep inside the game arena');
- }
-});
-
-test('the iPad screenshot layout no longer leaves a large blank HUD gap', () => {
- const source=read('party-arena-scenes.js');
- const view={width:1473,height:1024,bottom:112};
- const window={innerWidth:1473,innerHeight:1024};
- const document={
-  getElementById(id){
-   if(id==='arena')return {getBoundingClientRect:()=>({
-    left:0,top:0,width:view.width,height:view.height
-   })};
-   if(id==='leaderboard')return {getBoundingClientRect:()=>({
-    left:165,top:40,width:1200,height:view.bottom-40,bottom:view.bottom
-   })};
-   return null;
-  }
- };
- class MockImage{constructor(){this.complete=true;this.naturalWidth=24;}set src(v){this._src=v;}}
- const scene=new Function('window','document','Image',source+';return window.PartyArenaScenes;')(
-  window,document,MockImage);
- const positions=[];
- const context=new Proxy({},{
-  get(_t,k){return k==='translate'?(_x,y)=>positions.push(y):()=>{};},
-  set(){return true;}
- });
- scene.clock(context,60);scene.playerCount(context,6);
- assert.equal(positions.length,2);
- assert.equal(positions[0],positions[1],'both modes use one placement');
- const scale=Math.min(view.width/960,view.height/540);
- const contentTop=(view.height-540*scale)/2;
- const screenY=contentTop+(positions[0]+5)*scale;
- assert.ok(screenY>=view.bottom+3&&screenY<=view.bottom+7,
-  'badge is within 3–7 physical pixels below the player cards');
- assert.ok(positions[0]<15,
-  'landscape iPad must not retain the old 45-world-unit drop');
-});
-,'broadcastRoster',
+ const runner=new Function('window','round','players','dt','$','broadcastRoster',
    'updateBoard','gameEngine','endRound',app.slice(start,end)+'\nupdateRound(dt);');
  const updates=[],signals=[],banner={textContent:''};
  const window={FruitMemory:{update(dt){updates.push(dt);}}};
@@ -191,6 +80,7 @@ test('the iPad screenshot layout no longer leaves a large blank HUD gap', () => 
  round.paused=true;go(1);
  assert.equal(updates.length,3,'pause must block prestart motion');
 });
+
 test('clock and SVG count share the same safe screen position', () => {
  const scenes=read('party-arena-scenes.js');
  assert.match(scenes,/HUD_BADGE_MIN_DROP=0/);
@@ -221,7 +111,7 @@ test('no duplicate mode-level clocks or top-left information banners', () => {
  assert.match(read('fruit-memory.js'),/function drawSideScreens\(ctx,state\)/,
   'Fruit Memory uses mirrored SVG side screens');
  assert.match(read('app.js'),/r\.mode==='fruit_memory'/,
-  'Fruit Memory uses the host three-second clock before playing, not a memory timer');
+  'Fruit Memory has a shared host countdown, not a memorize timer');
  assert.doesNotMatch(read('app.js'),/drawTargetFruits/,
   'old three-fruit HUD is removed');
 });
