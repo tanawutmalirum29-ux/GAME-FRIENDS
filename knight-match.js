@@ -417,27 +417,8 @@ function draw(ctx,time,round,ps){
   }
   ctx.restore();
  }
- ctx.restore();
- ctx.save();
- window.PartyArenaScenes.clock(ctx,round.phase==='countdown'?round.countdown:s.remaining);
- if(s.rainbowOwnerId){
-  const owner=ps.find(p=>p.id===s.rainbowOwnerId);
-  const remaining=Math.max(0,s.rainbowUntil-s.clock),x=480,y=8,w=246,h=48;
-  ctx.save();
-  ctx.fillStyle='#1d263be9';ctx.fillRect(x-w/2,y,w,h);
-  ctx.strokeStyle='#f8cf87';ctx.lineWidth=2;ctx.strokeRect(x-w/2+1,y+1,w-2,h-2);
-  const rainbow=ctx.createLinearGradient(x-108,y,x-83,y);
-  ['#f44350','#ff9736','#ffe353','#5cde78','#53caff','#4c79e9','#b778f7'].forEach((c,i)=>rainbow.addColorStop(i/6,c));
-  ctx.fillStyle=rainbow;ctx.beginPath();ctx.arc(x-96,y+24,12,0,TAU);ctx.fill();
-  ctx.textAlign='left';ctx.font='900 13px system-ui';ctx.fillStyle='#fff5d8';
-  ctx.fillText('RAINBOW POWER',x-74,y+19,162);
-  ctx.font='bold 12px system-ui';ctx.fillStyle=owner?.color||'#ffe8ad';
-  ctx.fillText(String(owner?.name||'Player').slice(0,18),x-74,y+38,117);
-  ctx.textAlign='right';ctx.fillStyle='#ffffff';ctx.font='900 15px system-ui';
-  ctx.fillText(remaining.toFixed(1)+'s',x+110,y+38);
-  ctx.restore();
- }
- ctx.restore();
+ ctx.restore(); // Rainbow state is visible from colored balloons and players.
+ // Shared clock is drawn by app.js instead of an overlapping power banner.
 }
 window.KnightMatch=Object.freeze({setup,update,draw,hud,dimensions,inside,effectiveOwner,
  effectiveColor,popBalloon,spawnNormal,spawnRainbow,replenish,segmentDistance,

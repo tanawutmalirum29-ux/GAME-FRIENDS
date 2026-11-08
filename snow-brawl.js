@@ -533,14 +533,7 @@ function draw(ctx,time,round,ps){
  for(const b of s.balls)if(b.state!=='DESTROYED')drawBall(ctx,b);
  for(const p of ps)drawPerson(ctx,p,time);
  ctx.restore(); // drawIsland leaves a translated/scaled world transform
- ctx.save();
- ctx.fillStyle='#123c58dd';ctx.beginPath();ctx.roundRect(14,12,230,44,11);ctx.fill();
- ctx.fillStyle='#f3fdff';ctx.textAlign='left';ctx.font='900 19px system-ui';
- ctx.fillText('SNOW BRAWL',25,36);
- // Shared HUD displays solo time or multiplayer survivors; no duplicate label.
- if(s.suddenDeath){ctx.fillStyle='#ffe19c';ctx.textAlign='right';ctx.font='900 17px system-ui';
-  ctx.fillText('SUDDEN DEATH',WIDTH-22,36);}
- ctx.restore();
+ // Extra mode/status banners removed; shared centre badge is the only HUD.
  ctx.restore();
 }
 // Diagnostic hooks are pure engine operations used by regression tests.

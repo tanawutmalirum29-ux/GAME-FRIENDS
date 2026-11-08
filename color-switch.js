@@ -503,11 +503,7 @@ function draw(ctx,time,round,ps){
   ctx.restore();
  }
  if(s.theme==='mayan')window.ColorSwitchMayan.drawBullets(ctx,s);
- // Reuse the shared Shopping/Knight stopwatch at centre instead of
- // a separate plain-text countdown and final-seconds number.
- ctx.fillStyle='#152b2add';ctx.fillRect(13,12,174,43);
- ctx.fillStyle='#f5ffeb';ctx.font='900 17px sans-serif';ctx.textAlign='left';
- ctx.fillText('COLOR SWITCH',23,39);
+ // Common top-centre clock is the only match HUD.
  ctx.restore();
 }
 window.ColorSwitch=Object.freeze({setup,update,draw,hud,createArena,tileAt,

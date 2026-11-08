@@ -271,7 +271,7 @@ test('Player spacing and lance collision share scaled visual geometry',()=>{
  assert.equal(tip.x,a.x+59*.7);
  assert.equal(tip.y,a.y+13*.7);
 });
-test('Rainbow gradient covers full clipped body; top-center HUD appears only when active',()=>{
+test('Rainbow gradient covers full clipped body; no extra status HUD appears',()=>{
  const {ps,round,s}=game(2,170),p=ps[0];
  const rb=s.balloons.find(b=>b.kind==='rainbow')||(K.spawnRainbow(s,ps),s.balloons.find(b=>b.kind==='rainbow'));
  assert.ok(rb);
@@ -293,10 +293,10 @@ test('Rainbow gradient covers full clipped body; top-center HUD appears only whe
  assert.equal(texts.filter(t=>t[0]==='RAINBOW POWER').length,0);
  s.rainbowOwnerId=p.id;s.rainbowUntil=s.clock+7.8;
  texts.length=0;K.draw(paint,0,round,ps);
- const hud=texts.filter(t=>t[0]==='RAINBOW POWER');
- assert.equal(hud.length,1,'one rainbow timer, not repeated in left HUD');
- assert.ok(hud[0][1]>300&&hud[0][1]<600,'top-center HUD');
- assert.ok(texts.some(t=>t[0]==='7.8s'),'remaining time shown precisely');
+ assert.equal(texts.some(t=>t[0]==='RAINBOW POWER'),false,
+  'rainbow state is visual gameplay, never a second HUD');
+ assert.ok(Math.abs((s.rainbowUntil-s.clock)-7.8)<1e-6,
+  'rainbow effect keeps its actual expiration timer internally');
  s.clock=s.rainbowUntil+.1;s.rainbowOwnerId=null;
  texts.length=0;K.draw(paint,0,round,ps);
  assert.equal(texts.some(t=>t[0]==='RAINBOW POWER'),false);

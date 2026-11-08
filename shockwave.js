@@ -367,23 +367,8 @@ function draw(ctx,time,round,ps){
    ctx.restore();
  }
  for(const p of ps)if(!p.shockAlive)drawPlayer(ctx,p,s);
- // No numerical wave countdown or safe-tile count. The universal SVG person
- // badge holds the survivor total; keep only the wave label on the map.
- ctx.fillStyle='#3a2c2bee';ctx.fillRect(16,13,224,57);
- ctx.strokeStyle='#d2a66a';ctx.lineWidth=1.5;ctx.strokeRect(16,13,224,57);
- ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';
- ctx.fillText('SHOCKWAVE',27,37);
- ctx.font='bold 13px sans-serif';ctx.fillStyle='#b1f1ca';
- ctx.fillText(s.wave?'WAVE '+s.wave:'เตรียมตัว',27,59);
- if(s.fastPhase&&!s.finished){
-   ctx.fillStyle='#d86842';ctx.fillRect(796,16,141,29);
-   ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 14px sans-serif';
-   ctx.fillText('FAST PHASE',866,36);
- }
- if((s.finalArena||s.suddenDeath)&&!s.finished){
-   ctx.fillStyle='#f9d49d';ctx.textAlign='center';ctx.font='bold 14px sans-serif';
-   ctx.fillText(s.finalArena?'FINAL ARENA':'SUDDEN DEATH',480,95);
- }
+ // No extra left, top-right or centre labels: tile warnings show danger;
+ // the common SVG headcount badge is drawn by app.js.
  ctx.restore();
 }
 window.Shockwave=Object.freeze({setup,update,draw,hud,createGrid,spawnPlayers,

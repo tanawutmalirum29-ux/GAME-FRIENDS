@@ -38,12 +38,14 @@ const css=fs.readFileSync('style.css','utf8');
 
 // Top HUD must clear the iPad status strip (even when CSS safe-area=0)
 // and finish immediately above the field, including a compact 12-player row.
-assert.match(css,/body\.host-playing #game \.game-center-hud\{\s*top:max\(29px,calc\(env\(safe-area-inset-top,0px\) \+ 3px\)\)/,
+assert.match(css,/body\.host-playing #game \.game-center-hud\{\s*top:max\(24px,env\(safe-area-inset-top,0px\)\)/,
  'host roster starts below the iPad time/battery strip');
 assert.match(css,/body\.host-playing #game \.game-toolbar\{\s*height:max\(96px,/,
  'top background strip stays flush with the field beneath the roster');
-assert.match(source,/const ENGINE_CLOCK_MODES=new Set\(\['shopping_time','knight_match','pizza_time','witching_snake'\]\)/,
- 'already-clocked games do not receive a second stopwatch');
+assert.doesNotMatch(source,/const ENGINE_CLOCK_MODES=/,
+ 'no engine-specific clocks should bypass the one central HUD');
+assert.match(source,/const seconds=hostClockValue\(round\)/,
+ 'every minigame routes its time through the same HUD dispatcher');
 assert.match(source,/function hostClockValue\(r\)\{[\s\S]*?r\.mode==='shockwave'/,
  'SHOCKWAVE must never display a numeric host timer');
 assert.match(source,/window\.PartyArenaScenes\?\.clock\?\.\(g,seconds\)/,
@@ -241,11 +243,13 @@ assert.match(html,/id="uiModal"/);
 assert.doesNotMatch(source,/\b(?:alert|confirm)\(/);
 assert.match(css,/#hostLobby #hostQueue\{display:none!important\}/);
 assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?display:flex;/);
-// Only the corner world obstacle displays the start countdown/player total.
+// All minigames use the host's single shared centre badge, never a solid
+// top-left obstacle or a second engine-specific text overlay.
 assert.doesNotMatch(html,/id="gameMode"|id="timer"|class="game-name"/);
 assert.doesNotMatch(source,/\$\('gameMode'\)|\$\('timer'\)/);
-assert.match(ghostSource,/function drawCornerHud\(ctx,round,players,state\)/);
-assert.match(ghostSource,/kind:'hud-blocker'/);
+assert.doesNotMatch(ghostSource,/function drawCornerHud\(ctx,round,players,state\)/);
+assert.doesNotMatch(ghostSource,/kind:'hud-blocker'/);
+assert.match(partyArenaSource,/function hudBadgeDrop\(\)/);
 assert.match(css,/body\.host-playing #game \.leader-chip\{[\s\S]*?grid-template-rows:17px 16px 18px/);
 assert.match(css,/body\.host-playing #game \.leaderboard\{[\s\S]*?height:58px!important/);
 assert.match(css,/body\.host-playing #game \.leader-chip span\.leader-held-icon\{/);
@@ -347,49 +351,33 @@ for(const n of [1,4,5,6,7,8,9,12]){
  assert.equal(x.state.world.w,n<=6?1080:1280);
  assert.equal(x.state.world.h,n<=6?608:720);
  assert.equal(x.round.rules.viewMode,'topdown');
- assert.ok(x.state.obstacles.length>=6,'solid corner plus cemetery obstacles');
- assert.equal(x.state.obstacles[0].kind,'hud-blocker');
- assert.equal(x.state.hudBlocker,x.state.obstacles[0]);
- // The corner panel is deliberately compact for all room sizes. Its actual
- // collision box must shrink with the art rather than remaining invisible.
- assert.ok(Math.abs(x.state.hudBlocker.w-88*x.state.world.w/960)<1e-7,
-   'HUD obstacle width matches the smaller visual footprint');
- assert.ok(Math.abs(x.state.hudBlocker.h-58*x.state.world.h/540)<1e-7,
-   'HUD obstacle height matches the smaller visual footprint');
- assert.ok(x.state.hudBlocker.w<x.state.world.w*.1);
- assert.ok(x.state.hudBlocker.h<x.state.world.h*.12);
+ assert.ok(x.state.obstacles.length>=5,'authored cemetery obstacles remain');
+ assert.ok(!x.state.obstacles.some(o=>o.kind==='hud-blocker'),
+   'removed upper-left HUD must have no invisible collision rectangle');
+ assert.equal(x.state.hudBlocker,undefined,'obsolete HUD collision state is absent');
  assert.ok(['graveyard','egypt'].includes(x.state.theme));
  const kinds=art.kindsForTheme(x.state.theme);
- assert.ok(x.state.obstacles.slice(1).every(o=>kinds.includes(o.kind)),
+ assert.ok(x.state.obstacles.every(o=>kinds.includes(o.kind)),
    'all visual props match the randomly selected arena theme');
  const signature=x.state.theme==='egypt'?'sarcophagus':'coffin';
- assert.equal(x.state.obstacles[1].kind,signature,
+ assert.equal(x.state.obstacles[0].kind,signature,
    'the first large monument makes the chosen theme obvious');
- assert.ok(x.state.obstacles.slice(1).every(o=>o.x>=0&&o.y>=0));
+ assert.ok(x.state.obstacles.every(o=>o.x>=0&&o.y>=0));
  assert.equal(x.players.filter(p=>p.active&&!p.ghost).length,n);
- assert.ok(x.state.obstacles.slice(1).every(o=>o.w>0&&o.h>0&&o.fixed),
+ assert.ok(x.state.obstacles.every(o=>o.w>0&&o.h>0&&o.fixed),
   'monuments, fences and perimeter use authored collision bounds');
  assert.equal(x.state.obstacles.filter(o=>o.boundary).length,4);
  for(const p of x.players){
   assert.ok(p.x>0&&p.x<x.state.world.w&&p.y>0&&p.y<x.state.world.h);
   assert.equal(p.item,null);
-  const o=x.state.hudBlocker;
-  assert.ok(p.x>o.x+o.w||p.y>o.y+o.h,'no player spawns inside the HUD');
+  assert.ok(!x.state.obstacles.some(o=>o.kind==='hud-blocker'));
  }
 }
 {
- // Even ghost movement cannot cross the physical corner HUD barrier.
- const x=init(9),[p]=x.players,o=x.state.hudBlocker;
- x.round.phase='playing';
- x.state.npcs.forEach(n=>n.stun=999);
- x.players.slice(1).forEach((q,i)=>{q.x=500+i*35;q.y=450;});
- p.x=o.x+o.w+45;p.y=o.y+o.h/2;
- p.input.axisX=-1;p.input.axisY=0;
- for(let i=0;i<22;i++)ghost.update(.045,x.round,x.players);
- assert.ok(p.x>=o.x+o.w+14,'human cannot cross solid HUD');
- p.ghost=true;p.stun=0;p.x=o.x+o.w+45;
- for(let i=0;i<22;i++)ghost.update(.045,x.round,x.players);
- assert.ok(p.x>=o.x+o.w+14,'ghost cannot cross solid HUD');
+ // The deleted left-side panel must not continue blocking steering or spawns.
+ const x=init(9);
+ assert.equal(x.state.hudBlocker,undefined);
+ assert.ok(x.state.obstacles.every(o=>o.kind!=='hud-blocker'));
 }
 // GHOST ATTACK props are STATIC for the same theme/arena/tier. Every
 // monument receives a stable ID matching the collision rectangle, while
@@ -404,7 +392,7 @@ for(const n of [1,4,5,6,7,8,9,12]){
   assert.equal(info.width,n<=6?1080:1280);
   assert.equal(info.height,n<=6?608:720);
   assert.equal(info.id,state.mapId);
-  assert.equal(info.count,state.obstacles.length-1);
+  assert.equal(info.count,state.obstacles.length);
   const signature=JSON.stringify(state.obstacles);
   if(signatures.has(info.theme))
    assert.equal(signature,signatures.get(info.theme),
@@ -412,8 +400,8 @@ for(const n of [1,4,5,6,7,8,9,12]){
   else signatures.set(info.theme,signature);
   const ids=state.obstacles.map(o=>o.id);
   assert.equal(new Set(ids).size,ids.length,'every prop has one unique ID');
-  assert.equal(ids[0],'HUD-00','the corner HUD has a stable ID');
-  state.obstacles.slice(1).forEach((o,index)=>{
+  assert.ok(!ids.includes('HUD-00'),'obsolete HUD-00 ID is gone');
+  state.obstacles.forEach((o,index)=>{
    const prefix=info.theme==='egypt'?'EG':'GY';
    if(o.boundary)assert.match(o.id,new RegExp('^'+prefix+'-R[NSEW]$'));
    else assert.equal(o.id,prefix+'-'+String(index+1).padStart(2,'0'));
@@ -807,51 +795,24 @@ const drawProbe=new Proxy({},{
     'ghost sprite from another map theme must not be drawn');
  }
 }
-// Thai text placement regression: Canvas implementations that ignore
-// textAlign='center' must not push "12 คน" or the footer beyond the compact HUD.
+// The host game engine must no longer paint its own corner HUD labels.
+// Time/player-count belong exclusively to app.js's shared centre badge.
 {
- const styles={font:'16px system-ui',textAlign:'start'};
  const captures=[];
- let clipped=false;
- const hudProbe=new Proxy({},{
+ const probe=new Proxy({}, {
   get(_target,key){
    if(key==='createLinearGradient'||key==='createRadialGradient')return ()=>({addColorStop(){}});
-   if(key==='measureText')return text=>{
-    const size=Number((styles.font.match(/([\\d.]+)px/)||[])[1]||16);
-    return {width:Array.from(String(text)).length*size*.63};
-   };
-   if(key==='fillText')return (text,x,y,maxWidth)=>
-    captures.push({text,x,y,maxWidth,font:styles.font,align:styles.textAlign});
-   if(key==='clip')return ()=>{clipped=true;};
+   if(key==='fillText')return text=>captures.push(String(text));
    return ()=>{};
-  },
-  set(_target,key,value){styles[key]=value;return true;}
+  },set(){return true;}
  });
  for(const n of [1,9,12]){
-  const x=init(n),o=x.state.hudBlocker;
-  for(const phase of ['countdown','playing']){
-   captures.length=0;
-   x.round.phase=phase;x.round.countdown=3;
-   ghost.draw(hudProbe,0,x.round,x.players);
-   const main=phase==='countdown'?'3 วิ':n+' คน';
-   const lines=[phase==='countdown'?'เริ่มใน':'ผู้เล่น',
-     main,phase==='countdown'?n+' คน':'กำลังแข่ง'];
-   for(const line of lines){
-    const entry=captures.find(e=>e.text===line);
-    assert.ok(entry,'HUD must draw '+line);
-    assert.equal(entry.align,'left','never rely on center-alignment on Thai Canvas');
-    const size=Number((entry.font.match(/([\\d.]+)px/)||[])[1]||16);
-    const rendered=Math.min(Array.from(line).length*size*.63,entry.maxWidth);
-    assert.ok(entry.x>=o.x+4*o.w/88-1,
-      'HUD label left edge fits inside '+n+'-person panel');
-    assert.ok(entry.x+rendered<=o.x+o.w-4*o.w/88+1,
-      'HUD label right edge fits inside '+n+'-person panel');
-    assert.ok(entry.y>=o.y+9*o.h/58&&entry.y<=o.y+48*o.h/58,
-      'HUD text stays between inner top/bottom borders');
-   }
-  }
+  const x=init(n);
+  captures.length=0;
+  ghost.draw(probe,0,x.round,x.players);
+  assert.ok(!captures.some(label=>/^(เริ่มใน|ผู้เล่น|กำลังแข่ง|\\d+ คน)$/.test(label)),
+    'no redundant top-left time/player-count overlay at '+n+' players');
  }
- assert.equal(clipped,true,'HUD prevents glyph overflow outside the frame');
 }
 // Five items, one carried at a time. B first arms slow targeting, second uses it.
 for(const item of ['cloak','boost','stun','trap','slow']){

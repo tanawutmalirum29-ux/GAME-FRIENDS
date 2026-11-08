@@ -416,70 +416,17 @@ function drawPlayer(ctx,p,state,time){
    color:p.color,attacking:Combat.isAttacking(p)});
  ctx.restore();
 }
-// Both screens share one phase snapshot; neither changes gameplay state.
-function drawSideDisplays(ctx,state,round,players){
- const b=state.board,w=146,h=Math.min(350,b.h-30),y=b.y+(b.h-h)/2;
- const target=FRUIT_BY_ID[state.target];
- const showTarget=!!target&&['target','move','collapse'].includes(state.phase)&&round.phase!=='countdown';
- let opened=state.revealedTileIds.size;
- const batch=state.revealTimeline[state.revealCursor];
- if(state.phase==='memorize'&&batch&&state.elapsed-batch.start>.12)
-   opened=new Set([...state.revealedTileIds,...batch.ids]).size;
- for(const x of [b.x-38-w,b.x+b.w+38]){
-   ctx.save();ctx.translate(x,y);
-   ctx.fillStyle='#342c50';ctx.beginPath();ctx.roundRect(0,6,w,h,12);ctx.fill();
-   ctx.fillStyle='#8662af';ctx.strokeStyle='#d7b9ee';ctx.lineWidth=3;
-   ctx.beginPath();ctx.roundRect(0,0,w,h,12);ctx.fill();ctx.stroke();
-   ctx.fillStyle='#f5b64f';ctx.beginPath();ctx.roundRect(8,9,w-16,h-18,7);ctx.fill();
-   ctx.fillStyle='#ffe09a';ctx.fillRect(15,17,w-30,4);
-   // Clip all labels to the panel's inner rectangle. Some iPad browsers
-   // misposition Thai glyphs when centered with maxWidth; anchor Thai left.
-   ctx.beginPath();ctx.roundRect(9,10,w-18,h-20,6);ctx.clip();
-   ctx.textBaseline='middle';
-   const label=(value,yy,size=16,color='#493153')=>{
-     ctx.textAlign='left';ctx.fillStyle=color;
-     ctx.font='800 '+size+'px Tahoma, sans-serif';
-     ctx.fillText(value,17,yy,w-34);
-   };
-   const number=(value,yy,size=58,color='#493153')=>{
-     ctx.textAlign='center';ctx.fillStyle=color;
-     ctx.font='900 '+size+'px system-ui,sans-serif';
-     ctx.fillText(String(value),w/2,yy,w-34);
-   };
-   const progress=value=>{
-     const ratio=clamp(value/state.tiles.length,0,1);
-     ctx.fillStyle='#ad743c';ctx.fillRect(17,262,w-34,6);
-     ctx.fillStyle='#fff4c7';ctx.fillRect(17,262,(w-34)*ratio,6);
-   };
-   label('FRUIT MEMORY',42,12);
-   if(round.phase==='countdown'){
-     // Standard stopwatch at the top centre displays the actual countdown.
-     label('เตรียมจำผลไม้',95,15);
-     label('มองผลไม้',168,19);
-     label('ให้ครบทุกช่อง',207,16);
-     label('เริ่มรอบเร็ว ๆ นี้',263,14);
-   }else if(showTarget){
-     label(state.phase==='collapse'?'ผลไม้ที่รอด':'วิ่งไปที่',90,17);
-     if(state.phase!=='collapse')label('ผลไม้นี้',112,16);
-     const img=fruitImage(state.target),size=76;
-     ctx.fillStyle='#fff2c9';ctx.beginPath();ctx.arc(w/2,178,43,0,TAU);ctx.fill();
-     if(img?.complete&&img.naturalWidth)ctx.drawImage(img,(w-size)/2,140,size,size);
-     label(target.name,239,16);
-     if(state.phase!=='collapse'){label('วิ่งไปช่องที่ถูก',290,15);label('ก่อนหมดเวลา',326,15);}
-   }else if(state.phase==='memorize'||state.phase==='hide'){
-     label('เปิดแล้ว',92,19);
-     number(opened,165,62);
-     label('/ '+state.tiles.length+' ช่อง',225,18);
-     progress(opened);
-     label(state.phase==='hide'?'เตรียมดู':'จำตำแหน่ง',302,16);
-     label(state.phase==='hide'?'ผลไม้':'ให้ดี',326,16);
-   }else{
-     label('รอบถัดไป',99,19);
-     label('เตรียมจำใหม่',175,17);
-     // Survivor total lives in the shared SVG person badge, not this panel.
-   }
-   ctx.restore();
- }
+// The removed two side panels carried the target fruit image. Preserve only
+// this essential play cue (not an information panel) so humans can pick a tile.
+// It appears outside the board while the target is active and has no text.
+function drawSideDisplays(ctx,state,round){
+ if(round.phase==='countdown'||!['target','move'].includes(state.phase))return;
+ const target=FRUIT_BY_ID[state.target],img=fruitImage(state.target);
+ if(!target||!img?.complete||!img.naturalWidth)return;
+ const x=state.board.x+state.board.w+28,y=state.board.y+44;
+ ctx.save();ctx.fillStyle='#fff0c9';ctx.strokeStyle=target.color;ctx.lineWidth=3;
+ ctx.beginPath();ctx.arc(x,y,26,0,TAU);ctx.fill();ctx.stroke();
+ ctx.drawImage(img,x-22,y-22,44,44);ctx.restore();
 }
 function draw(ctx,time,round,players){
  const state=round.fruitMemory;if(!state)return;

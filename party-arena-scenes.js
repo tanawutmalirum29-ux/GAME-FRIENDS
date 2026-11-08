@@ -136,8 +136,27 @@ function cache(g,s,kind,paint){
  }
  g.drawImage(entry.canvas,0,0,w,h);
 }
+// Shared on-canvas HUD baseline: clear of the iPad roster and host safe area.
+// Reused by every minigame, regardless of whether it draws its own scene.
+const HUD_BADGE_DROP=45;
+function hudBadgeDrop(){
+ // Compute this in canvas-world units because the HUD roster is DOM over
+ // an object-fit:contain 960x540 canvas. A fixed pixel shift alone fails on
+ // narrow landscape screens where the roster becomes two rows.
+ if(typeof document==='undefined'||typeof window==='undefined'||
+    window.innerWidth<window.innerHeight)return HUD_BADGE_DROP;
+ const canvas=document.getElementById('arena');
+ const roster=document.getElementById('leaderboard');
+ const a=canvas?.getBoundingClientRect?.(),r=roster?.getBoundingClientRect?.();
+ if(!a||!r||a.width<=0||a.height<=0||r.height<=0)return HUD_BADGE_DROP;
+ const scale=Math.min(a.width/960,a.height/540);
+ if(!(scale>0))return HUD_BADGE_DROP;
+ const contentTop=a.top+(a.height-540*scale)/2;
+ // Its box starts at logical y=5. Leave a 6px CSS gap beneath the roster.
+ return Math.max(HUD_BADGE_DROP,Math.ceil((r.bottom+6-contentTop)/scale-5));
+}
 function clock(g,value,accent='#e8d2a1'){
- g.save();g.lineWidth=1.5;box(g,450,5,60,25,5,'#25323ce8',accent);
+ g.save();g.translate(0,hudBadgeDrop());g.lineWidth=1.5;box(g,450,5,60,25,5,'#25323ce8',accent);
  g.strokeStyle='#fff7dc';g.lineWidth=1.4;g.beginPath();g.arc(463,17.5,6,0,TAU);g.stroke();
  line(g,463,13,463,17.5,'#fff7dc',1.4);line(g,463,17.5,467,20,'#fff7dc',1.4);
  g.font='800 17px system-ui';g.textAlign='center';g.fillStyle='#fff8e9';g.fillText(String(Math.ceil(value)),490,23);g.restore();
@@ -147,7 +166,7 @@ const personIconSVG=()=>svg(24,24,
  '<circle cx="12" cy="6.5" r="3.8" fill="#fff7dc"/><path d="M3.1 21v-1.3c0-4.5 3.8-7.1 8.9-7.1s8.9 2.6 8.9 7.1V21Z" fill="#fff7dc"/>');
 /* Shared headcount badge for survival modes without a countdown clock. */
 function playerCount(g,value){
- g.save();
+ g.save();g.translate(0,hudBadgeDrop());
  g.lineWidth=1.5;box(g,450,5,60,25,5,'#25323ce8','#e8d2a1');
  g.strokeStyle='#fff7dc';g.fillStyle='#fff7dc';g.lineWidth=1.2;
  // Rasterized by the canvas browser engine from a real, cached SVG asset.

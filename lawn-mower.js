@@ -462,11 +462,7 @@ function draw(ctx,time,round,ps){
   ctx.fillStyle='#fffce4';ctx.textAlign='center';ctx.font='bold 12px system-ui';
   ctx.fillText('+'+(e.count*5),e.x,e.y-32-t*30);ctx.restore();
  }
- ctx.fillStyle='rgba(28,53,22,.88)';ctx.fillRect(13,12,210,57);
- ctx.fillStyle='#fff';ctx.font='900 19px system-ui';ctx.textAlign='left';ctx.fillText('LAWN MOWER',23,34);
- // Remaining seconds and start countdown use the common clock badge.
- ctx.font='bold 14px system-ui';
- ctx.fillText(s.kind==='small'?'สนามเล็ก':'สนามใหญ่',23,55);
+ // Arena size is reflected by the field itself; no top-left status panel.
  ctx.restore();
 }
 window.LawnMower=Object.freeze({setup,update,draw,hud,playerStatus,step,finish,cutSwath,cutTuft,

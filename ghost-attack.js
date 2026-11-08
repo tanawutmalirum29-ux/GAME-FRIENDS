@@ -162,13 +162,9 @@ function setup(round,players){
   const tier=players.length<=6?1:2;
   const world=tier===1?{w:1080,h:608}:{w:1280,h:720};
   round.rules={...(round.rules||{}),viewMode:round.rules?.viewMode||'topdown'};
-  // Compact physical HUD: its visible SVG-sized panel AND hitbox shrink
-  // together, using proportional dimensions at every arena size.
-  const hudBlocker={x:12*world.w/960,y:12*world.h/540,
-    w:88*world.w/960,h:58*world.h/540,
-    id:'HUD-00',kind:'hud-blocker',fixed:true,solid:true};
+  // No invisible HUD collider: the headcount/clock lives at the top centre.
   const layout=makeCourtyard(world,tier,theme);
-  const obstacles=[hudBlocker,...layout.obstacles];
+  const obstacles=layout.obstacles;
   Art.preload(players,theme,obstacles);
   const center=layout.spawn;
   const used=[center];
@@ -184,7 +180,7 @@ function setup(round,players){
   // players, not extra NPCs seeded into large rooms.
   const npcs=[{id:'ai-ghost-0',x:center.x,y:center.y,
     dir:{x:1,y:0},targetId:null,lockUntil:0,stun:0}];
-  round.ghost={world,obstacles,hudBlocker,theme,tier,arena:layout.arena,
+  round.ghost={world,obstacles,theme,tier,arena:layout.arena,
     spawn:layout.spawn,mapId:layout.mapId,showObstacleIds:false,selectedObstacleId:null,
     npcs,boxes:[],traps:[],time:0,
     boxClock:4.5,maxBoxes:tier===1?2:3,
@@ -929,65 +925,12 @@ function drawPickupNotice(ctx,p,w,h){
   ctx.fillText(msg,textX,y,220);
   ctx.restore();
 }
-// Text is positioned with measured LEFT edges, not textAlign='center'.
-// Some host Canvas/browser combinations were anchoring Thai text at the
-// center point as if it were left-aligned, so "12 คน" escaped the frame.
-function drawFittedHudText(ctx,text,cx,y,maxWidth,fontSize,weight,color){
-  ctx.textAlign='left';
-  ctx.textBaseline='middle';
-  ctx.fillStyle=color;
-  const label=String(text);
-  let size=fontSize;
-  let width=0;
-  // Fit by measuring actual shaped Thai glyphs before drawing.
-  for(let attempt=0;attempt<22;attempt++){
-    ctx.font=weight+' '+size.toFixed(2)+'px system-ui';
-    width=ctx.measureText(label).width;
-    if(width<=maxWidth||size<=7)break;
-    size=Math.max(7,size-.6);
-  }
-  const textX=cx-Math.min(width,maxWidth)/2;
-  ctx.fillText(label,textX,y,maxWidth);
-}
-function drawCornerHud(ctx,round,players,state){
-  const o=state.hudBlocker;if(!o)return;
-  const unit=o.w/88;
-  const cx=o.x+o.w/2;
-  const countdown=round.phase==='countdown';
-  const count=players.filter(p=>p.active).length;
-  ctx.save();
-  ctx.shadowColor='#001827';ctx.shadowBlur=5*unit;
-  ctx.shadowOffsetY=2*unit;
-  ctx.beginPath();ctx.roundRect(o.x,o.y,o.w,o.h,8*unit);
-  ctx.fillStyle='#102237';ctx.fill();
-  ctx.strokeStyle='#8bd5d9';ctx.lineWidth=1.8*unit;ctx.stroke();
-  ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-  ctx.beginPath();ctx.roundRect(o.x+3*unit,o.y+3*unit,
-    o.w-6*unit,o.h-6*unit,5*unit);
-  ctx.fillStyle='#193d49';ctx.fill();
-  ctx.strokeStyle='#3e8490';ctx.lineWidth=.75*unit;ctx.stroke();
-  // Clip to the INNER frame as a final safeguard on narrow phone screens.
-  ctx.beginPath();
-  ctx.roundRect(o.x+4*unit,o.y+4*unit,
-    o.w-8*unit,o.h-8*unit,4*unit);
-  ctx.clip();
-  const maxWidth=o.w-14*unit;
-  drawFittedHudText(ctx,countdown?'เริ่มใน':'ผู้เล่น',
-    cx,o.y+12.5*unit,maxWidth,8.5*unit,'bold','#c4e7e5');
-  drawFittedHudText(ctx,countdown?
-    String(Math.max(1,Math.ceil(round.countdown||0)))+' วิ':
-    String(count)+' คน',
-    cx,o.y+29*unit,maxWidth,16.5*unit,'900','#fff2b6');
-  drawFittedHudText(ctx,countdown?count+' คน':'กำลังแข่ง',
-    cx,o.y+45.5*unit,maxWidth,8.2*unit,'bold','#aee4e7');
-  ctx.restore();
-}
 // Inspection is read-only and only enabled by the host's bot-only
 // QA UI. ID, hitbox and coordinates match the actual collision obstacle.
 function mapInfo(round){
  const s=round?.ghost;
  return s?{id:s.mapId,name:Art.themeLabel(s.theme),theme:s.theme,
-   width:s.world.w,height:s.world.h,tier:s.tier,count:s.obstacles.length-1}:null;
+   width:s.world.w,height:s.world.h,tier:s.tier,count:s.obstacles.length}:null;
 }
 function obstacleAt(round,x,y){
  const s=round?.ghost;
@@ -1066,9 +1009,7 @@ function draw(ctx,t,round,players){
     ctx.shadowBlur=14;ctx.shadowColor=caster.color;ctx.beginPath();
     ctx.arc(target.x,target.y,31+2*Math.sin(t*7),0,TAU);ctx.stroke();ctx.restore();
   }
-  // The solid upper-left monument displays the only countdown and player
-  // count, painted last so characters and FX cannot cover its information.
-  drawCornerHud(ctx,round,players,state);
+  // Shared centre badge is rendered by app.js after the scene.
   drawObstacleIds(ctx,state);
   ctx.restore();
 }
