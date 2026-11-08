@@ -20,7 +20,7 @@ assert.equal(labels(moved).p1,'aab_0');
 assert.equal(labels(moved).q1,'abb_0');
 assert.equal(labels(moved).z1,'aaa_0');
 const conflict=assign(records.map(x=>({...x,terminalBranchId:
- x.internalId==='root-a'?'root-b':x.terminalBranchId})));
+ x.internalId==='root-a'?'root-b':x.internalId==='child-second'?'n':x.terminalBranchId})));
 assert.deepEqual(conflict.collisions.map(x=>x.displayId),['ab_0']);
 assert.equal(conflict.collisions[0].internalIds.length,2);
 assert.deepEqual(assign([...records].reverse()).mapping,assign(records).mapping);
