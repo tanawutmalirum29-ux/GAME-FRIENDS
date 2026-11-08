@@ -1,5 +1,5 @@
 'use strict';
-/* Non-destructive final V9 graph audit. Run with --strict in CI. */
+/* Non-destructive final V10 graph audit. Run with --strict in CI. */
 const fs=require('node:fs'),vm=require('node:vm');
 const ctx=vm.createContext({window:{},Math,Date,console});
 for(const file of ['board-map.js','board-v7-design.js','board-branch-naming.js','board-v7-adapter.js'])
@@ -29,7 +29,7 @@ const report={version:m.version,baseline:{nodes:graph.baselineNodes,edges:graph.
  missingVisual,staleVisual,missingNames,retainedWS:ids.filter(id=>id.startsWith('ws')),displayNameCollisions:m.pathIdCollisions,
  blocked:false};
 try{M.validate(m);}catch(e){report.validationError=String(e);}
-report.blocked=!!(report.validationError||report.after.nodes!==302||report.after.edges!==321||
+report.blocked=!!(report.validationError||report.after.nodes!==302||report.after.edges!==318||
  !report.directM2M3Removed||!report.detourM2Ms20M3||
  [missing,deadEnds,inaccessible,cannotFinish,invalidTerritories,incorrectBridgeRoutes,
  missingVisual,staleVisual,missingNames,report.retainedWS].some(list=>list.length));

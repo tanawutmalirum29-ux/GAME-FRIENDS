@@ -150,3 +150,23 @@ keep renderer, bridge metadata and gameplay in sync.
 - Regression checks assert no remaining WS graph/visual identifiers, complete
   reachability, four contracted routes, all sword pairs, no ghost edges,
   plus transparent zero-height host toolbar for the browser's BOARD view.
+
+## 9 November 2026 — V10 island circulation and branch balance
+
+- The Meadow route from n51 now enters m0 and exits from m7 to n56. This
+  eliminates the 46-checkpoint jump to n108 and forces a single forward farm
+  circuit; world-space bridge connector waypoints are pinned deterministically.
+- Workshop and Iceberg circuits enter the start of their loop and exit from
+  the far side instead of returning to the same checkpoint. Internal IDs are
+  unchanged, while path/display labels are regenerated from the directed graph.
+- Harbor (3 nodes) and Gingerbread (2 nodes) are designated compact scenic
+  pauses, with authored small footprints, rather than large empty islands.
+- The entire active road/path metadata, including bridge styles, is rebuilt
+  from directed edges after graph mutation. V10 replaces V9 for saved-session
+  compatibility; V9 snapshots must restart instead of being silently remapped.
+- Two crossings where the arched Workshop viaduct passes above the Meadow
+  entrance and exit lanes are tagged explicitly: xmw_2→xmw_3 and
+  xmw_4→xmw_5. There is no implied footpath between crossing lanes.
+- Road, walking lane and decoration clearance share the 88-unit width and
+  44-unit radius. The strict reachability, territory, drawing metadata,
+  and CI tests are required before merge.

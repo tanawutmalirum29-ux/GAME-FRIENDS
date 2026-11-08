@@ -20,10 +20,10 @@ function inside(p,poly){
  return yes;
 }
 const m=M.create(73129),nodes=Object.values(m.nodes),edges=nodes.flatMap(n=>n.nextNodes.map(id=>[n,m.nodes[id]]));
-assert.equal(m.version,'winter-expedition-152-v9');
+assert.equal(m.version,'winter-expedition-152-v10');
 assert.equal(nodes.length,302);assert.equal(m.islands.length,17);
 assert.equal(M.validate(m),true);
-assert.equal(edges.length,321,'preserve authored board choices while rerouting them');
+assert.equal(edges.length,318,'preserve authored board choices while rerouting them');
 const get=id=>m.nodes[id];
 const q=[m.startId],reached=new Set();
 while(q.length){const id=q.pop();if(reached.has(id))continue;reached.add(id);q.push(...get(id).nextNodes);}
@@ -82,13 +82,13 @@ for(let i=0;i<edges.length;i++)for(let j=i+1;j<edges.length;j++){
  if(crossing(a.position,b.position,c.position,d.position))
   crossings.push([a.id+'>'+b.id,c.id+'>'+d.id]);
 }
-assert.ok(crossings.length<=2,'only two grade-separated bridges may intersect; all ordinary roads are planar: '+JSON.stringify(crossings));
+assert.ok(crossings.length<=4,'only documented grade-separated viaducts may intersect; all ordinary roads are planar: '+JSON.stringify(crossings));
 const overpassEdges=new Set(D.overpasses.map(p=>p.upper));
 for(const [a,b] of crossings){
  assert.ok(overpassEdges.has(a)||overpassEdges.has(b),
   'all visible path crossings must have an explicit raised viaduct: '+a+' vs '+b);
 }
-assert.equal(D.overpasses.length,2,'exactly two visually marked overpasses');
+assert.equal(D.overpasses.length,4,'two original crossings and two raised Workshop connector crossings');
 // Rendering the map and changing zoom must never rewrite authoritative positions.
 const expected=JSON.stringify(Object.fromEntries(nodes.map(n=>[n.id,n.position])));
 for(const seed of [0,1,9,73129]){
@@ -97,5 +97,5 @@ for(const seed of [0,1,9,73129]){
  assert.equal(JSON.stringify(Object.fromEntries(Object.values(other.nodes).map(n=>[n.id,n.position]))),expected,
   'map coordinates deterministic and stable for all zooms/play sessions');
 }
-console.log('BOARD v9 PASS: '+nodes.length+' nodes; '+m.islands.length+' islands; '+edges.length+
+console.log('BOARD v10 PASS: '+nodes.length+' nodes; '+m.islands.length+' islands; '+edges.length+
  ' directed routes; '+territories.length+' two-tile sword courts; '+crossings.length+' marked crossings; full reachability and art parity');

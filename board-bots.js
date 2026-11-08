@@ -17,15 +17,39 @@ function forwardTarget(s,p,maxSteps=Infinity){
   .map(q=>({q,path:route(s,p.currentNodeId,q.currentNodeId)})).filter(v=>!Number.isFinite(maxSteps)||(v.path&&v.path.length-1<=maxSteps))
   .sort((a,b)=>Number.isFinite(maxSteps)?a.path.length-b.path.length:s.map.nodes[b.q.currentNodeId].progress-s.map.nodes[a.q.currentNodeId].progress)[0]?.q;
 }
-// Remaining distance is counted in directed edges, never X/Y or progress gaps.
+// Route scores cover every downstream tile, not only the next one. Reverse
+// Dijkstra handles the directed graph, evaluates future hazard/health tradeoffs,
+// and caches each health tier per map instead of rescanning every input frame.
+const cachedFutureCosts=new WeakMap();
+const hpTier=hp=>hp<=35?0:hp<50?1:hp<70?2:hp<80?3:4;
+function tileCost(n,tier){
+ let cost=1;
+ if(n.type==='danger')cost+=[14,7,3.5,1.5,.65][tier];
+ if(n.type==='healing')cost-=[0,.45,.45,.25,0][tier];
+ if(n.type==='lucky')cost-=.13;
+ return Math.max(.45,cost);
+}
+function remainingCost(map,tier){
+ let variants=cachedFutureCosts.get(map);
+ if(!variants){variants=new Map();cachedFutureCosts.set(map,variants);}
+ if(variants.has(tier))return variants.get(tier);
+ const cost=new Map([[map.finishId,0]]),done=new Set();
+ for(;;){
+  let cur=null,best=Infinity;
+  for(const [id,weight] of cost)if(!done.has(id)&&weight<best){cur=id;best=weight;}
+  if(cur===null)break;
+  done.add(cur);
+  const node=map.nodes[cur],via=best+tileCost(node,tier);
+  for(const id of node.previousNodes)if(via<(cost.get(id)??Infinity))cost.set(id,via);
+ }
+ variants.set(tier,cost);return cost;
+}
 function chooseNext(s,p,from=p.currentNodeId){
- const score=id=>{
-  const n=s.map.nodes[id];
-  const danger=n.type==='danger'?(p.hp<=35?25:p.hp<70?10:3):0;
-  const benefit=n.type==='healing'&&p.hp<80?Math.min(12,(100-p.hp)/4):n.type==='lucky'?-1:0;
-  return n.remainingSteps+danger-(n.type==='lucky'?1:benefit);
- };
- return [...s.map.nodes[from].nextNodes].sort((a,b)=>score(a)-score(b))[0]||null;
+ const options=s.map.nodes[from].nextNodes;
+ if(!options.length)return null;
+ const tier=hpTier(p.hp),cost=remainingCost(s.map,tier);
+ const score=id=>tileCost(s.map.nodes[id],tier)+(cost.get(id)??Infinity);
+ return [...options].sort((a,b)=>score(a)-score(b))[0];
 }
 function update(s,dt,api){
  // Rewards are added directly to every bot's backpack by the host.

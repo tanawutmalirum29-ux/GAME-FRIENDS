@@ -217,6 +217,37 @@ function decoration(g,d){
  }
  g.restore();
 }
+// V10 curated landmarks are independent of the precompiled V7 art atlas.
+function v10Landmarks(g,s){
+ if(s.map.version!=='winter-expedition-152-v10')return;
+ const c=s.camera,z=Math.max(.06,c.zoom||1);
+ for(const zone of s.map.islands){
+  if(!['harbor','ginger'].includes(zone.id))continue;
+  for(const d of zone.decorations||[]){
+   if(Math.abs(d.x-c.x)>480/z+170||Math.abs(d.y-c.y)>(mapBottom(s)-94)/2/z+170)continue;
+   const scale=d.scale||1;
+   g.save();g.translate(d.x,d.y);g.scale(scale,scale);
+   if(d.kind==='lighthouse'){
+    box(g,-30,-112,60,134,10,'#d6e7ee','#6b899f');
+    for(const yy of [-77,-17])box(g,-31,yy,62,17,5,'#ca8791');
+    path(g,[[-45,-112],[0,-157],[45,-112]],'#728fa7','#fff9e6',4);
+    box(g,-19,-131,38,26,6,'#ffe5a2','#aa8967');
+    box(g,-13,-25,26,46,9,'#557c92');
+    box(g,-53,15,106,17,6,'#c5dfe5');
+   }else if(d.kind==='gingerhouse'){
+    box(g,-65,-66,130,91,12,'#b97c5f','#885b4b');
+    path(g,[[-78,-66],[0,-136],[78,-66]],'#cb9b77','#fff6de',7);
+    for(const x of [-42,42]){
+     box(g,x-17,-46,34,34,5,'#f4d99d','#fff6eb');
+     circle(g,x,-28,6,'#d2787a');
+    }
+    box(g,-17,-20,34,46,10,'#715047','#ffefcf');
+    for(const x of [-81,81])circle(g,x,16,14,'#e5a2b4','#fff3e4',4);
+   }
+   g.restore();
+  }
+ }
+}
 function decorations(g,s){
  const c=s.camera,z=Math.max(.04,c.zoom),halfW=480/z+300,halfH=(mapBottom(s)-94)/2/z+300;
  const visible=p=>Math.abs(p.x-c.x)<halfW&&Math.abs(p.y-c.y)<halfH;
@@ -322,7 +353,7 @@ const BOARD_BRIDGE_WIDTH=BOARD_NODE_DIAMETER;
 // Guide graphics sit on the left shoulder rather than the centre walking lane.
 const BOARD_GUIDE_SIDE_OFFSET=32;
 function v8RoadGuides(g,s){
- if(!/^winter-expedition-152-v(8|9)$/.test(s.map.version))return;
+ if(!/^winter-expedition-152-v(8|9|10)$/.test(s.map.version))return;
  const map=s.map,c=s.camera,z=Math.max(.06,c.zoom||1);
  const hw=480/z+150,hh=(mapBottom(s)-94)/(2*z)+150;
  const isVisible=(a,b)=>Math.max(a.x,b.x)>=c.x-hw&&Math.min(a.x,b.x)<=c.x+hw&&
@@ -331,6 +362,8 @@ function v8RoadGuides(g,s){
   from+'>'+to,map.bridgeStyles?.[from+'>'+to]||'wood'
  ]));
  const regular=[],crossings=[];
+ const raised=new Set((window.BOARD_PARTY_V7_DESIGN?.overpasses||[])
+   .filter(o=>/^xmw_/.test(o.upper)).map(o=>o.upper));
  for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
   const next=map.nodes[id],a=n.position,b=next?.position;
   if(!b||!isVisible(a,b))continue;
@@ -363,8 +396,16 @@ function v8RoadGuides(g,s){
  // 98-unit pale shoulders + 88-unit deck -> visible width matches each tile.
  for(const e of regular)strokeEdge(e,'#f0e5d4',BOARD_ROAD_WIDTH+10);
  for(const e of regular)strokeEdge(e,'#cba57c',BOARD_ROAD_WIDTH);
- for(const e of crossings)strokeEdge(e,'#e4eced',BOARD_BRIDGE_WIDTH+10);
- for(const e of crossings)strokeEdge(e,deckColor(e.kind),BOARD_BRIDGE_WIDTH);
+ // Elevated Workshop viaduct is painted last with a distinct underside;
+ // the two lower water lanes remain visible, non-intersecting connections.
+ const lower=crossings.filter(e=>!raised.has(e.from+'>'+e.to));
+ const upper=crossings.filter(e=>raised.has(e.from+'>'+e.to));
+ for(const e of lower)strokeEdge(e,'#e4eced',BOARD_BRIDGE_WIDTH+10);
+ for(const e of lower)strokeEdge(e,deckColor(e.kind),BOARD_BRIDGE_WIDTH);
+ for(const e of upper)strokeEdge(e,'#284f6288',BOARD_BRIDGE_WIDTH+18,8);
+ for(const e of upper)strokeEdge(e,'#e4eced',BOARD_BRIDGE_WIDTH+10);
+ for(const e of upper)strokeEdge(e,deckColor(e.kind),BOARD_BRIDGE_WIDTH);
+ crossings.splice(0,crossings.length,...lower,...upper);
  // Slim bridge edge rails preserve the wood/ice/stone identity even though the
  // original source deck underneath is narrower than the circular nodes.
  if(z>.21)for(const e of crossings){
@@ -478,6 +519,47 @@ function regionLabels(g,s){
   label(g,title,-37,0,11,zone.theme==='crown'?'#ffe4a5':'#e1f3f8','left',700,95);g.restore();
  }
 }
+const branchLabelCache=new WeakMap();
+function decisionLabels(map,from){
+ let cache=branchLabelCache.get(map);
+ if(!cache){cache=new Map();branchLabelCache.set(map,cache);}
+ if(cache.has(from))return cache.get(from);
+ const choices=map.nodes[from]?.nextNodes||[];
+ const trees=choices.map(start=>{
+  const info=new Map([[start,{distance:0,prev:null}]]),queue=[start];
+  for(let i=0;i<queue.length;i++)for(const next of map.nodes[queue[i]].nextNodes){
+   if(!info.has(next)){info.set(next,{distance:info.get(queue[i]).distance+1,prev:queue[i]});queue.push(next);}
+  }
+  return info;
+ });
+ const common=[...(trees[0]?.keys()||[])].filter(id=>id!==from&&trees.every(t=>t.has(id)));
+ common.sort((a,b)=>{
+  const metric=id=>[Math.max(...trees.map(t=>t.get(id).distance)),
+   trees.reduce((sum,t)=>sum+t.get(id).distance,0)];
+  const x=metric(a),y=metric(b);return x[0]-y[0]||x[1]-y[1];
+ });
+ const join=common[0],detail={};
+ for(let i=0;i<choices.length;i++){
+  const tree=trees[i];
+  if(!join){detail[choices[i]]=null;continue;}
+  let walk=join,route=[];
+  while(walk!==null){route.push(walk);walk=tree.get(walk)?.prev??null;}
+  route.reverse();
+  const through=route.slice(0,-1),steps=through.length+1;
+  const danger=through.filter(id=>map.nodes[id].type==='danger').length;
+  const heal=through.filter(id=>map.nodes[id].type==='healing').length;
+  const lucky=through.filter(id=>map.nodes[id].type==='lucky').length;
+  detail[choices[i]]={steps,danger,heal,lucky};
+ }
+ const fastest=Math.min(...Object.values(detail).filter(Boolean).map(x=>x.steps));
+ const result=Object.fromEntries(choices.map(id=>{
+  const d=detail[id];if(!d)return[id,null];
+  const name=d.steps===fastest?'สั้น':'อ้อม';
+  const effect=d.danger?'มีอันตราย':d.heal&&d.lucky?'ฮีล/ดาว':d.heal?'มีฮีล':d.lucky?'มีดาว':'ปกติ';
+  return[id,name+' '+d.steps+' ช่อง • '+effect];
+ }));
+ cache.set(from,result);return result;
+}
 function nodes(g,s){
  regionLabels(g,s);
  // Most of the 47+ tiles are off-screen. Skip both far-away nodes and paths
@@ -492,12 +574,17 @@ function nodes(g,s){
  for(const n of Object.values(s.map.nodes))for(const id of n.nextNodes){const a=n.position,b=s.map.nodes[id].position;
   if(!edgeVisible(a,b))continue;
   const branch=s.map.branches.find(v=>v.nodeIds.includes(id));
+  const isV10=s.map.version==='winter-expedition-152-v10';
+  const realLabel=isV10&&n.nextNodes.length>1?decisionLabels(s.map,n.id)[id]:null;
   const tint=branch?.kind==='risky'?'#b78964':branch?'#6e9d91':'#5c8ea5';
-  // Old blue double-chevrons are intentionally removed. Only the large
-  // ivory direction arrows in v8RoadGuides remain visible on roads.
-  if(branch&&id===branch.nodeIds[0]&&c.zoom>.55){
-   const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1,x=(a.x+b.x)/2-dy/d*58,y=(a.y+b.y)/2+dx/d*58;
-   box(g,x-44,y-10,88,20,6,'#edf9f8ef',tint);label(g,branch.kind==='risky'?'ลัด • เสี่ยง':'อ้อม • ฮีล / โชค',x,y,9,'#36596c','center',700,80);
+  // Only actual directed edges receive directional arrows. Route signs say
+  // what pads EXIST before convergence, not that a player will land on one.
+  if(c.zoom>.55&&(isV10?realLabel:branch&&id===branch.nodeIds[0])){
+   const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;
+   const x=(a.x+b.x)/2-dy/d*72,y=(a.y+b.y)/2+dx/d*72;
+   const wording=isV10?realLabel:branch.kind==='risky'?'ลัด • เสี่ยง':'อ้อม • ฮีล / โชค';
+   box(g,x-72,y-11,144,22,6,'#edf9f8ed',tint);
+   label(g,wording,x,y,9,'#36596c','center',700,137);
   }
  }
  for(const n of Object.values(s.map.nodes)){
@@ -1123,6 +1210,7 @@ function draw(g,t,s){
     s.__v7Fx.draw(g,{x:c.x-480/c.zoom,y:c.y-viewH/(2*c.zoom),w:960/c.zoom,h:viewH/c.zoom,zoom:c.zoom},t);
    }
   }else{decorations(g,s);if(typeof ambience==='function'&&!c.lowDetail)ambience(g,s,t);}
+  v10Landmarks(g,s);
   nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<(c.lowDetail?0:35);i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
