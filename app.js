@@ -3251,7 +3251,12 @@ function hostClockValue(r){
   if(!r||r.mode==='board'||r.mode==='shockwave')return null;
   if(r.phase==='countdown')return Number.isFinite(r.countdown)?Math.max(0,r.countdown):null;
   if(r.phase!=='playing')return null;
-  return Number.isFinite(r.remaining)?Math.max(0,r.remaining):null;
+  if(Number.isFinite(r.remaining))return Math.max(0,r.remaining);
+  // Endless survival modes previously displayed elapsed seconds. Keep
+  // that information, but render it inside the same stopwatch face.
+  const elapsed=r.mode==='boulder_bash'?r.boulderBash?.clock:
+    r.mode==='snow_brawl'?r.snowBrawl?.clock:null;
+  return Number.isFinite(elapsed)?Math.max(0,elapsed):null;
 }
 function drawGame(t){
   if(!round)return;
