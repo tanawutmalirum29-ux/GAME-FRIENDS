@@ -108,7 +108,7 @@ test('no duplicate mode-level clocks or top-left information banners', () => {
   'fruit-memory.js': /label\('FRUIT MEMORY'/
  };
  for(const [name,re] of Object.entries(forbidden))assert.doesNotMatch(read(name),re,name);
- assert.match(read('fruit-memory.js'),/function drawSideScreens\(ctx,state\)/,
+ assert.match(read('fruit-memory.js'),/function drawSideScreens\(ctx,state,round\)/,
   'Fruit Memory uses mirrored SVG side screens');
  assert.match(read('app.js'),/r\.mode==='fruit_memory'/,
   'Fruit Memory has a shared host countdown, not a memorize timer');
