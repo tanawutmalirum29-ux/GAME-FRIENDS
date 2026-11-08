@@ -430,9 +430,15 @@ function drawHeldChicken(ctx,chicken,player,t){
  // matching goalHead() in every facing direction, without a screen-up offset.
  window.FarmIceArt.heldChicken(ctx,chicken,player,t);
 }
-function drawPlayer(ctx,p,t){
- window.PartyCharacters.draw(ctx,p,{time:t,
+function drawPlayer(ctx,p,t,unit=1){
+ // Avatar, punch arc and attacker-coloured stun halo all use the same
+ // world-space unit, so no VFX appears smaller than its physical attack.
+ window.PartyCharacters.draw(ctx,p,{time:t,scale:unit,combat:false,
    holding:p.carriedChickenId!=null,attacking:Combat.isAttacking(p),label:false});
+ ctx.save();
+ ctx.translate(p.x,p.y);ctx.scale(unit,unit);ctx.translate(-p.x,-p.y);
+ Combat.drawAttack(ctx,p);Combat.drawStun(ctx,p,t);
+ ctx.restore();
 }
 function draw(ctx,time,round,players){
   const s=round.chickens;if(!s)return;
