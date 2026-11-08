@@ -215,8 +215,8 @@ for(let wave=1;wave<=14;wave++){
  assert.equal(s.finished,true);
  assert.equal(s.blastCursor,3);
  assert.equal(s.events.length,3,'three separate per-tile eliminations');
- assert.deepEqual(s.events.map(e=>e.tileId),[0,6,12]);
- assert.deepEqual(s.events.map(e=>e.event),[1,2,3]);
+ assert.deepEqual([...s.events.map(e=>e.tileId)],[0,6,12]);
+ assert.deepEqual([...s.events.map(e=>e.event)],[1,2,3]);
  assert.deepEqual(ps.map(p=>p.shockEliminatedAt),[1,2,3]);
  assert.deepEqual([...s.winnerIds],[ps[2].id]);
  assert.equal(s.winnerId,ps[2].id);
