@@ -5,7 +5,7 @@ for(const file of ['board-map.js','board-v7-design.js','board-v7-art.js','board-
  vm.runInContext(fs.readFileSync(file,'utf8'),ctx,{filename:file});
 }
 const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D,BOARD_PARTY_V7_ART:A}=ctx.window;
-assert.equal(M.MAP_VERSION,'winter-expedition-152-v7');
+assert.equal(M.MAP_VERSION,'winter-expedition-152-v8');
 assert.equal(D.islands.length,17);
 assert.equal(D.newNodes.length,146);
 assert.equal(D.bridges.length,20);
