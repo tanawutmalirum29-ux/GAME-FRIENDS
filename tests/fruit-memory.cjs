@@ -36,19 +36,35 @@ for(let n=1;n<=12;n++){
  const histogram={};
  for(const tile of s.tiles)histogram[tile.fruitType]=(histogram[tile.fruitType]||0)+1;
  assert.equal(Object.keys(histogram).length,size);
- assert.ok(Object.values(histogram).every(count=>count===size));
+ assert.ok(Object.values(histogram).every(count=>count>=size-1),
+  'all selected fruit types must meet their minimum allocation');
+ assert.equal(Object.values(histogram).reduce((sum,n)=>sum+n,0),size*size);
+ assert.equal(Object.values(histogram).reduce((sum,n)=>sum+n-(size-1),0),size,
+  'all remaining tiles use a randomized surplus across the selected kinds');
  assert.ok((small?[8,9]:[10,11]).includes(s.revealCount));
- assert.equal(s.revealGroups.length,3);
+ assert.equal(s.revealGroups.length,4);
  assert.ok(s.revealGroups.every(group=>group.length===s.revealCount));
  assert.ok(s.revealGroups.every(group=>new Set(group).size===group.length));
  assert.equal(new Set(s.revealGroups.flat()).size,s.tiles.length);
  assert.ok(s.revealGroups.flat().length>s.tiles.length,'cross-group repeats allowed');
  assert.equal(s.revealDuration,13);
- assert.equal(s.revealTimeline.length,3);
- assert.ok(s.revealTimeline.every((batch,i)=>batch.start===i*13/3&&
-  batch.end===(i+1)*13/3&&batch.duration===13/3));
+ assert.equal(s.revealTimeline.length,4);
+ assert.ok(s.revealTimeline.every((batch,i)=>batch.start===i*13/4&&
+  batch.end===(i+1)*13/4&&batch.duration===13/4));
  assert.equal(s.moveSeconds,small?5:7);
  assert.equal(s.revealFactor,1);
+}
+// The random remainder must produce multiple different distributions,
+// instead of silently keeping the old exact-equality rule.
+for(const count of [4,12]){
+ const samples=new Set();
+ for(let i=0;i<160;i++){
+  const s=game(count).state,counts={};
+  s.tiles.forEach(t=>counts[t.fruitType]=(counts[t.fruitType]||0)+1);
+  samples.add(Object.values(counts).sort((a,b)=>a-b).join(','));
+  assert.ok(Object.values(counts).every(n=>n>=(count<=6?3:4)));
+ }
+ assert.ok(samples.size>1,'surplus should genuinely vary across matches');
 }
 for(const n of [1,6,7,12]){
  for(let i=0;i<80;i++){
@@ -67,7 +83,7 @@ for(const n of [1,6,7,12]){
 {
  const g=game(4),s=g.state,bot=g.ps.find(p=>p.isBot);
  assert.equal(Object.keys(s.botMemories[bot.id]).length,0);
- tick(g,13/3+.05);
+ tick(g,13/4+.05);
  assert.ok(Object.keys(s.botMemories[bot.id]).length>=8);
  assert.ok(Object.keys(s.botMemories[bot.id]).length<s.tiles.length,
   'bot never knows a tile before it is shown');
