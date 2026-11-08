@@ -3267,7 +3267,10 @@ function drawGame(t){
   }else if(round.phase==='playing'||round.mode==='shockwave'||round.mode==='fruit_memory'){
     // No countdown: use only the shared SVG person and survivor total.
     const survivors=gameEngine(round.mode).hud?.(players,round)?.survivors;
-    if(Number.isFinite(survivors))window.PartyArenaScenes?.playerCount?.(g,survivors);
+    if(Number.isFinite(survivors)){
+     if(round.mode==='fruit_memory')window.PartyArenaScenes?.bareCount?.(g,survivors);
+     else window.PartyArenaScenes?.playerCount?.(g,survivors);
+   }
   }
 }
 function animate(ts){
