@@ -73,6 +73,13 @@
         "chromium": 8
       },
       "chromiumOnlyReason": "Legacy avatar SVG rasterization harness imports Chromium directly"
+    },
+    {
+      "file": "tests/reference-arenas-browser.cjs",
+      "browsers": {
+        "chromium": 35,
+        "webkit": 65
+      }
     }
   ]
 }
