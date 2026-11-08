@@ -338,7 +338,7 @@ assert.match(avatars,/data:image\/svg\+xml/);
    'even a tiny amount inside the outer body edge must die');
  ps[0].x=boundary+E.constants.avatarRadius+.0001;
  assert.equal(E.calculateDangerContact(s,ps[0],danger),0);
- s.phase='WARNING';s.danger=[6];
+ s.phase='WARNING';s.wave=3;s.danger=[6];
  const circles=[],labels=[],ctx=new Proxy({},{
   get(_obj,key){
    if(key==='createLinearGradient'||key==='createRadialGradient')return ()=>({addColorStop(){}});
