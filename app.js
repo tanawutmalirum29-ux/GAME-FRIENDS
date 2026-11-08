@@ -3242,21 +3242,19 @@ if(round.mode==='snow_brawl'){
     root.append(box);
   });
 }
-// Standardize timed minigames on the clock badge already used by SHOPPING
-// TIME and KNIGHT MATCH. Their engines (and PIZZA/WITCHING) draw their own
-// equivalent badge; draw it here only for other timed modes, never twice.
-// SHOCKWAVE deliberately uses visual warning tiles with NO time counter.
-const ENGINE_CLOCK_MODES=new Set(['shopping_time','knight_match','pizza_time','witching_snake']);
+// Timed engines that paint their own shared clock badge.
+// All remaining minigames use the same host badge: stopwatch for actual timers,
+// SVG person + numeral for player-count-only survival. Never draw two badges.
+// SHOCKWAVE shows a survivor count, never its wave-warning timer.
+const ENGINE_CLOCK_MODES=new Set(['shopping_time','knight_match','pizza_time']);
 function hostClockValue(r){
   if(!r||r.mode==='board'||r.mode==='shockwave')return null;
   if(r.phase==='countdown')return Number.isFinite(r.countdown)?Math.max(0,r.countdown):null;
   if(r.phase!=='playing')return null;
   if(Number.isFinite(r.remaining))return Math.max(0,r.remaining);
-  // Endless survival modes previously displayed elapsed seconds. Keep
-  // that information, but render it inside the same stopwatch face.
-  const elapsed=r.mode==='boulder_bash'?r.boulderBash?.clock:
-    r.mode==='snow_brawl'?r.snowBrawl?.clock:null;
-  return Number.isFinite(elapsed)?Math.max(0,elapsed):null;
+  // Elapsed time is NOT a countdown: multiplayer survival shows the live
+  // headcount instead. Solo survival still uses round.remaining above.
+  return null;
 }
 function drawGame(t){
   if(!round)return;
