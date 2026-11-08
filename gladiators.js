@@ -196,6 +196,7 @@ function eliminate(s,p,reason){
  const st=p.gladiator;if(!st?.alive)return false;
  st.alive=false;st.eliminatedTick=s.tick;st.eliminatedAt=s.clock;st.reason=reason;
  st.ball.static=true;st.ball.vx=st.ball.vy=0;
+ st.ball.px=st.ball.x;st.ball.py=st.ball.y;
  st.deadAnchorX=st.anchorX;st.deadAnchorY=st.anchorY;
  s.events.push({id:p.id,tick:s.tick,time:s.clock,reason});
  return true;
