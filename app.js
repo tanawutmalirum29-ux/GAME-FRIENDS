@@ -3,18 +3,17 @@
 
 const $ = (id) => document.getElementById(id);
 const MAX_PLAYERS = 12;
-const COLORS = ['#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0','#ff9b64','#7fb4ff','#f283e9','#e5ed78','#83e1c8','#f8a9b6','#c4aafa'];
-let lastAssignedColor = null;
+// High-contrast identity palette. Earlier entries are spaced out intentionally,
+// keeping 2–6-player matches legible, not just the full 12-player roster.
+const COLORS = ['#c62222','#36d9e5','#215a94','#d7b000','#f53695','#f57a00',
+ '#36d595','#000094','#009400','#b800f5','#008484','#94004a'];
+// Past sessions may contain older pastel IDs: migrate instead of losing players.
+const LEGACY_COLORS = ['#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0',
+ '#ff9b64','#7fb4ff','#f283e9','#e5ed78','#83e1c8','#f8a9b6','#c4aafa'];
 function pickUnusedColor(){
-  // Assign randomly, but never repeat another player's color in this room.
+  // Never choose randomly among colors that look similar in a small room.
   const inUse = new Set(players.map(player => player.color));
-  const available = COLORS.filter(color => !inUse.has(color));
-  if (!available.length) return null;
-  const fresh = available.filter(color => color !== lastAssignedColor);
-  const pool = fresh.length ? fresh : available;
-  const color = pool[Math.floor(Math.random() * pool.length)];
-  lastAssignedColor = color;
-  return color;
+  return COLORS.find(color => !inUse.has(color)) || null;
 }
 const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',color_claim:'COLOR CLAIM',ice_race:'ICE RACE',gladiators:'GLADIATORS'};
 const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch',pizza_time:'PizzaTime',knight_match:'KnightMatch',boulder_bash:'BoulderBash',snow_brawl:'SnowBrawl',shopping_time:'ShoppingTime',witching_snake:'WitchingSnake',lawn_mower:'LawnMower',color_claim:'ColorClaim',ice_race:'IceRace',gladiators:'Gladiators'};
@@ -94,13 +93,21 @@ function savePhone(){
 }
 function restorePlayers(list){
  if(!Array.isArray(list)||list.length>MAX_PLAYERS)return;
- const colors=new Set(),ids=new Set();
+ const originalColors=new Set(),ids=new Set();
  players=[];
  for(const a of list){
-  if(!a||!/^p\d+$/.test(String(a.id))||ids.has(a.id)||!COLORS.includes(a.color)||
-     colors.has(a.color)||!['local','remote'].includes(a.type))continue;
-  ids.add(a.id);colors.add(a.color);
-  players.push({id:a.id,name:cleanName(a.name),color:a.color,type:a.type,
+  if(!a||!/^p\d+$/.test(String(a.id))||ids.has(a.id)||
+     !['local','remote'].includes(a.type))continue;
+  const savedColor=String(a.color||'').toLowerCase();
+  if((!COLORS.includes(savedColor)&&!LEGACY_COLORS.includes(savedColor))||
+     originalColors.has(savedColor))continue;
+  // Existing new-palette colors are stable; old pastel colors migrate without
+  // changing player IDs, names, totals, selections or reconnection tokens.
+  const color=COLORS.includes(savedColor)&&!players.some(p=>p.color===savedColor)
+   ?savedColor:pickUnusedColor();
+  if(!color)continue;
+  ids.add(a.id);originalColors.add(savedColor);
+  players.push({id:a.id,name:cleanName(a.name),color,type:a.type,
    clientToken:a.token||null,conn:null,input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,
    score:0,total:Number(a.total)||0,choice:Object.hasOwn(MODES,a.choice)?a.choice:null,
    ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,isBot:a.type==='local'});
