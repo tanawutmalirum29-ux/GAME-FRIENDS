@@ -38,7 +38,7 @@ The AWS build invokes this before version-stamping the HTML.
   NOT a sandbox for third-party code.
 
 ## Migration status
-Production game-engine lazy-loading and compatibility adapters can ship without rewriting physics. Board play remains present while a selected minigame is loaded and pinned for that round.
+Production game-engine lazy-loading and compatibility adapters can ship without rewriting physics. The production HTML now also omits 12 heavyweight BOARD PARTY scripts, which are loaded sequentially by `src/platform/board-runtime.js` only upon BOARD entry; controller and NORMAL initial views do not download them. The in-repository development HTML retains its eager tags to preserve the local no-build workflow. Board play remains present while a selected minigame is loaded and pinned for that round.
 Full page-specific lazy loading, splitting `app.js`, centralizing *all* legacy
 HUD/round result paths, and browser-tested core recovery must be checked as
 separate migration gates before claiming the complete six-phase refactor.

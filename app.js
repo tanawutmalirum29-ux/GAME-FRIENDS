@@ -2210,7 +2210,7 @@ function warmBoardGames(){
   void platform.ensure(game.id).catch(error=>console.warn('Board game unavailable: '+game.id,error));
  }
 }
-let boardCatalogPending=false;
+let boardCatalogPending=false,boardCorePending=null;
 function beginBoard(){
   const platform=window.GamePlatform;
   // Production no longer downloads legacy minigame engines at initial page load.
@@ -2228,6 +2228,22 @@ function beginBoard(){
       showToast('โหลดรายชื่อมินิเกมไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
     });
     return;
+  }
+  // Fetch BOARD core only for BOARD; preserve the idle lobby while loading.
+  const core=window.BoardRuntime;
+  if(core&&!core.ready()){
+    if(boardCorePending)return boardCorePending;
+    const sessionMode=selectedSessionMode;
+    boardCorePending=core.ensure().then(()=>{
+      boardCorePending=null;
+      if(currentView==='hostLobby'&&!round&&!boardSession&&players.length&&
+         selectedSessionMode===sessionMode)return beginBoard();
+    }).catch(error=>{
+      boardCorePending=null;
+      console.error('BOARD PARTY asset load failed',error);
+      showToast('โหลด BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
+    });
+    return boardCorePending;
   }
   const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt','PartyPlayerAvatar'];
   if(required.some(name=>!window[name])){showToast('โหลด BOARD PARTY ไม่ครบ กรุณาโหลดหน้าใหม่',true);return;}

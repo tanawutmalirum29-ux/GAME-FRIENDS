@@ -17,4 +17,10 @@ function pruneLegacy(html,catalog){
  const tag=/^[ \t]*<script\s+defer\s+src="\.\/([^"?]+)(?:\?v=[^"]*)?"\s*><\/script>\s*$/gm;
  return html.replace(tag,(whole,asset)=>legacy.has(asset)?'':whole);
 }
-module.exports={pruneLegacy};
+const BOARD_CORE_SCRIPTS=new Set(["board-map.js","board-v7-design.js","board-v7-art.js","board-branch-naming.js","board-v7-adapter.js","board-dice.js","board-dice-renderer.js","board-items.js","board-bots.js","board-minigame.js","board-party.js","board-art.js"]);
+function pruneBoardCore(html){
+ assert(typeof html==='string','index source must be a string');
+ const tag=/^[ \t]*<script\s+defer\s+src="\.\/([^"?]+)(?:\?v=[^"]*)?"\s*><\/script>\s*$/gm;
+ return html.replace(tag,(whole,asset)=>BOARD_CORE_SCRIPTS.has(asset)?'':whole);
+}
+module.exports={pruneLegacy,pruneBoardCore,BOARD_CORE_SCRIPTS};

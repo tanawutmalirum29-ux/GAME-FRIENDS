@@ -8,7 +8,7 @@ const http=require('node:http');
 const {chromium,webkit}=require('playwright');
 const root=path.resolve(__dirname,'..'),kind=process.env.BOARD_BROWSER||'chromium';
 const {build}=require('../scripts/build-game-catalog.cjs');
-const {pruneLegacy}=require('../scripts/lazy-game-scripts.cjs');
+const {pruneLegacy,pruneBoardCore}=require('../scripts/lazy-game-scripts.cjs');
 const catalog=build();
 const manifests=new Map();
 for(const dir of fs.readdirSync(path.join(root,'src/games'),{withFileTypes:true}).filter(x=>x.isDirectory())){
@@ -16,8 +16,9 @@ for(const dir of fs.readdirSync(path.join(root,'src/games'),{withFileTypes:true}
  manifests.set(manifest.id,{folder,manifest});
 }
 const source=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const html=pruneLegacy(source,catalog);
+const html=pruneBoardCore(pruneLegacy(source,catalog));
 assert.ok(!html.includes('src="./ghost-attack.js"'),'production must strip eager ghost engine');
+assert.ok(!html.includes('src="./board-party.js"'),'production must defer BOARD core');
 const buildVersion='window.GAME_BUILD_VERSION="lazy-browser-test";'+
  'window.GAME_CORE_VERSION='+JSON.stringify(catalog.coreHash)+';'+
  'window.GAME_GAME_HASHES='+JSON.stringify(Object.fromEntries(catalog.games.map(g=>[g.id,g.hash])))+';';
@@ -74,6 +75,7 @@ const server=http.createServer((req,res)=>{
   page.on('pageerror',e=>errors.push(String(e)));
   await page.goto('http://127.0.0.1:'+server.address().port+'/?host=1');
   await page.waitForFunction(()=>window.GamePlatform?.revision===1,null,{polling:100,timeout:15000});
+  assert.equal(await page.evaluate(()=>window.BoardParty),undefined,'BOARD core must not load at startup');
   assert.equal(await page.evaluate(()=>window.GhostAttack),undefined,
    'host/controller start does not fetch unused minigame code');
   await page.locator('#offlineBtn').click();
@@ -110,7 +112,7 @@ const server=http.createServer((req,res)=>{
   });
   assert.equal(played.mode,'ghost');assert.equal(played.phase,'countdown');
   assert.equal(played.loaded,true);assert.equal(played.ready,true);
-  await page.evaluate(()=>{__lazyGameTest.returnToLobby();__lazyGameTest.beginBoard();});
+  await page.evaluate(async()=>{__lazyGameTest.returnToLobby();await __lazyGameTest.beginBoard();});
   const board=await page.evaluate(()=>({
    round:__lazyGameTest.round?.mode,board:!!__lazyGameTest.board,
    total:GamePlatform.games('board').length
