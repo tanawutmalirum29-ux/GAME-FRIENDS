@@ -104,7 +104,7 @@ function remodelDesign(){
  const removeNext=(id,to)=>{const n=byId.get(id);if(!n)throw Error('Missing v8 fork '+id);n.nextNodes=n.nextNodes.filter(x=>x!==to);};
  // Workshop: the long upper detour now rejoins at w5, instead of slicing
  // through the distinct centre-court route.
- setNext('ws9_2',['w5']);
+ setNext('ws9_2',['w5']);setNext('ws8_0',['ws9_1']);
  // Meadow: separate the scenic m2->m3 branch from the m0 fork.
  removeNext('m0','ms20_0');addNext('m2','ms20_0');
  removeNext('m7','ms19_0');addNext('m4','ms19_0');
@@ -120,6 +120,7 @@ function remodelDesign(){
  setNext('ss50_1',['s5']);
  const routes={
   ws9_2:['w7','ws9_0','ws9_1','ws9_2','w5'],
+  ws8_0:['w1','ws8_0','ws9_1'],
   ms20_0:['m2','ms20_0','m3'],
   ms19_0:['m4','ms19_0','m3'],
   hs29_0:['h2','hs29_0','h4'],
@@ -143,7 +144,7 @@ function remodelDesign(){
   gs39_0:[6240,5180],
   ss51_0:[6610,3015],ss49_0:[6450,2700],
   ss50_0:[6380,2460],ss50_1:[6280,2370],
-  xmw_8:[3185,2450],xgb_2:[5990,5200],xgb_3:[6000,4990],xgb_4:[5800,4970],
+  xmw_8:[3185,2450],xgb_2:[6180,5260],xgb_3:[6000,4990],xgb_4:[5800,4970],
   ws9_1:[3410,2675],ws9_2:[3030,2660],
   xhl_1:[3210,5050],xhl_2:[3300,4920],
   xhb_1:[3210,5335],xhb_2:[3350,5340]
