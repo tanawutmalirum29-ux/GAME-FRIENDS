@@ -5,7 +5,7 @@
 'use strict';
 const Base=window.BoardMap,D=window.BOARD_PARTY_V7_DESIGN;
 if(!Base||!D)throw Error('BOARD v7: load board-map and design before adapter');
-const VERSION='winter-expedition-152-v8',copy=x=>JSON.parse(JSON.stringify(x));
+const VERSION='winter-expedition-152-v9',copy=x=>JSON.parse(JSON.stringify(x));
 const BASE_NODES=213,EXTRA_NODES=146,ISLANDS=17,BRIDGES=20;
 const original=Base.create(0),oldIds=new Set(Object.keys(original.nodes));
 if(oldIds.size!==BASE_NODES||D.newNodes.length!==EXTRA_NODES||
@@ -21,8 +21,8 @@ for(const n of D.newNodes){
  * compatible with two-cell territory rules. No seeded placement is used. */
 const SWORD_COURTS=Object.freeze([
  ['workshop-watch','w6','w7'],
- ['harbor-watch','h0','hs30_0'],
- ['ginger-watch','g0','g1'],
+ ['harbor-watch','h2','h3'],
+ ['ginger-watch','g4','g5'],
  ['berg-watch','s3','s4']
 ]);
 function remodelDesign(){
@@ -220,6 +220,97 @@ function remodelDesign(){
  }
 }
 remodelDesign();
+/* BOARD v9 graph reduction. The requested removals sever the v8 harbor
+ * and ginger loops; deleting their orphaned tails is required to preserve
+ * start-to-finish reachability WITHOUT inventing replacement connections.
+ * All IDs are inspected against the real authored graph before mutation. */
+function reduceGraphDesign(){
+ const explicitIds=new Set(['ms19_0','ms18_0','ms18_1']);
+ const removedPrefixes=['xbc','ss','hs','xhb','xgb','gs','wsxmout','xab'];
+ const source=Base.create(0);
+ const all=new Map(Object.entries(source.nodes).map(([id,n])=>[id,[...n.nextNodes]]));
+ for(const n of D.newNodes){
+  if(all.has(n.id))throw Error('Duplicate initial V9 node '+n.id);
+  all.set(n.id,[...n.nextNodes]);
+ }
+ for(const [id,extra] of Object.entries(D.patchOldNextNodes)){
+  const options=all.get(id);
+  if(!options)throw Error('Unknown v9 connector '+id);
+  for(const dest of extra)if(!options.includes(dest))options.push(dest);
+ }
+ const explicit=[...all.keys()].filter(id=>explicitIds.has(id)||
+   removedPrefixes.some(prefix=>id.startsWith(prefix)));
+ if(explicit.length!==36)throw Error('V9 requested-removal set changed: '+explicit.length);
+ if([...explicitIds].some(id=>!explicit.includes(id)))
+  throw Error('Missing explicitly requested MS checkpoint');
+ const deleteSet=new Set(explicit);
+ const adjacency=new Map();
+ for(const [id,targets] of all){
+  if(deleteSet.has(id))continue;
+  adjacency.set(id,targets.filter(to=>!deleteSet.has(to)&&
+   !(id==='m2'&&to==='m3')));
+ }
+ const previous=new Map([...adjacency.keys()].map(id=>[id,[]]));
+ for(const [id,targets] of adjacency)for(const to of targets){
+  if(!previous.has(to))throw Error('Dangling V9 edge '+id+' -> '+to);
+  previous.get(to).push(id);
+ }
+ const reach=(root,reverse=false)=>{
+  const reached=new Set(),pending=[root];
+  for(let i=0;i<pending.length;i++){
+   const id=pending[i];if(reached.has(id))continue;
+   if(!adjacency.has(id))throw Error('Missing reachability root '+id);
+   reached.add(id);pending.push(...(reverse?previous.get(id):adjacency.get(id)));
+  }
+  return reached;
+ };
+ const forward=reach('n0'),backward=reach('n152',true);
+ const keep=new Set([...adjacency.keys()].filter(id=>forward.has(id)&&backward.has(id)));
+ const orphaned=[...adjacency.keys()].filter(id=>!keep.has(id));
+ if(orphaned.length!==13)throw Error('V9 unexpected stranded nodes: '+orphaned.join(','));
+ for(let i=0;i<=Base.MAIN_LENGTH;i++)
+  if(!keep.has('n'+i))throw Error('V9 lost canonical main node n'+i);
+ const edgeKeys=new Set();
+ for(const [id,to] of adjacency)if(keep.has(id))for(const target of to)
+  if(keep.has(target))edgeKeys.add(id+'>'+target);
+ if(!edgeKeys.has('m2>ms20_0')||!edgeKeys.has('ms20_0>m3')||
+    edgeKeys.has('m2>m3'))throw Error('V9 m2 detour graph violation');
+ const allowedPath=(a,b)=>keep.has(a)&&keep.has(b)&&edgeKeys.has(a+'>'+b);
+ D.newNodes=D.newNodes.filter(n=>keep.has(n.id));
+ for(const n of D.newNodes)n.nextNodes=adjacency.get(n.id).filter(id=>keep.has(id));
+ for(const [id,targets] of Object.entries(D.patchOldNextNodes)){
+  D.patchOldNextNodes[id]=targets.filter(to=>allowedPath(id,to));
+ }
+ D.bridges=D.bridges.filter(r=>r.nodeIds.every(id=>keep.has(id))&&
+   r.nodeIds.slice(1).every((to,i)=>allowedPath(r.nodeIds[i],to)));
+ const roads=[];
+ for(const road of D.roads){
+  let segment=[];
+  const flush=()=>{if(segment.length>=2)roads.push({...road,nodeIds:segment});
+    segment=[];};
+  for(const id of road.nodeIds){
+   if(!keep.has(id)){flush();continue;}
+   if(!segment.length){segment=[id];continue;}
+   if(allowedPath(segment[segment.length-1],id))segment.push(id);
+   else{flush();segment=[id];}
+  }
+  flush();
+ }
+ D.roads=roads;
+ for(const collection of ['allPathSegments','existingRoadSegments','existingBridgeSegments'])
+  D[collection]=D[collection].filter(e=>allowedPath(e.from_,e.to));
+ for(const id of [...deleteSet,...orphaned])delete D.allNodePositions[id];
+ D.overpasses=D.overpasses.filter(o=>edgeKeys.has(o.upper));
+ const report={removedExplicit:explicit,removedOrphans:orphaned,
+  baselineNodes:all.size,baselineEdges:[...all.values()].reduce((s,v)=>s+v.length,0),
+  nodes:keep.size,edges:edgeKeys.size,missingPrefixes:removedPrefixes.filter(p=>
+   ![...all.keys()].some(id=>id.startsWith(p)))};
+ if(report.nodes!==310||report.edges!==331||D.bridges.length!==15)
+  throw Error('V9 graph counts unexpected: '+JSON.stringify(report));
+ D.graphMigration=Object.freeze(report);
+ return report;
+}
+const V9_GRAPH=reduceGraphDesign();
 function applySwordCourts(m){
  for(const [name,a,b] of SWORD_COURTS){
   if(!m.nodes[a]?.nextNodes.includes(b))
@@ -305,7 +396,7 @@ function assertCompatible(map){
 function validate(m){
  assertCompatible(m);
  const all=Object.entries(m.nodes),idSet=new Set(all.map(([id])=>id));
- if(all.length!==BASE_NODES+EXTRA_NODES||idSet.size!==all.length||
+ if(all.length!==V9_GRAPH.nodes||idSet.size!==all.length||
  m.islands.length!==ISLANDS||m.startId!=='n0'||m.finishId!=='n152'||
  m.nodes.n0.type!=='start'||m.nodes.n152.type!=='finish'||
  m.nodes.n152.nextNodes.length||m.length!==Base.MAIN_LENGTH)
@@ -315,7 +406,7 @@ function validate(m){
  for(const [a,b]of m.bridges){const k=a+'>'+b;if(bridges.has(k))throw Error('Duplicate bridge '+k);bridges.add(k);}
  const visited=new Set(),todo=[m.startId];
  while(todo.length){const id=todo.pop();if(visited.has(id))continue;visited.add(id);todo.push(...m.nodes[id].nextNodes);}
- if(visited.size!==all.length)throw Error('Unreachable BOARD v7 nodes');
+ if(visited.size!==all.length)throw Error('Unreachable BOARD v9 nodes');
  const assigned=new Set();
  for(const region of m.islands){
   if(region.outline.length<3)throw Error('Invalid island '+region.id);
@@ -360,5 +451,5 @@ function validate(m){
  return true;
 }
 validate(create(0));
-window.BoardMap=Object.freeze({...Base,MAP_VERSION:VERSION,create,assertCompatible,validate});
+window.BoardMap=Object.freeze({...Base,MAP_VERSION:VERSION,create,assertCompatible,validate,GRAPH_MIGRATION:V9_GRAPH});
 })();
