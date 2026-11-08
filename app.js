@@ -3908,6 +3908,8 @@ function advanceParty(){
   }else beginParty();
 }
 function openOfflineLobby(){
+ // Cancel any pending online-library handshake before entering offline mode.
+ if(hostNetworkLoad){++hostOpenAttempt;$('hostBtn').disabled=false;}
  if(onlineHost||hostPeer||hostRetryTimeout!==null)closeHost({goHome:false});
  deleteSession(HOST_SESSION);
  if(!players.length){addLocal();addLocal();}
