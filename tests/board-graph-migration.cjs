@@ -6,6 +6,13 @@ for(const path of ['board-map.js','board-v7-design.js','board-branch-naming.js',
 const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D,BoardBranchNaming:N}=ctx.window;
 const map=M.create(0),ids=Object.keys(map.nodes),edges=Object.values(map.nodes).flatMap(n=>n.nextNodes.map(to=>n.id+'>'+to));
 assert.equal(map.version,'winter-expedition-152-v10');
+for(const [a,b] of [['m7','m0'],['w7','w0'],['s7','s0'],['xmout_2','n108']])
+ assert.equal(map.nodes[a].nextNodes.includes(b),false,'V10 cannot return to original entry: '+a+'>'+b);
+for(const [a,b] of [['m7','xmout_1'],['w7','xwf_1'],['s7','xba_1'],['xmout_2','n56']])
+ assert.ok(map.nodes[a].nextNodes.includes(b),'V10 has a new forward tour exit '+a+'>'+b);
+for(const place of ['harbor','ginger'])
+ assert.equal(map.islands.find(i=>i.id===place).decorations.length,1,
+  'compact island must have a fixed signature landmark: '+place);
 assert.equal(ids.length,302);assert.equal(edges.length,318);
 assert.equal(M.GRAPH_MIGRATION.baselineNodes,359);
 assert.equal(M.GRAPH_MIGRATION.baselineEdges,398);

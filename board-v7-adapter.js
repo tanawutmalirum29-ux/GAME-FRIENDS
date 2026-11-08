@@ -547,6 +547,10 @@ function create(seed=Date.now()){
      landmark:copy(i.center),nodeIds:[],decorations:[]};
  });
  const regions=new Map(m.islands.map(i=>[i.id,i]));
+ // Compact landmark islands are curated instead of random decoration scatter.
+ const harbor=regions.get('harbor'),ginger=regions.get('ginger');
+ if(harbor)harbor.decorations=[{kind:'lighthouse',x:2800,y:5260,scale:.84}];
+ if(ginger)ginger.decorations=[{kind:'gingerhouse',x:6220,y:5490,scale:.9}];
  for(const n of D.newNodes){
   const v={id:n.id,position:copy(n.position),type:n.type,
    nextNodes:[...n.nextNodes],previousNodes:[],islandId:n.islandId||null,

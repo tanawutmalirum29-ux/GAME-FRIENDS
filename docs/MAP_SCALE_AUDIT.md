@@ -61,3 +61,5 @@ Do not merge until `verify.yml` tests and browser checks finish without failures
   all other original node sizes and walking collision radii remain unchanged.
 - Static browser simulations for 1–12 players, WebKit and Chromium required
   on final PR head. Mobile/iPad physical device behavior is not certified by CI.
+
+- V10 finishing art pass: two landmark positions are immutable (Harbor lighthouse 2800,5260; Gingerbread cottage 6220,5490); bridge drawing now prioritizes elevated arched decks over the lower lanes, still 88 units wide. Every board fork receives a sign with measured shortest node count and upcoming hazard/healing/lucky tile presence computed from the actual converging routes. Bot branch choices use cached whole-route cost by HP bracket rather than the first tile alone.
