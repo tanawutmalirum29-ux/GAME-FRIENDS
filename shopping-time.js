@@ -59,19 +59,12 @@ function setup(round,players){
  window.PartyArenaScenes?.preload('shopping',s);
  return s;
 }
-function cartPosition(s,p,dt){
- const q=p.shopping;
- const targetX=p.x+Math.cos(q.angle)*s.metrics.cartDistance;
- const targetY=p.y+Math.sin(q.angle)*s.metrics.cartDistance;
- const t=clamp(dt*18,0,1);
- q.cartX+=clamp(targetX-q.cartX,-s.metrics.speed*dt*2,s.metrics.speed*dt*2)*t;
- q.cartY+=clamp(targetY-q.cartY,-s.metrics.speed*dt*2,s.metrics.speed*dt*2)*t;
- clampCart(s,q);
-}
-function clampCart(s,q){
- const b=s.arena,r=s.metrics.cartRadius;
- q.cartX=clamp(q.cartX,b.x+r,b.x+b.w-r);
- q.cartY=clamp(q.cartY,b.y+r,b.y+b.h-r);
+// Shopping carts are rigidly attached to the owner. Their position must never
+// lag behind, interpolate independently, or be clamped separately at a wall.
+function cartPosition(s,p){
+ const q=p.shopping,d=s.metrics.cartDistance;
+ q.cartX=p.x+Math.cos(q.angle)*d;
+ q.cartY=p.y+Math.sin(q.angle)*d;
 }
 function playerInput(p){
  const k=p.input||{},ax=Number(k.axisX)||0,ay=Number(k.axisY)||0;
@@ -126,35 +119,43 @@ function botInput(s,p){
  return dist<5*u?{x:0,y:0}:{x:x/dist,y:y/dist};
 }
 function constrain(s,p,x,y){
- const r=s.metrics.playerRadius,b=s.arena;
- return {x:clamp(x,b.x+r,b.x+b.w-r),y:clamp(y,b.y+r,b.y+b.h-r)};
+ const b=s.arena,q=p.shopping,d=s.metrics.cartDistance;
+ const fx=Math.cos(q.angle)*d,fy=Math.sin(q.angle)*d;
+ const pr=s.metrics.playerRadius,cr=s.metrics.cartRadius;
+ // Constrain the WHOLE connected pair so the basket stays in front even
+ // when the joystick aims toward a wall or conveyor corners.
+ return {
+  x:clamp(x,Math.max(b.x+pr,b.x+cr-fx),Math.min(b.x+b.w-pr,b.x+b.w-cr-fx)),
+  y:clamp(y,Math.max(b.y+pr,b.y+cr-fy),Math.min(b.y+b.h-pr,b.y+b.h-cr-fy))
+ };
 }
-function steering(p,v,dt){
- const q=p.shopping,mag=length(v.x,v.y);
- if(mag<.09)return;
- const a=Math.atan2(v.y,v.x);
- let diff=Math.atan2(Math.sin(a-q.angle),Math.cos(a-q.angle));
- q.angle+=clamp(diff,-dt*8,dt*8);
+function steering(p,v){
+ const q=p.shopping;
+ if(length(v.x,v.y)<.09)return;
+ // Immediate heading, same simulation tick as the joystick change.
+ q.angle=Math.atan2(v.y,v.x);
  p.dir={x:Math.cos(q.angle),y:Math.sin(q.angle)};
  p.face=p.dir.x<0?-1:1;
 }
 function movePlayer(s,p,dt,v){
- const q=p.shopping;
+ const q=p.shopping,from={x:p.x,y:p.y};
+ steering(p,v);
+ // A tight turn next to a wall backs the owner up; never detaches the cart.
+ const safe=constrain(s,p,p.x,p.y);p.x=safe.x;p.y=safe.y;
+ cartPosition(s,p);
  const gain=clamp(dt*10,0,1),speed=s.metrics.speed*(p.isBot?.89:1);
  q.vx+=(v.x*speed-q.vx)*gain;q.vy+=(v.y*speed-q.vy)*gain;
  const localFlow=flowAt(s,p.x,p.y)*.70+flowAt(s,q.cartX,q.cartY)*.30;
  q.flow+=(localFlow-q.flow)*clamp(dt*11,0,1);
- const from={x:p.x,y:p.y};
  const pos=constrain(s,p,p.x+q.vx*dt,p.y+(q.vy+q.flow)*dt);
  p.x=pos.x;p.y=pos.y;p.vx=(p.x-from.x)/dt;p.vy=(p.y-from.y)/dt;
- steering(p,v,dt);cartPosition(s,p,dt);
+ cartPosition(s,p);
 }
-// Keep each cart physically attached when another cart/body pushes its owner.
+// Shoves move the owner and basket as one physical assembly.
 function shiftCartOwner(s,p,dx,dy){
- const q=p.shopping,at=constrain(s,p,p.x+dx,p.y+dy);
- const movedX=at.x-p.x,movedY=at.y-p.y;
+ const at=constrain(s,p,p.x+dx,p.y+dy);
  p.x=at.x;p.y=at.y;
- q.cartX+=movedX;q.cartY+=movedY;clampCart(s,q);
+ cartPosition(s,p);
 }
 // Both carts and bodies are solid. Each contact shifts the *whole* owner,
 // preserving the cart offset and allowing an approaching player to push another.
@@ -193,13 +194,15 @@ function collide(s,players,dt){
  // 60 Hz host-authoritative simulation: stable for 1–12 mixed bot/human players.
  // Exclude a cart's own owner; the two are attached at cartDistance.
  for(let pass=0;pass<4;pass++){
-  const before=players.map(p=>({x:p.x,y:p.y}));
+
   window.PartyCharacters.resolve(players,{radius:s.metrics.playerRadius,
     bounds:s.arena,
     iterations:1,maxShift:7*s.unit,pressure:true,speedReference:s.metrics.speed});
-  for(let i=0;i<players.length;i++){
-   const p=players[i],q=p.shopping,dx=p.x-before[i].x,dy=p.y-before[i].y;
-   q.cartX+=dx;q.cartY+=dy;clampCart(s,q);
+  for(const p of players){
+   // The central player collision solver knows only body circles; keep each
+   // entire cart+owner pair within the room, re-anchor after every pass.
+   const safe=constrain(s,p,p.x,p.y);
+   p.x=safe.x;p.y=safe.y;cartPosition(s,p);
   }
   for(let i=0;i<players.length;i++)for(let j=i+1;j<players.length;j++){
    const a=players[i],b=players[j],ac=a.shopping,bc=b.shopping;
