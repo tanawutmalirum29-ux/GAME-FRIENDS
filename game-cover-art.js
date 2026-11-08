@@ -162,7 +162,7 @@ function claimScene(){
   path('M0-15V13M-13 0H13','none','#ffffff',2));
  return a;
 }
-const scenes=Object.freeze({color_claim:claimScene,ghost:ghostScene,chickens:chickenScene,fruit_memory:memoryScene,shockwave:shockScene,color_switch:colorScene,pizza_time:pizzaScene,knight_match:knightScene,boulder_bash:boulderScene,snow_brawl:snowScene,shopping_time:shoppingScene,witching_snake:witchScene,lawn_mower:lawnScene});
+const scenes=Object.freeze({ghost:ghostScene,chickens:chickenScene,fruit_memory:memoryScene,shockwave:shockScene,color_switch:colorScene,pizza_time:pizzaScene,knight_match:knightScene,boulder_bash:boulderScene,snow_brawl:snowScene,shopping_time:shoppingScene,witching_snake:witchScene,lawn_mower:lawnScene,color_claim:claimScene});
 const templates=new Map();
 function svg(mode){
  if(!Object.hasOwn(scenes,mode))return '';
