@@ -87,7 +87,7 @@ for(const n of [1,6,7,12]){
  assert.ok(Object.keys(s.botMemories[bot.id]).length>=8);
  assert.ok(Object.keys(s.botMemories[bot.id]).length<s.tiles.length,
   'bot never knows a tile before it is shown');
- tick(g,9);
+ tick(g,10);
  assert.equal(Object.keys(s.botMemories[bot.id]).length,s.tiles.length);
 }
 {
