@@ -26,7 +26,7 @@ shards = min(maxShards, numberOfTasks,
              max(minShards, ceil(totalEstimatedSeconds / targetSecondsPerShard)))
 \`\`\`
 
-The baseline registry config is \`minShards: 2\`, \`targetSecondsPerShard: 145\`, \`maxShards: 8\`. Increasing the test catalog automatically adds shards **up to the cap**; beyond the cap more checks are assigned to existing shards, never silently dropped. Adjust the cap/target in a reviewed PR if waiting time or runner cost justify it. A cap of 8 is a budget limit, not a promise that eight concurrent runners are available.
+The baseline registry config is \`minShards: 2\`, \`targetSecondsPerShard: 160\`, \`maxShards: 8\`. Increasing the test catalog automatically adds shards **up to the cap**; beyond the cap more checks are assigned to existing shards, never silently dropped. Adjust the cap/target in a reviewed PR if waiting time or runner cost justify it. A cap of 8 is a budget limit, not a promise that eight concurrent runners are available.
 
 Runtime weights are estimates; after a PR, inspect the per-shard \`ci-metrics/*.json\` artifacts and update \`estimatedSeconds\` in the manifest when needed. **Do not** use timing estimates to remove or skip slow tests.
 
