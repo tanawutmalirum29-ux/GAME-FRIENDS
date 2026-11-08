@@ -37,6 +37,54 @@ function claimDisk(s,slot,x,y,radius){
  }
  s.dirty=true;
 }
+// Physical-width territory: a character has radius 13px while each cell
+// measures 10px. A usable centre needs all eight neighbouring cells to be
+// owned too (a ~30px passage). Find connected components of these centres,
+// keep the largest one for each player, then restore the one-cell boundary.
+// This morphological opening removes thin spurs / needle-like extensions
+// WITHOUT shrinking broad land on every new capture. A one/two-cell bridge
+// cannot connect separate lobes just because the rendered colour touches.
+function pruneUnplayableTerritory(s){
+ const land=s.owner,n=land.length,w=s.cols,h=s.rows;
+ const core=new Uint8Array(n),region=new Int32Array(n).fill(-1);
+ const queue=new Int32Array(n),bestId=new Int32Array(s.counts.length).fill(-1);
+ const bestSize=new Int32Array(s.counts.length);
+ for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+  const i=y*w+x,slot=land[i];if(slot<0||slot>=bestId.length)continue;
+  if(land[i-1]===slot&&land[i+1]===slot&&
+     land[i-w]===slot&&land[i+w]===slot&&
+     land[i-w-1]===slot&&land[i-w+1]===slot&&
+     land[i+w-1]===slot&&land[i+w+1]===slot)core[i]=1;
+ }
+ let nextId=0;
+ for(let root=0;root<n;root++){
+  if(!core[root]||region[root]>=0)continue;
+  const id=nextId++,slot=land[root];let head=0,tail=1;
+  queue[0]=root;region[root]=id;
+  while(head<tail){
+   const i=queue[head++],x=i%w;
+   if(x>0&&core[i-1]&&region[i-1]<0){region[i-1]=id;queue[tail++]=i-1;}
+   if(x<w-1&&core[i+1]&&region[i+1]<0){region[i+1]=id;queue[tail++]=i+1;}
+   if(i>=w&&core[i-w]&&region[i-w]<0){region[i-w]=id;queue[tail++]=i-w;}
+   if(i<n-w&&core[i+w]&&region[i+w]<0){region[i+w]=id;queue[tail++]=i+w;}
+  }
+  // Exact ties resolve deterministically to the upper-leftmost core cell.
+  if(tail>bestSize[slot]){bestSize[slot]=tail;bestId[slot]=id;}
+ }
+ const playable=new Uint8Array(n);
+ for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+  const i=y*w+x,slot=land[i];if(slot<0||!core[i]||region[i]!==bestId[slot])continue;
+  // Every square neighbour is guaranteed owned by the same player.
+  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)
+   playable[i+dy*w+dx]=1;
+ }
+ let lost=null;
+ for(let i=0;i<n;i++)if(land[i]>=0&&!playable[i]){
+  if(!lost)lost=new Uint8Array(n);
+  lost[i]=1;land[i]=-1;
+ }
+ return lost;
+}
 // Once a capture cuts an owner's territory, only their largest four-connected
 // component survives. Detached fragments become neutral (-1), NOT the
 // attacker's colour. A diagonal touch does not reconnect two islands.
@@ -81,6 +129,7 @@ function discardCutFragments(s){
 function recount(s,ps){
  // Prune ALL owners after ownership transfers, before score/spawn checks.
  // This ensures newly detached tiles never contribute to the next frame.
+ const inaccessible=pruneUnplayableTerritory(s);
  const cut=discardCutFragments(s);
  s.counts.fill(0);
  for(const slot of s.owner)if(slot>=0&&slot<s.counts.length)s.counts[slot]++;
@@ -97,7 +146,8 @@ function recount(s,ps){
   // their surviving main island. Also honour protection's stolen-tile rule.
   const here=index(s,p.x,p.y);
   if(q.alive&&!q.trail.length&&!owned(s,p,p.x,p.y)&&
-    (q.invulnerable>0||(cut&&here>=0&&cut[here])))
+    (q.invulnerable>0||(cut&&here>=0&&cut[here])||
+     (inaccessible&&here>=0&&inaccessible[here])))
    kill(s,p);
  }
  s.dirty=true;
@@ -621,6 +671,7 @@ function draw(g,t,round,ps){
 }
 window.ColorClaim=Object.freeze({setup,update,step,draw,hud,finish,index,owned,claimDisk,
  recount,captureMask,applyCaptures,segmentsTouch,pointSegment2,kill,revive,eliminate,
- largestTerritory,spawnPlace,discardCutFragments,buildContours,traceSmoothTrail,freezeActive,
+ largestTerritory,spawnPlace,discardCutFragments,pruneUnplayableTerritory,
+ buildContours,traceSmoothTrail,freezeActive,
  config:SETTINGS});
 })();
