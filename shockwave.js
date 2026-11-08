@@ -29,8 +29,8 @@ function spawnPlayers(s,ps){
 function setup(round,ps){
  const s={phase:'PREPARE',timer:0,clock:0,accumulator:0,wave:0,danger:[],warningDuration:0,
   warningStarted:false,seed:((Number(round.shockSeed)||Date.now()^0x6a53)>>>0)||1,
-  winnerId:null,finished:false,fastPhase:false,suddenDeath:false,finalArena:false,
-  events:[],effects:[],eliminationEvent:0,tiebreakers:0,pendingTiebreaker:null,roundId:0,
+  winnerId:null,winnerIds:[],pendingWinnerIds:null,finished:false,fastPhase:false,suddenDeath:false,finalArena:false,
+  events:[],effects:[],eliminationEvent:0,
   startCount:ps.length,plannedWarningDuration:0,plannedDangerCount:0,lastSafeTileId:null};
  round.shockwave=s;round.remaining=null;
  for(const p of ps){p.active=true;p.score=0;}
@@ -188,43 +188,42 @@ function selectDangerTiles(s,ps){
  s.plannedDangerCount=best.tiles.length;
  return best.tiles;
 }
-function startTiebreaker(s,ps,ids){
- const eligible=new Set(ids);
- const contenders=ps.filter(p=>p.active&&eligible.has(p.id));
- if(contenders.length===1){s.winnerId=contenders[0].id;s.finished=true;return;}
- if(!contenders.length){s.finished=true;return;}
- s.tiebreakers++;s.roundId++;s.wave=0;s.fastPhase=false;s.suddenDeath=false;
- s.finalArena=true;s.pendingTiebreaker=null;s.danger=[];s.warningStarted=false;
- s.phase='NEXT_WAVE';s.timer=.35;s.plannedWarningDuration=0;s.plannedDangerCount=0;s.lastSafeTileId=null;
- // Never resurrect anyone eliminated before the last simultaneous wipe.
- ps.forEach(p=>{p.shockAlive=eligible.has(p.id)&&p.active;});
- createGrid(s);spawnPlayers(s,contenders);
-}
 function checkWinner(s,ps){
  const alive=living(ps);
- if(alive.length===1){s.winnerId=alive[0].id;s.finished=true;return true;}
- if(alive.length===0){if(!s.pendingTiebreaker)s.finished=true;return s.finished;}
- if(s.wave>=12&&alive.length>1)s.finalArena=true;
+ if(alive.length===1){
+   s.winnerId=alive[0].id;s.winnerIds=[alive[0].id];
+   s.finished=true;return true;
+ }
+ if(alive.length===0){
+   // An all-player explosion finishes AFTER its visual effect.
+   if(s.pendingWinnerIds?.length)return false;
+   s.finished=true;return true;
+ }
+ if(s.wave>=12)s.finalArena=true;
  return false;
 }
 function evaluateEliminations(s,ps,hit){
- const victims=new Set(hit.filter(p=>p.shockAlive).map(p=>p.id));
- if(!victims.size)return [];
+ // Snapshot everybody alive before recording any elimination.
  const before=living(ps);
- s.eliminationEvent++;
- for(const p of before)if(victims.has(p.id)){
+ const idsInHit=new Set(hit.filter(p=>p.active&&p.shockAlive).map(p=>p.id));
+ const victims=before.filter(p=>idsInHit.has(p.id));
+ if(!victims.length)return [];
+ ++s.eliminationEvent;
+ const ids=victims.map(p=>p.id);
+ for(const p of victims){
    p.shockAlive=false;p.shockFall=.001;p.vx=0;p.vy=0;
    p.shockEliminatedWave=s.wave;p.shockEliminatedAt=s.eliminationEvent;
  }
- const ids=[...victims];
- s.events.push({event:s.eliminationEvent,wave:s.wave,ids});
- if(ids.length===before.length)s.pendingTiebreaker=ids;
- else checkWinner(s,ps);
+ s.events.push({event:s.eliminationEvent,wave:s.wave,ids:[...ids]});
+ if(victims.length===before.length){
+   // Everyone still alive shares first place, never replay for a tiebreaker.
+   s.pendingWinnerIds=[...ids];s.winnerId=null;s.winnerIds=[];
+ }else checkWinner(s,ps);
  return ids;
 }
 function startWarning(s,ps){
  const chosen=selectDangerTiles(s,ps);
- if(!chosen.length){startTiebreaker(s,ps,living(ps).map(p=>p.id));return;}
+ if(!chosen.length){s.phase='NEXT_WAVE';s.timer=intervalSeconds(s.wave);return;}
  s.danger=chosen;
  s.warningDuration=Math.max(warningSeconds(s.wave),s.plannedWarningDuration||0);
  s.lastSafeTileId=chosen.length===24?s.tiles.find(tile=>!chosen.includes(tile.id))?.id??null:null;
@@ -279,8 +278,10 @@ function step(dt,round,ps){
    s.timer-=dt;
    if(s.timer<=0){
      collapseTiles(s);
-     if(s.pendingTiebreaker){
-       const ids=s.pendingTiebreaker;s.pendingTiebreaker=null;startTiebreaker(s,ps,ids);
+     if(s.pendingWinnerIds?.length){
+       s.winnerIds=[...s.pendingWinnerIds];s.pendingWinnerIds=null;
+       s.winnerId=s.winnerIds.length===1?s.winnerIds[0]:null;
+       s.finished=true;s.phase='CHECK';
      }else s.phase='CHECK';
    }
  }else if(s.phase==='CHECK'){
@@ -376,5 +377,5 @@ window.Shockwave=Object.freeze({setup,update,draw,hud,createGrid,spawnPlayers,
   dangerCount,requiredEscapeSeconds,
  selectDangerTiles,validateSafeRoutes,warningSeconds,intervalSeconds,distanceBias,
  startWarning,startWave,triggerExplosion,collapseTiles,evaluateEliminations,
- startTiebreaker,checkWinner,checkSuddenDeath,constants:C});
+ checkWinner,checkSuddenDeath,constants:C});
 })();
