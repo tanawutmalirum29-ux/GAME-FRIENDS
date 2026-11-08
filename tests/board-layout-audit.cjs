@@ -67,3 +67,6 @@ console.log('EXTENDED_POS '+JSON.stringify(
  ['w0','w1','w2','w3','w4','w5','w6','w7','h0','h1','h2','h3','h4','h5','h6','g0','g1','g2','g3','g4','g5','g6','g7','s0','s1','s2','s3','s4','s5','s6','s7',
  'n134','n135','xgb_1','xgb_2','xgb_3','xgb_4','xgb_5','xgb_6','xgb_7','xgl_4','xgl_5','xgl_6']
  .map(id=>[id,m.nodes[id]?.position,m.nodes[id]?.nextNodes,m.nodes[id]?.islandId])));
+
+console.log('DENSE_POS '+JSON.stringify(['workshop','meadow','harbor','ginger','berg'].map(id=>({id,nodes:Object.values(m.nodes).filter(n=>n.islandId===id).map(n=>[n.id,n.position.x,n.position.y,n.nextNodes])}))));
+console.log('DESIGN_DECOR_ZONES '+JSON.stringify(Object.entries(D.decorZones||{}).slice(0,5).map(([id,v])=>[id,JSON.stringify(v).slice(0,250)])));
