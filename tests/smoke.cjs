@@ -35,6 +35,31 @@ const artSource=fs.readFileSync('graveyard-art.js','utf8');
 const combatSource=fs.readFileSync('combat-motion.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('style.css','utf8');
+
+// Top HUD must clear the iPad status strip (even when CSS safe-area=0)
+// and finish immediately above the field, including a compact 12-player row.
+assert.match(css,/body\.host-playing #game \.game-center-hud\{\s*top:max\(29px,calc\(env\(safe-area-inset-top,0px\) \+ 3px\)\)/,
+ 'host roster starts below the iPad time/battery strip');
+assert.match(css,/body\.host-playing #game \.game-toolbar\{\s*height:max\(96px,/,
+ 'top background strip stays flush with the field beneath the roster');
+assert.match(source,/const ENGINE_CLOCK_MODES=new Set\(\['shopping_time','knight_match','pizza_time','witching_snake'\]\)/,
+ 'already-clocked games do not receive a second stopwatch');
+assert.match(source,/function hostClockValue\(r\)\{[\s\S]*?r\.mode==='shockwave'/,
+ 'SHOCKWAVE must never display a numeric host timer');
+assert.match(source,/window\.PartyArenaScenes\?\.clock\?\.\(g,seconds\)/,
+ 'other timed minigames use the Shopping/Knight clock badge');
+for(const [name,body] of [
+ ['CHICKENS',chickensSource],['COLOR SWITCH',colorSwitchSource],
+ ['LAWN MOWER',lawnSource],['BOULDER BASH',boulderSource],
+ ['SNOW BRAWL',snowSource],['FRUIT MEMORY',fruitSource]
+]){
+ assert.doesNotMatch(body.slice(body.lastIndexOf('function draw(')),/fillText\([^;]*?(?:เริ่มใน|เวลา\s*\+|วินาที)/,
+  name+' should not have duplicate plaintext countdowns over the shared clock');
+}
+const shockwaveDraw=shockwaveSource.slice(shockwaveSource.lastIndexOf('function draw('));
+assert.doesNotMatch(shockwaveDraw,/safeCount|ระเบิดใน|ปลอดภัย|เริ่มใน/,
+ 'SHOCKWAVE canvas has no explicit blast timer or safe-area count');
+
 const hostLauncher=fs.readFileSync('host.html','utf8');
 const rail=html.slice(html.indexOf('class="gamepad-top-actions"'),html.indexOf('</div>',html.indexOf('class="gamepad-top-actions"')));
 const railIds=['controllerBoardZoomInBtn','controllerBoardZoomOutBtn','videoPreviewToggleBtn','videoQualityBtn'];

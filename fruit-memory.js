@@ -425,7 +425,6 @@ function drawSideDisplays(ctx,state,round,players){
  const batch=state.revealTimeline[state.revealCursor];
  if(state.phase==='memorize'&&batch&&state.elapsed-batch.start>.12)
    opened=new Set([...state.revealedTileIds,...batch.ids]).size;
- const seconds=state.phase==='move'?Math.ceil(Math.max(0,state.moveSeconds-state.elapsed)):state.moveSeconds;
  for(const x of [b.x-38-w,b.x+b.w+38]){
    ctx.save();ctx.translate(x,y);
    ctx.fillStyle='#342c50';ctx.beginPath();ctx.roundRect(0,6,w,h,12);ctx.fill();
@@ -454,9 +453,11 @@ function drawSideDisplays(ctx,state,round,players){
    };
    label('FRUIT MEMORY',42,12);
    if(round.phase==='countdown'){
+     // Standard stopwatch at the top centre displays the actual countdown.
      label('เตรียมจำผลไม้',95,15);
-     number(Math.max(0,Math.ceil(round.countdown||0)),169,60);
-     label('เริ่มใน',240,16);label('วินาที',263,16);
+     label('มองผลไม้',168,19);
+     label('ให้ครบทุกช่อง',207,16);
+     label('เริ่มรอบเร็ว ๆ นี้',263,14);
    }else if(showTarget){
      label(state.phase==='collapse'?'ผลไม้ที่รอด':'วิ่งไปที่',90,17);
      if(state.phase!=='collapse')label('ผลไม้นี้',112,16);
@@ -465,7 +466,7 @@ function drawSideDisplays(ctx,state,round,players){
      if(img?.complete&&img.naturalWidth)ctx.drawImage(img,(w-size)/2,140,size,size);
      label(target.name,239,16);
      if(state.phase==='collapse')label('รอด '+living(players).length+' คน',287,16);
-     else{number(seconds,290,44,seconds<=3?'#a62b3c':'#493153');label('วินาที',326,14);}
+     else{label('วิ่งไปช่องที่ถูก',290,15);label('ก่อนหมดเวลา',326,15);}
    }else if(state.phase==='memorize'||state.phase==='hide'){
      label('เปิดแล้ว',92,19);
      number(opened,165,62);

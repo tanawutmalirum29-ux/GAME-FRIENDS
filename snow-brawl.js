@@ -537,9 +537,9 @@ function draw(ctx,time,round,ps){
  ctx.fillStyle='#123c58dd';ctx.beginPath();ctx.roundRect(14,12,230,64,11);ctx.fill();
  ctx.fillStyle='#f3fdff';ctx.textAlign='left';ctx.font='900 19px system-ui';
  ctx.fillText('SNOW BRAWL',25,36);
+ // Countdown and solo time use the universal clock badge.
  ctx.font='bold 13px system-ui';
- ctx.fillText(round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown||0):
-  'รอด '+alive(ps).length+' คน • '+Math.floor(s.clock)+' วินาที',25,58);
+ ctx.fillText('รอด '+alive(ps).length+' คน',25,58);
  if(s.suddenDeath){ctx.fillStyle='#ffe19c';ctx.textAlign='right';ctx.font='900 17px system-ui';
   ctx.fillText('SUDDEN DEATH',WIDTH-22,36);}
  ctx.restore();

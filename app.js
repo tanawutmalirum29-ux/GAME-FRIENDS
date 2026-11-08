@@ -3242,10 +3242,30 @@ if(round.mode==='snow_brawl'){
     root.append(box);
   });
 }
+// Standardize timed minigames on the clock badge already used by SHOPPING
+// TIME and KNIGHT MATCH. Their engines (and PIZZA/WITCHING) draw their own
+// equivalent badge; draw it here only for other timed modes, never twice.
+// SHOCKWAVE deliberately uses visual warning tiles with NO time counter.
+const ENGINE_CLOCK_MODES=new Set(['shopping_time','knight_match','pizza_time','witching_snake']);
+function hostClockValue(r){
+  if(!r||r.mode==='board'||r.mode==='shockwave')return null;
+  if(r.phase==='countdown')return Number.isFinite(r.countdown)?Math.max(0,r.countdown):null;
+  if(r.phase!=='playing')return null;
+  if(Number.isFinite(r.remaining))return Math.max(0,r.remaining);
+  // Endless survival modes previously displayed elapsed seconds. Keep
+  // that information, but render it inside the same stopwatch face.
+  const elapsed=r.mode==='boulder_bash'?r.boulderBash?.clock:
+    r.mode==='snow_brawl'?r.snowBrawl?.clock:null;
+  return Number.isFinite(elapsed)?Math.max(0,elapsed):null;
+}
 function drawGame(t){
   if(!round)return;
   syncArenaResolution();
   gameEngine(round.mode).draw(g,t,round,players);
+  if(!ENGINE_CLOCK_MODES.has(round.mode)){
+    const seconds=hostClockValue(round);
+    if(seconds!==null)window.PartyArenaScenes?.clock?.(g,seconds);
+  }
 }
 function animate(ts){
   const elapsed=Math.max(0,(ts-frameLast)/1000||.016);

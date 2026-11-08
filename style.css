@@ -5478,3 +5478,27 @@ body.host-playing #game .leader-chip span.leader-held-icon{
   #bulkBotPicker .bulk-bot-game-choice .mode-cover{max-height:45px;width:min(100%,95px)}
   #bulkBotPicker .bulk-bot-picker-header p{font-size:10px}
 }
+
+
+/* iPad/fullscreen HOST roster: a safe strip for the OS status indicators
+   and player cards anchored immediately ABOVE the top edge of the arena.
+   iPadOS sometimes reports safe-area-inset-top:0 despite an OS status bar. */
+body.host-playing #game .game-toolbar{
+  height:max(96px,calc(env(safe-area-inset-top,0px) + 66px));
+  min-height:96px;
+  background:linear-gradient(180deg,#081626fa 0%,#081626f4 88%,transparent 100%);
+}
+body.host-playing #game .game-center-hud{
+  top:max(29px,calc(env(safe-area-inset-top,0px) + 3px));
+}
+@media(max-width:1000px){
+  /* Compact landscape hosts use two 58px player rows. Keep both in the
+     opaque header, rather than letting the lower row cover gameplay. */
+  body.host-playing #game .game-toolbar{
+    height:max(148px,calc(env(safe-area-inset-top,0px) + 121px));
+    min-height:148px;
+  }
+  body.host-playing #game .game-center-hud{
+    top:max(28px,calc(env(safe-area-inset-top,0px) + 3px));
+  }
+}

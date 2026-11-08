@@ -384,8 +384,8 @@ function draw(g,time,round,ps){
   g.strokeStyle=e.color;g.lineWidth=4;g.beginPath();g.arc(e.x,e.y,35*(1-e.life/.7)+12,0,TAU);g.stroke();g.restore();}
  g.fillStyle='#174158e0';g.beginPath();g.roundRect(12,10,205,57,10);g.fill();
  g.fillStyle='#f4fdff';g.textAlign='left';g.font='900 20px system-ui';g.fillText('BOULDER BASH',24,34);
- g.font='bold 14px system-ui';g.fillText(round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown):
-  'รอด '+living(ps).length+' • '+Math.floor(s.clock)+' วินาที',24,54);
+ // Survival count is separate from the shared countdown/solo stopwatch.
+ g.font='bold 14px system-ui';g.fillText('รอด '+living(ps).length+' คน',24,54);
  g.restore();
 }
 window.BoulderBash=Object.freeze({setup,spawnPositions,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,

@@ -503,14 +503,11 @@ function draw(ctx,time,round,ps){
   ctx.restore();
  }
  if(s.theme==='mayan')window.ColorSwitchMayan.drawBullets(ctx,s);
- ctx.fillStyle='#152b2add';ctx.fillRect(13,12,174,57);
- ctx.fillStyle='#f5ffeb';ctx.font='900 17px sans-serif';ctx.textAlign='left';ctx.fillText('COLOR SWITCH',23,34);
- ctx.font='bold 13px sans-serif';ctx.fillStyle='#ffe3a0';
- ctx.fillText(round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown):'เวลา '+Math.ceil(s.remaining)+' วินาที',23,55);
- if(round.phase==='playing'&&s.remaining<=10){
-  ctx.fillStyle='#ffe0a0';ctx.font='900 33px sans-serif';ctx.textAlign='center';
-  if(s.remaining<=3)ctx.fillText(String(Math.ceil(s.remaining)),480,46);
- }
+ // Reuse the shared Shopping/Knight stopwatch at centre instead of
+ // a separate plain-text countdown and final-seconds number.
+ ctx.fillStyle='#152b2add';ctx.fillRect(13,12,174,43);
+ ctx.fillStyle='#f5ffeb';ctx.font='900 17px sans-serif';ctx.textAlign='left';
+ ctx.fillText('COLOR SWITCH',23,39);
  ctx.restore();
 }
 window.ColorSwitch=Object.freeze({setup,update,draw,hud,createArena,tileAt,

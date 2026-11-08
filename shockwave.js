@@ -367,19 +367,14 @@ function draw(ctx,time,round,ps){
    ctx.restore();
  }
  for(const p of ps)if(!p.shockAlive)drawPlayer(ctx,p,s);
- ctx.fillStyle='#3a2c2bee';ctx.fillRect(16,13,263,76);
- ctx.strokeStyle='#d2a66a';ctx.lineWidth=1.5;ctx.strokeRect(16,13,263,76);
+ // No numerical countdown or safe-tile count: the warning tiles themselves
+ // communicate the danger. Keep only the wave and surviving-player count.
+ ctx.fillStyle='#3a2c2bee';ctx.fillRect(16,13,224,57);
+ ctx.strokeStyle='#d2a66a';ctx.lineWidth=1.5;ctx.strokeRect(16,13,224,57);
  ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';
  ctx.fillText('SHOCKWAVE',27,37);
- const description=round.phase==='countdown'?'เริ่มใน '+Math.ceil(round.countdown)+' วิ':
-   s.phase==='WARNING'?'WAVE '+s.wave+' • ระเบิดใน '+Math.max(0,s.timer).toFixed(1)+' วิ':
-   s.phase==='EXPLOSION'?'WAVE '+s.wave+' • ระเบิด!':
-   'WAVE '+s.wave+(s.fastPhase?' • FAST':'');
- ctx.font='bold 13px sans-serif';ctx.fillStyle='#ffdda0';ctx.fillText(description,27,59);
- const safeCount=s.wave===0?25:
-   s.phase==='WARNING'||s.phase==='EXPLOSION'?25-s.danger.length:25-dangerCount(s);
- ctx.fillStyle='#b1f1ca';
- ctx.fillText('ผู้รอด '+living(ps).length+' • ปลอดภัย '+safeCount+'/25 ช่อง',27,79);
+ ctx.font='bold 13px sans-serif';ctx.fillStyle='#b1f1ca';
+ ctx.fillText((s.wave?'WAVE '+s.wave:'เตรียมตัว')+' • ผู้รอด '+living(ps).length,27,59);
  if(s.fastPhase&&!s.finished){
    ctx.fillStyle='#d86842';ctx.fillRect(796,16,141,29);
    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 14px sans-serif';
