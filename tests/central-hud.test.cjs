@@ -53,8 +53,9 @@ test('all minigame timers are drawn by one host dispatcher', () => {
 test('clock and SVG count share the same safe screen position', () => {
  const scenes=read('party-arena-scenes.js');
  assert.match(scenes,/HUD_BADGE_DROP=45/);
- assert.match(scenes,/function clock\(g,value[^]*?g\.translate\(0,HUD_BADGE_DROP\)/);
- assert.match(scenes,/function playerCount\(g,value\)[^]*?g\.translate\(0,HUD_BADGE_DROP\)/);
+ assert.match(scenes,/function hudBadgeDrop\(\)/);
+ assert.match(scenes,/function clock\(g,value[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
+ assert.match(scenes,/function playerCount\(g,value\)[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
  assert.match(scenes,/personIconSVG=\(\)=>svg\(24,24/);
 });
 
