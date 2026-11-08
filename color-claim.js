@@ -51,15 +51,19 @@ function discardCutFragments(s){
   const id=nextId++;let head=0,tail=1;queue[0]=root;labels[root]=id;
   while(head<tail){
    const cell=queue[head++],x=cell%s.cols,y=Math.floor(cell/s.cols);
-   const visit=j=>{
-    if(j>=0&&labels[j]<0&&land[j]===slot){
-     labels[j]=id;queue[tail++]=j;
-    }
-   };
-   if(x>0)visit(cell-1);
-   if(x<s.cols-1)visit(cell+1);
-   if(y>0)visit(cell-s.cols);
-   if(y<s.rows-1)visit(cell+s.cols);
+   // Avoid allocating closures/arrays per grid cell on low-end phones.
+   if(x>0&&labels[cell-1]<0&&land[cell-1]===slot){
+    labels[cell-1]=id;queue[tail++]=cell-1;
+   }
+   if(x<s.cols-1&&labels[cell+1]<0&&land[cell+1]===slot){
+    labels[cell+1]=id;queue[tail++]=cell+1;
+   }
+   if(y>0&&labels[cell-s.cols]<0&&land[cell-s.cols]===slot){
+    labels[cell-s.cols]=id;queue[tail++]=cell-s.cols;
+   }
+   if(y<s.rows-1&&labels[cell+s.cols]<0&&land[cell+s.cols]===slot){
+    labels[cell+s.cols]=id;queue[tail++]=cell+s.cols;
+   }
   }
   // Ties retain the first (top-leftmost) region for deterministic results.
   if(tail>bestSize[slot]){bestSize[slot]=tail;bestId[slot]=id;}
