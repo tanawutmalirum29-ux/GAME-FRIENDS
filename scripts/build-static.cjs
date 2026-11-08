@@ -18,13 +18,16 @@ function getCommit(){
 // Restore and integrity-check the committed v7 source bundle first.
 require('./build-board-v7.cjs');
 const id=getCommit();
+const gameCatalog=fs.existsSync(path.join(root,'src','games'))?
+  require('./build-game-catalog.cjs').build({write:true}):null;
 fs.writeFileSync(path.join(root,'version.json'),JSON.stringify({version:id})+'\n');
 fs.writeFileSync(path.join(root,'build-version.js'),
-  'window.GAME_BUILD_VERSION='+JSON.stringify(id)+';\n');
+  'window.GAME_BUILD_VERSION='+JSON.stringify(id)+';\n'+
+  (gameCatalog?'window.GAME_CORE_VERSION='+JSON.stringify(gameCatalog.coreHash)+';\n':''));
 const indexPath=path.join(root,'index.html');
 let html=fs.readFileSync(indexPath,'utf8');
 const assets=['style.css','arena-scale.js','arena-art.js','graveyard-art.js','combat-motion.js',
- 'player-avatar.js','character-system.js','board-controller-camera.js','party-ui-art.js','ghost-attack.js','farm-ice-art.js','chickens.js','fruit-memory.js','shockwave.js','color-switch-mayan.js','color-switch.js','pizza-ingredient-art.js','pizza-kitchen-art.js','pizza-time.js','party-arena-scenes.js','game-cover-art.js','shopping-time.js','knight-match.js','boulder-bash.js','snow-brawl.js','witching-snake.js','reference-arena-art.js','lawn-mower.js','color-claim.js','ice-race.js','gladiators-art.js','gladiators.js','board-map.js','board-v7-design.js','board-v7-art.js','board-branch-naming.js','board-v7-adapter.js','board-dice.js','board-dice-renderer.js','board-items.js','board-bots.js','board-minigame.js','board-party.js','board-art.js','app.js','auto-update.js','build-version.js',
+ 'player-avatar.js','character-system.js','board-controller-camera.js','party-ui-art.js','ghost-attack.js','farm-ice-art.js','chickens.js','fruit-memory.js','shockwave.js','color-switch-mayan.js','color-switch.js','pizza-ingredient-art.js','pizza-kitchen-art.js','pizza-time.js','party-arena-scenes.js','game-cover-art.js','shopping-time.js','knight-match.js','boulder-bash.js','snow-brawl.js','witching-snake.js','reference-arena-art.js','lawn-mower.js','color-claim.js','ice-race.js','gladiators-art.js','gladiators.js','board-map.js','board-v7-design.js','board-v7-art.js','board-branch-naming.js','board-v7-adapter.js','board-dice.js','board-dice-renderer.js','board-items.js','board-bots.js','board-minigame.js','board-party.js','board-art.js','app.js','auto-update.js','build-version.js','src/platform/game-platform.js',
  'assets/game-friends-cover.svg','assets/game-friends-icon.svg',
  'assets/game-friends-touch-icon.png','manifest.webmanifest'];
 const seen=new Set();

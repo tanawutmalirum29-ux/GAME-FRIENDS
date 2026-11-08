@@ -21,6 +21,10 @@ jobs:
         run: node tests/board-layout-audit.cjs
       - name: Automatically check syntax of all present and future JavaScript files
         run: node scripts/check-javascript.cjs
+      - name: Validate discovered game plug-ins and immutable catalog
+        run: |
+          node scripts/build-game-catalog.cjs --check
+          node tests/game-platform.cjs
       - name: Protect the complete parallel Chromium/WebKit browser QA matrix
         run: node tests/ci-browser-workflow.cjs
       - name: Global map scale and character proportions for all 1–12-player modes

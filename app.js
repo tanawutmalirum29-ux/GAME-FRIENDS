@@ -17,17 +17,46 @@ function pickUnusedColor(){
 }
 const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',color_claim:'COLOR CLAIM',ice_race:'ICE RACE',gladiators:'GLADIATORS'};
 const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch',pizza_time:'PizzaTime',knight_match:'KnightMatch',boulder_bash:'BoulderBash',snow_brawl:'SnowBrawl',shopping_time:'ShoppingTime',witching_snake:'WitchingSnake',lawn_mower:'LawnMower',color_claim:'ColorClaim',ice_race:'IceRace',gladiators:'Gladiators'};
-const gameEngine=mode=>mode==='board'?BOARD_ENGINE:Object.hasOwn(ENGINES,mode)?window[ENGINES[mode]]:null;
+const gameEngine=mode=>mode==='board'?BOARD_ENGINE:
+ (round?.mode===mode&&round?.pluginEngine)||window.GamePlatform?.engine(mode)||
+ (Object.hasOwn(ENGINES,mode)&&ENGINES[mode]?window[ENGINES[mode]]:null);
+const modesFor=kind=>Object.keys(MODES).filter(id=>{
+ const platform=window.GamePlatform;
+ if(!platform||!platform.revision)return true;
+ return !!platform.descriptor(id)?.modes.includes(kind);
+});
+function syncGameCatalog(){
+ const platform=window.GamePlatform;
+ if(!platform?.revision)return;
+ for(const game of platform.games()){
+  MODES[game.id]=game.name;ENGINES[game.id]=game.global;
+ }
+ renderModeChoices();
+ if(boardSession&&round?.mode==='board')warmBoardGames();
+}
 const BOARD_ENGINE={draw:(g,t)=>window.BoardArt.draw(g,t,boardSession),hud:()=>({survivors:boardSession?.players.length||0})};
 
 function gameCover(mode){
  const cover=document.createElement('span');
  cover.className='mode-cover';
- cover.innerHTML=window.PartyGameCovers.svg(mode);
+ const picture=window.PartyGameCovers.svg(mode);
+ if(picture)cover.innerHTML=picture;
+ else{
+  const uri=window.GamePlatform?.descriptor(mode)?.coverUrl;
+  if(uri){const img=document.createElement('img');img.src=uri;img.alt='';cover.append(img);}
+  else{cover.classList.add('mode-cover-generic');cover.textContent='✦';}
+ }
  cover.setAttribute('aria-hidden','true');
  return cover;
 }
 function renderModeChoices(){
+ const host=$('phoneGameChoices');
+ for(const [id,name] of Object.entries(MODES)){
+  if(!modesFor('normal').includes(id)||document.querySelector('[data-pick="'+id+'"]'))continue;
+  const button=document.createElement('button');
+  button.type='button';button.dataset.pick=id;button.className='phone-game-choice';
+  button.setAttribute('aria-pressed','false');button.textContent=name;host.append(button);
+ }
  for(const button of document.querySelectorAll('[data-pick]')){
   const mode=button.dataset.pick;
   if(!Object.hasOwn(MODES,mode))continue;
@@ -723,7 +752,7 @@ function renderRoster(){
       chosen.setAttribute('aria-label','เปลี่ยนเกม '+p.name+' ปัจจุบัน '+(MODES[p.choice]||'ยังไม่เลือก'));
       const cycle=()=>{
         if(round)return;
-        const modes=Object.keys(MODES);p.choice=modes[(modes.indexOf(p.choice)+1)%modes.length];
+        const modes=modesFor('normal');p.choice=modes[(modes.indexOf(p.choice)+1)%modes.length];
         renderRoster();broadcastRoster();
       };
       chosen.addEventListener('click',cycle);
@@ -770,6 +799,7 @@ function openBulkBotPicker(){
   const common=bots.every(p=>p.choice===bots[0].choice)?bots[0].choice:null;
   let focusChoice=null;
   for(const [mode,title] of Object.entries(MODES)){
+    if(!modesFor('normal').includes(mode))continue;
     const button=document.createElement('button');
     button.type='button';
     button.className='bulk-bot-game-choice';
@@ -2144,7 +2174,15 @@ window.addEventListener('blur',()=>{
 });
 
 // BOARD PARTY owns a session, not a seventh entry in the minigame registry.
-function boardRegistry(){return Object.fromEntries(Object.keys(ENGINES).map(id=>[id,gameEngine(id)]));}
+function boardRegistry(){return Object.fromEntries(modesFor('board').map(id=>[id,gameEngine(id)]));}
+function warmBoardGames(){
+ const platform=window.GamePlatform;
+ if(!platform?.revision||round?.mode!=='board')return;
+ for(const game of platform.games('board')){
+  if(platform.ready(game.id))continue;
+  void platform.ensure(game.id).catch(error=>console.warn('Board game unavailable: '+game.id,error));
+ }
+}
 function beginBoard(){
   const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt','PartyPlayerAvatar'];
   if(required.some(name=>!window[name])){showToast('โหลด BOARD PARTY ไม่ครบ กรุณาโหลดหน้าใหม่',true);return;}
@@ -2156,7 +2194,7 @@ function beginBoard(){
     window.BoardArt.overview(boardSession);
     players.forEach(p=>{p.active=true;});
     window.PartyPlayerAvatar.preload(boardSession.players);
-    showBoard();requestHostFullscreen();
+    showBoard();warmBoardGames();requestHostFullscreen();
   }catch(error){
     console.error('BOARD PARTY start failed',error);returnToLobby();
     showToast('เริ่ม BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
@@ -2349,7 +2387,7 @@ function startRound(forcedMode=null){
     return;
   }
   $('results').classList.add('hidden');
-  round={mode,phase:'countdown',paused:false,countdown:mode==='shockwave'?2:3,remaining:null,autoNextRemaining:0,
+  round={mode,pluginEngine:engine,pluginHash:window.GamePlatform?.descriptor(mode)?.hash||null,phase:'countdown',paused:false,countdown:mode==='shockwave'?2:3,remaining:null,autoNextRemaining:0,
     rules:{viewMode:'topdown'}};
   try{
     // Reset cross-minigame punch state before each new match.
@@ -2614,6 +2652,39 @@ function castResultVote(conn,choice){
     else onResultBack();
   }
 }
+function endPluginRound(){
+ const results=round.pluginEngine.getResult(round,players),active=players.filter(p=>p.active);
+ if(!Array.isArray(results)||results.length!==active.length)throw Error('Incomplete plugin result');
+ const scores=new Map();
+ for(const item of results){
+  if(!item||typeof item.id!=='string'||scores.has(item.id)||
+   typeof item.value!=='number'||Number.isNaN(item.value))throw Error('Invalid plugin result');
+  scores.set(item.id,item);
+ }
+ if(active.some(p=>!scores.has(p.id)))throw Error('Result missing a participant');
+ const value=p=>scores.get(p.id).value;
+ const ranked=active.slice().sort((a,b)=>value(b)-value(a)||String(a.id).localeCompare(String(b.id)));
+ const rank=p=>1+ranked.filter(q=>value(q)>value(p)).length;
+ awardRoundPoints(ranked,rank);
+ round.phase='results';round.paused=false;resetInputs();broadcastRoster();
+ $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
+ round.autoNextRemaining=canAutoAdvanceResults()?7:0;
+ const winners=ranked.filter(p=>rank(p)===1);
+ $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'เสมอ • อันดับ 1 ร่วม';
+ const list=$('resultList');list.replaceChildren();
+ for(const p of ranked){
+  const item=scores.get(p.id),row=document.createElement('div');
+  row.className='result-player';
+  const label=document.createElement('div');label.style.color=p.color;
+  label.textContent='อันดับ '+rank(p)+(winners.length>1&&rank(p)===1?' ร่วม':'')+' • '+p.name;
+  const detail=document.createElement('span');
+  detail.textContent=(typeof item.label==='string'?item.label:
+    value(p)===Infinity?'ผู้รอดชีวิต':value(p)+' คะแนน')+totalScoreNote(p);
+  row.append(label,detail);list.append(row);
+ }
+ $('results').classList.remove('hidden');$('gameBanner').textContent='';
+ beginResultVoting();renderLeaderboard();
+}
 function endRound(){
   if(!round||round.phase==='results')return;
   if(boardSession?.phase==='minigame'){
@@ -2625,6 +2696,7 @@ function endRound(){
   // After returning to the board, any delayed minigame "end" callback must
   // not open the normal results page a second time.
   if(boardSession&&round.mode==='board')return;
+  if(round.pluginEngine?.getResult&&round.mode!=='ghost'){endPluginRound();return;}
    if(round.mode==='color_claim'){endColorClaimRound();return;}
    if(round.mode==='snow_brawl'){endSnowBrawlRound();return;}
    if(round.mode==='boulder_bash'){endBoulderBashRound();return;}
@@ -3610,7 +3682,7 @@ function shuffleGames(items){
 function pickRandomEndlessGame(previous=null,random=Math.random){
   // A fresh random choice for EVERY round, not a fixed six-game sequence.
   // Avoid showing the exact same game twice in a row for a better party flow.
-  const all=Object.keys(MODES);
+  const all=modesFor('normal');
   const candidates=all.length>1?all.filter(mode=>mode!==previous):all;
   const draw=Number(random());
   const index=Math.min(candidates.length-1,Math.max(0,Math.floor((Number.isFinite(draw)?draw:0)*candidates.length)));
@@ -3620,8 +3692,8 @@ function beginGameSelection(mode){
   if(!players.length||!Object.hasOwn(MODES,mode)||gameSelection)return;
   // No actual engine starts until the reel settles; this also guards the
   // seven-second auto-next from launching twice during its last frame.
-  const options=boardSession?window.BoardMinigame.eligible(boardRegistry(),players.length):tournament?.endless?Object.keys(MODES):
-    Array.from(new Set(tournament?.schedule||Object.keys(MODES)));
+  const options=boardSession?window.BoardMinigame.eligible(boardRegistry(),players.length):tournament?.endless?modesFor('normal'):
+    Array.from(new Set(tournament?.schedule||modesFor('normal')));
   const stage=$('gameRoulette'),track=$('rouletteTrack');
   track.replaceChildren();
   const width=Math.min(210,Math.max(130,Math.round((window.innerWidth||960)*.19)));
@@ -3659,7 +3731,14 @@ function beginGameSelection(mode){
   round={mode,phase:'roulette',paused:false,remaining:null,autoNextRemaining:0};
   resetInputs();
   gameSelection={mode,elapsed:0,spinDuration:1.45,holdDuration:1.18,
-    initial,final,winningIndex,winner,track};
+    initial,final,winningIndex,winner,track,ready:true,error:null};
+  const platform=window.GamePlatform,selection=gameSelection;
+  if(platform?.descriptor(mode)&&!platform.ready(mode)){
+    selection.ready=false;
+    void platform.ensure(mode).then(()=>{selection.ready=true;}).catch(error=>{
+      selection.error=error;
+    });
+  }
   if(boardSession){gameSelection.spinDuration=2;gameSelection.holdDuration=1.4;}
   setView('game');
   // iOS fullscreen needs the original Start tap: request before the reel runs.
@@ -3682,6 +3761,14 @@ function updateGameSelection(dt){
     $('rouletteMessage').textContent='เกมที่สุ่มได้ในรอบนี้';
   }
   if(selection.elapsed>=selection.spinDuration+selection.holdDuration){
+    if(selection.error){
+      const message=String(selection.error?.message||selection.error);
+      console.error('Minigame preload failed',selection.mode,selection.error);
+      returnToLobby();showToast('โหลดมินิเกมไม่สำเร็จ: '+message.slice(0,100),true);return;
+    }
+    if(!selection.ready){
+      $('rouletteMessage').textContent='กำลังเตรียมเกมเวอร์ชันล่าสุด…';return;
+    }
     const mode=selection.mode;
     gameSelection=null;
     $('gameRoulette').classList.add('hidden');
@@ -3693,7 +3780,7 @@ function beginParty(){
   if(!players.length||gameSelection||(round&&!['results','summary'].includes(round.phase)))return;
   if(selectedSessionMode==='board'){beginBoard();return;}
   if(selectedSessionMode==='endless'){
-    tournament={schedule:Object.keys(MODES),index:0,endless:true,roundsPlayed:0,lastMode:null};
+    tournament={schedule:modesFor('normal'),index:0,endless:true,roundsPlayed:0,lastMode:null};
     players.forEach(p=>{p.total=0;p.lastRoundPoints=0;});
     const mode=pickRandomEndlessGame();
     tournament.lastMode=mode;
@@ -3786,12 +3873,16 @@ $('switchRoomBtn').addEventListener('click',()=>{
   resetControllerForRoomChange('เปลี่ยนห้องในแท็บเดิมได้เลย สแกน QR หรือกรอกรหัสใหม่');
 });
 renderModeChoices();
-document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener('click',()=>{
+window.addEventListener('gameplatform:catalog',syncGameCatalog);
+syncGameCatalog();
+$('phoneGameChoices').addEventListener('click',event=>{
+  const button=event.target.closest?.('[data-pick]');
+  if(!button)return;
   const mode=button.dataset.pick;
   if(!phoneSelectionOpen||!controllerReady||!Object.hasOwn(MODES,mode))return;
   updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
-}));
+});
 // These buttons control the HOST BOARD camera, not the tiny phone preview.
 for(const [id,direction] of [['controllerBoardZoomInBtn',1],['controllerBoardZoomOutBtn',-1]]){
  $(id).addEventListener('click',()=>{
