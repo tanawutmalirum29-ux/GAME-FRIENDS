@@ -156,25 +156,100 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  assert.ok(s.tiles.every(t=>t.state==='safe'||t.state==='warning'));
 }
 {
- // An all-player blast at 24/25 hazard coverage must be a TIE, not an
- // arbitrary ID-based victory. Earlier eliminated players cannot return.
- const {state:s,ps,round}=game(3,408);
+ // A full final blast must award shared first, never restart a match.
+ const g=game(3,408),{state:s,ps,round}=g;
  E.startWave(s,ps);
  E.evaluateEliminations(s,ps,[ps[0]]);
  assert.equal(ps[0].shockAlive,false);
- s.wave=12;
- E.startWarning(s,ps);
+ s.wave=12;E.startWarning(s,ps);
  const dangerId=s.danger[0];
  for(const p of [ps[1],ps[2]])put(p,center(s,dangerId));
  E.triggerExplosion(s,ps);
- assert.equal(s.pendingTiebreaker.length,2);
- assert.equal(s.finished,false);
- round.phase='playing';
- run({state:s,ps,round},.4);
- assert.equal(s.tiebreakers,1);
- assert.equal(ps[0].shockAlive,false,'prior eliminated player stays out of the tiebreaker');
- assert.ok(ps[1].shockAlive&&ps[2].shockAlive);
- assert.equal(s.tiles.length,25,'tiebreaker reinitializes a full clean board');
+ assert.equal(s.blastSchedule.length,24,'all dangerous tiles are scheduled');
+ assert.equal(s.finished,false,'a single ignited tile does not finish a wave');
+ round.phase='playing';run(g,1.25);
+ assert.equal(s.finished,true,'game ends only after all scheduled tiles ignite');
+ assert.deepEqual([...s.winnerIds],['p1','p2']);
+ assert.equal(s.winnerId,null,'two winners are not forced into one winnerId');
+ assert.equal(ps[0].shockAlive,false,'previous losers cannot return');
+ assert.equal(s.tiles.length,25);
+}
+// The outer rim ignites before the inner ring and the center,
+// each threatened tile at a unique offset, all within 0.8 seconds.
+for(let wave=1;wave<=14;wave++){
+ const g=game(12,100+wave),s=g.state;
+ s.wave=wave;
+ E.startWarning(s,g.ps);
+ const plan=E.buildBlastSchedule(s);
+ assert.equal(plan.length,s.danger.length);
+ assert.equal(new Set(plan.map(t=>t.id)).size,plan.length);
+ const ring=id=>{
+  const t=s.tiles[id];return Math.max(Math.abs(t.col-2),Math.abs(t.row-2));
+ };
+ for(let i=1;i<plan.length;i++){
+  assert.ok(plan[i].at>plan[i-1].at,'blast offsets are strictly ordered');
+  assert.ok(ring(plan[i].id)<=ring(plan[i-1].id),
+   'outside tiles must explode before inner tiles');
+ }
+ assert.ok(plan.at(-1).at<.8,'all tile detonations occur within 0.8s');
+ assert.equal(plan[0].at,0,'the first tile explodes immediately');
+}
+{
+ // Three players on three different rings die in three DIFFERENT events.
+ // The latest victim wins without a replay or an artificial tie.
+ const g=game(3,610),{state:s,ps,round}=g;
+ E.startWave(s,ps);
+ s.danger=[0,6,12];
+ for(const id of s.danger){s.tiles[id].state='warning';s.tiles[id].wave=s.wave;}
+ s.phase='WARNING';s.warningStarted=true;s.warningDuration=1;
+ for(let i=0;i<3;i++)put(ps[i],center(s,s.danger[i]));
+ E.triggerExplosion(s,ps);
+ assert.equal(s.blastSchedule.length,3);
+ assert.equal(s.blastCursor,1);
+ assert.equal(s.events.length,1);
+ assert.equal(s.events[0].tileId,0);
+ assert.equal(ps[0].shockAlive,false);
+ assert.equal(ps[1].shockAlive,true);assert.equal(ps[2].shockAlive,true);
+ assert.equal(s.finished,false,'do not declare one survivor mid-cascade');
+ round.phase='playing';run(g,1.2);
+ assert.equal(s.finished,true);
+ assert.equal(s.blastCursor,3);
+ assert.equal(s.events.length,3,'three separate per-tile eliminations');
+ assert.deepEqual([...s.events.map(e=>e.tileId)],[0,6,12]);
+ assert.deepEqual([...s.events.map(e=>e.event)],[1,2,3]);
+ assert.deepEqual(ps.map(p=>p.shockEliminatedAt),[1,2,3]);
+ assert.deepEqual([...s.winnerIds],[ps[2].id]);
+ assert.equal(s.winnerId,ps[2].id);
+ assert.ok(ps.every(p=>!p.shockAlive),'all players are eliminated over time');
+}
+{
+ // Two people actually touching ONE explosion are legitimately tied.
+ const g=game(2,345),{state:s,ps,round}=g;
+ E.startWave(s,ps);
+ s.danger=[0,12];
+ for(const id of s.danger){s.tiles[id].state='warning';s.tiles[id].wave=s.wave;}
+ s.phase='WARNING';s.warningStarted=true;
+ ps.forEach(p=>put(p,center(s,0)));
+ E.triggerExplosion(s,ps);
+ assert.equal(s.events.length,1);
+ assert.equal(s.events[0].ids.length,2);
+ round.phase='playing';run(g,1.2);
+ assert.equal(s.finished,true);
+ assert.equal(s.winnerIds.length,2,'same-tile victims can share a rank');
+}
+for(const n of [2,3,4,12]){
+ const g=game(n,500+n),{state:s,ps,round}=g;
+ E.startWave(s,ps);E.evaluateEliminations(s,ps,[...ps]);
+ assert.equal(new Set(ps.map(p=>p.shockEliminatedAt)).size,1,
+  'the whole blast shares one elimination tick');
+ assert.equal(s.pendingWinnerIds.length,n);
+ s.phase='EXPLOSION';s.timer=.1;round.phase='playing';run(g,.3);
+ assert.equal(s.finished,true);
+ assert.equal(s.winnerIds.length,n,'every final survivor shares first place');
+ assert.equal(new Set(s.winnerIds).size,n);
+ assert.equal(s.winnerId,null);
+ assert.ok(ps.every(p=>!p.shockAlive),'no resurrection');
+ assert.equal(s.tiles.length,25);
 }
 
 {
@@ -271,14 +346,16 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  assert.equal(ps[0].shockAlive,false);
  E.evaluateEliminations(s,ps,[ps[1],ps[2]]);
  assert.equal(s.finished,false);
- assert.equal(s.pendingTiebreaker.length,2);
+ assert.deepEqual([...s.pendingWinnerIds],['p1','p2']);
  s.phase='EXPLOSION';s.timer=.1;round.phase='playing';
  run(g,.3);
- assert.equal(s.tiebreakers,1);
+ assert.equal(s.finished,true);
  assert.equal(s.winnerId,null);
- assert.equal(ps[0].shockAlive,false,'prior eliminations must stay eliminated');
- assert.ok(ps[1].shockAlive&&ps[2].shockAlive);
- assert.equal(s.tiles.length,25);
+ assert.deepEqual([...s.winnerIds],['p1','p2']);
+ assert.equal(ps[0].shockAlive,false);
+ assert.equal(ps[0].shockEliminatedAt,1);
+ assert.equal(ps[1].shockEliminatedAt,2);
+ assert.equal(ps[2].shockEliminatedAt,2);
 }
 {
  const {state:s,ps}=game(2,99);
@@ -389,5 +466,19 @@ assert.match(avatars,/data:image\/svg\+xml/);
  put(ps[0],center(s,safe.id));
  assert.equal(E.calculateDangerContact(s,ps[0],new Set(danger)),0,
    'the only safe tile still has safe standing room for a full character');
+}
+{
+ // BOARD PARTY ranking retains competition ranks when co-winners exhaust quota.
+ const context=vm.createContext({window:{BoardDice:{shuffle:ids=>[...ids]}}});
+ vm.runInContext(fs.readFileSync('board-minigame.js','utf8'),context);
+ const adapter=context.window.BoardMinigame;
+ const x=game(4),s=x.state;
+ E.startWave(s,x.ps);E.evaluateEliminations(s,x.ps,[...x.ps]);
+ s.phase='EXPLOSION';s.timer=.01;x.round.phase='playing';run(x,.2);
+ const ranking=adapter.ranking(x.round,x.ps);
+ assert.ok(ranking.every(p=>p.rank===1));
+ const prizeIds=adapter.rewards(ranking,4);
+ assert.equal(prizeIds.length,2,'reward quota remains 50 percent');
+ assert.ok(ranking.every(p=>p.rank===1),'reward limit never breaks tied ranks');
 }
 console.log('SHOCKWAVE PASS: 14/7/5/2/1 safe tiles, faster waves, full-body contact and ties');

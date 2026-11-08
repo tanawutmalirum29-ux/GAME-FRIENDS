@@ -29,62 +29,71 @@ function fruitImage(id){
  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'+fruit.svg+'</svg>');
  imageCache[id]=img;return img;
 }
-function generateGrid(count,selected){
- const small=count<=6;
- const cols=small?5:6,kindsCount=small?5:6;
+function generateGrid(count,selected,previous=[]){
+ const cols=count<=6?4:5,kindsCount=cols;
  const kinds=selected||shuffle(FRUITS.map(f=>f.id)).slice(0,kindsCount);
- const distributed=shuffle(kinds.flatMap(id=>Array.from({length:small?5:6},()=>id)));
- return distributed.map((fruitType,i)=>({tileId:i,row:Math.floor(i/cols),column:i%cols,fruitType,
-   revealState:'closed',collapseState:'solid',fall:0}));
-}
-function buildRevealSchedule(tiles,minCards=4,maxCards=6){
- // Small arena: 4–6 cards/batch; large arena: 6–8 cards/batch.
- // Only pick counts that allow every remaining batch to meet its own limits.
- const pending=shuffle(tiles.map(t=>t.tileId)),groups=[];
- const partitionable=remaining=>{
-   if(remaining===0)return true;
-   for(let batches=Math.ceil(remaining/maxCards);batches<=Math.floor(remaining/minCards);batches++)
-     if(batches*minCards<=remaining&&remaining<=batches*maxCards)return true;
+ // Every variety occurs at least cols-1 times. The extra cols cards
+ // are independently assigned across the selected varieties, not evenly split.
+ const positions=shuffle(Array.from({length:cols*cols},(_,i)=>i));
+ const remaining=Object.fromEntries(kinds.map(id=>[id,cols-1]));
+ for(let i=0;i<cols;i++)remaining[kinds[Math.floor(Math.random()*kinds.length)]]++;
+ const assigned=Array(cols*cols);
+ function fill(index){
+   if(index===positions.length)return true;
+   const pos=positions[index];
+   const options=shuffle(kinds.filter(id=>remaining[id]>0&&id!==previous[pos]))
+     .sort((a,b)=>remaining[b]-remaining[a]);
+   for(const id of options){
+     remaining[id]--;assigned[pos]=id;
+     if(fill(index+1))return true;
+     remaining[id]++;
+   }
    return false;
- };
- if(!partitionable(pending.length))throw Error('Fruit Memory grid cannot be partitioned into reveal batches');
- while(pending.length){
-   const possible=[];
-   for(let n=minCards;n<=maxCards;n++)
-     if(n<=pending.length&&partitionable(pending.length-n))possible.push(n);
-   if(!possible.length)throw Error('Cannot schedule remaining Fruit Memory cards');
-   const count=possible[Math.floor(Math.random()*possible.length)];
-   groups.push(pending.splice(0,count));
  }
- return groups;
+ if(!fill(0))throw Error('Unable to generate a non-repeating Fruit Memory layout');
+ return assigned.map((fruitType,i)=>({tileId:i,row:Math.floor(i/cols),column:i%cols,
+   fruitType,revealState:'closed',collapseState:'solid',fall:0}));
 }
-// Each new survival wave accelerates Fruit Memory. Round one retains the
-// original timings; later waves shorten exposure and running time with floors.
+function buildRevealSchedule(tiles,cardsPerBatch,previous=[]){
+ const ids=tiles.map(t=>t.tileId),count=cardsPerBatch,groupCount=4;
+ if(!Number.isInteger(count)||count<1||count>ids.length)throw Error('Invalid reveal batch size');
+ for(let attempt=0;attempt<12;attempt++){
+   const unseen=new Set(ids),groups=[];
+   for(let group=0;group<groupCount;group++){
+     const remainingGroups=groupCount-group;
+     const required=Math.max(0,unseen.size-(remainingGroups-1)*count);
+     const fresh=group===0?count:Math.min(count,Math.max(required,Math.ceil(unseen.size/remainingGroups)));
+     const picked=shuffle([...unseen]).slice(0,fresh);
+     for(const id of picked)unseen.delete(id);
+     const extras=shuffle(ids.filter(id=>!picked.includes(id))).slice(0,count-picked.length);
+     groups.push(shuffle([...picked,...extras]));
+   }
+   if(unseen.size)throw Error('Not every Fruit Memory card was scheduled');
+   if(groups.some(batch=>batch.length!==count||new Set(batch).size!==count))
+     throw Error('Invalid Fruit Memory reveal batch');
+   if(groups.map(g=>g.join(',')).join('|')!==previous.map(g=>g.join(',')).join('|'))return groups;
+ }
+ throw Error('Cannot create a fresh Fruit Memory reveal pattern');
+}
 function memoryPace(roundNumber,large){
- const extra=Math.max(0,(Number(roundNumber)||1)-1);
- return {
-   revealFactor:Math.max(.55,1-.08*extra),
-   moveSeconds:large?Math.max(3.2,7-.6*extra):Math.max(2.5,5-.5*extra)
- };
+ const wave=Math.max(1,Math.floor(Number(roundNumber)||1));
+ const memorizeSeconds=[13,11,9,6,4,2][Math.min(5,wave-1)];
+ const moveSeconds=large?Math.max(3.5,7-.5*Math.max(0,wave-6)):
+   Math.max(2.5,5-.5*Math.max(0,wave-6));
+ return {memorizeSeconds,revealFactor:memorizeSeconds/13,moveSeconds};
 }
-function buildRevealTimeline(groups,revealFactor=1){
- let start=0;
- return groups.map(ids=>{
-   // Every group completes its own (progressively shorter) exposure; there
-   // is never a hard global cutoff that could skip unrevealed tiles.
-   const duration=(1.15+ids.length*.13+Math.random()*.33)*revealFactor;
-   const item={ids,start,end:start+duration,duration};
-   start=item.end;
-   return item;
- });
+function buildRevealTimeline(groups,memorizeSeconds){
+ // Wave 1: 13 seconds / 4 reveals = ~3.25 seconds per reveal.
+ // The same four-batch plan compresses into later memorization windows.
+ const each=memorizeSeconds/groups.length;
+ return groups.map((ids,i)=>({ids,start:i*each,end:(i+1)*each,duration:each}));
 }
 function configureBoard(state){
-  // Each logical tile is a perfect square on the 960x540 arena.
-  // Center the largest practical square below the gameplay HUD.
-  const side=420;
-  state.board={x:(960-side)/2,y:105,w:side,h:side};
-  state.tileW=side/state.cols;
-  state.tileH=side/state.rows;
+ // Square play field, with room for two fully visible side screens.
+ const side=400;
+ state.board={x:(960-side)/2,y:104,w:side,h:side};
+ state.tileW=side/state.cols;
+ state.tileH=side/state.rows;
 }
  function tileAt(state,x,y){
  const b=state.board;
@@ -96,38 +105,41 @@ function tileRect(state,t){return {x:state.board.x+t.column*state.tileW,y:state.
 function setPhase(state,phase){state.phase=phase;state.elapsed=0;}
 function newMemorize(state,players,entrants){
  const firstRound=state.rounds===0;
- if(firstRound)state.tiles=generateGrid(state.startCount);
- else{
-   // Reuse THE SAME board, tile objects and tile coordinates. Only change
-   // the hidden fruit assignment after the dropped tiles have risen back.
-   const shuffled=generateGrid(state.startCount);
+ const kinds=pickFruitKinds(state);
+ const previous=firstRound?[]:state.tiles.map(t=>t.fruitType);
+ const generated=generateGrid(state.startCount,kinds,previous);
+ if(firstRound){
+   state.tiles=generated;
+   state.revealCount=state.big?(Math.random()<.5?10:11):(Math.random()<.5?8:9);
+ }else{
    for(let i=0;i<state.tiles.length;i++){
      const tile=state.tiles[i];
-     tile.fruitType=shuffled[i].fruitType;
+     tile.fruitType=generated[i].fruitType;
      tile.revealState='closed';tile.collapseState='solid';tile.fall=0;
    }
  }
+ state.activeFruitKinds=kinds;
  state.revealedTileIds=new Set();
- state.revealGroups=state.big?buildRevealSchedule(state.tiles,6,8):buildRevealSchedule(state.tiles,4,6);
- const nextRound=state.rounds+1;
- const pace=memoryPace(nextRound,state.big);
- state.revealFactor=pace.revealFactor;
+ state.revealGroups=buildRevealSchedule(state.tiles,state.revealCount,state.previousRevealGroups||[]);
+ state.previousRevealGroups=state.revealGroups.map(group=>[...group]);
+ const nextRound=state.rounds+1,pace=memoryPace(nextRound,state.big);
+ state.revealFactor=pace.revealFactor;state.memorizeSeconds=pace.memorizeSeconds;
  state.moveSeconds=pace.moveSeconds;
- state.revealTimeline=buildRevealTimeline(state.revealGroups,pace.revealFactor);
- state.revealCursor=0;
- state.revealDuration=state.revealTimeline.at(-1).end;
+ state.revealTimeline=buildRevealTimeline(state.revealGroups,pace.memorizeSeconds);
+ state.revealCursor=0;state.revealDuration=pace.memorizeSeconds;
  state.target=null;state.rounds=nextRound;
- state.fallEntries=[];state.pendingWinner=null;state.botTargets={};
+ state.fallEntries=[];state.pendingWinner=null;state.botTargets={};state.botMemories={};
+ state.botRoamTargets={};
  state.pendingTie=false;state.tieIds=[];
  for(const p of players){
    p.fruitAlive=entrants.includes(p.id)&&p.active;
    p.fruitFall=0;p.fruitStun=0;p.fruitAttack=null;p.fruitCooldown=0;p.fruitPunchPressed=false;
    p.stun=0;p.punchCooldown=0;Combat.reset(p);
+   if(p.isBot&&p.fruitAlive)state.botMemories[p.id]={};
  }
  const active=living(players);
  if(firstRound){
-   // Place players only ONCE, when the full match begins. Never teleport
-   // surviving players or bots at the start of each memory round.
+   // Spawn only once; survivors never teleport between waves.
    const spawns=shuffle(state.tiles);
    for(let i=0;i<active.length;i++){
      const p=active[i],tile=spawns[i];
@@ -135,19 +147,29 @@ function newMemorize(state,players,entrants){
      p.y=state.board.y+(tile.row+.5)*state.tileH;
      p.dir={x:1,y:0};p.vx=0;p.vy=0;
    }
- }else{
-   for(const p of active){p.vx=0;p.vy=0;}
- }
+ }else for(const p of active){p.vx=0;p.vy=0;}
  state.previousEntrants=[...entrants];
  setPhase(state,'memorize');
+}
+function pickFruitKinds(state){
+ const length=state.big?5:4,all=FRUITS.map(f=>f.id);
+ const previous=state.activeFruitKinds||[];
+ for(let tries=0;tries<100;tries++){
+   const kinds=shuffle(all).slice(0,length);
+   if(state.firstFruitKinds&&kinds.every(id=>state.firstFruitKinds.includes(id)))continue;
+   if(previous.length&&kinds.every(id=>previous.includes(id)))continue;
+   if(!state.firstFruitKinds)state.firstFruitKinds=[...kinds];
+   return kinds;
+ }
+ throw Error('Fruit Memory cannot select a fresh fruit set');
 }
 function setup(round,players){
  const startCount=clamp(players.length,1,12);
  const large=startCount>6;
- const state={startCount,big:large,cols:large?6:5,rows:large?6:5,
+ const state={startCount,big:large,cols:large?5:4,rows:large?5:4,
    moveSeconds:large?7:5,collapseSeconds:large?1.8:1.5,
    tiles:[],elapsed:0,accumulator:0,rounds:0,phase:'memorize',previousTarget:null,
-   winnerId:null,finished:false,totalElapsed:0,pendingTie:false,tieIds:[]};
+   winnerId:null,finished:false,totalElapsed:0,pendingTie:false,tieIds:[],firstTarget:null,targetHistory:[]};
  configureBoard(state);
  round.fruitMemory=state;
  for(const p of players){p.active=true;p.score=0;p.fruitRounds=0;p.fruitEliminatedRound=0;}
@@ -161,22 +183,55 @@ function inputVector(input){
 }
 function chooseTargetFruit(state){
  const ids=[...new Set(state.tiles.map(t=>t.fruitType))];
- const possibilities=ids.filter(id=>id!==state.previousTarget);
- state.target=possibilities[Math.floor(Math.random()*possibilities.length)]||ids[0];
+ const eligible=ids.filter(id=>id!==state.previousTarget&&id!==state.firstTarget);
+ const unused=eligible.filter(id=>!state.targetHistory.includes(id));
+ const candidates=unused.length?unused:eligible;
+ state.target=shuffle(candidates.length?candidates:ids)[0];
+ if(!state.firstTarget)state.firstTarget=state.target;
  state.previousTarget=state.target;
+ state.targetHistory.push(state.target);
  state.botTargets={};
 }
+function botWanderVector(p,state){
+ // Bots move naturally during the shared 3-second start countdown and card
+ // memorization. They have no information about hidden fruit or the target.
+ const goals=state.botRoamTargets||(state.botRoamTargets={});
+ const now=state.totalElapsed;
+ let goal=goals[p.id];
+ if(!goal||now>=goal.until||Math.hypot(goal.x-p.x,goal.y-p.y)<12){
+   const spots=state.tiles.map(t=>({
+     x:state.board.x+(t.column+.5)*state.tileW,
+     y:state.board.y+(t.row+.5)*state.tileH
+   }));
+   const choices=spots.filter(q=>{
+     const d=Math.hypot(q.x-p.x,q.y-p.y);
+     return d>state.tileW*.8&&d<state.board.w*.78;
+   });
+   const pool=choices.length?choices:spots;
+   if(!pool.length)return {x:0,y:0};
+   const q=pool[Math.floor(Math.random()*pool.length)];
+   const d=Math.hypot(q.x-p.x,q.y-p.y);
+   goal={x:q.x,y:q.y,until:now+Math.max(1.1,d/C.speed)+.35+Math.random()*.45};
+   goals[p.id]=goal;
+ }
+ const dx=goal.x-p.x,dy=goal.y-p.y,d=Math.hypot(dx,dy);
+ return d<6?{x:0,y:0}:{x:dx/d,y:dy/d};
+}
 function botVector(p,state){
+ if(state.phase==='memorize')return botWanderVector(p,state);
  if(state.phase!=='move'||!state.target)return {x:0,y:0};
  if(!state.botTargets[p.id]){
-   // Bots remember most tiles but can misremember, so bot-only matches can conclude.
-   const mistake=state.startCount>1&&Math.random()<.24;
-   const options=state.tiles.filter(t=>mistake?t.fruitType!==state.target:t.fruitType===state.target);
-   const sorted=options.map(t=>({t,x:tileRect(state,t).x+state.tileW*.5,
+   // Only cards shown in completed reveal batches enter bot memory.
+   const memory=state.botMemories[p.id]||{};
+   let options=state.tiles.filter(t=>memory[t.tileId]===state.target);
+   if(!options.length){
+     const remembered=state.tiles.filter(t=>Object.hasOwn(memory,t.tileId));
+     options=remembered.length?remembered:state.tiles;
+   }
+   const targets=options.map(t=>({t,x:tileRect(state,t).x+state.tileW*.5,
      y:tileRect(state,t).y+state.tileH*.5})).sort((a,b)=>
      Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y));
-   const rank=parseInt(String(p.id).replace(/\D/g,''),10)||0;
-   state.botTargets[p.id]=sorted[Math.min(rank%2,sorted.length-1)]||sorted[0];
+   state.botTargets[p.id]=targets[Math.floor(Math.random()*Math.min(3,targets.length))]||targets[0];
  }
  const goal=state.botTargets[p.id];if(!goal)return {x:0,y:0};
  const dx=goal.x-p.x,dy=goal.y-p.y,d=Math.hypot(dx,dy);
@@ -297,14 +352,23 @@ function step(state,players,dt){
    while(state.revealCursor<state.revealTimeline.length&&
      state.elapsed+1e-8>=state.revealTimeline[state.revealCursor].end){
      const batch=state.revealTimeline[state.revealCursor++];
-     for(const id of batch.ids)state.revealedTileIds.add(id);
+     for(const id of batch.ids){
+       state.revealedTileIds.add(id);
+       for(const p of players)if(p.fruitAlive&&p.isBot){
+         const memory=state.botMemories[p.id];if(!memory)continue;
+         const actual=state.tiles[id].fruitType;
+         const accuracy=clamp(.94-.045*(state.rounds-1),.56,.94);
+         memory[id]=Math.random()<accuracy?actual:
+           shuffle(state.activeFruitKinds.filter(f=>f!==actual))[0];
+       }
+     }
    }
    if(state.revealCursor===state.revealTimeline.length&&
       state.revealedTileIds.size===state.tiles.length)setPhase(state,'hide');
  }else if(state.phase==='hide'){
-   state.elapsed+=dt;if(state.elapsed>=.65){chooseTargetFruit(state);setPhase(state,'target');}
+   state.elapsed+=dt;if(state.elapsed>=.16){chooseTargetFruit(state);setPhase(state,'target');}
  }else if(state.phase==='target'){
-   state.elapsed+=dt;if(state.elapsed>=.55)setPhase(state,'move');
+   state.elapsed+=dt;if(state.elapsed>=.28)setPhase(state,'move');
  }else if(state.phase==='move'){
    // Fixed physics resolves impulses and punch before freezing ALL players.
    for(const p of players)stepPlayer(p,state,players,dt);
@@ -340,17 +404,24 @@ function step(state,players,dt){
 function update(dt,round,players){
  const state=round.fruitMemory;
  if(!state||state.finished)return state?.finished?'winner':null;
- if(round.phase!=='playing')return null;
+ if(round.paused||!['countdown','playing'].includes(round.phase))return null;
  state.accumulator=Math.min(.15,state.accumulator+clamp(dt,0,.1));
  while(state.accumulator>=FIXED&&!state.finished){
-   step(state,players,FIXED);state.accumulator-=FIXED;
+   if(round.phase==='countdown'){
+     // Pre-game is free movement, not memorization: don't advance the reveal
+     // clock, target selection, wave number or bot observations.
+     state.totalElapsed+=FIXED;
+     for(const p of players)stepPlayer(p,state,players,FIXED);
+     resolvePlayerCollisions(state,players);
+   }else step(state,players,FIXED);
+   state.accumulator-=FIXED;
  }
- round.remaining=state.phase==='move'?Math.max(0,state.moveSeconds-state.elapsed):null;
+ round.remaining=null; // Fruit Memory uses side-screen memorization countdown only.
  return state.finished?'winner':null;
 }
 function hud(players,round){
  const state=round.fruitMemory;
- return {survivors:living(players).length,remaining:round.remaining||0,
+ return {survivors:living(players).length,remaining:null,
    phase:state?.phase||'countdown',fruit:state?.target||null};
 }
 function drawTile(ctx,state,t,time){
@@ -365,10 +436,11 @@ function drawTile(ctx,state,t,time){
    const batch=state.revealTimeline[state.revealCursor];
    if(batch){
      const within=state.elapsed-batch.start;
-     revealed=batch.ids.includes(t.tileId)&&within>.12&&within<batch.duration-.17;
+     const flip=Math.min(.12,batch.duration*.14);
+     revealed=batch.ids.includes(t.tileId)&&within>=flip&&within<=batch.duration-flip;
      if(revealed){
-       const edge=Math.min(within-.12,batch.duration-.17-within);
-       flipping=clamp(edge/.17,0,1);
+       const edge=Math.min(within-flip,batch.duration-flip-within);
+       flipping=clamp(edge/Math.max(.03,flip),0,1);
      }
    }
  }else if(collapsing)revealed=true;
@@ -378,7 +450,9 @@ function drawTile(ctx,state,t,time){
  const w=(r.w-pad*2)*(revealed?Math.max(.06,flipping):1),h=r.h-pad*2;
  // Only revealed cards get fruit-specific colors. Hidden cards remain identical.
  const face=revealed?TILE_COLORS[t.fruitType]:'#68648d';
+ ctx.shadowColor='#174d1c77';ctx.shadowBlur=10;ctx.shadowOffsetY=7;
  ctx.fillStyle='#302e4f';ctx.beginPath();ctx.roundRect(-w/2,-h/2+5,w,h,8);ctx.fill();
+ ctx.shadowBlur=0;ctx.shadowOffsetY=0;
  ctx.fillStyle=face;ctx.beginPath();ctx.roundRect(-w/2,-h/2,w,h-3,8);ctx.fill();
  ctx.strokeStyle=revealed?'#fff2c9':'#b7b1d2';ctx.lineWidth=2;
  ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);
@@ -416,36 +490,80 @@ function drawPlayer(ctx,p,state,time){
    color:p.color,attacking:Combat.isAttacking(p)});
  ctx.restore();
 }
-// Three identical icons make the SINGLE safe fruit stand out without changing
-// gameplay. Use the shared clock/headcount's bottom edge, not a side panel.
-function drawTargetFruits(ctx,round){
- const state=round?.fruitMemory;
- if(!state||round.phase==='countdown'||
-    !['target','move','collapse'].includes(state.phase))return;
- const fruit=FRUIT_BY_ID[state.target],img=fruitImage(state.target);
- if(!fruit)return;
- const y=(window.PartyArenaScenes?.badgeBottomY?.()??38)+18;
- const spacing=38,radius=15.5;
- ctx.save();
- for(let i=-1;i<=1;i++){
-   const x=480+i*spacing;
-   ctx.beginPath();ctx.arc(x,y,radius,0,TAU);
-   ctx.fillStyle='#263242e8';ctx.fill();
-   ctx.lineWidth=2;ctx.strokeStyle='#fff1c9';ctx.stroke();
-   if(img?.complete&&img.naturalWidth>0)
-     ctx.drawImage(img,x-12,y-12,24,24);
-   else{ctx.beginPath();ctx.arc(x,y,9,0,TAU);ctx.fillStyle=fruit.color;ctx.fill();}
+
+const panelCache={};
+function screenImage(tint){
+ if(panelCache[tint])return panelCache[tint];
+ if(typeof Image==='undefined')return null;
+ const warm=tint==='timer',light=warm?'#ffe456':(TILE_COLORS[tint]||'#76e8e3');
+ const mid=warm?'#ff982e':(FRUIT_BY_ID[tint]?.color||'#23cdea');
+ const svg=[
+ '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 440">',
+ '<defs><linearGradient id="metal"><stop stop-color="#3b2676"/><stop offset=".3" stop-color="#bb7ef2"/><stop offset=".65" stop-color="#683ca8"/><stop offset="1" stop-color="#301e72"/></linearGradient>',
+ '<linearGradient id="glass" x2=".85" y2="1"><stop stop-color="'+light+'"/><stop offset=".48" stop-color="'+mid+'"/><stop offset="1" stop-color="'+light+'"/></linearGradient>',
+ '<linearGradient id="shine" x2="1" y2="1"><stop stop-color="#fff" stop-opacity=".55"/><stop offset=".7" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>',
+ '<ellipse cx="76" cy="426" rx="65" ry="10" fill="#1a5b22" opacity=".3"/>',
+ '<rect x="31" y="41" width="16" height="361" rx="7" fill="url(#metal)" stroke="#42277e" stroke-width="3"/>',
+ '<rect x="103" y="41" width="16" height="361" rx="7" fill="url(#metal)" stroke="#42277e" stroke-width="3"/>',
+ '<g fill="none" stroke="#dbffe8" stroke-width="4"><path d="M28 55q-25 14 0 28t0 28t0 28M122 55q25 14 0 28t0 28t0 28"/>',
+ '<path d="M28 306q-25 14 0 28t0 28t0 28M122 306q25 14 0 28t0 28t0 28"/></g>',
+ '<rect x="22" y="29" width="106" height="381" rx="17" fill="#311c72" stroke="#bd8cf3" stroke-width="6"/>',
+ '<rect x="28" y="36" width="94" height="365" rx="12" fill="url(#metal)" stroke="#e7b8ff" stroke-width="2"/>',
+ '<rect x="8" y="111" width="21" height="219" rx="6" fill="#f59c3d" stroke="#a25180" stroke-width="4"/>',
+ '<rect x="121" y="111" width="21" height="219" rx="6" fill="#f59c3d" stroke="#a25180" stroke-width="4"/>',
+ '<rect x="34" y="69" width="82" height="307" rx="7" fill="#261d5a" stroke="#281463" stroke-width="6"/>',
+ '<rect x="41" y="78" width="68" height="287" rx="3" fill="url(#glass)" stroke="#ffe1a0" stroke-width="2"/>',
+ '<rect x="41" y="78" width="68" height="287" rx="3" fill="url(#shine)"/>',
+ '<g opacity=".18" stroke="#fff" stroke-width="2"><path d="M42 128 109 195M42 210l67 67M42 293l67 67"/></g>',
+ '<g fill="#fffaab" stroke="#79538c" stroke-width="3"><circle cx="20" cy="155" r="5"/><circle cx="20" cy="183" r="5"/><circle cx="131" cy="272" r="5"/><circle cx="131" cy="299" r="5"/></g>',
+ '<rect x="34" y="65" width="82" height="13" rx="5" fill="#ae7af0" stroke="#58349b" stroke-width="2"/>',
+ '<rect x="34" y="366" width="82" height="13" rx="5" fill="#ae7af0" stroke="#58349b" stroke-width="2"/>',
+ '<g transform="rotate(-7 75 29)"><rect x="41" y="9" width="68" height="39" rx="18" fill="#392276" stroke="#ae74e5" stroke-width="5"/>',
+ '<rect x="46" y="15" width="58" height="26" rx="13" fill="'+(warm?'#f3ce3c':'#2dc4f4')+'" stroke="#fff0a8" stroke-width="2"/></g>',
+ '<g transform="rotate(7 75 411)"><rect x="41" y="393" width="68" height="39" rx="18" fill="#392276" stroke="#ae74e5" stroke-width="5"/>',
+ '<rect x="46" y="399" width="58" height="26" rx="13" fill="'+(warm?'#eb4d51':'#50d869')+'" stroke="#fff0a8" stroke-width="2"/></g>',
+ '</svg>'
+ ].join('');
+ const img=new Image();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+ panelCache[tint]=img;return img;
+}
+function drawSideScreens(ctx,state,round){
+ // Keep both SVG monitor housings visible from the first countdown frame.
+ // The orange screens stay blank until the shared host countdown ends;
+ // only then does the independent memorize timer begin displaying numbers.
+ const prestart=round?.phase==='countdown';
+ const target=!prestart&&['target','move','collapse'].includes(state.phase)&&!!state.target;
+ const img=screenImage(target?state.target:'timer');
+ const seconds=String(Math.max(1,Math.ceil(state.memorizeSeconds-state.elapsed)));
+ for(const right of [false,true]){
+   const x=right?686:124,y=64;
+   ctx.save();ctx.translate(x+(right?150:0),y);
+   if(right)ctx.scale(-1,1);
+   if(img?.complete&&img.naturalWidth>0)ctx.drawImage(img,0,0,150,440);
+   ctx.restore();
+   if(prestart||(state.phase!=='memorize'&&!target))continue;
+   ctx.save();ctx.translate(x+75,y+221);ctx.rotate(right?Math.PI/2:-Math.PI/2);
+   if(target){
+     const fruitImg=fruitImage(state.target),fruit=FRUIT_BY_ID[state.target];
+     if(fruitImg?.complete&&fruitImg.naturalWidth>0)ctx.drawImage(fruitImg,-46,-46,92,92);
+     else if(fruit){ctx.fillStyle=fruit.color;ctx.beginPath();ctx.arc(0,0,33,0,TAU);ctx.fill();}
+   }else{
+     ctx.font='900 76px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+     ctx.lineWidth=5;ctx.strokeStyle='#e09128';if(ctx.strokeText)ctx.strokeText(seconds,0,2);
+     ctx.fillStyle='#fff';ctx.fillText(seconds,0,0);
+   }
+   ctx.restore();
  }
- ctx.restore();
 }
 function draw(ctx,time,round,players){
  const state=round.fruitMemory;if(!state)return;
  ctx.save();ctx.clearRect(0,0,960,540);
  window.PartyArenaArt.draw(ctx,'orchard',state);
+ drawSideScreens(ctx,state,round);
  for(const tile of state.tiles)drawTile(ctx,state,tile,time);
  for(const p of players)drawPlayer(ctx,p,state,time);
  ctx.restore();
 }
 window.FruitMemory=Object.freeze({setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
- calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawTargetFruits,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
+ calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawSideScreens,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();

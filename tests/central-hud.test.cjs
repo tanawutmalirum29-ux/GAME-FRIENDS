@@ -24,7 +24,10 @@ test('all minigame timers are drawn by one host dispatcher', () => {
  const cases=[
   ['ghost','countdown',null,3,'clock'],['ghost','playing',null,0,'person'],
   ['shockwave','countdown',null,2,'person'],['shockwave','playing',2,null,'person'],
-  ['fruit_memory','playing',null,null,'person'],['fruit_memory','playing',5,null,'clock'],
+  ['fruit_memory','playing',null,null,'person'],['fruit_memory','playing',5,null,'person'],
+   ['fruit_memory','countdown',null,3,'clock'],
+   ['fruit_memory','countdown',null,2,'clock'],
+   ['fruit_memory','countdown',null,1,'clock'],
   ['boulder_bash','playing',null,null,'person'],['boulder_bash','playing',35,null,'clock'],
   ['snow_brawl','playing',null,null,'person'],['snow_brawl','playing',42,null,'clock'],
   ['witching_snake','playing',null,null,'person'],['witching_snake','playing',18,null,'clock'],
@@ -50,6 +53,34 @@ test('all minigame timers are drawn by one host dispatcher', () => {
  }
 });
 
+test('shared start countdown advances Fruit Memory movement before memorization', () => {
+ const app=read('app.js');
+ const start=app.indexOf('function updateRound(dt)');
+ const end=app.indexOf('// Result decisions are host-authoritative.',start);
+ assert.ok(start>=0&&end>start,'host round update dispatcher exists');
+ const runner=new Function('window','round','players','dt','$','broadcastRoster',
+   'updateBoard','gameEngine','endRound',app.slice(start,end)+'\nupdateRound(dt);');
+ const updates=[],signals=[],banner={textContent:''};
+ const window={FruitMemory:{update(dt){updates.push(dt);}}};
+ const round={mode:'fruit_memory',phase:'countdown',paused:false,countdown:3};
+ const go=dt=>runner(window,round,[],dt,()=>banner,()=>signals.push('playing'),
+   ()=>{},()=>({update(){return null;}}),()=>{});
+ go(1);
+ assert.equal(round.countdown,2);
+ assert.equal(round.phase,'countdown');
+ assert.equal(updates.length,1,'Fruit Memory prestart movement updates through the host');
+ go(1);
+ assert.equal(round.countdown,1);
+ assert.equal(updates.length,2);
+ go(1);
+ assert.equal(round.countdown,0);
+ assert.equal(round.phase,'playing','the host owns the three-second transition');
+ assert.equal(updates.length,3,'movement also updates during the last countdown second');
+ assert.equal(signals.length,1);
+ round.paused=true;go(1);
+ assert.equal(updates.length,3,'pause must block prestart motion');
+});
+
 test('clock and SVG count share the same safe screen position', () => {
  const scenes=read('party-arena-scenes.js');
  assert.match(scenes,/HUD_BADGE_MIN_DROP=0/);
@@ -58,6 +89,9 @@ test('clock and SVG count share the same safe screen position', () => {
  assert.match(scenes,/function clock\(g,value[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
  assert.match(scenes,/function playerCount\(g,value\)[^]*?g\.translate\(0,hudBadgeDrop\(\)\)/);
  assert.match(scenes,/personIconSVG=\(\)=>svg\(24,24/);
+ assert.doesNotMatch(scenes,/function bareCount\(/,'avoid number-only Fruit Memory renderer');
+ assert.match(scenes,/const icon=imageFor\('hud:player-count',personIconSVG\)/,
+  'shared survivor HUD renders the cached person SVG');
 });
 
 test('no duplicate mode-level clocks or top-left information banners', () => {
@@ -74,12 +108,12 @@ test('no duplicate mode-level clocks or top-left information banners', () => {
   'fruit-memory.js': /label\('FRUIT MEMORY'/
  };
  for(const [name,re] of Object.entries(forbidden))assert.doesNotMatch(read(name),re,name);
- assert.match(read('fruit-memory.js'),/ctx\.drawImage\(img,x-12,y-12,24,24\)/,
-  'the same safe fruit icon is repeated three times beneath the HUD');
- assert.match(read('party-arena-scenes.js'),/function badgeBottomY\(\)/,
-  'FRUIT MEMORY target row uses the shared HUD anchor');
- assert.match(read('app.js'),/if\(round\.mode==='fruit_memory'\)window\.FruitMemory\?\.drawTargetFruits\?\.\(g,round\)/,
-  'the host draws fruit cues after the shared timer');
+ assert.match(read('fruit-memory.js'),/function drawSideScreens\(ctx,state,round\)/,
+  'Fruit Memory uses mirrored SVG side screens');
+ assert.match(read('app.js'),/r\.mode==='fruit_memory'/,
+  'Fruit Memory has a shared host countdown, not a memorize timer');
+ assert.doesNotMatch(read('app.js'),/drawTargetFruits/,
+  'old three-fruit HUD is removed');
 });
 
 test('central badge clears actual one-row and two-row player headers', () => {

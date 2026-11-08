@@ -1,0 +1,21 @@
+name: Fruit Memory and Shockwave Regression
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  minigame-regression:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/fruit-memory.cjs
+      - run: node tests/shockwave.cjs
+      - run: node tests/shockwave-results.cjs
+      - run: node tests/board-party.cjs
+      - run: node --test tests/central-hud.test.cjs
+      - run: node tests/smoke.cjs

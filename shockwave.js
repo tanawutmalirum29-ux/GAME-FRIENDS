@@ -29,8 +29,8 @@ function spawnPlayers(s,ps){
 function setup(round,ps){
  const s={phase:'PREPARE',timer:0,clock:0,accumulator:0,wave:0,danger:[],warningDuration:0,
   warningStarted:false,seed:((Number(round.shockSeed)||Date.now()^0x6a53)>>>0)||1,
-  winnerId:null,finished:false,fastPhase:false,suddenDeath:false,finalArena:false,
-  events:[],effects:[],eliminationEvent:0,tiebreakers:0,pendingTiebreaker:null,roundId:0,
+  winnerId:null,winnerIds:[],pendingWinnerIds:null,finished:false,fastPhase:false,suddenDeath:false,finalArena:false,
+  events:[],effects:[],eliminationEvent:0,blastSchedule:[],blastCursor:0,blastElapsed:0,blastDuration:0,
   startCount:ps.length,plannedWarningDuration:0,plannedDangerCount:0,lastSafeTileId:null};
  round.shockwave=s;round.remaining=null;
  for(const p of ps){p.active=true;p.score=0;}
@@ -70,14 +70,15 @@ function calculateDangerContact(s,p,dangerIds){
 function inputVector(p,s){
  if(p.isBot){
    const t=tileAt(s,p.x,p.y);
-   // React to any part of the character touching a warning square.
-   if(!t||calculateDangerContact(s,p,new Set(s.danger))===0)return {x:0,y:0};
+   // During a rolling blast, already-exploded tiles no longer threaten bots.
+   const pending=s.phase==='EXPLOSION'?s.danger.filter(id=>s.tiles[id].state==='warning'):s.danger;
+   if(!t||calculateDangerContact(s,p,pending)===0)return {x:0,y:0};
    if(p.shockBotWave!==s.wave){
      p.shockBotWave=s.wave;p.shockBotReadyAt=s.clock+.18+
        random(s)*Math.min(1.7,s.warningDuration*.83);
    }
    if(s.clock<p.shockBotReadyAt)return {x:0,y:0};
-   const safe=s.tiles.filter(t=>t.state==='safe');
+   const safe=s.tiles.filter(t=>t.state==='safe'||t.state==='exploding');
    if(!safe.length)return {x:0,y:0};
    safe.sort((a,b)=>{const aa=tileCenter(s,a),bb=tileCenter(s,b);
      return Math.hypot(p.x-aa.x,p.y-aa.y)-Math.hypot(p.x-bb.x,p.y-bb.y);});
@@ -188,43 +189,42 @@ function selectDangerTiles(s,ps){
  s.plannedDangerCount=best.tiles.length;
  return best.tiles;
 }
-function startTiebreaker(s,ps,ids){
- const eligible=new Set(ids);
- const contenders=ps.filter(p=>p.active&&eligible.has(p.id));
- if(contenders.length===1){s.winnerId=contenders[0].id;s.finished=true;return;}
- if(!contenders.length){s.finished=true;return;}
- s.tiebreakers++;s.roundId++;s.wave=0;s.fastPhase=false;s.suddenDeath=false;
- s.finalArena=true;s.pendingTiebreaker=null;s.danger=[];s.warningStarted=false;
- s.phase='NEXT_WAVE';s.timer=.35;s.plannedWarningDuration=0;s.plannedDangerCount=0;s.lastSafeTileId=null;
- // Never resurrect anyone eliminated before the last simultaneous wipe.
- ps.forEach(p=>{p.shockAlive=eligible.has(p.id)&&p.active;});
- createGrid(s);spawnPlayers(s,contenders);
-}
 function checkWinner(s,ps){
  const alive=living(ps);
- if(alive.length===1){s.winnerId=alive[0].id;s.finished=true;return true;}
- if(alive.length===0){if(!s.pendingTiebreaker)s.finished=true;return s.finished;}
- if(s.wave>=12&&alive.length>1)s.finalArena=true;
+ if(alive.length===1){
+   s.winnerId=alive[0].id;s.winnerIds=[alive[0].id];
+   s.finished=true;return true;
+ }
+ if(alive.length===0){
+   // An all-player explosion finishes AFTER its visual effect.
+   if(s.pendingWinnerIds?.length)return false;
+   s.finished=true;return true;
+ }
+ if(s.wave>=12)s.finalArena=true;
  return false;
 }
-function evaluateEliminations(s,ps,hit){
- const victims=new Set(hit.filter(p=>p.shockAlive).map(p=>p.id));
- if(!victims.size)return [];
+function evaluateEliminations(s,ps,hit,tileId=null,blastAt=null){
+ // Snapshot everybody alive before recording any elimination.
  const before=living(ps);
- s.eliminationEvent++;
- for(const p of before)if(victims.has(p.id)){
+ const idsInHit=new Set(hit.filter(p=>p.active&&p.shockAlive).map(p=>p.id));
+ const victims=before.filter(p=>idsInHit.has(p.id));
+ if(!victims.length)return [];
+ ++s.eliminationEvent;
+ const ids=victims.map(p=>p.id);
+ for(const p of victims){
    p.shockAlive=false;p.shockFall=.001;p.vx=0;p.vy=0;
    p.shockEliminatedWave=s.wave;p.shockEliminatedAt=s.eliminationEvent;
  }
- const ids=[...victims];
- s.events.push({event:s.eliminationEvent,wave:s.wave,ids});
- if(ids.length===before.length)s.pendingTiebreaker=ids;
- else checkWinner(s,ps);
+ s.events.push({event:s.eliminationEvent,wave:s.wave,ids:[...ids],tileId,blastAt});
+ if(victims.length===before.length){
+   // Everyone still alive shares first place, never replay for a tiebreaker.
+   s.pendingWinnerIds=[...ids];s.winnerId=null;s.winnerIds=[];
+ }else if(s.phase!=='EXPLOSION')checkWinner(s,ps);
  return ids;
 }
 function startWarning(s,ps){
  const chosen=selectDangerTiles(s,ps);
- if(!chosen.length){startTiebreaker(s,ps,living(ps).map(p=>p.id));return;}
+ if(!chosen.length){s.phase='NEXT_WAVE';s.timer=intervalSeconds(s.wave);return;}
  s.danger=chosen;
  s.warningDuration=Math.max(warningSeconds(s.wave),s.plannedWarningDuration||0);
  s.lastSafeTileId=chosen.length===24?s.tiles.find(tile=>!chosen.includes(tile.id))?.id??null:null;
@@ -236,7 +236,56 @@ function startWave(s,ps){
  if(checkWinner(s,ps))return;
  s.wave++;s.fastPhase=s.wave>=7;checkSuddenDeath(s);
  s.phase='PREPARE';s.timer=.025;s.danger=[];s.warningStarted=false;
+ s.blastSchedule=[];s.blastCursor=0;s.blastElapsed=0;s.blastDuration=0;
  s.plannedWarningDuration=0;s.plannedDangerCount=0;
+}
+// Each selected danger tile has a distinct ignition timestamp, within 0.8s.
+// Distance is measured in square rings from the board's outside inward.
+// The first danger tile ignites at t=0; gaps vary rather than synchronizing.
+function buildBlastSchedule(s,chosen=s.danger){
+ const ordered=[],rings=new Map();
+ for(const id of chosen){
+   const tile=s.tiles[id];
+   if(!tile)throw Error('Shockwave blast has an unknown tile');
+   const ring=Math.max(Math.abs(tile.col-2),Math.abs(tile.row-2));
+   if(!rings.has(ring))rings.set(ring,[]);
+   rings.get(ring).push(id);
+ }
+ for(const ring of [...rings.keys()].sort((a,b)=>b-a)){
+   const group=[...rings.get(ring)];
+   for(let i=group.length-1;i>0;i--){
+     const j=Math.floor(random(s)*(i+1));
+     [group[i],group[j]]=[group[j],group[i]];
+   }
+   ordered.push(...group);
+ }
+ if(ordered.length===0)return [];
+ if(ordered.length===1)return [{id:ordered[0],at:0}];
+ const total=.64+random(s)*.15; // Last tile ignites before 0.8 seconds.
+ const gaps=Array.from({length:ordered.length-1},()=>.25+random(s)*.75);
+ const sum=gaps.reduce((a,b)=>a+b,0);
+ let time=0;
+ return ordered.map((id,index)=>{
+   const at=index===ordered.length-1?total:time;
+   if(index<gaps.length)time+=gaps[index]/sum*total;
+   return {id,at};
+ });
+}
+function igniteScheduledTiles(s,ps){
+ while(s.blastCursor<s.blastSchedule.length&&
+   s.blastSchedule[s.blastCursor].at<=s.blastElapsed+1e-9){
+   const event=s.blastSchedule[s.blastCursor++];
+   const tile=s.tiles[event.id];
+   if(tile?.state!=='warning'||tile.wave!==s.wave)
+     throw Error('SHOCKWAVE cannot explode a tile without a warning');
+   tile.state='exploding';
+   const c=tileCenter(s,tile);
+   s.effects.push({x:c.x,y:c.y,life:.55});
+   // Snapshot the feet/visible body at THIS tile's ignition time, not the
+   // beginning or end of the cascade. Different tiles are different events.
+   const hit=living(ps).filter(p=>calculateDangerContact(s,p,[event.id])>0);
+   if(hit.length)evaluateEliminations(s,ps,hit,event.id,event.at);
+ }
 }
 function triggerExplosion(s,ps){
  if(s.phase!=='WARNING'||!s.warningStarted)return;
@@ -245,19 +294,16 @@ function triggerExplosion(s,ps){
    if(!t||t.state!=='warning'||t.wave!==s.wave)
      throw Error('SHOCKWAVE must never explode an unwarned tile');
  }
- const chosen=new Set(s.danger);
- // Snapshot hits all alive players at one moment, before visual changes.
- const hit=living(ps).filter(p=>calculateDangerContact(s,p,chosen)>0);
- for(const id of chosen){
-   const tile=s.tiles[id];tile.state='exploding';
-   const c=tileCenter(s,tile);s.effects.push({x:c.x,y:c.y,life:.55});
- }
- if(hit.length)evaluateEliminations(s,ps,hit);
- s.phase='EXPLOSION';s.timer=s.wave>=10?.12:s.fastPhase?.16:.22;
+ s.blastSchedule=buildBlastSchedule(s);
+ s.blastCursor=0;s.blastElapsed=0;
+ // The last ignition occurs before .8 seconds; allow a brief afterglow.
+ s.blastDuration=(s.blastSchedule.at(-1)?.at||0)+.18;
+ s.phase='EXPLOSION';s.timer=s.blastDuration;
+ igniteScheduledTiles(s,ps);
 }
 function collapseTiles(s){
  // Old public name retained for compatibility: restore, NEVER destroy.
- for(const id of s.danger)if(s.tiles[id].state==='exploding')s.tiles[id].state='safe';
+ for(const id of s.danger)if(s.tiles[id].state==='exploding'||s.tiles[id].state==='warning')s.tiles[id].state='safe';
  s.remainingTiles=25;s.danger=[];s.warningStarted=false;
 }
 function step(dt,round,ps){
@@ -269,18 +315,25 @@ function step(dt,round,ps){
  for(const p of ps)if(p.shockFall>0)p.shockFall+=dt;
  for(const e of s.effects)e.life-=dt;
  s.effects=s.effects.filter(e=>e.life>0).slice(-32);
- if(['PREPARE','WARNING','NEXT_WAVE'].includes(s.phase))movePlayers(dt,s,ps);
+ if(['PREPARE','WARNING','NEXT_WAVE','EXPLOSION'].includes(s.phase))movePlayers(dt,s,ps);
  if(s.phase==='PREPARE'){
    s.timer-=dt;if(s.timer<=0)startWarning(s,ps);
  }else if(s.phase==='WARNING'){
    s.timer-=dt;round.remaining=Math.max(0,s.timer);
    if(s.timer<=0)triggerExplosion(s,ps);
  }else if(s.phase==='EXPLOSION'){
+   s.blastElapsed+=dt;
+   igniteScheduledTiles(s,ps);
    s.timer-=dt;
    if(s.timer<=0){
+     // No round may conclude before all selected danger tiles actually fire.
+     if(s.blastCursor!==s.blastSchedule.length)
+       throw Error('SHOCKWAVE explosion sequence ended early');
      collapseTiles(s);
-     if(s.pendingTiebreaker){
-       const ids=s.pendingTiebreaker;s.pendingTiebreaker=null;startTiebreaker(s,ps,ids);
+     if(s.pendingWinnerIds?.length){
+       s.winnerIds=[...s.pendingWinnerIds];s.pendingWinnerIds=null;
+       s.winnerId=s.winnerIds.length===1?s.winnerIds[0]:null;
+       s.finished=true;s.phase='CHECK';
      }else s.phase='CHECK';
    }
  }else if(s.phase==='CHECK'){
@@ -375,6 +428,6 @@ window.Shockwave=Object.freeze({setup,update,draw,hud,createGrid,spawnPlayers,
  calculateDangerContact,calculateFootSupport,resolvePlayerCollision,calculateDangerWeights,
   dangerCount,requiredEscapeSeconds,
  selectDangerTiles,validateSafeRoutes,warningSeconds,intervalSeconds,distanceBias,
- startWarning,startWave,triggerExplosion,collapseTiles,evaluateEliminations,
- startTiebreaker,checkWinner,checkSuddenDeath,constants:C});
+ startWarning,startWave,triggerExplosion,buildBlastSchedule,collapseTiles,evaluateEliminations,
+ checkWinner,checkSuddenDeath,constants:C});
 })();
