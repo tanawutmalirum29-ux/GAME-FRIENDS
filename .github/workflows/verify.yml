@@ -19,57 +19,8 @@ jobs:
         run: node scripts/build-board-v7.cjs
       - name: Audit BOARD PARTY island density, crossings and swords
         run: node tests/board-layout-audit.cjs
-      - name: JavaScript syntax
-        run: |
-          node --check app.js
-          node --check arena-scale.js
-          node --check tests/map-scale-regression.cjs
-          node --check tests/map-scale-browser.cjs
-          node --check arena-art.js
-          node --check player-avatar.js
-          node --check ghost-attack.js
-          node --check chickens.js
-          node --check fruit-memory.js
-          node --check shockwave.js
-          node --check color-switch-mayan.js
-          node --check color-switch.js
-          node --check knight-match.js
-          node --check boulder-bash.js
-          node --check snow-brawl.js
-          node --check farm-ice-art.js
-          node --check tests/farm-ice.cjs
-          node --check tests/farm-ice-browser.cjs
-          node --check party-arena-scenes.js
-          node --check game-cover-art.js
-          node --check tests/party-arenas.cjs
-          node --check tests/party-arenas-browser.cjs
-          node --check shopping-time.js
-          node --check pizza-time.js
-          node --check pizza-kitchen-art.js
-          node --check tests/pizza-kitchen.cjs
-          node --check tests/pizza-kitchen-browser.cjs
-          node --check tests/shopping-time.cjs
-          node --check tests/snow-brawl.cjs
-          node --check color-claim.js
-          node --check tests/color-claim.cjs
-          node --check witching-snake.js
-          node --check lawn-mower.js
-          node --check tests/lawn-mower.cjs
-          node --check tests/witching-snake.test.cjs
-          node --check tests/boulder-bash.cjs
-          node --check tests/knight-match.cjs
-          node --check tests/color-switch.test.js
-          node --check tests/avatar-topdown.cjs
-          node --check tests/shockwave.cjs
-          node --check tests/fruit-memory.cjs
-          node --check tests/chickens.cjs
-          node --check tests/lobby-start.cjs
-          node --check tests/lobby-stability-browser.cjs
-          node --check tests/ipad-statusbar.cjs
-          node --check tests/combat-motion.cjs
-          node --check auto-update.js
-          node --check scripts/build-board-v7.cjs
-          node --check scripts/build-static.cjs
+      - name: Automatically check syntax of all present and future JavaScript files
+        run: node scripts/check-javascript.cjs
       - name: Protect the complete parallel Chromium/WebKit browser QA matrix
         run: node tests/ci-browser-workflow.cjs
       - name: Global map scale and character proportions for all 1–12-player modes
@@ -151,14 +102,30 @@ jobs:
           console.log('Checked '+used.length+' ID references and static game assets');
           NODE
 
-  browser-qa:
-    name: Browser QA / ${{ matrix.suite }}
+  browser-plan:
+    name: Browser QA / plan
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate registry and calculate weighted browser shards
+        id: plan
+        run: |
+          node tests/ci-browser-workflow.cjs
+          node tests/ci-browser-scheduler.cjs
+          node scripts/ci-browser-scheduler.cjs --plan
+          node scripts/ci-browser-scheduler.cjs --matrix >> "$GITHUB_OUTPUT"
+
+  browser-qa:
+    name: Browser QA / ${{ matrix.shard }}
+    needs: [browser-plan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
-      matrix:
-        suite: [board-controller, farm-ghost, pizza-arenas, map-scale]
+      matrix: ${{ fromJSON(needs.browser-plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - name: Restore BOARD PARTY v7 source assets
@@ -175,50 +142,28 @@ jobs:
         run: |
           npm install --prefix /tmp/board-browser --no-audit --no-fund playwright@1.62.1
           /tmp/board-browser/node_modules/.bin/playwright install --with-deps chromium webkit
-      - name: BOARD PARTY, host and controller browser QA
-        if: matrix.suite == 'board-controller'
+      - name: Run complete dynamically assigned browser shard
         env:
           NODE_PATH: /tmp/board-browser/node_modules
-        run: |
-          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
-          node tests/board-browser.cjs
-          node tests/mobile-host-lobby-browser.cjs
-          node tests/lobby-stability-browser.cjs
-          BOARD_BROWSER=webkit node tests/mobile-host-lobby-browser.cjs
-          BOARD_BROWSER=webkit node tests/lobby-stability-browser.cjs
-          node tests/board-startup.cjs
-          BOARD_BROWSER=webkit node tests/board-startup.cjs
-      - name: Farm, ice and ghost browser QA
-        if: matrix.suite == 'farm-ghost'
-        env:
-          NODE_PATH: /tmp/board-browser/node_modules
-        run: |
-          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
-          node tests/farm-ice-browser.cjs
-          BOARD_BROWSER=webkit node tests/farm-ice-browser.cjs
-          node tests/ghost-courtyards-browser.cjs
-          BOARD_BROWSER=webkit node tests/ghost-courtyards-browser.cjs
-      - name: Pizza and party arena browser QA
-        if: matrix.suite == 'pizza-arenas'
-        env:
-          NODE_PATH: /tmp/board-browser/node_modules
-        run: |
-          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
-          node tests/pizza-kitchen-browser.cjs
-          BOARD_BROWSER=webkit node tests/pizza-kitchen-browser.cjs
-          node tests/party-arenas-browser.cjs
-          BOARD_BROWSER=webkit node tests/party-arenas-browser.cjs
-      - name: Map scale browser QA (15 games, 1–12 players)
-        if: matrix.suite == 'map-scale'
-        env:
-          NODE_PATH: /tmp/board-browser/node_modules
-        run: |
-          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
-          node tests/map-scale-browser.cjs
-          BOARD_BROWSER=webkit node tests/map-scale-browser.cjs
+        run: node scripts/ci-browser-scheduler.cjs --run "${{ matrix.shard }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: board-expedition-screenshots-${{ matrix.suite }}
+          name: browser-qa-${{ matrix.shard }}
           path: /tmp/game-friends-board
           if-no-files-found: ignore
+
+  browser-gate:
+    name: Browser QA / required gate
+    if: always()
+    needs: [browser-plan, browser-qa]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful planning AND every browser shard
+        env:
+          PLAN_RESULT: ${{ needs.browser-plan.result }}
+          SHARDS_RESULT: ${{ needs.browser-qa.result }}
+        run: |
+          test "$PLAN_RESULT" = success
+          test "$SHARDS_RESULT" = success
+          echo "All dynamically planned browser checks completed successfully"
