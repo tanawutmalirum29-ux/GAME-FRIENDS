@@ -3242,11 +3242,9 @@ if(round.mode==='snow_brawl'){
     root.append(box);
   });
 }
-// Timed engines that paint their own shared clock badge.
-// All remaining minigames use the same host badge: stopwatch for actual timers,
-// SVG person + numeral for player-count-only survival. Never draw two badges.
-// SHOCKWAVE shows a survivor count, never its wave-warning timer.
-const ENGINE_CLOCK_MODES=new Set(['shopping_time','knight_match','pizza_time']);
+// All minigame clocks and survivor counts are painted ONLY here, after engines
+// finish their scene: one badge, one position, no in-engine duplicates.
+// SHOCKWAVE intentionally never displays a numerical warning timer.
 function hostClockValue(r){
   if(!r||r.mode==='board'||r.mode==='shockwave')return null;
   if(r.phase==='countdown')return Number.isFinite(r.countdown)?Math.max(0,r.countdown):null;
@@ -3260,15 +3258,14 @@ function drawGame(t){
   if(!round)return;
   syncArenaResolution();
   gameEngine(round.mode).draw(g,t,round,players);
-  if(round.mode!=='board'&&!ENGINE_CLOCK_MODES.has(round.mode)){
-    const seconds=hostClockValue(round);
-    if(seconds!==null){
-      window.PartyArenaScenes?.clock?.(g,seconds);
-    }else if(round.mode!=='shockwave'||round.phase!=='countdown'){
-      // Count living players in clockless survival rounds using the shared badge.
-      const survivors=gameEngine(round.mode).hud?.(players,round)?.survivors;
-      if(Number.isFinite(survivors))window.PartyArenaScenes?.playerCount?.(g,survivors);
-    }
+  if(round.mode==='board')return; // BOARD PARTY has a separate HUD.
+  const seconds=hostClockValue(round);
+  if(seconds!==null){
+    window.PartyArenaScenes?.clock?.(g,seconds);
+  }else if(round.phase==='playing'||round.mode==='shockwave'){
+    // No countdown: use only the shared SVG person and survivor total.
+    const survivors=gameEngine(round.mode).hud?.(players,round)?.survivors;
+    if(Number.isFinite(survivors))window.PartyArenaScenes?.playerCount?.(g,survivors);
   }
 }
 function animate(ts){
