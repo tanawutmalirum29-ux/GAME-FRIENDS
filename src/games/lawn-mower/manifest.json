@@ -1,0 +1,26 @@
+{
+  "id": "lawn_mower",
+  "name": "LAWN MOWER",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {
+    "min": 1,
+    "max": 12
+  },
+  "modes": [
+    "normal",
+    "board"
+  ],
+  "controls": [
+    "joystick",
+    "A",
+    "B",
+    "C"
+  ],
+  "entry": "./game.js",
+  "global": "LawnMower",
+  "legacyScripts": [
+    "lawn-mower.js"
+  ]
+}
