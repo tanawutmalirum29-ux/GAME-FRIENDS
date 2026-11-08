@@ -203,10 +203,15 @@ for(const n of [1,6,7,12]){
  E.update(1/60,round,g.ps);
  assert.equal(human.x,p0.x,'pause also stops pre-start movement');
  round.paused=false;
- for(let i=0;i<180;i++)E.update(1/60,round,g.ps);
+ let botTravel=0,previousBot={...b0};
+ for(let i=0;i<180;i++){
+   E.update(1/60,round,g.ps);
+   botTravel+=Math.hypot(bot.x-previousBot.x,bot.y-previousBot.y);
+   previousBot={x:bot.x,y:bot.y};
+ }
  assert.ok(Math.hypot(human.x-p0.x,human.y-p0.y)>20,
    'a human can move freely while the three-second clock is running');
- assert.ok(Math.hypot(bot.x-b0.x,bot.y-b0.y)>20,
+ assert.ok(botTravel>45,
    'a bot naturally wanders before card reveal without reading hidden fruits');
  assert.equal(state.elapsed,0,'13-second memory timer has not started');
  assert.equal(state.revealCursor,0,'no reveal batch started before clock expires');
@@ -225,9 +230,13 @@ for(const n of [1,6,7,12]){
 {
  // Solo bot also walks during prestart, with no other players to follow.
  const g=game(1),bot=g.ps[0];bot.isBot=true;
- const old={x:bot.x,y:bot.y};
- for(let i=0;i<120;i++)E.update(1/60,g.round,g.ps);
- assert.ok(Math.hypot(bot.x-old.x,bot.y-old.y)>15);
+ let travel=0,previous={x:bot.x,y:bot.y};
+ for(let i=0;i<120;i++){
+   E.update(1/60,g.round,g.ps);
+   travel+=Math.hypot(bot.x-previous.x,bot.y-previous.y);
+   previous={x:bot.x,y:bot.y};
+ }
+ assert.ok(travel>20);
  assert.equal(g.state.revealedTileIds.size,0);
 }
 console.log('FRUIT MEMORY V2 PASS: arena, exact timers, full card coverage, bots, simultaneous ties and mirrored SVG screens');
