@@ -95,6 +95,55 @@ function remodelDesign(){
    }
   }
  }
+
+ // Renovate confusing crossing shortcuts as small, legible optional detours.
+ // Main island loops remain intact; every alternate still rejoins downstream.
+ const byId=new Map(D.newNodes.map(n=>[n.id,n]));
+ const setNext=(id,to)=>{const n=byId.get(id);if(!n)throw Error('Missing v8 fork '+id);n.nextNodes=[...to];};
+ const addNext=(id,to)=>{const n=byId.get(id);if(!n)throw Error('Missing v8 fork '+id);if(!n.nextNodes.includes(to))n.nextNodes.push(to);};
+ const removeNext=(id,to)=>{const n=byId.get(id);if(!n)throw Error('Missing v8 fork '+id);n.nextNodes=n.nextNodes.filter(x=>x!==to);};
+ // Workshop: the long upper detour now rejoins at w5, instead of slicing
+ // through the distinct centre-court route.
+ setNext('ws9_2',['w5']);
+ // Meadow: separate the scenic m2->m3 branch from the m0 fork.
+ removeNext('m0','ms20_0');addNext('m2','ms20_0');
+ // Harbor: replace its long counter-flow chord with a short roofside bypass.
+ removeNext('h6','hs29_0');addNext('h2','hs29_0');setNext('hs29_0',['h4']);
+ // Gingerbread: an upper reward diversion instead of a diagonal through town.
+ removeNext('g1','gs39_0');addNext('g4','gs39_0');
+ // Glacier: dangerous direct shortcut vs a longer outer scenic route.
+ setNext('ss51_0',['s2']);
+ setNext('ss49_0',['s4']);
+ setNext('ss50_1',['s4']);
+ const routes={
+  ws9_2:['w7','ws9_0','ws9_1','ws9_2','w5'],
+  ms20_0:['m2','ms20_0','m3'],
+  hs29_0:['h2','hs29_0','h4'],
+  gs39_0:['g4','gs39_0','g5'],
+  ss51_0:['s0','ss51_0','s2'],
+  ss49_0:['s1','ss49_0','s4'],
+  ss50_0:['s7','ss50_0','ss50_1','s4']
+ };
+ for(const road of D.roads||[]){
+  for(const [key,nodes] of Object.entries(routes))if(road.nodeIds.includes(key)){
+   // Only replace the full authored variant path, never an unrelated route.
+   road.nodeIds=[...nodes];break;
+  }
+ }
+ // Curated clearance near the two sword courts and side trails.
+ const lanePositions={
+  ws9_0:[3580,2450],ws9_1:[3340,2425],ws9_2:[3080,2445],
+  ms19_0:[2740,1120],ms20_0:[2490,1280],
+  hs29_0:[2940,4955],
+  gs39_0:[6240,5180],
+  ss51_0:[6700,2980],ss49_0:[6510,2710],
+  ss50_0:[6860,2380],ss50_1:[6500,2390],
+  xhl_1:[3210,5050],xhl_2:[3300,4920],
+  xhb_1:[3210,5335],xhb_2:[3350,5340]
+ };
+ for(const [id,xy] of Object.entries(lanePositions)){
+  const n=byId.get(id);if(n)n.position={x:xy[0],y:xy[1]};
+ }
  // Route the Gingerbread->Lake return bridge as a separate lower lane from
  // the inbound lake->Gingerbread road and the original n134->n135 crossing.
  const lowerY={xgb_1:5518,xgb_2:5395,xgb_3:5265,xgb_4:5145,
@@ -112,7 +161,20 @@ function remodelDesign(){
  // Avoid an uninterrupted run of Lucky Stars on the same short side branch.
  const normals=['ws1_0','ws2_0','gs40_2'];
  for(const id of normals){const n=find(id);if(n)n.type='movement';}
- for(const id of ['ws9_1','g2']){const n=find(id);if(n)n.type='lucky';}
+ for(const id of ['g2']){const n=find(id);if(n)n.type='lucky';}
+ const risky=find('ws9_1');if(risky)risky.type='danger';
+ // Keep the precompiled v7 art segments faithful to the new route graph.
+ const existingPaths=new Set([
+  ...D.oldNodes.flatMap(n=>n.nextNodes.map(to=>n.id+'>'+to)),
+  ...D.newNodes.flatMap(n=>n.nextNodes.map(to=>n.id+'>'+to)),
+  ...Object.entries(D.patchOldNextNodes).flatMap(([id,arr])=>arr.map(to=>id+'>'+to))
+ ]);
+ const previousPaths=new Set(D.allPathSegments.map(e=>e.from_+'>'+e.to));
+ D.allPathSegments=D.allPathSegments.filter(e=>existingPaths.has(e.from_+'>'+e.to));
+ for(const key of existingPaths)if(!previousPaths.has(key)){
+  const [from_,to]=key.split('>');
+  D.allPathSegments.push({from_,to,kind:'road',style:null,source:'v8'});
+ }
  for(const n of D.newNodes){
   n.position={x:Math.round(n.position.x),y:Math.round(n.position.y)};
   D.allNodePositions[n.id]={...n.position};
