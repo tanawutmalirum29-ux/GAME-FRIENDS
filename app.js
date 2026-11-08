@@ -44,7 +44,10 @@ function gameCover(mode){
  else{
   const uri=window.GamePlatform?.descriptor(mode)?.coverUrl;
   if(uri){const img=document.createElement('img');img.src=uri;img.alt='';cover.append(img);}
-  else{cover.classList.add('mode-cover-generic');cover.textContent='✦';}
+  else{
+    cover.classList.add('mode-cover-generic');
+    cover.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4 39 25 60 32 39 39 32 60 25 39 4 32 25 25Z" fill="#bce8ff" stroke="#5479ab" stroke-width="2"/></svg>';
+  }
  }
  cover.setAttribute('aria-hidden','true');
  return cover;
