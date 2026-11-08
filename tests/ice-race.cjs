@@ -140,6 +140,26 @@ test('bot controls share physics and never move by teleporting',()=>{
   assert.ok(s.tick>=90);
  }
 });
+test('all-bot races run entire 40/70 second limits with real checkpoint scores',()=>{
+ for(const [n,seed] of [[1,15042],[6,15042],[12,15042],[12,17654]]){
+  const {e,s,round,ps}=match(n,true,seed);
+  let falling=0,previous=ps.map(p=>p.ice.state);
+  for(let k=0;k<s.duration*60;k++){
+   e.step(1/60,round,ps);
+   for(let i=0;i<ps.length;i++){
+    const p=ps[i];
+    assert.ok(Number.isFinite(p.x+p.y+p.ice.vx+p.ice.vy));
+    if(p.ice.state==='falling'&&previous[i]!=='falling')falling++;
+    previous[i]=p.ice.state;
+   }
+  }
+  assert.equal(s.finished,true,'game did not finish '+n);
+  assert.equal(s.ranking.length,n);
+  assert.ok(ps.every(p=>p.score>=1),'bots must navigate real gates '+n+' '+JSON.stringify(ps.map(p=>p.score)));
+  assert.ok(s.winnerIds.length>=1);
+  assert.ok(falling<ps.length*s.duration/5,'bot fall loop '+n+' falls '+falling);
+ }
+});
 test('party selection, timed results, board ranking and cover are registered',()=>{
  const app=fs.readFileSync('app.js','utf8'),
   html=fs.readFileSync('index.html','utf8'),
