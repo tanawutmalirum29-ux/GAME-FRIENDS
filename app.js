@@ -52,7 +52,8 @@ function gameCover(mode){
 function renderModeChoices(){
  const host=$('phoneGameChoices');
  for(const [id,name] of Object.entries(MODES)){
-  if(!modesFor('normal').includes(id)||document.querySelector('[data-pick="'+id+'"]'))continue;
+  if(!modesFor('normal').includes(id)||
+     [...document.querySelectorAll('[data-pick]')].some(b=>b.dataset.pick===id))continue;
   const button=document.createElement('button');
   button.type='button';button.dataset.pick=id;button.className='phone-game-choice';
   button.setAttribute('aria-pressed','false');button.textContent=name;host.append(button);

@@ -23,7 +23,8 @@ const gameCatalog=fs.existsSync(path.join(root,'src','games'))?
 fs.writeFileSync(path.join(root,'version.json'),JSON.stringify({version:id})+'\n');
 fs.writeFileSync(path.join(root,'build-version.js'),
   'window.GAME_BUILD_VERSION='+JSON.stringify(id)+';\n'+
-  (gameCatalog?'window.GAME_CORE_VERSION='+JSON.stringify(gameCatalog.coreHash)+';\n':''));
+  (gameCatalog?'window.GAME_CORE_VERSION='+JSON.stringify(gameCatalog.coreHash)+';\n'+
+   'window.GAME_GAME_HASHES='+JSON.stringify(Object.fromEntries(gameCatalog.games.map(g=>[g.id,g.hash])))+';\n':''));
 const indexPath=path.join(root,'index.html');
 let html=fs.readFileSync(indexPath,'utf8');
 const assets=['style.css','arena-scale.js','arena-art.js','graveyard-art.js','combat-motion.js',

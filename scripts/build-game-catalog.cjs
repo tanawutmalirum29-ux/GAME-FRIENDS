@@ -53,7 +53,7 @@ function build({write=false}={}){
   if(!safeId.test(meta.id)||ids.has(meta.id))throw Error('Invalid/duplicate game ID: '+meta.id);
   ids.add(meta.id);
   if(typeof meta.name!=='string'||!meta.name.trim()||meta.name.length>80)throw Error('Invalid name: '+slug);
-  if(!/^\\d+\\.\\d+\\.\\d+$/.test(meta.version)||meta.apiVersion!==1||typeof meta.enabled!=='boolean')throw Error('Unsupported version/API: '+slug);
+  if(!/^\d+\.\d+\.\d+$/.test(meta.version)||meta.apiVersion!==1||typeof meta.enabled!=='boolean')throw Error('Unsupported version/API: '+slug);
   if(!meta.players||!Number.isInteger(meta.players.min)||!Number.isInteger(meta.players.max)||meta.players.min<1||meta.players.max>12||meta.players.min>meta.players.max)throw Error('Invalid players: '+slug);
   if(!Array.isArray(meta.modes)||!meta.modes.length||meta.modes.some(m=>!['normal','board'].includes(m))||new Set(meta.modes).size!==meta.modes.length)throw Error('Invalid modes: '+slug);
   if(!Array.isArray(meta.controls)||meta.controls.some(x=>!['joystick','A','B','C'].includes(x)))throw Error('Invalid controls: '+slug);
@@ -61,7 +61,7 @@ function build({write=false}={}){
   const entry=meta.entry.slice(2),local=list(folder);
   if(!local.includes(entry))throw Error('Missing game entry: '+slug);
   if(!Array.isArray(meta.legacyScripts)||meta.legacyScripts.some(x=>typeof x!=='string'||!x.endsWith('.js')))throw Error('Invalid legacyScripts: '+slug);
-  if(meta.global!==undefined&&(!/^[A-Za-z_$][\\w$]*$/.test(meta.global)||!meta.legacyScripts.length))throw Error('Invalid legacy global: '+slug);
+  if(meta.global!==undefined&&(!/^[A-Za-z_$][\w$]*$/.test(meta.global)||!meta.legacyScripts.length))throw Error('Invalid legacy global: '+slug);
   const legacy=meta.legacyScripts.map(x=>{const abs=source(x);return {name:x,abs};});
   const hash=crypto.createHash('sha256');
   for(const relative of local){hash.update('local:'+relative+'\0');hash.update(fs.readFileSync(path.join(folder,relative)));}

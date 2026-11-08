@@ -76,7 +76,8 @@ async function ensure(id){
  const load=(async()=>{
   if(d.legacyUrls.length){
    // Initial, already-loaded legacy engines need no duplicate download.
-   if(!(d.global&&window[d.global]&&!current.has(id))){
+   if(!(d.global&&window[d.global]&&!current.has(id)&&
+      (!window.GAME_GAME_HASHES||window.GAME_GAME_HASHES[id]===d.hash))){
     for(const url of d.legacyUrls)await addScript(url);
    }
   }
@@ -94,7 +95,8 @@ async function ensure(id){
 }
 function adoptLegacy(){
  for(const g of games()){
-  if(g.global&&window[g.global]&&!current.has(g.id)){
+  if(g.global&&window[g.global]&&!current.has(g.id)&&
+     (!window.GAME_GAME_HASHES||window.GAME_GAME_HASHES[g.id]===g.hash)){
    const plugin=window[g.global];
    if(plugin&&typeof plugin.setup==='function'&&typeof plugin.update==='function'&&typeof plugin.draw==='function')
     current.set(g.id,{hash:g.hash,engine:plugin});

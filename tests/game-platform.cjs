@@ -66,6 +66,7 @@ async function platform(){
  const moduleSource=fs.readFileSync(path.join(root,'src/platform/game-platform.js'),'utf8');
  const listeners={},window={
   GAME_CORE_VERSION:'a'.repeat(20),
+  GAME_GAME_HASHES:{ghost:'b'.repeat(24)},
   GhostAttack:{setup(){},update(){},draw(){},hud(){return {survivors:1}}},
   addEventListener(type,fn){(listeners[type]??=[]).push(fn);},
   dispatchEvent(){},
