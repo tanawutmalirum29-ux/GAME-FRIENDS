@@ -162,7 +162,26 @@ function claimScene(){
   path('M0-15V13M-13 0H13','none','#ffffff',2));
  return a;
 }
-const scenes=Object.freeze({ghost:ghostScene,chickens:chickenScene,fruit_memory:memoryScene,shockwave:shockScene,color_switch:colorScene,pizza_time:pizzaScene,knight_match:knightScene,boulder_bash:boulderScene,snow_brawl:snowScene,shopping_time:shoppingScene,witching_snake:witchScene,lawn_mower:lawnScene,color_claim:claimScene});
+function iceRaceScene(){
+ let a=rect(0,0,320,180,'#0a65e4');
+ for(let i=0;i<52;i++){
+  const x=(i*71+33)%320,y=(i*43+17)%180,r=3+(i*7%12);
+  a+=path('M'+(x-r)+' '+(y-2)+'l'+(r*.8)+' '+(-r*.6)+' '+r+' '+(r*.2)+' '+(r*.5)+' '+(r*.8)+' '+(-r*.9)+' '+(r*.5)+'Z',
+   i%3?'#7fd4ff30':'#c6f4ff33','#e3fcff22',.6);
+ }
+ for(const [x,y,r] of [[18,20,12],[296,36,15],[56,160,10],[274,157,18],[170,25,8]])
+  a+=group(x,y,0,1,path('M-10-5L2-12 13-4 11 8-7 10Z','#63c6f677'));
+ const road='M99 131L230 134Q275 133 256 105L218 85Q211 63 254 63L264 34Q255 20 220 31L201 53 155 56 142 25 97 24Q76 44 102 65L158 78 151 93 79 112 99 131';
+ a+=path(road,'none','#03517a',35)+path(road,'none','#8bd3ed',29)+path(road,'none','url(#ice)',24);
+ for(const [x,y,angle,color] of [[224,132,-18,palette[0]],[130,52,35,palette[1]],[257,58,-85,palette[2]]]){
+  a+=group(x,y,angle,1,ellipse(0,7,17,11,'#0a547188')+
+   rect(-17,-11,34,22,color,9,'#256687',3)+
+   rect(-19,-12,37,4,'#c9f7ff',2)+rect(-19,8,37,4,'#c9f7ff',2)+
+   circle(-3,0,8,'#f3cf9e')+circle(0,0,3,'#ffffff'));
+ }
+ return a;
+}
+const scenes=Object.freeze({ghost:ghostScene,chickens:chickenScene,fruit_memory:memoryScene,shockwave:shockScene,color_switch:colorScene,pizza_time:pizzaScene,knight_match:knightScene,boulder_bash:boulderScene,snow_brawl:snowScene,shopping_time:shoppingScene,witching_snake:witchScene,lawn_mower:lawnScene,color_claim:claimScene,ice_race:iceRaceScene});
 const templates=new Map();
 function svg(mode){
  if(!Object.hasOwn(scenes,mode))return '';

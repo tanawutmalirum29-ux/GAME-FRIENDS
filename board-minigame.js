@@ -13,7 +13,7 @@ function ranking(round,players){
     case 'snow_brawl':return p.snow?.alive?Infinity:(p.snow?.eliminatedTick??0);
      case 'witching_snake':return p.ws?.alive?Infinity:(p.ws?.eliminatedTick??0);
    case 'color_claim':return round.colorClaim?.counts[p.cc?.slot]||0;
-   case 'color_switch':case 'chickens':case 'pizza_time':case 'shopping_time':case 'lawn_mower':case 'knight_match':return Number(p.score)||0;
+   case 'color_switch':case 'chickens':case 'pizza_time':case 'shopping_time':case 'lawn_mower':case 'knight_match':case 'ice_race':return Number(p.score)||0;
    default:throw Error('Missing result adapter for '+round.mode);
   }
  };
