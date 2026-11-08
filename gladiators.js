@@ -3,7 +3,7 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2,STEP=1/60,EPS=1e-8;
-const C=Object.freeze({body:15,ball:21,spike:4,chain:114,speed:166,turnRate:3.2,maxBallSpeed:720,
+const C=Object.freeze({body:15,ball:21,spike:4,chain:114,chainLinks:12,speed:166,turnRate:3.2,maxBallSpeed:720,
  air:0.992,restitution:0.69,soloSeconds:60,suddenAt:90,suddenSeconds:65,minSafe:.49});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const finite=(v,f=0)=>Number.isFinite(v)?v:f;
@@ -23,6 +23,93 @@ function spawnPositions(s,n){
  }
  return positions;
 }
+
+/* A real articulated tether: eleven movable pin joints join the fixed
+   hand anchor to the heavy mace in TWELVE equal rigid links. Each pin has
+   its own previous position (Verlet momentum), and each link pivots freely.
+   This is deliberately separate from avatar facing and from drawing. */
+function makeLinks(s,start,ball,side){
+ const count=C.chainLinks,length=C.chain/count;
+ const dx=ball.x-start.x,dy=ball.y-start.y,dist=hyp(dx,dy);
+ const ux=dist>EPS?dx/dist:1,uy=dist>EPS?dy/dist:0;
+ // Construct an arc whose twelve chords are exactly one link long.
+ // Extra length becomes natural slack instead of a straight rigid rod.
+ let low=0,high=Math.PI/count;
+ const ratio=clamp(dist/C.chain,0,1);
+ for(let j=0;j<36;j++){
+  const h=(low+high)*.5;
+  const val=Math.sin(count*h)/(count*Math.sin(h));
+  if(val>ratio)low=h;else high=h;
+ }
+ const half=(low+high)*.5,angle=count*half;
+ const radius=half>1e-6?length/(2*Math.sin(half)):0;
+ const make=sign=>{
+  const pins=[];
+  for(let i=1;i<count;i++){
+   const t=i/count;
+   const along=half>1e-6?dist/2+radius*Math.sin((2*t-1)*angle):dist*t;
+   const bulge=half>1e-6?radius*(Math.cos((2*t-1)*angle)-Math.cos(angle))*sign:0;
+   const x=start.x+ux*along-uy*bulge,y=start.y+uy*along+ux*bulge;
+   pins.push({x,y,px:x,py:y,vx:0,vy:0});
+  }
+  return pins;
+ };
+ const score=nodes=>nodes.reduce((sum,p)=>{
+  const b=s.bounds,margin=3;
+  const ox=Math.max(b.x+margin-p.x,0,p.x-(b.right-margin));
+  const oy=Math.max(b.y+margin-p.y,0,p.y-(b.bottom-margin));
+  return sum+ox*ox+oy*oy;
+ },0);
+ const a=make(side<0?-1:1),b=make(side<0?1:-1);
+ return score(a)<=score(b)?a:b;
+}
+function solveChain(s,p,dt,passes=12){
+ const st=p.gladiator,ball=st.ball;if(ball.static)return;
+ const a=anchor(p);
+ st.anchorX=a.x;st.anchorY=a.y;
+ const joints=st.links;
+ if(!joints||joints.length!==C.chainLinks-1)return;
+ const points=[a,...joints,ball],segment=C.chain/C.chainLinks;
+ const beforeX=ball.x,beforeY=ball.y;
+ const minX=s.bounds.x+3,maxX=s.bounds.right-3;
+ const minY=s.bounds.y+3,maxY=s.bounds.bottom-3;
+ for(let pass=0;pass<passes;pass++){
+  // Forward/backward Gauss-Seidel reduces bias toward either endpoint.
+  for(let k=0;k<points.length-1;k++){
+   const i=pass%2===0?k:points.length-2-k;
+   const u=points[i],v=points[i+1];
+   let dx=v.x-u.x,dy=v.y-u.y,d=hyp(dx,dy);
+   if(d<EPS){dx=segment;dy=0;d=segment;}
+   const correction=(d-segment)/d;
+   const wu=i===0?0:1,wv=i===points.length-2?.26:1,ws=wu+wv;
+   const sx=dx*correction,sy=dy*correction;
+   if(wu){u.x+=sx*wu/ws;u.y+=sy*wu/ws;}
+   v.x-=sx*wv/ws;v.y-=sy*wv/ws;
+  }
+  // Each metal joint also collides with the arena, independent of the mace.
+  for(const pin of joints){
+   pin.x=clamp(pin.x,minX,maxX);
+   pin.y=clamp(pin.y,minY,maxY);
+  }
+  wall(s,ball);
+ }
+ // Chain tension changes the mace's momentum; not just its rendered position.
+ ball.vx+=clamp((ball.x-beforeX)/dt*.55,-260,260);
+ ball.vy+=clamp((ball.y-beforeY)/dt*.55,-260,260);
+ const speed=hyp(ball.vx,ball.vy);
+ if(speed>C.maxBallSpeed){ball.vx*=C.maxBallSpeed/speed;ball.vy*=C.maxBallSpeed/speed;}
+ for(const pin of joints){
+  pin.vx=(pin.x-pin.px)/dt;
+  pin.vy=(pin.y-pin.py)/dt;
+  if(!Number.isFinite(pin.x+pin.y+pin.vx+pin.vy)){
+   // Recover a corrupt joint without breaking the rest of the match.
+   const position=points[joints.indexOf(pin)];
+   pin.x=finite(position?.x,a.x);pin.y=finite(position?.y,a.y);
+   pin.px=pin.x;pin.py=pin.y;pin.vx=pin.vy=0;
+  }
+ }
+}
+
 function setup(round,ps){
  if(!ps.length||ps.length>12)throw Error('GLADIATORS supports 1–12 players');
  const b=boundsFor(ps.length);
@@ -40,6 +127,7 @@ function setup(round,ps){
   p.gladiator={alive:true,eliminatedTick:null,eliminatedAt:null,reason:null,
    heading:Math.atan2(d.y,d.x),knockVx:0,knockVy:0,
    ball:{x:bx,y:by,vx:0,vy:0,px:bx,py:by,static:false,owner:p.id},
+   links:makeLinks(s,point,{x:bx,y:by},i%2?-1:1),
    anchorX:point.x,anchorY:point.y,deadAnchorX:null,deadAnchorY:null,
    lastX:p.x,lastY:p.y,botClock:0,botTarget:null,botInput:{x:0,y:0},
    style:i%4,hand:random(s)<.5?-1:1,phase:random(s)*TAU};
@@ -137,41 +225,26 @@ function wall(s,ball){
  if(ball.y<b.y+r){ball.y=b.y+r;ball.vy=Math.abs(ball.vy)*C.restitution;}
  if(ball.y>b.bottom-r){ball.y=b.bottom-r;ball.vy=-Math.abs(ball.vy)*C.restitution;}
 }
-function constrain(ball,p,dt){
- const st=p.gladiator,a=anchor(p);
- st.anchorX=a.x;st.anchorY=a.y;
- let dx=ball.x-a.x,dy=ball.y-a.y,d=hyp(dx,dy);
- if(d<=C.chain)return;
- if(d<EPS){dx=1;dy=0;d=1;}
- const nx=dx/d,ny=dy/d;
- ball.x=a.x+nx*C.chain;ball.y=a.y+ny*C.chain;
- const ax=(a.x-st.prevAnchorX)/dt,ay=(a.y-st.prevAnchorY)/dt;
- const relative=(ball.vx-ax)*nx+(ball.vy-ay)*ny;
- if(relative>0){ball.vx-=relative*nx;ball.vy-=relative*ny;}
- // Small controllable recoil for taut chains, with no teleportation.
- const recoil=clamp(relative*.015,0,1.2);
- if(recoil){p.x=clamp(p.x+nx*recoil,st._minX,st._maxX);
-  p.y=clamp(p.y+ny*recoil,st._minY,st._maxY);}
-}
 function ballMotion(s,ps,dt){
- const b=s.bounds;
  for(const p of living(ps)){
-  const st=p.gladiator,ball=st.ball,prev=anchor(p);
+  const st=p.gladiator,ball=st.ball,old=anchor(p);
   st.prevAnchorX=st.anchorX;st.prevAnchorY=st.anchorY;
-  st._minX=b.x+C.body;st._maxX=b.right-C.body;
-  st._minY=b.y+C.body;st._maxY=b.bottom-C.body;
   ball.px=ball.x;ball.py=ball.y;
-  // No artificial spin; only the moving chain anchor injects momentum.
   ball.vx*=C.air;ball.vy*=C.air;
   let speed=hyp(ball.vx,ball.vy);
   if(speed>C.maxBallSpeed){ball.vx*=C.maxBallSpeed/speed;ball.vy*=C.maxBallSpeed/speed;}
   ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;
-  // Anchor may move into an initially slack ball; positional constraint
-  // conserves tangential velocity when the tether becomes taut.
-  constrain(ball,p,dt);
-  wall(s,ball);constrain(ball,p,dt);
+  wall(s,ball);
+  for(const pin of st.links){
+   const vx=clamp(pin.x-pin.px,-10,10);
+   const vy=clamp(pin.y-pin.py,-10,10);
+   pin.px=pin.x;pin.py=pin.y;
+   pin.x+=vx*.987;pin.y+=vy*.987;
+  }
+  solveChain(s,p,dt);
   if(!Number.isFinite(ball.x+ball.y+ball.vx+ball.vy)){
-   ball.x=prev.x+50;ball.y=prev.y;ball.vx=ball.vy=0;
+   ball.x=old.x+50;ball.y=old.y;ball.vx=ball.vy=0;
+   st.links=makeLinks(s,old,ball,st.hand);
   }
  }
 }
@@ -201,7 +274,7 @@ function collideBalls(s,ps){
  }
  for(const p of people){
   const q=p.gladiator.ball;
-  if(p.gladiator.alive){wall(s,q);constrain(q,p,STEP);}
+  if(p.gladiator.alive){wall(s,q);solveChain(s,p,STEP,7);}
  }
 }
 // Own mace is SOLID but never lethal. The impact pushes the wielder instead
@@ -245,7 +318,7 @@ function collideOwnMaces(s,ps,dt){
   }
   p.vx=(p.x-st.lastX)/dt;p.vy=(p.y-st.lastY)/dt;
   wall(s,ball);
-  constrain(ball,p,dt);
+  solveChain(s,p,dt,6);
  }
 }
 // Continuous relative segment test — one-frame tunneling cannot bypass a mace.
@@ -262,6 +335,7 @@ function eliminate(s,p,reason){
  st.ball.static=true;st.ball.vx=st.ball.vy=0;
  st.ball.px=st.ball.x;st.ball.py=st.ball.y;
  st.deadAnchorX=st.anchorX;st.deadAnchorY=st.anchorY;
+ for(const joint of st.links){joint.px=joint.x;joint.py=joint.y;joint.vx=joint.vy=0;}
  s.events.push({id:p.id,tick:s.tick,time:s.clock,reason});
  return true;
 }
@@ -330,16 +404,19 @@ function hud(ps,round){
 }
 function mace(g,p){
  const st=p.gladiator,ball=st.ball,ax=st.alive?st.anchorX:st.deadAnchorX,ay=st.alive?st.anchorY:st.deadAnchorY;
- const dx=ball.x-ax,dy=ball.y-ay,d=hyp(dx,dy)||1,nx=dx/d,ny=dy/d;
- const links=Math.max(1,Math.floor(d/9)); // +2 links from longer 114px tether
+ const joints=[{x:ax,y:ay},...st.links,ball];
  g.save();g.lineCap='round';g.lineJoin='round';
- g.strokeStyle='#11161d';g.lineWidth=6;
- g.beginPath();g.moveTo(ax+2,ay+3);g.lineTo(ball.x+2,ball.y+3);g.stroke();
- for(let i=1;i<=links;i++){
-  const t=(i-.5)/links,x=ax+dx*t,y=ay+dy*t;
-  g.save();g.translate(x,y);g.rotate(Math.atan2(dy,dx));
+ g.strokeStyle='#11161d';g.lineWidth=5.2;
+ g.beginPath();g.moveTo(joints[0].x+2,joints[0].y+3);
+ for(let i=1;i<joints.length;i++)g.lineTo(joints[i].x+2,joints[i].y+3);
+ g.stroke();
+ for(let i=1;i<joints.length;i++){
+  const from=joints[i-1],to=joints[i];
+  const x=(from.x+to.x)/2,y=(from.y+to.y)/2;
+  g.save();g.translate(x,y);g.rotate(Math.atan2(to.y-from.y,to.x-from.x));
   g.strokeStyle=i%2?'#77818a':'#c8bec0';g.lineWidth=2.4;
   g.beginPath();g.ellipse(0,0,4.5,2.7,0,0,TAU);g.stroke();g.restore();
+  g.fillStyle='#6c747e';g.beginPath();g.arc(to.x,to.y,1.5,0,TAU);g.fill();
  }
  const x=ball.x,y=ball.y,r=C.ball;
  g.fillStyle='#18202a44';g.beginPath();g.ellipse(x+5,y+8,r+7,r*.58,-.1,0,TAU);g.fill();
