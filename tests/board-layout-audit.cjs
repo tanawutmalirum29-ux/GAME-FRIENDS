@@ -46,3 +46,24 @@ console.log('V7_NEW_NODES '+JSON.stringify(D.newNodes.map(n=>[n.id,n.type,n.isla
 console.log('V7_BRIDGES '+JSON.stringify(D.bridges.map(x=>[x.id,x.style,x.nodeIds])));
 console.log('SWORD_TYPES '+JSON.stringify(Object.values(m.nodes).filter(n=>n.type==='sword').map(n=>[n.id,n.islandId,n.position.x,n.position.y,n.territoryId])));
 console.log('DESIGN_POS_SAMPLE '+JSON.stringify(Object.entries(D.allNodePositions).slice(0,5)));
+
+console.log('DESIGN_SHAPES '+JSON.stringify({
+ version:D.version,
+ map:D.map,
+ roadsLength:D.roads?.length,roads:D.roads?.slice(0,4),
+ overpasses:D.overpasses?.slice(0,3),
+ newNodes:D.newNodes?.slice(0,3),
+ oldNodes:D.oldNodes?.slice(0,3),
+ bridges:D.bridges?.slice(0,2),
+ islands:D.islands?.slice(0,2),
+ decorZones:D.decorZones?.slice(0,2),
+ oldNodePositions:Object.entries(D.oldNodePositions||{}).slice(0,3),
+ existingRoadSegments:D.existingRoadSegments?.slice(0,2),
+ allPathSegments:D.allPathSegments?.slice(0,3),
+ frozen:Object.isFrozen(D),
+ frozenPos:Object.isFrozen(D.allNodePositions)
+}));
+console.log('EXTENDED_POS '+JSON.stringify(
+ ['w0','w1','w2','w3','w4','w5','w6','w7','h0','h1','h2','h3','h4','h5','h6','g0','g1','g2','g3','g4','g5','g6','g7','s0','s1','s2','s3','s4','s5','s6','s7',
+ 'n134','n135','xgb_1','xgb_2','xgb_3','xgb_4','xgb_5','xgb_6','xgb_7','xgl_4','xgl_5','xgl_6']
+ .map(id=>[id,m.nodes[id]?.position,m.nodes[id]?.nextNodes,m.nodes[id]?.islandId])));
