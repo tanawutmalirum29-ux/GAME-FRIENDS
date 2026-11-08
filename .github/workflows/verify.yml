@@ -55,6 +55,7 @@ jobs:
           node --check tests/fruit-memory.cjs
           node --check tests/chickens.cjs
           node --check tests/lobby-start.cjs
+          node --check tests/lobby-stability-browser.cjs
           node --check tests/ipad-statusbar.cjs
           node --check tests/combat-motion.cjs
           node --check auto-update.js
@@ -158,7 +159,9 @@ jobs:
           BOARD_BROWSER=webkit node tests/farm-ice-browser.cjs
           node tests/board-browser.cjs
           node tests/mobile-host-lobby-browser.cjs
+          node tests/lobby-stability-browser.cjs
           BOARD_BROWSER=webkit node tests/mobile-host-lobby-browser.cjs
+          BOARD_BROWSER=webkit node tests/lobby-stability-browser.cjs
           node tests/board-startup.cjs
           BOARD_BROWSER=webkit node tests/board-startup.cjs
           node tests/ghost-courtyards-browser.cjs
