@@ -17,6 +17,9 @@ function getCommit(){
 }
 // Restore and integrity-check the committed v7 source bundle first.
 require('./build-board-v7.cjs');
+// Generate the app.js compatibility bundle from maintainable source modules.
+if(fs.existsSync(path.join(root,'src','app','modules.json')))
+ require('./build-app.cjs').assemble({write:true});
 const id=getCommit();
 const gameCatalog=fs.existsSync(path.join(root,'src','games'))?
   require('./build-game-catalog.cjs').build({write:true}):null;
