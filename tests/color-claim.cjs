@@ -176,6 +176,10 @@ check('a capture slices enemy land: retain the largest side, neutralize every sm
  const before=count(s,victim.cc.slot);
  assert.equal(before,38*18,'continuous territory starts fully owned');
  for(let y=8;y<26;y++)s.owner[y*cols+17]=attacker.cc.slot;
+ // The attacking stripe connects to the attacker's own land via a neutral
+ // outer corridor; detached fragments, not invalid attacker islands, vanish.
+ landPath(s,attacker.cc.slot,{x:650,y:385},
+  {x:s.field.x+(17+.5)*10,y:s.field.y+(8+.5)*10});
  // Simulated final ownership transfer from a thin enemy cut.
  z.e.recount(s,z.ps);
  assert.equal(count(s,victim.cc.slot),27*18,'only 27-column right side remains');
@@ -198,6 +202,10 @@ check('a cut makes three pieces: two smaller pieces vanish simultaneously',()=>{
   s.owner[y*cols+14]=attacker.cc.slot;
   s.owner[y*cols+30]=attacker.cc.slot;
  }
+ landPath(s,attacker.cc.slot,{x:750,y:370},
+  {x:s.field.x+(14+.5)*10,y:s.field.y+(7+.5)*10});
+ landPath(s,attacker.cc.slot,{x:750,y:370},
+  {x:s.field.x+(30+.5)*10,y:s.field.y+(7+.5)*10});
  z.e.recount(s,z.ps);
  assert.equal(count(s,victim.cc.slot),21*13,
   'largest component after cuts x=31..51 stays');
