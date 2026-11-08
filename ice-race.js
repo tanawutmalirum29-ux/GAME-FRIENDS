@@ -379,6 +379,7 @@ function disc(g,x,y,r,color){
  g.fillStyle=color;g.beginPath();g.arc(x,y,r,0,TAU);g.fill();
 }
 function iceWorld(g,s,t){
+ if(window.ReferenceArenaArt?.ice(g,s))return;
  const bg=g.createLinearGradient(0,0,s.w,s.h);
  bg.addColorStop(0,'#0961dd');bg.addColorStop(.52,'#087afa');bg.addColorStop(1,'#0647c7');
  g.fillStyle=bg;g.fillRect(0,0,s.w,s.h);
@@ -416,6 +417,7 @@ function iceWorld(g,s,t){
 }
 function sled(g,p,t){
  const w=p.ice;if(!w)return;
+ if(window.ReferenceArenaArt?.sled(g,p,t))return;
  if(w.state==='falling'&&w.fallLeft>.65)return;
  const fall=w.state==='falling',f=fall?Math.max(.25,1-w.fallLeft*1.3):1;
  g.save();g.translate(p.x,p.y+(fall?w.fallLeft*22:0));

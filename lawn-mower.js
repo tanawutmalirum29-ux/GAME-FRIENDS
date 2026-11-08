@@ -284,6 +284,7 @@ function path(g,points,fill,stroke,width){
  if(stroke){g.strokeStyle=stroke;g.lineWidth=width||1;g.stroke();}
 }
 function drawGrass(g,tuft,short=false){
+ if(window.ReferenceArenaArt?.grass(g,tuft,short))return;
  const x=tuft.x,y=tuft.y,size=tuft.size*(short?.28:1);
  const tones=short?['#78ad35','#91bc48','#6c9d35']:['#1f6928','#328b29','#3caa27','#58be31','#79d83c'];
  g.save();g.translate(x,y);g.rotate(tuft.rotation);
@@ -327,6 +328,9 @@ function grassTile(s,id){
  return off;
 }
 function drawLawn(g,s){
+ // Replace the first-frame canvas fallback once the SVG atlas has loaded.
+ const revision=window.ReferenceArenaArt?.grassRevision||0;
+ if(s.svgGrassRevision!==revision){s.tileCache.clear();s.svgGrassRevision=revision;}
  const f=s.field;
  rect(g,f.x-5,f.y-5,f.w+10,f.h+10,'#426923');
  rect(g,f.x,f.y,f.w,f.h,'#408e26');
@@ -393,6 +397,7 @@ function drawBackground(g,s){
 // Patio furniture and flowerbeds OVERLAP the lawn edge. Paint them *after*
 // the grass tiles, or the opaque tile/background rectangles conceal them.
 function drawGardenDecorations(g,s){
+ if(window.ReferenceArenaArt?.lawn(g,s,true))return;
  const w=s.w,h=s.h,f=s.field,houseW=f.x-39;
  // Patio umbrella: foreground above grass, not below the tile cache.
  const ux=houseW+13,uy=h-40;
@@ -417,6 +422,7 @@ function background(s){
 }
 function drawMower(g,p,time){
  const m=p.mower;if(!m)return;
+ if(window.ReferenceArenaArt?.mower(g,p,time))return;
  const color=p.color||'#4de0aa';
  g.save();g.translate(p.x,p.y);g.rotate(m.heading+Math.PI/2);
  g.fillStyle='rgba(18,44,16,.27)';g.beginPath();g.ellipse(3,5,22,29,.1,0,TAU);g.fill();
@@ -442,6 +448,7 @@ function drawMower(g,p,time){
  g.restore();
 }
 function drawSun(g,x,y,r){
+ if(window.ReferenceArenaArt?.sun(g,x,y,r))return;
  g.save();g.translate(x,y);g.fillStyle='#f8b62d';
  for(let i=0;i<10;i++){const a=i*TAU/10;g.save();g.rotate(a);rect(g,-1.8,-r-6,3.6,7,'#ffe16d');g.restore();}
  disk(g,0,0,r+2,'#d68c1a');disk(g,0,0,r,'#ffd94f');disk(g,-r*.21,-r*.21,r*.24,'#fff4a2');
@@ -450,7 +457,9 @@ function drawSun(g,x,y,r){
 function draw(ctx,time,round,ps){
  const s=round.lawnMower;if(!s)return;
  ctx.save();ctx.scale(960/s.w,540/s.h);
- const off=background(s);if(off)ctx.drawImage(off,0,0);else drawBackground(ctx,s);
+ if(!window.ReferenceArenaArt?.lawn(ctx,s)){
+  const off=background(s);if(off)ctx.drawImage(off,0,0);else drawBackground(ctx,s);
+ }
  drawLawn(ctx,s);
  drawGardenDecorations(ctx,s);
  for(const p of active(ps))drawMower(ctx,p,time);

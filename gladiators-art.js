@@ -162,6 +162,7 @@ function staticDraw(g,s){
  columns(g,s);
 }
 function draw(g,s,time){
+ if(window.ReferenceArenaArt?.gladiators(g,s))return;
  const b=s.bounds;
  if(!s.arenaCache&&typeof document!=='undefined'){
   const canvas=document.createElement('canvas');canvas.width=b.w;canvas.height=b.h;
