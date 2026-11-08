@@ -1,0 +1,48 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const ctx=vm.createContext({window:{},Math,Date,console});
+for(const path of ['board-map.js','board-v7-design.js','board-branch-naming.js','board-v7-adapter.js'])
+ vm.runInContext(fs.readFileSync(path,'utf8'),ctx,{filename:path});
+const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D,BoardBranchNaming:N}=ctx.window;
+const map=M.create(0),ids=Object.keys(map.nodes),edges=Object.values(map.nodes).flatMap(n=>n.nextNodes.map(to=>n.id+'>'+to));
+assert.equal(map.version,'winter-expedition-152-v9');
+assert.equal(ids.length,310);assert.equal(edges.length,331);
+assert.equal(M.GRAPH_MIGRATION.baselineNodes,359);
+assert.equal(M.GRAPH_MIGRATION.baselineEdges,398);
+assert.equal(M.GRAPH_MIGRATION.removedExplicit.length,36);
+assert.equal(M.GRAPH_MIGRATION.removedOrphans.length,13);
+assert.equal(M.GRAPH_MIGRATION.missingPrefixes.join(','),'wsxmout');
+assert.equal(D.newNodes.length,97);assert.equal(D.bridges.length,15);
+assert.equal(M.validate(map),true);
+assert.equal(map.nodes.m2.nextNodes.includes('m3'),false);
+assert.equal(map.nodes.m2.nextNodes.includes('ms20_0'),true);
+assert.equal(map.nodes.ms20_0.nextNodes.includes('m3'),true);
+for(const id of [...M.GRAPH_MIGRATION.removedExplicit,...M.GRAPH_MIGRATION.removedOrphans])
+ assert.equal(map.nodes[id],undefined,'deleted node absent from authoritative map '+id);
+const visible=new Set(D.allPathSegments.map(p=>p.from_+'>'+p.to));
+assert.deepEqual([...visible].sort(),[...new Set(edges)].sort(),
+ 'no ghost or missing vector path; full physical/visual parity');
+assert.equal(map.idMigration.length,310);assert.equal(Object.keys(map.nodePathIds).length,310);
+assert.equal(new Set(map.idMigration.map(row=>row.internalId)).size,310);
+const computed=N.fromGraph(map);
+assert.deepEqual(JSON.parse(JSON.stringify(computed.nodePathIds)),JSON.parse(JSON.stringify(map.nodePathIds)));
+for(const row of map.idMigration){
+ assert.equal(row.oldId,row.internalId,'stable internal keys');
+ assert.equal(row.displayId,map.nodes[row.internalId].pathId);
+ if(/^n\d+$/.test(row.oldId))assert.equal(row.displayId,row.oldId);
+ else assert.match(row.displayId,/^[a-z]+_\d+$/);
+}
+const collisions=Object.entries(map.idMigration.reduce((groups,row)=>{
+ (groups[row.displayId]??=[]).push(row.internalId);return groups;
+},{})).filter(([,list])=>list.length>1).map(([displayId])=>displayId).sort();
+assert.deepEqual(collisions,JSON.parse(JSON.stringify(map.pathIdCollisions.map(c=>c.displayId).sort())));
+for(const [territory,a,b] of [['v8-court-harbor-watch','h2','h3'],['v8-court-ginger-watch','g4','g5']]){
+ assert.deepEqual(JSON.parse(JSON.stringify(map.territories[territory].nodeIds)),[a,b]);
+ assert.equal(map.nodes[a].nextNodes.includes(b),true);
+}
+for(const seed of [1,42,997]){
+ const other=M.create(seed);
+ assert.equal(JSON.stringify(other.nodePathIds),JSON.stringify(map.nodePathIds));
+ assert.equal(JSON.stringify(other.idMigration),JSON.stringify(map.idMigration));
+}
+console.log('BOARD V9 structural and identity migration PASS (310 nodes, 331 edges, no ghost paths)');

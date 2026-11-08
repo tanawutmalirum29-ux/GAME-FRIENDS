@@ -52,7 +52,8 @@ jobs:
           node tests/board-v7.cjs
           node tests/board-v8-layout.cjs
           node tests/board-branch-naming.cjs
-          node scripts/audit-board-graph.cjs
+          node tests/board-graph-migration.cjs
+          node scripts/audit-board-graph.cjs --strict
           node tests/board-party.cjs
           node tests/board-art.cjs
           node tests/board-dice-renderer.cjs

@@ -3,7 +3,7 @@
  * courts, real directed connectivity and renderer/playable-coordinate parity. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const context=vm.createContext({window:{},Math,Date,console});
-for(const file of ['board-map.js','board-v7-design.js','board-v7-adapter.js'])
+for(const file of ['board-map.js','board-v7-design.js','board-branch-naming.js','board-v7-adapter.js'])
  vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
 const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D}=context.window;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -20,10 +20,10 @@ function inside(p,poly){
  return yes;
 }
 const m=M.create(73129),nodes=Object.values(m.nodes),edges=nodes.flatMap(n=>n.nextNodes.map(id=>[n,m.nodes[id]]));
-assert.equal(m.version,'winter-expedition-152-v8');
-assert.equal(nodes.length,359);assert.equal(m.islands.length,17);
+assert.equal(m.version,'winter-expedition-152-v9');
+assert.equal(nodes.length,310);assert.equal(m.islands.length,17);
 assert.equal(M.validate(m),true);
-assert.equal(edges.length,398,'preserve authored board choices while rerouting them');
+assert.equal(edges.length,331,'preserve authored board choices while rerouting them');
 const get=id=>m.nodes[id];
 const q=[m.startId],reached=new Set();
 while(q.length){const id=q.pop();if(reached.has(id))continue;reached.add(id);q.push(...get(id).nextNodes);}
@@ -97,5 +97,5 @@ for(const seed of [0,1,9,73129]){
  assert.equal(JSON.stringify(Object.fromEntries(Object.values(other.nodes).map(n=>[n.id,n.position]))),expected,
   'map coordinates deterministic and stable for all zooms/play sessions');
 }
-console.log('BOARD v8 PASS: '+nodes.length+' nodes; '+m.islands.length+' islands; '+edges.length+
+console.log('BOARD v9 PASS: '+nodes.length+' nodes; '+m.islands.length+' islands; '+edges.length+
  ' directed routes; '+territories.length+' two-tile sword courts; '+crossings.length+' marked crossings; full reachability and art parity');
