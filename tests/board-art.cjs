@@ -249,6 +249,8 @@ assert.match(artSource,/s\.move\?\.kind!=='walk'/,
  assert.equal(A.pan(s,30,0),true);
  assert.equal(s.camera.panned,true,'dragging detaches tracking again');
 }
+assert.match(artSource,/const samples=curved\?8:1/,
+ 'quadratic arrow shafts must follow real curved path samples');
 assert.match(artSource,/function curvedForkRoad\(/,'real curved road renderer exists');
 assert.match(artSource,/g\.quadraticCurveTo\(control\.x,control\.y,b\.x,b\.y\)/,
  'n3 forks are drawn with smooth rounded curves, not overlapping sharp road edges');

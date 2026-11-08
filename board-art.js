@@ -401,8 +401,8 @@ function v8RoadGuides(g,s){
   if(L<1)return;
   const inset=Math.min(BOARD_NODE_DIAMETER*.56,L*.39),
    free=Math.max(1,L-2*inset),direction=reversed?-1:1,
-   length=Math.max(5,Math.min(25,free*.62)),
-   width=Math.max(8,Math.min(25,free*.66));
+   length=Math.max(5,Math.min(44,free*.62)),
+   width=Math.max(8,Math.min(56,free*.88));
   const from=reversed?1-inset/L:inset/L;
   const to=reversed?inset/L:1-inset/L;
   const neck=Math.max(0,Math.min(1,to-direction*length/L));
@@ -411,8 +411,17 @@ function v8RoadGuides(g,s){
   const nx=-tangent.y/d,ny=tangent.x/d;
   g.save();g.globalAlpha=z<.18?.85:1;
   g.strokeStyle='#fff4db';g.fillStyle='#fff4db';
-  g.lineCap='round';g.lineJoin='round';g.lineWidth=Math.max(3,Math.min(10,free*.22));
-  g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
+  g.lineCap='round';g.lineJoin='round';g.lineWidth=Math.max(3,Math.min(26,free*.40));
+  // The shaft samples the actual curved path, not its straight endpoint chord.
+  // Its final section meets the tangent-oriented head without a visual gap.
+  const curved=e.from==='n3'&&(e.to==='n4'||e.to==='b3_1');
+  const samples=curved?8:1;
+  g.beginPath();g.moveTo(a.x,a.y);
+  for(let i=1;i<=samples;i++){
+   const point=arrowPoint(e,from+(neck-from)*i/samples);
+   g.lineTo(point.x,point.y);
+  }
+  g.stroke();
   g.beginPath();g.moveTo(tip.x,tip.y);
   g.lineTo(b.x+nx*width/2,b.y+ny*width/2);
   g.lineTo(b.x-nx*width/2,b.y-ny*width/2);

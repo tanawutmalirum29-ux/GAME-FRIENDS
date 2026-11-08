@@ -18,4 +18,4 @@ Read **[docs/CI_TESTING.md](docs/CI_TESTING.md)** before coding a new mode, chan
 
 ## BOARD PARTY graph migration policy
 
-Read [docs/BOARD_BRANCH_GRAPH_RULES.md](docs/BOARD_BRANCH_GRAPH_RULES.md) before changing BOARD PARTY nodes, edges, arrows or display IDs. Run the deletion preflight and reject proposed deletes that strand any node/bridge/sword territory. Keep internal IDs stable independently of display names, validate collisions, and do not merge partial graph migrations.
+Read [docs/BOARD_BRANCH_GRAPH_RULES.md](docs/BOARD_BRANCH_GRAPH_RULES.md) before changing BOARD PARTY nodes, edges, arrows or display IDs. Run the V9 strict graph audit after any deletion; any stranded node, bridge or sword pair must be resolved without inventing edges, and every explicit or necessary cleanup deletion must be documented. Keep internal IDs stable independently of display names, validate collisions, and do not merge partial graph migrations.
