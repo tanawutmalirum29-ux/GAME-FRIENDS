@@ -41,7 +41,7 @@ function setup(round,ps){
  const n=ps.length,s={clock:0,tick:0,accumulator:0,seed:(Number(round.boulderSeed)||(Date.now()^0x1a59c3e))>>>0||1,
   rocks:[],warnings:[],effects:[],queue:[],nextSpawn:1.2,nextId:1,finished:false,
   winnerIds:[],ranking:[],roster:ps,originalCount:n};
- round.boulderBash=s;round.remaining=null;
+ round.boulderBash=s;round.remaining=n===1?C.soloDuration:null;
  const positions=spawnPositions(n);
  ps.forEach((p,i)=>{
   p.active=true;p.score=0;
