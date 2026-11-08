@@ -22,6 +22,18 @@ const server=http.createServer((req,res)=>{
 });
 async function noScroll(page){assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight),true);}
 async function toolbarInside(page){
+   // Landscape iPad must never paint the HOST roster's 148px dark gradient
+   // over the Canvas-rendered BOARD scoreboard or the order-phase headings.
+   const backdrop=await page.evaluate(()=>{
+     const toolbar=document.querySelector('#game .game-toolbar');
+     const css=getComputedStyle(toolbar),rect=toolbar.getBoundingClientRect();
+     return{background:css.backgroundImage,height:rect.height,
+      body:document.body.className,toolbarExists:!!toolbar};
+   });
+   assert.ok(backdrop.body.includes('board-playing'),'board host mode must be active');
+   assert.equal(backdrop.background,'none','no black overlay over BOARD player HUD');
+   assert.ok(backdrop.height<1,'board host toolbar must not cover Canvas header');
+
    const toolBounds=await page.evaluate(()=>{const a=document.getElementById('arena').getBoundingClientRect(),b=document.getElementById('boardTools').getBoundingClientRect(),height=__boardTest.board.camera.viewHeight||540,scale=Math.min(a.width/960,a.height/height),x=a.left+(a.width-960*scale)/2,y=a.top+(a.height-height*scale)/2;return{left:(b.left-x)/scale,right:(b.right-x)/scale,top:(b.top-y)/scale,bottom:(b.bottom-y)/scale};});
    assert.ok(toolBounds.left>=580&&toolBounds.right<=915&&toolBounds.top>=94&&toolBounds.bottom<=185,'board tools float in map area below player cards');
 }

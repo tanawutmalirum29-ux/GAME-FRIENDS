@@ -220,13 +220,43 @@ function remodelDesign(){
  }
 }
 remodelDesign();
+/* BOARD PARTY WS retirement: remove the eight ws* checkpoints while
+ * preserving the four already-authored through-roads on Workshop Island.
+ * Each new graph edge is a contraction of the exact two-edge original
+ * (source -> ws -> destination), not a new playable shortcut.
+ * The ws8/ws9 *optional detour* is removed rather than replaced by a
+ * huge diagonal across the island. All four W sword-court nodes survive. */
+function contractWorkshopWaypoints(){
+ const required=[
+  ['w0','ws0_0','w1'],['w1','ws1_0','w2'],
+  ['w2','ws2_0','w3'],['w5','ws5_0','w6']
+ ];
+ const nodes=new Map(D.newNodes.map(n=>[n.id,n]));
+ for(const [from,mid,to] of required){
+  const a=nodes.get(from),m=nodes.get(mid),b=nodes.get(to);
+  if(!a||!m||!b||!a.nextNodes.includes(mid)||!m.nextNodes.includes(to)||
+     a.islandId!=='workshop'||m.islandId!=='workshop'||b.islandId!=='workshop')
+   throw Error('Cannot safely contract existing Workshop edge '+from+'>'+mid+'>'+to);
+  if(a.nextNodes.includes(to))throw Error('Duplicate Workshop contraction '+from+'>'+to);
+  a.nextNodes=a.nextNodes.map(id=>id===mid?to:id);
+  const p=D.allNodePositions[from],q=D.allNodePositions[to];
+  if(!p||!q)throw Error('Missing Workshop coordinates for '+from+'>'+to);
+  const line={from_:from,to,kind:'road',style:null,source:'ws-retirement',
+   x1:p.x,y1:p.y,x2:q.x,y2:q.y};
+  for(const collection of ['allPathSegments','existingRoadSegments']){
+   if(!D[collection].some(e=>e.from_===from&&e.to===to))D[collection].push({...line});
+  }
+  D.roads.push({id:'ws-retirement-'+from+'-'+to,nodeIds:[from,to],kind:'road'});
+ }
+}
+contractWorkshopWaypoints();
 /* BOARD v9 graph reduction. The requested removals sever the v8 harbor
  * and ginger loops; deleting their orphaned tails is required to preserve
  * start-to-finish reachability WITHOUT inventing replacement connections.
  * All IDs are inspected against the real authored graph before mutation. */
 function reduceGraphDesign(){
  const explicitIds=new Set(['ms19_0','ms18_0','ms18_1']);
- const removedPrefixes=['xbc','ss','hs','xhb','xgb','gs','wsxmout','xab'];
+ const removedPrefixes=['xbc','ss','hs','xhb','xgb','gs','wsxmout','xab','ws'];
  const source=Base.create(0);
  const all=new Map(Object.entries(source.nodes).map(([id,n])=>[id,[...n.nextNodes]]));
  for(const n of D.newNodes){
@@ -240,7 +270,7 @@ function reduceGraphDesign(){
  }
  const explicit=[...all.keys()].filter(id=>explicitIds.has(id)||
    removedPrefixes.some(prefix=>id.startsWith(prefix)));
- if(explicit.length!==36)throw Error('V9 requested-removal set changed: '+explicit.length);
+ if(explicit.length!==44)throw Error('V9 requested-removal set changed: '+explicit.length);
  if([...explicitIds].some(id=>!explicit.includes(id)))
   throw Error('Missing explicitly requested MS checkpoint');
  const deleteSet=new Set(explicit);
@@ -305,7 +335,7 @@ function reduceGraphDesign(){
   baselineNodes:all.size,baselineEdges:[...all.values()].reduce((s,v)=>s+v.length,0),
   nodes:keep.size,edges:edgeKeys.size,missingPrefixes:removedPrefixes.filter(p=>
    ![...all.keys()].some(id=>id.startsWith(p)))};
- if(report.nodes!==310||report.edges!==331||D.bridges.length!==15)
+ if(report.nodes!==302||report.edges!==321||D.bridges.length!==15)
   throw Error('V9 graph counts unexpected: '+JSON.stringify(report));
  D.graphMigration=Object.freeze(report);
  return report;
