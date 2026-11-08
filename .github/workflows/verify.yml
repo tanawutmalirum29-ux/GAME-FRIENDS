@@ -6,6 +6,10 @@ on:
     branches: [main]
 permissions:
   contents: read
+# Cancel superseded PR runs; never cancel a main deployment/verification run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -66,6 +70,8 @@ jobs:
           node --check auto-update.js
           node --check scripts/build-board-v7.cjs
           node --check scripts/build-static.cjs
+      - name: Protect the complete parallel Chromium/WebKit browser QA matrix
+        run: node tests/ci-browser-workflow.cjs
       - name: Global map scale and character proportions for all 1–12-player modes
         run: node tests/map-scale-regression.cjs
       - name: LAWN MOWER 1–12 player race and sun distribution checks
@@ -145,9 +151,14 @@ jobs:
           console.log('Checked '+used.length+' ID references and static game assets');
           NODE
 
-  board-browser:
+  browser-qa:
+    name: Browser QA / ${{ matrix.suite }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [board-controller, farm-ghost, pizza-arenas, map-scale]
     steps:
       - uses: actions/checkout@v4
       - name: Restore BOARD PARTY v7 source assets
@@ -155,17 +166,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Cache Playwright browser binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-v1.62.1
       - name: Install pinned browser test tools
         run: |
-          npm install --prefix /tmp/board-browser playwright@1.62.1
+          npm install --prefix /tmp/board-browser --no-audit --no-fund playwright@1.62.1
           /tmp/board-browser/node_modules/.bin/playwright install --with-deps chromium webkit
-      - name: Real host and controller input, camera, and rendering
+      - name: BOARD PARTY, host and controller browser QA
+        if: matrix.suite == 'board-controller'
         env:
           NODE_PATH: /tmp/board-browser/node_modules
         run: |
           export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
-          node tests/farm-ice-browser.cjs
-          BOARD_BROWSER=webkit node tests/farm-ice-browser.cjs
           node tests/board-browser.cjs
           node tests/mobile-host-lobby-browser.cjs
           node tests/lobby-stability-browser.cjs
@@ -173,16 +188,37 @@ jobs:
           BOARD_BROWSER=webkit node tests/lobby-stability-browser.cjs
           node tests/board-startup.cjs
           BOARD_BROWSER=webkit node tests/board-startup.cjs
+      - name: Farm, ice and ghost browser QA
+        if: matrix.suite == 'farm-ghost'
+        env:
+          NODE_PATH: /tmp/board-browser/node_modules
+        run: |
+          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
+          node tests/farm-ice-browser.cjs
+          BOARD_BROWSER=webkit node tests/farm-ice-browser.cjs
           node tests/ghost-courtyards-browser.cjs
           BOARD_BROWSER=webkit node tests/ghost-courtyards-browser.cjs
+      - name: Pizza and party arena browser QA
+        if: matrix.suite == 'pizza-arenas'
+        env:
+          NODE_PATH: /tmp/board-browser/node_modules
+        run: |
+          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
           node tests/pizza-kitchen-browser.cjs
           BOARD_BROWSER=webkit node tests/pizza-kitchen-browser.cjs
           node tests/party-arenas-browser.cjs
           BOARD_BROWSER=webkit node tests/party-arenas-browser.cjs
+      - name: Map scale browser QA (15 games, 1–12 players)
+        if: matrix.suite == 'map-scale'
+        env:
+          NODE_PATH: /tmp/board-browser/node_modules
+        run: |
+          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
           node tests/map-scale-browser.cjs
           BOARD_BROWSER=webkit node tests/map-scale-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: board-expedition-screenshots
+          name: board-expedition-screenshots-${{ matrix.suite }}
           path: /tmp/game-friends-board
+          if-no-files-found: ignore
