@@ -31,9 +31,39 @@ function list(dir,relative=''){
 }
 function coreHash(){
  const h=crypto.createHash('sha256');
- for(const relative of ['index.html','app.js','board-minigame.js','board-party.js','board-map.js',
-  'player-avatar.js','character-system.js','combat-motion.js','arena-scale.js','arena-art.js',
-  'party-arena-scenes.js','party-ui-art.js','game-cover-art.js']){
+ // A change to ANY shared runtime source requires a new core fingerprint.
+ // Game-specific engine assets are omitted: their own hashes permit hot patches.
+ for(const relative of [
+  "index.html",
+  "app.js",
+  "style.css",
+  "manifest.webmanifest",
+  "auto-update.js",
+  "sw.js",
+  "arena-scale.js",
+  "arena-art.js",
+  "combat-motion.js",
+  "player-avatar.js",
+  "character-system.js",
+  "party-arena-scenes.js",
+  "party-ui-art.js",
+  "game-cover-art.js",
+  "board-map.js",
+  "board-v7-design.js",
+  "board-v7-art.js",
+  "board-branch-naming.js",
+  "board-v7-adapter.js",
+  "board-dice.js",
+  "board-dice-renderer.js",
+  "board-items.js",
+  "board-bots.js",
+  "board-minigame.js",
+  "board-party.js",
+  "board-art.js",
+  "board-controller-camera.js",
+  "src/platform/game-platform.js",
+  "src/platform/board-runtime.js"
+]){
   if(fs.existsSync(path.join(root,relative))){
    h.update(relative+'\0');h.update(fs.readFileSync(path.join(root,relative)));
   }
