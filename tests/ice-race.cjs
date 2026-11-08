@@ -37,6 +37,39 @@ test('1–6 use 960×540 and 40 seconds; 7–12 use 1280×720 and 70 seconds',()
     'overlapping start positions');
  }
 });
+test('small and large arenas have genuinely different visible road widths',()=>{
+ const small=match(6),large=match(7);
+ assert.equal(small.s.sizeClass,'small');assert.equal(large.s.sizeClass,'large');
+ assert.equal(small.s.halfWidth,45);
+ assert.equal(large.s.halfWidth,82);
+ assert.equal(small.s.duration,40);assert.equal(large.s.duration,70);
+ const smallPixels=2*small.s.halfWidth*(960/small.s.w);
+ const largePixels=2*large.s.halfWidth*(960/large.s.w);
+ assert.ok(largePixels>smallPixels*1.3,
+  'large road must look clearly wider AFTER canvas scaling');
+ assert.ok(largePixels>2*53*(960/1280)*1.5,
+  '12-player map must be at least 50% wider on screen than old large road');
+ const smallShape=small.s.path.map(p=>[p.x/small.s.w,p.y/small.s.h]);
+ const largeShape=large.s.path.map(p=>[p.x/large.s.w,p.y/large.s.h]);
+ assert.notDeepEqual(smallShape,largeShape,'same track stretched is not two arena layouts');
+});
+test('large wide path never merges distant ice turns and fits screen bounds',()=>{
+ const {e,s,ps}=match(12,true);
+ const margin=s.halfWidth+3;
+ for(const seg of s.path)assert.ok(
+  seg.x>margin&&seg.y>margin&&seg.x<s.w-margin&&seg.y<s.h-margin,
+  'large road clips the map edge');
+ let minimum=Infinity;
+ for(let i=0;i<s.path.length;i++)for(let j=i+1;j<s.path.length;j++){
+  const delta=Math.min(j-i,s.path.length-(j-i));
+  if(delta<35)continue;
+  minimum=Math.min(minimum,Math.hypot(
+   s.path[i].x-s.path[j].x,s.path[i].y-s.path[j].y));
+ }
+ assert.ok(minimum>2*s.halfWidth+30,'distant track turns merge into unintended shortcut');
+ for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++)
+  assert.equal(e.hullContact(ps[i],ps[j]),null,'starting skis overlap in large grid');
+});
 test('closed sampled path, four ordered checkpoint gates and safe start',()=>{
  const {e,s,ps}=match(6);
  const a=e.sample(s,0),b=e.sample(s,s.trackLength);

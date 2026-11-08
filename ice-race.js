@@ -5,17 +5,24 @@
 'use strict';
 const TAU=Math.PI*2, STEP=1/60;
 const C=Object.freeze({
- small:Object.freeze({w:960,h:540,halfWidth:39,duration:40}),
- large:Object.freeze({w:1280,h:720,halfWidth:53,duration:70}),
+ small:Object.freeze({w:960,h:540,halfWidth:45,duration:40}),
+ large:Object.freeze({w:1280,h:720,halfWidth:82,duration:70}),
  radius:14,hullHalfLength:24,hullHalfWidth:18,maxSpeed:306,thrust:426,forwardDrag:.16,lateralGrip:.82,
  turnSpeed:3.65,turnAcceleration:12.5,restitution:.62,impactInertia:900,impactFriction:.08,
  fallDelay:.8,spawnProtection:.6
 });
-const ANCHORS=Object.freeze([
+// Two intentionally different racecourses, not the same centreline stretched.
+// Wider lanes must not bridge neighbouring turns on the crowded course.
+const SMALL_ANCHORS=Object.freeze([
  [.53,.79],[.71,.79],[.81,.70],[.76,.59],[.65,.55],[.65,.46],
  [.80,.42],[.83,.25],[.74,.17],[.65,.19],[.63,.31],[.51,.33],
  [.48,.17],[.35,.17],[.30,.27],[.32,.42],[.46,.44],[.46,.53],
  [.35,.62],[.24,.69],[.29,.79],[.43,.79]
+]);
+const LARGE_ANCHORS=Object.freeze([
+ [.51,.79],[.67,.79],[.81,.73],[.84,.59],[.79,.46],[.83,.35],
+ [.77,.23],[.64,.19],[.51,.23],[.42,.30],[.33,.20],[.21,.27],
+ [.16,.40],[.19,.55],[.15,.67],[.30,.79]
 ]);
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const angleDiff=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
@@ -26,7 +33,8 @@ function catmull(a,b,c,d,t){
  return .5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t);
 }
 function makeTrack(s){
- const src=ANCHORS.map(([x,y])=>({x:x*s.w,y:y*s.h})),n=src.length,points=[];
+ const anchors=s.sizeClass==='large'?LARGE_ANCHORS:SMALL_ANCHORS;
+ const src=anchors.map(([x,y])=>({x:x*s.w,y:y*s.h})),n=src.length,points=[];
  for(let i=0;i<n;i++)for(let k=0;k<10;k++){
   const t=k/10,at=j=>src[(j+n)%n];
   points.push({x:catmull(at(i-1).x,at(i).x,at(i+1).x,at(i+2).x,t),
@@ -77,8 +85,11 @@ function initialSpawns(s,ps){
  for(let i=0;i<ps.length;i++){
   const p=ps[i],lane=i%2?1:-1,row=Math.floor(i/2);
   const at=sample(s,s.trackLength-44-row*90);
-  p.x=at.x-at.ty*lane*(s.halfWidth*.50);
-  p.y=at.y+at.tx*lane*(s.halfWidth*.50);
+  // Keep an intentional but collision-free two-column starting grid in both
+  // arenas; more participants get more side-to-side passing room later.
+  const laneDistance=s.halfWidth*(s.sizeClass==='large'?.27:.50);
+  p.x=at.x-at.ty*lane*laneDistance;
+  p.y=at.y+at.tx*lane*laneDistance;
   p.vx=0;p.vy=0;p.score=0;p.active=true;
   p.dir={x:at.tx,y:at.ty};p.face=at.tx<0?-1:1;
   p.ice={state:'racing',vx:0,vy:0,heading:Math.atan2(at.ty,at.tx),
@@ -99,9 +110,9 @@ function setup(round,players){
  window.PartyCharacters?.activate?.(players);
  const ps=active(players);
  if(ps.length<1||ps.length>12)throw Error('ICE RACE supports 1–12 players');
- const cfg=ps.length<=6?C.small:C.large;
+ const sizeClass=ps.length<=6?'small':'large',cfg=C[sizeClass];
  const seed=(Number(round.iceSeed)||(Date.now()^0x47a2b91e))>>>0||1;
- const s={w:cfg.w,h:cfg.h,halfWidth:cfg.halfWidth,duration:cfg.duration,
+ const s={sizeClass,w:cfg.w,h:cfg.h,halfWidth:cfg.halfWidth,duration:cfg.duration,
   remaining:cfg.duration,elapsed:0,tick:0,accumulator:0,finished:false,
   seed,roster:ps,path:[],checkpoints:[],effects:[],ranking:[],winnerIds:[]};
  makeTrack(s);scenery(s);initialSpawns(s,ps);
@@ -437,6 +448,8 @@ function sled(g,p,t){
 }
 function draw(g,t,round,ps){
  const s=round.iceRace;if(!s)return;
+ // Canvas scale is identical for both arenas, so the large road must have a
+ // meaningfully larger physical half-width to also look wider on screen.
  g.save();g.scale(960/s.w,540/s.h);iceWorld(g,s,t);
  for(const p of active(ps))sled(g,p,t);
  for(const effect of s.effects){
