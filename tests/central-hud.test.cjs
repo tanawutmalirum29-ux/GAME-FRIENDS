@@ -76,3 +76,43 @@ test('no duplicate mode-level clocks or top-left information banners', () => {
  assert.match(read('fruit-memory.js'),/ctx\.drawImage\(img,x-22,y-22,44,44\)/,
   'essential fruit target must remain visible to humans');
 });
+
+test('central badge clears actual one-row and two-row player headers', () => {
+ const source=read('party-arena-scenes.js');
+ const view={width:1473,height:1024,bottom:112};
+ const screen={innerWidth:1473,innerHeight:1024};
+ const document={
+  getElementById(id){
+   if(id==='arena')return {getBoundingClientRect:()=>({
+    left:0,top:0,width:view.width,height:view.height
+   })};
+   if(id==='leaderboard')return {getBoundingClientRect:()=>({
+    left:0,top:40,width:view.width,height:view.bottom-40,bottom:view.bottom
+   })};
+   return null;
+  }
+ };
+ class MockImage{constructor(){this.complete=true;this.naturalWidth=24;}set src(v){this._src=v;}}
+ const scene=new Function('window','document','Image',source+';return window.PartyArenaScenes;')(screen,document,MockImage);
+ const offsets=[];
+ const g=new Proxy({},{
+  get(_target,k){if(k==='translate')return (_x,y)=>offsets.push(y);return ()=>{};},
+  set(){return true;}
+ });
+ for(const bounds of [
+  {width:1473,height:1024,bottom:112},
+  {width:900,height:510,bottom:148},
+  {width:780,height:438,bottom:148}
+ ]){
+  Object.assign(view,bounds);screen.innerWidth=bounds.width;screen.innerHeight=bounds.height;
+  offsets.length=0;
+  scene.clock(g,20);scene.playerCount(g,6);
+  assert.equal(offsets.length,2);
+  assert.equal(offsets[0],offsets[1],'both badges share exactly the same Y offset');
+  const scale=Math.min(view.width/960,view.height/540);
+  const contentTop=(view.height-540*scale)/2;
+  const badgeTop=contentTop+(offsets[0]+5)*scale;
+  assert.ok(badgeTop>=view.bottom+5,
+   'badge must clear '+view.width+'px viewport player roster');
+ }
+});
