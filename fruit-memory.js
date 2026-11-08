@@ -89,11 +89,15 @@ function buildRevealTimeline(groups,memorizeSeconds){
  return groups.map((ids,i)=>({ids,start:i*each,end:(i+1)*each,duration:each}));
 }
 function configureBoard(state){
- // Square play field, with room for two fully visible side screens.
- const side=400;
- state.board={x:(960-side)/2,y:104,w:side,h:side};
- state.tileW=side/state.cols;
- state.tileH=side/state.rows;
+ // One physical tile = 80 world units in either player-count tier.
+ // The small board becomes 320x320; the large board is 400x400.
+ // Both are centered and preserve the 13-unit player collision radius.
+ const tileSize=80;
+ const side=tileSize*state.cols;
+ state.board=window.PartyArenaScale?.centeredGrid?.(state.cols,state.rows,tileSize)
+   ||{x:(960-side)/2,y:(540-side)/2,w:side,h:side};
+ state.tileW=tileSize;
+ state.tileH=tileSize;
 }
  function tileAt(state,x,y){
  const b=state.board;
