@@ -8,7 +8,7 @@ function ranking(round,players){
   switch(round.mode){
    case 'ghost':return !p.ghost?Infinity:Math.floor((Number.isFinite(p.infectedAt)?p.infectedAt:p.survival||0)*10+1e-7);
    case 'fruit_memory':return p.id===round.fruitMemory.winnerId?Infinity:(p.fruitEliminatedRound||p.fruitRounds||0);
-   case 'shockwave':return p.id===round.shockwave.winnerId?Infinity:(p.shockEliminatedAt||0);
+   case 'shockwave':return (round.shockwave.winnerIds||[]).includes(p.id)||p.id===round.shockwave.winnerId?Infinity:(p.shockEliminatedAt||0);
     case 'boulder_bash':return p.bb?.alive?Infinity:(p.bb?.eliminatedTick??0);
     case 'snow_brawl':return p.snow?.alive?Infinity:(p.snow?.eliminatedTick??0);
      case 'witching_snake':return p.ws?.alive?Infinity:(p.ws?.eliminatedTick??0);
@@ -18,7 +18,7 @@ function ranking(round,players){
   }
  };
  const list=players.filter(p=>p.active).map(p=>({id:p.id,value:value(p)}));
- for(const p of list){p.rank=1+list.filter(q=>q.value>p.value).length;p.label=p.value===Infinity?'ผู้รอดชีวิต':round.mode==='ghost'?(p.value/10).toFixed(1)+' วินาที':round.mode==='shockwave'?'ตกรอบชุดที่ '+p.value:round.mode==='fruit_memory'?'รอดถึงรอบ '+p.value:round.mode==='boulder_bash'?'ตกรอบรอบฟิสิกส์ '+p.value:round.mode==='snow_brawl'?'ตกรอบรอบฟิสิกส์ '+p.value:round.mode==='witching_snake'?'ตกรอบ Tick '+p.value:p.value+(round.mode==='color_claim'?' ช่องพื้นที่':' คะแนน');}
+ for(const p of list){p.rank=1+list.filter(q=>q.value>p.value).length;p.label=p.value===Infinity?(round.mode==='shockwave'&&round.shockwave.winnerIds?.length>1?'ผู้ชนะร่วม':'ผู้รอดชีวิต'):round.mode==='ghost'?(p.value/10).toFixed(1)+' วินาที':round.mode==='shockwave'?'ตกรอบชุดที่ '+p.value:round.mode==='fruit_memory'?'รอดถึงรอบ '+p.value:round.mode==='boulder_bash'?'ตกรอบรอบฟิสิกส์ '+p.value:round.mode==='snow_brawl'?'ตกรอบรอบฟิสิกส์ '+p.value:round.mode==='witching_snake'?'ตกรอบ Tick '+p.value:p.value+(round.mode==='color_claim'?' ช่องพื้นที่':' คะแนน');}
  return list.sort((a,b)=>a.rank-b.rank||String(a.id).localeCompare(String(b.id)));
 }
 function rewards(ranking,count,rng=Math.random){
