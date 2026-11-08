@@ -108,7 +108,7 @@ function remodelDesign(){
  // Meadow: separate the scenic m2->m3 branch from the m0 fork.
  removeNext('m0','ms20_0');addNext('m2','ms20_0');
  // Harbor: replace its long counter-flow chord with a short roofside bypass.
- removeNext('h6','hs29_0');addNext('h2','hs29_0');setNext('hs29_0',['h4']);
+ removeNext('h6','hs29_0');addNext('h2','hs29_0');setNext('hs29_0',['h4']);setNext('hs30_0',['h2']);
  // Gingerbread: an upper reward diversion instead of a diagonal through town.
  removeNext('g1','gs39_0');addNext('g4','gs39_0');
  // Glacier: dangerous direct shortcut vs a longer outer scenic route.
@@ -119,6 +119,7 @@ function remodelDesign(){
   ws9_2:['w7','ws9_0','ws9_1','ws9_2','w5'],
   ms20_0:['m2','ms20_0','m3'],
   hs29_0:['h2','hs29_0','h4'],
+  hs30_0:['h0','hs30_0','h2'],
   gs39_0:['g4','gs39_0','g5'],
   ss51_0:['s0','ss51_0','s2'],
   ss49_0:['s1','ss49_0','s4'],
@@ -132,12 +133,13 @@ function remodelDesign(){
  }
  // Curated clearance near the two sword courts and side trails.
  const lanePositions={
-  ws9_0:[3580,2450],ws9_1:[3340,2425],ws9_2:[3080,2445],
-  ms19_0:[2740,1120],ms20_0:[2490,1280],
-  hs29_0:[2940,4955],
+  ws9_0:[3550,2620],ws9_1:[3340,2425],ws9_2:[3080,2445],
+  ms19_0:[2610,1000],ms20_0:[2490,1280],
+  hs29_0:[2940,4955],hs30_0:[2450,5050],
   gs39_0:[6240,5180],
-  ss51_0:[6700,2980],ss49_0:[6510,2710],
-  ss50_0:[6860,2380],ss50_1:[6500,2390],
+  ss51_0:[6510,2790],ss49_0:[6450,2700],
+  ss50_0:[6910,2345],ss50_1:[6250,2345],
+  xmw_8:[3185,2450],xgb_4:[5800,4970],
   xhl_1:[3210,5050],xhl_2:[3300,4920],
   xhb_1:[3210,5335],xhb_2:[3350,5340]
  };
