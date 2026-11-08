@@ -1,77 +1,76 @@
 'use strict';
-// Cheap guardrail for AI agents editing .github/workflows/verify.yml.
-// Each required browser check must run exactly once, including WebKit.
-// Execute with: node tests/ci-browser-workflow.cjs
+// Protect all previously required browser coverage while allowing new games
+// and the matrix shard count to grow without editing the workflow YAML.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const source=fs.readFileSync('.github/workflows/verify.yml','utf8');
-const docs=fs.readFileSync('AGENTS.md','utf8');
-assert.match(docs,/docs\/CI_TESTING\.md/, 'AGENTS.md must point future AI agents at the CI performance policy');
-assert.match(source,/^  browser-qa:\s*$/m, 'browser QA must be a dedicated parallel matrix job');
-assert.match(source,/^      fail-fast: false\s*$/m,
- 'failure in one shard must not hide diagnostics from the other browser shards');
-assert.match(source,/^        suite: \[board-controller, farm-ghost, pizza-arenas, map-scale\]\s*$/m,
- 'keep four independent browser shards; update this contract when redistributing tests');
-assert.match(source,/^  group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\s*$/m,
- 'superseded PR jobs must share a concurrency key without conflating distinct workflows');
-assert.match(source,/^  cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\s*$/m,
- 'only PR runs can cancel superseded runs; main branch results must not be cancelled');
-assert.match(source,/uses: actions\/cache@v4/,
- 'cache the pinned browser binaries across runs');
-assert.match(source,/key: playwright-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-v1\.62\.1/,
- 'cache key must include the exact pinned Playwright version');
-assert.match(source,/npm install --prefix \/tmp\/board-browser --no-audit --no-fund playwright@1\.62\.1/,
- 'installation and browser cache must target the same version');
-assert.match(source,/playwright install --with-deps chromium webkit/,
- 'keep the complete set of browsers and native dependencies');
-assert.doesNotMatch(source,/continue-on-error:\s*true/,
- 'CI must never treat a failed browser or game check as success');
-const required={
- 'board-controller':[
-  'node tests/board-browser.cjs',
-  'node tests/mobile-host-lobby-browser.cjs',
-  'node tests/lobby-stability-browser.cjs',
-  'BOARD_BROWSER=webkit node tests/mobile-host-lobby-browser.cjs',
-  'BOARD_BROWSER=webkit node tests/lobby-stability-browser.cjs',
-  'node tests/board-startup.cjs',
-  'BOARD_BROWSER=webkit node tests/board-startup.cjs'
- ],
- 'farm-ghost':[
-  'node tests/farm-ice-browser.cjs',
-  'BOARD_BROWSER=webkit node tests/farm-ice-browser.cjs',
-  'node tests/ghost-courtyards-browser.cjs',
-  'BOARD_BROWSER=webkit node tests/ghost-courtyards-browser.cjs'
- ],
- 'pizza-arenas':[
-  'node tests/pizza-kitchen-browser.cjs',
-  'BOARD_BROWSER=webkit node tests/pizza-kitchen-browser.cjs',
-  'node tests/party-arenas-browser.cjs',
-  'BOARD_BROWSER=webkit node tests/party-arenas-browser.cjs'
- ],
- 'map-scale':[
-  'node tests/map-scale-browser.cjs',
-  'BOARD_BROWSER=webkit node tests/map-scale-browser.cjs'
- ]
-};
-const suites=Object.keys(required);
-const lines=source.split(/\r?\n/).map(s=>s.trim());
-for(const suite of suites){
- const start=source.indexOf("if: matrix.suite == '"+suite+"'");
- assert.ok(start>=0,'missing browser QA suite '+suite);
- const until=source.indexOf("\n      - name:",start);
- const segment=source.slice(start,until<0?undefined:until);
- for(const command of required[suite])
-  assert.ok(segment.split('\n').some(l=>l.trim()===command),
-   suite+' must include browser check: '+command);
+const {readManifest,validateManifest,expandTasks,createPlan,matrix}=
+ require('../scripts/ci-browser-scheduler.cjs');
+const yaml=fs.readFileSync('.github/workflows/verify.yml','utf8');
+const agents=fs.readFileSync('AGENTS.md','utf8');
+const docs=fs.readFileSync('docs/CI_TESTING.md','utf8');
+const manifest=validateManifest(readManifest());
+const tasks=expandTasks(manifest);
+const ids=new Set(tasks.map(t=>t.id));
+const previousCritical=[
+ 'board-browser.cjs@chromium',
+ 'mobile-host-lobby-browser.cjs@chromium',
+ 'lobby-stability-browser.cjs@chromium',
+ 'mobile-host-lobby-browser.cjs@webkit',
+ 'lobby-stability-browser.cjs@webkit',
+ 'board-startup.cjs@chromium',
+ 'board-startup.cjs@webkit',
+ 'farm-ice-browser.cjs@chromium',
+ 'farm-ice-browser.cjs@webkit',
+ 'ghost-courtyards-browser.cjs@chromium',
+ 'ghost-courtyards-browser.cjs@webkit',
+ 'pizza-kitchen-browser.cjs@chromium',
+ 'pizza-kitchen-browser.cjs@webkit',
+ 'party-arenas-browser.cjs@chromium',
+ 'party-arenas-browser.cjs@webkit',
+ 'map-scale-browser.cjs@chromium',
+ 'map-scale-browser.cjs@webkit'
+].map(s=>'tests/'+s);
+for(const id of previousCritical)
+ assert.ok(ids.has(id),'A previously mandatory browser test has been removed: '+id);
+assert.ok(ids.has('tests/avatar-browser.cjs@chromium'),
+ 'Standalone avatar rasterization must be included in automatic discovery');
+const plan=createPlan(manifest),flat=plan.flatMap(b=>b.tasks);
+assert.equal(flat.length,tasks.length,'all browser checks scheduled');
+assert.equal(new Set(flat.map(t=>t.id)).size,tasks.length,
+ 'no browser check can be omitted or scheduled twice');
+assert.deepEqual(matrix(manifest).include.map(x=>x.shard),plan.map(x=>x.shard));
+assert.ok(plan.length>=manifest.minShards&&plan.length<=manifest.maxShards);
+assert.match(yaml,/pull_request:\s*\n\s*branches:\s*\[main\]/);
+assert.match(yaml,/^  browser-plan:\s*$/m);
+assert.match(yaml,/^      matrix: \$\{\{ fromJSON\(needs\.browser-plan\.outputs\.matrix\) \}\}\s*$/m);
+assert.match(yaml,/^    needs: \[browser-plan\]\s*$/m);
+assert.match(yaml,/^  browser-gate:\s*$/m);
+assert.match(yaml,/^    name: Browser QA \/ required gate\s*$/m,
+ 'stable required check is needed when shard counts change');
+assert.match(yaml,/^    if: always\(\)\s*$/m);
+assert.match(yaml,/^    needs: \[browser-plan, browser-qa\]\s*$/m);
+assert.match(yaml,/test "\$PLAN_RESULT" = success/);
+assert.match(yaml,/test "\$SHARDS_RESULT" = success/);
+assert.match(yaml,/^      fail-fast: false\s*$/m);
+assert.match(yaml,/node scripts\/ci-browser-scheduler\.cjs --matrix >> "\$GITHUB_OUTPUT"/);
+assert.match(yaml,/node scripts\/ci-browser-scheduler\.cjs --run "\$\{\{ matrix\.shard \}\}"/);
+assert.match(yaml,/node tests\/ci-browser-scheduler\.cjs/);
+assert.match(yaml,/node tests\/ci-browser-workflow\.cjs/);
+assert.match(yaml,/run: node scripts\/check-javascript\.cjs/);
+assert.match(yaml,/run: node tests\/map-scale-regression\.cjs/);
+assert.match(yaml,/uses: actions\/cache@v4/);
+assert.match(yaml,/key: playwright-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-v1\.62\.1/);
+assert.match(yaml,/npm install --prefix \/tmp\/board-browser --no-audit --no-fund playwright@1\.62\.1/);
+assert.match(yaml,/playwright install --with-deps chromium webkit/);
+assert.match(yaml,/NODE_PATH: \/tmp\/board-browser\/node_modules/);
+assert.match(yaml,/name: browser-qa-\$\{\{ matrix\.shard \}\}/);
+assert.match(yaml,/^  group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}\s*$/m);
+assert.match(yaml,/^  cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}\s*$/m);
+assert.doesNotMatch(yaml,/continue-on-error:\s*true/);
+for(const file of ['docs/CI_TESTING.md','ci/browser-tests.json','scripts/ci-browser-scheduler.cjs']){
+ assert.ok(agents.includes(file),'Future AI instructions must point at '+file);
 }
-const cmds=Object.values(required).flat();
-assert.equal(cmds.length,17);
-for(const command of cmds){
- assert.equal(lines.filter(s=>s===command).length,1,
-  'duplicate or omitted browser invocation: '+command);
-}
-assert.match(source,/name: board-expedition-screenshots-\$\{\{ matrix\.suite \}\}/,
- 'all shards need unique screenshot artifact names');
-assert.match(source,/run: node tests\/ci-browser-workflow\.cjs/,
- 'the workflow must execute this contract to protect itself');
-console.log('BROWSER CI MATRIX PASS: four independently executed shards; all 17 commands preserved; cache + PR cancellation + artifact isolation enabled.');
+assert.match(docs,/browser-gate/);
+assert.match(docs,/maxShards/);
+console.log('SCALABLE QA CONTRACT PASS: '+manifest.tests.length+' registered suites, '+
+ tasks.length+' browser checks, '+plan.length+' deterministic shards, all legacy tests retained, stable fail-closed gate.');

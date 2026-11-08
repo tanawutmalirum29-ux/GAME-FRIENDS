@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "targetSecondsPerShard": 160,
+  "minShards": 2,
+  "maxShards": 8,
+  "tests": [
+    {
+      "file": "tests/board-browser.cjs",
+      "browsers": {
+        "chromium": 37
+      },
+      "chromiumOnlyReason": "Existing board-browser harness targets Chromium and its controller input model"
+    },
+    {
+      "file": "tests/board-startup.cjs",
+      "browsers": {
+        "chromium": 21,
+        "webkit": 38
+      }
+    },
+    {
+      "file": "tests/mobile-host-lobby-browser.cjs",
+      "browsers": {
+        "chromium": 10,
+        "webkit": 16
+      }
+    },
+    {
+      "file": "tests/lobby-stability-browser.cjs",
+      "browsers": {
+        "chromium": 16,
+        "webkit": 43
+      }
+    },
+    {
+      "file": "tests/farm-ice-browser.cjs",
+      "browsers": {
+        "chromium": 22,
+        "webkit": 89
+      }
+    },
+    {
+      "file": "tests/ghost-courtyards-browser.cjs",
+      "browsers": {
+        "chromium": 19,
+        "webkit": 113
+      }
+    },
+    {
+      "file": "tests/pizza-kitchen-browser.cjs",
+      "browsers": {
+        "chromium": 17,
+        "webkit": 149
+      }
+    },
+    {
+      "file": "tests/party-arenas-browser.cjs",
+      "browsers": {
+        "chromium": 45,
+        "webkit": 111
+      }
+    },
+    {
+      "file": "tests/map-scale-browser.cjs",
+      "browsers": {
+        "chromium": 31,
+        "webkit": 51
+      }
+    },
+    {
+      "file": "tests/avatar-browser.cjs",
+      "browsers": {
+        "chromium": 8
+      },
+      "chromiumOnlyReason": "Legacy avatar SVG rasterization harness imports Chromium directly"
+    }
+  ]
+}

@@ -1,61 +1,67 @@
-# GAME-FRIENDS — Fast, complete CI for every AI developer
+# GAME-FRIENDS — Scalable, fail-closed CI for future minigames
 
-**Required reading:** this file and `AGENTS.md` apply to every code-writing AI, coding agent, and human contributor. Optimizing a workflow must not silently weaken merge gates.
+**Required reading for every coding AI:** [AGENTS.md](../AGENTS.md), this policy, [Map Scale Rules](MAP_SCALE_RULES.md). The objective is to keep test feedback fast as GAME-FRIENDS grows from 15 to 30+ minigames, **without letting tests disappear or failures be ignored**.
 
-## Why the old QA was slow
+## Verified baseline and design
 
-The previous `.github/workflows/verify.yml` used one `board-browser` job to run the full Chromium + WebKit suite **sequentially**. On the verified 2026-11-08 run [42492490388](https://github.com/tanawutmalirum29-ux/GAME-FRIENDS/actions/runs/42492490388), the overall workflow took 9 minutes 55 seconds, with roughly 8 minutes 57 seconds of browser QA. The Node `validate` job finished much earlier, but CI stayed waiting for the single long browser job.
+- Serial Browser QA before optimization: 9m55s, [run 42492490388](https://github.com/tanawutmalirum29-ux/GAME-FRIENDS/actions/runs/42492490388).
+- Fixed four-way QA: 4m36s, [run 42494415617](https://github.com/tanawutmalirum29-ux/GAME-FRIENDS/actions/runs/42494415617).
+- As test count increases, four fixed categories can become unbalanced. The replacement uses a **dynamic weighted matrix**, not a fixed number of categories or a guessed number of future games. Measure each change using actual Actions runtime; no fixed SLA is guaranteed.
 
-## Required architecture
+### Pipeline
 
-Keep `validate` and `browser-qa` independent so Node geometry, physics, bot and scoring tests run in parallel with actual browser rendering. The browser job is a GitHub Actions four-way **matrix** with `fail-fast: false`, keeping every original test:
+1. **validate** (in parallel with planning): run source-wide auto-discovered JavaScript syntax checks, all existing engine/physics/bot/score/BOARD PARTY Node regressions, and the CI self-tests. World-scale changes still require every supported player count 1–12.
+2. **browser-plan**: parse and validate [ci/browser-tests.json](../ci/browser-tests.json), check that every \`tests/*-browser.cjs\` file is explicitly registered, and output a deterministic GitHub Actions JSON matrix using \`scripts/ci-browser-scheduler.cjs --matrix\`. No external API, clock data, or nondeterministic allocation.
+3. **browser-qa / shard-NN**: every matrix runner checks out the same commit, installs pinned Playwright, runs its own assigned Chromium and WebKit tasks, and uploads individual screenshots and machine-readable runtimes. Different shards execute concurrently. Errors in any test fail its shard.
+4. **browser-gate**: one stable job named **Browser QA / required gate** runs with \`if: always()\`. It **fails** unless both browser planning and the **entire matrix** succeed. Branch protection can require this single stable check as shard count changes. Also require \`validate\` and every other repository workflow; the gate alone is not sufficient for merging.
 
-| Matrix shard | Checks (Chromium + WebKit where supported) |
-|---|---|
-| `board-controller` | BOARD PARTY host and controller, phone lobby, lobby stability, BOARD PARTY startup and camera |
-| `farm-ghost` | CHICKENS / SNOW BRAWL / BOULDER BASH host rendering, GHOST ATTACK routes and world rendering |
-| `pizza-arenas` | PIZZA TIME and SHOPPING TIME / KNIGHT MATCH / WITCHING SNAKE host rendering |
-| `map-scale` | 15 NORMAL PARTY minigames × 1–12 player counts on both Chromium and WebKit (plus mobile viewport checks) |
+The manifest currently includes all 17 original browser commands plus the previously standalone Chromium SVG-avatar QA. Keep those checks. The manifest describes each file with \`browsers: { chromium: estimatedSeconds, webkit: estimatedSeconds }\`; Chromium-only exceptions need a written \`chromiumOnlyReason\`.
 
-The `node tests/ci-browser-workflow.cjs` guard runs **in the normal validation job** and checks that all 17 required browser commands are still present exactly once. When adding a browser test, put it in one shard, update the guard, and ensure it runs on both Chromium and WebKit unless the test is intrinsically single-browser (the dedicated `tests/board-browser.cjs` test is Chromium-only). Do not erase existing checks to meet a runtime target.
+### Automatic growth without uncontrolled runner cost
 
-## Reusable browser setup
+The planner expands every file into one task per browser, sorts by estimated runtime, and assigns tasks to the least-loaded shard. It calculates:
 
-- Keep Node 22 and a **pinned** Playwright version (`1.62.1`) for repeatable browser behavior.
-- Use `actions/cache@v4` for `~/.cache/ms-playwright`, with OS, architecture and Playwright version in the key.
-- Keep `playwright install --with-deps chromium webkit`: a cached download alone does **not** guarantee OS libraries are installed.
-- Set `NODE_PATH=/tmp/board-browser/node_modules`; derive `CHROME_PATH` from the installed Playwright executable in each browser step.
-- Screenshot artifacts must include `${{ matrix.suite }}` in their names to avoid parallel artifact upload collisions.
-- If Playwright version changes, change the install command, cache key and CI matrix regression guard **in the same PR**.
+\`\`\`
+shards = min(maxShards, numberOfTasks,
+             max(minShards, ceil(totalEstimatedSeconds / targetSecondsPerShard)))
+\`\`\`
 
-## Cancelling superseded work without losing main checks
+The baseline registry config is \`minShards: 2\`, \`targetSecondsPerShard: 160\`, \`maxShards: 8\`. Increasing the test catalog automatically adds shards **up to the cap**; beyond the cap more checks are assigned to existing shards, never silently dropped. Adjust the cap/target in a reviewed PR if waiting time or runner cost justify it. A cap of 8 is a budget limit, not a promise that eight concurrent runners are available.
 
-The workflow uses:
+Runtime weights are estimates; after a PR, inspect the per-shard \`ci-metrics/*.json\` artifacts and update \`estimatedSeconds\` in the manifest when needed. **Do not** use timing estimates to remove or skip slow tests.
 
-```yaml
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-```
+### Workflow safety
 
-This cancels **old PR runs of the same workflow** when a new commit is pushed to that PR. **It never cancels main push verification.** A developer should push a coherent set of changes, not a stream of tiny commits that repeatedly restart the expensive browser jobs. Other workflows may add their own concurrency control, but must use a workflow-qualified key and protect `main` runs.
+- All PRs targeting \`main\` must run complete Node and browser QA. Do not use blanket path-based skips or \`continue-on-error\`.
+- The \`concurrency\` rule cancels superseded PR attempts, **not** \`main\` push verification.
+- Playwright remains pinned to \`1.62.1\`, cache key includes runner OS, architecture, and pinned version. Keep \`playwright install --with-deps chromium webkit\` to retain system dependencies.
+- Each runner uses its own filesystem and uploads a unique \`browser-qa-shard-NN\` artifact name, avoiding artifact collisions.
+- The runner invokes tests using Node without a shell-command string, limits each individual browser task to five minutes, continues collecting failure results, then exits nonzero if any task fails.
+- If \`browser-plan\` fails (missing test, bad JSON, invalid browser, empty task set), the **required gate fails**. Do not treat a skipped browser-qa job as a pass.
+- If \`main\` changes after opening the PR, integrate it, rerun on the new head, and merge only once the latest SHA is green.
 
-## How AI agents should work efficiently
+## Adding another game or a browser regression
 
-1. Read the latest `main`, `AGENTS.md`, `docs/MAP_SCALE_RULES.md` and this guide before editing physics, sprites or QA.
-2. Run fast local Node tests and syntax checks for the directly changed game before pushing. For world scale changes, always run `node tests/map-scale-regression.cjs`. For CI changes, run `node tests/ci-browser-workflow.cjs`.
-3. Commit related changes together and open **one PR**. Do not push speculative fixes into `main`.
-4. Inspect each matrix shard result, not just `validate` (a green Node suite does not certify the browser).
-5. If a shard fails, read its actual job log and fix the underlying regression. Do not add `continue-on-error`, skip the test, blanket-skip WebKit, or fake CI status.
-6. Wait for `validate` **and all four browser shards**, alongside other repository workflows, to finish green before merging.
-7. If the base branch changes, integrate the latest `main`, rerun the resulting PR head and merge only with successful, up-to-date checks.
+1. Implement the engine and its own Node-level simulation tests. Add the game to \`tests/map-scale-regression.cjs\` and \`tests/map-scale-browser.cjs\` where applicable.
+2. Add \`tests/<name>-browser.cjs\`. By default support both \`BOARD_BROWSER=chromium\` and \`BOARD_BROWSER=webkit\`. Use \`CHROME_PATH\` from the environment for Chromium. Do not launch external services in browser tests.
+3. Add **one registry entry** to \`ci/browser-tests.json\`, with explicit browsers and a conservative estimated runtime per browser. The CI guard fails automatically if a \`*-browser.cjs\` file exists without a registry entry. A deliberately Chromium-only test must justify its limitation in \`chromiumOnlyReason\`.
+4. Run locally (in a development environment with Node and browser dependencies):
+   \`\`\`sh
+   node tests/ci-browser-scheduler.cjs
+   node tests/ci-browser-workflow.cjs
+   node scripts/ci-browser-scheduler.cjs --plan
+   node scripts/check-javascript.cjs
+   node tests/map-scale-regression.cjs
+   \`\`\`
+5. Create a PR. Do not merge before **validate + every generated browser shard + Browser QA / required gate + other required workflows** pass on the final PR head.
 
-**Expected improvement:** parallel shards should reduce wall-clock waiting versus the old 9m55s serial browser job, but no particular runtime is guaranteed. Benchmark using real GitHub Actions elapsed time for the PR and update this file if the bottleneck changes. Job parallelism can increase total billed runner-minutes; the goal is faster feedback **without reducing coverage**.
+Source-wide syntax checks in \`scripts/check-javascript.cjs\` automatically include future \`.js\`, \`.cjs\` and \`.mjs\` files, even if an AI forgets to add the new file to a manually maintained list.
 
-## Permanent protections
+## AI merge and investigation rules
 
-- Keep CI on all PRs targeting `main`. Do not add blanket path filters that allow physics, art, game rules or shared JS changes to evade browser QA.
-- Do not delete `tests/map-scale-regression.cjs` or `tests/map-scale-browser.cjs`.
-- Keep 1–12-player coverage and the independent BOARD PARTY camera checks.
-- Preserve existing game-specific tests for collisions, scores, elimination and bot behavior.
-- When a new mode is added, extend both `tests/map-scale-regression.cjs` and `tests/map-scale-browser.cjs`, add its own engine regression tests, and document any new browser command in the matrix guard.
+- Check \`AGENTS.md\` and this file **before changing** QA/CI. Preserve \`tests/ci-browser-workflow.cjs\` and \`tests/ci-browser-scheduler.cjs\` guards.
+- Use the actual failing shard and test ID from Actions logs, not an assumption based on the suite name. Runtime artifacts tell you which tests are becoming the bottleneck.
+- Avoid frequent speculative pushes while browser tests are running; superseded PR jobs will be cancelled and restarted.
+- Never bypass CI with a false status, \`continue-on-error\`, or deletion of a slow game test.
+- If GitHub branch protection lists former individual \`Browser QA / board-controller\` etc., update the protection rules to require the stable \`Browser QA / required gate\` (and \`validate\`) before relying on the new dynamic matrix. Changing files does not automatically change repository branch-protection settings.
+- Results from Chromium/WebKit are browser simulations, not physical-device certification. Report device-only checks separately.
