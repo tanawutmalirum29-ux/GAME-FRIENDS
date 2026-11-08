@@ -56,7 +56,8 @@ function renderModeChoices(){
      [...document.querySelectorAll('[data-pick]')].some(b=>b.dataset.pick===id))continue;
   const button=document.createElement('button');
   button.type='button';button.dataset.pick=id;button.className='phone-game-choice';
-  button.setAttribute('aria-pressed','false');button.textContent=name;host.append(button);
+  button.setAttribute('aria-pressed','false');button.textContent=name;
+  button.addEventListener('click',onPhoneGamePick);host.append(button);
  }
  for(const button of document.querySelectorAll('[data-pick]')){
   const mode=button.dataset.pick;
@@ -3880,14 +3881,15 @@ $('switchRoomBtn').addEventListener('click',()=>{
 renderModeChoices();
 window.addEventListener('gameplatform:catalog',syncGameCatalog);
 syncGameCatalog();
-$('phoneGameChoices').addEventListener('click',event=>{
-  const button=event.target.closest?.('[data-pick]');
+function onPhoneGamePick(event){
+  const button=event.currentTarget||event.target?.closest?.('[data-pick]');
   if(!button)return;
   const mode=button.dataset.pick;
   if(!phoneSelectionOpen||!controllerReady||!Object.hasOwn(MODES,mode))return;
   updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
-});
+}
+document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener('click',onPhoneGamePick));
 // These buttons control the HOST BOARD camera, not the tiny phone preview.
 for(const [id,direction] of [['controllerBoardZoomInBtn',1],['controllerBoardZoomOutBtn',-1]]){
  $(id).addEventListener('click',()=>{
