@@ -11,7 +11,9 @@ function assemble({write=false}={}){
  assert.ok(Array.isArray(manifest.parts)&&manifest.parts.length>=4);
  const paths=new Set(),contents=[];
  for(const item of manifest.parts){
-  assert.ok(/^src\\/app\\/[a-z0-9_/-]+\\.js$/.test(item),'invalid source chunk '+item);
+  assert.ok(typeof item==='string'&&item.startsWith('src/app/')&&item.endsWith('.js')&&
+   item.split('/').every(segment=>/^[a-z0-9_.-]+$/.test(segment))&&
+   !item.includes('..'),'invalid source chunk '+item);
   assert.ok(!paths.has(item),'duplicate source chunk: '+item);paths.add(item);
   const filename=path.resolve(root,item);
   assert.ok(filename.startsWith(path.join(root,'src','app')+path.sep),'invalid source boundary');
