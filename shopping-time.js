@@ -194,7 +194,7 @@ function collide(s,players,dt){
  // 60 Hz host-authoritative simulation: stable for 1–12 mixed bot/human players.
  // Exclude a cart's own owner; the two are attached at cartDistance.
  for(let pass=0;pass<4;pass++){
-  const before=players.map(p=>({x:p.x,y:p.y}));
+
   window.PartyCharacters.resolve(players,{radius:s.metrics.playerRadius,
     bounds:s.arena,
     iterations:1,maxShift:7*s.unit,pressure:true,speedReference:s.metrics.speed});
