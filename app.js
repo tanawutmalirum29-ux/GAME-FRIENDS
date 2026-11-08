@@ -3262,9 +3262,15 @@ function drawGame(t){
   if(!round)return;
   syncArenaResolution();
   gameEngine(round.mode).draw(g,t,round,players);
-  if(!ENGINE_CLOCK_MODES.has(round.mode)){
+  if(round.mode!=='board'&&!ENGINE_CLOCK_MODES.has(round.mode)){
     const seconds=hostClockValue(round);
-    if(seconds!==null)window.PartyArenaScenes?.clock?.(g,seconds);
+    if(seconds!==null){
+      window.PartyArenaScenes?.clock?.(g,seconds);
+    }else if(round.mode!=='shockwave'||round.phase!=='countdown'){
+      // Count living players in clockless survival rounds using the shared badge.
+      const survivors=gameEngine(round.mode).hud?.(players,round)?.survivors;
+      if(Number.isFinite(survivors))window.PartyArenaScenes?.playerCount?.(g,survivors);
+    }
   }
 }
 function animate(ts){

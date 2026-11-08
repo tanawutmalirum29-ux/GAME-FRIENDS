@@ -142,6 +142,19 @@ function clock(g,value,accent='#e8d2a1'){
  line(g,463,13,463,17.5,'#fff7dc',1.4);line(g,463,17.5,467,20,'#fff7dc',1.4);
  g.font='800 17px system-ui';g.textAlign='center';g.fillStyle='#fff8e9';g.fillText(String(Math.ceil(value)),490,23);g.restore();
 }
+/* Shared headcount badge for survival modes without a countdown clock. */
+function playerCount(g,value){
+ g.save();
+ g.lineWidth=1.5;box(g,450,5,60,25,5,'#25323ce8','#e8d2a1');
+ g.strokeStyle='#fff7dc';g.fillStyle='#fff7dc';g.lineWidth=1.2;
+ // Person pictogram, drawn as vector paths so it stays sharp at any resolution.
+ g.beginPath();g.arc(463,12.8,3.4,0,TAU);g.fill();
+ g.beginPath();g.moveTo(456,23);g.lineTo(456,21);g.quadraticCurveTo(456,16,463,16);
+ g.quadraticCurveTo(470,16,470,21);g.lineTo(470,23);g.closePath();g.fill();
+ g.font='800 17px system-ui';g.textAlign='center';
+ g.fillText(String(Math.max(0,Math.floor(Number(value)||0))),490,23);
+ g.restore();
+}
 // Scene painters below use 960x540 design coordinates, with world geometry
 // explicitly normalized. Static and interactive boundaries are the same data.
 function paintShopping(g,s){
@@ -344,6 +357,6 @@ function witchRider(g,s,p,time){
  else oval(g,p.x,p.y,12,12,p.color);
  g.restore();
 }
-window.PartyArenaScenes=Object.freeze({preload,shopping,shoppingCart,knight,knightHorse,witch,witchRider,clock,product,productSVG,productIds,assetSVG,
+window.PartyArenaScenes=Object.freeze({preload,shopping,shoppingCart,knight,knightHorse,witch,witchRider,clock,playerCount,product,productSVG,productIds,assetSVG,
  treeSVG,tentSVG,roofSVG,horseSVG,broomSVG,cache,grass,sprite,oval,box,line,noise});
 })();
