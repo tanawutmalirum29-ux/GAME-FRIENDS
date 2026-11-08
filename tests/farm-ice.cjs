@@ -60,7 +60,8 @@ for(let n=1;n<=12;n++){
  const radius=snow.radius;
  for(const ratio of [1,.7,.2,0]){snow.radius=radius*ratio;assert.equal(Sn.viewScale(snow),scale,'sudden death never zooms in');}
  const b=make(Bo,n),bounds=b.round.boulderBash.bounds;
- assert.deepEqual(JSON.parse(JSON.stringify(bounds)),{x:218,y:58,w:677,h:428});
+ assert.deepEqual(JSON.parse(JSON.stringify(bounds)),{x:20,y:58,w:920,h:428},
+   'Boulder Bash physical area now spans almost the entire horizontal view');
  for(const p of b.ps){
   assert.ok(p.x-Bo.config.radius>bounds.x&&p.x+Bo.config.radius<bounds.x+bounds.w);
   assert.ok(p.y-Bo.config.radius>bounds.y&&p.y+Bo.config.radius<bounds.y+bounds.h);
