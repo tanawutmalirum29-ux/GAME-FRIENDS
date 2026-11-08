@@ -29,9 +29,12 @@ for(let n=1;n<=12;n++){
  const g=game(n),s=g.state,small=n<=6,size=small?4:5;
  assert.equal(s.cols,size);assert.equal(s.rows,size);
  assert.equal(s.tiles.length,size*size);
- assert.equal(s.tileW,400/size);assert.equal(s.tileH,s.tileW);
+ assert.equal(s.tileW,80);assert.equal(s.tileH,80);
+ const side=size*80;
  assert.deepEqual({x:s.board.x,y:s.board.y,w:s.board.w,h:s.board.h},
-  {x:280,y:104,w:400,h:400});
+  {x:(960-side)/2,y:(540-side)/2,w:side,h:side});
+ assert.equal(s.tileW/(E.constants.radius*2),80/26,
+  'character-to-tile ratio must not change between player tiers');
  assert.equal(new Set(g.ps.map(p=>p.x+':'+p.y)).size,n,'unique player spawns');
  const histogram={};
  for(const tile of s.tiles)histogram[tile.fruitType]=(histogram[tile.fruitType]||0)+1;
