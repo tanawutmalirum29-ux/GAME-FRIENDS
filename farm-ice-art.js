@@ -20,10 +20,17 @@ function viewport(g){
  const y=Math.max(0,Math.min(450,bottom+6)),scale=(540-y)/540;
  return {x:(960-960*scale)/2,y,scale};
 }
-function beginScene(g,background){
+function beginScene(g,background,options){
  g.clearRect(0,0,960,540);g.fillStyle=background;g.fillRect(0,0,960,540);
  const v=viewport(g);
- if(v.scale!==1){g.translate(v.x,v.y);g.scale(v.scale,v.scale);}
+ if(v.scale!==1){
+  // Boulder Bash is a left-to-right endless slope. Keep the top safe
+  // area for the host HUD, but stretch ONLY its horizontal world to the
+  // canvas edges, instead of creating blank bars on both sides.
+  const edgeToEdge=options?.fullWidth===true;
+  g.translate(edgeToEdge?0:v.x,v.y);
+  g.scale(edgeToEdge?1:v.scale,v.scale);
+ }
 }
 function imageFor(key,body){
  if(images.has(key))return images.get(key);
