@@ -159,6 +159,20 @@ function remodelDesign(){
  for(const [id,y] of Object.entries(lowerY)){
   const n=find(id);if(n)n.position.y=y;
  }
+ // After explicit detour/bridge clearance edits, bring any island point back
+ // inside its silhouette with 46px of icon margin; never clip a tile at coast.
+ const regionsById=new Map(D.islands.map(x=>[x.id,x]));
+ for(const node of D.newNodes){
+  if(!node.islandId)continue;
+  const isl=regionsById.get(node.islandId);
+  if(!isl)throw Error('Unknown v8 region '+node.islandId);
+  for(let i=0;i<110&&!fits(node.position,isl.outline);i++){
+   node.position.x+=(isl.center.x-node.position.x)*.045;
+   node.position.y+=(isl.center.y-node.position.y)*.045;
+  }
+  if(!fits(node.position,isl.outline))throw Error('v8 node cannot fit on island '+node.id);
+ }
+
  // All v7 bridge swords were single tiles, often in narrow water sections.
  // Replace them with four readable two-tile courts on distinct islands.
  const oldSingles=new Set(D.newNodes.filter(n=>n.type==='sword').map(n=>n.id));
@@ -202,6 +216,7 @@ function remodelDesign(){
   // bridge have one deliberate grade-separated crossing. Mark the upper
   // viaduct visually so players cannot mistake it for a walking junction.
   D.overpasses.push({x:5270,y:4821,upper:'n134>n135',crossesOld:true});
+  D.overpasses.push({x:6066,y:5341,upper:'xgl_6>g4',crossesOld:false});
  }
 }
 remodelDesign();
