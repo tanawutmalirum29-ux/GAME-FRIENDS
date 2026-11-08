@@ -23,6 +23,7 @@ const buildVersion='window.GAME_BUILD_VERSION="lazy-browser-test";'+
  'window.GAME_GAME_HASHES='+JSON.stringify(Object.fromEntries(catalog.games.map(g=>[g.id,g.hash])))+';';
 const injection=`window.__lazyGameTest={get round(){return round},
  get board(){return boardSession},get selection(){return gameSelection},
+ get players(){return players},get view(){return currentView},
  beginBoard,beginGameSelection,updateGameSelection,returnToLobby,addLocal};
  requestAnimationFrame(animate);\n})();`;
 const server=http.createServer((req,res)=>{
@@ -77,8 +78,29 @@ const server=http.createServer((req,res)=>{
    'host/controller start does not fetch unused minigame code');
   await page.locator('#offlineBtn').click();
   await page.evaluate(()=>window.__lazyGameTest.beginGameSelection('ghost'));
+  const initialSelection=await page.evaluate(()=>({
+    url:location.href,view:__lazyGameTest.view,players:__lazyGameTest.players.length,
+    selection:__lazyGameTest.selection?.mode||null,
+    choices:GamePlatform.games('normal').map(g=>g.id)
+  }));
+  assert.equal(initialSelection.selection,'ghost',
+   'roulette must start: '+JSON.stringify(initialSelection));
+  page.on('framenavigated',frame=>{if(frame===page.mainFrame())console.log('LAZY NAVIGATED '+frame.url());});
+  page.on('requestfailed',req=>console.log('LAZY REQUEST FAILED '+req.url()+' '+req.failure()?.errorText));
+  page.on('console',msg=>{if(msg.type()==='error')console.log('LAZY CONSOLE '+msg.text());});
+
   await page.waitForFunction(()=>window.__lazyGameTest?.selection?.ready===true||
-   !!window.__lazyGameTest?.selection?.error);
+   !!window.__lazyGameTest?.selection?.error,{timeout:15000}).catch(async err=>{
+    console.error('LAZY DIAGNOSTIC',JSON.stringify(await page.evaluate(()=>({
+     url:location.href,view:__lazyGameTest?.view,players:__lazyGameTest?.players.length,
+     selection:__lazyGameTest?.selection&&{
+      mode:__lazyGameTest.selection.mode,ready:__lazyGameTest.selection.ready,
+      error:String(__lazyGameTest.selection.error||'')},
+     registered:GamePlatform?.revision,loaded:!!window.GhostAttack,
+     ready:GamePlatform?.ready('ghost')
+    })).catch(e=>({navigationError:String(e)}))),errors);
+    throw err;
+   });
   const loadError=await page.evaluate(()=>String(window.__lazyGameTest?.selection?.error||''));
   assert.equal(loadError,'','engine must load without an error');
   const played=await page.evaluate(()=>{
