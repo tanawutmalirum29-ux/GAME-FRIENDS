@@ -17,7 +17,8 @@ const scripts=[
  'knight-match.js','lawn-mower.js','color-claim.js','witching-snake.js',
  'ghost-attack.js','ice-race.js','shockwave.js','boulder-bash.js',
  'shopping-time.js','pizza-time.js','gladiators.js',
- 'board-v7-design.js','board-map.js','board-dice.js','board-items.js','board-party.js'
+ 'board-map.js','board-v7-design.js','board-v7-art.js','board-v7-adapter.js',
+ 'board-dice.js','board-items.js','board-party.js'
 ];
 for(const file of scripts)require(path.join('..',file));
 const S=window.PartyArenaScale,close=(a,b,e=1e-8)=>Math.abs(a-b)<e;
