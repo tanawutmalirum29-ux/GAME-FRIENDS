@@ -42,8 +42,10 @@ assert.match(css,/body\.host-playing #game \.game-center-hud\{\s*top:max\(24px,e
  'host roster starts below the iPad time/battery strip');
 assert.match(css,/body\.host-playing #game \.game-toolbar\{\s*height:max\(96px,/,
  'top background strip stays flush with the field beneath the roster');
-assert.match(source,/const ENGINE_CLOCK_MODES=new Set\(\['shopping_time','knight_match','pizza_time','witching_snake'\]\)/,
- 'already-clocked games do not receive a second stopwatch');
+assert.doesNotMatch(source,/const ENGINE_CLOCK_MODES=/,
+ 'no engine-specific clocks should bypass the one central HUD');
+assert.match(source,/const seconds=hostClockValue\(round\)/,
+ 'every minigame routes its time through the same HUD dispatcher');
 assert.match(source,/function hostClockValue\(r\)\{[\s\S]*?r\.mode==='shockwave'/,
  'SHOCKWAVE must never display a numeric host timer');
 assert.match(source,/window\.PartyArenaScenes\?\.clock\?\.\(g,seconds\)/,
