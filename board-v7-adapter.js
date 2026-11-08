@@ -109,7 +109,7 @@ function remodelDesign(){
  removeNext('m0','ms20_0');addNext('m2','ms20_0');
  removeNext('m7','ms19_0');addNext('m4','ms19_0');
  // Harbor: replace its long counter-flow chord with a short roofside bypass.
- removeNext('h6','hs29_0');addNext('h2','hs29_0');setNext('hs29_0',['h4']);setNext('hs30_0',['h2']);
+ removeNext('h6','hs29_0');addNext('h2','hs29_0');setNext('hs29_0',['h4']);setNext('hs30_0',['h5']);
  // Gingerbread: an upper reward diversion instead of a diagonal through town.
  removeNext('g1','gs39_0');addNext('g4','gs39_0');
  // Glacier: dangerous direct shortcut vs a longer outer scenic route.
@@ -124,7 +124,7 @@ function remodelDesign(){
   ms20_0:['m2','ms20_0','m3'],
   ms19_0:['m4','ms19_0','m3'],
   hs29_0:['h2','hs29_0','h4'],
-  hs30_0:['h0','hs30_0','h2'],
+  hs30_0:['h0','hs30_0','h5'],
   gs39_0:['g4','gs39_0','g5'],
   ss51_0:['s1','ss51_0','s2'],
   ss49_0:['s1','ss49_0','s4'],
@@ -140,7 +140,7 @@ function remodelDesign(){
  const lanePositions={
   ws9_0:[3550,2620],ws9_1:[3340,2425],ws9_2:[3080,2445],
   ms19_0:[2610,1000],ms20_0:[2490,1280],
-  hs29_0:[2940,4955],hs30_0:[2450,5050],
+  hs29_0:[2940,4955],hs30_0:[2610,5300],
   gs39_0:[6240,5180],
   ss51_0:[6610,3015],ss49_0:[6450,2700],
   ss50_0:[6380,2460],ss50_1:[6280,2370],
