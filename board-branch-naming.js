@@ -72,6 +72,7 @@
     byDisplay.get(displayId).push(nodeId);
    });
   }
+  mapping.sort((a,b)=>a.displayId.localeCompare(b.displayId)||a.internalId.localeCompare(b.internalId));
   return{mapping,branchCodes:Object.fromEntries(names),
    collisions:[...byDisplay].filter(([,ids])=>ids.length>1)
     .map(([displayId,internalIds])=>({displayId,internalIds}))};
