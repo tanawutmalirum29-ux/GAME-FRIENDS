@@ -416,6 +416,21 @@ function rebalanceV10(){
    y:Math.round(start.y*(1-t)+end.y*t+85*bulge)};
   D.allNodePositions[id]={...node.position};
  }
+ // The default endpoint interpolation can cross the farm or glacier ring.
+ // Route the inbound span south of the farm, the outbound span to its east,
+ // and approach the glacier from the outer shore. These are fixed world
+ // coordinates: no physics-time relaxation or seed-dependent drift.
+ const clearWaypoints={
+  xmin_1:[2320,1540],xmin_2:[3090,1520],
+  xmout_1:[3370,1110],xmout_2:[3080,1820],
+  xacb_3:[7050,2920]
+ };
+ for(const [id,xy] of Object.entries(clearWaypoints)){
+  const node=lookup.get(id);
+  if(!node)throw Error('V10 missing explicit waypoint '+id);
+  node.position={x:xy[0],y:xy[1]};
+  D.allNodePositions[id]={...node.position};
+ }
  // Harbor and Gingerbread have only three/two live tiles after V9. Treat
  // them as compact scenic stops, not large empty exploration islands.
  for(const name of ['harbor','ginger']){
