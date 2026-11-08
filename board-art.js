@@ -311,37 +311,77 @@ function ground(g,s){
  }else sceneryLite(g,s);
 }
 
-/* BOARD v8: emphasize a clean main route and pair each sword territory with
-   one visible plaza. World coordinates are the same ones used by the graph. */
+/* BOARD v8 visual-width contract: a road or bridge is as wide as a playing
+   node's 88-unit diameter. This layer widens the original compiled-v7 art
+   without editing its checked compressed source. Never paint a special
+   dark 105-unit strip between the two sword tiles: their shared territory
+   is a gameplay rule, not an opaque overlay or an extra bridge. */
+const BOARD_NODE_DIAMETER=88;
+const BOARD_ROAD_WIDTH=BOARD_NODE_DIAMETER;
+const BOARD_BRIDGE_WIDTH=BOARD_NODE_DIAMETER;
 function v8RoadGuides(g,s){
  if(s.map.version!=='winter-expedition-152-v8')return;
- const c=s.camera,z=Math.max(.06,c.zoom||1),hw=480/z+180,hh=(mapBottom(s)-94)/2/z+180;
- const visible=(a,b)=>Math.max(a.x,b.x)>c.x-hw&&Math.min(a.x,b.x)<c.x+hw&&
-  Math.max(a.y,b.y)>c.y-hh&&Math.min(a.y,b.y)<c.y+hh;
- if(z>.22){
-  g.save();g.lineCap='round';g.strokeStyle='#efffffb0';g.lineWidth=3.4;
-  g.setLineDash?.([18,30]);
-  for(let i=0;i<(window.BoardMap?.MAIN_LENGTH||152);i++){
-   const a=s.map.nodes['n'+i]?.position,b=s.map.nodes['n'+(i+1)]?.position;
-   if(!a||!b||!visible(a,b))continue;
-   g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
+ const map=s.map,c=s.camera,z=Math.max(.06,c.zoom||1);
+ const hw=480/z+150,hh=(mapBottom(s)-94)/(2*z)+150;
+ const isVisible=(a,b)=>Math.max(a.x,b.x)>=c.x-hw&&Math.min(a.x,b.x)<=c.x+hw&&
+  Math.max(a.y,b.y)>=c.y-hh&&Math.min(a.y,b.y)<=c.y+hh;
+ const bridges=new Map(map.bridges.map(([from,to])=>[
+  from+'>'+to,map.bridgeStyles?.[from+'>'+to]||'wood'
+ ]));
+ const regular=[],crossings=[];
+ for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
+  const next=map.nodes[id],a=n.position,b=next?.position;
+  if(!b||!isVisible(a,b))continue;
+  const key=n.id+'>'+id;
+  const edge={a,b,from:n.id,to:id,kind:bridges.get(key)};
+  (edge.kind?crossings:regular).push(edge);
+ }
+ function trace(e){
+  g.beginPath();g.moveTo(e.a.x,e.a.y);
+  if(e.from==='n3'&&(e.to==='n4'||e.to==='b3_1')){
+   const ctrl=e.to==='n4'?{x:1227,y:4734}:{x:1082,y:4664};
+   g.quadraticCurveTo(ctrl.x,ctrl.y,e.b.x,e.b.y);
+  }else g.lineTo(e.b.x,e.b.y);
+ }
+ function strokeEdge(e,color,width){
+  trace(e);g.strokeStyle=color;g.lineWidth=width;g.stroke();
+ }
+ const deckColor=kind=>kind==='ice'?'#bdeef4':
+  kind==='stone'||kind==='arched'?'#b6c8ce':
+  kind==='rope'?'#d6b58b':'#d4ab7b';
+ const railColor=kind=>kind==='ice'?'#f4ffff':
+  kind==='stone'||kind==='arched'?'#e5f2f1':'#f6e1b2';
+ g.save();g.lineCap='round';g.lineJoin='round';
+ // Layer passes keep forks seamless, unlike painting each lane separately.
+ // 98-unit pale shoulders + 88-unit deck -> visible width matches each tile.
+ for(const e of regular)strokeEdge(e,'#f0e5d4',BOARD_ROAD_WIDTH+10);
+ for(const e of regular)strokeEdge(e,'#cba57c',BOARD_ROAD_WIDTH);
+ for(const e of crossings)strokeEdge(e,'#e4eced',BOARD_BRIDGE_WIDTH+10);
+ for(const e of crossings)strokeEdge(e,deckColor(e.kind),BOARD_BRIDGE_WIDTH);
+ // Slim bridge edge rails preserve the wood/ice/stone identity even though the
+ // original source deck underneath is narrower than the circular nodes.
+ if(z>.21)for(const e of crossings){
+  const dx=e.b.x-e.a.x,dy=e.b.y-e.a.y,len=Math.hypot(dx,dy);
+  if(len<1)continue;
+  const nx=-dy/len,ny=dx/len,r=BOARD_BRIDGE_WIDTH/2-4;
+  g.strokeStyle=railColor(e.kind);g.lineWidth=4;
+  for(const side of [-1,1]){
+   g.beginPath();g.moveTo(e.a.x+nx*r*side,e.a.y+ny*r*side);
+   g.lineTo(e.b.x+nx*r*side,e.b.y+ny*r*side);g.stroke();
   }
-  g.setLineDash?.([]);g.restore();
  }
- for(const territory of Object.values(s.map.territories)){
-  if(territory.nodeIds.length!==2)continue;
-  const [a,b]=territory.nodeIds.map(id=>s.map.nodes[id]?.position);
-  if(!a||!b||!visible(a,b))continue;
-  const owner=s.players.find(p=>p.id===territory.ownerId);
-  g.save();g.lineCap='round';
-  g.strokeStyle='#263b60b3';g.lineWidth=105;
-  g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
-  g.strokeStyle=owner?.color||'#aaa9cc';g.globalAlpha=.37;g.lineWidth=96;
-  g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
-  g.globalAlpha=.86;g.strokeStyle='#e1d7ec';g.lineWidth=3;
-  g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();
-  g.restore();
+ // Only the canonical route gets a subtle dashed guide; side paths remain
+ // undecorated to avoid another tangled web of marks on smaller screens.
+ if(z>.25&&!c.lowDetail){
+  g.setLineDash?.([14,26]);
+  for(const e of regular){
+   if(/^n\d+$/.test(e.from)&&/^n\d+$/.test(e.to)&&
+      Number(e.to.slice(1))===Number(e.from.slice(1))+1)
+    strokeEdge(e,'#f9f3dc',3.6);
+  }
+  g.setLineDash?.([]);
  }
+ g.restore();
 }
 
 const regionLabelCache=new WeakMap();
@@ -1051,5 +1091,6 @@ function draw(g,t,s){
    'ลากสำรวจ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,bottom-13,11,'#e9faff','center',700,335);
  }
 }
-window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan,overview,follow,zoom,toggleDebug,inspect,fitZoom,branchFrame});
+window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan,overview,follow,zoom,toggleDebug,inspect,fitZoom,branchFrame,
+ roadWidths:Object.freeze({node:BOARD_NODE_DIAMETER,road:BOARD_ROAD_WIDTH,bridge:BOARD_BRIDGE_WIDTH})});
 })();
