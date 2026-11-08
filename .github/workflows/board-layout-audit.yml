@@ -1,0 +1,21 @@
+name: BOARD PARTY layout audit
+on:
+  pull_request:
+    paths:
+      - 'board-map.js'
+      - 'board-v7-adapter.js'
+      - 'board-v7-source/**'
+      - 'board-art.js'
+      - 'tests/board-layout-audit.cjs'
+      - '.github/workflows/board-layout-audit.yml'
+permissions:
+  contents: read
+jobs:
+  island-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore authored BOARD design
+        run: node scripts/build-board-v7.cjs
+      - name: Print island density and route geometry
+        run: node tests/board-layout-audit.cjs
