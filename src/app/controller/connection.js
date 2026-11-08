@@ -295,9 +295,28 @@ function resetControllerForRoomChange(message,awaitLeaveAck=false){
   controllerState(message||'เลือกห้องใหม่ได้เลย โดยไม่ต้องเปิดแท็บใหม่');
   window.GameAutoUpdate?.onSafePoint();
 }
+let controllerNetworkLoad=null;
 function joinRoom(recovery=false){
   recovery=recovery===true;
-  if(typeof Peer!=='function'){controllerState('ไม่สามารถโหลดระบบจอยออนไลน์ได้',true);return;}
+  if(typeof Peer!=='function'){
+    const deps=window.GameRuntimeDeps;
+    if(deps){
+      if(controllerNetworkLoad)return;
+      const code=$('roomCodeInput').value,view=currentView;
+      $('joinBtn').disabled=true;controllerState('กำลังโหลดระบบจอยออนไลน์...');
+      controllerNetworkLoad=deps.ensureController().then(()=>{
+        controllerNetworkLoad=null;
+        $('joinBtn').disabled=false;
+        if(currentView===view&&view==='controller'&&$('roomCodeInput').value===code)
+          joinRoom(recovery);
+      }).catch(error=>{
+        controllerNetworkLoad=null;$('joinBtn').disabled=false;
+        controllerState('โหลดระบบจอยไม่สำเร็จ: '+String(error.message||error),true);
+      });
+      return;
+    }
+    controllerState('ไม่สามารถโหลดระบบจอยออนไลน์ได้',true);return;
+  }
   if(!recovery)reconnectTries=0;
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;

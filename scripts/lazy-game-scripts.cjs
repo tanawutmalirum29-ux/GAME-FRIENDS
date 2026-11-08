@@ -23,4 +23,13 @@ function pruneBoardCore(html){
  const tag=/^[ \t]*<script\s+defer\s+src="\.\/([^"?]+)(?:\?v=[^"]*)?"\s*><\/script>\s*$/gm;
  return html.replace(tag,(whole,asset)=>BOARD_CORE_SCRIPTS.has(asset)?'':whole);
 }
-module.exports={pruneLegacy,pruneBoardCore,BOARD_CORE_SCRIPTS};
+const CDN_LIBRARIES=new Set([
+ 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js',
+ 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js'
+]);
+function pruneExternal(html){
+ assert(typeof html==='string','index source must be a string');
+ const tag=/^[ \t]*<script\s+defer\s+src="(https:\/\/[^\"]+)"\s*><\/script>\s*$/gm;
+ return html.replace(tag,(whole,url)=>CDN_LIBRARIES.has(url)?'':whole);
+}
+module.exports={pruneLegacy,pruneBoardCore,pruneExternal,BOARD_CORE_SCRIPTS,CDN_LIBRARIES};

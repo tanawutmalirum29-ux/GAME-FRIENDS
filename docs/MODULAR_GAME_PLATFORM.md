@@ -57,3 +57,6 @@ separate migration gates before claiming the complete six-phase refactor.
 - `main.js` — launch route, room restoration and update guards
 
 Run `node scripts/build-app.cjs --write` after source edits, then `node scripts/build-app.cjs --check`. The existing `app.js` file is not the source of truth. **These are source modules assembled at build-time, not independent network chunks:** interdependent functions still share one lexical runtime for multiplayer/host safety. Actual route-level network chunking is a separate gate and must not be assumed from the source split.
+
+### On-demand remote connection stack
+The production HTML omits the 2 third-party defer tags for PeerJS and QRCode. `src/platform/runtime-deps.js` loads PeerJS only when a controller joins; when the host creates a room it loads both PeerJS and QRCode. Offline bots and initial controller join screens no longer download these online libraries. A cancelled host-room load is guarded by `hostOpenAttempt`, so a late network response cannot reopen an abandoned room. Legacy development HTML retains CDN tags for test harness compatibility.

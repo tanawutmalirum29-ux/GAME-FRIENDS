@@ -8,10 +8,14 @@ const {execFileSync,spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..');
 const builder=require('../scripts/build-game-catalog.cjs');
 const catalog=builder.build();
-const {pruneLegacy,pruneBoardCore,BOARD_CORE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
+const {pruneLegacy,pruneBoardCore,pruneExternal,BOARD_CORE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
 assert.equal(catalog.schema,1);
 const originalHTML=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const lazyHTML=pruneBoardCore(pruneLegacy(originalHTML,catalog));
+const lazyHTML=pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog)));
+assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/peerjs@'),'offline bootstrap never fetches PeerJS');
+assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/qrcodejs@'),'controller bootstrap never fetches QRCode');
+assert.ok(lazyHTML.includes('src="./src/platform/runtime-deps.js"'));
+
 for(const file of BOARD_CORE_SCRIPTS)assert.ok(!lazyHTML.includes('src="./'+file+'"'),'BOARD core should be lazy: '+file);
 for(const game of catalog.games){
  for(const legacy of game.legacyUrls){

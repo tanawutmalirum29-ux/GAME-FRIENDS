@@ -61,7 +61,7 @@ function coreHash(){
   "board-party.js",
   "board-art.js",
   "board-controller-camera.js",
-  "src/platform/game-platform.js",
+  "src/platform/game-platform.js","src/platform/runtime-deps.js",
   "src/platform/board-runtime.js"
 ]){
   if(fs.existsSync(path.join(root,relative))){
