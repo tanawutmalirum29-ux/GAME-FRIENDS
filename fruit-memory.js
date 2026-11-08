@@ -32,8 +32,11 @@ function fruitImage(id){
 function generateGrid(count,selected,previous=[]){
  const cols=count<=6?4:5,kindsCount=cols;
  const kinds=selected||shuffle(FRUITS.map(f=>f.id)).slice(0,kindsCount);
+ // Every variety occurs at least cols-1 times. The extra cols cards
+ // are independently assigned across the selected varieties, not evenly split.
  const positions=shuffle(Array.from({length:cols*cols},(_,i)=>i));
- const remaining=Object.fromEntries(kinds.map(id=>[id,cols]));
+ const remaining=Object.fromEntries(kinds.map(id=>[id,cols-1]));
+ for(let i=0;i<cols;i++)remaining[kinds[Math.floor(Math.random()*kinds.length)]]++;
  const assigned=Array(cols*cols);
  function fill(index){
    if(index===positions.length)return true;
@@ -52,7 +55,7 @@ function generateGrid(count,selected,previous=[]){
    fruitType,revealState:'closed',collapseState:'solid',fall:0}));
 }
 function buildRevealSchedule(tiles,cardsPerBatch,previous=[]){
- const ids=tiles.map(t=>t.tileId),count=cardsPerBatch,groupCount=3;
+ const ids=tiles.map(t=>t.tileId),count=cardsPerBatch,groupCount=4;
  if(!Number.isInteger(count)||count<1||count>ids.length)throw Error('Invalid reveal batch size');
  for(let attempt=0;attempt<12;attempt++){
    const unseen=new Set(ids),groups=[];
@@ -80,6 +83,8 @@ function memoryPace(roundNumber,large){
  return {memorizeSeconds,revealFactor:memorizeSeconds/13,moveSeconds};
 }
 function buildRevealTimeline(groups,memorizeSeconds){
+ // Wave 1: 13 seconds / 4 reveals = ~3.25 seconds per reveal.
+ // The same four-batch plan compresses into later memorization windows.
  const each=memorizeSeconds/groups.length;
  return groups.map((ids,i)=>({ids,start:i*each,end:(i+1)*each,duration:each}));
 }
