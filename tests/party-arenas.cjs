@@ -31,7 +31,7 @@ function paint(){
 }
 const html=fs.readFileSync('index.html','utf8');
 const modes=[...html.matchAll(/data-pick="([^"]+)"/g)].map(m=>m[1]);
-assert.equal(covers.ids.length,13);
+assert.equal(covers.ids.length,14);
 assert.deepEqual([...covers.ids].sort(),[...new Set(modes)].sort());
 const allIDs=new Set();
 for(let copy=0;copy<3;copy++)for(const mode of covers.ids){
@@ -47,7 +47,7 @@ for(let copy=0;copy<3;copy++)for(const mode of covers.ids){
 assert.equal(covers.svg('__proto__'),'');assert.equal(covers.svg('missing'),'');
 assert.ok(html.indexOf('party-arena-scenes.js')<html.indexOf('game-cover-art.js'));
 assert.ok(html.indexOf('game-cover-art.js')<html.indexOf('./app.js'));
-console.log('PASS 13 original text-free covers, complete paths and isolated IDs across repeated cards');
+console.log('PASS 14 original text-free covers, complete paths and isolated IDs across repeated cards');
 
 for(let n=1;n<=12;n++){
  const ps=roster(n),round={phase:'playing',shoppingSeed:101},s=shopping.setup(round,ps),u=s.unit;

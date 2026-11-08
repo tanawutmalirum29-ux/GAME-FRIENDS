@@ -26,6 +26,7 @@ const snowSource=fs.readFileSync('snow-brawl.js','utf8');
 const witchSource=fs.readFileSync('witching-snake.js','utf8');
 const lawnSource=fs.readFileSync('lawn-mower.js','utf8');
 const iceRaceSource=fs.readFileSync('ice-race.js','utf8');
+const claimSource=fs.readFileSync('color-claim.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
 const farmIceSource=fs.readFileSync('farm-ice-art.js','utf8');
 const chickensSource=fs.readFileSync('chickens.js','utf8');
@@ -177,7 +178,7 @@ assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-touch-i
 
 // Game catalog retains Ghost Attack and now adds CHICKENS as game two.
 assert.match(html,/data-pick="ghost"/);
-assert.equal([...html.matchAll(/data-pick="/g)].length,13);
+assert.equal([...html.matchAll(/data-pick="/g)].length,14);
 assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
 assert.match(html,/src=".\/ghost-attack\.js"/);
 assert.match(html,/src=".\/chickens\.js"/);
@@ -200,10 +201,12 @@ assert.match(html,/data-pick="snow_brawl"/);
 assert.match(html,/data-pick="witching_snake"/);
 assert.match(html,/src="\.\/witching-snake\.js"/);
 assert.match(html,/data-pick="lawn_mower"/);
+assert.match(html,/data-pick="color_claim"/);
+assert.match(html,/src="\.\/color-claim\.js"/);
 assert.doesNotMatch(html,/class="feature-tags"/,'homepage no longer renders redundant feature badges');
 assert.match(html,/src="\.\/lawn-mower\.js"/);
-assert.match(html,/data-pick="ice_race"/);
 assert.match(html,/src="\.\/ice-race\.js"/);
+assert.match(html,/data-pick="ice_race"/);
 assert.match(html,/data-pick="boulder_bash"/);
 assert.match(html,/data-pick="knight_match"/);
 assert.match(html,/src=".\/color-switch\.js"/);
@@ -215,7 +218,7 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',ice_race:'ICE RACE'\}/);
+assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',color_claim:'COLOR CLAIM',ice_race:'ICE RACE'\}/);
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/window\.PartyGameCovers\.svg\(mode\)/);
 assert.doesNotMatch(gameCoverSource,/<(?:text|tspan)\b/i,'SVG cover art never duplicates game names');
@@ -1217,6 +1220,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
    vm.runInContext(witchSource,scope,{filename:'witching-snake.js'});
    vm.runInContext(lawnSource,scope,{filename:'lawn-mower.js'});
    vm.runInContext(iceRaceSource,scope,{filename:'ice-race.js'});
+  vm.runInContext(claimSource,scope,{filename:'color-claim.js'});
   for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-bots','board-minigame','board-party','board-art'])
     vm.runInContext(fs.readFileSync(name+'.js','utf8'),scope,{filename:name+'.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
@@ -1451,12 +1455,12 @@ assert.equal(online.scope.document.fullscreenExits,0);
  bulk.click('cycleAllBotsBtn');
  assert.equal(overlay.classList.contains('hidden'),false);
  assert.equal(bulk.elements.get('cycleAllBotsBtn').attributes['aria-expanded'],'true');
- assert.equal(choices.children.length,13,'all registered modes shown once');
+ assert.equal(choices.children.length,14,'all registered modes shown once');
  assert.deepEqual(Array.from(choices.children,x=>x.dataset.mode),
    ['ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time',
-    'knight_match','boulder_bash','snow_brawl','shopping_time','witching_snake','lawn_mower','ice_race']);
+    'knight_match','boulder_bash','snow_brawl','shopping_time','witching_snake','lawn_mower','color_claim','ice_race']);
  assert.ok(choices.children.every(x=>x.children[0].innerHTML.includes('<svg')),
-   'all 13 game choices have SVG covers');
+   'all 14 game choices have SVG covers');
  assert.ok(choices.children.every(x=>x.children[1].textContent.length>0));
  assert.equal(choices.children[0].attributes['aria-pressed'],'true');
  assert.ok(local.every(p=>p.choice==='ghost'),'opening popup does not cycle games');
@@ -1791,13 +1795,13 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
    'new random value changes the game instead of following fixed order');
  ui.click('startBtn');
  assert.equal(api.getTournament().endless,true);
- assert.equal(api.getTournament().schedule.length,13);
+ assert.equal(api.getTournament().schedule.length,14);
  const first=api.getSelection();
  assert.ok(first,'roulette appears immediately on start, before game engine');
  assert.equal(api.getRound().phase,'roulette');
  assert.equal(api.getRound().mode,first.mode);
  assert.equal(ui.elements.get('rouletteTrack').children.length,12,
-   'the horizontal ribbon displays 12 animated cards for thirteen possible modes');
+   'the horizontal ribbon displays 12 candidate cards');
  assert.equal(ui.elements.get('rouletteTrack').children[first.winningIndex].dataset.mode,first.mode,
    'the selected game is physically centered when the animation stops');
  assert.ok(!ui.elements.get('gameRoulette').classList.contains('hidden'));
@@ -1805,7 +1809,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  api.updateGameSelection(1.45);
  assert.equal(ui.elements.get('rouletteHeading').textContent,
    ({ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',
-     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',ice_race:'ICE RACE'})[first.mode]);
+     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',color_claim:'COLOR CLAIM',ice_race:'ICE RACE'})[first.mode]);
  assert.ok(first.winner.classList.contains('is-selected'));
  assert.equal(first.track.style.transform,'translate3d(-'+first.final.toFixed(2)+'px,0,0)',
    'winning card stops precisely in the middle');
@@ -2165,8 +2169,8 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,13);
-assert.equal(phone.pickButtons[12].dataset.pick,'ice_race');
+assert.equal(phone.pickButtons.length,14);
+assert.equal(phone.pickButtons[13].dataset.pick,'ice_race');
 assert.equal(phone.pickButtons[4].dataset.pick,'color_switch');
 assert.equal(phone.pickButtons[5].dataset.pick,'pizza_time');
 assert.equal(phone.pickButtons[6].dataset.pick,'shopping_time');
@@ -2175,6 +2179,7 @@ assert.equal(phone.pickButtons[8].dataset.pick,'boulder_bash');
 assert.equal(phone.pickButtons[9].dataset.pick,'snow_brawl');
  assert.equal(phone.pickButtons[10].dataset.pick,'witching_snake');
  assert.equal(phone.pickButtons[11].dataset.pick,'lawn_mower');
+assert.equal(phone.pickButtons[12].dataset.pick,'color_claim');
 assert.match(phone.pickButtons[9].children[0].innerHTML,/<svg[\s>]/);
 assert.match(phone.pickButtons[4].children[0].innerHTML,/<svg[\s>]/);
 assert.equal(phone.pickButtons[4].children[1].textContent,'COLOR SWITCH');
@@ -2991,5 +2996,4 @@ for(const count of [1,12]){
 }
 console.log('BOARD INTEGRATION PASS: all ten actual engines at 1/12 players, return, finish/replay, normal regression, step/shield packets, remote tokens, immediate button releases and reconnect');
 
-// The default verify workflow runs the smoke suite on every PR.
 require('./ice-race.cjs');

@@ -156,25 +156,37 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  assert.ok(s.tiles.every(t=>t.state==='safe'||t.state==='warning'));
 }
 {
- // An all-player blast at 24/25 hazard coverage must be a TIE, not an
- // arbitrary ID-based victory. Earlier eliminated players cannot return.
- const {state:s,ps,round}=game(3,408);
+ // A full final blast must award shared first, never restart a match.
+ const g=game(3,408),{state:s,ps,round}=g;
  E.startWave(s,ps);
  E.evaluateEliminations(s,ps,[ps[0]]);
  assert.equal(ps[0].shockAlive,false);
- s.wave=12;
- E.startWarning(s,ps);
+ s.wave=12;E.startWarning(s,ps);
  const dangerId=s.danger[0];
  for(const p of [ps[1],ps[2]])put(p,center(s,dangerId));
  E.triggerExplosion(s,ps);
- assert.equal(s.pendingTiebreaker.length,2);
- assert.equal(s.finished,false);
- round.phase='playing';
- run({state:s,ps,round},.4);
- assert.equal(s.tiebreakers,1);
- assert.equal(ps[0].shockAlive,false,'prior eliminated player stays out of the tiebreaker');
- assert.ok(ps[1].shockAlive&&ps[2].shockAlive);
- assert.equal(s.tiles.length,25,'tiebreaker reinitializes a full clean board');
+ assert.deepEqual([...s.pendingWinnerIds],['p1','p2']);
+ assert.equal(s.finished,false,'finish after explosion animation');
+ round.phase='playing';run(g,.4);
+ assert.equal(s.finished,true);
+ assert.deepEqual([...s.winnerIds],['p1','p2']);
+ assert.equal(s.winnerId,null,'two winners are not forced into one winnerId');
+ assert.equal(ps[0].shockAlive,false,'previous losers cannot return');
+ assert.equal(s.tiles.length,25);
+}
+for(const n of [2,3,4,12]){
+ const g=game(n,500+n),{state:s,ps,round}=g;
+ E.startWave(s,ps);E.evaluateEliminations(s,ps,[...ps]);
+ assert.equal(new Set(ps.map(p=>p.shockEliminatedAt)).size,1,
+  'the whole blast shares one elimination tick');
+ assert.equal(s.pendingWinnerIds.length,n);
+ s.phase='EXPLOSION';s.timer=.1;round.phase='playing';run(g,.3);
+ assert.equal(s.finished,true);
+ assert.equal(s.winnerIds.length,n,'every final survivor shares first place');
+ assert.equal(new Set(s.winnerIds).size,n);
+ assert.equal(s.winnerId,null);
+ assert.ok(ps.every(p=>!p.shockAlive),'no resurrection');
+ assert.equal(s.tiles.length,25);
 }
 
 {
@@ -271,14 +283,16 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  assert.equal(ps[0].shockAlive,false);
  E.evaluateEliminations(s,ps,[ps[1],ps[2]]);
  assert.equal(s.finished,false);
- assert.equal(s.pendingTiebreaker.length,2);
+ assert.deepEqual([...s.pendingWinnerIds],['p1','p2']);
  s.phase='EXPLOSION';s.timer=.1;round.phase='playing';
  run(g,.3);
- assert.equal(s.tiebreakers,1);
+ assert.equal(s.finished,true);
  assert.equal(s.winnerId,null);
- assert.equal(ps[0].shockAlive,false,'prior eliminations must stay eliminated');
- assert.ok(ps[1].shockAlive&&ps[2].shockAlive);
- assert.equal(s.tiles.length,25);
+ assert.deepEqual([...s.winnerIds],['p1','p2']);
+ assert.equal(ps[0].shockAlive,false);
+ assert.equal(ps[0].shockEliminatedAt,1);
+ assert.equal(ps[1].shockEliminatedAt,2);
+ assert.equal(ps[2].shockEliminatedAt,2);
 }
 {
  const {state:s,ps}=game(2,99);
@@ -389,5 +403,19 @@ assert.match(avatars,/data:image\/svg\+xml/);
  put(ps[0],center(s,safe.id));
  assert.equal(E.calculateDangerContact(s,ps[0],new Set(danger)),0,
    'the only safe tile still has safe standing room for a full character');
+}
+{
+ // BOARD PARTY ranking retains competition ranks when co-winners exhaust quota.
+ const context=vm.createContext({window:{BoardDice:{shuffle:ids=>[...ids]}}});
+ vm.runInContext(fs.readFileSync('board-minigame.js','utf8'),context);
+ const adapter=context.window.BoardMinigame;
+ const x=game(4),s=x.state;
+ E.startWave(s,x.ps);E.evaluateEliminations(s,x.ps,[...x.ps]);
+ s.phase='EXPLOSION';s.timer=.01;x.round.phase='playing';run(x,.2);
+ const ranking=adapter.ranking(x.round,x.ps);
+ assert.ok(ranking.every(p=>p.rank===1));
+ const prizeIds=adapter.rewards(ranking,4);
+ assert.equal(prizeIds.length,2,'reward quota remains 50 percent');
+ assert.ok(ranking.every(p=>p.rank===1),'reward limit never breaks tied ranks');
 }
 console.log('SHOCKWAVE PASS: 14/7/5/2/1 safe tiles, faster waves, full-body contact and ties');
