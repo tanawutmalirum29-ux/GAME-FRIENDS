@@ -104,9 +104,15 @@ const server=http.createServer((req,res)=>{
      r.x=p.x+r.r+BoulderBash.config.radius+3;r.y=p.y;r.oldX=r.x;r.oldY=r.y;r.vx=-390;r.vy=0;
      BoulderBash.update(1/60,a.round,a.players);const hit=!p.bb.alive;
      BoulderBash.setup(a.round,a.players);a.round.phase='playing';const state=a.round.boulderBash;
-     const rock=BoulderBash.rockAt(state,355);Object.assign(rock,{x:690,oldX:690,y:355,oldY:355});
-     return {hit,bounds:state.bounds,starts:a.players.map(p=>({x:p.x,y:p.y}))};
-    });assert.equal(result.hit,true);assert.equal(result.bounds.x,218);assert.ok(result.starts.every(p=>p.x===290||p.x===363));
+     const rock=BoulderBash.rockAt(state,355),entryClearance=rock.x-rock.r-960;
+     Object.assign(rock,{x:690,oldX:690,y:355,oldY:355});
+     return {hit,bounds:state.bounds,entryClearance,starts:a.players.map(p=>({x:p.x,y:p.y}))};
+    });
+    assert.equal(result.hit,true);
+    assert.equal(result.bounds.x,20,'physical field reaches the left screen edge');
+    assert.equal(result.bounds.x+result.bounds.w,940,'physical field reaches the right edge');
+    assert.ok(result.entryClearance>=10,'new rocks start completely beyond the right screen edge');
+    assert.ok(result.starts.every(p=>p.x===290||p.x===363));
    }
    await decode();
    await assertSafeScene();

@@ -98,7 +98,7 @@ for(let n=1;n<=12;n++){
  p.input.axisX=1;p.input.axisY=1;const old=owned.vx;
  x.s.rocks=[owned];tick(x,3);
  assert.ok(owned.vx<old,'player cannot force rock back uphill');
- owned.x=-owned.r;tick(x,1);assert.equal(p.bb.mode,'spectator');
+ owned.x=-owned.r-15;tick(x,1);assert.equal(p.bb.mode,'spectator');
  assert.equal(p.bb.rockId,null,'rock exit releases control');
 }
 {
@@ -125,7 +125,7 @@ for(let n=1;n<=12;n++){
  const normal=G.rockAt(x.s,180,x.ps[0]);
  assert.equal(normal.ownerId,null,'cannot assign a second controlled rock to one player');
  assert.equal(x.ps[0].bb.rockId,one.id);
- one.x=-one.r;tick(x,1);
+ one.x=-one.r-15;tick(x,1);
  assert.equal(x.ps[0].bb.rockId,null,'exiting boulder releases its owner');
  assert.equal(x.ps[1].bb.rockId,two.id,'other players retain their colored rocks');
 }
@@ -176,6 +176,28 @@ for(let n=1;n<=12;n++){
  const end=Math.atan2(bot.dir.y,bot.dir.x);
  const diff=Math.abs(Math.atan2(Math.sin(end-start),Math.cos(end-start)));
  assert.ok(diff<=6/60+1e-6,'bot heading turns at a capped speed, no visible flickering');
+}
+
+
+{
+ // Rock sprites must actually enter from the RIGHT screen edge and remain
+ // until the whole circle has exited to the LEFT, rather than popping out.
+ const x=game(3,123);
+ x.s.nextSpawn=9999;
+ const r=G.rockAt(x.s,260);
+ assert.ok(r.x-r.r>960,'new boulder is fully outside the right screen edge');
+ assert.ok(G.bounds.x<35&&G.bounds.x+G.bounds.w>925,
+  'physical icy field now reaches almost the entire visible screen width');
+ // Begin crossing the right boundary. The leftmost pixels of the rock are
+ // still off-screen at first, then enter naturally on subsequent ticks.
+ r.x=960+r.r+4;tick(x,1);
+ assert.ok(x.s.rocks.includes(r),'rock remains active as it approaches the right edge');
+ // This position is just outside the left edge, but the avatar-shaped
+ // image and shadow can still be visible: never reclaim the rock early.
+ r.x=-r.r+10;tick(x,1);
+ assert.ok(x.s.rocks.includes(r),'rock stays alive until fully beyond the left edge');
+ r.x=-r.r-15;tick(x,1);
+ assert.ok(!x.s.rocks.includes(r),'rock is recycled only after clearing the visible frame');
 }
 
 for(const n of [2,6,12]){

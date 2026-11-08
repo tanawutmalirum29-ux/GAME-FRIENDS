@@ -496,7 +496,7 @@ function drawPerson(g,p,time){
 }
 function draw(ctx,time,round,ps){
  const s=round.snowBrawl;if(!s)return;
- ctx.save();window.FarmIceArt.beginScene(ctx,'#1165c8');
+ ctx.save();window.FarmIceArt.beginScene(ctx,'#1165c8',{fullWidth:true});
  drawIsland(ctx,s,time);
  // The drawing coordinate system maps a whole island to the 960×540 canvas.
  for(const fx of s.effects){

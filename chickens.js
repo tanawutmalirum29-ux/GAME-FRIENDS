@@ -436,7 +436,7 @@ function drawPlayer(ctx,p,t){
 function draw(ctx,time,round,players){
   const s=round.chickens;if(!s)return;
   const w=s.world.w,h=s.world.h;
-  ctx.save();window.FarmIceArt.beginScene(ctx,'#91c631');ctx.scale(960/w,540/h);
+  ctx.save();window.FarmIceArt.beginScene(ctx,'#91c631',{fullWidth:true});ctx.scale(960/w,540/h);
   window.FarmIceArt.farm(ctx,s);
   // Pen residents remain visible and inert, never re-entering the arena.
   for(const c of s.chickens)if(c.status==='penned'){
