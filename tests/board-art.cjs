@@ -29,7 +29,15 @@ function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,nam
 // every bridge style. Sword court adjacency remains a board-map rule only:
 // no dark painted rectangle or block should join their two emblems.
 assert.deepEqual(JSON.parse(JSON.stringify(A.roadWidths)),
- {node:88,road:88,bridge:88});
+ {node:88,road:88,bridge:88,guideOffset:32});
+assert.match(artSource,/strokeEdge\(e,'#f9f3dc',3\.6,-BOARD_GUIDE_SIDE_OFFSET\)/,
+ 'the canonical route guide belongs on the side of the road, not its centre');
+assert.match(artSource,/g\.translate\(markerX,markerY\)/,
+ 'direction chevrons use world positions offset toward the road shoulder');
+assert.match(artSource,/markerX=a\.x\+dx\*\.52\+dy\/d\*BOARD_GUIDE_SIDE_OFFSET/,
+ 'chevron X uses perpendicular offset from the segment centre');
+assert.match(artSource,/markerY=a\.y\+dy\*\.52-dx\/d\*BOARD_GUIDE_SIDE_OFFSET/,
+ 'chevron Y uses perpendicular offset from the segment centre');
 assert.doesNotMatch(artSource,/g\.strokeStyle='#263b60b3'|g\.lineWidth=105\s*;\s*g\.beginPath/,
  'no dark shadow band may connect adjacent sword tiles');
 {

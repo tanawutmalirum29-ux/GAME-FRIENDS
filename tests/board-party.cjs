@@ -282,6 +282,46 @@ test('Free 2D walking: reverse and sideways inputs are real movement, no acciden
  until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';},30);
  assert.equal(p.currentNodeId,'n3','resuming the joystick completes only manual steps');
 });
+test('Player can reach the inner edge of an 88-unit road and circular pad without skipping steps',()=>{
+ const s=ready(3,608),p=s.players[0];
+ P.beginMove(s,p,3);
+ const from=s.map.nodes.n0.position,to=s.map.nodes.n1.position;
+ const dist=Math.hypot(to.x-from.x,to.y-from.y);
+ const direction={x:(to.x-from.x)/dist,y:(to.y-from.y)/dist};
+ const side={x:-direction.y,y:direction.x};
+ // Stay on the circular pad: a perpendicular joystick must not automatically
+ // choose a forward road or spend any of the dice.
+ press(s,p,null,{axisX:side.x,axisY:side.y});
+ tick(s,.15);
+ assert.equal(s.phase,'move_ready');
+ const pad=I.position(s,p);
+ assert.ok(Math.hypot(pad.x-from.x,pad.y-from.y)>30,
+  'player can approach the outer tile rim, not stop after only 18 units');
+ assert.ok(Math.hypot(pad.x-from.x,pad.y-from.y)<=34.001);
+ assert.equal(s.move.remaining,3,'pad exploration never consumes a step');
+ // A normal chosen segment must allow the same near-edge movement. Its
+ // centre is not the only valid walking line.
+ assert.equal(P.step(s,'n1'),true);
+ press(s,p,null,{axisX:direction.x,axisY:direction.y});
+ tick(s,.18);
+ assert.equal(s.move.to,'n1');
+ press(s,p,null,{axisX:side.x,axisY:side.y});
+ tick(s,.26);
+ assert.ok(Math.abs(s.move.lateral)>=32,'can reach a road shoulder');
+ assert.ok(Math.abs(s.move.lateral)<=34.001,'cannot walk outside the visual deck');
+ assert.equal(s.move.remaining,3,'sideways travel does not consume a dice step');
+ const edge=I.position(s,p);
+ assert.ok(I.segmentDistance(edge,from,to)<=34.001,
+  'avatar remains inside the road while hugging its edge');
+ // Turning forward again keeps the same lateral position instead of
+ // snapping the character back to the road's centre line.
+ const before=s.move.lateral;
+ press(s,p,null,{axisX:direction.x,axisY:direction.y});
+ P.update(s,.05);
+ assert.ok(Math.abs(s.move.lateral-before)<.01,
+  'continuing forward preserves a chosen road shoulder');
+});
+
 test('Early fork can be changed without consuming a die step or jumping over nodes',()=>{
  const s=ready(),p=s.players[0];p.currentNodeId='n3';P.beginMove(s,p,2);assert.equal(s.phase,'branch');
  assert.equal(P.step(s,'n2'),false);assert.equal(P.step(s,'n8'),false);assert.equal(P.step(s,'missing'),false);
@@ -427,7 +467,7 @@ test('Walking on a water bridge remains inside its deck and does not snap to the
   const pos=I.position(s,p);
   assert.ok(Math.hypot(pos.x-last.x,pos.y-last.y)<25,'must not teleport toward pad centre');
   if(p.currentNodeId===fromId){
-   assert.ok(I.segmentDistance(pos,a,b)<=18.001,'cannot step out onto the water');
+   assert.ok(I.segmentDistance(pos,a,b)<=34.001,'walker remains within the physical width of the bridge');
   }else{
    crossed=true;
    assert.equal(p.currentNodeId,toId);

@@ -196,7 +196,13 @@ function nextStep(s){
  if(m.kind==='walk'){movePhase(s,'move_ready');return;}
  step(s,options[0]);
 }
-const WALK_SPEED=240,LANE_RADIUS=18,NODE_RADIUS=18,TURN_DELAY=.16;
+// Each visible road/bridge and circular tile measures 88 world units across.
+// Leave a small allowance for the avatar footprint while letting it reach the
+// edges of BOTH the path and the tile instead of forcing its centre into 18u.
+const WALK_SPEED=240,ROAD_HALF_WIDTH=44,AVATAR_EDGE_CLEARANCE=10;
+const LANE_RADIUS=ROAD_HALF_WIDTH-AVATAR_EDGE_CLEARANCE;
+const NODE_RADIUS=ROAD_HALF_WIDTH-AVATAR_EDGE_CLEARANCE;
+const ROCKET_LANE_RADIUS=18,TURN_DELAY=.16;
  // The Y-junction starts to curve before its centre. Keep branch steering
  // reversible inside the visibly shared curved plaza, not only when the
  // sprite is within a skinny 18-unit strip of the ALTERNATE straight line.
@@ -349,7 +355,7 @@ function updateRocket(s,dt){
  const len=Math.hypot(dx,dy)||1,nx=dx/len,ny=dy/len;
  const forward=Math.max(0,stick.x*nx+stick.y*ny),side=-stick.x*ny+stick.y*nx;
  m.t=Math.min(1,m.t+forward*510*dt/len);
- m.lateral=bound((m.lateral||0)+side*510*dt,-LANE_RADIUS,LANE_RADIUS);
+ m.lateral=bound((m.lateral||0)+side*510*dt,-ROCKET_LANE_RADIUS,ROCKET_LANE_RADIUS);
  m.walking=forward>.05||Math.abs(side)>.05;
  if(m.t>=1){
   p.worldPosition=I().position(s,p);
