@@ -3,7 +3,7 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2,STEP=1/60,EPS=1e-8;
-const C=Object.freeze({body:15,ball:21,spike:4,chain:96,speed:166,maxBallSpeed:720,
+const C=Object.freeze({body:15,ball:21,spike:4,chain:114,speed:166,turnRate:3.2,maxBallSpeed:720,
  air:0.992,restitution:0.69,soloSeconds:60,suddenAt:90,suddenSeconds:65,minSafe:.49});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const finite=(v,f=0)=>Number.isFinite(v)?v:f;
@@ -35,9 +35,10 @@ function setup(round,ps){
   p.active=true;p.score=0;p.x=q.x;p.y=q.y;p.vx=p.vy=0;
   p.dir=d;p.face=d.x<0?-1:1;
   const point=anchor(p),out={x:Math.cos(a),y:Math.sin(a)};
-  const bx=clamp(point.x+out.x*72,b.x+C.ball+9,b.right-C.ball-9);
-  const by=clamp(point.y+out.y*72,b.y+C.ball+9,b.bottom-C.ball-9);
+  const bx=clamp(point.x+out.x*(C.chain-24),b.x+C.ball+9,b.right-C.ball-9);
+  const by=clamp(point.y+out.y*(C.chain-24),b.y+C.ball+9,b.bottom-C.ball-9);
   p.gladiator={alive:true,eliminatedTick:null,eliminatedAt:null,reason:null,
+   heading:Math.atan2(d.y,d.x),knockVx:0,knockVy:0,
    ball:{x:bx,y:by,vx:0,vy:0,px:bx,py:by,static:false,owner:p.id},
    anchorX:point.x,anchorY:point.y,deadAnchorX:null,deadAnchorY:null,
    lastX:p.x,lastY:p.y,botClock:0,botTarget:null,botInput:{x:0,y:0},
@@ -88,21 +89,40 @@ function botControl(s,p,ps){
  state.botClock=.15+random(s)*.21;
  return state.botInput;
 }
+// This game's direction has inertia: reversing the stick cannot flip the avatar.
+function steer(p,input,dt){
+ const st=p.gladiator,mag=hyp(input.x,input.y);
+ if(mag>=.12){
+  const desired=Math.atan2(input.y,input.x);
+  const shortest=Math.atan2(Math.sin(desired-st.heading),Math.cos(desired-st.heading));
+  st.heading+=clamp(shortest,-C.turnRate*dt,C.turnRate*dt);
+ }
+ p.dir={x:Math.cos(st.heading),y:Math.sin(st.heading)};
+ p.face=p.dir.x<0?-1:1;
+ return mag<.12?{x:0,y:0}:{x:p.dir.x*Math.min(1,mag),y:p.dir.y*Math.min(1,mag)};
+}
 function movePlayers(s,ps,dt){
  const b=s.bounds,live=living(ps);
  for(const p of live){
   const st=p.gladiator;
   st.lastX=p.x;st.lastY=p.y;
-  const v=p.isBot?botControl(s,p,ps):inputOf(p);
-  // Shared character module owns movement and wall projection.
+  const input=p.isBot?botControl(s,p,ps):inputOf(p);
+  const v=steer(p,input,dt);
+  // Keep shared position/wall logic, but never let it override our turn limit.
   if(window.PartyCharacters?.move){
    window.PartyCharacters.move(p,v,dt,{speed:C.speed*(p.isBot?.95:1),
-    radius:C.body,bounds:{x:b.x,y:b.y,w:b.right-b.x,h:b.bottom-b.y}});
+    radius:C.body,lockHeading:true,bounds:{x:b.x,y:b.y,w:b.right-b.x,h:b.bottom-b.y}});
   }else{
    p.x=clamp(p.x+v.x*C.speed*dt,b.x+C.body,b.right-C.body);
    p.y=clamp(p.y+v.y*C.speed*dt,b.y+C.body,b.bottom-C.body);
-   if(hyp(v.x,v.y)>.1)p.dir={x:v.x,y:v.y};
   }
+  // A mace strike sends its wielder sliding back, independently of joystick.
+  p.x=clamp(p.x+st.knockVx*dt,b.x+C.body,b.right-C.body);
+  p.y=clamp(p.y+st.knockVy*dt,b.y+C.body,b.bottom-C.body);
+  const damping=Math.pow(.84,dt*60);
+  st.knockVx*=damping;st.knockVy*=damping;
+  if(Math.abs(st.knockVx)<.1)st.knockVx=0;
+  if(Math.abs(st.knockVy)<.1)st.knockVy=0;
  }
  if(window.PartyCharacters?.resolve&&live.length>1){
   window.PartyCharacters.resolve(live,{radius:C.body,iterations:6,maxShift:4,pressure:true,
@@ -184,6 +204,50 @@ function collideBalls(s,ps){
   if(p.gladiator.alive){wall(s,q);constrain(q,p,STEP);}
  }
 }
+// Own mace is SOLID but never lethal. The impact pushes the wielder instead
+// of letting the ball pass through their body or teleporting to the other side.
+function collideOwnMaces(s,ps,dt){
+ const b=s.bounds,radius=C.body+C.ball+C.spike*.65;
+ for(const p of living(ps)){
+  const st=p.gladiator,ball=st.ball;
+  const start={x:ball.px,y:ball.py},oldPlayer={x:st.lastX,y:st.lastY};
+  let dx=ball.x-p.x,dy=ball.y-p.y,d=hyp(dx,dy);
+  const sweptHit=swept(start,ball,oldPlayer,p,radius);
+  if(d>=radius&&!sweptHit)continue;
+  // In case a fast relative sweep crossed the body, resolve on the incoming side.
+  if(d>=radius){
+   let ox=start.x-oldPlayer.x,oy=start.y-oldPlayer.y,m=hyp(ox,oy);
+   if(m<EPS){ox=-p.dir.x;oy=-p.dir.y;m=hyp(ox,oy)||1;}
+   ball.x=p.x+ox/m*(radius-.01);
+   ball.y=p.y+oy/m*(radius-.01);
+   dx=ball.x-p.x;dy=ball.y-p.y;d=hyp(dx,dy);
+  }
+  if(d<EPS){
+   dx=start.x-oldPlayer.x;dy=start.y-oldPlayer.y;d=hyp(dx,dy);
+   if(d<EPS){dx=-p.dir.x;dy=-p.dir.y;d=hyp(dx,dy)||1;}
+  }
+  const nx=dx/d,ny=dy/d;
+  const overlap=Math.max(0,radius-hyp(ball.x-p.x,ball.y-p.y));
+  const oldX=p.x,oldY=p.y;
+  // Heavier spiked mace: the player takes most of the positional shove.
+  p.x=clamp(p.x-nx*overlap*.72,b.x+C.body,b.right-C.body);
+  p.y=clamp(p.y-ny*overlap*.72,b.y+C.body,b.bottom-C.body);
+  const moved=(oldX-p.x)*nx+(oldY-p.y)*ny;
+  ball.x+=nx*Math.max(0,overlap-moved+.02);
+  ball.y+=ny*Math.max(0,overlap-moved+.02);
+  const approach=(ball.vx-p.vx)*nx+(ball.vy-p.vy)*ny;
+  if(approach<0){
+   const impulse=Math.min(340,-approach*.72);
+   st.knockVx=clamp(st.knockVx-nx*impulse,-360,360);
+   st.knockVy=clamp(st.knockVy-ny*impulse,-360,360);
+   ball.vx+=nx*impulse*.70;
+   ball.vy+=ny*impulse*.70;
+  }
+  p.vx=(p.x-st.lastX)/dt;p.vy=(p.y-st.lastY)/dt;
+  wall(s,ball);
+  constrain(ball,p,dt);
+ }
+}
 // Continuous relative segment test — one-frame tunneling cannot bypass a mace.
 function swept(a0,a1,b0,b1,r){
  const x=a0.x-b0.x,y=a0.y-b0.y;
@@ -241,6 +305,7 @@ function step(dt,round,ps){
  movePlayers(s,ps,dt);
  ballMotion(s,ps,dt);
  collideBalls(s,ps);
+ collideOwnMaces(s,ps,dt);
  resolveDeaths(s,ps);
  const remaining=living(ps).length;
  if(ps.filter(p=>p.active).length===1){
@@ -266,7 +331,7 @@ function hud(ps,round){
 function mace(g,p){
  const st=p.gladiator,ball=st.ball,ax=st.alive?st.anchorX:st.deadAnchorX,ay=st.alive?st.anchorY:st.deadAnchorY;
  const dx=ball.x-ax,dy=ball.y-ay,d=hyp(dx,dy)||1,nx=dx/d,ny=dy/d;
- const links=Math.max(1,Math.floor(d/9));
+ const links=Math.max(1,Math.floor(d/9)); // +2 links from longer 114px tether
  g.save();g.lineCap='round';g.lineJoin='round';
  g.strokeStyle='#11161d';g.lineWidth=6;
  g.beginPath();g.moveTo(ax+2,ay+3);g.lineTo(ball.x+2,ball.y+3);g.stroke();
