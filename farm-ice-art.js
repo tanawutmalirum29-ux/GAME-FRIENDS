@@ -24,9 +24,10 @@ function beginScene(g,background,options){
  g.clearRect(0,0,960,540);g.fillStyle=background;g.fillRect(0,0,960,540);
  const v=viewport(g);
  if(v.scale!==1){
-  // Boulder Bash is a left-to-right endless slope. Keep the top safe
-  // area for the host HUD, but stretch ONLY its horizontal world to the
-  // canvas edges, instead of creating blank bars on both sides.
+  // These three farm/ice games fill the host's full horizontal viewport:
+  // BOULDER BASH, CHICKENS and SNOW BRAWL. Keep the vertical HUD inset
+  // but remove the uniform-scale letterbox on the left and right sides.
+  // World collision coordinates remain unchanged (render-only transform).
   const edgeToEdge=options?.fullWidth===true;
   g.translate(edgeToEdge?0:v.x,v.y);
   g.scale(edgeToEdge?1:v.scale,v.scale);
