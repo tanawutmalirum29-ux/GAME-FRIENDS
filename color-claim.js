@@ -435,6 +435,66 @@ function frostImage(){
 function disk(g,x,y,r,color){
  g.beginPath();g.arc(x,y,r,0,TAU);g.fillStyle=color;g.fill();
 }
+// Extract directed boundaries from the authoritative ownership mask once per
+// capture. The engine remains grid-based for fair scoring, while the *visible*
+// shape is traced as anti-aliased quadratic curves rather than tile rectangles.
+function buildContours(s){
+ const byStart=new Map(),edges=[],groups=Array.from({length:s.roster.length},()=>[]);
+ const node=(x,y)=>y*(s.cols+1)+x,span=(s.cols+1)*(s.rows+1);
+ const add=(slot,x,y,tx,ty)=>{
+  const a=slot*span+node(x,y),b=slot*span+node(tx,ty);
+  const dir=tx>x?0:ty>y?1:tx<x?2:3;
+  const e={slot,x,y,a,b,dir,used:false};
+  edges.push(e);if(!byStart.has(a))byStart.set(a,[]);byStart.get(a).push(e);
+ };
+ for(let y=0;y<s.rows;y++)for(let x=0;x<s.cols;x++){
+  const i=y*s.cols+x,slot=s.owner[i];if(slot<0||slot>=groups.length)continue;
+  if(y===0||s.owner[i-s.cols]!==slot)add(slot,x,y,x+1,y);
+  if(x===s.cols-1||s.owner[i+1]!==slot)add(slot,x+1,y,x+1,y+1);
+  if(y===s.rows-1||s.owner[i+s.cols]!==slot)add(slot,x+1,y+1,x,y+1);
+  if(x===0||s.owner[i-1]!==slot)add(slot,x,y+1,x,y);
+ }
+ for(const entry of edges){
+  if(entry.used)continue;
+  let e=entry,contour=[],closed=false;
+  for(let step=0;step<=edges.length;step++){
+   if(e.used)break;
+   e.used=true;contour.push({x:e.x,y:e.y});
+   if(e.b===entry.a){closed=true;break;}
+   const options=(byStart.get(e.b)||[]).filter(v=>!v.used);
+   if(!options.length)break;
+   // Right turns first: diagonal-touching islands stay separate instead
+   // of accidentally stitching their perimeters into a bow-tie polygon.
+   const preference=[1,0,3,2];
+   options.sort((a,b)=>preference.indexOf((a.dir-e.dir+4)%4)-
+    preference.indexOf((b.dir-e.dir+4)%4));
+   e=options[0];
+  }
+  if(closed&&contour.length>=3)groups[entry.slot].push(contour);
+ }
+ return groups;
+}
+function smoothLoop(g,s,points){
+ const f=s.field,n=points.length;
+ if(n<3)return;
+ const coord=p=>({x:f.x+p.x*CELL,y:f.y+p.y*CELL});
+ const start=coord(points[n-1]),first=coord(points[0]);
+ g.moveTo((start.x+first.x)*.5,(start.y+first.y)*.5);
+ for(let i=0;i<n;i++){
+  const p=coord(points[i]),next=coord(points[(i+1)%n]);
+  g.quadraticCurveTo(p.x,p.y,(p.x+next.x)*.5,(p.y+next.y)*.5);
+ }
+ g.closePath();
+}
+function traceSmoothTrail(g,path){
+ if(path.length<2)return;
+ g.beginPath();g.moveTo(path[0].x,path[0].y);
+ for(let i=1;i<path.length-1;i++){
+  const a=path[i],b=path[i+1];
+  g.quadraticCurveTo(a.x,a.y,(a.x+b.x)*.5,(a.y+b.y)*.5);
+ }
+ g.lineTo(path[path.length-1].x,path[path.length-1].y);
+}
 function drawScene(g,s){
  const f=s.field;
  g.fillStyle='#140d34';g.fillRect(0,0,s.w,s.h);
@@ -446,15 +506,16 @@ function drawScene(g,s){
  g.lineWidth=1;g.strokeStyle='rgba(120,154,239,.13)';
  for(let x=f.x;x<=f.x+f.w;x+=32){g.beginPath();g.moveTo(x,f.y);g.lineTo(x,f.y+f.h);g.stroke();}
  for(let y=f.y;y<=f.y+f.h;y+=32){g.beginPath();g.moveTo(f.x,y);g.lineTo(f.x+f.w,y);g.stroke();}
- for(let y=0;y<s.rows;y++){
-  let x=0;
-  while(x<s.cols){
-   const slot=s.owner[y*s.cols+x];if(slot<0){x++;continue;}
-   let end=x+1;while(end<s.cols&&s.owner[y*s.cols+end]===slot)end++;
-   const p=s.roster[slot];
-   g.globalAlpha=.77;g.fillStyle=p?.color||'#9ad5ff';
-   g.fillRect(f.x+x*CELL,f.y+y*CELL,(end-x)*CELL,CELL+.3);x=end;
-  }
+ if(s.dirty||!s.contours){s.contours=buildContours(s);s.dirty=false;}
+ g.globalAlpha=.79;
+ for(let slot=0;slot<s.contours.length;slot++){
+  const loops=s.contours[slot];if(!loops.length)continue;
+  g.beginPath();for(const loop of loops)smoothLoop(g,s,loop);
+  g.fillStyle=s.roster[slot]?.color||'#9ad5ff';g.fill('evenodd');
+  // Subtle continuous curved edge, without a tile-grid outline.
+  g.strokeStyle=s.roster[slot]?.color||'#9ad5ff';
+  g.globalAlpha=.3;g.lineWidth=1.5;g.stroke();
+  g.globalAlpha=.79;
  }
  g.globalAlpha=1;g.restore();
  g.save();g.lineWidth=6;g.strokeStyle='#ff2789';g.shadowColor='#ff2185';g.shadowBlur=18;
@@ -474,8 +535,7 @@ function draw(g,t,round,ps){
   const q=p.cc;if(!q.alive||q.trail.length<2)continue;
   g.save();g.lineCap='round';g.lineJoin='round';
   for(const [width,alpha,blur] of [[13,.25,14],[7,.95,5]]){
-   g.beginPath();g.moveTo(q.trail[0].x,q.trail[0].y);
-   for(let i=1;i<q.trail.length;i++)g.lineTo(q.trail[i].x,q.trail[i].y);
+   traceSmoothTrail(g,q.trail);
    g.strokeStyle=p.color;g.globalAlpha=alpha;g.lineWidth=width;
    g.shadowColor=p.color;g.shadowBlur=blur;g.stroke();
   }
@@ -515,6 +575,6 @@ function draw(g,t,round,ps){
 }
 window.ColorClaim=Object.freeze({setup,update,step,draw,hud,finish,index,owned,claimDisk,
  recount,captureMask,applyCaptures,segmentsTouch,pointSegment2,kill,revive,eliminate,
- largestTerritory,spawnPlace,freezeActive,
+ largestTerritory,spawnPlace,buildContours,traceSmoothTrail,freezeActive,
  config:SETTINGS});
 })();
