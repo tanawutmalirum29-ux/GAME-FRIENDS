@@ -154,6 +154,8 @@ jobs:
           NODE_PATH: /tmp/board-browser/node_modules
         run: |
           export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
+          node tests/farm-ice-browser.cjs
+          BOARD_BROWSER=webkit node tests/farm-ice-browser.cjs
           node tests/board-browser.cjs
           node tests/mobile-host-lobby-browser.cjs
           BOARD_BROWSER=webkit node tests/mobile-host-lobby-browser.cjs
@@ -165,8 +167,6 @@ jobs:
           BOARD_BROWSER=webkit node tests/pizza-kitchen-browser.cjs
           node tests/party-arenas-browser.cjs
           BOARD_BROWSER=webkit node tests/party-arenas-browser.cjs
-          node tests/farm-ice-browser.cjs
-          BOARD_BROWSER=webkit node tests/farm-ice-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

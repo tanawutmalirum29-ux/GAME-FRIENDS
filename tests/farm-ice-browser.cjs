@@ -67,14 +67,17 @@ const server=http.createServer((req,res)=>{
    if(mode==='chickens'){
     const result=await page.evaluate(()=>{
      const a=__farmView,s=a.round.chickens,p=a.players[0],bird=s.chickens[0],pen=s.pens[0];
+     // Keep unrelated free/reserve birds from being picked up while checking
+     // one deposit for duplicate credit. Their random path can reach the gate.
+     const protectOthers=()=>{for(const c of s.chickens)if(c!==bird&&c.status==='free')c.invulnerable=2;};
      p.x=s.center.x;p.y=s.center.y;p.dir={x:1,y:0};
-     bird.x=p.x+12;bird.y=p.y;bird.invulnerable=0;Chickens.update(1/60,a.round,a.players);
+     bird.x=p.x+12;bird.y=p.y;bird.invulnerable=0;protectOthers();Chickens.update(1/60,a.round,a.players);
      const caught=p.carriedChickenId===bird.id&&bird.status==='carried';
      const carryError=Math.hypot(bird.x-p.x-p.dir.x*37,bird.y-p.y-p.dir.y*37);
      p.x=s.center.x+pen.normal.x*(s.radius-16);p.y=s.center.y+pen.normal.y*(s.radius-16);p.dir=pen.normal;
-     for(let i=0;i<10;i++)Chickens.update(1/60,a.round,a.players);
+     for(let i=0;i<10;i++){protectOthers();Chickens.update(1/60,a.round,a.players);}
      const deposited=bird.status==='penned'&&bird.penId===pen.id,score=p.score;
-     for(let i=0;i<10;i++)Chickens.update(1/60,a.round,a.players);
+     for(let i=0;i<10;i++){protectOthers();Chickens.update(1/60,a.round,a.players);}
      const actual={x:bird.x,y:bird.y},slot=pen.slots[0];
      p.x=s.center.x-65;p.y=s.center.y;
      // A second genuine pickup leaves a bird visibly held in the review frame.
