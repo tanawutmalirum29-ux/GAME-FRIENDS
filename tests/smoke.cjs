@@ -243,11 +243,13 @@ assert.match(html,/id="uiModal"/);
 assert.doesNotMatch(source,/\b(?:alert|confirm)\(/);
 assert.match(css,/#hostLobby #hostQueue\{display:none!important\}/);
 assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?display:flex;/);
-// Only the corner world obstacle displays the start countdown/player total.
+// All minigames use the host's single shared centre badge, never a solid
+// top-left obstacle or a second engine-specific text overlay.
 assert.doesNotMatch(html,/id="gameMode"|id="timer"|class="game-name"/);
 assert.doesNotMatch(source,/\$\('gameMode'\)|\$\('timer'\)/);
-assert.match(ghostSource,/function drawCornerHud\(ctx,round,players,state\)/);
-assert.match(ghostSource,/kind:'hud-blocker'/);
+assert.doesNotMatch(ghostSource,/function drawCornerHud\(ctx,round,players,state\)/);
+assert.doesNotMatch(ghostSource,/kind:'hud-blocker'/);
+assert.match(partyArenaSource,/function hudBadgeDrop\(\)/);
 assert.match(css,/body\.host-playing #game \.leader-chip\{[\s\S]*?grid-template-rows:17px 16px 18px/);
 assert.match(css,/body\.host-playing #game \.leaderboard\{[\s\S]*?height:58px!important/);
 assert.match(css,/body\.host-playing #game \.leader-chip span\.leader-held-icon\{/);
