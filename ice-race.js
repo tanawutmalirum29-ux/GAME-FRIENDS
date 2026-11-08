@@ -96,6 +96,7 @@ function scenery(s){
  });
 }
 function setup(round,players){
+ window.PartyCharacters?.activate?.(players);
  const ps=active(players);
  if(ps.length<1||ps.length>12)throw Error('ICE RACE supports 1–12 players');
  const cfg=ps.length<=6?C.small:C.large;
