@@ -5766,3 +5766,10 @@ body.host-playing #game .game-center-hud{
     font-size:clamp(9px,2.5vw,11px);
   }
 }
+
+/* Hover/focus must never move a lobby action even by one pixel. The global
+   .btn:hover translateY(-1px) caused a visible after-click jump on iPad. */
+#hostLobby .lobby-controls .btn:hover:not(:disabled),
+#hostLobby .lobby-controls .btn:active{
+  transform:none!important;
+}
