@@ -59,3 +59,7 @@ Shared math is `arena-scale.js` / `window.PartyArenaScale`, with `viewport`, `ce
 ## Acceptance checklist for AI developers
 
 Before committing: confirm each existing map tier, world-to-screen scale, SVG dimensions, collision/hit/pickup footprint, traversable bounds, 1–12 spawn positions, bots, game objective and HUD. Test exact 6→7 and other tier boundaries. Record screen-projected sizes, and explicitly justify any remaining density or visual-scale difference. Update `AGENTS.md` references if files or workflow change. Merge only after CI and browser checks succeed.
+
+## CI performance and QA workflow (for all future agents)
+
+The required four-shard Chromium/WebKit parallel setup, cache contract, safe cancellation of superseded PR jobs and all-green merge gate are documented in [CI_TESTING.md](CI_TESTING.md). Any map-scale change must keep `tests/map-scale-regression.cjs` in the `validate` job and the full 1–12-player `tests/map-scale-browser.cjs` in the `map-scale` browser shard. Other affected modes retain their own tests. The workflow contract is checked by `tests/ci-browser-workflow.cjs`.
