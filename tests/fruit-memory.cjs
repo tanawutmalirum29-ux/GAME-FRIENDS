@@ -183,4 +183,60 @@ for(const n of [1,6,7,12]){
  E.drawSideScreens(ctx,s);
  assert.equal(images.length,4);
 }
+{
+ // Three seconds on the host clock are positioning time, not card exposure.
+ const g=game(2),state=g.state,round=g.round,[human,bot]=g.ps;
+ const p0={x:human.x,y:human.y},b0={x:bot.x,y:bot.y};
+ human.input.axisX=1;human.input.axisY=0;
+ const images=[],texts=[];
+ const ctx=new Proxy({}, {
+   get(_target,k){
+     if(k==='drawImage')return (...args)=>images.push(args);
+     if(k==='fillText')return value=>texts.push(String(value));
+     return ()=>{};
+   },set(){return true;}
+ });
+ E.drawSideScreens(ctx,state,round);
+ assert.equal(images.length,0,'neither monitor appears during the shared countdown');
+ assert.equal(texts.length,0,'no memory countdown on side panels before the match begins');
+ round.paused=true;
+ E.update(1/60,round,g.ps);
+ assert.equal(human.x,p0.x,'pause also stops pre-start movement');
+ round.paused=false;
+ let botTravel=0,previousBot={...b0};
+ for(let i=0;i<180;i++){
+   E.update(1/60,round,g.ps);
+   botTravel+=Math.hypot(bot.x-previousBot.x,bot.y-previousBot.y);
+   previousBot={x:bot.x,y:bot.y};
+ }
+ assert.ok(Math.hypot(human.x-p0.x,human.y-p0.y)>20,
+   'a human can move freely while the three-second clock is running');
+ assert.ok(botTravel>45,
+   'a bot naturally wanders before card reveal without reading hidden fruits');
+ assert.equal(state.elapsed,0,'13-second memory timer has not started');
+ assert.equal(state.revealCursor,0,'no reveal batch started before clock expires');
+ assert.equal(state.revealedTileIds.size,0,'all cards stay hidden');
+ assert.equal(state.rounds,1,'the game does not advance waves during prestart');
+ assert.equal(state.target,null,'the safe fruit is still unknown');
+ assert.equal(Object.keys(state.botMemories[bot.id]).length,0,
+   'bots cannot inspect any fruit during the pregame countdown');
+ round.phase='playing';
+ E.drawSideScreens(ctx,state,round);
+ assert.equal(images.length,2,'both side monitors appear as the host starts playing');
+ assert.deepEqual(texts,['13','13'],'both monitors now begin their own 13-second timer');
+ E.update(1/60,round,g.ps);
+ assert.ok(state.elapsed>0,'the memorization clock starts after the shared 3-second clock');
+}
+{
+ // Solo bot also walks during prestart, with no other players to follow.
+ const g=game(1),bot=g.ps[0];bot.isBot=true;
+ let travel=0,previous={x:bot.x,y:bot.y};
+ for(let i=0;i<120;i++){
+   E.update(1/60,g.round,g.ps);
+   travel+=Math.hypot(bot.x-previous.x,bot.y-previous.y);
+   previous={x:bot.x,y:bot.y};
+ }
+ assert.ok(travel>20);
+ assert.equal(g.state.revealedTileIds.size,0);
+}
 console.log('FRUIT MEMORY V2 PASS: arena, exact timers, full card coverage, bots, simultaneous ties and mirrored SVG screens');

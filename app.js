@@ -2364,6 +2364,7 @@ function updateRound(dt){
   if(round.phase==='countdown'){
     if(round.mode==='ghost')window.GhostAttack.update(dt,round,players);
      if(round.mode==='shockwave')window.Shockwave.update(dt,round,players);
+    if(round.mode==='fruit_memory')window.FruitMemory.update(dt,round,players);
     round.countdown=Math.max(0,round.countdown-dt);
     $('gameBanner').textContent='';
     if(round.countdown===0){
@@ -3336,9 +3337,9 @@ if(round.mode==='snow_brawl'){
 // finish their scene: one badge, one position, no in-engine duplicates.
 // SHOCKWAVE intentionally never displays a numerical warning timer.
 function hostClockValue(r){
-  if(!r||r.mode==='board'||r.mode==='shockwave'||r.mode==='fruit_memory')return null;
+  if(!r||r.mode==='board'||r.mode==='shockwave')return null;
   if(r.phase==='countdown')return Number.isFinite(r.countdown)?Math.max(0,r.countdown):null;
-  if(r.phase!=='playing')return null;
+  if(r.mode==='fruit_memory'||r.phase!=='playing')return null;
   if(Number.isFinite(r.remaining))return Math.max(0,r.remaining);
   // Elapsed time is NOT a countdown: multiplayer survival shows the live
   // headcount instead. Solo survival still uses round.remaining above.

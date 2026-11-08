@@ -129,6 +129,7 @@ function newMemorize(state,players,entrants){
  state.revealCursor=0;state.revealDuration=pace.memorizeSeconds;
  state.target=null;state.rounds=nextRound;
  state.fallEntries=[];state.pendingWinner=null;state.botTargets={};state.botMemories={};
+ state.botRoamTargets={};
  state.pendingTie=false;state.tieIds=[];
  for(const p of players){
    p.fruitAlive=entrants.includes(p.id)&&p.active;
@@ -191,7 +192,33 @@ function chooseTargetFruit(state){
  state.targetHistory.push(state.target);
  state.botTargets={};
 }
+function botWanderVector(p,state){
+ // Bots move naturally during the shared 3-second start countdown and card
+ // memorization. They have no information about hidden fruit or the target.
+ const goals=state.botRoamTargets||(state.botRoamTargets={});
+ const now=state.totalElapsed;
+ let goal=goals[p.id];
+ if(!goal||now>=goal.until||Math.hypot(goal.x-p.x,goal.y-p.y)<12){
+   const spots=state.tiles.map(t=>({
+     x:state.board.x+(t.column+.5)*state.tileW,
+     y:state.board.y+(t.row+.5)*state.tileH
+   }));
+   const choices=spots.filter(q=>{
+     const d=Math.hypot(q.x-p.x,q.y-p.y);
+     return d>state.tileW*.8&&d<state.board.w*.78;
+   });
+   const pool=choices.length?choices:spots;
+   if(!pool.length)return {x:0,y:0};
+   const q=pool[Math.floor(Math.random()*pool.length)];
+   const d=Math.hypot(q.x-p.x,q.y-p.y);
+   goal={x:q.x,y:q.y,until:now+Math.max(1.1,d/C.speed)+.35+Math.random()*.45};
+   goals[p.id]=goal;
+ }
+ const dx=goal.x-p.x,dy=goal.y-p.y,d=Math.hypot(dx,dy);
+ return d<6?{x:0,y:0}:{x:dx/d,y:dy/d};
+}
 function botVector(p,state){
+ if(state.phase==='memorize')return botWanderVector(p,state);
  if(state.phase!=='move'||!state.target)return {x:0,y:0};
  if(!state.botTargets[p.id]){
    // Only cards shown in completed reveal batches enter bot memory.
@@ -377,10 +404,17 @@ function step(state,players,dt){
 function update(dt,round,players){
  const state=round.fruitMemory;
  if(!state||state.finished)return state?.finished?'winner':null;
- if(round.paused||round.phase!=='playing')return null;
+ if(round.paused||!['countdown','playing'].includes(round.phase))return null;
  state.accumulator=Math.min(.15,state.accumulator+clamp(dt,0,.1));
  while(state.accumulator>=FIXED&&!state.finished){
-   step(state,players,FIXED);state.accumulator-=FIXED;
+   if(round.phase==='countdown'){
+     // Pre-game is free movement, not memorization: don't advance the reveal
+     // clock, target selection, wave number or bot observations.
+     state.totalElapsed+=FIXED;
+     for(const p of players)stepPlayer(p,state,players,FIXED);
+     resolvePlayerCollisions(state,players);
+   }else step(state,players,FIXED);
+   state.accumulator-=FIXED;
  }
  round.remaining=null; // Fruit Memory uses side-screen memorization countdown only.
  return state.finished?'winner':null;
@@ -493,7 +527,10 @@ function screenImage(tint){
  const img=new Image();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
  panelCache[tint]=img;return img;
 }
-function drawSideScreens(ctx,state){
+function drawSideScreens(ctx,state,round){
+ // Keep the two monitor structures and their timers hidden until the host's
+ // shared three-second game-start countdown has actually finished.
+ if(round?.phase==='countdown')return;
  const target=['target','move','collapse'].includes(state.phase)&&!!state.target;
  const img=screenImage(target?state.target:'timer');
  const seconds=String(Math.max(1,Math.ceil(state.memorizeSeconds-state.elapsed)));
@@ -521,7 +558,7 @@ function draw(ctx,time,round,players){
  const state=round.fruitMemory;if(!state)return;
  ctx.save();ctx.clearRect(0,0,960,540);
  window.PartyArenaArt.draw(ctx,'orchard',state);
- drawSideScreens(ctx,state);
+ drawSideScreens(ctx,state,round);
  for(const tile of state.tiles)drawTile(ctx,state,tile,time);
  for(const p of players)drawPlayer(ctx,p,state,time);
  ctx.restore();
