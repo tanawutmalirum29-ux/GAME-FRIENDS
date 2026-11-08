@@ -30,6 +30,7 @@ const server=http.createServer((req,res)=>{
  let content,ext='.js';
  if(pathname==='/'||pathname==='/index.html'){content=html;ext='.html';}
  else if(pathname==='/game-catalog.json'){content=JSON.stringify(catalog);ext='.json';}
+ else if(pathname==='/version.json'){content=JSON.stringify({version:'lazy-browser-test'});ext='.json';}
  else if(pathname==='/build-version.js'){content=buildVersion;}
  else if(pathname.startsWith('/game-assets/')){
   const parts=pathname.split('/').filter(Boolean);
@@ -76,7 +77,7 @@ const server=http.createServer((req,res)=>{
    'host/controller start does not fetch unused minigame code');
   await page.locator('#offlineBtn').click();
   await page.evaluate(()=>window.__lazyGameTest.beginGameSelection('ghost'));
-  await page.waitForFunction(()=>window.__lazyGameTest?.selection?.ready===true);
+  await page.waitForFunction(()=>window.__lazyGameTest?.selection?.ready===true||\n   !!window.__lazyGameTest?.selection?.error);\n  const loadError=await page.evaluate(()=>String(window.__lazyGameTest?.selection?.error||''));\n  assert.equal(loadError,'','engine must load without an error');
   const played=await page.evaluate(()=>{
    __lazyGameTest.updateGameSelection(4);
    return {mode:__lazyGameTest.round?.mode,phase:__lazyGameTest.round?.phase,
