@@ -5489,7 +5489,7 @@ body.host-playing #game .game-toolbar{
   background:linear-gradient(180deg,#081626fa 0%,#081626f4 88%,transparent 100%);
 }
 body.host-playing #game .game-center-hud{
-  top:max(24px,calc(env(safe-area-inset-top,0px) + 3px));
+  top:max(24px,env(safe-area-inset-top,0px));
 }
 @media(max-width:1000px){
   /* Compact landscape hosts use two 58px player rows. Keep both in the
@@ -5499,6 +5499,6 @@ body.host-playing #game .game-center-hud{
     min-height:148px;
   }
   body.host-playing #game .game-center-hud{
-    top:max(24px,calc(env(safe-area-inset-top,0px) + 3px));
+    top:max(24px,env(safe-area-inset-top,0px));
   }
 }
