@@ -78,6 +78,50 @@ test('turning and movement drive the ball while chain length remains bounded',()
  assert.ok(hypot(start,ball)>1,'mace failed to move from physics');
  assert.equal(p.gladiator.alive,true,'owner cannot kill self');
 });
+test('joystick reversal steers gradually instead of flipping the avatar instantly',()=>{
+ const {api,ps,round}=match(1),p=ps[0];
+ const start={x:p.x,y:p.y},heading=p.gladiator.heading;
+ p.input.axisX=-Math.cos(heading);p.input.axisY=-Math.sin(heading);
+ api.step(1/60,round,ps);
+ const delta=Math.atan2(Math.sin(p.gladiator.heading-heading),Math.cos(p.gladiator.heading-heading));
+ assert.ok(Math.abs(delta)>0);
+ assert.ok(Math.abs(delta)<=api.config.turnRate/60+1e-9,'instant heading flip');
+ assert.ok(Math.cos(p.gladiator.heading-heading)>.99,'avatar must still face roughly forward');
+ assert.ok((p.x-start.x)*Math.cos(heading)+(p.y-start.y)*Math.sin(heading)>0,
+  'a reversed stick must not teleport character into reverse movement');
+ for(let i=0;i<70;i++)api.step(1/60,round,ps);
+ assert.ok(Math.cos(p.gladiator.heading-heading)<-.95,'eventually reaches opposite heading');
+});
+test('chain adds exactly two 9px links and starts at the longer reach',()=>{
+ const {api,ps}=match(1),p=ps[0];
+ assert.equal(api.config.chain,114);
+ const distance=hypot(p.gladiator.ball,{x:p.gladiator.anchorX,y:p.gladiator.anchorY});
+ assert.ok(Math.abs(distance-90)<1,'mace should start two links farther out');
+ assert.equal(Math.floor(api.config.chain/9)-Math.floor(96/9),2);
+});
+test('own mace is solid, pushes the owner and never kills them',()=>{
+ const {api,ps,round}=match(1),p=ps[0],ball=p.gladiator.ball;
+ const startX=p.x,startY=p.y;
+ Object.assign(ball,{x:p.x+20,y:p.y,px:p.x+20,py:p.y,vx:-210,vy:0});
+ api.step(1/60,round,ps);
+ assert.equal(p.gladiator.alive,true);
+ assert.ok(p.x<startX-.5,'owner must be pushed away from approaching mace');
+ assert.ok(hypot(p,ball)>=api.config.body+api.config.ball+api.config.spike*.65-.15,
+  'owner body may not overlap with their own mace');
+ assert.ok(p.gladiator.knockVx<0,'collision must transfer knockback momentum');
+ assert.ok(Number.isFinite(p.y-startY+ball.vx+ball.vy));
+});
+test('own mace remains solid even when owner is against the arena wall',()=>{
+ const {api,ps,round,s}=match(1),p=ps[0],ball=p.gladiator.ball;
+ p.x=s.bounds.x+api.config.body;p.y=s.bounds.h/2;
+ p.dir={x:1,y:0};p.gladiator.heading=0;
+ Object.assign(ball,{x:p.x+22,y:p.y,px:p.x+22,py:p.y,vx:-125,vy:0});
+ api.step(1/60,round,ps);
+ assert.equal(p.gladiator.alive,true);
+ assert.ok(p.x>=s.bounds.x+api.config.body);
+ assert.ok(hypot(p,ball)>=api.config.body+api.config.ball+api.config.spike*.65-.15,
+  'mace must separate even when player cannot be pushed through wall');
+});
 test('opposing mace touches cause simultaneous eliminations and tied ranks',()=>{
  const {api,ps,round,s}=match(2),[a,b]=ps;
  a.x=430;a.y=270;b.x=550;b.y=270;
