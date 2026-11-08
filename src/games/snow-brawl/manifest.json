@@ -1,0 +1,27 @@
+{
+  "id": "snow_brawl",
+  "name": "SNOW BRAWL",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {
+    "min": 1,
+    "max": 12
+  },
+  "modes": [
+    "normal",
+    "board"
+  ],
+  "controls": [
+    "joystick",
+    "A",
+    "B",
+    "C"
+  ],
+  "entry": "./game.js",
+  "global": "SnowBrawl",
+  "legacyScripts": [
+    "farm-ice-art.js",
+    "snow-brawl.js"
+  ]
+}
