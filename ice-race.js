@@ -13,9 +13,11 @@ const C=Object.freeze({
 });
 // Two intentionally different racecourses, not the same centreline stretched.
 // Wider lanes must not bridge neighbouring turns on the crowded course.
+// Keep the small course's centre connector above the two return bends at
+// y=.44/.46. These anchors define both the visible ice and its physical support.
 const SMALL_ANCHORS=Object.freeze([
  [.53,.79],[.71,.79],[.81,.70],[.76,.59],[.65,.55],[.65,.46],
- [.80,.42],[.83,.25],[.74,.17],[.65,.19],[.63,.31],[.51,.33],
+ [.80,.42],[.83,.25],[.74,.17],[.65,.19],[.63,.22],[.51,.22],
  [.48,.17],[.35,.17],[.30,.27],[.32,.42],[.46,.44],[.46,.53],
  [.35,.62],[.24,.69],[.29,.79],[.43,.79]
 ]);
@@ -48,7 +50,11 @@ function makeTrack(s){
  });
  s.path=segments;s.trackLength=length;
  s.checkpoints=Array.from({length:4},(_,id)=>{
-  const at=sample(s,length*id/4);
+  // On the small course, the first quarter lands on the inside of a tight
+  // bend. Move its gate onto the following straight, so racers actually
+  // cross the gate in its forward direction rather than cutting past it.
+  const gateOffset=s.sizeClass==='small'&&id===1?45:0;
+  const at=sample(s,length*id/4+gateOffset);
   return {id,x:at.x,y:at.y,tx:at.tx,ty:at.ty,progress:at.progress};
  });
 }
