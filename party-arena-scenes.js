@@ -136,24 +136,28 @@ function cache(g,s,kind,paint){
  }
  g.drawImage(entry.canvas,0,0,w,h);
 }
-// Shared on-canvas HUD baseline: clear of the iPad roster and host safe area.
-// Reused by every minigame, regardless of whether it draws its own scene.
-const HUD_BADGE_DROP=45;
+// A single logical position for both clock and SVG headcount; never use
+// a large hard-coded drop or the badge drifts into the playable arena.
+const HUD_BADGE_FALLBACK_DROP=8;
+const HUD_BADGE_MIN_DROP=0;
+const HUD_BADGE_ROSTER_GAP_PX=4;
 function hudBadgeDrop(){
- // Compute this in canvas-world units because the HUD roster is DOM over
- // an object-fit:contain 960x540 canvas. A fixed pixel shift alone fails on
- // narrow landscape screens where the roster becomes two rows.
+ // The canvas is object-fit:contain. Convert the roster's actual screen
+ // bottom into 960x540 world units, then place the badge immediately below.
+ // This works for one or two rows, iPad safe areas and letterboxed screens.
  if(typeof document==='undefined'||typeof window==='undefined'||
-    window.innerWidth<window.innerHeight)return HUD_BADGE_DROP;
+    window.innerWidth<window.innerHeight)return HUD_BADGE_FALLBACK_DROP;
  const canvas=document.getElementById('arena');
  const roster=document.getElementById('leaderboard');
  const a=canvas?.getBoundingClientRect?.(),r=roster?.getBoundingClientRect?.();
- if(!a||!r||a.width<=0||a.height<=0||r.height<=0)return HUD_BADGE_DROP;
+ if(!a||!r||a.width<=0||a.height<=0||r.height<=0)return HUD_BADGE_FALLBACK_DROP;
  const scale=Math.min(a.width/960,a.height/540);
- if(!(scale>0))return HUD_BADGE_DROP;
+ if(!(scale>0))return HUD_BADGE_FALLBACK_DROP;
  const contentTop=a.top+(a.height-540*scale)/2;
- // Its box starts at logical y=5. Leave a 6px CSS gap beneath the roster.
- return Math.max(HUD_BADGE_DROP,Math.ceil((r.bottom+6-contentTop)/scale-5));
+ // Badge shape starts at y=5. Clamp only to the canvas's upper edge,
+ // not to the previous 45-unit offset (which caused a 60px empty gap).
+ return Math.max(HUD_BADGE_MIN_DROP,
+  Math.ceil((r.bottom+HUD_BADGE_ROSTER_GAP_PX-contentTop)/scale-5));
 }
 function clock(g,value,accent='#e8d2a1'){
  g.save();g.translate(0,hudBadgeDrop());g.lineWidth=1.5;box(g,450,5,60,25,5,'#25323ce8',accent);
