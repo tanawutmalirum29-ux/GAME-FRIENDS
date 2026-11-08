@@ -136,8 +136,10 @@ assert.match(claim,/PartyCharacters\.draw\(g,p,\{time:t,combat:false,scale:unit\
  'large COLOR CLAIM actors must scale like their world-space hitboxes');
 assert.match(claim,/trailHits\(map,from,to,5\*s\.w\/960\)/,
  'rendered territory trails and trail-cut detection must scale together');
-assert.match(chickens,/scale:s\.unit/,
- 'CHICKENS avatar artwork must scale inversely with screen projection');
+assert.match(chickens,/drawPlayer\(ctx,p,time,s\.unit\)/,
+ 'CHICKENS renderer must use the tier-scaled avatar, combat arc and stun effects');
+assert.match(chickens,/Combat\.drawAttack\(ctx,p\);Combat\.drawStun\(ctx,p,t\)/,
+ 'CHICKENS combat visuals must follow the scaled hitbox and sprite');
 assert.match(chickens,/C\.pickupRadius\*state\.unit/,
  'CHICKENS object collection must use the same physical world units as sprites');
 for(let n=1;n<=12;n++){
