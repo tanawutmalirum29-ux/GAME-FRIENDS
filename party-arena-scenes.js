@@ -159,6 +159,8 @@ function hudBadgeDrop(){
  return Math.max(HUD_BADGE_MIN_DROP,
   Math.ceil((r.bottom+HUD_BADGE_ROSTER_GAP_PX-contentTop)/scale-5));
 }
+// Align mode-specific cues to the bottom of the exact shared badge.
+function badgeBottomY(){return hudBadgeDrop()+30;}
 function clock(g,value,accent='#e8d2a1'){
  g.save();g.translate(0,hudBadgeDrop());g.lineWidth=1.5;box(g,450,5,60,25,5,'#25323ce8',accent);
  g.strokeStyle='#fff7dc';g.lineWidth=1.4;g.beginPath();g.arc(463,17.5,6,0,TAU);g.stroke();
@@ -388,6 +390,6 @@ function witchRider(g,s,p,time){
  else oval(g,p.x,p.y,12,12,p.color);
  g.restore();
 }
-window.PartyArenaScenes=Object.freeze({preload,shopping,shoppingCart,knight,knightHorse,witch,witchRider,clock,playerCount,product,productSVG,productIds,assetSVG,
+window.PartyArenaScenes=Object.freeze({preload,shopping,shoppingCart,knight,knightHorse,witch,witchRider,clock,playerCount,badgeBottomY,product,productSVG,productIds,assetSVG,
  treeSVG,tentSVG,roofSVG,horseSVG,broomSVG,cache,grass,sprite,oval,box,line,noise});
 })();
