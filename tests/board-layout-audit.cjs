@@ -70,3 +70,5 @@ console.log('EXTENDED_POS '+JSON.stringify(
 
 console.log('DENSE_POS '+JSON.stringify(['workshop','meadow','harbor','ginger','berg'].map(id=>({id,nodes:Object.values(m.nodes).filter(n=>n.islandId===id).map(n=>[n.id,n.position.x,n.position.y,n.nextNodes])}))));
 console.log('DESIGN_DECOR_ZONES '+JSON.stringify(Object.entries(D.decorZones||{}).slice(0,5).map(([id,v])=>[id,JSON.stringify(v).slice(0,250)])));
+
+console.log('CROSSING_GEOMETRY '+JSON.stringify(cuts.map(c=>{const [u,v]=c;return [u,v,...[...u.split('>'),...v.split('>')].map(id=>[id,m.nodes[id].position.x,m.nodes[id].position.y])]})));
