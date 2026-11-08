@@ -5,7 +5,7 @@
 'use strict';
 const Base=window.BoardMap,D=window.BOARD_PARTY_V7_DESIGN;
 if(!Base||!D)throw Error('BOARD v7: load board-map and design before adapter');
-const VERSION='winter-expedition-152-v7',copy=x=>JSON.parse(JSON.stringify(x));
+const VERSION='winter-expedition-152-v8',copy=x=>JSON.parse(JSON.stringify(x));
 const BASE_NODES=213,EXTRA_NODES=146,ISLANDS=17,BRIDGES=20;
 const original=Base.create(0),oldIds=new Set(Object.keys(original.nodes));
 if(oldIds.size!==BASE_NODES||D.newNodes.length!==EXTRA_NODES||
@@ -16,6 +16,139 @@ for(const n of D.newNodes){
  if(oldIds.has(n.id)||seen.has(n.id))throw Error('Duplicate v7 node '+n.id);
  seen.add(n.id);
 }
+/* BOARD v8 — deterministic art/graph renovation.
+ * v7's ten isolated sword zones and crowded short routes are not gameplay
+ * compatible with two-cell territory rules. No seeded placement is used. */
+const SWORD_COURTS=Object.freeze([
+ ['workshop-watch','w6','w7'],
+ ['harbor-watch','h0','hs30_0'],
+ ['ginger-watch','g0','g1'],
+ ['berg-watch','s3','s4']
+]);
+function remodelDesign(){
+ const settings={
+  workshop:{cx:3300,cy:2680,nx:1.10,ny:1.45,ox:1.11,oy:1.45,dx:0,dy:0},
+  meadow:{cx:2750,cy:1000,nx:1.18,ny:1.31,ox:1.20,oy:1.34,dx:0,dy:0},
+  harbor:{cx:2650,cy:5330,nx:1.28,ny:1.25,ox:1.32,oy:1.32,dx:130,dy:-15},
+  ginger:{cx:6480,cy:5430,nx:1.10,ny:1.27,ox:1.13,oy:1.30,dx:0,dy:0},
+  berg:{cx:6600,cy:2700,nx:1.17,ny:1.18,ox:1.21,oy:1.24,dx:0,dy:0}
+ };
+ const find=n=>D.newNodes.find(x=>x.id===n);
+ for(const isl of D.islands){
+  const k=settings[isl.id];if(!k)continue;
+  isl.outline=isl.outline.map(p=>({x:Math.round(k.cx+(p.x-k.cx)*k.ox+k.dx),
+                                   y:Math.round(k.cy+(p.y-k.cy)*k.oy+k.dy)}));
+  isl.center={x:k.cx+k.dx,y:k.cy+k.dy};
+ }
+ const old=new Map();
+ for(const node of D.newNodes){
+  const k=settings[node.islandId];if(!k)continue;
+  const p=node.position;
+  node.position={x:k.cx+(p.x-k.cx)*k.nx+k.dx,y:k.cy+(p.y-k.cy)*k.ny+k.dy};
+  old.set(node.id,{...node.position});
+ }
+ // Spatially separate dense tiles, retaining the original clockwise loop
+ // and distinct branch entrances. These positions are deterministic.
+ const inside=(pt,poly)=>{
+  let hit=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+   const a=poly[i],b=poly[j];
+   if((a.y>pt.y)!==(b.y>pt.y)&&pt.x<(b.x-a.x)*(pt.y-a.y)/(b.y-a.y)+a.x)hit=!hit;
+  }
+  return hit;
+ };
+ function fits(p,poly){
+  if(!inside(p,poly))return false;
+  for(let i=0;i<12;i++){
+   const a=i*Math.PI/6;
+   if(!inside({x:p.x+46*Math.cos(a),y:p.y+46*Math.sin(a)},poly))return false;
+  }
+  return true;
+ }
+ const grouped=new Map(Object.keys(settings).map(k=>[k,D.newNodes.filter(n=>n.islandId===k)]));
+ for(const isl of D.islands){
+  const nodes=grouped.get(isl.id);if(!nodes?.length)continue;
+  const center=isl.center;
+  for(let pass=0;pass<90;pass++){
+   for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+    const a=nodes[i],b=nodes[j],dx=b.position.x-a.position.x,dy=b.position.y-a.position.y;
+    let d=Math.hypot(dx,dy);
+    if(d>=138)continue;
+    const vx=d<1?((i+j)%2?1:-1):dx/Math.max(d,.001);
+    const vy=d<1?0:dy/Math.max(d,.001);
+    const force=(138-d)*.28;
+    a.position.x-=force*vx;a.position.y-=force*vy;
+    b.position.x+=force*vx;b.position.y+=force*vy;
+   }
+   for(const n of nodes){
+    // Preserve identifiable graph flow: a soft spring retains its authored
+    // region while the stronger separation force opens compact branches.
+    const home=old.get(n.id);
+    n.position.x+=(home.x-n.position.x)*.012;
+    n.position.y+=(home.y-n.position.y)*.012;
+    if(!fits(n.position,isl.outline)){
+     for(let i=0;i<30&&!fits(n.position,isl.outline);i++){
+      n.position.x+=(center.x-n.position.x)*.055;
+      n.position.y+=(center.y-n.position.y)*.055;
+     }
+    }
+   }
+  }
+ }
+ // Route the Gingerbread->Lake return bridge as a separate lower lane from
+ // the inbound lake->Gingerbread road and the original n134->n135 crossing.
+ const lowerY={xgb_1:5518,xgb_2:5395,xgb_3:5265,xgb_4:5145,
+  xgb_5:5030,xgb_6:4930,xgb_7:4890,xgb_8:4740};
+ for(const [id,y] of Object.entries(lowerY)){
+  const n=find(id);if(n)n.position.y=y;
+ }
+ // All v7 bridge swords were single tiles, often in narrow water sections.
+ // Replace them with four readable two-tile courts on distinct islands.
+ const oldSingles=new Set(D.newNodes.filter(n=>n.type==='sword').map(n=>n.id));
+ for(const n of D.newNodes)if(oldSingles.has(n.id))n.type='movement';
+ for(const [,a,b] of SWORD_COURTS){
+  for(const id of [a,b]){const n=find(id);if(!n||n.islandId===null)throw Error('Bad sword court '+id);n.type='sword';}
+ }
+ // Avoid an uninterrupted run of Lucky Stars on the same short side branch.
+ const normals=['ws1_0','ws2_0','gs40_2'];
+ for(const id of normals){const n=find(id);if(n)n.type='movement';}
+ for(const id of ['ws9_1','g2']){const n=find(id);if(n)n.type='lucky';}
+ for(const n of D.newNodes){
+  n.position={x:Math.round(n.position.x),y:Math.round(n.position.y)};
+  D.allNodePositions[n.id]={...n.position};
+ }
+ // Both the playable nodes AND the precompiled v7 vector path coordinates
+ // must move together, or the visible roads disagree with collision/movement.
+ for(const kind of ['allPathSegments','existingRoadSegments','existingBridgeSegments']){
+  for(const e of D[kind]||[]){
+   const a=D.allNodePositions[e.from_],b=D.allNodePositions[e.to];
+   if(a&&b){e.x1=a.x;e.y1=a.y;e.x2=b.x;e.y2=b.y;}
+  }
+ }
+ // Former crossover decks cannot be kept at stale world coordinates.
+ if(Array.isArray(D.overpasses))D.overpasses.length=0;
+}
+remodelDesign();
+function applySwordCourts(m){
+ for(const [name,a,b] of SWORD_COURTS){
+  if(!m.nodes[a]?.nextNodes.includes(b))
+   throw Error('Sword pair must be directly connected '+a+'>'+b);
+  const territoryId='v8-court-'+name;
+  for(const id of [a,b]){
+   const n=m.nodes[id];
+   if(n.type!=='sword'||n.islandId!==m.nodes[a].islandId)
+    throw Error('Sword pair must share one island '+id);
+   delete m.territories['v7-sword-'+id];
+   n.territoryId=territoryId;n.ownerId=null;
+  }
+  m.territories[territoryId]={id:territoryId,nodeIds:[a,b],ownerId:null};
+ }
+ // No lonely v7 sword territories are permitted in a playable map.
+ for(const [id,t] of Object.entries(m.territories))
+  if(t.nodeIds.length!==2||!m.nodes[t.nodeIds[0]]?.nextNodes.includes(t.nodeIds[1]))
+   throw Error('Orphan or nonadjacent sword court '+id);
+}
+
 function create(seed=Date.now()){
  const m=Base.create(seed);m.version=VERSION;
  const originals=new Map(m.islands.map(i=>[i.id,i]));
@@ -58,6 +191,9 @@ function create(seed=Date.now()){
    m.bridges.push([a,b]);m.bridgeStyles[key]=route.style;
   }
  }
+ // Base v6 nodes remain fixed; every remodeled v7 tile uses the same
+ // coordinates in the canvas design and in the authoritative graph.
+ applySwordCourts(m);
  // Backward BFS is finite even for intentionally directed v7 loops.
  const dist=new Map([[m.finishId,0]]),queue=[m.finishId];
  for(let i=0;i<queue.length;i++){
@@ -111,8 +247,14 @@ function validate(m){
   for(const src of n.previousNodes)if(!m.nodes[src]?.nextNodes.includes(id))throw Error('Missing forward edge '+src+' → '+id);
   if(!['start','finish','movement','sword','lucky','healing','danger'].includes(n.type))
     throw Error('Unsupported tile '+id);
-  if(n.type==='sword'&&!m.territories[n.territoryId]?.nodeIds?.includes(id))
-    throw Error('Unregistered sword territory '+id);
+  if(n.type==='sword'){
+   const territory=m.territories[n.territoryId];
+   if(!territory||territory.nodeIds.length!==2||!territory.nodeIds.includes(id))
+    throw Error('Unpaired sword tile '+id);
+   const [a,b]=territory.nodeIds;
+   if(!m.nodes[a]?.nextNodes.includes(b)||m.nodes[a].islandId!==m.nodes[b].islandId)
+    throw Error('Swords must form an adjacent same-island pair '+id);
+  }
  }
  for(let i=0;i<Base.MAIN_LENGTH;i++)if(!m.nodes['n'+i].nextNodes.includes('n'+(i+1)))
    throw Error('Original main path broken at n'+i);
