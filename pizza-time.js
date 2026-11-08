@@ -447,7 +447,7 @@ function draw(ctx,time,round,ps){
   }
   ctx.restore();
  }
- art.drawClock(ctx,s,round);ctx.restore();
+ ctx.restore(); // Clock is drawn centrally by app.js.
 }
 window.PizzaTime=Object.freeze({setup,update,draw,hud,playerStatus,drawIngredient,
   worldSize,tableCount,pairCost,aStar,fairnessCandidates,ingredients:INGREDIENTS,
