@@ -60,7 +60,7 @@ function renderModeChoices(){
   const button=document.createElement('button');
   button.type='button';button.dataset.pick=id;button.className='phone-game-choice';
   button.setAttribute('aria-pressed','false');button.textContent=name;
-  button.addEventListener('click',onPhoneGamePick);host.append(button);
+  button.addEventListener('click',()=>onPhoneGamePick(id));host.append(button);
  }
  for(const button of document.querySelectorAll('[data-pick]')){
   const mode=button.dataset.pick;
@@ -2179,20 +2179,48 @@ window.addEventListener('blur',()=>{
 });
 
 // BOARD PARTY owns a session, not a seventh entry in the minigame registry.
+// Catalog entries are eligible even when their engine bytes have not been
+// fetched. The selected game is loaded and validated before the reel ends.
 function boardRegistry(){return Object.fromEntries(modesFor('board').map(id=>{
- const platform=window.GamePlatform;
- const ready=!platform?.descriptor(id)||platform.ready(id);
- return [id,ready?gameEngine(id):null];
+ const platform=window.GamePlatform,d=platform?.descriptor(id);
+ if(d&&(players.length<d.players.min||players.length>d.players.max))return [id,null];
+ const engine=gameEngine(id);
+ if(engine&&(!d||platform.ready(id)))return [id,engine];
+ if(!d)return [id,engine];
+ const unavailable=()=>{throw Error('Minigame not preloaded: '+id);};
+ return [id,{minPlayers:d.players.min,maxPlayers:d.players.max,
+  setup:unavailable,update:unavailable,draw:unavailable}];
 }));}
 function warmBoardGames(){
  const platform=window.GamePlatform;
- if(!platform?.revision||round?.mode!=='board')return;
- for(const game of platform.games('board')){
-  if(platform.ready(game.id))continue;
+ if(!platform?.revision||round?.mode!=='board'||navigator?.connection?.saveData)return;
+ // Warm only two candidates per visit. Never download every game just to open
+ // BOARD PARTY on a metered mobile connection.
+ const candidates=platform.games('board').filter(g=>
+  players.length>=g.players.min&&players.length<=g.players.max&&!platform.ready(g.id));
+ for(const game of candidates.slice(0,2)){
   void platform.ensure(game.id).catch(error=>console.warn('Board game unavailable: '+game.id,error));
  }
 }
+let boardCatalogPending=false;
 function beginBoard(){
+  const platform=window.GamePlatform;
+  // Production no longer downloads legacy minigame engines at initial page load.
+  // Wait for the versioned registry rather than mistaking them for missing games.
+  if(window.GAME_CORE_VERSION&&platform&&!platform.revision){
+    if(boardCatalogPending)return;
+    boardCatalogPending=true;
+    void platform.refresh().then(()=>{
+      boardCatalogPending=false;
+      if(currentView!=='hostLobby'||selectedSessionMode!=='board'||!players.length)return;
+      if(platform.revision)beginBoard();
+      else showToast('กำลังรอรายชื่อมินิเกมจากเซิร์ฟเวอร์',true);
+    }).catch(error=>{
+      boardCatalogPending=false;
+      showToast('โหลดรายชื่อมินิเกมไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
+    });
+    return;
+  }
   const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt','PartyPlayerAvatar'];
   if(required.some(name=>!window[name])){showToast('โหลด BOARD PARTY ไม่ครบ กรุณาโหลดหน้าใหม่',true);return;}
   if(!window.BoardMinigame.eligible(boardRegistry(),players.length).length){showToast('ไม่มีมินิเกมที่พร้อมเล่น',true);return;}
@@ -3742,11 +3770,14 @@ function beginGameSelection(mode){
   gameSelection={mode,elapsed:0,spinDuration:1.45,holdDuration:1.18,
     initial,final,winningIndex,winner,track,ready:true,error:null};
   const platform=window.GamePlatform,selection=gameSelection;
-  if(platform?.descriptor(mode)&&!platform.ready(mode)){
+  if(platform&&(!!window.GAME_CORE_VERSION||platform.descriptor(mode))&&
+     (!platform.revision||!platform.ready(mode))){
     selection.ready=false;
-    void platform.ensure(mode).then(()=>{selection.ready=true;}).catch(error=>{
-      selection.error=error;
-    });
+    void (async()=>{
+      if(!platform.revision)await platform.refresh();
+      await platform.ensure(mode);
+      selection.ready=true;
+    })().catch(error=>{selection.error=error;});
   }
   if(boardSession){gameSelection.spinDuration=2;gameSelection.holdDuration=1.4;}
   setView('game');
@@ -3884,15 +3915,12 @@ $('switchRoomBtn').addEventListener('click',()=>{
 renderModeChoices();
 window.addEventListener('gameplatform:catalog',syncGameCatalog);
 syncGameCatalog();
-function onPhoneGamePick(event){
-  const button=event.currentTarget||event.target?.closest?.('[data-pick]');
-  if(!button)return;
-  const mode=button.dataset.pick;
+function onPhoneGamePick(mode){
   if(!phoneSelectionOpen||!controllerReady||!Object.hasOwn(MODES,mode))return;
   updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
 }
-document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener('click',onPhoneGamePick));
+document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener('click',()=>onPhoneGamePick(button.dataset.pick)));
 // These buttons control the HOST BOARD camera, not the tiny phone preview.
 for(const [id,direction] of [['controllerBoardZoomInBtn',1],['controllerBoardZoomOutBtn',-1]]){
  $(id).addEventListener('click',()=>{

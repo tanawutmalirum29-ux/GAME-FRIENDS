@@ -40,5 +40,6 @@ html=html.replace(/\b(src|href)="(\.\/[^"?]+)(?:\?v=[^"]*)?"/g,
   return attr+'="'+url+'?v='+encodeURIComponent(id)+'"';
  });
 for(const asset of assets)if(!seen.has(asset))throw Error('Missing build asset: '+asset);
+if(gameCatalog)html=require('./lazy-game-scripts.cjs').pruneLegacy(html,gameCatalog);
 fs.writeFileSync(indexPath,html);
 process.stdout.write('Static deploy '+id.slice(0,12)+'\n');

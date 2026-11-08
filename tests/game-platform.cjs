@@ -8,7 +8,20 @@ const {execFileSync,spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..');
 const builder=require('../scripts/build-game-catalog.cjs');
 const catalog=builder.build();
+const {pruneLegacy}=require('../scripts/lazy-game-scripts.cjs');
 assert.equal(catalog.schema,1);
+const originalHTML=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const lazyHTML=pruneLegacy(originalHTML,catalog);
+for(const game of catalog.games){
+ for(const legacy of game.legacyUrls){
+  const asset=legacy.split('/legacy/')[1];
+  assert.ok(!lazyHTML.includes('src="./'+asset+'"'),
+   'production HTML must not eagerly download '+asset);
+ }
+}
+assert.ok(lazyHTML.includes('src="./app.js"'));
+assert.ok(lazyHTML.includes('src="./game-cover-art.js"'));
+assert.ok(lazyHTML.includes('src="./board-party.js"'));
 assert.equal(catalog.games.length,15,'all 15 legacy games must be automatically discovered');
 assert.equal(new Set(catalog.games.map(g=>g.id)).size,15);
 for(const game of catalog.games){

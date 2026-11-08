@@ -1,6 +1,6 @@
 # GAME-FRIENDS modular platform — migration contract
 
-The legacy engines, board physics and multiplayer protocol are preserved. The
+The legacy engines, board physics and multiplayer protocol are preserved. The AWS production build strips eager legacy minigame engine scripts from HTML and loads the selected engine on demand. Development index retains the original engine script tags until the core bootstrap is completely separated. The
 new build catalog is **generated from** `src/games/*/manifest.json`; browser
 directory listing is not involved. A release produces `game-catalog.json`
 and immutable **content-addressed paths** under `game-assets/<id>/<hash>/`.
@@ -38,7 +38,7 @@ The AWS build invokes this before version-stamping the HTML.
   NOT a sandbox for third-party code.
 
 ## Migration status
-Infrastructure and compatibility adapters can ship without rewriting physics.
+Production game-engine lazy-loading and compatibility adapters can ship without rewriting physics. Board play remains present while a selected minigame is loaded and pinned for that round.
 Full page-specific lazy loading, splitting `app.js`, centralizing *all* legacy
 HUD/round result paths, and browser-tested core recovery must be checked as
 separate migration gates before claiming the complete six-phase refactor.
