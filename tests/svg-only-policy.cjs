@@ -7,7 +7,7 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const files=['index.html','app.js','style.css','ghost-attack.js','chickens.js',
  'fruit-memory.js','shockwave.js','color-switch.js','color-switch-mayan.js',
- 'party-arena-scenes.js','game-cover-art.js','pizza-time.js','pizza-kitchen-art.js','pizza-ingredient-art.js','party-ui-art.js','board-art.js','board-party.js','board-items.js'];
+ 'farm-ice-art.js','party-arena-scenes.js','game-cover-art.js','pizza-time.js','pizza-kitchen-art.js','pizza-ingredient-art.js','party-ui-art.js','board-art.js','board-party.js','board-items.js'];
 const emoji=/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
 for(const name of files){
  const body=fs.readFileSync(path.join(root,name),'utf8');
@@ -18,7 +18,7 @@ for(const name of files){
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const assets=fs.readFileSync(path.join(root,'scripts/build-static.cjs'),'utf8');
 const scripts=[...html.matchAll(/<script[^>]*src="(\.\/[^"]+)"/g)].map(m=>m[1].replace('./',''));
-for(const name of ['party-arena-scenes.js','game-cover-art.js','party-ui-art.js','pizza-ingredient-art.js','pizza-kitchen-art.js','pizza-time.js']){
+for(const name of ['farm-ice-art.js','party-arena-scenes.js','game-cover-art.js','party-ui-art.js','pizza-ingredient-art.js','pizza-kitchen-art.js','pizza-time.js']){
  assert.ok(scripts.includes(name),'missing '+name+' script in HTML');
  assert.ok(assets.includes("'"+name+"'"),'missing build version entry '+name);
 }

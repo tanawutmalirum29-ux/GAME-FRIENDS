@@ -2,6 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const code=fs.readFileSync('snow-brawl.js','utf8');
 const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(){}}},Math,Date});
+vm.runInContext(fs.readFileSync('farm-ice-art.js','utf8'),ctx,{filename:'farm-ice-art.js'});
 vm.runInContext(code,ctx,{filename:'snow-brawl.js'});
 const G=ctx.window.SnowBrawl,C=G.config;
 assert.ok(G.setup&&G.update&&G.draw&&G.hud&&G.resolveBodies&&G.contactTime);
@@ -49,7 +50,7 @@ for(let n=1;n<=12;n++){
  },set(){return true;}});
  G.draw(context,1,g.round,g.ps);
  assert.equal(drawing?.scale,1.2,'actual avatar renderer receives new scale');
- assert.equal(drawing?.label,false,'Snow Brawl renders its own raised player labels');
+ assert.equal(drawing?.label,false,'player names stay in the shared roster, away from snowballs');
  ctx.window.PartyPlayerAvatar.draw=previous;
  const q=g.ps[1];
  person.x=-18;person.y=0;q.x=18;q.y=0;
@@ -83,12 +84,11 @@ assert.equal(C.spawnInset,.1);
   return()=>{};
  },set(){return true;}});
  G.draw(ctx,0,g.round,g.ps);
- const oldRadius=235;
- const oldScale=480/(2*(oldRadius+29));
- assert.ok(Math.abs(scales[0][0]-oldScale)<1e-9,
-  'camera zoom must remain fixed so the island looks 20% smaller');
- assert.ok(Math.abs(g.s.radius*scales[0][0]-oldRadius*oldScale*.8)<1e-7,
-  'visible ice radius decreases by exactly 20%');
+ const scale=G.viewScale(g.s);
+ assert.ok(Math.abs(scales[0][0]-scale)<1e-9,'snowball and character rendering share the arena camera');
+ assert.ok(g.s.radius*scale>=225&&g.s.radius*scale<=226,'the snow surface fills the reference-sized island');
+ const before=G.viewScale(g.s);g.s.radius*=.5;
+ assert.equal(G.viewScale(g.s),before,'sudden death shrinks the island without zooming in');
 }
 assert.equal(C.windup,.15);
 assert.equal(C.turnRate,3.6,'turning is intentionally slower than the previous 12rad/s');

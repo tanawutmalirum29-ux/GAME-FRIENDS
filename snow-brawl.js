@@ -5,7 +5,7 @@
  */
 (()=>{
 'use strict';
-const TAU=Math.PI*2,STEP=1/60,WIDTH=960,HEIGHT=540,CX=480,CY=276;
+const TAU=Math.PI*2,STEP=1/60,WIDTH=960,HEIGHT=540,CX=480,CY=270;
 const C=Object.freeze({
  playerRadius:19.2,avatarScale:1.2,playerMass:1,moveAcceleration:790,maxMoveSpeed:109.8,
  moveFriction:4.4,impactFriction:1.45,bodyRestitution:.18,
@@ -49,7 +49,7 @@ function setup(round,players){
   nextBallId:1,effects:[],finished:false,ranking:[],winnerIds:[],
   originalCount:players.length,roster:players,solo:players.length===1,
   suddenDeath:false};
- round.snowBrawl=s;round.remaining=s.solo?C.soloDuration:null;
+ round.snowBrawl=s;round.remaining=s.solo?C.soloDuration:null;window.FarmIceArt?.preload('snow');
  const n=players.length;
  // Spawn each player 10% of the island radius inward from its outer rim,
  // evenly distributed around the circumference (including solo sessions).
@@ -443,40 +443,19 @@ function hud(ps,round){
   }))};
 }
 function circle(ctx,x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();}
+function viewScale(s){
+ // Keep the snowy rim in view at all five population tiers. Sudden death uses
+ // baseRadius so the retreating edge never causes the camera to zoom back in.
+ return Math.min(1.2,226/s.baseRadius);
+}
 function drawIsland(g,s,t){
- // Preserve the previous world-to-screen camera scale, so a 20% smaller
- // playable island also looks 20% smaller instead of auto-zooming to fill.
- const scale=Math.min(930,480)/(2*(s.baseRadius/C.arenaScale+29));
- g.fillStyle='#092c4a';g.fillRect(0,0,WIDTH,HEIGHT);
- const sea=g.createRadialGradient(CX,CY,32,CX,CY,510);
- sea.addColorStop(0,'#2b789f');sea.addColorStop(.65,'#125372');
- sea.addColorStop(1,'#08283c');g.fillStyle=sea;g.fillRect(0,0,WIDTH,HEIGHT);
- for(let i=0;i<75;i++){
-  const x=(i*193+27)%960,y=(i*137+79)%540;
-  const offset=Math.sin(t*.55+i*2.3)*2;
-  g.strokeStyle=i%3===0?'#bde4ef30':'#75d4ed19';g.lineWidth=1.3;
-  g.beginPath();g.arc(x+offset,y,2+i%4,0,Math.PI*.9);g.stroke();
- }
- // Draw the ice cliff and snow using world-scaled coordinates.
+ window.FarmIceArt.sea(g,s,t);
+ const scale=viewScale(s);
  g.save();g.translate(CX,CY);g.scale(scale,scale);
- circle(g,0,14,s.radius+21,'#16465f');
- circle(g,0,11,s.radius+14,'#32677e');
- circle(g,0,5,s.radius+6,'#7fb6c8');
- const ice=g.createRadialGradient(-s.radius*.25,-s.radius*.28,5,0,0,s.radius);
- ice.addColorStop(0,'#faffff');ice.addColorStop(.55,'#e0f5fd');
- ice.addColorStop(1,'#a6d7e6');
- circle(g,0,0,s.radius,ice);
- g.strokeStyle='#f9ffff';g.lineWidth=7;g.beginPath();g.arc(0,0,s.radius-3,0,TAU);g.stroke();
- const patterngrid=Math.floor(s.radius/14);
- for(let i=0;i<patterngrid*4;i++){
-  const a=i*2.39996,rr=Math.sqrt((i+.4)/(patterngrid*4))*s.baseRadius*.95;
-  const x=Math.cos(a)*rr,y=Math.sin(a)*rr;
-  if(!inside(s,x,y,5))continue;
-  circle(g,x,y,(i%4)+.8,i%4===0?'#ffffffa0':'#72b8d524');
- }
- if(s.suddenDeath){
-  g.strokeStyle='#f9d98f';g.lineWidth=5;g.setLineDash([10,12]);
-  g.beginPath();g.arc(0,0,s.radius-9,0,TAU);g.stroke();g.setLineDash([]);
+ window.FarmIceArt.island(g,s);
+ if(s.suddenDeath&&s.radius>9){
+  g.strokeStyle='#e8c779';g.lineWidth=3;g.setLineDash([8,12]);
+  g.beginPath();g.arc(0,0,s.radius-5,0,TAU);g.stroke();g.setLineDash([]);
  }
  return scale;
 }
@@ -507,9 +486,6 @@ function drawPerson(g,p,time){
   circle(g,p.x,p.y,C.playerRadius,p.color||'#ffc887');
  }
  g.restore();
- g.textAlign='center';g.font='bold 13px system-ui';g.lineWidth=3.5;
- g.strokeStyle='#092b42';g.strokeText(p.name||'ผู้เล่น',p.x,p.y-36);
- g.fillStyle='#ffffff';g.fillText(p.name||'ผู้เล่น',p.x,p.y-36);
  if(b.phase==='WINDUP'){
   g.strokeStyle='#285579';g.lineWidth=5;
   g.beginPath();g.arc(p.x,p.y,C.playerRadius+7,0,TAU);g.stroke();
@@ -520,7 +496,7 @@ function drawPerson(g,p,time){
 }
 function draw(ctx,time,round,ps){
  const s=round.snowBrawl;if(!s)return;
- ctx.save();ctx.clearRect(0,0,WIDTH,HEIGHT);
+ ctx.save();window.FarmIceArt.beginScene(ctx,'#1165c8');
  drawIsland(ctx,s,time);
  // The drawing coordinate system maps a whole island to the 960×540 canvas.
  for(const fx of s.effects){
@@ -538,7 +514,7 @@ function draw(ctx,time,round,ps){
 }
 // Diagnostic hooks are pure engine operations used by regression tests.
 window.SnowBrawl=Object.freeze({setup,update,draw,hud,step,finish,
- islandRadius,rollSpeed,ballMass,growthRadius,makeBall,ballFor,release,
+ islandRadius,viewScale,rollSpeed,ballMass,growthRadius,makeBall,ballFor,release,
  destroy,eliminate,solveBallCollisions,resolveBodies,contactTime,
  config:C});
 })();

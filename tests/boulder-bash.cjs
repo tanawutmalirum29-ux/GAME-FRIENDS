@@ -2,6 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const code=fs.readFileSync('boulder-bash.js','utf8');
 const context={window:{},Date,Math};
+vm.runInNewContext(fs.readFileSync('farm-ice-art.js','utf8'),context,{filename:'farm-ice-art.js'});
 vm.runInNewContext(code,context,{filename:'boulder-bash.js'});
 const G=context.window.BoulderBash;
 assert.ok(G.setup&&G.update&&G.draw&&G.hud&&G.sweptHit&&G.spawnWave);
@@ -27,7 +28,7 @@ for(let n=1;n<=12;n++){
   const x=game(n),positions=x.ps.map(p=>({x:p.x,y:p.y}));
   const again=game(n,42).ps.map(p=>({x:p.x,y:p.y}));
   assert.deepEqual(positions,again,'start locations independent of RNG seed');
-  assert.ok(positions.every(p=>p.x>=140&&p.x<=290&&p.y>=105&&p.y<=445),
+  assert.ok(positions.every(p=>p.x>=240&&p.x<=390&&p.y>=105&&p.y<=445),
    'all '+n+' players spawn within the left-side front-line zone');
   for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
    assert.ok(Math.hypot(positions[i].x-positions[j].x,
@@ -36,12 +37,12 @@ for(let n=1;n<=12;n++){
   assert.ok(new Set(positions.map(p=>p.x)).size<3,
    'formation uses at most two nearby columns');
   if(n<=7){
-   assert.ok(positions.every(p=>p.x===190),
+   assert.ok(positions.every(p=>p.x===290),
     '1–7 players must start in one vertical line on the left');
   }else{
-   assert.equal(positions.filter(p=>p.x===190).length,7,
+   assert.equal(positions.filter(p=>p.x===290).length,7,
     'first column holds seven players');
-   assert.equal(positions.filter(p=>p.x===263).length,n-7,
+   assert.equal(positions.filter(p=>p.x===363).length,n-7,
     'overflow is in second nearby left-side column');
   }
   if(n>=3){
@@ -54,12 +55,12 @@ for(let n=1;n<=12;n++){
   }
  }
  const five=game(5);
- assert.deepEqual(five.ps.map(p=>p.x),[190,190,190,190,190],
+ assert.deepEqual(five.ps.map(p=>p.x),[290,290,290,290,290],
   'five players should line up vertically, never horizontally across the board');
  assert.ok(five.ps.every((p,i)=>i===0||p.y>five.ps[i-1].y),
   'the start line follows top-to-bottom player order');
  const twelve=game(12);
- assert.equal(twelve.ps.filter(p=>p.x===263).length,5,
+ assert.equal(twelve.ps.filter(p=>p.x===363).length,5,
   '12 players overflow into a second left column without blocking the field');
  // The previous fix expanded the reachable field; retain that.
  const runner=five.ps[0];runner.x=874;runner.y=260;runner.input.axisX=1;

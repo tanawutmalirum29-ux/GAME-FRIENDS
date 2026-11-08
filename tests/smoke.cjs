@@ -26,6 +26,7 @@ const snowSource=fs.readFileSync('snow-brawl.js','utf8');
 const witchSource=fs.readFileSync('witching-snake.js','utf8');
 const lawnSource=fs.readFileSync('lawn-mower.js','utf8');
 const ghostSource=fs.readFileSync('ghost-attack.js','utf8');
+const farmIceSource=fs.readFileSync('farm-ice-art.js','utf8');
 const chickensSource=fs.readFileSync('chickens.js','utf8');
 const fruitSource=fs.readFileSync('fruit-memory.js','utf8');
 const shockwaveSource=fs.readFileSync('shockwave.js','utf8');
@@ -1195,6 +1196,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
    vm.runInContext(boardCameraSource,scope,{filename:'board-controller-camera.js'});
   vm.runInContext(uiArtSource,scope,{filename:'party-ui-art.js'});
   vm.runInContext(ghostSource,scope,{filename:'ghost-attack.js'});
+  vm.runInContext(farmIceSource,scope,{filename:'farm-ice-art.js'});
   vm.runInContext(chickensSource,scope,{filename:'chickens.js'});
   vm.runInContext(fruitSource,scope,{filename:'fruit-memory.js'});
    vm.runInContext(shockwaveSource,scope,{filename:'shockwave.js'});
