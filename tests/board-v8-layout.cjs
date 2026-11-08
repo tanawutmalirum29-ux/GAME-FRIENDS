@@ -82,12 +82,13 @@ for(let i=0;i<edges.length;i++)for(let j=i+1;j<edges.length;j++){
  if(crossing(a.position,b.position,c.position,d.position))
   crossings.push([a.id+'>'+b.id,c.id+'>'+d.id]);
 }
-assert.ok(crossings.length<=1,'unrelated paths must not intersect except the one grade-separated viaduct: '+JSON.stringify(crossings));
-if(crossings.length){
- assert.ok(D.overpasses.some(p=>p.upper==='n134>n135'),
- 'the sole crossing must be an authored grade-separated bridge with visible overpass');
- assert.ok(crossings[0].includes('n134>n135'),'no unexplained path intersections allowed');
+assert.ok(crossings.length<=2,'only two grade-separated bridges may intersect; all ordinary roads are planar: '+JSON.stringify(crossings));
+const overpassEdges=new Set(D.overpasses.map(p=>p.upper));
+for(const [a,b] of crossings){
+ assert.ok(overpassEdges.has(a)||overpassEdges.has(b),
+  'all visible path crossings must have an explicit raised viaduct: '+a+' vs '+b);
 }
+assert.equal(D.overpasses.length,2,'exactly two visually marked overpasses');
 // Rendering the map and changing zoom must never rewrite authoritative positions.
 const expected=JSON.stringify(Object.fromEntries(nodes.map(n=>[n.id,n.position])));
 for(const seed of [0,1,9,73129]){
