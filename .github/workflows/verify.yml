@@ -18,6 +18,8 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check app.js
+          node --check arena-scale.js
+          node --check tests/map-scale-regression.cjs
           node --check arena-art.js
           node --check player-avatar.js
           node --check ghost-attack.js
@@ -63,6 +65,8 @@ jobs:
           node --check auto-update.js
           node --check scripts/build-board-v7.cjs
           node --check scripts/build-static.cjs
+      - name: Global map scale and character proportions for all 1–12-player modes
+        run: node tests/map-scale-regression.cjs
       - name: LAWN MOWER 1–12 player race and sun distribution checks
         run: node tests/lawn-mower.cjs
       - name: Original covers, scene geometry, exact lance tips and 1–12-player rounds
