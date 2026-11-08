@@ -29,6 +29,9 @@ jobs:
           node --check knight-match.js
           node --check boulder-bash.js
           node --check snow-brawl.js
+          node --check farm-ice-art.js
+          node --check tests/farm-ice.cjs
+          node --check tests/farm-ice-browser.cjs
           node --check party-arena-scenes.js
           node --check game-cover-art.js
           node --check tests/party-arenas.cjs
@@ -112,6 +115,8 @@ jobs:
         run: node tests/shockwave.cjs
       - name: Chicken physics and rendering
         run: node tests/chickens.cjs
+      - name: Farm and ice maps, full-flock storage and 36 complete bot rounds
+        run: node tests/farm-ice.cjs
       - name: Fruit memory rules
         run: node tests/fruit-memory.cjs
       - name: Auto-update and build tests
@@ -160,6 +165,8 @@ jobs:
           BOARD_BROWSER=webkit node tests/pizza-kitchen-browser.cjs
           node tests/party-arenas-browser.cjs
           BOARD_BROWSER=webkit node tests/party-arenas-browser.cjs
+          node tests/farm-ice-browser.cjs
+          BOARD_BROWSER=webkit node tests/farm-ice-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

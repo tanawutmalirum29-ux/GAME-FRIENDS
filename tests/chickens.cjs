@@ -8,6 +8,7 @@ vm.runInContext(fs.readFileSync('arena-art.js','utf8'),host,{filename:'arena-art
 vm.runInContext(fs.readFileSync('player-avatar.js','utf8'),host,{filename:'player-avatar.js'});
 vm.runInContext(fs.readFileSync('combat-motion.js','utf8'),host,{filename:'combat-motion.js'});
 vm.runInContext(fs.readFileSync('character-system.js','utf8'),host,{filename:'character-system.js'});
+vm.runInContext(fs.readFileSync('farm-ice-art.js','utf8'),host,{filename:'farm-ice-art.js'});
 vm.runInContext(engineSource,host,{filename:'chickens.js'});
 const chickens=host.window.Chickens;
 assert.ok(chickens,'CHICKENS engine is exported');
@@ -301,9 +302,7 @@ for(let n=1;n<=12;n++){
   },set(){return true;}
  });
  chickens.draw(ctx,.4,round,players);
- assert.ok(words.some(x=>x[0]==='ไก่'),'visible carried chicken label');
- assert.ok(circles.some(x=>Math.abs(x[0]-c.x)<1e-8&&x[2]===23),
-   'carried chicken has high-contrast foreground halo');
+ assert.equal(words.some(x=>x[0]==='ไก่'),false,'the actual held bird is visible without a floating caption');
  assert.ok(translations.some(x=>Math.abs(x[0]-c.x)<1e-8),
    'carried sprite is drawn at its actual carry position');
 }

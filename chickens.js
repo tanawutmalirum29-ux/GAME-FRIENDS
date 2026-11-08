@@ -80,20 +80,42 @@ function refillChickens(state,players){
     active++;
   }
 }
+function penLayout(center,radius,world,players){
+  const n=players.length,u=world.w/960;
+  // Four broad corner yards in small rooms; separate radial pens for crowds.
+  const smallAngles=n===1?[-3*Math.PI/4]:n===2?[-3*Math.PI/4,Math.PI/4]:
+    n===3?[-3*Math.PI/4,-Math.PI/4,Math.PI/2]:[-3*Math.PI/4,-Math.PI/4,3*Math.PI/4,Math.PI/4];
+  return players.map((p,i)=>{
+    const angle=n<=4?smallAngles[i]:-Math.PI/2+TAU*i/n;
+    const v=normal(angle),t=right(v),gateWidth=n>=10?66:74;
+    const gatePosition={x:center.x+v.x*(radius-2),y:center.y+v.y*(radius-2)};
+    const pen={id:'pen-'+p.id,ownerId:p.id,color:p.color,name:p.name,
+      angle,normal:v,gateNormal:v,tangent:t,gatePosition,gateWidth,
+      entryDepth:C.entryDepth,depth:n<=4?96:n<=8?78:96,width:n<=8?126:140,points:0,slots:[]};
+    if(n<=4&&!(n===3&&i===2)){
+      const left=v.x<0,top=v.y<0;
+      pen.rect={x:(left?150:556)*u,y:(top?26:291)*u,w:254*u,h:223*u};
+      for(let y=pen.rect.y+19*u;y<pen.rect.y+pen.rect.h-17*u;y+=23*u)
+        for(let x=pen.rect.x+19*u;x<pen.rect.x+pen.rect.w-17*u;x+=23*u)
+          if(length(x-center.x,y-center.y)>radius+19*u)pen.slots.push({x,y});
+    }else{
+      if(n===3){pen.depth=58;pen.width=180;}
+      const point=(depth,side)=>({x:gatePosition.x+v.x*depth+t.x*side,y:gatePosition.y+v.y*depth+t.y*side});
+      pen.corners=[point(0,-pen.width/2),point(pen.depth,-pen.width/2),point(pen.depth,pen.width/2),point(0,pen.width/2)];
+      const columns=n===3?8:n<=8?7:9,rows=Math.ceil((n*5+1)/columns);
+      for(let row=0;row<rows;row++)for(let col=0;col<columns;col++)
+        pen.slots.push(point(16+row*(pen.depth-32)/(rows-1),(col-(columns-1)/2)*(pen.width-30)/(columns-1)));
+    }
+    return pen;
+  });
+}
 function setup(round,players){
   const n=Math.max(1,Math.min(12,players.length));
   const world=n<=4?{w:960,h:540}:n<=8?{w:1200,h:675}:{w:1440,h:810};
   const center={x:world.w/2,y:world.h/2};
   // Include the whole outer pen within the fixed 16:9 world/canvas.
   const radius=Math.min(world.h*.365,world.w*.24);
-  const pens=players.map((p,i)=>{
-    const angle=-Math.PI/2+TAU*i/n;
-    const v=normal(angle),t=right(v),gateWidth=n>=10?66:74;
-    const gatePosition={x:center.x+v.x*(radius-2),y:center.y+v.y*(radius-2)};
-    return {id:'pen-'+p.id,ownerId:p.id,color:p.color,name:p.name,
-      angle,normal:v,gateNormal:v,tangent:t,gatePosition,gateWidth,
-      entryDepth:C.entryDepth,depth:54,points:0};
-  });
+  const pens=penLayout(center,radius,world,players);
   // A finite per-round inventory. Only 20 can be active (running or carried)
   // at once; penned chickens are retired forever and never re-spawn.
   // Use 5 per player plus one deciding chicken. The total is never
@@ -119,6 +141,7 @@ function setup(round,players){
   round.chickens=state;round.remaining=state.remaining;
   round.countdown=3;round.phase='countdown';
   refillChickens(state,players);
+  window.FarmIceArt?.preload('farm');
 }
 function dropChicken(state,p,force={x:0,y:0}){
   if(p.carriedChickenId==null)return;
@@ -331,9 +354,7 @@ function scoreDeposit(state,c,p,pen){
   if(owner)owner.score++;
   // Keep every penned chicken physically inside the fenced storage rectangle,
   // even if a player deposits far more than the initial flock size.
-  const k=pen.points-1,col=k%5,row=Math.floor(k/5)%4;
-  const side=(col-2)*(pen.gateWidth-22)/5;
-  const target=penPosition(state,pen,state.radius+12+row*9,side);
+  const target=pen.slots[pen.points-1];
   c.x=target.x;c.y=target.y;c.dir=pen.normal;c.vx=0;c.vy=0;
   state.effects.push({x:target.x,y:target.y,text:'+1',color:pen.color,life:.85});
 }
@@ -401,83 +422,27 @@ function hud(players,round){
     left:(state?.totalChickens||0)-(state?.scoredCount||0)};
 }
 function drawChicken(ctx,c,t,scale=1){
- // True overhead chicken: two wings flanking the body, facing c.dir.
- const angle=Math.atan2(c.dir.y,c.dir.x);
- ctx.save();ctx.translate(c.x,c.y);ctx.rotate(angle);ctx.scale(scale,scale);
- const wing=c.status==='free'?Math.sin(c.flap)*1.4:0;
- // Floor shadow shares the physics center, and cannot slide under the feet.
- ctx.fillStyle='#091f2370';ctx.beginPath();ctx.ellipse(0,0,14,10,0,0,TAU);ctx.fill();
- ctx.fillStyle='#ffe9c8';ctx.strokeStyle='#a98255';ctx.lineWidth=1.5;
- ctx.beginPath();ctx.ellipse(-1,0,13,10,0,0,TAU);ctx.fill();ctx.stroke();
- ctx.fillStyle='#ffdca5';
- ctx.beginPath();ctx.ellipse(-3,-8-wing,7,4,.4,0,TAU);ctx.fill();
- ctx.beginPath();ctx.ellipse(-3,8+wing,7,4,-.4,0,TAU);ctx.fill();
- ctx.fillStyle='#fa644d';ctx.beginPath();ctx.moveTo(-12,0);
- ctx.lineTo(-20,-7);ctx.lineTo(-19,7);ctx.closePath();ctx.fill();
- ctx.fillStyle='#fff6dc';ctx.beginPath();ctx.arc(10,0,7,0,TAU);ctx.fill();
- ctx.fillStyle='#ed4a56';ctx.beginPath();ctx.arc(9,-5,3,0,TAU);ctx.fill();
- ctx.fillStyle='#ffc64b';ctx.beginPath();
- ctx.moveTo(16,-3);ctx.lineTo(23,0);ctx.lineTo(16,3);ctx.fill();
- ctx.fillStyle='#293443';ctx.beginPath();
- ctx.arc(12,-3,1.5,0,TAU);ctx.arc(12,3,1.5,0,TAU);ctx.fill();
- ctx.restore();
+ window.FarmIceArt.chicken(ctx,c,t,scale);
 }
 function drawHeldChicken(ctx,chicken,player,t){
-  // Overhead carry art uses the actual world position in every direction.
-  // A screen-up lift would make the beak disagree with gate/deposit physics.
-  const x=chicken.x,y=chicken.y,dir=player.dir||{x:1,y:0};
-  ctx.save();
-  ctx.fillStyle='#071d2780';ctx.beginPath();ctx.ellipse(chicken.x,chicken.y,18,6,0,0,TAU);ctx.fill();
-  ctx.strokeStyle='#fff0b3a6';ctx.lineWidth=3;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(player.x+dir.x*16,player.y+dir.y*16);ctx.lineTo(x,y);ctx.stroke();
-  ctx.fillStyle='#ffde86a6';ctx.beginPath();ctx.arc(x,y,23,0,TAU);ctx.fill();
-  drawChicken(ctx,{...chicken,x,y},t,1.25);
-  ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.lineWidth=3;
-  ctx.strokeStyle='#172b31';ctx.strokeText('ไก่',x,y-25);
-  ctx.fillStyle='#fff';ctx.fillText('ไก่',x,y-25);
-  ctx.restore();
+ // The SVG beak is 12 units in front of the carried bird's physical center,
+ // matching goalHead() in every facing direction, without a screen-up offset.
+ window.FarmIceArt.heldChicken(ctx,chicken,player,t);
 }
 function drawPlayer(ctx,p,t){
  window.PartyCharacters.draw(ctx,p,{time:t,
-   holding:p.carriedChickenId!=null,attacking:Combat.isAttacking(p)});
-}
-function drawPen(ctx,state,pen,t){
-  const inner=penPosition(state,pen,state.radius-2);
-  const outer=penPosition(state,pen,state.radius+pen.depth-8);
-  const half=pen.gateWidth/2;
-  const at=(p,d)=>({x:p.x+pen.tangent.x*d,y:p.y+pen.tangent.y*d});
-  const a=at(inner,-half),b=at(inner,half),c=at(outer,half),d=at(outer,-half);
-  ctx.save();ctx.fillStyle=pen.color+'42';ctx.strokeStyle=pen.color;ctx.lineWidth=5;
-  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(d.x,d.y);ctx.lineTo(c.x,c.y);ctx.lineTo(b.x,b.y);
-  ctx.closePath();ctx.fill();
-  // Both solid side fences and back fence. Front opening is never blocked.
-  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(d.x,d.y);ctx.lineTo(c.x,c.y);ctx.lineTo(b.x,b.y);
-  ctx.strokeStyle='#4b4834';ctx.lineWidth=8;ctx.stroke();
-  ctx.strokeStyle=pen.color;ctx.lineWidth=5;ctx.stroke();
-  ctx.strokeStyle='#ffffff70';ctx.lineWidth=1;ctx.stroke();
-  for(const pos of [a,b,d,c]){
-    ctx.fillStyle='#635039';ctx.fillRect(pos.x-5,pos.y-4,10,11);
-    ctx.fillStyle=pen.color;ctx.fillRect(pos.x-4,pos.y-4,8,8);
-    ctx.fillStyle='#fff3c1';ctx.fillRect(pos.x-3,pos.y-4,6,2);
-  }
-  ctx.strokeStyle=pen.color+'99';ctx.lineWidth=1.5;ctx.setLineDash([5,5]);
-  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);
-  const label=penPosition(state,pen,state.radius+pen.depth-11);
-  ctx.save();ctx.translate(label.x,label.y);
-  ctx.fillStyle='#ffffff';ctx.strokeStyle='#202b40';ctx.lineWidth=3;
-  ctx.font='bold 13px sans-serif';ctx.textAlign='center';
-  ctx.strokeText(pen.name+' '+pen.points,0,0);
-  ctx.fillText(pen.name+' '+pen.points,0,0);ctx.restore();
-  ctx.restore();
+   holding:p.carriedChickenId!=null,attacking:Combat.isAttacking(p),label:false});
 }
 function draw(ctx,time,round,players){
   const s=round.chickens;if(!s)return;
   const w=s.world.w,h=s.world.h;
-  ctx.save();ctx.clearRect(0,0,960,540);ctx.scale(960/w,540/h);
-  window.PartyArenaArt.draw(ctx,'farm',s,w,h);
-  for(const pen of s.pens)drawPen(ctx,s,pen,time);
+  ctx.save();window.FarmIceArt.beginScene(ctx,'#91c631');ctx.scale(960/w,540/h);
+  window.FarmIceArt.farm(ctx,s);
   // Pen residents remain visible and inert, never re-entering the arena.
-  for(const c of s.chickens)if(c.status==='penned')drawChicken(ctx,c,time,.66);
+  for(const c of s.chickens)if(c.status==='penned'){
+    const crowded=s.pens.find(p=>p.id===c.penId)?.points>20;
+    drawChicken(ctx,c,time,crowded ? .54 : .70);
+  }
   for(const c of s.chickens)if(c.status==='free')drawChicken(ctx,c,time,.82);
   for(const p of players)if(p.active){
     drawPlayer(ctx,p,time);

@@ -1,11 +1,13 @@
 /* BOULDER BASH — deterministic fixed-step, host-authoritative snow survival. */
 (() => {
 'use strict';
-const STEP=1/60,TAU=Math.PI*2,MIN_X=94,MAX_X=895,TOP=75,BOTTOM=468;
-// The snow stretches nearly to x=925; players must be able to reach it.
+const STEP=1/60,TAU=Math.PI*2;
+const BOUNDS=Object.freeze({x:218,y:58,w:677,h:428});
+const MIN_X=BOUNDS.x,MAX_X=BOUNDS.x+BOUNDS.w,TOP=BOUNDS.y,BOTTOM=BOUNDS.y+BOUNDS.h;
+// The reachable snow ends at MAX_X; the right-hand chute remains visible.
 // Start formation is the left/front edge of the slope, not across its width.
 // Up to seven players line up top-to-bottom; larger groups use two left columns.
-const SPAWN_FRONT_X=190,SPAWN_SECOND_X=263,SPAWN_TOP=120,SPAWN_BOTTOM=425;
+const SPAWN_FRONT_X=290,SPAWN_SECOND_X=363,SPAWN_TOP=120,SPAWN_BOTTOM=425;
 const C=Object.freeze({radius:15,accel:780,drag:2.4,maxSpeed:195,pushImpulse:98,pushRange:40,
  pushCooldown:.6,rockGravity:118,rockDrag:.14,rockLimit:18,rockChance:.35,soloDuration:60});
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -40,8 +42,9 @@ function setup(round,ps){
  if(!ps.length||ps.length>12)throw Error('BOULDER BASH supports 1–12 players');
  const n=ps.length,s={clock:0,tick:0,accumulator:0,seed:(Number(round.boulderSeed)||(Date.now()^0x1a59c3e))>>>0||1,
   rocks:[],warnings:[],effects:[],queue:[],nextSpawn:1.2,nextId:1,finished:false,
-  winnerIds:[],ranking:[],roster:ps,originalCount:n};
+  winnerIds:[],ranking:[],roster:ps,originalCount:n,bounds:BOUNDS};
  round.boulderBash=s;round.remaining=n===1?C.soloDuration:null;
+ window.FarmIceArt?.preload('boulder');
  const positions=spawnPositions(n);
  ps.forEach((p,i)=>{
   p.active=true;p.score=0;
@@ -310,66 +313,10 @@ function hud(ps,round){
   winnerIds:s?.winnerIds||[],statuses:ps.filter(p=>p.active).map(p=>({id:p.id,mode:p.bb?.mode}))};
 }
 function circle(g,x,y,r,fill){g.fillStyle=fill;g.beginPath();g.arc(x,y,r,0,TAU);g.fill();}
-function scenery(g,s){
- g.fillStyle='#416a65';g.fillRect(0,0,960,540);
- const snow=g.createLinearGradient(75,55,920,495);
- snow.addColorStop(0,'#f5fdff');snow.addColorStop(.48,'#d5f0f8');snow.addColorStop(1,'#8dc2dc');
- g.fillStyle=snow;g.beginPath();g.moveTo(82,44);g.lineTo(925,40);g.lineTo(960,102);
- g.lineTo(960,480);g.lineTo(918,501);g.lineTo(79,502);g.closePath();g.fill();
- g.strokeStyle='#f9ffff';g.lineWidth=8;g.beginPath();g.moveTo(84,55);g.lineTo(922,55);
- g.moveTo(84,490);g.lineTo(923,490);g.stroke();
- // Cliff falls off to the left; cyan ice ledge on the right.
- g.fillStyle='#315667';g.beginPath();g.moveTo(75,42);g.lineTo(104,67);g.lineTo(99,480);
- g.lineTo(65,514);g.lineTo(37,500);g.lineTo(55,46);g.fill();
- g.fillStyle='#b4dce7';g.beginPath();g.moveTo(910,62);g.lineTo(932,53);g.lineTo(952,86);
- g.lineTo(952,462);g.lineTo(925,492);g.lineTo(908,477);g.closePath();g.fill();
- g.strokeStyle='#9bc8da';g.lineWidth=1;
- for(let i=0;i<20;i++){const y=86+i*20;
-  g.beginPath();g.moveTo(110,y);g.bezierCurveTo(280,y-9,530,y+10,880,y-5);g.stroke();}
- for(let i=0;i<70;i++){
-  const x=122+(i*137)%750,y=90+(i*79)%364;
-  circle(g,x,y,1+(i%3)*.45,i%4===0?'#ffffffbd':'#8ebed066');
- }
- for(let i=0;i<12;i++){
-  const y=84+i*34,x=36+(i%2)*17;
-  circle(g,x,y,5+i%3,'#75a290');
-  circle(g,x+4,y-4,3,'#adbec2');
- }
-}
-function drawRock(g,r,s){
- g.save();
- for(let i=0;i<r.trail.length;i++){
-  const p=r.trail[i];circle(g,p.x+6,p.y+7,r.r*.28,'#6596af28');
- }
- g.translate(r.x,r.y);
- g.fillStyle='#315b7588';g.beginPath();g.ellipse(5,9,r.r*1.13,r.r*.82,-.2,0,TAU);g.fill();
- g.rotate(r.angle);
- g.beginPath();
- for(let i=0;i<9;i++){
-  const a=TAU*i/9,rad=r.r*(i%3===0?.96:i%2===0?1.03:.9);
-  if(!i)g.moveTo(Math.cos(a)*rad,Math.sin(a)*rad);
-  else g.lineTo(Math.cos(a)*rad,Math.sin(a)*rad);
- }
- g.closePath();
- const fill=g.createRadialGradient(-r.r*.4,-r.r*.5,2,0,0,r.r*1.3);
- fill.addColorStop(0,r.color||'#b0bdca');
- fill.addColorStop(.65,r.color||'#657c8c');
- fill.addColorStop(1,r.color?'#233e55':'#34485d');
- g.fillStyle=fill;g.fill();g.lineWidth=2;g.strokeStyle='#e7f5fb88';g.stroke();
- g.strokeStyle=r.color?'#fff8':'#34495b';g.lineWidth=2;
- g.beginPath();g.moveTo(-r.r*.48,-r.r*.09);g.lineTo(-r.r*.12,-r.r*.31);
- g.lineTo(r.r*.12,0);g.lineTo(r.r*.5,-r.r*.1);g.moveTo(r.r*.12,0);g.lineTo(r.r*.1,r.r*.45);g.stroke();
- g.restore();
- if(r.ownerId){
-  const owner=s.roster.find(p=>p.id===r.ownerId);
-  if(owner){g.fillStyle='#183d58bb';g.fillRect(r.x-31,r.y-r.r-26,62,18);
-   g.fillStyle='#ffffff';g.font='bold 11px sans-serif';g.textAlign='center';
-   g.fillText(String(owner.name||'').slice(0,9),r.x,r.y-r.r-13);}
- }
-}
+function drawRock(g,r,s){window.FarmIceArt.rock(g,r,s);}
 function draw(g,time,round,ps){
  const s=round.boulderBash;if(!s)return;
- g.save();g.clearRect(0,0,960,540);scenery(g,s);
+ g.save();window.FarmIceArt.beginScene(g,'#d3f2ee');window.FarmIceArt.boulder(g,s);
  for(const w of s.warnings){
   g.save();g.globalAlpha=.34+.2*Math.sin(s.clock*20);
   g.strokeStyle=w.ownerId?'#f7b4ce':'#e8faff';g.lineWidth=3;
@@ -377,7 +324,7 @@ function draw(g,time,round,ps){
  }
  for(const r of s.rocks)drawRock(g,r,s);
  for(const p of living(ps)){
-  if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:s.clock});
+  if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:s.clock,label:false});
   else{circle(g,p.x,p.y,C.radius,color(p));}
  }
  for(const e of s.effects){g.save();g.globalAlpha=clamp(e.life/.7,0,1);
@@ -386,5 +333,5 @@ function draw(g,time,round,ps){
  g.restore();
 }
 window.BoulderBash=Object.freeze({setup,spawnPositions,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
- sweptHit,finish,interval,config:C});
+ sweptHit,finish,interval,bounds:BOUNDS,config:C});
 })();

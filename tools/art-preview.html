@@ -15,6 +15,7 @@
 <script src="../party-ui-art.js"></script>
 <script src="../graveyard-art.js"></script>
 <script src="../ghost-attack.js"></script>
+<script src="../farm-ice-art.js"></script>
 <script src="../chickens.js"></script>
 <script src="../fruit-memory.js"></script>
 <script src="../shockwave.js"></script>
@@ -23,6 +24,8 @@
 <script src="../shopping-time.js"></script>
 <script src="../knight-match.js"></script>
 <script src="../witching-snake.js"></script>
+<script src="../snow-brawl.js"></script>
+<script src="../boulder-bash.js"></script>
 <script>
 /* Local art review only. Uses real engines, no PeerJS, rooms or network state.
    Example phases are frozen so art can be compared without changing game rules. */
@@ -45,7 +48,7 @@
   const themes=[['CHICKENS / ฟาร์ม','Chickens'],['SHOCKWAVE / วิหารลาวา','Shockwave'],
     ['FRUIT MEMORY / สวนผลไม้','FruitMemory'],['GHOST ATTACK / สุสาน','GhostAttack','graveyard'],
     ['GHOST ATTACK / อียิปต์','GhostAttack','egypt'],['SHOPPING TIME / ตลาด','ShoppingTime'],
-    ['KNIGHT MATCH / ขี่ม้าแทงลูกโป่ง','KnightMatch'],['WITCHING SNAKE / ลานแม่มด','WitchingSnake']];
+    ['KNIGHT MATCH / ขี่ม้าแทงลูกโป่ง','KnightMatch'],['WITCHING SNAKE / ลานแม่มด','WitchingSnake'],['SNOW BRAWL / เกาะหิมะ','SnowBrawl'],['BOULDER BASH / ทางน้ำแข็ง','BoulderBash']];
   for(const [title,key,theme] of themes){
    const ps=players(Number(document.querySelector('#count').value)),round={phase:'countdown',countdown:3},engine=window[key];
    engine.setup(round,ps);
@@ -61,6 +64,8 @@
     p.carriedChickenId=chicken.id;p.dir={x:1,y:0};
     Object.assign(chicken,{status:'carried',carrierId:p.id,dir:p.dir,x:p.x+37,y:p.y});
    }
+   if(key==='SnowBrawl'){ps.forEach(p=>engine.makeBall(round.snowBrawl,p));for(let i=0;i<120;i++)engine.update(1/60,round,ps);}
+   if(key==='BoulderBash'){const rock=engine.rockAt(round.boulderBash,340);rock.x=680;}
    if(key==='ShoppingTime'){
     for(let i=0;i<200;i++)engine.update(1/60,round,ps);
     ps[0].shopping.basket=['banana','milk','apple'];
