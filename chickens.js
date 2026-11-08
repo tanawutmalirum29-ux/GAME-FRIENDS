@@ -297,7 +297,7 @@ function advanceChicken(state,c,players,dt){
   const wallRoom=state.radius-distance(c,state.center);
   if(c.decision<=0||wallRoom<26*state.unit){
     c.escapeAngle=chooseEscape(state,c,players);
-    c.decision=wallRoom<26*state.unit?.028:rand(.09,.19);
+    c.decision=wallRoom<26*state.unit ? .028 : rand(.09,.19);
   }
   const old=Math.atan2(c.dir.y,c.dir.x);
   const delta=deltaAngle(old,c.escapeAngle);
