@@ -124,6 +124,67 @@ test('own mace remains solid even when owner is against the arena wall',()=>{
  assert.ok(hypot(p,ball)>=api.config.body+api.config.ball+api.config.spike*.65-.15,
   'mace must separate even when player cannot be pushed through wall');
 });
+test('twelve independent rigid links store physical joints instead of a straight painted line',()=>{
+ const {api,ps,s}=match(1),p=ps[0],st=p.gladiator;
+ assert.equal(api.config.chainLinks,12);
+ assert.equal(st.links.length,11);
+ const pts=[{x:st.anchorX,y:st.anchorY},...st.links,st.ball];
+ for(const joint of st.links){
+  assert.ok(Number.isFinite(joint.x+joint.y+joint.px+joint.py+joint.vx+joint.vy));
+  assert.notEqual(joint,st.ball,'links are not a shared ball reference');
+ }
+ for(let i=1;i<pts.length;i++){
+  assert.ok(Math.abs(hypot(pts[i-1],pts[i])-api.config.chain/api.config.chainLinks)<.2,
+   'each link starts at its own 9.5-unit length');
+ }
+ const first=pts[0],last=pts.at(-1);
+ const maxBend=Math.max(...st.links.map(q=>
+  Math.abs((last.x-first.x)*(q.y-first.y)-(last.y-first.y)*(q.x-first.x))/
+  (hypot(first,last)||1)));
+ assert.ok(maxBend>1,'the slack chain must have an articulated bend instead of a painted straight line');
+});
+test('chain joints lag and swing separately, respond to turns, and stay connected',()=>{
+ const {api,ps,round,s}=match(1),p=ps[0],st=p.gladiator;
+ let sawMomentum=false,sawBend=false;
+ const step=api.config.chain/api.config.chainLinks;
+ for(let i=0;i<240;i++){
+  const a=i<80?0:i<150?Math.PI*.8:-Math.PI*.35;
+  p.input.axisX=Math.cos(a);p.input.axisY=Math.sin(a);
+  api.step(1/60,round,ps);
+  const pts=[{x:st.anchorX,y:st.anchorY},...st.links,st.ball];
+  for(let j=1;j<pts.length;j++){
+   assert.ok(Number.isFinite(pts[j].x+pts[j].y),'joint must remain finite');
+   assert.ok(hypot(pts[j-1],pts[j])<step+4,'no link may detach from its neighbour');
+  }
+  if(st.links.some(j=>Math.hypot(j.vx,j.vy)>2))sawMomentum=true;
+  const first=pts[0],last=pts.at(-1);
+  const deviation=Math.max(...st.links.map(q=>
+   Math.abs((last.x-first.x)*(q.y-first.y)-(last.y-first.y)*(q.x-first.x))/
+   (hypot(first,last)||1)));
+  if(deviation>4)sawBend=true;
+  assert.ok(hypot(first,last)<api.config.chain+2,'whole tether stays within its total reach');
+ }
+ assert.equal(sawMomentum,true,'each link should carry independent inertia');
+ assert.equal(sawBend,true,'chain should flex visibly while changing direction');
+});
+test('chain joints respect walls, remain harmless and freeze with their owner',()=>{
+ const {api,ps,round,s}=match(1),p=ps[0],st=p.gladiator;
+ for(let i=0;i<90;i++){
+  p.input.axisX=-1;p.input.axisY=0;
+  api.step(1/60,round,ps);
+  for(const pin of st.links){
+   assert.ok(pin.x>=s.bounds.x+3-1e-5&&pin.x<=s.bounds.right-3+1e-5);
+   assert.ok(pin.y>=s.bounds.y+3-1e-5&&pin.y<=s.bounds.bottom-3+1e-5);
+  }
+  assert.equal(st.alive,true);
+ }
+ const before=st.links.map(q=>({x:q.x,y:q.y}));
+ api.eliminate(s,p,'regression');
+ api.step(1/60,round,ps);
+ for(let i=0;i<st.links.length;i++){
+  assert.ok(hypot(st.links[i],before[i])<.001,'eliminated chain must stay in its last position');
+ }
+});
 test('opposing mace touches cause simultaneous eliminations and tied ranks',()=>{
  const {api,ps,round,s}=match(2),[a,b]=ps;
  a.x=430;a.y=270;b.x=550;b.y=270;
