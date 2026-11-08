@@ -2695,26 +2695,28 @@ function endWitchingSnakeRound(){
 function endShockwaveRound(){
  const s=round.shockwave;round.phase='results';round.paused=false;resetInputs();broadcastRoster();
  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
+ const winners=new Set(s.winnerIds?.length?s.winnerIds:(s.winnerId?[s.winnerId]:[]));
+ const value=p=>winners.has(p.id)?Infinity:(p.shockEliminatedAt||0);
  const ranked=players.filter(p=>p.active).sort((a,b)=>
-   Number(b.id===s.winnerId)-Number(a.id===s.winnerId)||
-   (b.shockEliminatedAt||0)-(a.shockEliminatedAt||0));
- const rankOf=p=>p.id===s.winnerId?1:1+ranked.filter(q=>
-   q.id===s.winnerId||(q.shockEliminatedAt||0)>(p.shockEliminatedAt||0)).length;
+   value(b)-value(a)||String(a.id).localeCompare(String(b.id)));
+ const rankOf=p=>1+ranked.filter(q=>value(q)>value(p)).length;
  if(tournament){
    awardRoundPoints(ranked,rankOf);
    $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
      'สุ่มชุดใหม่จากตัวเลือกเดิม':'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
  }else $('replayBtn').textContent='เล่นอีกครั้ง';
  round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- const winner=ranked.find(p=>p.id===s.winnerId);
- $('results').querySelector('h2').textContent=winner?'ผู้ชนะ: '+winner.name:'ไม่มีผู้ชนะ';
+ const firstPlace=ranked.filter(p=>winners.has(p.id));
+ $('results').querySelector('h2').textContent=firstPlace.length>1?
+   'ผู้ชนะร่วม: '+firstPlace.map(p=>p.name).join(' / '):
+   firstPlace.length?'ผู้ชนะ: '+firstPlace[0].name:'ไม่มีผู้ชนะ';
  const list=$('resultList');list.replaceChildren();
  ranked.forEach(p=>{
    const row=document.createElement('div');row.className='result-player';
    const name=document.createElement('div');name.style.color=p.color;
    name.textContent='อันดับ '+rankOf(p)+' • '+p.name;
    const detail=document.createElement('span');
-   detail.textContent=(p.id===s.winnerId?'ผู้รอดคนสุดท้าย':'ตกรอบ Wave '+(p.shockEliminatedWave||s.wave))+
+   detail.textContent=(winners.has(p.id)?(firstPlace.length>1?'อันดับ 1 ร่วม':'ผู้รอดคนสุดท้าย'):'ตกรอบ Wave '+(p.shockEliminatedWave||s.wave))+
      totalScoreNote(p);
    row.append(name,detail);list.append(row);
  });
