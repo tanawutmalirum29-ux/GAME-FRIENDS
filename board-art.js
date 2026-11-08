@@ -319,6 +319,8 @@ function ground(g,s){
 const BOARD_NODE_DIAMETER=88;
 const BOARD_ROAD_WIDTH=BOARD_NODE_DIAMETER;
 const BOARD_BRIDGE_WIDTH=BOARD_NODE_DIAMETER;
+// Guide graphics sit on the left shoulder rather than the centre walking lane.
+const BOARD_GUIDE_SIDE_OFFSET=32;
 function v8RoadGuides(g,s){
  if(s.map.version!=='winter-expedition-152-v8')return;
  const map=s.map,c=s.camera,z=Math.max(.06,c.zoom||1);
@@ -343,8 +345,13 @@ function v8RoadGuides(g,s){
    g.quadraticCurveTo(ctrl.x,ctrl.y,e.b.x,e.b.y);
   }else g.lineTo(e.b.x,e.b.y);
  }
- function strokeEdge(e,color,width){
+ function strokeEdge(e,color,width,sideOffset=0){
+  if(sideOffset){
+   const dx=e.b.x-e.a.x,dy=e.b.y-e.a.y,len=Math.hypot(dx,dy)||1;
+   g.save();g.translate(-dy/len*sideOffset,dx/len*sideOffset);
+  }
   trace(e);g.strokeStyle=color;g.lineWidth=width;g.stroke();
+  if(sideOffset)g.restore();
  }
  const deckColor=kind=>kind==='ice'?'#bdeef4':
   kind==='stone'||kind==='arched'?'#b6c8ce':
@@ -377,7 +384,7 @@ function v8RoadGuides(g,s){
   for(const e of regular){
    if(/^n\d+$/.test(e.from)&&/^n\d+$/.test(e.to)&&
       Number(e.to.slice(1))===Number(e.from.slice(1))+1)
-    strokeEdge(e,'#f9f3dc',3.6);
+    strokeEdge(e,'#f9f3dc',3.6,-BOARD_GUIDE_SIDE_OFFSET);
   }
   g.setLineDash?.([]);
  }
@@ -433,7 +440,11 @@ function nodes(g,s){
   if(!edgeVisible(a,b))continue;
   const branch=s.map.branches.find(v=>v.nodeIds.includes(id));
   const tint=branch?.kind==='risky'?'#b78964':branch?'#6e9d91':'#5c8ea5';
-  g.save();g.translate(a.x+(b.x-a.x)*.52,a.y+(b.y-a.y)*.52);g.rotate(Math.atan2(b.y-a.y,b.x-a.x));
+  // Align the chevrons with the side guide, not the middle of the walkway.
+  const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;
+  const markerX=a.x+dx*.52+dy/d*BOARD_GUIDE_SIDE_OFFSET;
+  const markerY=a.y+dy*.52-dx/d*BOARD_GUIDE_SIDE_OFFSET;
+  g.save();g.translate(markerX,markerY);g.rotate(Math.atan2(dy,dx));
   for(const shift of [-5,5])path(g,[[shift-4,-5],[shift+2,0],[shift-4,5]],null,tint,2.5);g.restore();
   if(branch&&id===branch.nodeIds[0]&&c.zoom>.55){
    const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),x=(a.x+b.x)/2-dy/d*58,y=(a.y+b.y)/2+dx/d*58;
@@ -1092,5 +1103,5 @@ function draw(g,t,s){
  }
 }
 window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan,overview,follow,zoom,toggleDebug,inspect,fitZoom,branchFrame,
- roadWidths:Object.freeze({node:BOARD_NODE_DIAMETER,road:BOARD_ROAD_WIDTH,bridge:BOARD_BRIDGE_WIDTH})});
+ roadWidths:Object.freeze({node:BOARD_NODE_DIAMETER,road:BOARD_ROAD_WIDTH,bridge:BOARD_BRIDGE_WIDTH,guideOffset:BOARD_GUIDE_SIDE_OFFSET})});
 })();
