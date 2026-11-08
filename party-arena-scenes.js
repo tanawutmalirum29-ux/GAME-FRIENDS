@@ -142,15 +142,23 @@ function clock(g,value,accent='#e8d2a1'){
  line(g,463,13,463,17.5,'#fff7dc',1.4);line(g,463,17.5,467,20,'#fff7dc',1.4);
  g.font='800 17px system-ui';g.textAlign='center';g.fillStyle='#fff8e9';g.fillText(String(Math.ceil(value)),490,23);g.restore();
 }
+/* Embedded SVG asset, reused for all player-count badges across minigames. */
+const personIconSVG=()=>svg(24,24,
+ '<circle cx="12" cy="6.5" r="3.8" fill="#fff7dc"/><path d="M3.1 21v-1.3c0-4.5 3.8-7.1 8.9-7.1s8.9 2.6 8.9 7.1V21Z" fill="#fff7dc"/>');
 /* Shared headcount badge for survival modes without a countdown clock. */
 function playerCount(g,value){
  g.save();
  g.lineWidth=1.5;box(g,450,5,60,25,5,'#25323ce8','#e8d2a1');
  g.strokeStyle='#fff7dc';g.fillStyle='#fff7dc';g.lineWidth=1.2;
- // Person pictogram, drawn as vector paths so it stays sharp at any resolution.
- g.beginPath();g.arc(463,12.8,3.4,0,TAU);g.fill();
- g.beginPath();g.moveTo(456,23);g.lineTo(456,21);g.quadraticCurveTo(456,16,463,16);
- g.quadraticCurveTo(470,16,470,21);g.lineTo(470,23);g.closePath();g.fill();
+ // Rasterized by the canvas browser engine from a real, cached SVG asset.
+ const icon=imageFor('hud:player-count',personIconSVG);
+ if(ready(icon))g.drawImage(icon,454,7,18,19);
+ else{
+  // First paint while SVG decodes: visually identical vector fallback.
+  g.beginPath();g.arc(463,12.8,3.4,0,TAU);g.fill();
+  g.beginPath();g.moveTo(456,23);g.lineTo(456,21);g.quadraticCurveTo(456,16,463,16);
+  g.quadraticCurveTo(470,16,470,21);g.lineTo(470,23);g.closePath();g.fill();
+ }
  g.font='800 17px system-ui';g.textAlign='center';
  g.fillText(String(Math.max(0,Math.floor(Number(value)||0))),490,23);
  g.restore();
