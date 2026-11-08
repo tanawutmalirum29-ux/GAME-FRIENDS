@@ -92,11 +92,13 @@ test('joystick reversal steers gradually instead of flipping the avatar instantl
  for(let i=0;i<70;i++)api.step(1/60,round,ps);
  assert.ok(Math.cos(p.gladiator.heading-heading)<-.95,'eventually reaches opposite heading');
 });
-test('chain adds exactly two 9px links and starts at the longer reach',()=>{
- const {api,ps}=match(1),p=ps[0];
+test('chain gains exactly two 9px links without clipping into arena walls',()=>{
+ const {api,ps,s}=match(1),p=ps[0],ball=p.gladiator.ball;
  assert.equal(api.config.chain,114);
- const distance=hypot(p.gladiator.ball,{x:p.gladiator.anchorX,y:p.gladiator.anchorY});
- assert.ok(Math.abs(distance-90)<1,'mace should start two links farther out');
+ const distance=hypot(ball,{x:p.gladiator.anchorX,y:p.gladiator.anchorY});
+ assert.ok(distance>0&&distance<=90+.01,'initial mace must respect 90px reach and wall clamp');
+ assert.ok(ball.x>=s.bounds.x+api.config.ball&&ball.x<=s.bounds.right-api.config.ball);
+ assert.ok(ball.y>=s.bounds.y+api.config.ball&&ball.y<=s.bounds.bottom-api.config.ball);
  assert.equal(Math.floor(api.config.chain/9)-Math.floor(96/9),2);
 });
 test('own mace is solid, pushes the owner and never kills them',()=>{
