@@ -116,8 +116,8 @@ function remodelDesign(){
  removeNext('s0','ss51_0');addNext('s1','ss51_0');
  setNext('ss51_0',['s2']);
  setNext('ss49_0',['s4']);
- removeNext('s7','ss50_0');addNext('s4','ss50_0');
- setNext('ss50_1',['s5']);
+ removeNext('s7','ss50_0');removeNext('s4','ss50_0');addNext('s5','ss50_0');
+ setNext('ss50_1',['s7']);
  const routes={
   ws9_2:['w7','ws9_0','ws9_1','ws9_2','w5'],
   ws8_0:['w1','ws8_0','ws9_1'],
@@ -128,7 +128,7 @@ function remodelDesign(){
   gs39_0:['g4','gs39_0','g5'],
   ss51_0:['s1','ss51_0','s2'],
   ss49_0:['s1','ss49_0','s4'],
-  ss50_0:['s4','ss50_0','ss50_1','s5']
+  ss50_0:['s5','ss50_0','ss50_1','s7']
  };
  for(const road of D.roads||[]){
   for(const [key,nodes] of Object.entries(routes))if(road.nodeIds.includes(key)){
@@ -143,7 +143,7 @@ function remodelDesign(){
   hs29_0:[2940,4955],hs30_0:[2610,5300],
   gs39_0:[6240,5180],
   ss51_0:[6610,3015],ss49_0:[6450,2700],
-  ss50_0:[6235,2600],ss50_1:[6405,2450],
+  ss50_0:[6580,2680],ss50_1:[6700,2690],
   xmw_8:[3185,2450],xgb_2:[6100,5160],xgb_3:[6000,4990],xgb_4:[5800,4970],
   ws9_1:[3410,2675],ws9_2:[3030,2660],
   xhl_1:[3210,5050],xhl_2:[3300,4920],
