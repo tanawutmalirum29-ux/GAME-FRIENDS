@@ -24,6 +24,36 @@ for(const name of ['board-map','board-dice','board-dice-renderer','board-items',
 const {BoardParty:P,BoardArt:A}=ctx.window,g=brush(true);
 function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,name:'Player '+i,color:'#66aacc'})),{seed});}
 
+
+// The visual roadway must match the visible 88-unit node diameter, including
+// every bridge style. Sword court adjacency remains a board-map rule only:
+// no dark painted rectangle or block should join their two emblems.
+assert.deepEqual(JSON.parse(JSON.stringify(A.roadWidths)),
+ {node:88,road:88,bridge:88});
+assert.doesNotMatch(artSource,/g\.strokeStyle='#263b60b3'|g\.lineWidth=105\s*;\s*g\.beginPath/,
+ 'no dark shadow band may connect adjacent sword tiles');
+{
+ const s=game(8891),g=brush();
+ s.map.version='winter-expedition-152-v8';
+ s.camera.overview=true;s.camera.manualZoom=.65;s.camera.zoom=.65;
+ const strokes=[];
+ g.stroke=function(){
+  strokes.push({width:this.lineWidth,color:this.strokeStyle});
+ };
+ for(const id of ['n14','n27']){
+  s.camera.x=s.map.nodes[id].position.x;
+  s.camera.y=s.map.nodes[id].position.y;
+  A.draw(g,0,s);
+ }
+ assert.ok(strokes.some(p=>p.color==='#cba57c'&&p.width===88),
+  'ordinary roads render at node diameter, not narrower than tiles');
+ assert.ok(strokes.some(p=>['#d4ab7b','#bdeef4','#b6c8ce','#d6b58b'].includes(p.color)&&p.width===88),
+  'bridges render decks at the same 88-unit node diameter');
+ assert.ok(!strokes.some(p=>p.color==='#263b60b3'),
+  'the old dark sword-connection shadow is never rendered');
+}
+
+
 // Host overview starts at the full-board fitted zoom, with manual map
 // inspection and debug labels that never modify tile positions or HP.
 {
