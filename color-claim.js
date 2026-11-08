@@ -37,7 +37,51 @@ function claimDisk(s,slot,x,y,radius){
  }
  s.dirty=true;
 }
+// Once a capture cuts an owner's territory, only their largest four-connected
+// component survives. Detached fragments become neutral (-1), NOT the
+// attacker's colour. A diagonal touch does not reconnect two islands.
+function discardCutFragments(s){
+ const land=s.owner,n=land.length,labels=new Int32Array(n).fill(-1);
+ const queue=new Int32Array(n),bestId=new Int32Array(s.counts.length).fill(-1);
+ const bestSize=new Int32Array(s.counts.length);
+ let nextId=0;
+ for(let root=0;root<n;root++){
+  const slot=land[root];
+  if(slot<0||slot>=bestId.length||labels[root]>=0)continue;
+  const id=nextId++;let head=0,tail=1;queue[0]=root;labels[root]=id;
+  while(head<tail){
+   const cell=queue[head++],x=cell%s.cols,y=Math.floor(cell/s.cols);
+   // Avoid allocating closures/arrays per grid cell on low-end phones.
+   if(x>0&&labels[cell-1]<0&&land[cell-1]===slot){
+    labels[cell-1]=id;queue[tail++]=cell-1;
+   }
+   if(x<s.cols-1&&labels[cell+1]<0&&land[cell+1]===slot){
+    labels[cell+1]=id;queue[tail++]=cell+1;
+   }
+   if(y>0&&labels[cell-s.cols]<0&&land[cell-s.cols]===slot){
+    labels[cell-s.cols]=id;queue[tail++]=cell-s.cols;
+   }
+   if(y<s.rows-1&&labels[cell+s.cols]<0&&land[cell+s.cols]===slot){
+    labels[cell+s.cols]=id;queue[tail++]=cell+s.cols;
+   }
+  }
+  // Ties retain the first (top-leftmost) region for deterministic results.
+  if(tail>bestSize[slot]){bestSize[slot]=tail;bestId[slot]=id;}
+ }
+ let lost=null;
+ for(let i=0;i<n;i++){
+  const slot=land[i];
+  if(slot>=0&&slot<bestId.length&&labels[i]!==bestId[slot]){
+   if(!lost)lost=new Uint8Array(n);
+   lost[i]=1;land[i]=-1;
+  }
+ }
+ return lost;
+}
 function recount(s,ps){
+ // Prune ALL owners after ownership transfers, before score/spawn checks.
+ // This ensures newly detached tiles never contribute to the next frame.
+ const cut=discardCutFragments(s);
  s.counts.fill(0);
  for(const slot of s.owner)if(slot>=0&&slot<s.counts.length)s.counts[slot]++;
  for(const p of ps)if(p.cc)p.score=s.counts[p.cc.slot]/s.owner.length*100;
@@ -49,9 +93,11 @@ function recount(s,ps){
   if(q.alive&&q.trail.length&&q.anchor!==null&&s.owner[q.anchor]!==q.slot){
    kill(s,p);continue;
   }
-  // A respawn loses its protection if its very spawn tile is captured.
-  // Kill and choose a fresh owned location rather than drawing from enemy land.
-  if(q.alive&&q.invulnerable>0&&!q.trail.length&&!owned(s,p,p.x,p.y))
+  // If an island beneath an idle player was cut away, kill and respawn on
+  // their surviving main island. Also honour protection's stolen-tile rule.
+  const here=index(s,p.x,p.y);
+  if(q.alive&&!q.trail.length&&!owned(s,p,p.x,p.y)&&
+    (q.invulnerable>0||(cut&&here>=0&&cut[here])))
    kill(s,p);
  }
  s.dirty=true;
@@ -575,6 +621,6 @@ function draw(g,t,round,ps){
 }
 window.ColorClaim=Object.freeze({setup,update,step,draw,hud,finish,index,owned,claimDisk,
  recount,captureMask,applyCaptures,segmentsTouch,pointSegment2,kill,revive,eliminate,
- largestTerritory,spawnPlace,buildContours,traceSmoothTrail,freezeActive,
+ largestTerritory,spawnPlace,discardCutFragments,buildContours,traceSmoothTrail,freezeActive,
  config:SETTINGS});
 })();

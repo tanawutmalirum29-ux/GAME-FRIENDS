@@ -21,6 +21,16 @@ function capture(z,p,points){
  p.cc.trail=poly(points);
  z.e.applyCaptures(z.s,[p],z.ps);
 }
+// A one-tile-wide connected invader path, exactly like the result of a
+// successfully closed capture. Do not create disconnected fake enemy islands.
+function landPath(s,slot,from,to){
+ let a=Math.floor((from.x-s.field.x)/10),b=Math.floor((from.y-s.field.y)/10);
+ const x2=Math.floor((to.x-s.field.x)/10),y2=Math.floor((to.y-s.field.y)/10);
+ const paint=()=>{s.owner[b*s.cols+a]=slot;};
+ paint();
+ while(a!==x2){a+=Math.sign(x2-a);paint();}
+ while(b!==y2){b+=Math.sign(y2-b);paint();}
+}
 check('map sizes, clocks, all players own equal nonoverlapping starting land',()=>{
  for(const n of [1,2,4,6,7,9,12]){
   const {e,s,ps,round}=make(n);
@@ -48,6 +58,8 @@ check('open trail has no percentage; closing loop claims interior accurately',()
 check('steal land transfers scores, sums stay <= 100% and never double-owned',()=>{
  const z=make(2),[a,b]=z.ps,s=z.s;
  const x=470,y=260;
+ s.owner.fill(-1);
+ z.e.claimDisk(s,0,130,125,30);
  z.e.claimDisk(s,1,x,y,30);z.e.recount(s,z.ps);
  const bBefore=count(s,1),aBefore=count(s,0);
  capture(z,a,[{x:430,y:200},{x:535,y:200},{x:535,y:335},
@@ -98,7 +110,7 @@ check('zero land is a permanent elimination and can never regenerate an island',
  assert.equal(a.score,0);
  assert.equal(z.e.hud(z.ps,z.round).survivors,1);
 });
-check('temporary death revives only on the largest connected owner island',()=>{
+check('disconnected small islands become neutral and respawn uses only the retained largest',()=>{
  const z=make(2),[a,b]=z.ps,s=z.s;
  s.owner.fill(-1);
  z.e.claimDisk(s,a.cc.slot,130,125,21);
@@ -108,8 +120,9 @@ check('temporary death revives only on the largest connected owner island',()=>{
  const land=z.e.largestTerritory(s,a.cc.slot);
  assert.ok(land.size>40,'dominant island exists');
  const small=z.e.index(s,130,125),large=z.e.index(s,680,345);
- assert.equal(s.owner[small],a.cc.slot);
+ assert.equal(s.owner[small],-1,'small component vanishes at recount');
  assert.equal(s.owner[large],a.cc.slot);
+ assert.equal(land.size,count(s,a.cc.slot),'only the retained component is counted');
  z.e.kill(s,a);tick(z,45);
  assert.equal(a.cc.alive,true);
  assert.equal(a.cc.eliminated,false);
@@ -125,7 +138,7 @@ check('stolen origin during open loop kills instantly and respawns on remaining 
  a.cc.trail=poly([origin,{x:origin.x+70,y:origin.y+10}]);
  a.cc.distance=71;
  const before=count(s,a.cc.slot);
- z.e.claimDisk(s,b.cc.slot,origin.x,origin.y,11);
+ landPath(s,b.cc.slot,b,origin);
  z.e.recount(s,z.ps);
  assert.equal(s.owner[anchor],b.cc.slot);
  assert.ok(count(s,a.cc.slot)>0&&count(s,a.cc.slot)<before);
@@ -144,7 +157,7 @@ check('captured respawn tile triggers new death instead of leaving protected pla
  assert.equal(a.cc.alive,true);
  assert.ok(a.cc.invulnerable>0);
  const spawn={x:a.x,y:a.y};
- z.e.claimDisk(s,b.cc.slot,spawn.x,spawn.y,11);
+ landPath(s,b.cc.slot,b,spawn);
  z.e.recount(s,z.ps);
  assert.equal(a.cc.alive,false);
  assert.equal(a.cc.eliminated,false);
@@ -152,6 +165,96 @@ check('captured respawn tile triggers new death instead of leaving protected pla
  assert.equal(a.cc.alive,true);
  assert.ok(z.e.owned(s,a,a.x,a.y));
  assert.ok(Math.hypot(a.x-spawn.x,a.y-spawn.y)>1,'must pick a new owned tile');
+});
+check('a capture slices enemy land: retain the largest side, neutralize every smaller side',()=>{
+ const z=make(2),[victim,attacker]=z.ps,s=z.s,cols=s.cols;
+ s.owner.fill(-1);
+ // Left block: 10 columns, right block: 27 columns. Both initially joined.
+ for(let y=8;y<26;y++)for(let x=7;x<45;x++)s.owner[y*cols+x]=victim.cc.slot;
+ z.e.claimDisk(s,attacker.cc.slot,650,385,30);
+ z.e.recount(s,z.ps);
+ const before=count(s,victim.cc.slot);
+ assert.equal(before,38*18,'continuous territory starts fully owned');
+ for(let y=8;y<26;y++)s.owner[y*cols+17]=attacker.cc.slot;
+ // The attacking stripe connects to the attacker's own land via a neutral
+ // outer corridor; detached fragments, not invalid attacker islands, vanish.
+ landPath(s,attacker.cc.slot,{x:650,y:385},
+  {x:s.field.x+(17+.5)*10,y:s.field.y+(8+.5)*10});
+ // Simulated final ownership transfer from a thin enemy cut.
+ z.e.recount(s,z.ps);
+ assert.equal(count(s,victim.cc.slot),27*18,'only 27-column right side remains');
+ assert.equal(s.owner[15*cols+9],-1,'cut off 10-column piece is neutral');
+ assert.equal(s.owner[15*cols+17],attacker.cc.slot,
+  'cut line belongs to the attacker only when legitimately captured');
+ assert.equal(s.owner[15*cols+35],victim.cc.slot);
+ assert.ok(count(s,victim.cc.slot)<before);
+ assert.ok(Math.abs(victim.score-count(s,victim.cc.slot)/s.owner.length*100)<1e-9);
+ const contours=z.e.buildContours(s);
+ assert.equal(contours[victim.cc.slot].length,1,'render only one continuous island');
+});
+check('a cut makes three pieces: two smaller pieces vanish simultaneously',()=>{
+ const z=make(2),[victim,attacker]=z.ps,s=z.s,cols=s.cols;
+ s.owner.fill(-1);
+ for(let y=7;y<20;y++)for(let x=6;x<52;x++)s.owner[y*cols+x]=victim.cc.slot;
+ z.e.claimDisk(s,attacker.cc.slot,750,370,30);
+ z.e.recount(s,z.ps);
+ for(let y=7;y<20;y++){
+  s.owner[y*cols+14]=attacker.cc.slot;
+  s.owner[y*cols+30]=attacker.cc.slot;
+ }
+ landPath(s,attacker.cc.slot,{x:750,y:370},
+  {x:s.field.x+(14+.5)*10,y:s.field.y+(7+.5)*10});
+ landPath(s,attacker.cc.slot,{x:750,y:370},
+  {x:s.field.x+(30+.5)*10,y:s.field.y+(7+.5)*10});
+ z.e.recount(s,z.ps);
+ assert.equal(count(s,victim.cc.slot),21*13,
+  'largest component after cuts x=31..51 stays');
+ assert.equal(s.owner[10*cols+10],-1);
+ assert.equal(s.owner[10*cols+23],-1);
+ assert.equal(s.owner[10*cols+43],victim.cc.slot);
+ assert.equal(s.owner[10*cols+30],attacker.cc.slot);
+ assert.equal(s.owner[10*cols+14],attacker.cc.slot);
+});
+check('no loss when a thin bridge remains; diagonal-only touch is disconnected',()=>{
+ const z=make(2),[a,b]=z.ps,s=z.s;
+ s.owner.fill(-1);
+ const i=(x,y)=>y*s.cols+x;
+ // Diagonal does not connect regions.
+ s.owner[i(8,9)]=a.cc.slot;s.owner[i(9,10)]=a.cc.slot;
+ z.e.claimDisk(s,b.cc.slot,600,300,25);
+ z.e.recount(s,z.ps);
+ assert.equal(count(s,a.cc.slot),1);
+ assert.equal(s.owner[i(8,9)],a.cc.slot,'first top-left component wins a tie');
+ assert.equal(s.owner[i(9,10)],-1,'diagonal touch is not a bridge');
+ // A genuine four-directional chain survives pruning.
+ s.owner.fill(-1);
+ for(let x=5;x<25;x++)s.owner[i(x,15)]=a.cc.slot;
+ for(let y=10;y<=20;y++)s.owner[i(5,y)]=a.cc.slot;
+ for(let y=10;y<=20;y++)s.owner[i(24,y)]=a.cc.slot;
+ z.e.claimDisk(s,b.cc.slot,600,300,25);
+ z.e.recount(s,z.ps);
+ const value=count(s,a.cc.slot);
+ assert.equal(value,20+10+10);
+ assert.equal(s.owner[i(5,10)],a.cc.slot);
+ assert.equal(s.owner[i(24,20)],a.cc.slot);
+ assert.equal(s.owner[i(15,15)],a.cc.slot);
+});
+check('victim on a detached patch dies and respawns on surviving main region',()=>{
+ const z=make(2),[victim,attacker]=z.ps,s=z.s,cols=s.cols;
+ s.owner.fill(-1);
+ for(let y=8;y<25;y++)for(let x=7;x<46;x++)s.owner[y*cols+x]=victim.cc.slot;
+ z.e.claimDisk(s,attacker.cc.slot,720,350,30);
+ z.e.recount(s,z.ps);
+ victim.x=s.field.x+(10+.5)*10;victim.y=s.field.y+(15+.5)*10;
+ victim.cc.invulnerable=0;victim.cc.trail=[];
+ for(let y=8;y<25;y++)s.owner[y*cols+19]=attacker.cc.slot;
+ z.e.recount(s,z.ps);
+ assert.equal(victim.cc.alive,false,'standing on lost territory forces a real death');
+ assert.equal(victim.cc.eliminated,false,'larger region is still owned');
+ tick(z,43);
+ assert.equal(victim.cc.alive,true);
+ assert.ok(z.e.owned(s,victim,victim.x,victim.y));
+ assert.ok(victim.x>s.field.x+20*10,'respawned on main, not detached, region');
 });
 check('smooth territory contours follow ownership and are cached between captures',()=>{
  const z=make(2),s=z.s;
