@@ -41,10 +41,10 @@ const server=http.createServer((req,res)=>{
    }
    return all;
   });
-  assert.equal(svgResult.length,12);for(const r of svgResult){assert.ok(r.opaque>13000,r.id+' fills the cover');assert.ok(r.colors>150,r.id+' is a complete rendered scene');}
-  assert.equal(await page.locator('[data-pick] svg[data-cover]').count(),12,'phone picker has every new cover');
+  assert.equal(svgResult.length,13);for(const r of svgResult){assert.ok(r.opaque>13000,r.id+' fills the cover');assert.ok(r.colors>150,r.id+' is a complete rendered scene');}
+  assert.equal(await page.locator('[data-pick] svg[data-cover]').count(),13,'phone picker has every new cover');
   await page.evaluate(()=>{while(__arenaView.players.length<4)__arenaView.addLocal();document.getElementById('cycleAllBotsBtn').click();});
-  assert.equal(await page.locator('#bulkBotPickerChoices svg[data-cover]').count(),12);
+  assert.equal(await page.locator('#bulkBotPickerChoices svg[data-cover]').count(),13);
   await page.locator('#bulkBotPicker').screenshot({path:path.join(out,`${name}-all-bot-covers.png`)});
   await page.locator('.bulk-bot-game-choice[data-mode="shopping_time"]').click();
   assert.equal(await page.evaluate(()=>__arenaView.players.every(p=>!p.isBot||p.choice==='shopping_time')),true);
