@@ -77,7 +77,10 @@ const server=http.createServer((req,res)=>{
    'host/controller start does not fetch unused minigame code');
   await page.locator('#offlineBtn').click();
   await page.evaluate(()=>window.__lazyGameTest.beginGameSelection('ghost'));
-  await page.waitForFunction(()=>window.__lazyGameTest?.selection?.ready===true||\n   !!window.__lazyGameTest?.selection?.error);\n  const loadError=await page.evaluate(()=>String(window.__lazyGameTest?.selection?.error||''));\n  assert.equal(loadError,'','engine must load without an error');
+  await page.waitForFunction(()=>window.__lazyGameTest?.selection?.ready===true||
+   !!window.__lazyGameTest?.selection?.error);
+  const loadError=await page.evaluate(()=>String(window.__lazyGameTest?.selection?.error||''));
+  assert.equal(loadError,'','engine must load without an error');
   const played=await page.evaluate(()=>{
    __lazyGameTest.updateGameSelection(4);
    return {mode:__lazyGameTest.round?.mode,phase:__lazyGameTest.round?.phase,
