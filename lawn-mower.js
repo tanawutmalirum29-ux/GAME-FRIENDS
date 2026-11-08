@@ -464,9 +464,9 @@ function draw(ctx,time,round,ps){
  }
  ctx.fillStyle='rgba(28,53,22,.88)';ctx.fillRect(13,12,210,57);
  ctx.fillStyle='#fff';ctx.font='900 19px system-ui';ctx.textAlign='left';ctx.fillText('LAWN MOWER',23,34);
- ctx.font='bold 14px system-ui';ctx.fillText(round.phase==='countdown'?
-  'เริ่มใน '+Math.ceil(round.countdown||0):
-  'เหลือ '+Math.ceil(s.remaining)+' วิ • '+(s.kind==='small'?'สนามเล็ก':'สนามใหญ่'),23,55);
+ // Remaining seconds and start countdown use the common clock badge.
+ ctx.font='bold 14px system-ui';
+ ctx.fillText(s.kind==='small'?'สนามเล็ก':'สนามใหญ่',23,55);
  ctx.restore();
 }
 window.LawnMower=Object.freeze({setup,update,draw,hud,playerStatus,step,finish,cutSwath,cutTuft,
