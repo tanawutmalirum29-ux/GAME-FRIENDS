@@ -24,6 +24,21 @@ function newGame(n=1,seed=42,bots=false){
 function tick(t,n=1){
  for(let i=0;i<n;i++)G.step(1/60,t.round,t.players);
 }
+function assertFrontAttached(s,p,context='cart attached'){
+ const q=p.shopping,d=s.metrics.cartDistance,cos=Math.cos(q.angle),sin=Math.sin(q.angle);
+ const dx=q.cartX-p.x,dy=q.cartY-p.y;
+ assert.ok(Math.abs(dx-cos*d)<1e-7&&Math.abs(dy-sin*d)<1e-7,
+  context+': cart centre equals owner position plus forward offset');
+ assert.ok(Math.abs(Math.hypot(dx,dy)-d)<1e-7,
+  context+': cart stays at fixed distance');
+ const forward=dx*cos+dy*sin,side=dy*cos-dx*sin;
+ assert.ok(forward>d-1e-7&&Math.abs(side)<1e-7,
+  context+': cart never drifts to either side or behind the owner');
+ const a=s.arena,r=s.metrics.cartRadius;
+ assert.ok(q.cartX>=a.x+r-1e-6&&q.cartX<=a.x+a.w-r+1e-6&&
+           q.cartY>=a.y+r-1e-6&&q.cartY<=a.y+a.h-r+1e-6,
+  context+': entire cart hit circle remains within the arena bounds');
+}
 function disabledSpawn(s){for(const l of s.lanes)l.nextSpawn=9999;}
 function obj(s,p,kind='item',type='apple'){
  const q=p.shopping;
@@ -138,6 +153,65 @@ for(let n=1;n<=12;n++)for(let seed=1;seed<=3;seed++){
  assert.ok(t.players.every(p=>p.score===p.shopping.paid-5*p.shopping.bombs));
  assert.ok(t.players.every(p=>p.shopping.paid>0),'every bot contributes in this seed');
 }
+// The cart is no longer a delayed follower: sharp joystick turns update the
+// front position on the VERY NEXT 60 Hz tick, including when it is stationary.
+{
+ const t=newGame(1,773),p=t.players[0],q=p.shopping,s=t.s;
+ disabledSpawn(s);
+ p.x=s.arena.x+s.arena.w/2;p.y=s.arena.y+s.arena.h/2;
+ q.angle=0;q.cartX=p.x+s.metrics.cartDistance;q.cartY=p.y;
+ for(const [x,y] of [[1,0],[0,1],[-1,0],[0,-1],[1,0]]){
+  p.input.axisX=x;p.input.axisY=y;
+  tick(t);
+  assertFrontAttached(s,p,'sharp 90/180 degree turn');
+  const target=Math.atan2(y,x);
+  assert.ok(Math.abs(Math.atan2(Math.sin(q.angle-target),Math.cos(q.angle-target)))<1e-8,
+   'shopping cart points exactly toward the most recent joystick input');
+ }
+ p.input.axisX=0;p.input.axisY=0;tick(t,100);
+ assertFrontAttached(s,p,'idle cart');
+}
+// A wall must stop the whole connected pair, never clip the cart while the
+// owner continues to move, and turning into the wall cannot detach the basket.
+{
+ const t=newGame(1,774),p=t.players[0],q=p.shopping,s=t.s;
+ disabledSpawn(s);
+ const a=s.arena;
+ for(const [x,y,dx,dy] of [
+  [a.x+s.metrics.playerRadius,a.y+a.h/2,-1,0],
+  [a.x+a.w-s.metrics.playerRadius,a.y+a.h/2,1,0],
+  [a.x+a.w/2,a.y+s.metrics.playerRadius,0,-1],
+  [a.x+a.w/2,a.y+a.h-s.metrics.playerRadius,0,1]
+ ]){
+  p.x=x;p.y=y;p.input.axisX=dx;p.input.axisY=dy;
+  tick(t,12);
+  assertFrontAttached(s,p,'wall-bound turn');
+ }
+}
+// Another cart or player can shove the owner, but never separate the cart.
+{
+ const t=newGame(2,775),s=t.s,[a,b]=t.players;
+ disabledSpawn(s);
+ a.x=s.arena.x+s.arena.w/2-22;b.x=a.x+44;
+ a.y=b.y=s.arena.y+s.arena.h/2;
+ a.shopping.angle=0;b.shopping.angle=Math.PI;
+ a.input.axisX=1;b.input.axisX=-1;
+ for(let i=0;i<180;i++){
+  tick(t);
+  assertFrontAttached(s,a,'cart collision player A');
+  assertFrontAttached(s,b,'cart collision player B');
+ }
+}
+// Dense twelve-bot cart collisions and conveyors must not cause drift over
+// hundreds of frames, even when bots constantly retarget items/checkouts.
+{
+ const t=newGame(12,776,true);
+ for(let i=0;i<900;i++){
+  tick(t);
+  if(i%15===0)t.players.forEach(p=>assertFrontAttached(t.s,p,'twelve player stress'));
+ }
+ assert.ok(t.s.scanned>0,'rigid carts still collect items and finish checkouts');
+}
 // Static integration guards protect the picker, Board Party and deploy references.
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
@@ -150,4 +224,4 @@ assert.match(html,/src="\.\/shopping-time\.js"/);
 assert.match(html,/data-pick="shopping_time"/);
 assert.match(board,/case 'shopping_time':/);
 assert.match(build,/'shopping-time\.js'/);
-console.log('SHOPPING TIME: four conveyor lanes, cart physics, checkout, bomb immunity, 1–12 players, bots and integration PASS');
+console.log('SHOPPING TIME: four conveyor lanes, rigid forward cart steering, collision, checkout, bomb immunity, 1–12 players, bots and integration PASS');
