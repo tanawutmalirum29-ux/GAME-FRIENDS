@@ -18,6 +18,7 @@ function center(s,row,col){return {x:s.board.x+(col+.5)*s.size,y:s.board.y+(row+
 {
  const {ps,s}=make(6);
  eq(s.cols,11,'small width');eq(s.rows,9,'small height');eq(s.tiles.length,99,'small tiles');
+ eq(s.size,44,'small grid stays 44 world units per cell');
  ok(s.tiles.every(t=>t.ownerId===null),'tiles begin neutral');
  eq(s.duration,40,'small round lasts exactly 40 seconds');
  ok(ps.every(p=>p.score===0),'scores reset');
