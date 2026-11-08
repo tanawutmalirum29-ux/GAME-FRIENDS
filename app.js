@@ -3246,7 +3246,7 @@ if(round.mode==='snow_brawl'){
 // finish their scene: one badge, one position, no in-engine duplicates.
 // SHOCKWAVE intentionally never displays a numerical warning timer.
 function hostClockValue(r){
-  if(!r||r.mode==='board'||r.mode==='shockwave')return null;
+  if(!r||r.mode==='board'||r.mode==='shockwave'||r.mode==='fruit_memory')return null;
   if(r.phase==='countdown')return Number.isFinite(r.countdown)?Math.max(0,r.countdown):null;
   if(r.phase!=='playing')return null;
   if(Number.isFinite(r.remaining))return Math.max(0,r.remaining);
@@ -3262,14 +3262,11 @@ function drawGame(t){
   const seconds=hostClockValue(round);
   if(seconds!==null){
     window.PartyArenaScenes?.clock?.(g,seconds);
-  }else if(round.phase==='playing'||round.mode==='shockwave'){
+  }else if(round.phase==='playing'||round.mode==='shockwave'||round.mode==='fruit_memory'){
     // No countdown: use only the shared SVG person and survivor total.
     const survivors=gameEngine(round.mode).hud?.(players,round)?.survivors;
     if(Number.isFinite(survivors))window.PartyArenaScenes?.playerCount?.(g,survivors);
   }
-  // Draw the fruit-memory targets AFTER the shared clock/headcount so the
-  // three real safe fruits sit as one centered row directly beneath it.
-  if(round.mode==='fruit_memory')window.FruitMemory?.drawTargetFruits?.(g,round);
 }
 function animate(ts){
   const elapsed=Math.max(0,(ts-frameLast)/1000||.016);
