@@ -141,10 +141,10 @@ function remodelDesign(){
   ms19_0:[2610,1000],ms20_0:[2490,1280],
   hs29_0:[2940,4955],hs30_0:[2450,5050],
   gs39_0:[6240,5180],
-  ss51_0:[6585,2770],ss49_0:[6450,2700],
+  ss51_0:[6610,3015],ss49_0:[6450,2700],
   ss50_0:[6380,2460],ss50_1:[6280,2370],
   xmw_8:[3185,2450],xgb_2:[5990,5200],xgb_3:[6000,4990],xgb_4:[5800,4970],
-  ws9_1:[3410,2675],ws9_2:[2990,2460],
+  ws9_1:[3410,2675],ws9_2:[3030,2660],
   xhl_1:[3210,5050],xhl_2:[3300,4920],
   xhb_1:[3210,5335],xhb_2:[3350,5340]
  };
@@ -153,7 +153,7 @@ function remodelDesign(){
  }
  // Route the Gingerbread->Lake return bridge as a separate lower lane from
  // the inbound lake->Gingerbread road and the original n134->n135 crossing.
- const lowerY={xgb_1:5518,xgb_2:5395,xgb_3:5265,xgb_4:5145,
+ const lowerY={xgb_1:5518,
   xgb_5:5030,xgb_6:4930,xgb_7:4890,xgb_8:4740};
  for(const [id,y] of Object.entries(lowerY)){
   const n=find(id);if(n)n.position.y=y;
@@ -195,7 +195,13 @@ function remodelDesign(){
   }
  }
  // Former crossover decks cannot be kept at stale world coordinates.
- if(Array.isArray(D.overpasses))D.overpasses.length=0;
+ if(Array.isArray(D.overpasses)){
+  D.overpasses.length=0;
+  // The original village->castle main road and the elevated Gingerbread
+  // bridge have one deliberate grade-separated crossing. Mark the upper
+  // viaduct visually so players cannot mistake it for a walking junction.
+  D.overpasses.push({x:5270,y:4821,upper:'n134>n135',crossesOld:true});
+ }
 }
 remodelDesign();
 function applySwordCourts(m){
