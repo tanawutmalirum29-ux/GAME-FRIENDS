@@ -403,4 +403,42 @@ assert.equal(left.snow.ballId,null);assert.equal(right.snow.ballId,null);
   assert.ok(g.s.balls.every(b=>Math.hypot(b.vx,b.vy)<500));
  }
 }
+
+// Regression: bot AI must resolve a head-on snowball rebuilding deadlock
+// without waiting indefinitely for the island's edge to kill everyone.
+{
+ for(const n of [2,4,6,12]){
+  for(const cluster of [false,true]){
+   const g=match(n,true);
+   if(cluster){
+    g.ps.forEach((p,i)=>{
+     const angle=(i+.5)*Math.PI*2/n,r=n<=2?48:75;
+     p.x=Math.cos(angle)*r;p.y=Math.sin(angle)*r;
+     p.vx=p.vy=p.kvx=p.kvy=0;
+     p.snow.ballId=null;
+     p.snow.botProbeX=p.x;p.snow.botProbeY=p.y;
+    });
+    g.s.balls.length=0;
+   }
+   const maxSeconds=C.botSuddenDeathTime+G.islandRadius(n)/C.shrinkSpeed+2;
+   for(let i=0;i<maxSeconds*60&&!g.s.finished;i++)tick(g);
+   assert.equal(g.s.finished,true,n+' bots must finish, cluster='+cluster);
+   assert.equal(g.s.winnerIds.length,1,n+' bots must have one winner, cluster='+cluster);
+   const totalShots=g.ps.reduce((sum,p)=>sum+(p.snow.shotsFired||0),0);
+   assert.ok(totalShots>=2,n+' bots must aim and fire, cluster='+cluster);
+   assert.ok(g.s.clock<=maxSeconds,n+' bots exceeded the death-match time bound');
+  }
+ }
+}
+{
+ // A living human player must not trigger the shorter bot-only sudden death.
+ const g=match(2,true);
+ g.ps[1].isBot=false;
+ g.s.clock=C.botSuddenDeathTime+.1;
+ G.step(1/60,g.round,g.ps);
+ assert.equal(g.s.suddenDeath,false,'mixed rounds preserve the human sudden-death clock');
+ g.s.clock=C.suddenDeathTime+.1;
+ G.step(1/60,g.round,g.ps);
+ assert.equal(g.s.suddenDeath,true,'mixed rounds still enter sudden death at 90s');
+}
 console.log('SNOW BRAWL PASS: 1–12 spawns, 0.15s windup, slow turns/front-locked ball, holder recoil, constant rolling speed <= 1.5x, chain impulses and bots');
