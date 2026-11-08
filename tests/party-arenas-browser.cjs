@@ -41,10 +41,10 @@ const server=http.createServer((req,res)=>{
    }
    return all;
   });
-  assert.equal(svgResult.length,12);for(const r of svgResult){assert.ok(r.opaque>13000,r.id+' fills the cover');assert.ok(r.colors>150,r.id+' is a complete rendered scene');}
-  assert.equal(await page.locator('[data-pick] svg[data-cover]').count(),12,'phone picker has every new cover');
+  assert.equal(svgResult.length,13);for(const r of svgResult){assert.ok(r.opaque>13000,r.id+' fills the cover');assert.ok(r.colors>150,r.id+' is a complete rendered scene');}
+  assert.equal(await page.locator('[data-pick] svg[data-cover]').count(),13,'phone picker has every new cover');
   await page.evaluate(()=>{while(__arenaView.players.length<4)__arenaView.addLocal();document.getElementById('cycleAllBotsBtn').click();});
-  assert.equal(await page.locator('#bulkBotPickerChoices svg[data-cover]').count(),12);
+  assert.equal(await page.locator('#bulkBotPickerChoices svg[data-cover]').count(),13);
   await page.locator('#bulkBotPicker').screenshot({path:path.join(out,`${name}-all-bot-covers.png`)});
   await page.locator('.bulk-bot-game-choice[data-mode="shopping_time"]').click();
   assert.equal(await page.evaluate(()=>__arenaView.players.every(p=>!p.isBot||p.choice==='shopping_time')),true);
@@ -134,7 +134,7 @@ const server=http.createServer((req,res)=>{
   const markup=await page.evaluate(()=>PartyGameCovers.ids.map(id=>`<article>${PartyGameCovers.svg(id)}<p>${id.replaceAll('_',' ').toUpperCase()}</p></article>`).join(''));
   const gallery=await context.newPage();await gallery.setViewportSize({width:1280,height:1100});
   await gallery.setContent(`<style>*{box-sizing:border-box}body{margin:0;padding:18px;background:#172d43;color:#edf1dd;font:14px system-ui;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}svg{width:100%;height:auto}p{text-align:center;margin:4px 0}article{min-width:0}</style>${markup}`);
-  await gallery.screenshot({path:path.join(out,`${name}-all-12-covers.png`),fullPage:true});
-  console.log('PARTY ARENAS BROWSER PASS '+name+': 1/4/6/9/12 HOST, SVG rasterization, real cart/piercing/trails, 12 covers in phone/bulk/roulette, cached state-isolated frames, resize/reload. '+JSON.stringify(timings));
+  await gallery.screenshot({path:path.join(out,`${name}-all-13-covers.png`),fullPage:true});
+  console.log('PARTY ARENAS BROWSER PASS '+name+': 1/4/6/9/12 HOST, SVG rasterization, real cart/piercing/trails, 13 covers in phone/bulk; 12 roulette cards, cached state-isolated frames, resize/reload. '+JSON.stringify(timings));
  }finally{await browser.close();server.close();}
 })().catch(error=>{console.error(error);server.close();process.exitCode=1;});
