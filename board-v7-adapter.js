@@ -5,7 +5,7 @@
 'use strict';
 const Base=window.BoardMap,D=window.BOARD_PARTY_V7_DESIGN;
 if(!Base||!D)throw Error('BOARD v7: load board-map and design before adapter');
-const VERSION='winter-expedition-152-v9',copy=x=>JSON.parse(JSON.stringify(x));
+const VERSION='winter-expedition-152-v10',copy=x=>JSON.parse(JSON.stringify(x));
 const BASE_NODES=213,EXTRA_NODES=146,ISLANDS=17,BRIDGES=20;
 const original=Base.create(0),oldIds=new Set(Object.keys(original.nodes));
 if(oldIds.size!==BASE_NODES||D.newNodes.length!==EXTRA_NODES||
@@ -341,6 +341,159 @@ function reduceGraphDesign(){
  return report;
 }
 const V9_GRAPH=reduceGraphDesign();
+
+/* V10: a one-way tour through each landmark. Every existing connector keeps
+ * its internal ID. Only real directed links change, and all art/bridge
+ * metadata is rebuilt from the exact playable graph. Saved V9 games are
+ * intentionally rejected by MAP_VERSION; stale mid-edge positions cannot
+ * silently resume on another route. */
+function rebalanceV10(){
+ const lookup=new Map(D.newNodes.map(n=>[n.id,n]));
+ const replace=(from,oldTo,newTo)=>{
+  const node=lookup.get(from);
+  if(!node||!node.nextNodes.includes(oldTo)||node.nextNodes.includes(newTo))
+   throw Error('V10 unexpected connector '+from+'>'+oldTo);
+  node.nextNodes=node.nextNodes.map(id=>id===oldTo?newTo:id);
+ };
+ const remove=(from,to)=>{
+  const node=lookup.get(from);
+  if(!node||!node.nextNodes.includes(to))throw Error('V10 missing old route '+from+'>'+to);
+  node.nextNodes=node.nextNodes.filter(id=>id!==to);
+ };
+ // Meadow: enter before the farm circuit, then traverse m0..m7 once and
+ // return to the nearby GROVE, not jump 46 main checkpoints to n108.
+ replace('xmin_2','m3','m0');
+ remove('m0','xmout_1');
+ replace('m7','m0','xmout_1');
+ replace('xmout_2','n108','n56');
+ // Workshop: the village bridge now enters w0, then the tour passes every
+ // court and leaves from w7. A return visit must never repeat w0.
+ replace('xvwb_5','w3','w0');
+ remove('w6','xwf_1');
+ replace('w7','w0','xwf_1');
+ // Iceberg: arrive at s0; tour the sword court and exit from s7.
+ replace('xacb_3','s6','s0');
+ remove('s4','xba_1');
+ replace('s7','s0','xba_1');
+ const changes={
+  min:['m3','m0'],mout:['m0','m7','n108','n56'],
+  vwb:['w3','w0'],wf:['w6','w7'],
+  acb:['s6','s0'],ba:['s4','s7']
+ };
+ const position=id=>D.allNodePositions[id]||lookup.get(id)?.position;
+ // Move bridge waypoints with their endpoint; otherwise art retains the
+ // original diagonal when graph traffic enters at a different side.
+ for(const [key,edit] of Object.entries(changes)){
+  const bridge=D.bridges.find(b=>b.id===key);
+  if(!bridge)throw Error('V10 missing bridge '+key);
+  const ids=bridge.nodeIds,oldFrom=ids[0],oldTo=ids[ids.length-1];
+  const first=edit.length===4?edit[0]:key==='wf'||key==='ba'?edit[0]:oldFrom;
+  const last=edit.length===4?edit[2]:key==='wf'||key==='ba'?oldTo:edit[0];
+  const newFrom=edit.length===4?edit[1]:key==='wf'||key==='ba'?edit[1]:oldFrom;
+  const newTo=edit.length===4?edit[3]:key==='wf'||key==='ba'?oldTo:edit[1];
+  if(first!==oldFrom||last!==oldTo)throw Error('V10 bridge contract mismatch '+key);
+  const oldA={...position(oldFrom)},oldB={...position(oldTo)};
+  const newA={...position(newFrom)},newB={...position(newTo)};
+  const dxA=newA.x-oldA.x,dyA=newA.y-oldA.y,dxB=newB.x-oldB.x,dyB=newB.y-oldB.y;
+  for(let i=1;i<ids.length-1;i++){
+   const t=i/(ids.length-1),node=lookup.get(ids[i]);
+   if(!node)throw Error('V10 unknown waypoint '+ids[i]);
+   node.position={
+    x:Math.round(node.position.x+(1-t)*dxA+t*dxB),
+    y:Math.round(node.position.y+(1-t)*dyA+t*dyB)
+   };
+   D.allNodePositions[node.id]={...node.position};
+  }
+  ids[0]=newFrom;ids[ids.length-1]=newTo;
+ }
+ // The new Meadow -> Grove exit skirts the forest's eastern bank, leaving
+ // the original n51 inbound road unobscured and making both lanes legible.
+ const start=position('m7'),end=position('n56');
+ for(const [i,id] of ['xmout_1','xmout_2'].entries()){
+  const t=(i+1)/3,bulge=Math.sin(Math.PI*t);
+  const node=lookup.get(id);
+  node.position={x:Math.round(start.x*(1-t)+end.x*t+160*bulge),
+   y:Math.round(start.y*(1-t)+end.y*t+85*bulge)};
+  D.allNodePositions[id]={...node.position};
+ }
+ // Harbor and Gingerbread have only three/two live tiles after V9. Treat
+ // them as compact scenic stops, not large empty exploration islands.
+ for(const name of ['harbor','ginger']){
+  const island=D.islands.find(i=>i.id===name);
+  const cells=D.newNodes.filter(n=>n.islandId===name);
+  if(!island||cells.length!==(name==='harbor'?3:2))
+   throw Error('Unexpected compact island '+name);
+  const xs=cells.map(n=>n.position.x),ys=cells.map(n=>n.position.y);
+  const cx=(Math.min(...xs)+Math.max(...xs))/2;
+  const cy=(Math.min(...ys)+Math.max(...ys))/2;
+  const rx=(Math.max(...xs)-Math.min(...xs))/2+230;
+  const ry=(Math.max(...ys)-Math.min(...ys))/2+230;
+  island.center={x:Math.round(cx),y:Math.round(cy)};
+  island.outline=Array.from({length:32},(_,i)=>{
+   const a=i*Math.PI/16;return{x:Math.round(cx+rx*Math.cos(a)),
+    y:Math.round(cy+ry*Math.sin(a))};
+  });
+ }
+ const actual=new Set([
+  ...D.oldNodes.flatMap(n=>n.nextNodes.map(to=>n.id+'>'+to)),
+  ...D.newNodes.flatMap(n=>n.nextNodes.map(to=>n.id+'>'+to)),
+  ...Object.entries(D.patchOldNextNodes).flatMap(([id,to])=>to.map(dest=>id+'>'+dest))
+ ]);
+ const bridgeStyle=new Map();
+ for(const b of D.bridges)for(let i=1;i<b.nodeIds.length;i++)
+  bridgeStyle.set(b.nodeIds[i-1]+'>'+b.nodeIds[i],b.style);
+ for(const key of bridgeStyle.keys())if(!actual.has(key))
+  throw Error('V10 bridge route not traversable '+key);
+ const oldSegments=new Map(D.allPathSegments.map(e=>[e.from_+'>'+e.to,e]));
+ const segment=key=>{
+  const [from_,to]=key.split('>'),a=position(from_),b=position(to);
+  if(!a||!b)throw Error('V10 missing graphic endpoints '+key);
+  const bridge=bridgeStyle.get(key);
+  return {...(oldSegments.get(key)||{}),from_,to,
+   kind:bridge?'bridge':'road',style:bridge||null,source:'v10',
+   x1:a.x,y1:a.y,x2:b.x,y2:b.y};
+ };
+ D.allPathSegments=[...actual].map(segment);
+ D.existingRoadSegments=D.existingRoadSegments.filter(e=>actual.has(e.from_+'>'+e.to))
+  .map(e=>segment(e.from_+'>'+e.to));
+ D.existingBridgeSegments=D.existingBridgeSegments.filter(e=>actual.has(e.from_+'>'+e.to))
+  .map(e=>segment(e.from_+'>'+e.to));
+ const roads=[];
+ for(const road of D.roads){
+  let group=[];
+  const flush=()=>{if(group.length>1)roads.push({...road,nodeIds:group});group=[]};
+  for(const id of road.nodeIds){
+   if(!group.length){group.push(id);continue}
+   if(actual.has(group[group.length-1]+'>'+id))group.push(id);
+   else{flush();group.push(id)}
+  }
+  flush();
+ }
+ D.roads=roads;
+ D.overpasses=D.overpasses.filter(o=>actual.has(o.upper));
+ // Decoration collision clearance uses the same 88-unit road/bridge deck
+ // and 44-unit tile radius as the renderer and manual-walking physics.
+ D.isDecorationSpotClear=(x,y,r=25,pad=14)=>{
+  const gap=r+pad;
+  for(const id of Object.keys(D.allNodePositions)){
+   const n=position(id);
+   if(Math.hypot(n.x-x,n.y-y)<gap+44)return false;
+  }
+  for(const e of D.allPathSegments){
+   const dx=e.x2-e.x1,dy=e.y2-e.y1,den=dx*dx+dy*dy||1;
+   const t=Math.max(0,Math.min(1,((x-e.x1)*dx+(y-e.y1)*dy)/den));
+   if(Math.hypot(x-e.x1-t*dx,y-e.y1-t*dy)<gap+44)return false;
+  }
+  return true;
+ };
+ if(actual.size!==318)throw Error('V10 expected 318 traversable edges, found '+actual.size);
+ const report=Object.freeze({...V9_GRAPH,nodes:302,edges:actual.size,
+  sourceVersion:'v9',topologyVersion:'v10'});
+ D.graphMigration=report;
+ return report;
+}
+const V10_GRAPH=rebalanceV10();
+
 function applySwordCourts(m){
  for(const [name,a,b] of SWORD_COURTS){
   if(!m.nodes[a]?.nextNodes.includes(b))
@@ -505,5 +658,5 @@ function validate(m){
  return true;
 }
 validate(create(0));
-window.BoardMap=Object.freeze({...Base,MAP_VERSION:VERSION,create,assertCompatible,validate,GRAPH_MIGRATION:V9_GRAPH});
+window.BoardMap=Object.freeze({...Base,MAP_VERSION:VERSION,create,assertCompatible,validate,GRAPH_MIGRATION:V10_GRAPH});
 })();

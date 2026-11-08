@@ -5,8 +5,8 @@ for(const path of ['board-map.js','board-v7-design.js','board-branch-naming.js',
  vm.runInContext(fs.readFileSync(path,'utf8'),ctx,{filename:path});
 const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D,BoardBranchNaming:N}=ctx.window;
 const map=M.create(0),ids=Object.keys(map.nodes),edges=Object.values(map.nodes).flatMap(n=>n.nextNodes.map(to=>n.id+'>'+to));
-assert.equal(map.version,'winter-expedition-152-v9');
-assert.equal(ids.length,302);assert.equal(edges.length,321);
+assert.equal(map.version,'winter-expedition-152-v10');
+assert.equal(ids.length,302);assert.equal(edges.length,318);
 assert.equal(M.GRAPH_MIGRATION.baselineNodes,359);
 assert.equal(M.GRAPH_MIGRATION.baselineEdges,398);
 assert.equal(M.GRAPH_MIGRATION.removedExplicit.length,44);
@@ -68,4 +68,4 @@ for(const seed of [1,42,997]){
  assert.equal(JSON.stringify(other.nodePathIds),JSON.stringify(map.nodePathIds));
  assert.equal(JSON.stringify(other.idMigration),JSON.stringify(map.idMigration));
 }
-console.log('BOARD V9 structural and identity migration PASS (302 nodes, 321 edges, no ghost paths)');
+console.log('BOARD V10 structural and identity migration PASS (302 nodes, 318 edges, no ghost paths)');

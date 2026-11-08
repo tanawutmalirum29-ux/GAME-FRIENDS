@@ -69,7 +69,7 @@ assert.doesNotMatch(artSource,/g\.strokeStyle='#263b60b3'|g\.lineWidth=105\s*;\s
 // Capture real painted arrowhead tips at an inbound/outbound fork.
 // This prevents direction flips for future geometry or styling changes.
 {
- const s=game(8891);s.map.version='winter-expedition-152-v9';
+ const s=game(8891);s.map.version='winter-expedition-152-v10';
  s.camera.overview=true;s.camera.zoom=.65;s.camera.manualZoom=.65;
  s.camera.x=s.map.nodes.n3.position.x;s.camera.y=s.map.nodes.n3.position.y;
  const arrowTips=[],spy=brush(),points=[];
