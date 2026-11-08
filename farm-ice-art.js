@@ -275,45 +275,43 @@ function island(g,s){
  else oval(g,0,0,s.radius,s.radius,'#e4faf6');
 }
 function paintBoulder(g,s){
- const b=s.bounds,left=b.x,top=b.y,bottom=b.y+b.h;
- const grass=g.createLinearGradient(0,0,left,540);grass.addColorStop(0,'#69873e');grass.addColorStop(.65,'#91ae45');grass.addColorStop(1,'#446d4b');
- g.fillStyle=grass;g.fillRect(0,0,960,540);
- for(let i=0;i<150;i++){
-  const x=noise(i)*left,y=noise(i+110)*540;
-  oval(g,x,y,3+noise(i+3)*7,2+noise(i+77)*6,i%3?'#d6e77555':'#3d703b55');
- }
- // Green shoulder, snowy drifts and a shaded cliff face, all outside MIN_X.
- const drift=[];
- for(let i=0;i<=28;i++)drift.push({x:35+noise(i+910)*23,y:i*540/28});
- path(g,[{x:0,y:0},...drift,{x:0,y:540}],'#e6faf0');
- path(g,[{x:left-36,y:0},{x:left-18,y:40},{x:left-23,y:120},{x:left-15,y:199},{x:left-27,y:287},{x:left-12,y:380},{x:left-25,y:464},{x:left-16,y:540},{x:left+5,y:540},{x:left+5,y:0}],'#497b88');
- for(let i=0;i<17;i++){
-  const y=i*34;
-  path(g,[{x:left-25,y},{x:left-14,y:y+9},{x:left-9,y:y+36},{x:left-27,y:y+30}],'#72b5c1');
-  oval(g,left-35,y+4,12,23,'#edfdf1');
- }
- const floor=g.createLinearGradient(left,0,960,0);floor.addColorStop(0,'#e7f9f8');floor.addColorStop(.38,'#d8f5f4');floor.addColorStop(.68,'#9ee8ef');floor.addColorStop(1,'#27d0e5');
- g.fillStyle=floor;g.fillRect(left,top,960-left,b.h);
- // The cyan chute is a flat slope, with long shadows from the upper ice cliffs.
+ const top=s.bounds.y,bottom=top+s.bounds.h;
+ // The visible ice is now a continuous runway from x=0 to x=960.
+ // No green shoulder or fake vertical cliff interrupts rocks at screen-left.
+ const floor=g.createLinearGradient(0,0,960,0);
+ floor.addColorStop(0,'#e7f9f8');
+ floor.addColorStop(.38,'#d8f5f4');
+ floor.addColorStop(.68,'#9ee8ef');
+ floor.addColorStop(1,'#27d0e5');
+ g.fillStyle=floor;g.fillRect(0,0,960,540);
+ // Slope sheen remains visible across the whole width and stays behind
+ // the actual physical snowbanks along TOP and BOTTOM.
  for(const [i,y] of [70,225,403].entries()){
-  const shadow=g.createLinearGradient(706,y,960,y);shadow.addColorStop(0,'#2cabc400');shadow.addColorStop(1,'#208bb745');
+  const shadow=g.createLinearGradient(706,y,960,y);
+  shadow.addColorStop(0,'#2cabc400');shadow.addColorStop(1,'#208bb745');
   path(g,[{x:970,y:y-44},{x:706+i*7,y:y+83},{x:960,y:y+28}],shadow);
   path(g,[{x:969,y:y-42},{x:739+i*7,y:y+71},{x:960,y:y-11}],'#b4f8f52c');
  }
  for(let i=0;i<12;i++){
-  const y=top+23+i*(b.h-45)/12;
-  g.beginPath();g.moveTo(left+24,y);g.bezierCurveTo(left+200,y-12,610,y+12,895,y-5);g.strokeStyle='#9fd8e529';g.lineWidth=i%3?1:2;g.stroke();
+  const y=top+23+i*(s.bounds.h-45)/12;
+  g.beginPath();g.moveTo(14,y);
+  g.bezierCurveTo(230,y-12,650,y+12,946,y-5);
+  g.strokeStyle='#9fd8e529';g.lineWidth=i%3?1:2;g.stroke();
  }
- for(let i=0;i<115;i++)oval(g,left+16+noise(i+20)*(960-left-25),top+8+noise(i+400)*(b.h-16),.6+noise(i+4)*1.7,.7,i%3?'#ffffff66':'#89c8de26');
- // Continuous shelves are aligned to the actual TOP/BOTTOM collision walls.
- g.fillStyle='#497b8d';g.fillRect(left,0,960-left,top);g.fillRect(left,bottom,960-left,540-bottom);
- for(let i=0;i<10;i++){
-  const x=left+20+i*83,w=94+noise(i)*25,h=60+noise(i+9)*23;
+ for(let i=0;i<160;i++){
+  const x=8+noise(i+20)*944,y=top+8+noise(i+400)*(s.bounds.h-16);
+  oval(g,x,y,.6+noise(i+4)*1.7,.7,i%3?'#ffffff66':'#89c8de26');
+ }
+ // Top and bottom ice shelves connect all the way to BOTH screen edges.
+ g.fillStyle='#497b8d';
+ g.fillRect(0,0,960,top);
+ g.fillRect(0,bottom,960,540-bottom);
+ for(let i=0;i<13;i++){
+  const x=8+i*80,w=94+noise(i)*25,h=60+noise(i+9)*23;
   sprite(g,'cliff'+i%3,x,top-h*.45,w,h,(noise(i+50)-.5)*.26);
-  sprite(g,'cliff'+(i+1)%3,x+24,bottom+h*.46,w+5,h+3,Math.PI+(noise(i+90)-.5)*.24);
+  sprite(g,'cliff'+(i+1)%3,x+24,bottom+h*.46,w+5,h+3,
+    Math.PI+(noise(i+90)-.5)*.24);
  }
- line(g,{x:left,y:top},{x:left,y:bottom},'#c8f3ee',3);
- g.fillStyle='#bbf4f53b';g.fillRect(b.x+b.w,top,2,b.h);
 }
 function boulder(g,s){cached(g,s,'boulder',960,540,paintBoulder);}
 function rock(g,r,s){
