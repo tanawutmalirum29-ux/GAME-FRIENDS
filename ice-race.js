@@ -76,14 +76,14 @@ function inputVector(input){
 function initialSpawns(s,ps){
  for(let i=0;i<ps.length;i++){
   const p=ps[i],lane=i%2?1:-1,row=Math.floor(i/2);
-  const at=sample(s,s.trackLength-44-row*60);
+  const at=sample(s,s.trackLength-44-row*90);
   p.x=at.x-at.ty*lane*(s.halfWidth*.50);
   p.y=at.y+at.tx*lane*(s.halfWidth*.50);
   p.vx=0;p.vy=0;p.score=0;p.active=true;
   p.dir={x:at.tx,y:at.ty};p.face=at.tx<0?-1:1;
   p.ice={state:'racing',vx:0,vy:0,heading:Math.atan2(at.ty,at.tx),
    angularVelocity:0,driftAngle:0,lastCheckpoint:0,nextCheckpoint:1,
-   invulnerable:0,respawnLeft:0,fallLeft:0,botOffset:(rand(s)-.5)*s.halfWidth*.4,
+   invulnerable:0,respawnLeft:0,fallLeft:0,botOffset:(rand(s)-.5)*s.halfWidth*.12,
    botSpeed:(.35+rand(s)*.08)*C.maxSpeed,botReaction:.035+rand(s)*.035,
    botClock:0,botInput:{x:0,y:0},botSkill:.75+rand(s)*.5,
    fallingVelocity:{x:0,y:0}};
@@ -113,9 +113,10 @@ function botVector(s,p){
  const speed=Math.hypot(ice.vx,ice.vy);
  const forward=sample(s,near.progress+clamp(95+speed*.35,95,215));
  const next=sample(s,near.progress+clamp(115+speed*.6,125,240));
- const turn=Math.acos(clamp(forward.tx*next.tx+forward.ty*next.ty,-1,1));
+ const turn=Math.max(Math.acos(clamp(forward.tx*next.tx+forward.ty*next.ty,-1,1)),
+  Math.acos(clamp(near.tx*forward.tx+near.ty*forward.ty,-1,1)));
  const edge=near.dist/s.halfWidth;
- const targetSpeed=clamp(ice.botSpeed*(1-turn*.85)*(1-edge*.27),70,ice.botSpeed);
+ const targetSpeed=clamp(ice.botSpeed*(1-turn*1.4)*(1-edge*.4),48,ice.botSpeed);
  const tx=forward.x-forward.ty*ice.botOffset,ty=forward.y+forward.tx*ice.botOffset;
  const lead=.30+Math.min(.30,speed/500);
  let dx=tx-(p.x+ice.vx*lead),dy=ty-(p.y+ice.vy*lead);
