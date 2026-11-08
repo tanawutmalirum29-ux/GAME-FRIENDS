@@ -62,7 +62,9 @@ function setup(round,ps){
   elapsed:0,duration:config.duration,remaining:config.duration,accumulator:0,tick:0,
   dirty:true,finished:false,item:null,nextItem:6,freeze:null,
   ranking:[],winnerIds:[],visualClock:0};
- const positions=startPositions(s,ps.length);
+ // Snap spawn centres to ownership cells so every player starts with exactly
+ // the same number of owned tiles, regardless of angle and pixel fraction.
+ const positions=startPositions(s,ps.length).map(v=>center(s,index(s,v.x,v.y)));
  ps.forEach((p,slot)=>{
   const q=positions[slot];p.active=true;p.score=0;p.x=q.x;p.y=q.y;
   p.vx=0;p.vy=0;p.dir={x:1,y:0};p.face=1;
