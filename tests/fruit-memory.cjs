@@ -83,6 +83,7 @@ for(const n of [1,6,7,12]){
 {
  const g=game(3),s=g.state,[a,b,c]=g.ps;
  // When feet cover predominantly safe tiles the player survives.
+ const balanced=s.tiles.map(t=>t.fruitType);
  for(const tile of s.tiles)tile.fruitType='banana';
  s.tiles[0].fruitType='apple';s.tiles[1].fruitType='apple';s.target='apple';
  a.x=s.board.x+s.tileW*.5;a.y=s.board.y+s.tileH*.5;
@@ -93,8 +94,15 @@ for(const n of [1,6,7,12]){
  a.x=boundary+5;assert.equal(E.calculateFootSupport(s,a).survive,true);
  s.tiles[1].fruitType='banana';
  assert.equal(E.calculateFootSupport(s,a).survive,false);
- a.x=s.board.x+s.tileW*.5;
- s.tiles[1].fruitType='apple';
+ // Restore a genuinely balanced previous wave before testing reshuffle.
+ // An artificial 15:1 fruit ratio would make per-cell derangement impossible.
+ s.tiles.forEach((t,i)=>{t.fruitType=balanced[i];});
+ s.target=s.tiles[0].fruitType;
+ const safe=s.tiles.filter(t=>t.fruitType===s.target);
+ const unsafe=s.tiles.find(t=>t.fruitType!==s.target);
+ const place=(p,t)=>{p.x=s.board.x+(t.column+.5)*s.tileW;
+   p.y=s.board.y+(t.row+.5)*s.tileH;};
+ place(a,safe[0]);place(b,safe[1]);place(c,unsafe);
  E.evaluateSurvivors(s,g.ps);
  assert.equal(s.phase,'collapse');
  assert.equal(c.fruitAlive,false);
