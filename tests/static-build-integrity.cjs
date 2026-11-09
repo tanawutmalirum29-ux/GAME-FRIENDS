@@ -57,7 +57,7 @@ try{
  }
  const catalog=JSON.parse(fs.readFileSync(path.join(target,'game-catalog.json'),'utf8'));
  assert.equal(catalog.schema,1);
- assert.equal(catalog.coreHash,baseline.coreHash,
+ assert.equal(catalog.coreHash,baseline,
   'Adding a native folder-only game must not alter the shared core fingerprint');
  const extra=catalog.games.find(game=>game.id==='ci_autoload');
  assert.ok(extra,'New folder must become a registry entry automatically');
