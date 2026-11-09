@@ -228,7 +228,8 @@ assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
 const legacyManifests=fs.readdirSync('src/games',{withFileTypes:true})
  .filter(entry=>entry.isDirectory())
- .map(entry=>JSON.parse(fs.readFileSync('src/games/'+entry.name+'/manifest.json','utf8')));
+ .map(entry=>JSON.parse(fs.readFileSync('src/games/'+entry.name+'/manifest.json','utf8')))
+ .filter(game=>typeof game.global==='string'&&game.global.length>0);
 const legacyModeNames=Object.fromEntries(legacyManifests.map(game=>[game.id,game.name]));
 assert.equal(legacyManifests.length,15,'all original games retain their own manifest');
 assert.match(source,/const LEGACY_GAME_DATA=Object\.freeze\(\{/);
