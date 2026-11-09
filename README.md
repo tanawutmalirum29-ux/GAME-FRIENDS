@@ -39,7 +39,7 @@
 
 - ห้ามใส่อีโมจิจากฟอนต์อุปกรณ์ใน HUD, แถบรายชื่อ, ออร์เดอร์, กล่องวัตถุดิบ, จอย, เอฟเฟกต์ หรือส่วนอื่นของเกม
 - ใช้ไฟล์ SVG ที่สร้างเองเท่านั้น ไม่ใช้ข้อความเป็นสัญลักษณ์ภาพ รวมถึงดาวและประกาย
-- `pizza-ingredient-art.js` เป็นชุด SVG วัตถุดิบ 10 ชนิด ใช้แหล่งเดียวกันกับสนาม PIZZA TIME, แถบคะแนนจอหลัก และจอยมือถือ ไม่มีการแปลงไอคอนเป็นอีโมจิ
+- `src/games/pizza-time/pizza-ingredient-art.js` เป็นชุด SVG วัตถุดิบ 10 ชนิด ใช้แหล่งเดียวกันกับสนาม PIZZA TIME, แถบคะแนนจอหลัก และจอยมือถือ ไม่มีการแปลงไอคอนเป็นอีโมจิ
 - `party-ui-art.js` เป็นชุด SVG สำหรับดาว ประกาย และสถานะ ส่วนไอคอนใน HTML เช่น เต็มจอและสัญลักษณ์แบรนด์เป็น inline SVG
 - กล่องออร์เดอร์ของ PIZZA TIME ใช้ `planOrderCards()` เลือกตำแหน่งจากกรอบตัวเชฟและกรอบกล่องอื่น โดยไม่วาดทับตัวเชฟหรือทับกัน แม้มีผู้เล่น 12 คน
 - ทดสอบระบบภาพด้วย `node tests/pizza-time.test.cjs` และระบบรวมด้วย `node tests/smoke.cjs` พร้อมตรวจว่าสคริปต์ SVG ทั้งสองไฟล์ถูกระบุใน `scripts/build-static.cjs` ก่อน Deploy เพื่อป้องกัน asset เก่าจากแคช
@@ -137,8 +137,8 @@ for (const p of players) if (p.active) characters.draw(ctx, p, {time:clock});
 
 ## สถาปัตยกรรม
 
-- `ghost-attack.js`: สถานะสนาม, การเคลื่อนที่, AI ล็อกเป้า, การติดเชื้อ, การชน, ไอเทม, การเลือกเป้า และ Canvas renderer (เกมใหม่แยกจากระบบห้อง)
-- `chickens.js`: Engine เกมไก่ การชน การเลือกทางหนี การอุ้ม คอก คะแนนและการเรนเดอร์ Canvas
+- `src/games/ghost-attack/ghost-attack.js`: สถานะสนาม, การเคลื่อนที่, AI ล็อกเป้า, การติดเชื้อ, การชน, ไอเทม, การเลือกเป้า และ Canvas renderer (เกมใหม่แยกจากระบบห้อง)
+- `src/games/chickens/chickens.js`: Engine เกมไก่ การชน การเลือกทางหนี การอุ้ม คอก คะแนนและการเรนเดอร์ Canvas
 - `app.js`: PeerJS, ห้อง QR, จอยมือถือ, เลือก Engine ตามโหมด, การรับ input ที่เครื่องเจ้าของห้องตรวจสอบ, การควบคุมรอบ, Fullscreen และพรีวิวเกมแบบ WebRTC
 - `index.html`, `style.css`: หน้าจอเจ้าของห้อง, จอย, แถบไอเทม และปุ่มเลือกเป้า
 - `host.html`: ทางเข้าหน้าเจ้าของห้อง; ส่วน URL ปกติเป็นหน้าจอยเข้าร่วมห้อง
@@ -201,7 +201,7 @@ python3 -m http.server 8080
 
 การแข่งขัน 60 วินาที ผู้เล่น 1–12 คนรับออร์เดอร์ส่วนตัว 2 ชนิด **ถือได้แค่ครั้งละ 1 ชิ้น** ต้องเดินหยิบวัตถุดิบจากโต๊ะกลางแล้วกลับมาส่ง **เชฟประจำตัวเอง** ทีละชิ้น รวมสองเที่ยวจึงได้ 1 คะแนน มีออร์เดอร์ใหม่ทันที เมื่อหมดเวลาออร์เดอร์ที่ไม่ครบ 2 ชนิดไม่คิดคะแนน
 
-- **ครัวกลางสวน:** พื้นกระเบื้องสลับสีอุ่น ต้นไม้และก้อนหินรอบสนาม เชฟสวมหมวกขาว ซุ้มลายทางสีเจ้าของ เคาน์เตอร์ไม้มีถาดสองใบ และเตาอบเรืองแสง ใช้ SVG ต้นฉบับใน `pizza-kitchen-art.js` ร่วมกับฉาก Canvas ที่แคชไว้
+- **ครัวกลางสวน:** พื้นกระเบื้องสลับสีอุ่น ต้นไม้และก้อนหินรอบสนาม เชฟสวมหมวกขาว ซุ้มลายทางสีเจ้าของ เคาน์เตอร์ไม้มีถาดสองใบ และเตาอบเรืองแสง ใช้ SVG ต้นฉบับใน `src/games/pizza-time/pizza-kitchen-art.js` ร่วมกับฉาก Canvas ที่แคชไว้
 - **เชฟส่วนตัว:** ผู้เล่น 1–4 คนใช้ซุ้มมุมสนามตามภาพอ้างอิง มากกว่า 4 คนจัดเป็นสองแถวบน–ล่าง คนละซุ้ม ป้ายออร์เดอร์อยู่ข้างเชฟภายในซุ้ม ผู้เล่นเกิดฝั่งหน้าเคาน์เตอร์ของตนเอง และส่งให้เชฟคนอื่นไม่ได้
 - **สเกลและทางเดิน:** ขนาดตัวละครบนจอคงที่ทุกจำนวนผู้เล่น ครัว 4 คนกว้าง 536 จากพื้นที่ออกแบบ 960 หน่วย และขยายความกว้างเป็น 704/836/868 หน่วยสำหรับ 5–6/7–9/10–12 คน โต๊ะ เตา และซุ้มเชฟเป็นสิ่งกีดขวางจริง ทางเดินครัวใหญ่เว้นระยะให้สวนกันได้
 - **โต๊ะและการสุ่ม:** 1–4 คนมีโต๊ะกลาง 2 ตัว; 5–6 คน 3 ตัว; 7–9 คน 4 ตัว; 10–12 คน 5 ตัว ทุกโต๊ะมีสองช่อง **วัตถุดิบไม่ซ้ำกันทั้งสนาม** สุ่มจาก 10 ชนิด ออร์เดอร์ใช้เฉพาะของที่มีบนโต๊ะ ตำแหน่งเฟอร์นิเจอร์และจุดส่งคงที่ตามจำนวนผู้เล่น
@@ -226,7 +226,7 @@ python3 -m http.server 8080
 - Single player survives for 60 seconds. Multiplayer ends with the last survivor, including genuine simultaneous ties. Overtime begins at 120 seconds with a visible shrinking safe boundary.
 - Results record rank, elimination/survival duration and collected stars. BOARD PARTY uses the normal \`BoardMinigame\` adapter.
 
-Development checks: \`node --check witching-snake.js\`, \`node tests/witching-snake.test.cjs\`, and the existing \`Verify static game\` GitHub Actions workflow.
+Development checks: \`node --check src/games/witching-snake/witching-snake.js\`, \`node tests/witching-snake.test.cjs\`, and the existing \`Verify static game\` GitHub Actions workflow.
 
 
 ## Market, jousting fair and broom courtyard artwork
