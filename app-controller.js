@@ -3944,7 +3944,6 @@ function onPhoneGamePick(mode){
   updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
 }
-document.querySelectorAll('[data-pick]').forEach(button=>button.addEventListener('click',()=>onPhoneGamePick(button.dataset.pick)));
 // These buttons control the HOST BOARD camera, not the tiny phone preview.
 for(const [id,direction] of [['controllerBoardZoomInBtn',1],['controllerBoardZoomOutBtn',-1]]){
  $(id).addEventListener('click',()=>{
