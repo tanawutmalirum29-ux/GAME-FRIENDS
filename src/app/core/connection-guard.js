@@ -19,7 +19,7 @@ function createControllerIngressGuard(clock=()=>Date.now()){
    if(typeof value==='boolean'){bytes+=5;continue;}
    if(typeof value!=='object'||Array.isArray(value)||seen.has(value))return false;
    const proto=Object.getPrototypeOf(value);
-   if(proto!==Object.prototype&&proto!==null)return false;
+   if(proto!==null&&Object.getPrototypeOf(proto)!==null)return false;
    seen.add(value);
    for(const [k,v] of Object.entries(value)){
     bytes+=k.length*4+4;
