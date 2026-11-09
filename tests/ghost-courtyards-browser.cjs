@@ -8,6 +8,8 @@ const server=http.createServer((req,res)=>{
  const url=new URL(req.url,'http://localhost'),file=path.resolve(root,'.'+(url.pathname==='/'?'/index.html':url.pathname));
  if(!file.startsWith(root+path.sep)||!fs.existsSync(file)){res.writeHead(404).end();return;}
  let body=fs.readFileSync(file);
+ if(file===path.join(root,'index.html'))
+  body=require('./helpers/legacy-game-html.cjs').withLegacyGameFixtures(body.toString());
  if(file===path.join(root,'app.js'))body=body.toString().replace('requestAnimationFrame(animate);\n})();',hook);
  res.setHeader('content-type',({'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.json':'application/json'})[path.extname(file)]||'application/octet-stream');res.end(body);
 });
