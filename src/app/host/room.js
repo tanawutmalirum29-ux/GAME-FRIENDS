@@ -104,7 +104,7 @@ function renderHostVideoFrames(){
   if(!round||hostVideoCalls.size===0)return;
   // Copy at most 30 frames/s instead of resampling all streams on every
   // high-refresh-rate host paint. This never changes game physics/timing.
-  const now=performance.now();
+  const now=typeof performance!=='undefined'?performance.now():Date.now();
   if(now-lastHostVideoFrameAt<33)return;
   lastHostVideoFrameAt=now;
   for(const source of hostVideoSources.values()){
