@@ -350,6 +350,20 @@ function getResult(round,players){
   return {id:p.id,value,label:value+" คะแนน"};
  });
 }
-window.ShoppingTime=Object.freeze({getResult,resultTitle:"คิดเงินให้ได้คะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,size,flowAt,spawn,step,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
+       const box=document.createElement('div');box.className='leader-chip';
+       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
+       const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' คะแนน';
+       const load=document.createElement('span');load.className='leader-item-slot';
+       load.textContent=p.shopping?.stun>0?'สตั้น':(p.shopping?.basket.length||0)+'/5';
+       box.append(color,name,score,load);root.append(box);
+     });return;
+   
+}
+window.ShoppingTime=Object.freeze({renderRoster,getResult,resultTitle:"คิดเงินให้ได้คะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,size,flowAt,spawn,step,
   bombHit,pickup,checkoutPlayer,finish,config:C});
 })();

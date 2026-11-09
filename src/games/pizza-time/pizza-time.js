@@ -455,7 +455,24 @@ function getResult(round,players){
   return {id:p.id,value,label:value+" ออร์เดอร์"};
  });
 }
-window.PizzaTime=Object.freeze({getResult,resultTitle:"ส่งพิซซ่าให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,drawIngredient,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+    active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
+      const box=document.createElement('div');box.className='leader-chip pizza-leader';
+      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
+      const score=document.createElement('small');score.className='leader-role';score.textContent=(p.score||0)+' คะแนน';
+      const status=document.createElement('span');status.className='leader-item-slot';
+      const order=p.pizza?.order||[],sent=p.pizza?.delivered||[];
+      status.classList.add('pizza-order-icons');
+      window.PizzaIngredientArt.appendRow(status,order,sent,{size:18});
+      status.title=p.pizza?.held?'ถือ '+(window.PizzaIngredientArt.names[p.pizza.held]||'วัตถุดิบ'):'ยังไม่ได้ถือ';
+      box.append(color,name,score,status);root.append(box);
+    });return;
+  
+}
+window.PizzaTime=Object.freeze({renderRoster,getResult,resultTitle:"ส่งพิซซ่าให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,drawIngredient,
   worldSize,tableCount,pairCost,aStar,fairnessCandidates,ingredients:INGREDIENTS,
   planOrderCards,rectanglesOverlap});
 })();

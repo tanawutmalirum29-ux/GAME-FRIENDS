@@ -1020,7 +1020,43 @@ function getResult(round,players){
   return {id:p.id,value,label};
  });
 }
-window.GhostAttack={getResult,resultTitle:"ผู้รอดคนสุดท้าย!",countdownSeconds:3,updateDuringCountdown:true,onCountdownFinished(round){round.ghost.ghostSpawned=true;},setup,update,draw,hud,itemStatus,cycleTarget,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+  active.sort((a,b)=>Number(a.ghost)-Number(b.ghost)).forEach(p=>{
+    const box=document.createElement('div');box.className='leader-chip';
+    const color=document.createElement('span');
+    color.className='circle';color.style.background=p.color;
+    const name=document.createElement('span');
+    name.className='leader-name';name.textContent=p.name;name.title=p.name;
+    if(round.mode==='ghost'&&p.ghost){
+      name.style.color='#ff454f';name.classList.add('ghost-name');
+    }
+    const role=document.createElement('small');role.className='leader-role';
+    role.textContent=p.ghost?'ผี':p.stun>0?'สตั้น':'คน';
+    const itemSlot=document.createElement('span');
+    itemSlot.className='leader-item-slot';
+    const held=round.mode==='ghost'&&!p.ghost?p.item:null;
+    const itemSvg=held&&window.GhostAttack.ITEM_SVG[held];
+    if(itemSvg){
+      itemSlot.classList.add('leader-held-icon');
+      itemSlot.innerHTML=itemSvg;
+      const full=window.GhostAttack.ITEM_NAMES[held]||held;
+      itemSlot.title=full;
+      itemSlot.setAttribute('role','img');
+      itemSlot.setAttribute('aria-label',full);
+      box.title=p.name+' · '+role.textContent+' · ถือ '+full;
+    }else{
+      itemSlot.classList.add('leader-empty-item');
+      itemSlot.textContent='—';
+      itemSlot.setAttribute('aria-hidden','true');
+      box.title=p.name+' · '+role.textContent;
+    }
+    // Visual rows: name (top), human/ghost status, then SVG icon only.
+    box.append(color,name,role,itemSlot);
+    root.append(box);
+  });
+}
+window.GhostAttack={renderRoster,getResult,resultTitle:"ผู้รอดคนสุดท้าย!",countdownSeconds:3,updateDuringCountdown:true,onCountdownFinished(round){round.ghost.ghostSpawned=true;},setup,update,draw,hud,itemStatus,cycleTarget,
   mapInfo,obstacleAt,
   ITEM_NAMES,ITEM_SVG,getItemIconImage,constants:C};
 })();

@@ -7,249 +7,37 @@ function renderLeaderboard(){
   root.style.setProperty('--leader-cols-compact',String(Math.min(6,count)));
   root.style.setProperty('--leader-rows','1');
   if(!round||round.mode==='board')return;
-  if(round.mode==='color_claim'){
-    active.sort((a,b)=>(round.colorClaim.counts[b.cc?.slot]||0)-
-      (round.colorClaim.counts[a.cc?.slot]||0)||String(a.id).localeCompare(String(b.id)));
-    for(const p of active){
-      const box=document.createElement('div');box.className='leader-chip';
-      const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
-      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
-      const score=document.createElement('small');score.className='leader-role';
-      score.textContent=(p.score||0).toFixed(1)+'%';
-      const status=document.createElement('span');status.className='leader-item-slot';
-      status.textContent=p.cc?.eliminated?'ตกรอบถาวร':!p.cc?.alive?'เกิดใหม่':
-        window.ColorClaim.freezeActive(round.colorClaim,p)?'แช่แข็ง':'';
-      box.append(dot,name,score,status);root.append(box);
-    }
+  const engine=round.pluginEngine||gameEngine(round.mode);
+  // The active round pins a game engine. Its own roster renderer owns any
+  // special item SVG, elimination banner or score metric; the Core does not
+  // need to know the game's ID.
+  if(typeof engine?.renderRoster==='function'){
+    engine.renderRoster(root,active,round);
     return;
   }
-  if(round.mode==='gladiators'){
-   const ordered=active.slice().sort((a,b)=>
-     Number(!!b.gladiator?.alive)-Number(!!a.gladiator?.alive)||
-     (b.gladiator?.eliminatedTick??0)-(a.gladiator?.eliminatedTick??0));
-   for(const p of ordered){
+  // Native plug-ins without a bespoke renderer use their optional getRoster()
+  // data. An unknown ID receives a proper live score, never the Ghost HUD.
+  const incoming=typeof engine?.getRoster==='function'?engine.getRoster(round,active):null;
+  const entries=new Map(Array.isArray(incoming)?incoming.filter(item=>
+    item&&typeof item.id==='string').map(item=>[item.id,item]):[]);
+  const scoreOf=p=>{
+    const item=entries.get(p.id);
+    const amount=Number(item?.value);
+    return Number.isFinite(amount)?amount:Number(p.score)||0;
+  };
+  active.sort((a,b)=>scoreOf(b)-scoreOf(a)||String(a.id).localeCompare(String(b.id)));
+  for(const p of active){
+    const item=entries.get(p.id);
     const box=document.createElement('div');box.className='leader-chip';
-    if(!p.gladiator?.alive)box.classList.add('shockwave-eliminated');
+    if(item?.eliminated===true)box.classList.add('shockwave-eliminated');
     const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
     const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
-    const status=document.createElement('small');status.className='leader-role';
-    status.textContent=p.gladiator?.alive?'รอด':'ตกรอบ';
-    const empty=document.createElement('span');empty.className='leader-item-slot';
-    box.append(dot,name,status,empty);root.append(box);
-   }
-   return;
+    const metric=document.createElement('small');metric.className='leader-role';
+    metric.textContent=typeof item?.label==='string'?item.label:scoreOf(p)+' คะแนน';
+    const status=document.createElement('span');status.className='leader-item-slot';
+    status.textContent=typeof item?.status==='string'?item.status:'';
+    box.append(dot,name,metric,status);root.append(box);
   }
-    if(round.mode==='witching_snake'){
-   const ordered=[...active].sort((a,b)=>Number(!!b.ws?.alive)-Number(!!a.ws?.alive)||
-    (b.ws?.eliminatedTick??0)-(a.ws?.eliminatedTick??0));
-   for(const p of ordered){
-    const box=document.createElement('div');box.className='leader-chip';
-    if(!p.ws?.alive)box.classList.add('shockwave-eliminated');
-    const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
-    const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
-    const role=document.createElement('small');role.className='leader-role';
-    role.textContent=p.ws?.alive?'รอด • ดาว '+p.ws.stars:'ตกรอบ';
-    const item=document.createElement('span');item.className='leader-item-slot';
-    box.append(dot,name,role,item);root.append(box);
-   }
-   return;
-  }
-if(round.mode==='snow_brawl'){
-     const ordered=[...active].sort((a,b)=>Number(b.snow?.alive)-Number(a.snow?.alive)||
-       (b.snow?.eliminatedTick||0)-(a.snow?.eliminatedTick||0));
-     for(const p of ordered){
-       const box=document.createElement('div');box.className='leader-chip';
-       if(!p.snow?.alive)box.classList.add('shockwave-eliminated');
-       const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
-       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
-       const role=document.createElement('small');role.className='leader-role';
-       role.textContent=p.snow?.alive?(p.snow?.flat>0?'ถูกทับ':'รอด'):'ตกน้ำ';
-       const empty=document.createElement('span');empty.className='leader-item-slot';
-       box.append(dot,name,role,empty);root.append(box);
-     }
-     return;
-   }
-   if(round.mode==='boulder_bash'){
-     const ordered=[...active].sort((a,b)=>Number(b.bb?.alive)-Number(a.bb?.alive)||
-       (b.bb?.eliminatedTick||0)-(a.bb?.eliminatedTick||0));
-     for(const p of ordered){
-       const box=document.createElement('div');box.className='leader-chip';
-       if(!p.bb?.alive)box.classList.add('shockwave-eliminated');
-       const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
-       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
-       const role=document.createElement('small');role.className='leader-role';
-       role.textContent=p.bb?.alive?'รอด':p.bb?.mode==='rock'?'ควบคุมหิน':'ตกรอบ';
-       const empty=document.createElement('span');empty.className='leader-item-slot';empty.textContent=' ';
-       box.append(dot,name,role,empty);root.append(box);
-     }
-     return;
-   }
-   if(round.mode==='knight_match'){
-    active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
-      const box=document.createElement('div');box.className='leader-chip knight-leader';
-      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
-      const score=document.createElement('small');score.className='leader-role';score.textContent=(p.score??0)+' คะแนน';
-      const info=document.createElement('span');info.className='leader-item-slot';
-      info.textContent=p.km?.stun>0?'สตั้น':round.knightMatch?.rainbowOwnerId===p.id?'RAINBOW '+Math.ceil(Math.max(0,round.knightMatch.rainbowUntil-round.knightMatch.clock))+'s':'';
-      box.append(color,name,score,info);root.append(box);
-    });return;
-  }
-  if(round.mode==='ice_race'){
-    active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
-      const box=document.createElement('div');box.className='leader-chip';
-      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
-      const score=document.createElement('small');score.className='leader-role';score.textContent=(p.score||0)+' คะแนน';
-      const info=document.createElement('span');info.className='leader-item-slot';
-      info.textContent=p.ice?.state==='falling'?'ตกน้ำ':'CP '+((p.ice?.nextCheckpoint??1)+1)+'/4';
-      box.append(color,name,score,info);root.append(box);
-    });return;
-   }
-   if(round.mode==='lawn_mower'){
-     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
-       const box=document.createElement('div');box.className='leader-chip';
-       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
-       const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' คะแนน';
-       const suns=document.createElement('span');suns.className='leader-item-slot';
-       suns.textContent=(p.mower?.suns||0)+' ดวง';
-       box.append(color,name,score,suns);root.append(box);
-     });return;
-   }
-  if(round.mode==='shopping_time'){
-     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
-       const box=document.createElement('div');box.className='leader-chip';
-       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
-       const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' คะแนน';
-       const load=document.createElement('span');load.className='leader-item-slot';
-       load.textContent=p.shopping?.stun>0?'สตั้น':(p.shopping?.basket.length||0)+'/5';
-       box.append(color,name,score,load);root.append(box);
-     });return;
-   }
-   if(round.mode==='pizza_time'){
-    active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
-      const box=document.createElement('div');box.className='leader-chip pizza-leader';
-      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
-      const score=document.createElement('small');score.className='leader-role';score.textContent=(p.score||0)+' คะแนน';
-      const status=document.createElement('span');status.className='leader-item-slot';
-      const order=p.pizza?.order||[],sent=p.pizza?.delivered||[];
-      status.classList.add('pizza-order-icons');
-      window.PizzaIngredientArt.appendRow(status,order,sent,{size:18});
-      status.title=p.pizza?.held?'ถือ '+(window.PizzaIngredientArt.names[p.pizza.held]||'วัตถุดิบ'):'ยังไม่ได้ถือ';
-      box.append(color,name,score,status);root.append(box);
-    });return;
-  }
-  if(round.mode==='fruit_memory'){
-    active.sort((a,b)=>Number(b.fruitAlive)-Number(a.fruitAlive)||b.fruitRounds-a.fruitRounds).forEach(p=>{
-      const box=document.createElement('div');box.className='leader-chip fruit-leader';
-      if(!p.fruitAlive)box.classList.add('fruit-eliminated');
-      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
-      const role=document.createElement('small');role.className='leader-role';
-      role.textContent=p.fruitAlive?(p.fruitStun>0?'สตั้น':'รอด'):'ตกรอบ';
-      const info=document.createElement('span');info.className='leader-item-slot';
-      info.textContent='รอบ '+(p.fruitRounds||0);
-      box.append(color,name,role,info);root.append(box);
-    });return;
-  }
-  if(round.mode==='shockwave'){
-    active.sort((a,b)=>Number(b.shockAlive)-Number(a.shockAlive)||(b.shockEliminatedAt||0)-(a.shockEliminatedAt||0)).forEach(p=>{
-      const box=document.createElement('div');box.className='leader-chip shockwave-leader';
-      if(!p.shockAlive)box.classList.add('shockwave-eliminated');
-      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
-      const status=document.createElement('small');status.className='leader-role';status.textContent=p.shockAlive?'รอด':'ตกรอบ';
-      const info=document.createElement('span');info.className='leader-item-slot';info.textContent='Wave '+(round.shockwave?.wave||0);
-      box.append(color,name,status,info);root.append(box);
-    });return;
-  }
-   if(round.mode==='color_switch'){
-     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
-       const box=document.createElement('div');box.className='leader-chip color-switch-leader';
-       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
-       const score=document.createElement('small');score.className='leader-role';score.textContent='คะแนน '+p.score;
-       const status=document.createElement('span');status.className='leader-item-slot';
-       status.textContent=p.cs?.stunRemaining>0?'สตั้น':'';
-       box.append(color,name,score,status);root.append(box);
-     });return;
-   }
-
-  if(round.mode==='chickens'){
-    active.sort((a,b)=>b.score-a.score).forEach(p=>{
-      const box=document.createElement('div');box.className='leader-chip chicken-leader';
-      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
-      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
-      const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' คะแนน';
-      const info=document.createElement('span');info.className='leader-item-slot';info.textContent=p.carriedChickenId!=null?'กำลังอุ้มไก่':'—';
-      box.append(color,name,score,info);root.append(box);
-    });
-    return;
-  }
-  // Native plug-ins need no Core mode branches: the optional getRoster API
-  // supplies live metrics; the default uses each player's current score.
-  // Keep the special Ghost HUD below solely for legacy inventory graphics.
-  if(round.mode!=='ghost'){
-    const engine=round.pluginEngine||gameEngine(round.mode);
-    const incoming=typeof engine?.getRoster==='function'?engine.getRoster(round,active):null;
-    const entries=new Map(Array.isArray(incoming)?incoming.filter(item=>
-      item&&typeof item.id==='string').map(item=>[item.id,item]):[]);
-    const scoreOf=p=>{
-      const item=entries.get(p.id);
-      const amount=Number(item?.value);
-      return Number.isFinite(amount)?amount:Number(p.score)||0;
-    };
-    active.sort((a,b)=>scoreOf(b)-scoreOf(a)||String(a.id).localeCompare(String(b.id)));
-    for(const p of active){
-      const item=entries.get(p.id);
-      const box=document.createElement('div');box.className='leader-chip';
-      if(item?.eliminated===true)box.classList.add('shockwave-eliminated');
-      const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
-      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
-      const metric=document.createElement('small');metric.className='leader-role';
-      metric.textContent=typeof item?.label==='string'?item.label:scoreOf(p)+' คะแนน';
-      const status=document.createElement('span');status.className='leader-item-slot';
-      status.textContent=typeof item?.status==='string'?item.status:'';
-      box.append(dot,name,metric,status);root.append(box);
-    }
-    return;
-  }
-  active.sort((a,b)=>Number(a.ghost)-Number(b.ghost)).forEach(p=>{
-    const box=document.createElement('div');box.className='leader-chip';
-    const color=document.createElement('span');
-    color.className='circle';color.style.background=p.color;
-    const name=document.createElement('span');
-    name.className='leader-name';name.textContent=p.name;name.title=p.name;
-    if(round.mode==='ghost'&&p.ghost){
-      name.style.color='#ff454f';name.classList.add('ghost-name');
-    }
-    const role=document.createElement('small');role.className='leader-role';
-    role.textContent=p.ghost?'ผี':p.stun>0?'สตั้น':'คน';
-    const itemSlot=document.createElement('span');
-    itemSlot.className='leader-item-slot';
-    const held=round.mode==='ghost'&&!p.ghost?p.item:null;
-    const itemSvg=held&&window.GhostAttack.ITEM_SVG[held];
-    if(itemSvg){
-      itemSlot.classList.add('leader-held-icon');
-      itemSlot.innerHTML=itemSvg;
-      const full=window.GhostAttack.ITEM_NAMES[held]||held;
-      itemSlot.title=full;
-      itemSlot.setAttribute('role','img');
-      itemSlot.setAttribute('aria-label',full);
-      box.title=p.name+' · '+role.textContent+' · ถือ '+full;
-    }else{
-      itemSlot.classList.add('leader-empty-item');
-      itemSlot.textContent='—';
-      itemSlot.setAttribute('aria-hidden','true');
-      box.title=p.name+' · '+role.textContent;
-    }
-    // Visual rows: name (top), human/ghost status, then SVG icon only.
-    box.append(color,name,role,itemSlot);
-    root.append(box);
-  });
 }
 // All minigame clocks and survivor counts are painted ONLY here, after engines
 // finish their scene: one badge, one position, no in-engine duplicates.

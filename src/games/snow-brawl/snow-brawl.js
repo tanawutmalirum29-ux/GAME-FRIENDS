@@ -563,7 +563,25 @@ function getResult(round,players){
   return {id:p.id,value,label};
  });
 }
-window.SnowBrawl=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+     const ordered=[...active].sort((a,b)=>Number(b.snow?.alive)-Number(a.snow?.alive)||
+       (b.snow?.eliminatedTick||0)-(a.snow?.eliminatedTick||0));
+     for(const p of ordered){
+       const box=document.createElement('div');box.className='leader-chip';
+       if(!p.snow?.alive)box.classList.add('shockwave-eliminated');
+       const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
+       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+       const role=document.createElement('small');role.className='leader-role';
+       role.textContent=p.snow?.alive?(p.snow?.flat>0?'ถูกทับ':'รอด'):'ตกน้ำ';
+       const empty=document.createElement('span');empty.className='leader-item-slot';
+       box.append(dot,name,role,empty);root.append(box);
+     }
+     return;
+   
+}
+window.SnowBrawl=Object.freeze({renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,
  islandRadius,viewScale,rollSpeed,ballMass,growthRadius,makeBall,ballFor,release,
  destroy,eliminate,solveBallCollisions,resolveBodies,contactTime,
  config:C});

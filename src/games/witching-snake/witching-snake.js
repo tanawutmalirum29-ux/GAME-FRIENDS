@@ -365,7 +365,25 @@ function getResult(round,players){
   return {id:p.id,value,label};
  });
 }
-window.WitchingSnake=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,spawnPositions,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+   const ordered=[...active].sort((a,b)=>Number(!!b.ws?.alive)-Number(!!a.ws?.alive)||
+    (b.ws?.eliminatedTick??0)-(a.ws?.eliminatedTick??0));
+   for(const p of ordered){
+    const box=document.createElement('div');box.className='leader-chip';
+    if(!p.ws?.alive)box.classList.add('shockwave-eliminated');
+    const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
+    const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+    const role=document.createElement('small');role.className='leader-role';
+    role.textContent=p.ws?.alive?'รอด • ดาว '+p.ws.stars:'ตกรอบ';
+    const item=document.createElement('span');item.className='leader-item-slot';
+    box.append(dot,name,role,item);root.append(box);
+   }
+   return;
+  
+}
+window.WitchingSnake=Object.freeze({renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,spawnPositions,
  inside,segmentsTouch,distPointSegment2,addTrail,indexTrails,strikesTrail,
  eliminate,finish,config:CONFIG});
 })();
