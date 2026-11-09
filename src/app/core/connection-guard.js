@@ -78,3 +78,30 @@ function createControllerIngressGuard(clock=()=>Date.now()){
   dispose(){closed=true;tokens=0;}
  };
 }
+
+
+/* Dedicated analog ingress, never shared with reliable A/B/C commands.
+ * Unordered messages must be monotone and rate limited per authenticated
+ * data connection. A leaked/forged channel cannot grant action permissions. */
+function createFastAxisIngressGuard(clock=()=>Date.now()){
+ let tokens=60,lastTime=clock(),lastSeq=-1,closed=false;
+ return {
+  accept(msg){
+   if(closed)return false;
+   const now=clock(),elapsed=Math.max(0,Math.min(1000,now-lastTime));
+   lastTime=now;tokens=Math.min(60,tokens+elapsed*40/1000);
+   if(tokens<1)return false;tokens--;
+   if(!msg||typeof msg!=='object'||Array.isArray(msg)||
+      Object.keys(msg).some(k=>!['t','seq','x','y','turnId','mapVersion'].includes(k))||
+      msg.t!=='axis'||!Number.isSafeInteger(msg.seq)||msg.seq<0||
+      msg.seq<=lastSeq||!Number.isFinite(msg.x)||!Number.isFinite(msg.y)||
+      Math.abs(msg.x)>1.01||Math.abs(msg.y)>1.01||
+      (msg.turnId!==null&&msg.turnId!==undefined&&
+        !(typeof msg.turnId==='string'&&msg.turnId.length<=128))||
+      (msg.mapVersion!==null&&msg.mapVersion!==undefined&&
+        !(typeof msg.mapVersion==='string'&&msg.mapVersion.length<=80)))return false;
+   lastSeq=msg.seq;return true;
+  },
+  dispose(){closed=true;tokens=0;}
+ };
+}
