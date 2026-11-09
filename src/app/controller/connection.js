@@ -762,6 +762,12 @@ function renderPhoneInventory(info){
   $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
   showControllerMode(info.mode);
 }
+// Real browser time is monotonic; deterministic smoke harnesses may not expose
+// performance. The bounded Date fallback is only used outside browsers.
+function controllerNow(){
+ return typeof performance!=='undefined'&&typeof performance.now==='function'?
+  performance.now():Date.now()%1e10;
+}
 let analogInputTimer=null,lastAnalogInputAt=0;
 function queueAnalogInput(){
  if(!controllerReady)return;
