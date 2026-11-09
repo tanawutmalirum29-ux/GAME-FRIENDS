@@ -15,8 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify fresh checkout restores BOARD sources without redundant rebuilds
+        run: node tests/board-build-fresh.cjs
+      - name: Verify static production deployment integrity in an isolated tree
+        run: node tests/static-build-integrity.cjs
       - name: Restore BOARD PARTY v7 source assets
         run: node scripts/build-board-v7.cjs
+      - name: Verify authored base and deployed BOARD v10 runtime mapping
+        run: node tests/board-runtime-layers.cjs
       - name: Audit BOARD PARTY island density, crossings and swords
         run: node tests/board-layout-audit.cjs
       - name: Enforce Host and Controller app bundle integrity
