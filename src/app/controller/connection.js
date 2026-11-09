@@ -827,18 +827,26 @@ function syncControllerVisibleViewport(){
   if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return;
   const left=Number(view?.offsetLeft)||0,top=Number(view?.offsetTop)||0;
   const portrait=document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
-  const scale=Math.max(.1,Math.min((portrait?h:w)/844,(portrait?w:h)/390));
-  const signature=[w,h,left,top,scale.toFixed(4)].join('|');
+  const measure=typeof window.getComputedStyle==='function'?
+    window.getComputedStyle($('controller')):null;
+  const inset=name=>Math.max(0,parseFloat(measure?.[name])||0);
+  const usableW=Math.max(1,w-inset('paddingLeft')-inset('paddingRight'));
+  const usableH=Math.max(1,h-inset('paddingTop')-inset('paddingBottom'));
+  const scale=portrait?Math.min(usableH/844,usableW/390):
+    Math.min(usableW/844,usableH/390);
+  const signature=[w,h,left,top,portrait,scale.toFixed(6)].join('|');
   if(signature===lastControllerViewport)return;
   lastControllerViewport=signature;
   style.setProperty('--gf-controller-visible-width',w+'px');
   style.setProperty('--gf-controller-visible-height',h+'px');
   style.setProperty('--gf-controller-visible-left',left+'px');
   style.setProperty('--gf-controller-visible-top',top+'px');
-  style.setProperty('--gf-controller-action-track',Math.round(136*scale)+'px');
-  style.setProperty('--gf-controller-face-size',Math.round(102*scale)+'px');
-  style.setProperty('--gf-controller-stick-size',Math.round(72*scale)+'px');
-  style.setProperty('--gf-controller-knob-size',Math.round(30*scale)+'px');
+  style.setProperty('--gf-controller-stage-scale',scale.toFixed(6));
+  // Buttons are fixed reference pixels INSIDE the transformed stage.
+  style.setProperty('--gf-controller-action-track','136px');
+  style.setProperty('--gf-controller-face-size','102px');
+  style.setProperty('--gf-controller-stick-size','72px');
+  style.setProperty('--gf-controller-knob-size','30px');
  });
 }
 // iOS fires visualViewport.resize independently of window.resize when the
@@ -908,12 +916,13 @@ function bindAnalogStick(zone,base,knob,target){
   const move=e=>{
     // Movement is measured from the first touch, not a fixed screen position.
     // CSS rotated portrait mode needs inverse rotation of the finger delta.
-    const dx=e.clientX-originX,dy=e.clientY-originY;
+    const stageScale=parseFloat($('controller')?.style?.getPropertyValue?.('--gf-controller-stage-scale'))||1;
+    const dx=(e.clientX-originX)/stageScale,dy=(e.clientY-originY)/stageScale;
     const localX=rotated()?dy:dx,localY=rotated()?-dx:dy;
     const box=base.getBoundingClientRect();
     // Input force derives from finger distance, not the visual ring's size.
     const travel=64;
-    const knobTravel=Math.max(12,Math.min(box.width,box.height)*.28);
+    const knobTravel=Math.max(12,Math.min(box.width,box.height)/stageScale*.28);
     const len=Math.hypot(localX,localY),factor=len>travel?travel/len:1;
     let x=Math.round(localX*factor/travel*100)/100;
     let y=Math.round(localY*factor/travel*100)/100;
@@ -937,8 +946,9 @@ function bindAnalogStick(zone,base,knob,target){
     const halfX=box.left+box.width/2,halfY=box.top+box.height/2;
     const localWidth=rotated()?box.height:box.width;
     const localHeight=rotated()?box.width:box.height;
-    const offsetX=rotated()?e.clientY-halfY:e.clientX-halfX;
-    const offsetY=rotated()?-(e.clientX-halfX):e.clientY-halfY;
+    const stageScale=parseFloat($('controller')?.style?.getPropertyValue?.('--gf-controller-stage-scale'))||1;
+    const offsetX=(rotated()?e.clientY-halfY:e.clientX-halfX)/stageScale;
+    const offsetY=(rotated()?-(e.clientX-halfX):e.clientY-halfY)/stageScale;
     base.style.transform='translate3d('+offsetX+'px,'+offsetY+'px,0) translate(-50%,-50%)';
     knob.style.transform='translate(-50%,-50%)';
     zone.classList.add('is-active');
