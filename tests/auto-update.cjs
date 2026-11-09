@@ -7,7 +7,6 @@ const vm=require('node:vm');
 const {execFileSync}=require('node:child_process');
 const root=path.join(__dirname,'..');
 const watcher=fs.readFileSync(path.join(root,'auto-update.js'),'utf8');
-const build=path.join(root,'scripts/build-static.cjs');
 
 function buildTest(){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gf-auto-build-'));
@@ -18,7 +17,7 @@ function buildTest(){
     }});
     const first='a'.repeat(40),second='b'.repeat(40);
     for(const rev of [first,second]){
-      execFileSync(process.execPath,[build],{
+      execFileSync(process.execPath,[path.join(dir,'scripts/build-static.cjs')],{
         env:{...process.env,GAME_BUILD_ROOT:dir,AWS_COMMIT_ID:rev},
         encoding:'utf8'
       });
