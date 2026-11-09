@@ -1,7 +1,6 @@
 {
   "id": "pizza_time",
   "name": "PIZZA TIME",
-  "version": "1.0.1",
   "apiVersion": 1,
   "enabled": true,
   "players": {
