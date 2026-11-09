@@ -5838,3 +5838,9 @@ body.controller-playing #controllerActive .controller-latency{
  font:700 10px/1.2 system-ui,sans-serif;opacity:.9;color:#b8f5d5;
 }
 body.controller-playing #controllerActive .controller-latency[data-latency=slow]{color:#ffd18b}
+
+/* Keep an incoming WebRTC video element decodable (not display:none) while
+   JPEG remains painted; Safari can suspend hidden video tracks. */
+body.controller-playing #controllerActive .gamepad-preview-video.pending-video{
+ position:absolute;inset:0;z-index:2;opacity:0;pointer-events:none;
+}
