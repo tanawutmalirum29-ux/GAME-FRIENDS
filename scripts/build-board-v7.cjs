@@ -12,6 +12,9 @@ const ASSETS=[
  ['board-v7-art.deflate.b64','board-v7-art.js','12d178158c218556059a093b89a88006e2c710851cceb854c96ecfa1f4ac6401']
 ];
 for(const [asset,destination,expected] of ASSETS){
+ const target=path.join(root,destination);
+ if(fs.existsSync(target)&&
+   createHash('sha256').update(fs.readFileSync(target)).digest('hex')===expected)continue;
  const location=path.join(root,'board-v7-source',asset);
  const packed=fs.readdirSync(path.dirname(location))
   .filter(name=>name.startsWith(asset+'.part'))
@@ -21,6 +24,6 @@ for(const [asset,destination,expected] of ASSETS){
  const data=zlib.inflateSync(Buffer.from(packed,'base64'));
  const hash=createHash('sha256').update(data).digest('hex');
  if(hash!==expected)throw Error('v7 source checksum mismatch: '+asset);
- fs.writeFileSync(path.join(root,destination),data);
+ fs.writeFileSync(target,data);
 }
 process.stdout.write('BOARD v7 Phase 5 assets verified and restored\n');

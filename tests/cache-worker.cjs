@@ -2,12 +2,12 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const URLClass=URL;
-const handlers=new Map(),cacheContents=new Map(),counts=new Map();
-let offline=false;
+const path=require('node:path');
+const ORIGIN='https://game.example';
+const cacheContents=new Map(); // Shared origin-wide CacheStorage across SW registrations.
 class FakeResponse{
- constructor(body){this.body=body;this.ok=true;this.status=200;}
- clone(){return new FakeResponse(this.body);}
+ constructor(body,ok=true){this.body=body;this.ok=ok;this.status=ok?200:503;}
+ clone(){return new FakeResponse(this.body,this.ok);}
 }
 class FakeRequest{
  constructor(url){this.url=String(url);this.method='GET';}
@@ -24,47 +24,80 @@ const caches={
   };
  }
 };
-const self={
- location:{origin:'https://game.example'},
- registration:{scope:'https://game.example/'},
- clients:{async claim(){}},
- async skipWaiting(){},
- addEventListener(type,fn){handlers.set(type,fn);}
-};
-async function fetchMock(req){
- if(offline)throw Error('offline');
- const url=typeof req==='string'?req:req.url;
- counts.set(url,(counts.get(url)||0)+1);
- return new FakeResponse('fetched '+url);
-}
-const context={self,caches,Request:FakeRequest,URL:URLClass,fetch:fetchMock};
-vm.runInNewContext(fs.readFileSync('sw.js','utf8'),context);
-async function request(url){
- let answer=null;
- const event={
-  request:{method:'GET',url},
-  respondWith(promise){answer=Promise.resolve(promise);}
+const swSource=fs.readFileSync(path.resolve(__dirname,'../sw.js'),'utf8');
+function worker(scope){
+ const handlers=new Map(),counts=new Map();
+ let offline=false;
+ const self={
+  location:{origin:ORIGIN},registration:{scope:ORIGIN+scope},
+  clients:{async claim(){}},async skipWaiting(){},
+  addEventListener(type,fn){handlers.set(type,fn);}
  };
- handlers.get('fetch')(event);
- return answer?await answer:null;
+ async function fetchMock(req){
+  if(offline)throw Error('offline');
+  const url=typeof req==='string'?req:req.url;
+  counts.set(url,(counts.get(url)||0)+1);
+  return new FakeResponse('fetched '+url+' #'+counts.get(url));
+ }
+ vm.runInNewContext(swSource,{self,caches,Request:FakeRequest,URL,fetch:fetchMock},
+  {filename:'sw.js'});
+ async function request(url,method='GET'){
+  let answer=null;
+  const event={request:{method,url},respondWith(promise){answer=Promise.resolve(promise);}};
+  handlers.get('fetch')(event);
+  return answer?await answer:null;
+ }
+ return {request,counts,setOffline(value){offline=value;}};
+}
+const asset=(prefix,hash)=>ORIGIN+prefix+'game-assets/ghost/'+hash.repeat(24)+'/game.js';
+async function suite(scope){
+ const sw=worker(scope),a=asset(scope,'a'),b=asset(scope,'b'),unhashed=ORIGIN+scope+'game-assets/ghost/game.js';
+ assert.equal((await sw.request(a)).body,'fetched '+a+' #1');
+ assert.equal((await sw.request(a)).body,'fetched '+a+' #1','hashed asset hits immutable cache');
+ assert.equal(sw.counts.get(a),1);
+ assert.equal((await sw.request(b)).body,'fetched '+b+' #1','changed hash is independently fetched');
+ assert.equal(sw.counts.get(b),1);
+ assert.equal(await sw.request(unhashed),null,'unversioned assets must not be cached');
+ assert.equal(await sw.request(ORIGIN+scope+'app.js'),null,'core assets must not be intercepted');
+ assert.equal(await sw.request(ORIGIN+scope+'index.html'),null,'HTML must not be intercepted');
+ assert.equal(await sw.request(a,'POST'),null,'non-GET must not be intercepted');
+ assert.equal(await sw.request('https://other.example'+scope+'game-assets/ghost/'+ 'a'.repeat(24) +'/game.js'),null,
+  'cross-origin requests must never be intercepted');
+ const firstCatalog=ORIGIN+scope+'game-catalog.json?_=1';
+ const newestCatalog=ORIGIN+scope+'game-catalog.json?_=2';
+ assert.equal((await sw.request(firstCatalog)).body,'fetched '+firstCatalog+' #1');
+ assert.equal((await sw.request(newestCatalog)).body,'fetched '+newestCatalog+' #1',
+  'network-first catalog replaces previous version');
+ sw.setOffline(true);
+ assert.equal((await sw.request(ORIGIN+scope+'game-catalog.json?_=3')).body,
+  'fetched '+newestCatalog+' #1','offline catalog uses latest successful response');
+ assert.equal((await sw.request(a)).body,'fetched '+a+' #1','offline v1 asset remains usable');
+ assert.equal((await sw.request(b)).body,'fetched '+b+' #1','offline updated asset remains usable');
+ await assert.rejects(sw.request(asset(scope,'c')),/offline/,'uncached version cannot be invented offline');
+ return sw;
 }
 (async()=>{
- const base='https://game.example/game-assets/ghost/';
- const first=base+'a'.repeat(24)+'/game.js',next=base+'b'.repeat(24)+'/game.js';
- assert.equal((await request(first)).body,'fetched '+first);
- assert.equal((await request(first)).body,'fetched '+first);
- assert.equal(counts.get(first),1,'immutable game bytes are fetched only once');
- assert.equal((await request(next)).body,'fetched '+next);
- assert.equal(counts.get(next),1,'changed hash triggers a new request');
- assert.equal(await request('https://game.example/app.js'),null,'never cache core JS');
- assert.equal(await request('https://other.example/game-assets/ghost/'+ 'a'.repeat(24) +'/game.js'),null,
-  'third party code is not intercepted');
- const url='https://game.example/game-catalog.json?_=1';
- await request(url);
- offline=true;
- const fallback=await request('https://game.example/game-catalog.json?_=2');
- assert.equal(fallback.body,'fetched '+url,'last validated online catalog survives temporary outage');
- assert.equal(counts.get(url),1);
- assert.equal((await request(first)).body,'fetched '+first,'hashed asset stays cached offline');
- console.log('CACHE WORKER PASS: immutable assets, new hashes, origin guard and offline catalog');
+ const root=await suite('/');
+ const sub=await suite('/GAME-FRIENDS/');
+ // With separate registrations on the same origin, neither cache may leak.
+ const gameCaches=[...cacheContents.keys()].filter(k=>k.startsWith('gf-immutable-games-v1:'));
+ const catalogCaches=[...cacheContents.keys()].filter(k=>k.startsWith('gf-catalog-v1:'));
+ assert.equal(gameCaches.length,2,'root and subpath have separate immutable caches');
+ assert.equal(catalogCaches.length,2,'root and subpath have separate catalog caches');
+ const rootGame=cacheContents.get('gf-immutable-games-v1:%2F');
+ const subGame=cacheContents.get('gf-immutable-games-v1:%2FGAME-FRIENDS%2F');
+ assert.ok(rootGame?.has(asset('/','a')));
+ assert.ok(!rootGame?.has(asset('/GAME-FRIENDS/','a')));
+ assert.ok(subGame?.has(asset('/GAME-FRIENDS/','a')));
+ assert.ok(!subGame?.has(asset('/','a')));
+ assert.equal(await sub.request(ORIGIN+'/game-assets/ghost/'+ 'a'.repeat(24) +'/game.js'),null,
+  'subpath SW cannot intercept parent scope');
+ assert.equal(await sub.request(ORIGIN+'/GAME-FRIENDS-other/game-catalog.json'),null,
+  'path-prefix lookalikes cannot be intercepted');
+ assert.equal(await root.request('https://outside.example/game-catalog.json'),null);
+ // Offline subpath catalog must not return the root-scope catalog.
+ const unprimed=worker('/fresh/');unprimed.setOffline(true);
+ await assert.rejects(unprimed.request(ORIGIN+'/fresh/game-catalog.json'),/offline/,
+  'a fresh scope must not read another scope\'s catalog');
+ console.log('CACHE WORKER PASS: root/subpath assets, offline, updates, scope isolation and guards');
 })().catch(err=>{console.error(err);process.exitCode=1;});

@@ -1,4 +1,6 @@
 'use strict';
+// A standalone test from a fresh checkout restores only missing/stale outputs.
+require('../scripts/build-board-v7.cjs');
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const ctx=vm.createContext({window:{},Math,Date,console});
 for(const path of ['board-map.js','board-v7-design.js','board-branch-naming.js','board-v7-adapter.js'])

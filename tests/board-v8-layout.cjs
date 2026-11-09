@@ -1,4 +1,6 @@
 'use strict';
+// A standalone test from a fresh checkout restores only missing/stale outputs.
+require('../scripts/build-board-v7.cjs');
 /* BOARD v8 layout contract: readable 17-island routes, linked two-tile sword
  * courts, real directed connectivity and renderer/playable-coordinate parity. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');

@@ -1,4 +1,6 @@
 'use strict';
+// A standalone test from a fresh checkout restores only missing/stale outputs.
+require('./build-board-v7.cjs');
 /* Non-destructive final V10 graph audit. Run with --strict in CI. */
 const fs=require('node:fs'),vm=require('node:vm');
 const ctx=vm.createContext({window:{},Math,Date,console});
