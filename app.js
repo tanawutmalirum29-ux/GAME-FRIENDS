@@ -953,7 +953,7 @@ function renderHostVideoFrames(){
   if(!round||hostVideoCalls.size===0)return;
   // Copy at most 30 frames/s instead of resampling all streams on every
   // high-refresh-rate host paint. This never changes game physics/timing.
-  const now=performance.now();
+  const now=typeof performance!=='undefined'?performance.now():Date.now();
   if(now-lastHostVideoFrameAt<33)return;
   lastHostVideoFrameAt=now;
   for(const source of hostVideoSources.values()){
@@ -1834,6 +1834,7 @@ function stopControllerVideo(){
  if(call)try{call.close();}catch(_){}
  const video=$('controllerPreviewVideo');
  video.onloadeddata=null;video.onplaying=null;
+ video.classList.remove('pending-video');
  try{video.pause();}catch(_){}
  video.srcObject=null;video.classList.add('hidden');
  $('videoStartBtn').classList.add('hidden');
@@ -1845,6 +1846,7 @@ function activateControllerVideoIfReady(call){
  videoStreamActive=true;
  if(controllerVideoWatchdog!==null)clearTimeout(controllerVideoWatchdog);
  controllerVideoWatchdog=null;
+ video.classList.remove('pending-video');
  video.classList.remove('hidden');
  $('controllerPreviewImage').classList.add('hidden');
  $('controllerPreviewPlaceholder').classList.add('hidden');
@@ -1857,7 +1859,8 @@ function showControllerVideo(stream,call){
  const video=$('controllerPreviewVideo');
  video.srcObject=stream;video.muted=true;video.playsInline=true;
  // JPEG stays visible until a real frame is decoded and playback is active.
- video.classList.add('hidden');videoStreamActive=false;
+ video.classList.remove('hidden');video.classList.add('pending-video');
+ videoStreamActive=false;
  video.onloadeddata=()=>activateControllerVideoIfReady(call);
  video.onplaying=()=>activateControllerVideoIfReady(call);
  if(controllerVideoWatchdog!==null)clearTimeout(controllerVideoWatchdog);
@@ -2133,7 +2136,7 @@ function joinRoom(recovery=false){
         setControllerPreviewEnabled(controllerPreviewEnabled);
         sendInputs();announceControllerTakeover();
        }else if(data.t==='input-ack'){
-        const ms=Math.floor(performance.now()-Number(data.clientAt));
+        const ms=Math.floor(controllerNow()-Number(data.clientAt));
         if(Number.isSafeInteger(data.actionId)&&Number.isFinite(ms)&&ms>=0&&ms<60000){
           const latency=$('controllerLatency');
           if(latency){latency.textContent=ms+' ms';latency.dataset.latency=ms>400?'slow':'ok';}
@@ -2494,15 +2497,21 @@ function renderPhoneInventory(info){
   $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
   showControllerMode(info.mode);
 }
+// Real browser time is monotonic; deterministic smoke harnesses may not expose
+// performance. The bounded Date fallback is only used outside browsers.
+function controllerNow(){
+ return typeof performance!=='undefined'&&typeof performance.now==='function'?
+  performance.now():Date.now()%1e10;
+}
 let analogInputTimer=null,lastAnalogInputAt=0;
 function queueAnalogInput(){
  if(!controllerReady)return;
- const now=performance.now(),remaining=33-(now-lastAnalogInputAt);
+ const now=controllerNow(),remaining=33-(now-lastAnalogInputAt);
  if(remaining<=0){
   lastAnalogInputAt=now;sendInputs();
  }else if(analogInputTimer===null){
   analogInputTimer=setTimeout(()=>{
-   analogInputTimer=null;lastAnalogInputAt=performance.now();sendInputs();
+   analogInputTimer=null;lastAnalogInputAt=controllerNow();sendInputs();
   },remaining);
  }
 }
@@ -2516,7 +2525,7 @@ function sendInputs(){
    keys.axisX=0;keys.axisY=0;keys.left=false;keys.right=false;keys.jump=false;keys.down=false;
    if(controllerBoard?.boardPhase==='ready'){keys.action=false;keys.alt=false;keys.cancel=false;}
  }
- send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId,clientAt:Math.floor(performance.now())});
+ send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId,clientAt:Math.floor(controllerNow())});
 }
 function isPortraitScreen(){
   if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
@@ -2528,6 +2537,9 @@ function isPortraitScreen(){
 // viewport. The CSS fallback still works on browsers missing this API.
 let controllerViewportFrame=0,lastControllerViewport='';
 function syncControllerVisibleViewport(){
+ // Do not enqueue controller-only viewport rAF on host pages. This also
+ // keeps BOARD's first held animation frame owned by its game loop.
+ if(!document.body.classList.contains('controller-playing'))return;
  if(controllerViewportFrame)return;
  controllerViewportFrame=requestAnimationFrame(()=>{
   controllerViewportFrame=0;
