@@ -2,7 +2,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.resolve(__dirname,'..'),scope={window:{}};
-for(const file of ['character-system.js','pizza-ingredient-art.js','pizza-kitchen-art.js','pizza-time.js'])
+for(const file of ['character-system.js','src/games/pizza-time/pizza-ingredient-art.js','src/games/pizza-time/pizza-kitchen-art.js','src/games/pizza-time/pizza-time.js'])
  vm.runInNewContext(fs.readFileSync(path.join(root,file),'utf8'),scope,{filename:file});
 const G=scope.window.PizzaTime,A=scope.window.PizzaKitchenArt;
 function start(n,seed=29,bot=false){

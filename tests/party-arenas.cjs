@@ -6,7 +6,7 @@ class Image {
  set src(value){this.markup=decodeURIComponent(value.split(',').slice(1).join(','));}
 }
 const ctx=vm.createContext({window:{},Image,console});
-for(const file of ['character-system.js','party-arena-scenes.js','game-cover-art.js','shopping-time.js','knight-match.js','witching-snake.js'])
+for(const file of ['character-system.js','party-arena-scenes.js','game-cover-art.js','src/games/shopping-time/shopping-time.js','src/games/knight-match/knight-match.js','src/games/witching-snake/witching-snake.js'])
  vm.runInContext(fs.readFileSync(file,'utf8'),ctx,{filename:file});
 const {PartyArenaScenes:art,PartyGameCovers:covers,ShoppingTime:shopping,KnightMatch:knight,WitchingSnake:witch}=ctx.window;
 const colors=['#f44336','#36b7e3','#f2cc35','#57c542','#b685dc','#f1904a','#60c6b3','#eb87a5','#99b9f7','#d9df7f','#ba9c7f','#ed8e6d'];
