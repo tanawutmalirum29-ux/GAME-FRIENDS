@@ -19,8 +19,12 @@ jobs:
         run: node scripts/build-board-v7.cjs
       - name: Audit BOARD PARTY island density, crossings and swords
         run: node tests/board-layout-audit.cjs
-      - name: Enforce app.js modular source integrity
+      - name: Enforce Host and Controller app bundle integrity
         run: node scripts/build-app.cjs --check
+      - name: Verify canonical controller BOARD metadata and split runtime
+        run: |
+          node scripts/build-board-item-brief.cjs --check
+          node tests/controller-bundle.cjs
       - name: Automatically check syntax of all present and future JavaScript files
         run: node scripts/check-javascript.cjs
       - name: Validate discovered game plug-ins and immutable catalog

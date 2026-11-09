@@ -15,6 +15,7 @@ const lazyHTML=pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLega
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/peerjs@'),'offline bootstrap never fetches PeerJS');
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/qrcodejs@'),'controller bootstrap never fetches QRCode');
 assert.ok(lazyHTML.includes('src="./src/platform/runtime-deps.js"'));
+assert.ok(lazyHTML.includes('src="./src/platform/board-items-brief.js"'));
 
 for(const file of BOARD_CORE_SCRIPTS)assert.ok(!lazyHTML.includes('src="./'+file+'"'),'BOARD core should be lazy: '+file);
 for(const file of HOST_ROUTE_SCRIPTS)assert.ok(!lazyHTML.includes('src="./'+file+'"'),

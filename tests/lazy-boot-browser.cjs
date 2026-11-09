@@ -25,7 +25,7 @@ const buildVersion='window.GAME_BUILD_VERSION="lazy-browser-test";'+
 const injection=`window.__lazyGameTest={get round(){return round},
  get board(){return boardSession},get selection(){return gameSelection},
  get players(){return players},get view(){return currentView},
- beginBoard,beginGameSelection,updateGameSelection,returnToLobby,addLocal};
+ beginBoard,beginGameSelection,updateGameSelection,returnToLobby,addLocal,receiveBoardState};
  requestAnimationFrame(animate);\n})();`;
 const server=http.createServer((req,res)=>{
  const url=new URL(req.url,'http://localhost'),pathname=url.pathname;
@@ -48,7 +48,7 @@ const server=http.createServer((req,res)=>{
   const filename=path.resolve(root,'.'+pathname);
   if(!filename.startsWith(root+path.sep)||!fs.existsSync(filename)){res.writeHead(404).end();return;}
   content=fs.readFileSync(filename);ext=path.extname(filename);
-  if(filename===path.join(root,'app.js')){
+  if(filename===path.join(root,'app.js')||filename===path.join(root,'app-controller.js')){
    const text=content.toString('utf8');
    assert.ok(text.includes('requestAnimationFrame(animate);\n})();'));
    content=text.replace('requestAnimationFrame(animate);\n})();',injection);
@@ -85,15 +85,35 @@ const server=http.createServer((req,res)=>{
   assert.equal(await page.evaluate(()=>window.GameHostRuntime.ready()),true,
    'host physics and scenery must finish loading before application init');
   // Controller routes still load app.js for reconnection, but not the host physics.
-  const phone=await ctx.newPage(),phoneErrors=[];
+  const phone=await ctx.newPage(),phoneErrors=[],phoneRequests=[];
   phone.on('pageerror',e=>phoneErrors.push(String(e)));
+  phone.on('request',r=>phoneRequests.push(new URL(r.url()).pathname));
   await phone.goto('http://127.0.0.1:'+server.address().port+'/?join=ABC123');
   await phone.waitForFunction(()=>!!window.__lazyGameTest,null,{polling:100,timeout:15000});
   assert.equal(await phone.evaluate(()=>window.PartyCharacters),undefined,
    'joining as controller must not fetch the collision/host runtime');
   assert.equal(await phone.evaluate(()=>window.PartyArenaArt),undefined);
   assert.equal(await phone.evaluate(()=>window.GhostCemeteryArt),undefined);
-  assert.deepEqual(phoneErrors,[],'controller startup must work without host assets');
+  assert.ok(phoneRequests.includes('/app-controller.js'),
+   'controller must download only its role-specific runtime');
+  assert.ok(!phoneRequests.includes('/app.js'),'controller must never download Host app.js');
+  assert.equal(await phone.evaluate(()=>window.BoardItems),undefined,
+   'controller does not load host BOARD item physics');
+  assert.equal(await phone.evaluate(()=>!!window.PartyBoardItemMeta),true);
+  const inventory=await phone.evaluate(()=>{
+   __lazyGameTest.receiveBoardState({phase:'paused',boardPhase:'ready',round:1,
+    hp:100,stepsRemaining:0,bag:['potion'],usedRound:0,actionIndex:1,
+    a:'ทอย',b:'เลือก',help:'กระเป๋า',turnId:'regression'});
+   return {
+    slots:document.querySelectorAll('#inventoryItem .board-bag-item').length,
+    selected:document.querySelector('#inventoryItem .board-bag-item.is-selected')?.title,
+    mode:document.getElementById('controllerModeName').textContent
+   };
+  });
+  assert.equal(inventory.slots,7,'controller BOARD UI renders every item and roll');
+  assert.equal(inventory.selected,'Healing Potion');
+  assert.ok(inventory.mode.includes('BOARD PARTY'));
+  assert.deepEqual(phoneErrors,[],'controller startup/BOARD inventory must have no errors');
   await phone.close();
   await page.evaluate(()=>window.__lazyGameTest.beginGameSelection('ghost'));
   const initialSelection=await page.evaluate(()=>({
@@ -137,6 +157,6 @@ const server=http.createServer((req,res)=>{
   assert.equal(board.board,true);
   assert.equal(board.total,15);
   assert.deepEqual(errors,[],'no unhandled page errors in production-like lazy boot');
-  console.log('LAZY BOOT BROWSER PASS '+kind+': host-only physics, controller cold start, engine selection, BOARD PARTY');
+  console.log('LAZY BOOT BROWSER PASS '+kind+': controller bundle + BOARD bag, host physics, game selection');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>server.close());
