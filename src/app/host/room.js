@@ -128,6 +128,7 @@ function stopAllHostVideoCalls(){
   hostVideoSources.clear();
 }
 function startHostVideoCall(conn){
+  if(round?.mode==='board'&&conn?.boardMinimapCapable===true){stopHostVideoCall(conn);return;}
   if(!round||round.phase==='roulette'||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId||conn.previewEnabled!==true)return;
   stopHostVideoCall(conn);
   conn.videoReady=false;
@@ -153,7 +154,8 @@ function startHostVideoCall(conn){
 function broadcastGamePreview(){
   if(!round||!onlineHost||!remotePreviewContext||hostConnections.size===0)return;
   const active=[...hostConnections].filter(c=>
-    c.open&&c.playerId&&c.previewEnabled===true&&!c.videoReady&&
+    c.open&&c.playerId&&c.previewEnabled===true&&
+    !(round?.mode==='board'&&c.boardMinimapCapable===true)&&!c.videoReady&&
     (!c.dataChannel||c.dataChannel.bufferedAmount<65536));
   if(!active.length||typeof remotePreviewCanvas.toDataURL!=='function')return;
   try{
@@ -690,7 +692,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
           p.clientToken=token;
           if(round&&round.phase!=='results')p.active=false;
         }
-        conn.playerId=p.id;conn.previewEnabled=false;p.lastInputAt=Date.now();
+        conn.playerId=p.id;conn.previewEnabled=false;conn.boardMinimapCapable=false;conn.boardMiniMapSession=null;p.lastInputAt=Date.now();
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active});
         broadcastRoster();
         if(['results','summary'].includes(round?.phase))renderResultVotes(true);
@@ -708,8 +710,11 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         if(conn.previewEnabled===true&&msg.quality===conn.videoQuality)conn.videoReady=true;
       }else if(msg.t==='preview-toggle'&&conn.playerId&&typeof msg.enabled==='boolean'){
         conn.previewEnabled=msg.enabled;
-        if(msg.enabled){if(round)startHostVideoCall(conn);}
-        else stopHostVideoCall(conn);
+        if(msg.enabled){
+          conn.boardMinimapCapable=msg.minimap===true;
+          if(round){startHostVideoCall(conn);sendBoardMiniMap(conn);}
+        }
+        else{conn.boardMinimapCapable=false;stopHostVideoCall(conn);}
       }else if(msg.t==='board-camera-mode'&&conn.playerId){
         const s=boardSession;
         const valid=round?.mode==='board'&&round.phase==='playing'&&!round.paused&&s&&
