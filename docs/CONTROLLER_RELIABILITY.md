@@ -42,3 +42,38 @@ The AWS Amplify frontend is **static**. It cannot itself run coturn or hold a TU
 - Full `validate`, each generated browser shard and `Browser QA / required gate` are required for merge.
 
 No game rules, bot parameters, physics, scores, BOARD graph or turn timings are intentionally changed by this work.
+
+## Mandatory landscape across web Host and installed apps (2026-11-09)
+
+The installed Host PWA (`host.webmanifest`) and installed Controller PWA
+(`manifest.webmanifest`) now request native `orientation: landscape`.
+iOS Safari, some WebKit builds and browser tabs may ignore this request even
+after a fullscreen gesture. No website can physically rotate the device or
+guarantee removal of browser/OS status bars; the fallback rotates the **entire
+interactive layout** into a landscape coordinate space without a prompt.
+
+- **Installed PWA:** home, room lobby, game, join form and controller stay in
+  landscape presentation. If the device stays physically portrait,
+  `gf-virtual-landscape` rotates the app shell by 90°. Orientation/viewport
+  changes are handled without reloading or breaking the room connection.
+- **Web Host:** the landing page is still a normal mobile website. Once a
+  room is open, both lobby and game use the same fullscreen landscape shell.
+- **Web Controller:** the join form remains upright for the mobile keyboard;
+  joining requests native fullscreen/landscape on the user's gesture. If
+  orientation remains portrait, the already fixed **844×390** gamepad rotates
+  immediately with no chooser, and returns to native landscape automatically.
+- Canvas taps use `arenaPointer()` and the untransformed
+  `arenaLayoutRect()`: portrait screen coordinates are inverse-rotated before
+  BOARD pan, pinch, node selection and Ghost map inspection. The host bot
+  testing joystick and remote BOARD gesture controls use the same rotated axes.
+- Native DOM hit testing already handles transform rotation for A/B/C,
+  buttons, links, and inputs. Do not apply a second manual rotation to their
+  event targets. Local gesture vectors are the only exception.
+
+Verify on real iOS/Android devices, including opening the installed PWA with a
+portrait rotation lock, accepting room invitations, leaving/rejoining a room,
+BOARD drag/pinch, controller double-tap inspection and A/B/C interactions.
+
+**The webpage cannot promise 100% physical immersive fullscreen in browsers
+that deny the Fullscreen API or keep system chrome visible.** The game uses
+the available visual viewport and keeps its content in landscape instead.

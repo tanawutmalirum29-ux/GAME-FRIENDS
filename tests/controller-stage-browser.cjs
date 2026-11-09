@@ -30,7 +30,11 @@ async function run(){
     document.getElementById('controller').classList.remove('hidden');
     document.getElementById('controllerActive').classList.remove('hidden');
     document.getElementById('joinForm').classList.add('hidden');
-    window.dispatchEvent(new Event('resize'));
+    // Test the joined portrait fallback without triggering a fresh
+    // disconnected-controller orientation policy (this fixture has no PeerJS).
+    if(p&&window.visualViewport)
+      window.visualViewport.dispatchEvent(new Event('resize'));
+    else window.dispatchEvent(new Event('resize'));
    },portrait);
    await page.waitForFunction(()=>
     getComputedStyle(document.getElementById('controller')).getPropertyValue('--gf-controller-stage-scale').trim()!==''

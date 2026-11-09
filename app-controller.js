@@ -508,23 +508,38 @@ function holdSeat(p){
  },60000));
 }
 const canvas=$('arena'), g=canvas.getContext('2d');
+// Read UNTRANSFORMED landscape CSS pixels. CSS rotation transposes
+// getBoundingClientRect and used to break BOARD drag, pinch and map hit-tests.
+function arenaIsRotated(){return physicalPortrait()&&currentView==='game';}
+function arenaLayoutRect(visual){
+ if(!arenaIsRotated())return {left:visual.left,top:visual.top,
+  width:Number(visual.width)||960,height:Number(visual.height)||540,rotated:false};
+ return {left:0,top:0,width:Number(canvas.clientWidth)||Number(visual.height)||960,
+  height:Number(canvas.clientHeight)||Number(visual.width)||540,rotated:true};
+}
 function arenaContentRect(rect){
- const width=Number(rect.width)||960,height=Number(rect.height)||540;
- // BOARD PARTY extends its logical map vertically instead of letterboxing
- // the fixed 16:9 world. Keep 960 X units and a uniform physical pixel scale.
+ const frame=arenaLayoutRect(rect),{width,height}=frame;
  if(round?.mode==='board'&&boardSession&&height/width>540/960){
-  return {left:rect.left,top:rect.top,scale:width/960,height:960*height/width};
+  return {left:frame.left,top:frame.top,scale:width/960,height:960*height/width};
  }
  const scale=Math.min(width/960,height/540);
- return {left:rect.left+(width-960*scale)/2,top:rect.top+(height-540*scale)/2,scale,height:540};
+ return {left:frame.left+(width-960*scale)/2,
+  top:frame.top+(height-540*scale)/2,scale,height:540};
+}
+function arenaPointer(e){
+ const visual=canvas.getBoundingClientRect(),frame=arenaLayoutRect(visual),
+  content=arenaContentRect(visual);
+ // Inverse of CSS rotate(90deg): screen Y -> local X, -screen X -> local Y.
+ const x=frame.rotated?(e.clientY-visual.top)*frame.width/Math.max(1,visual.height):e.clientX;
+ const y=frame.rotated?(visual.right-e.clientX)*frame.height/Math.max(1,visual.width):e.clientY;
+ return {x:(x-content.left)/content.scale,y:(y-content.top)/content.scale};
 }
 // Host map gestures: drag to pan, pinch to zoom and tap nodes in Debug mode.
 // Game input remains exclusively on the controller; pause freezes simulation.
 {
  const pointers=new Map();let pinchDistance=0,gestureMoved=false,downAt=null;
  const enabled=()=>round?.mode==='board'&&!!boardSession&&!!window.BoardArt?.canPan(boardSession);
- const coords=e=>{const rect=arenaContentRect(canvas.getBoundingClientRect());
-   return {x:(e.clientX-rect.left)/rect.scale,y:(e.clientY-rect.top)/rect.scale};};
+ const coords=e=>arenaPointer(e);
  canvas.addEventListener('pointerdown',e=>{
   if(!enabled())return;
   const pt=coords(e),top=94;
@@ -577,7 +592,8 @@ function syncArenaResolution(){
  const denseBoard=round?.mode==='board'&&boardSession?.players.length>=8;
  const modeKey=denseBoard?'board-dense':round?.mode==='board'?'board':'normal';
  const box=canvas.getBoundingClientRect?.();
- const boxKey=(Number(box?.width)||0)+'x'+(Number(box?.height)||0);
+ const layoutBox=arenaLayoutRect(box||{left:0,top:0,width:960,height:540});
+ const boxKey=layoutBox.width+'x'+layoutBox.height+':'+arenaIsRotated();
  if(!arenaResolutionDirty&&arenaLastDpr===dpr&&arenaLastModeKey===modeKey&&arenaLastBoxKey===boxKey)return;
  arenaResolutionDirty=false;arenaLastDpr=dpr;arenaLastModeKey=modeKey;arenaLastBoxKey=boxKey;
  const boardActive=round?.mode==='board'&&!!boardSession;
@@ -601,7 +617,7 @@ function syncArenaResolution(){
  const displayScale=longSide>0&&shortSide>0?
    Math.max(longSide/ARENA_WIDTH,shortSide/ARENA_HEIGHT):1;
  const logicalHeight=boardActive?content.height:ARENA_HEIGHT;
- const screenScale=boardActive&&box?.width?content.scale:displayScale;
+ const screenScale=boardActive&&layoutBox.width?content.scale:displayScale;
  // Cap the portrait/split-screen board bitmap budget at 3.6 MP.
  const bitmapBudget=boardActive?Math.sqrt(3600000/(ARENA_WIDTH*logicalHeight)):MAX_ARENA_SCALE;
  const scale=Math.min(denseBoard?2.4:MAX_ARENA_SCALE,bitmapBudget,Math.max(1,screenScale*dpr));
@@ -664,7 +680,27 @@ const isIOSBrowser=()=>{
 const isStandaloneWebApp=()=>navigator?.standalone===true||
   !!window.matchMedia?.('(display-mode: standalone)')?.matches||
   !!window.matchMedia?.('(display-mode: fullscreen)')?.matches;
-let hostFullscreenWasEntered=false;
+// One orientation policy for installed Host/Controller apps and web Host rooms.
+ // Native orientation lock is best effort; CSS rotation covers unsupported iOS.
+ const physicalPortrait=()=>{
+  const match=window.matchMedia?.('(orientation: portrait)');
+  return typeof match?.matches==='boolean'?match.matches:
+    Number(window.innerHeight)>Number(window.innerWidth);
+ };
+ const usesVirtualLandscape=()=>document.body.classList.contains('gf-virtual-landscape');
+ function syncLandscapePresentation(){
+  const active=physicalPortrait()&&
+   (isStandaloneWebApp()||currentView==='hostLobby'||currentView==='game');
+  const was=usesVirtualLandscape();
+  document.body.classList.toggle('gf-virtual-landscape',active);
+  document.documentElement?.classList?.toggle?.('gf-landscape-screen',active);
+  if(was!==active)markArenaResolutionDirty();
+  if(currentView==='controller'&&controllerReady){
+   if(typeof followDeviceOrientation==='function')followDeviceOrientation();
+   if(typeof syncControllerVisibleViewport==='function')syncControllerVisibleViewport();
+  }
+ }
+ let hostFullscreenWasEntered=false;
 function syncWebAppHelp(){
  const show=currentView==='game'&&isIOSBrowser()&&!isStandaloneWebApp();
  $('webAppHelpBtn').classList.toggle('hidden',!show);
@@ -688,6 +724,7 @@ function setView(view) {
   if(view==='game')markArenaResolutionDirty();
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
+  syncLandscapePresentation();
   if(view!=='game')hostFullscreenWasEntered=false;
   syncZoomPolicy();syncWebAppHelp();syncFullscreenRecovery();
   // A joined QR link can open directly on the room-code form; try native
@@ -706,7 +743,12 @@ function tryLandscapeOrientation(){
     if(result&&typeof result.catch==='function')result.catch(()=>{});
   }catch(_){/* The device/browser controls physical orientation. */}
 }
-// Restore the original fullscreen behavior on any browser that supports it.
+// Orientation state follows physical rotation, URL bars and installation mode.
+ window.addEventListener('orientationchange',syncLandscapePresentation);
+ window.addEventListener('resize',syncLandscapePresentation);
+ window.addEventListener('pageshow',syncLandscapePresentation);
+ window.visualViewport?.addEventListener?.('resize',syncLandscapePresentation);
+ // Restore the original fullscreen behavior on any browser that supports it.
 // Browser/OS permission prompts remain under the browser's control.
 function requestHostFullscreen(){
   // A Home Screen Web App already has no browser bars. Entering the native
@@ -1214,7 +1256,7 @@ function renderRoster(){
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
   // Reserve ALL twelve positions from room creation. Joined players replace
   // numbered placeholders, never change the number or size of grid rows.
-  const columns=window.matchMedia?.('(orientation:portrait) and (max-width:720px)')?.matches?2:3;
+  const columns=!usesVirtualLandscape()&&window.matchMedia?.('(orientation:portrait) and (max-width:720px)')?.matches?2:3;
   el.style.setProperty('--roster-cols',String(columns));
   el.style.setProperty('--roster-rows',String(MAX_PLAYERS/columns));
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
@@ -1461,8 +1503,7 @@ function bindHostBotPad(){
   const start=ghostTapStarts.get(e.pointerId);ghostTapStarts.delete(e.pointerId);
   if(!start||!canInspectGhostMap()||!round.ghost.showObstacleIds||
    Math.hypot(e.clientX-start.x,e.clientY-start.y)>10)return;
-  const rect=arenaContentRect(canvas.getBoundingClientRect());
-  const px=(e.clientX-rect.left)/rect.scale,py=(e.clientY-rect.top)/rect.scale;
+  const {x:px,y:py}=arenaPointer(e);
   if(px<0||px>960||py<0||py>540)return;
   const world=round.ghost.world;
   const hit=window.GhostAttack.obstacleAt(round,px*world.w/960,py*world.h/540);
@@ -1487,7 +1528,9 @@ function bindHostBotPad(){
  const update=e=>{
   const rect=stick.getBoundingClientRect(),cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
   const max=Math.max(22,Math.min(rect.width,rect.height)*.37);
-  let dx=(e.clientX-cx)/max,dy=(e.clientY-cy)/max;
+  // Rotate the joystick vector back into the landscape game world.
+   const rotated=arenaIsRotated(),sx=e.clientX-cx,sy=e.clientY-cy;
+   let dx=(rotated?sy:sx)/max,dy=(rotated?-sx:sy)/max;
   const len=Math.hypot(dx,dy);if(len>1){dx/=len;dy/=len;}
   if(len<.12)dx=dy=0;
   botPadKeys.axisX=Math.round(dx*100)/100;botPadKeys.axisY=Math.round(dy*100)/100;
@@ -2409,6 +2452,7 @@ function joinRoom(recovery=false){
         $('controllerInventory').classList.remove('is-ghost');
         setControllerGameContext(data.mode,data.phase||'lobby',!!data.active);
         document.body.classList.add('controller-playing');
+        followDeviceOrientation(); // automatic: no orientation question
         syncControllerVisibleViewport();
         syncZoomPolicy();
         showControllerMode(data.mode);
@@ -2845,11 +2889,15 @@ function syncControllerVisibleViewport(){
   const style=$('controller')?.style;
   if(typeof style?.setProperty!=='function')return;
   const view=window.visualViewport;
-  const w=Number(view?.width)||Number(window.innerWidth);
-  const h=Number(view?.height)||Number(window.innerHeight);
+  const screenW=Number(view?.width)||Number(window.innerWidth);
+  const screenH=Number(view?.height)||Number(window.innerHeight);
+  const virtual=typeof usesVirtualLandscape==='function'&&usesVirtualLandscape();
+  // Installed app rotates the whole shell; do not double-rotate the gamepad.
+  const w=virtual?screenH:screenW,h=virtual?screenW:screenH;
   if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return;
-  const left=Number(view?.offsetLeft)||0,top=Number(view?.offsetTop)||0;
-  const portrait=document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
+  const left=virtual?0:Number(view?.offsetLeft)||0;
+  const top=virtual?0:Number(view?.offsetTop)||0;
+  const portrait=!virtual&&document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
   const measure=typeof window.getComputedStyle==='function'?
     window.getComputedStyle($('controller')):null;
   const inset=name=>Math.max(0,parseFloat(measure?.[name])||0);
@@ -2879,27 +2927,30 @@ window.addEventListener('orientationchange',syncControllerVisibleViewport);
 window.addEventListener('pageshow',syncControllerVisibleViewport);
 window.visualViewport?.addEventListener?.('resize',syncControllerVisibleViewport);
 window.visualViewport?.addEventListener?.('scroll',syncControllerVisibleViewport);
-// Opt-in only: by default the existing real-landscape controller remains unchanged.
+// Automatic no-dialog fallback if Screen Orientation lock is unavailable.
 function clearPortraitFallback(){
-  releaseStick();
-  document.body.classList.remove('portrait-fallback');
-  lastControllerViewport='';syncControllerVisibleViewport();
-  $('portraitRestoreBtn').classList.add('hidden');
+ if(document.body.classList.contains('portrait-fallback')){
+  releaseStick();document.body.classList.remove('portrait-fallback');
+ }
+ lastControllerViewport='';syncControllerVisibleViewport();
+ $('portraitRestoreBtn').classList.add('hidden');
 }
-function enablePortraitFallback(){
-  if(!controllerReady||!isPortraitScreen())return;
-  releaseStick();
-  document.body.classList.add('portrait-fallback');
-  syncControllerVisibleViewport();
-  $('portraitRestoreBtn').classList.remove('hidden');
-}
-// If the phone is eventually rotated, return to the normal landscape gamepad.
+function enablePortraitFallback(){followDeviceOrientation();}
 function followDeviceOrientation(){
-  if(!isPortraitScreen()&&document.body.classList.contains('portrait-fallback'))
-    clearPortraitFallback();
+ const needed=controllerReady&&isPortraitScreen()&&
+  !(typeof usesVirtualLandscape==='function'&&usesVirtualLandscape());
+ const had=document.body.classList.contains('portrait-fallback');
+ if(had!==needed){
+  releaseStick();
+  document.body.classList.toggle('portrait-fallback',needed);
+  lastControllerViewport='';
+ }
+ syncControllerVisibleViewport();
+ $('portraitRestoreBtn').classList.add('hidden');
 }
 window.addEventListener('orientationchange',followDeviceOrientation);
 window.addEventListener('resize',followDeviceOrientation);
+window.addEventListener('pageshow',followDeviceOrientation);
 // Request landscape from both the join form and the live controller. If a
 // browser rejects the lock, leave the form usable and let the player rotate.
 function requestLandscape(){
@@ -2927,7 +2978,9 @@ function bindAnalogStick(zone,base,knob,target){
     zone.classList.add('hint-dismissed');
     try{window.localStorage.setItem(hintStorageKey,'1');}catch(_){}
   };
-  const rotated=()=>document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
+  const rotated=()=>isPortraitScreen()&&
+   (document.body.classList.contains('portrait-fallback')||
+    (typeof usesVirtualLandscape==='function'&&usesVirtualLandscape()));
   const reset=()=>{
     pointerId=null;originX=0;originY=0;
     target.axisX=0;target.axisY=0;
@@ -4000,7 +4053,7 @@ boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
   allowed:()=>controllerReady&&controllerPlayerActive&&controllerGameMode==='board'&&
     controllerGamePhase==='playing'&&controllerBoard?.canZoom===true&&
     ['ready','move_ready','branch','moving'].includes(controllerBoard?.boardPhase),
-  isRotated:()=>document.body.classList.contains('portrait-fallback')&&isPortraitScreen(),
+  isRotated:()=>isPortraitScreen()&&(document.body.classList.contains('portrait-fallback')||usesVirtualLandscape()),
   releaseStick:()=>releaseStick(),
   onMode:(enabled,notify)=>{
     $('boardCameraModeHint').classList.toggle('hidden',!enabled);

@@ -268,7 +268,7 @@ function renderRoster(){
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
   // Reserve ALL twelve positions from room creation. Joined players replace
   // numbered placeholders, never change the number or size of grid rows.
-  const columns=window.matchMedia?.('(orientation:portrait) and (max-width:720px)')?.matches?2:3;
+  const columns=!usesVirtualLandscape()&&window.matchMedia?.('(orientation:portrait) and (max-width:720px)')?.matches?2:3;
   el.style.setProperty('--roster-cols',String(columns));
   el.style.setProperty('--roster-rows',String(MAX_PLAYERS/columns));
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
@@ -515,8 +515,7 @@ function bindHostBotPad(){
   const start=ghostTapStarts.get(e.pointerId);ghostTapStarts.delete(e.pointerId);
   if(!start||!canInspectGhostMap()||!round.ghost.showObstacleIds||
    Math.hypot(e.clientX-start.x,e.clientY-start.y)>10)return;
-  const rect=arenaContentRect(canvas.getBoundingClientRect());
-  const px=(e.clientX-rect.left)/rect.scale,py=(e.clientY-rect.top)/rect.scale;
+  const {x:px,y:py}=arenaPointer(e);
   if(px<0||px>960||py<0||py>540)return;
   const world=round.ghost.world;
   const hit=window.GhostAttack.obstacleAt(round,px*world.w/960,py*world.h/540);
@@ -541,7 +540,9 @@ function bindHostBotPad(){
  const update=e=>{
   const rect=stick.getBoundingClientRect(),cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
   const max=Math.max(22,Math.min(rect.width,rect.height)*.37);
-  let dx=(e.clientX-cx)/max,dy=(e.clientY-cy)/max;
+  // Rotate the joystick vector back into the landscape game world.
+   const rotated=arenaIsRotated(),sx=e.clientX-cx,sy=e.clientY-cy;
+   let dx=(rotated?sy:sx)/max,dy=(rotated?-sx:sy)/max;
   const len=Math.hypot(dx,dy);if(len>1){dx/=len;dy/=len;}
   if(len<.12)dx=dy=0;
   botPadKeys.axisX=Math.round(dx*100)/100;botPadKeys.axisY=Math.round(dy*100)/100;

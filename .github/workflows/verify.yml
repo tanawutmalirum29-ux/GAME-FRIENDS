@@ -50,6 +50,7 @@ jobs:
         run: |
           node tests/controller-perf-regression.cjs
           node tests/controller-minimap.cjs
+          node tests/landscape-orientation.cjs
           node tests/turn-credentials.cjs
       - name: Verify immutable cache and offline catalog behavior
         run: node tests/cache-worker.cjs

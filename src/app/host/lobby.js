@@ -342,7 +342,7 @@ boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
   allowed:()=>controllerReady&&controllerPlayerActive&&controllerGameMode==='board'&&
     controllerGamePhase==='playing'&&controllerBoard?.canZoom===true&&
     ['ready','move_ready','branch','moving'].includes(controllerBoard?.boardPhase),
-  isRotated:()=>document.body.classList.contains('portrait-fallback')&&isPortraitScreen(),
+  isRotated:()=>isPortraitScreen()&&(document.body.classList.contains('portrait-fallback')||usesVirtualLandscape()),
   releaseStick:()=>releaseStick(),
   onMode:(enabled,notify)=>{
     $('boardCameraModeHint').classList.toggle('hidden',!enabled);
