@@ -30,12 +30,16 @@ Error classes from PeerJS 1.5.5:
   `invalid-id`, `invalid-key`, `ssl-unavailable`.
 - `unavailable-id` is retried with the **same** code only during initial
   creation; for an existing room it is shown as a degraded condition.
-- Unknown error types do not close an already-active room.
+- Unknown error types do not close an already-active room; if signaling
+  remains open, `peer-unavailable`, `webrtc`, and unknown errors do not
+  trigger an unnecessary disconnect of healthy clients.
 
 ## Ingress controls
 Controller sends a 100 ms heartbeat and more packets on pointer moves,
 so each connection is allowed 180 messages/sec sustained with a burst
-of 260, avoiding normal movement/button loss during touch bursts. A packet
+of 260, avoiding normal movement/button loss during touch bursts. Every
+incoming attempt (including malformed packets) consumes a rate token, so an
+invalid-packet flood cannot bypass the throttle. A packet
 must have a recognized message type and valid structure, and its bounded
 estimated payload size must be 4096 bytes or less. No logging per invalid
 packet. The per-connection guard is disposed upon close/error.
