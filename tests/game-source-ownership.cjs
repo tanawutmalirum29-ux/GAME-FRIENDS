@@ -43,4 +43,21 @@ for(const slug of fs.readdirSync(gamesRoot).filter(x=>
  }
 }
 assert.equal(imported,15,'Expected all 15 existing minigames to own their imports');
+
+// Each legacy game owns its controller-state packet; generic Host dispatch may
+// not accumulate per-mode branches as new plug-ins are added.
+const roomCode=fs.readFileSync(path.join(root,'src/app/host/room.js'),'utf8');
+const startStatus=roomCode.indexOf('function sendPlayerInventory(conn){');
+const endStatus=roomCode.indexOf('function broadcastPlayerInventories(){',startStatus);
+assert.ok(startStatus>=0&&endStatus>startStatus);
+const statusDispatch=roomCode.slice(startStatus,endStatus);
+assert.match(statusDispatch,/gameEngine\(round\.mode\)\?\.getControllerPacket\?\.\(p,round,players\)/);
+assert.doesNotMatch(statusDispatch,/round\.mode\s*[!=]==?\s*['"][a-z_]+/);
+for(const slug of dirs){
+ const meta=JSON.parse(fs.readFileSync(path.join(gamesRoot,slug,'manifest.json'),'utf8'));
+ if(!meta.global||meta.id==='knight_match')continue; // KNIGHT has no custom status packet
+ const source=fs.readFileSync(path.join(gamesRoot,slug,slug+'.js'),'utf8');
+ assert.match(source,/function getControllerPacket\(/,slug+' controller packet must be game-owned');
+ assert.match(source,/window\.[A-Za-z]+=(?:Object\.freeze\()?\{getControllerPacket,/,slug+' must expose its packet hook');
+}
 console.log('GAME SOURCE OWNERSHIP PASS: '+imported+' independently imported local game sources');

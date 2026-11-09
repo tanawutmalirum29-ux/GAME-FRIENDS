@@ -141,3 +141,15 @@ node tests/smoke.cjs
 ไม่ได้ใช้ Production Catalog. ห้ามแก้ Generated Defaults หรือ `app.js`
 โดยตรง; คำสั่ง `node scripts/build-app.cjs --write` สร้างทั้งคู่ใหม่
 และ `--check` ป้องกันข้อมูลผิดรุ่น.
+
+### Game-owned controller status packets (optional)
+
+An Engine may define `getControllerPacket(player, round, players)` to return
+`{ t, mode, ...state }`, or `null` when it has no player-specific information.
+The Host injects its authoritative `phase` and forwards the packet to that
+player's controller. Keep the existing packet type and values when migrating
+legacy engines; never invent Host-Core `if (mode === 'new_game')` branches.
+This hook is evaluated on the **pinned** round engine, so compatible game hot
+updates cannot change an active match's controller protocol mid-round.
+The generic controller's label/help/status remain sourced from the manifest;
+specialized custom widgets require a separately versioned controller contract.

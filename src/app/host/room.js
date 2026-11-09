@@ -202,82 +202,17 @@ function nominatedGames(){
 }
 function updateHostQueue(){$('hostQueue').textContent='';}
 function sendPlayerInventory(conn){
-  // Game-specific metadata must never leak into the lobby or another game's UI.
-  if(!conn||!conn.playerId||!round||
-     !['countdown','playing','paused'].includes(networkPhase()))return;
-  const p=players.find(q=>q.id===conn.playerId);
-  if(!p)return;
-  if(round.mode==='snow_brawl'){
-     const sb=p.snow||{},held=round.snowBrawl?.balls.find(b=>b.id===sb.ballId);
-     send(conn,{t:'snow-status',mode:round.mode,phase:networkPhase(),
-       alive:!!sb.alive,windup:Math.max(0,sb.windup||0),flat:Math.max(0,sb.flat||0),
-       ballRadius:held?.r||0,survivors:round.snowBrawl?.roster.filter(q=>q.active&&q.snow?.alive).length||0});
-     return;
-   }
-   if(round.mode==='boulder_bash'){
-    const b=p.bb||{};
-    send(conn,{t:'boulder-status',mode:round.mode,phase:networkPhase(),
-      status:b.mode||'alive',cooldown:b.pushCooldown||0,
-      survivorCount:round.boulderBash?.roster.filter(q=>q.active&&q.bb?.alive).length||0});
-    return;
-  }
-  if(round.mode==='color_claim'){
-    send(conn,{t:'claim-status',mode:round.mode,phase:networkPhase(),percent:p.score||0,
-      frozen:window.ColorClaim.freezeActive(round.colorClaim,p),
-      eliminated:!!p.cc?.eliminated,alive:!!p.cc?.alive});return;
-  }
-  if(round.mode==='gladiators'){
-    const st=p.gladiator||{},ball=st.ball||{};
-    send(conn,{t:'gladiators-status',mode:round.mode,phase:networkPhase(),alive:!!st.alive,
-      survivors:window.Gladiators.hud(players,round).survivors,
-      ball:{x:ball.x||0,y:ball.y||0,vx:ball.vx||0,vy:ball.vy||0},
-      chain:{x:st.anchorX||0,y:st.anchorY||0},eliminatedTick:st.eliminatedTick});return;
-  }
-  if(round.mode==='witching_snake'){
-     send(conn,{t:'witch-status',mode:round.mode,phase:networkPhase(),alive:!!p.ws?.alive,stars:p.ws?.stars||0});return;
-   }
-   if(round.mode==='ice_race'){
-    send(conn,{t:'ice-status',mode:round.mode,phase:networkPhase(),score:p.score||0,
-      nextCheckpoint:p.ice?.nextCheckpoint??1,falling:p.ice?.state==='falling'});return;
-   }
-   if(round.mode==='lawn_mower'){
-    const status=window.LawnMower.playerStatus(p);
-    if(status)send(conn,{t:'lawn-status',phase:networkPhase(),...status});
-    return;
-   }
-   if(round.mode==='shopping_time'){
-    const status=window.ShoppingTime.playerStatus(p);
-    if(status)send(conn,{t:'shopping-status',phase:networkPhase(),...status});
-    return;
-  }
-  if(round.mode==='pizza_time'){
-    const status=window.PizzaTime.playerStatus(p);
-    if(status)send(conn,{t:'pizza-status',phase:networkPhase(),...status});
-    return;
-  }
-  if(round.mode==='fruit_memory'){
-    send(conn,{t:'fruit-status',mode:round.mode,phase:networkPhase(),
-      cooldown:Math.max(0,p.fruitCooldown||0),eliminated:!p.fruitAlive,stun:p.fruitStun||0});return;
-  }
-  if(round.mode==='chickens'){
-    send(conn,{t:'chicken-status',mode:round.mode,phase:networkPhase(),
-      cooldown:Math.max(0,p.chickenAttackCooldown||0),
-      carrying:p.carriedChickenId!=null});
-    return;
-  }
-  if(round.mode==='color_switch'){
-    const cs=p.cs||{};
-    send(conn,{t:'color-status',mode:round.mode,phase:networkPhase(),score:p.score||0,
-      stun:cs.stunRemaining||0,cooldownA:cs.punchCooldown||0,
-      cooldownB:cs.blastCooldown||0,
-      bankedScore:cs.bankedScore||0,territoryScore:cs.territoryScore||0});return;
-  }
-  if(round.mode==='shockwave'){
-     send(conn,{t:'shockwave-status',mode:round.mode,phase:networkPhase(),eliminated:!p.shockAlive,wave:round.shockwave?.wave||0});return;
-   }
-   if(round.mode!=='ghost')return;
-  const info=window.GhostAttack.itemStatus(players).find(q=>q.id===p.id);
-  if(info)send(conn,{t:'inventory',mode:round.mode,phase:networkPhase(),...info});
+ // Protocol packets belong to the pinned game engine. The Host never needs
+ // game-ID conditionals to communicate a new or updated minigame's status.
+ if(!conn||!conn.playerId||!round||
+    !['countdown','playing','paused'].includes(networkPhase()))return;
+ const p=players.find(q=>q.id===conn.playerId);
+ if(!p)return;
+ const packet=gameEngine(round.mode)?.getControllerPacket?.(p,round,players);
+ if(!packet||typeof packet!=='object'||Array.isArray(packet)||
+    typeof packet.t!=='string'||!packet.t)return;
+ // Phase is Host-authoritative, regardless of the plugin's returned data.
+ send(conn,{...packet,phase:networkPhase()});
 }
 function broadcastPlayerInventories(){
   for(const conn of hostConnections)sendPlayerInventory(conn);
