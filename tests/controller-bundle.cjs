@@ -27,4 +27,38 @@ for(const id of original.window.BoardItems.ids){
  assert.equal(small.window.PartyBoardItemMeta.names[id],original.window.BoardItems.names[id]);
 }
 assert.ok(controller.includes('window.BoardItems||window.PartyBoardItemMeta'));
+
+const sourceController=fs.readFileSync(path.join(root,'src/app/controller/connection.js'),'utf8');
+const first=sourceController.indexOf('function pluginControllerPlayingStatus(');
+const last=sourceController.indexOf('function renderPhoneLawnStatus(',first);
+assert.ok(first>=0&&last>first,'native controller plug-in metadata functions exist');
+const elements=new Map();
+function element(id){
+ if(!elements.has(id))elements.set(id,{
+  disabled:false,textContent:'',title:'',
+  style:{removeProperty(){},setProperty(){}},
+  classList:{toggle(){},remove(){},contains(){return false;}},
+  setAttribute(name,value){this[name]=value;}
+ });
+ return elements.get(id);
+}
+const candidate={id:'meteor_dash',name:'METEOR DASH',global:null,
+ controls:['joystick','A','C'],
+ controller:{help:'หลบอุกกาบาตด้วยจอย',labels:{A:'กระโดด',C:'เปิดโล่'},
+  status:'{name} • รอด {survivors} คน • อีก {remaining} วิ'}};
+const scope={window:{GamePlatform:{descriptor:id=>id==='meteor_dash'?candidate:null}},
+ MODES:{meteor_dash:'METEOR DASH'},controllerReady:true,controllerPlayerActive:true,
+ controllerGamePhase:'playing',controllerBoard:null,controllerLobbyVotes:{total:0},
+ controllerResultVotes:{},$:element};
+vm.runInNewContext(sourceController.slice(first,last)+
+ '\nwindow.showNativeController=showControllerMode;window.nativeStatus=pluginControllerPlayingStatus;',scope);
+scope.window.showNativeController('meteor_dash');
+assert.equal(element('buttonALabel').textContent,'กระโดด');
+assert.equal(element('buttonB').disabled,true,'unlisted action B is disabled');
+assert.equal(element('buttonC').disabled,false,'C uses the new game manifest');
+assert.equal(element('buttonCLabel').textContent,'เปิดโล่');
+assert.equal(element('controllerHelp').textContent,'หลบอุกกาบาตด้วยจอย');
+assert.equal(scope.window.nativeStatus('meteor_dash',{survivors:6,remaining:12.2}),
+ 'METEOR DASH • รอด 6 คน • อีก 13 วิ');
+
 console.log('CONTROLLER BUNDLE PASS: role-specific runtime, no Host round authority bundled, canonical BOARD metadata');

@@ -35,6 +35,7 @@ function syncGameCatalog(){
  renderModeChoices();
  if(currentView==='hostLobby'){renderRoster();broadcastRoster();}
  if(boardSession&&round?.mode==='board')warmBoardGames();
+ if(currentView==='controller')showControllerMode(controllerGameMode);
 }
 const BOARD_ENGINE={draw:(g,t)=>window.BoardArt.draw(g,t,boardSession),hud:()=>({survivors:boardSession?.players.length||0})};
 

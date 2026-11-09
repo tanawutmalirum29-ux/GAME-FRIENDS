@@ -80,7 +80,9 @@ function fixture(){
  fs.writeFileSync(path.join(temp,'index.html'),'<html></html>\n');
  const manifest={id:'demo_game',name:'DEMO GAME',version:'1.0.0',apiVersion:1,enabled:true,
   players:{min:1,max:12},modes:['normal','board'],controls:['joystick'],
-  entry:'./game.js',cover:'cover.svg',legacyScripts:[]};
+  entry:'./game.js',cover:'cover.svg',legacyScripts:[],
+  controller:{help:'Move and survive',labels:{A:'Jump',C:'Shield'},
+   status:'{name}: {survivors} survivors, {remaining}s left'}};
  fs.writeFileSync(path.join(folder,'manifest.json'),JSON.stringify(manifest));
  fs.writeFileSync(path.join(folder,'game.js'),
   'export default {setup(){},update(){},draw(){},hud(){return {survivors:1}},getResult(){return []}};');
@@ -91,6 +93,8 @@ function fixture(){
   run();
   const first=JSON.parse(fs.readFileSync(path.join(temp,'game-catalog.json'),'utf8'));
   assert.equal(first.games.length,1);
+  assert.deepEqual(first.games[0].controller,manifest.controller,
+   'controller help, labels and status must be catalog metadata');
   const source=path.join(temp,first.games[0].entryUrl.slice(1));
   assert.equal(fs.readFileSync(source,'utf8'),fs.readFileSync(path.join(folder,'game.js'),'utf8'));
   assert.ok(first.games[0].coverUrl.endsWith('/cover.svg'));

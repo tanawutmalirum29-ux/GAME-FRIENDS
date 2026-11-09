@@ -511,8 +511,9 @@ function joinRoom(recovery=false){
         showControllerMode(data.mode);
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
+        const pluginStatus=data.phase==='playing'?pluginControllerPlayingStatus(data.mode,data):null;
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='color_claim'?'COLOR CLAIM • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':data.mode==='witching_snake'?'WITCHING SNAKE • รอด '+(data.survivors??'?')+' คน':data.mode==='ice_race'?'ICE RACE • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='lawn_mower'?'LAWN MOWER • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shopping_time'?'SHOPPING TIME • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='gladiators'?'GLADIATORS • รอด '+(data.survivors??'?')+' คน':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน'):
+          data.phase==='playing'?(pluginStatus!==null?pluginStatus:(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='color_claim'?'COLOR CLAIM • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':data.mode==='witching_snake'?'WITCHING SNAKE • รอด '+(data.survivors??'?')+' คน':data.mode==='ice_race'?'ICE RACE • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='lawn_mower'?'LAWN MOWER • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shopping_time'?'SHOPPING TIME • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='gladiators'?'GLADIATORS • รอด '+(data.survivors??'?')+' คน':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน')):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
         if(data.mode==='board'&&data.phase==='playing')renderPhoneBoard();
       }else if(data.t==='closed'){
@@ -589,6 +590,19 @@ function setControllerGameContext(mode,phase,active){
   }
   showControllerMode(controllerGameMode);
 }
+function pluginControllerPlayingStatus(mode,data){
+ const plugin=window.GamePlatform?.descriptor(mode);
+ // Legacy games keep their original individualized multiplayer status.
+ if(!plugin||plugin.global)return null;
+ const template=plugin.controller?.status||'{name} • กำลังเล่น';
+ const values={
+  name:plugin.name||mode,
+  survivors:Number.isFinite(Number(data.survivors))?String(data.survivors):'?',
+  remaining:Number.isFinite(Number(data.remaining))?
+   String(Math.ceil(Math.max(0,Number(data.remaining)))):'?'
+ };
+ return template.replace(/\{(name|survivors|remaining)\}/g,(_,key)=>values[key]);
+}
 function showControllerMode(mode){
   if(mode==='board'&&controllerBoard&&!['results','summary'].includes(controllerGamePhase)){renderPhoneBoard();return;}
   const playing=controllerReady&&controllerPlayerActive&&
@@ -647,6 +661,20 @@ function showControllerMode(mode){
       mode==='shopping_time'?'เข็นรถรับของสูงสุด 5 ชิ้น ไป CHECKOUT ชิ้นละ 1 คะแนน • หลบระเบิด -5 • A/B ไม่ใช้':
       mode==='pizza_time'?'รับวัตถุดิบทีละชิ้น กลับไปส่งเชฟ • เดินรับชนิดใหม่เพื่อเปลี่ยนของ • A/B ไม่ใช้':
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
+  // Native plug-ins describe their own controls through the versioned catalog.
+  // The phone never downloads gameplay, physics, or host-only engine modules.
+  const plugin=window.GamePlatform?.descriptor(mode);
+  if(playing&&plugin&&!plugin.global){
+    const actions=plugin.controls||[],ui=plugin.controller||{},labels=ui.labels||{};
+    for(const key of ['A','B','C']){
+      const button=$('button'+key),label=$('button'+key+'Label');
+      const allowed=actions.includes(key),caption=allowed?(labels[key]||'ความสามารถ'):'';
+      label.textContent=caption;
+      button.disabled=!allowed;
+      button.setAttribute('aria-label',caption?'ปุ่ม '+key+' '+caption:'ปุ่ม '+key);
+    }
+    $('controllerHelp').textContent=ui.help||'ใช้จอยเพื่อเคลื่อนที่และปุ่มความสามารถตามที่เกมกำหนด';
+  }
 }
 function renderPhoneLawnStatus(info){
   if(!isLiveGameContext()||controllerGameMode!=='lawn_mower'||!info||
