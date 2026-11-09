@@ -802,6 +802,9 @@ function isPortraitScreen(){
 // viewport. The CSS fallback still works on browsers missing this API.
 let controllerViewportFrame=0,lastControllerViewport='';
 function syncControllerVisibleViewport(){
+ // Do not enqueue controller-only viewport rAF on host pages. This also
+ // keeps BOARD's first held animation frame owned by its game loop.
+ if(!document.body.classList.contains('controller-playing'))return;
  if(controllerViewportFrame)return;
  controllerViewportFrame=requestAnimationFrame(()=>{
   controllerViewportFrame=0;
