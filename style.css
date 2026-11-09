@@ -5956,6 +5956,7 @@ html.gf-landscape-screen{
  }
  body.gf-virtual-landscape #hostLobby .host-lobby-grid{
   grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
   min-height:0!important;overflow:hidden!important;gap:7px!important;
  }
  body.gf-virtual-landscape #hostLobby .lobby-qr-panel,
@@ -5964,10 +5965,12 @@ html.gf-landscape-screen{
   padding:7px!important;overflow:auto!important;
  }
  body.gf-virtual-landscape #hostLobby .lobby-controls{
-  grid-template-columns:minmax(0,1fr) max-content!important;
+  flex:0 0 clamp(62px,18dvw,82px)!important;
+  height:clamp(62px,18dvw,82px)!important;
+  grid-template-columns:minmax(0,1fr) clamp(175px,32dvh,230px)!important;
   grid-template-rows:minmax(0,1fr)!important;
-  min-height:0;max-height:none!important;overflow:visible!important;
-  padding:6px!important;
+  min-height:0!important;max-height:82px!important;overflow:hidden!important;
+  padding:5px!important;
  }
  body.gf-virtual-landscape #hostLobby .lobby-controls>.lobby-room-actions{
   grid-column:2!important;grid-row:1!important;
@@ -6020,3 +6023,18 @@ html.gf-landscape-screen{
 #controller #joinForm .join-orientation,
 #controller #portraitRestoreBtn,
 #controller #landscapeBtn{display:none!important}
+
+@media(orientation:portrait){
+ body.gf-virtual-landscape #hostLobby .lobby-roster .roster-pick,
+ body.gf-virtual-landscape #hostLobby .lobby-roster .roster-pick.picked{
+  overflow:hidden!important;min-width:0!important;max-width:100%!important;
+ }
+ body.gf-virtual-landscape #hostLobby .lobby-roster .roster-pick .mode-choice-title{
+  display:block!important;max-width:100%!important;
+  overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+ }
+ body.gf-virtual-landscape #hostLobby .lobby-controls>.lobby-room-actions>.btn{
+  height:clamp(29px,9dvw,38px)!important;
+  min-height:0!important;font-size:clamp(9px,1.6dvw,11px)!important;
+ }
+}
