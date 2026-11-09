@@ -5844,3 +5844,10 @@ body.controller-playing #controllerActive .controller-latency[data-latency=slow]
 body.controller-playing #controllerActive .gamepad-preview-video.pending-video{
  position:absolute;inset:0;z-index:2;opacity:0;pointer-events:none;
 }
+
+/* Live topology map fills the existing controller preview without new panels. */
+body.controller-playing #controllerActive #controllerBoardMinimap.gamepad-board-minimap{
+ position:absolute;inset:0;z-index:4;width:100%;height:100%;
+ object-fit:contain;background:#0b1927;pointer-events:none;
+}
+body.controller-playing #controllerActive #controllerBoardMinimap.hidden{display:none!important}
