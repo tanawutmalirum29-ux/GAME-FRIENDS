@@ -13,10 +13,6 @@ const files=[
     "api": "PartyArenaArt"
   },
   {
-    "file": "graveyard-art.js",
-    "api": "GhostCemeteryArt"
-  },
-  {
     "file": "combat-motion.js",
     "api": "PartyCombatMotion"
   },

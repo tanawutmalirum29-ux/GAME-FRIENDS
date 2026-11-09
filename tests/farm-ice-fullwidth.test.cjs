@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const read=name=>fs.readFileSync(new URL('../'+name,'file://'+__filename),'utf8');
-const artCode=read('farm-ice-art.js');
+const artCode=read('src/shared/farm-ice-art.js');
 
 test('all three ice/farm games choose full-width HOST rendering',()=>{
  const expected=[
@@ -20,7 +20,7 @@ test('HOST viewport occupies horizontal edges while preserving vertical HUD clea
  const doc={getElementById:id=>id==='arena'?canvas:null};
  const window={PartyArenaScenes:{badgeBottomY:()=>60}};
  const vmContext={window,document:doc};
- vm.runInNewContext(artCode,vmContext,{filename:'farm-ice-art.js'});
+ vm.runInNewContext(artCode,vmContext,{filename:'src/shared/farm-ice-art.js'});
  const art=window.FarmIceArt;
  const moves=[];
  const ctx={canvas,
@@ -49,7 +49,7 @@ test('HOST viewport occupies horizontal edges while preserving vertical HUD clea
 });
 
 test('BOULDER BASH ice and bank backdrop has no internal vertical left wall',()=>{
- const s=read('farm-ice-art.js');
+ const s=read('src/shared/farm-ice-art.js');
  const begin=s.indexOf('function paintBoulder(g,s){');
  const end=s.indexOf('function boulder(g,s){',begin);
  assert.ok(begin>=0&&end>begin);
