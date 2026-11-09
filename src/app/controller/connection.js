@@ -771,7 +771,7 @@ function controllerNow(){
 let analogInputTimer=null,lastAnalogInputAt=0;
 function queueAnalogInput(){
  if(!controllerReady)return;
- const now=performance.now(),remaining=33-(now-lastAnalogInputAt);
+ const now=controllerNow(),remaining=33-(now-lastAnalogInputAt);
  if(remaining<=0){
   lastAnalogInputAt=now;sendInputs();
  }else if(analogInputTimer===null){
