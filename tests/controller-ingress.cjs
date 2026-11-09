@@ -39,4 +39,19 @@ clock+=1000;
 assert.equal(malformedFlood.accept(input),true,'valid traffic resumes after refill');
 ingress.dispose();assert.equal(ingress.accept(input),false,'closed data connection is inert');
 const independent=create();assert.equal(independent.accept(input),true,'per-connection counters isolated');
+// The fast axis path is a separate, strictly monotonic 40Hz-budget guard.
+const createFast=()=>vm.runInContext('createFastAxisIngressGuard(clock)',ctx);
+const fast=createFast();
+assert.equal(fast.accept({t:'axis',seq:0,x:.7,y:-.4,turnId:'turn-1',mapVersion:'v10'}),true);
+assert.equal(fast.accept({t:'axis',seq:0,x:1,y:1}),false,'unordered duplicate cannot replay movement');
+assert.equal(fast.accept({t:'axis',seq:1,x:2,y:0}),false,'out-of-range axis is rejected');
+assert.equal(fast.accept({t:'axis',seq:1,x:0,y:.2,action:true}),false,
+ 'fast path must never carry A/B/C button payloads');
+assert.equal(fast.accept({t:'axis',seq:1,x:0,y:.2}),true);
+fast.dispose();assert.equal(fast.accept({t:'axis',seq:2,x:0,y:0}),false);
+const fastFlood=createFast();
+for(let i=0;i<100;i++)fastFlood.accept({t:'axis',seq:i,x:0,y:0});
+assert.equal(fastFlood.accept({t:'axis',seq:101,x:0,y:0}),false,'fast axis flood rate limited');
+clock+=1000;
+assert.equal(fastFlood.accept({t:'axis',seq:102,x:0,y:0}),true);
 console.log('CONTROLLER INGRESS PASS: valid joystick, 180Hz refill, burst, payload/type/structure guards, cleanup');
