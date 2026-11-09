@@ -226,7 +226,18 @@ assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
 assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function drawBackdrop/);
-assert.match(source,/const MODES = \{ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',color_claim:'COLOR CLAIM',ice_race:'ICE RACE',gladiators:'GLADIATORS'\}/);
+const legacyManifests=fs.readdirSync('src/games',{withFileTypes:true})
+ .filter(entry=>entry.isDirectory())
+ .map(entry=>JSON.parse(fs.readFileSync('src/games/'+entry.name+'/manifest.json','utf8')));
+const legacyModeNames=Object.fromEntries(legacyManifests.map(game=>[game.id,game.name]));
+assert.equal(legacyManifests.length,15,'all original games retain their own manifest');
+assert.match(source,/const LEGACY_GAME_DATA=Object\.freeze\(\{/);
+assert.match(source,/const MODES=Object\.fromEntries\(Object\.entries\(LEGACY_GAME_DATA\)/,
+ 'game picker must obtain labels from compiled game-owned metadata');
+for(const game of legacyManifests){
+ assert.ok(source.includes(JSON.stringify(game.id)),'compiled metadata includes '+game.id);
+ assert.ok(source.includes(JSON.stringify(game.name)),'compiled metadata keeps '+game.id+' title');
+}
 assert.match(source,/const MAX_PLAYERS = 12;/);
 assert.match(source,/window\.GamePlatform\?\.descriptor\(mode\)\?\.coverUrl/);
 assert.match(source,/window\.PartyGameCovers\?\.svg\?\.\(mode\)/,'development keeps SVG fallback');
@@ -1836,9 +1847,8 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  assert.ok(!ui.elements.get('gameRoulette').classList.contains('hidden'));
  assert.equal(ui.elements.get('rouletteHeading').textContent,'กำลังสุ่มเกม...');
  api.updateGameSelection(1.45);
- assert.equal(ui.elements.get('rouletteHeading').textContent,
-   ({ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',
-     color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',color_claim:'COLOR CLAIM',ice_race:'ICE RACE',gladiators:'GLADIATORS'})[first.mode]);
+ assert.equal(ui.elements.get('rouletteHeading').textContent,legacyModeNames[first.mode],
+  'roulette title must match game-owned manifest metadata');
  assert.ok(first.winner.classList.contains('is-selected'));
  assert.equal(first.track.style.transform,'translate3d(-'+first.final.toFixed(2)+'px,0,0)',
    'winning card stops precisely in the middle');
