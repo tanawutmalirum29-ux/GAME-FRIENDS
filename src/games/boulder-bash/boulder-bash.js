@@ -340,6 +340,6 @@ function draw(g,time,round,ps){
  // No separate top-left HUD: the shared stopwatch/headcount owns this data.
  g.restore();
 }
-window.BoulderBash=Object.freeze({setup,spawnPositions,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
+window.BoulderBash=Object.freeze({resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,spawnPositions,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
  sweptHit,finish,interval,bounds:BOUNDS,config:C});
 })();

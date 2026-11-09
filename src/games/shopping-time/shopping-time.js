@@ -344,6 +344,6 @@ function draw(ctx,time,round,ps){
  ctx.restore();
  // app.js draws the standardized clock after the engine render.
 }
-window.ShoppingTime=Object.freeze({setup,update,draw,hud,playerStatus,size,flowAt,spawn,step,
+window.ShoppingTime=Object.freeze({resultTitle:"คิดเงินให้ได้คะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,size,flowAt,spawn,step,
   bombHit,pickup,checkoutPlayer,finish,config:C});
 })();

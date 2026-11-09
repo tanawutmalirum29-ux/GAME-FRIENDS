@@ -568,6 +568,6 @@ function draw(ctx,time,round,players){
  for(const p of players)drawPlayer(ctx,p,state,time);
  ctx.restore();
 }
-window.FruitMemory=Object.freeze({setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
+window.FruitMemory=Object.freeze({resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,updateDuringCountdown:true,setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
  calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawSideScreens,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();
