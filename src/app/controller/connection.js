@@ -400,7 +400,13 @@ function joinRoom(recovery=false){
         setControllerVideoQuality(savedVideoQuality());
         setControllerPreviewEnabled(controllerPreviewEnabled);
         sendInputs();announceControllerTakeover();
-      }else if(data.t==='preview'){
+       }else if(data.t==='input-ack'){
+        const ms=Math.floor(performance.now()-Number(data.clientAt));
+        if(Number.isSafeInteger(data.actionId)&&Number.isFinite(ms)&&ms>=0&&ms<60000){
+          const latency=$('controllerLatency');
+          if(latency){latency.textContent=ms+' ms';latency.dataset.latency=ms>400?'slow':'ok';}
+        }
+       }else if(data.t==='preview'){
         if(controllerReady)receivePhonePreview(data.image);
       }else if(data.t==='preview-reset'){
         resetPhonePreview();
@@ -756,7 +762,20 @@ function renderPhoneInventory(info){
   $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
   showControllerMode(info.mode);
 }
+let analogInputTimer=null,lastAnalogInputAt=0;
+function queueAnalogInput(){
+ if(!controllerReady)return;
+ const now=performance.now(),remaining=33-(now-lastAnalogInputAt);
+ if(remaining<=0){
+  lastAnalogInputAt=now;sendInputs();
+ }else if(analogInputTimer===null){
+  analogInputTimer=setTimeout(()=>{
+   analogInputTimer=null;lastAnalogInputAt=performance.now();sendInputs();
+  },remaining);
+ }
+}
 function sendInputs(){
+ if(analogInputTimer!==null){clearTimeout(analogInputTimer);analogInputTimer=null;}
  if(!controllerReady)return;
  const keys={...controllerKeys};
  // Never let a delayed heartbeat or a stale held stick move a walking avatar
@@ -765,7 +784,7 @@ function sendInputs(){
    keys.axisX=0;keys.axisY=0;keys.left=false;keys.right=false;keys.jump=false;keys.down=false;
    if(controllerBoard?.boardPhase==='ready'){keys.action=false;keys.alt=false;keys.cancel=false;}
  }
- send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId});
+ send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId,clientAt:Math.floor(performance.now())});
 }
 function isPortraitScreen(){
   if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
