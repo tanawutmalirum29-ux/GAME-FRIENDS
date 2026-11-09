@@ -2190,6 +2190,43 @@ const phone=setup('https://game.example/?join=ABCDE3');
  assert.equal(retry.instances.length,1,
   'obsolete room retry cannot replace the new offline lobby');
 }
+// Per-connection PeerJS errors must not disconnect otherwise healthy signaling.
+{
+ const ui=setup();ui.click('hostBtn');
+ const peer=ui.instances[0];peer.fire('open');
+ const conn=peer.connect();peer.fire('connection',conn);
+ conn.fire('data',{t:'join',name:'Protected phone'});
+ const id=conn.sent.find(x=>x.t==='welcome')?.id;assert.ok(id);
+ for(const type of ['peer-unavailable','webrtc','unexpected-peer-code']){
+  peer.fire('error',{type});
+  assert.equal(peer.disconnected,false,'non-signaling '+type+' cannot force a full host disconnect');
+  assert.equal(peer.open,true,'other clients remain online after '+type);
+  assert.equal(ui.scope.window.__ghostTest.getPlayers().length,1);
+ }
+ conn.fire('data',{t:'input',keys:{axisX:.5}});
+ assert.equal(ui.scope.window.__ghostTest.getPlayers()[0].input.axisX,.5);
+ peer.fire('error',{type:'invalid-id'});
+ assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false,
+  'fatal PeerJS configuration error must not erase a running room');
+ assert.equal(ui.sessionData.has('gf-host-room-v2'),true);
+ assert.equal(conn.open,true,'fatal signaling error preserves existing DataConnection');
+}
+{
+ const ui=setup();ui.click('hostBtn');
+ const peer=ui.instances[0];peer.fire('open');
+ peer.fire('error',{type:'socket-error'});
+ assert.equal(peer.disconnected,true,'socket error enters signaling reconnection');
+ const retry=ui.timers.find(t=>t.ms>=1000&&t.ms<=1200&&!t.cancelled);
+ assert.ok(retry,'socket error schedules one reconnect');
+ retry.fn();assert.equal(peer.reconnectCount,1);
+ peer.fire('open');assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false);
+ peer.fire('disconnected');
+ const pending=ui.timers.filter(t=>t.ms>=1000&&!t.cancelled);
+ assert.ok(pending.length>0);
+ ui.click('offlineBtn');ui.click('uiConfirmBtn');
+ // Explicit close is asserted separately by the reconnect-manager unit test.
+}
+
 // Closing an online room displays an in-app dialog; cancellation keeps peers.
 const confirmHost=setup();
 confirmHost.click('hostBtn');
