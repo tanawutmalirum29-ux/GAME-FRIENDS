@@ -397,6 +397,17 @@ function joinRoom(recovery=false){
     }
     controllerState('ไม่สามารถโหลดระบบจอยออนไลน์ได้',true);return;
   }
+  const turnBootstrap=partyIceCredentialsReady();
+  if(turnBootstrap){
+    const inputCode=$('roomCodeInput').value,activeView=currentView;
+    $('joinBtn').disabled=true;
+    controllerState('กำลังเตรียม TURN สำหรับจอย...');
+    void turnBootstrap.then(()=>{
+      if(currentView===activeView&&activeView==='controller'&&
+         $('roomCodeInput').value===inputCode)joinRoom(recovery);
+    });
+    return;
+  }
   if(!recovery)reconnectTries=0;
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;
