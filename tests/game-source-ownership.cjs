@@ -53,7 +53,7 @@ assert.ok(startStatus>=0&&endStatus>startStatus);
 const statusDispatch=roomCode.slice(startStatus,endStatus);
 assert.match(statusDispatch,/gameEngine\(round\.mode\)\?\.getControllerPacket\?\.\(p,round,players\)/);
 assert.doesNotMatch(statusDispatch,/round\.mode\s*[!=]==?\s*['"][a-z_]+/);
-for(const slug of dirs){
+for(const slug of fs.readdirSync(gamesRoot).filter(x=>fs.statSync(path.join(gamesRoot,x)).isDirectory())){
  const meta=JSON.parse(fs.readFileSync(path.join(gamesRoot,slug,'manifest.json'),'utf8'));
  if(!meta.global||meta.id==='knight_match')continue; // KNIGHT has no custom status packet
  const source=fs.readFileSync(path.join(gamesRoot,slug,slug+'.js'),'utf8');
