@@ -3,9 +3,9 @@
 (()=>{
 'use strict';
 const DEFAULT='winter-expedition';
-const files=['board-map.js','board-v7-design.js','board-v7-art.js',
- 'board-branch-naming.js','board-v7-adapter.js','board-dice.js','board-dice-renderer.js',
- 'board-items.js','board-bots.js','board-minigame.js','board-party.js','board-art.js'];
+const files=["board-map.js","board-v7-design.js","board-v7-art.js",
+ "board-branch-naming.js","board-v7-adapter.js","board-dice.js","board-dice-renderer.js",
+ "board-items.js","board-bots.js","board-minigame.js","board-party.js","board-art.js"];
 const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt'];
 const loaded=new Set(),modules=new Map();
 let pending=null,refreshing=null,legacy=null,active=DEFAULT,activeHash=null;
