@@ -41,6 +41,11 @@ jobs:
         run: node tests/game-source-ownership.cjs
       - name: Enforce game-owned live roster and dynamic ID fallback
         run: node tests/plugin-roster-ownership.cjs
+      - name: Verify Unicode player names, ingress budget and host signaling recovery
+        run: |
+          node tests/player-name.cjs
+          node tests/controller-ingress.cjs
+          node tests/host-reconnect.cjs
       - name: Verify immutable cache and offline catalog behavior
         run: node tests/cache-worker.cjs
       - name: Lazy online dependency bootstrap and retries

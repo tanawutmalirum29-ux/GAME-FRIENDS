@@ -1168,15 +1168,25 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
     fire(name,value){this.handlers[name]?.(value);}
   }
   class FakePeer{
-    constructor(id){this.id=id;this.handlers={};instances.push(this);}
+    constructor(id){this.id=id;this.handlers={};this.disconnected=false;this.open=false;this.destroyed=false;this.reconnectCount=0;instances.push(this);}
     on(name,fn){this.handlers[name]=fn;}
     connect(){this.conn=new FakeConn();return this.conn;}
     call(peer,stream,options){
       const call=new FakeMediaCall(peer,stream,options);
       (this.mediaCalls??=[]).push(call);return call;
     }
-    destroy(){}
-    fire(name,value){this.handlers[name]?.(value);}
+    disconnect(){this.disconnected=true;this.open=false;this.fire('disconnected');}
+    reconnect(){
+      if(!this.disconnected||this.destroyed)throw Error('Invalid PeerJS reconnect');
+      this.reconnectCount++;this.disconnected=false;
+    }
+    destroy(){this.destroyed=true;this.open=false;this.fire('close');}
+    fire(name,value){
+      if(name==='open'){this.open=true;this.disconnected=false;}
+      if(name==='disconnected'){this.disconnected=true;this.open=false;}
+      if(name==='close'){this.destroyed=true;this.open=false;}
+      this.handlers[name]?.(value);
+    }
   }
   let raf=null;
   const windowHandlers={};
@@ -2123,20 +2133,21 @@ const phone=setup('https://game.example/?join=ABCDE3');
  const stalePeer=failed.instances[0];
  stalePeer.fire('error',{type:'network'});
  assert.equal(failed.elements.get('home').classList.contains('hidden'),false,
-  'terminal restore failure always returns to the host home');
+  'restoration remains at home until the original room code reconnects');
  assert.equal(failed.elements.get('hostLobby').classList.contains('hidden'),true);
- assert.equal(failed.elements.get('roomPanel').classList.contains('hidden'),true);
- assert.equal(failed.elements.get('hostBtn').disabled,false);
- assert.equal(failed.sessionData.has('gf-host-room-v2'),false,
-  'failed room restoration clears stale room snapshot');
- assert.equal(failed.scope.window.GAME_CAN_AUTO_RELOAD(),true,
-  'closed host is safe to receive updates without a ghost room');
+ assert.equal(failed.sessionData.has('gf-host-room-v2'),true,
+  'transient restore failure must retain the saved room snapshot');
+ const retryTimer=failed.timers.find(t=>t.ms>=1000&&t.ms<=1200&&!t.cancelled);
+ assert.ok(retryTimer,'network failure automatically retries original room');
+ retryTimer.fn();
+ assert.equal(failed.instances[1].id,'gf-party-DEF456',
+  'recovered room preserves original code');
  stalePeer.fire('open');
  assert.equal(failed.elements.get('hostLobby').classList.contains('hidden'),true,
-  'obsolete PeerJS open cannot reopen an already closed room');
- failed.click('hostBtn');failed.instances[1].fire('open');
+  'stale PeerJS cannot re-open the room');
+ failed.instances[1].fire('open');
  assert.equal(failed.elements.get('hostLobby').classList.contains('hidden'),false,
-  'user can start a fresh room after the failed restoration');
+  'restored HOST lobby returns after a successful retry');
 }
 {
  const lost=setup('https://game.example/?host=1');
@@ -2146,12 +2157,20 @@ const phone=setup('https://game.example/?join=ABCDE3');
  assert.equal(lost.elements.get('hostLobby').classList.contains('hidden'),false,
   'transient network disconnect must not kick a recoverable host');
  assert.equal(lost.elements.get('hostRoomBadge').textContent,originalBadge);
+ const reconnects=lost.timers.filter(t=>t.ms>=1000&&t.ms<=1200&&!t.cancelled);
+ assert.equal(reconnects.length,1,'disconnected event starts one scheduled reconnect');
+ peer.fire('disconnected');
+ assert.equal(lost.timers.filter(t=>t.ms>=1000&&t.ms<=1200&&!t.cancelled).length,1,
+  'duplicate disconnected event cannot stack timers');
+ reconnects[0].fn();
+ assert.equal(peer.reconnectCount,1,'host calls peer.reconnect on same PeerJS instance');
+ peer.fire('open');
+ assert.equal(lost.elements.get('hostLobby').classList.contains('hidden'),false,
+  'signal restoration must not navigate or restart an active lobby');
  peer.fire('close');
- assert.equal(lost.elements.get('home').classList.contains('hidden'),false,
-  'permanently closed PeerJS room immediately returns home');
- assert.equal(lost.elements.get('hostLobby').classList.contains('hidden'),true);
- assert.equal(lost.elements.get('roomPanel').classList.contains('hidden'),true);
- assert.equal(lost.sessionData.has('gf-host-room-v2'),false);
+ assert.equal(lost.sessionData.has('gf-host-room-v2'),true,
+  'a destroyed PeerJS must not silently erase the saved room');
+ assert.equal(lost.elements.get('hostLobby').classList.contains('hidden'),false);
 }
 {
  const restoreSaved=new Map([['gf-host-room-v2',JSON.stringify({
@@ -2171,6 +2190,42 @@ const phone=setup('https://game.example/?join=ABCDE3');
  assert.equal(retry.instances.length,1,
   'obsolete room retry cannot replace the new offline lobby');
 }
+// Per-connection PeerJS errors must not disconnect otherwise healthy signaling.
+{
+ const ui=setup();ui.click('hostBtn');
+ const peer=ui.instances[0];peer.fire('open');
+ const conn=peer.connect();peer.fire('connection',conn);
+ conn.fire('data',{t:'join',name:'Protected phone'});
+ const id=conn.sent.find(x=>x.t==='welcome')?.id;assert.ok(id);
+ for(const type of ['peer-unavailable','webrtc','unexpected-peer-code']){
+  peer.fire('error',{type});
+  assert.equal(peer.disconnected,false,'non-signaling '+type+' cannot force a full host disconnect');
+  assert.equal(peer.open,true,'other clients remain online after '+type);
+  assert.equal(ui.scope.window.__ghostTest.getPlayers().length,1);
+ }
+ conn.fire('data',{t:'input',keys:{axisX:.5}});
+ assert.equal(ui.scope.window.__ghostTest.getPlayers()[0].input.axisX,.5);
+ peer.fire('error',{type:'invalid-id'});
+ assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false,
+  'fatal PeerJS configuration error must not erase a running room');
+ assert.equal(ui.sessionData.has('gf-host-room-v2'),true);
+ assert.equal(conn.open,true,'fatal signaling error preserves existing DataConnection');
+}
+{
+ const ui=setup();ui.click('hostBtn');
+ const peer=ui.instances[0];peer.fire('open');
+ peer.fire('error',{type:'socket-error'});
+ assert.equal(peer.disconnected,true,'socket error enters signaling reconnection');
+ const retry=ui.timers.find(t=>t.ms>=1000&&t.ms<=1200&&!t.cancelled);
+ assert.ok(retry,'socket error schedules one reconnect');
+ retry.fn();assert.equal(peer.reconnectCount,1);
+ peer.fire('open');assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false);
+ peer.fire('disconnected');
+ const pending=ui.timers.filter(t=>t.ms>=1000&&!t.cancelled);
+ assert.ok(pending.length>0);
+ // Explicit close is asserted separately by the reconnect-manager unit test.
+}
+
 // Closing an online room displays an in-app dialog; cancellation keeps peers.
 const confirmHost=setup();
 confirmHost.click('hostBtn');

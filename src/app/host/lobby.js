@@ -342,6 +342,7 @@ setInterval(sendInputs,100);
 window.addEventListener('beforeunload',()=>{
   void stopRoomScanner();safePeerDestroy();
   try{if(controllerChannel)controllerChannel.close();}catch(_){}
+  stopHostReconnect();
   if(hostPeer)hostPeer.destroy();
 });
 

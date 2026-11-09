@@ -211,6 +211,35 @@ const LEGACY_GAME_DATA=Object.freeze({
     }
   }
 });
+/* Shared by the generated host and controller bundles. Keep grapheme clipping here. */
+function clipGraphemes(value,maxLength=14){
+ const text=String(value??''),limit=Math.max(0,Math.floor(Number(maxLength)||0));
+ if(typeof Intl!=='undefined'&&typeof Intl.Segmenter==='function'){
+  const segments=new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(text);
+  const out=[];for(const part of segments){if(out.length>=limit)break;out.push(part.segment);}
+  return out.join('');
+ }
+ // Code-point fallback: never slice UTF-16 surrogate pairs. Group common
+ // combining marks, VS, ZWJ emoji, skin-tone modifiers and regional flags.
+ const points=Array.from(text),out=[];
+ let cluster='',joinNext=false,flagCount=0;
+ for(const cp of points){
+  const mark=/\p{Mark}/u.test(cp)||/^[\uFE00-\uFE0F]$/u.test(cp);
+  const modifier=/^[\u{1F3FB}-\u{1F3FF}]$/u.test(cp);
+  const flag=/^[\u{1F1E6}-\u{1F1FF}]$/u.test(cp);
+  const link=cp==='\u200d';
+  const attach=!!cluster&&(mark||modifier||link||joinNext||(flag&&flagCount%2===1));
+  if(!attach){if(cluster)out.push(cluster);cluster=cp;flagCount=flag?1:0;}
+  else{cluster+=cp;flagCount=flag?flagCount+1:0;}
+  joinNext=link;
+  if(out.length>=limit)break;
+ }
+ if(out.length<limit&&cluster)out.push(cluster);
+ return out.slice(0,limit).join('');
+}
+function cleanName(value){
+ return clipGraphemes(String(value??'').trim().replace(/[<>]/g,''),14)||'เพื่อนใหม่';
+}
 const $ = (id) => document.getElementById(id);
 const MAX_PLAYERS = 12;
 // High-contrast identity palette. Earlier entries are spaced out intentionally,
@@ -507,7 +536,6 @@ document.addEventListener('webkitfullscreenchange',markArenaResolutionDirty);
 canvas.addEventListener('contextrestored',markArenaResolutionDirty);
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-const cleanName=(value)=>String(value||'').trim().replace(/[<>]/g,'').slice(0,14)||'เพื่อนใหม่';
 const blankInput=()=>({left:false,right:false,jump:false,down:false,action:false,alt:false,cancel:false,axisX:0,axisY:0});
 function setStatus(text,bad=false){$('netStatus').textContent=text;$('netDot').classList.toggle('bad',bad);}
 
@@ -645,6 +673,161 @@ document.addEventListener('touchend',e=>{
   }
   lastGameTapTime=now;lastGameTapTarget=e.target;
 },{passive:false});
+/* Per-DataConnection ingress protection. Controller sends 10 Hz heartbeat
+ * plus pointer/touch updates; retain a generous 180/s refill, 260 burst.
+ * Reject malformed packets before any Host/gameplay dispatch. */
+function createControllerIngressGuard(clock=()=>Date.now()){
+ const MAX_BYTES=4096,MAX_NODES=100,MAX_DEPTH=5,RATE=180,BURST=260;
+ const types=new Set(['join','leave','video-ready','preview-toggle',
+  'board-camera-mode','board-camera-gesture','board-camera-zoom',
+  'video-quality','pick','lobby-ready','result-vote','target-cycle','input']);
+ let tokens=BURST,last=clock(),closed=false;
+ function bounded(packet){
+  const pending=[{value:packet,depth:0}],seen=new Set();
+  let bytes=0,nodes=0;
+  while(pending.length){
+   const {value,depth}=pending.pop();
+   if(++nodes>MAX_NODES||depth>MAX_DEPTH)return false;
+   if(value===null){bytes+=4;continue;}
+   if(typeof value==='string'){bytes+=value.length*4+2;continue;}
+   if(typeof value==='number'){if(!Number.isFinite(value))return false;bytes+=24;continue;}
+   if(typeof value==='boolean'){bytes+=5;continue;}
+   if(typeof value!=='object'||Array.isArray(value)||seen.has(value))return false;
+   const proto=Object.getPrototypeOf(value);
+   if(proto!==null&&Object.getPrototypeOf(proto)!==null)return false;
+   seen.add(value);
+   for(const [k,v] of Object.entries(value)){
+    bytes+=k.length*4+4;
+    pending.push({value:v,depth:depth+1});
+    if(bytes>MAX_BYTES||pending.length>MAX_NODES)return false;
+   }
+  }
+  return bytes<=MAX_BYTES;
+ }
+ function valid(msg){
+  if(!msg||typeof msg!=='object'||Array.isArray(msg)||typeof msg.t!=='string'||!types.has(msg.t))return false;
+  if(!bounded(msg))return false;
+  switch(msg.t){
+   case 'join':return typeof msg.name==='string'&&msg.name.length<=256&&
+    (msg.clientToken===undefined||(typeof msg.clientToken==='string'&&msg.clientToken.length<=100));
+   case 'input':{
+    const keys=msg.keys;
+    if(!keys||typeof keys!=='object'||Array.isArray(keys))return false;
+    for(const [k,v] of Object.entries(keys)){
+     if(['left','right','jump','down','action','alt','cancel'].includes(k)){
+      if(typeof v!=='boolean')return false;
+     }else if(k==='axisX'||k==='axisY'){
+      if(typeof v!=='number'||!Number.isFinite(v)||Math.abs(v)>1.01)return false;
+     }else return false;
+    }
+    return (msg.actionId===undefined||(Number.isSafeInteger(msg.actionId)&&msg.actionId>=0))&&
+     (msg.turnId===undefined||msg.turnId===null||typeof msg.turnId==='string'||Number.isSafeInteger(msg.turnId))&&
+     (msg.mapVersion===undefined||msg.mapVersion===null||
+      (typeof msg.mapVersion==='string'&&msg.mapVersion.length<=80));
+   }
+   case 'board-camera-gesture':return ['pan','pinch'].includes(msg.kind)&&
+    (msg.kind==='pan'?Number.isFinite(msg.dx)&&Number.isFinite(msg.dy):
+     Number.isFinite(msg.scale));
+   case 'board-camera-zoom':return msg.direction===1||msg.direction===-1;
+   case 'board-camera-mode':case 'preview-toggle':return typeof msg.enabled==='boolean';
+   case 'target-cycle':return msg.direction===1||msg.direction===-1;
+   case 'pick':return typeof msg.mode==='string'&&msg.mode.length<=80;
+   case 'result-vote':return typeof msg.choice==='string'&&msg.choice.length<=40;
+   case 'video-ready':return typeof msg.quality==='string'&&msg.quality.length<=20;
+   case 'video-quality':return typeof msg.quality==='string'&&msg.quality.length<=20;
+   default:return true;
+  }
+ }
+ return {
+  accept(packet){
+   if(closed)return false;
+   // Charge ALL attempts before parsing/validating: malformed floods must
+   // consume the same ingress budget as valid joystick packets.
+   const now=clock(),elapsed=Math.max(0,Math.min(60000,now-last));
+   last=now;tokens=Math.min(BURST,tokens+elapsed*RATE/1000);
+   if(tokens<1)return false;
+   tokens--;
+   try{return valid(packet);}catch(_){return false;}
+  },
+  dispose(){closed=true;tokens=0;}
+ };
+}
+/* Host-only PeerJS signaling recovery. DataConnections/Board session are
+ * intentionally untouched: disconnect() keeps live WebRTC channels alive. */
+const HOST_RECONNECT_MAX=8;
+let hostReconnectTimer=null,hostReconnectWatchdog=null;
+let hostReconnectTries=0,hostReconnectPending=false,hostReconnectStopped=false;
+let hostReconnectSuppressDisconnect=false;
+function clearHostReconnectTimers(){
+ if(hostReconnectTimer!==null)clearTimeout(hostReconnectTimer);
+ if(hostReconnectWatchdog!==null)clearTimeout(hostReconnectWatchdog);
+ hostReconnectTimer=null;hostReconnectWatchdog=null;
+}
+function resetHostReconnect(){
+ clearHostReconnectTimers();
+ hostReconnectTries=0;hostReconnectPending=false;hostReconnectStopped=false;
+}
+function stopHostReconnect(){
+ clearHostReconnectTimers();
+ hostReconnectPending=false;hostReconnectStopped=true;
+}
+function scheduleHostReconnect(peer,attempt){
+ if(hostReconnectStopped||!onlineHost||hostPeer!==peer||
+    attempt!==hostOpenAttempt||peer.destroyed||peer.open||hostReconnectTimer!==null)return;
+ if(hostReconnectTries>=HOST_RECONNECT_MAX){
+  stopHostReconnect();
+  setStatus('ห้องยังอยู่ แต่เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ • ลองเปิดห้องใหม่เมื่อพร้อม',true);
+  return;
+ }
+ const delay=Math.min(16000,1000*2**hostReconnectTries);
+ // Jitter prevents reconnect storms when many clients lose signaling together.
+ const wait=Math.round(delay*(1+Math.random()*.2));
+ setStatus('ห้องยังเล่นได้ • กำลังเชื่อมต่อเซิร์ฟเวอร์ ('+
+  (hostReconnectTries+1)+'/'+HOST_RECONNECT_MAX+')',true);
+ hostReconnectTimer=setTimeout(()=>{
+  hostReconnectTimer=null;
+  if(hostReconnectStopped||hostPeer!==peer||attempt!==hostOpenAttempt||
+     !onlineHost||peer.destroyed||peer.open)return;
+  // An earlier, unanswered reconnect can leave PeerJS "connecting", where
+  // reconnect() is a no-op. Restore its disconnected precondition first.
+  if(!peer.disconnected){
+   hostReconnectSuppressDisconnect=true;
+   try{peer.disconnect();}catch(_){}
+   hostReconnectSuppressDisconnect=false;
+  }
+  if(!peer.disconnected){scheduleHostReconnect(peer,attempt);return;}
+  hostReconnectTries++;
+  hostReconnectPending=true;
+  try{peer.reconnect();}
+  catch(_){
+   hostReconnectPending=false;
+   scheduleHostReconnect(peer,attempt);
+   return;
+  }
+  // A failed handshake may never emit another event. Timeout safely without
+  // replacing the Peer or touching any existing DataConnections.
+  if(hostReconnectPending&&hostPeer===peer&&attempt===hostOpenAttempt){
+   hostReconnectWatchdog=setTimeout(()=>{
+    hostReconnectWatchdog=null;
+    if(!hostReconnectPending||hostPeer!==peer||attempt!==hostOpenAttempt)return;
+    hostReconnectPending=false;
+    if(!peer.disconnected){
+      hostReconnectSuppressDisconnect=true;
+      try{peer.disconnect();}catch(_){}
+      hostReconnectSuppressDisconnect=false;
+    }
+    scheduleHostReconnect(peer,attempt);
+   },5000);
+  }
+ },wait);
+}
+function recoverHostSignal(peer,attempt){
+ if(hostReconnectSuppressDisconnect)return;
+ if(hostReconnectStopped||hostPeer!==peer||attempt!==hostOpenAttempt||!onlineHost)return;
+ if(hostReconnectWatchdog!==null){clearTimeout(hostReconnectWatchdog);hostReconnectWatchdog=null;}
+ hostReconnectPending=false;
+ scheduleHostReconnect(peer,attempt);
+}
 function randomCode(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789', data=new Uint8Array(6);
   if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(data);
@@ -1218,6 +1401,7 @@ function resetInputs(){
   players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
 }
 function closeHost({goHome=true}={}){
+  stopHostReconnect();
   lobbyReadyVotes.clear();
   ++hostOpenAttempt;
   if(hostRetryTimeout!==null){clearTimeout(hostRetryTimeout);hostRetryTimeout=null;}
@@ -1280,6 +1464,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     closeHost();showToast('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย',true);return;
   }
   const attempt=expectedAttempt??++hostOpenAttempt;
+  if(expectedAttempt===null)resetHostReconnect();
   const code=resumeCode||randomCode();
   if(!resumeCode)deleteSession(OFFLINE_SESSION);
   $('hostBtn').disabled=true;setStatus('กำลังสร้างห้อง...');
@@ -1287,6 +1472,11 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   hostPeer=peer;
   peer.on('open',()=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
+    resetHostReconnect();
+    if(onlineHost){
+      setStatus('เชื่อมต่อเซิร์ฟเวอร์ห้อง '+code+' อีกครั้ง');
+      return; // Preserve players, round, board HP/inventory and the game view.
+    }
     roomCode=code;onlineHost=true;$('roomCode').textContent=code;
     deleteSession(OFFLINE_SESSION);
     $('roomPanel').classList.remove('hidden');$('offlineRoomHint').classList.add('hidden');
@@ -1299,8 +1489,9 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   peer.on('connection',conn=>{
     if(hostPeer!==peer){conn.close();return;}
     hostConnections.add(conn);
+    const ingress=createControllerIngressGuard();
     conn.on('data',msg=>{
-      if(!msg||typeof msg!=='object')return;
+      if(!ingress.accept(msg))return;
       if(msg.t==='join'&&!conn.playerId){
         const token=typeof msg.clientToken==='string'&&msg.clientToken.length>=12&&msg.clientToken.length<=100?msg.clientToken:null;
         let p=token?players.find(q=>q.type==='remote'&&q.clientToken===token):null;
@@ -1427,6 +1618,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
       }
     });
     function lost(){
+      ingress.dispose();
       stopHostVideoCall(conn);hostConnections.delete(conn);
       if(!onlineHost||!conn.playerId)return;
       const p=players.find(q=>q.id===conn.playerId&&q.conn===conn);
@@ -1438,29 +1630,60 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     conn.on('close',lost);conn.on('error',lost);
   });
   peer.on('disconnected',()=>{
-    if(hostPeer===peer&&attempt===hostOpenAttempt)
-      setStatus('สัญญาณเซิร์ฟเวอร์ขาดชั่วคราว',true);
-    // A temporary signaling disconnect is not a room closure.
+    if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
+    if(onlineHost)recoverHostSignal(peer,attempt);
+    else setStatus('กำลังติดต่อเซิร์ฟเวอร์ห้องเดิม...',true);
   });
   peer.on('close',()=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
-    closeHost();
-    showToast('ห้องปิดแล้ว • กลับหน้าหลัก',true);
+    // PeerJS "close" means destroyed; never erase a live game/room because
+    // the library closed after a transient network error.
+    stopHostReconnect();
+    setStatus('การเชื่อมต่อห้องหยุดทำงาน • สถานะเกมยังถูกเก็บไว้',true);
   });
   peer.on('error',err=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
-    if(err.type==='unavailable-id'&&retries<(resumeCode?12:3)){
-      hostPeer=null;try{peer.destroy()}catch(_){}
+    const type=String(err?.type||'unknown');
+    const fatal=new Set(['browser-incompatible','invalid-id','invalid-key','ssl-unavailable']);
+    const signaling=new Set(['network','socket-error','socket-closed','server-error','disconnected']);
+    if(onlineHost){
+      if(fatal.has(type)||type==='unavailable-id'||peer.destroyed){
+        stopHostReconnect();
+        setStatus('ไม่สามารถเชื่อมต่อห้องเดิม: '+type+' • สถานะเกมยังอยู่',true);
+      }else if(peer.open&&!peer.disconnected&&!signaling.has(type)){
+        // peer-unavailable, per-connection WebRTC and unknown errors do
+        // not imply a lost signaling socket. Do not disrupt other clients.
+        setStatus('ข้อผิดพลาดการเชื่อมต่อย่อย: '+type+' • ห้องยังเปิดอยู่',true);
+      }else{
+        if(!peer.disconnected)try{peer.disconnect();}catch(_){}
+        recoverHostSignal(peer,attempt);
+      }
+      return; // No transient/fatal Peer error destroys active room or inventory.
+    }
+    // No players have joined yet. Retry the SAME room code, never a new ID.
+    if(retries<HOST_RECONNECT_MAX&&!fatal.has(type)&&!peer.destroyed&&type!=='unavailable-id'){
+      hostPeer=null;try{peer.destroy();}catch(_){}
+      const delay=Math.min(16000,1000*2**retries);
       hostRetryTimeout=setTimeout(()=>{
         hostRetryTimeout=null;
-        if(attempt===hostOpenAttempt)startHost(retries+1,resumeCode,attempt);
-      },resumeCode?1200+retries*350:250);
+        if(attempt===hostOpenAttempt)startHost(retries+1,code,attempt);
+      },Math.round(delay*(1+Math.random()*.2)));
+      setStatus('กำลังคืนห้องเดิม ('+(retries+1)+'/'+HOST_RECONNECT_MAX+')',true);
       return;
     }
-    const type=err?.type||'network';
-    closeHost(); // Clears stale saved sessions, peers, board and lobby view.
-    setStatus('เปิดห้องไม่สำเร็จ: '+type,true);
-    showToast(resumeCode?'คืนห้องเดิมไม่ได้ • กลับหน้าหลัก':'เปิดห้องไม่สำเร็จ • กลับหน้าหลัก',true);
+    // An initial unrecoverable ID cannot yet have active WebRTC channels;
+    // still keep any restored room snapshot for manual recovery.
+    stopHostReconnect();
+    if(type==='unavailable-id'&&retries<HOST_RECONNECT_MAX){
+      hostPeer=null;try{peer.destroy();}catch(_){}
+      hostRetryTimeout=setTimeout(()=>{
+        hostRetryTimeout=null;
+        if(attempt===hostOpenAttempt)startHost(retries+1,code,attempt);
+      },1200+retries*350);
+      return;
+    }
+    $('hostBtn').disabled=false;
+    setStatus('เชื่อมต่อห้อง '+code+' ไม่สำเร็จ: '+type,true);
   });
 }
 function copyInvite(){
@@ -1623,7 +1846,7 @@ function getSavedNickname(){
   catch(_){try{return sessionStorage.getItem('gf-nick')||'';}catch(__){return '';}}
 }
 function rememberNickname(){
-  const value=$('nick').value.trim().slice(0,14);
+  const value=$('nick').value.trim()?cleanName($('nick').value):'';
   if(!value)return;
   try{window.localStorage.setItem('gf-nick',value);}catch(_){}
   try{sessionStorage.setItem('gf-nick',value);}catch(_){}
@@ -3594,6 +3817,7 @@ setInterval(sendInputs,100);
 window.addEventListener('beforeunload',()=>{
   void stopRoomScanner();safePeerDestroy();
   try{if(controllerChannel)controllerChannel.close();}catch(_){}
+  stopHostReconnect();
   if(hostPeer)hostPeer.destroy();
 });
 

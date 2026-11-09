@@ -150,7 +150,7 @@ function getSavedNickname(){
   catch(_){try{return sessionStorage.getItem('gf-nick')||'';}catch(__){return '';}}
 }
 function rememberNickname(){
-  const value=$('nick').value.trim().slice(0,14);
+  const value=$('nick').value.trim()?cleanName($('nick').value):'';
   if(!value)return;
   try{window.localStorage.setItem('gf-nick',value);}catch(_){}
   try{sessionStorage.setItem('gf-nick',value);}catch(_){}
