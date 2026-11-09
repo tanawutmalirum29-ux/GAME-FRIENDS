@@ -401,7 +401,7 @@ function joinRoom(recovery=false){
         setControllerPreviewEnabled(controllerPreviewEnabled);
         sendInputs();announceControllerTakeover();
        }else if(data.t==='input-ack'){
-        const ms=Math.floor(performance.now()-Number(data.clientAt));
+        const ms=Math.floor(controllerNow()-Number(data.clientAt));
         if(Number.isSafeInteger(data.actionId)&&Number.isFinite(ms)&&ms>=0&&ms<60000){
           const latency=$('controllerLatency');
           if(latency){latency.textContent=ms+' ms';latency.dataset.latency=ms>400?'slow':'ok';}
