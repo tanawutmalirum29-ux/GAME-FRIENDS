@@ -260,7 +260,7 @@
     <main id="controller" class="controller-page hidden">
       <div class="controller-intro"><div class="eyebrow">STICK SQUAD CONTROLLER</div><h1>มือถือของคุณ<br><em>คือจอยเกม</em></h1><p>เข้าร่วมห้อง <b id="joinCode">------</b> แล้วควบคุมตัวละครบนจอหลัก</p></div>
       <section id="joinForm" class="panel join-panel">
-        <div class="join-orientation"><span>หน้าจอเข้าห้องแนะนำแนวนอน</span><button id="joinLandscapeBtn" class="btn btn-outline" type="button" aria-label="ลองเปิดหน้าเข้ารหัสแนวนอน"><svg class="game-vector-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> เปิดแนวนอน</button></div>
+        <div class="join-orientation" hidden aria-hidden="true"><span>หน้าจอเข้าห้องแนะนำแนวนอน</span><button id="joinLandscapeBtn" class="btn btn-outline" type="button" aria-label="ลองเปิดหน้าเข้ารหัสแนวนอน"><svg class="game-vector-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> เปิดแนวนอน</button></div>
         <label for="nick">ชื่อเล่น (จำไว้ในเครื่องนี้)</label>
         <input id="nick" maxlength="14" placeholder="กรอกชื่อเล่นครั้งเดียว" autocomplete="nickname" spellcheck="false">
         <p class="hint nickname-hint">ชื่อจะถูกจำไว้ในเบราว์เซอร์นี้ แม้เปิด QR ห้องอื่นในแท็บใหม่</p>
@@ -362,7 +362,7 @@
           </div>
         </div>
       </section>
-      <div id="rotateNotice" class="rotate-notice" role="status">
+      <div id="rotateNotice" class="rotate-notice" hidden aria-hidden="true">
         <span class="rotate-symbol" aria-hidden="true">▣</span>
         <h2>เลือกวิธีใช้จอย</h2>
         <p>แนะนำให้หมุนมือถือเป็นแนวนอนเพื่อเล่นตามปกติ<br>ถ้าหมุนเครื่องไม่ได้ สามารถหมุน <strong>หน้าจอยเกม</strong> แทนได้</p>
