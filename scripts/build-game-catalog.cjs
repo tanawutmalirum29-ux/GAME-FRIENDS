@@ -89,6 +89,16 @@ function build({write=false}={}){
   if(!meta.players||!Number.isInteger(meta.players.min)||!Number.isInteger(meta.players.max)||meta.players.min<1||meta.players.max>12||meta.players.min>meta.players.max)throw Error('Invalid players: '+slug);
   if(!Array.isArray(meta.modes)||!meta.modes.length||meta.modes.some(m=>!['normal','board'].includes(m))||new Set(meta.modes).size!==meta.modes.length)throw Error('Invalid modes: '+slug);
   if(!Array.isArray(meta.controls)||meta.controls.some(x=>!['joystick','A','B','C'].includes(x)))throw Error('Invalid controls: '+slug);
+  if(meta.controller!==undefined){
+   const ui=meta.controller;
+   if(!ui||typeof ui!=='object'||Array.isArray(ui)||
+    (ui.help!==undefined&&(typeof ui.help!=='string'||ui.help.length>300))||
+    (ui.status!==undefined&&(typeof ui.status!=='string'||ui.status.length>180))||
+    (ui.labels!==undefined&&(!ui.labels||typeof ui.labels!=='object'||
+      Array.isArray(ui.labels)||Object.entries(ui.labels).some(([k,v])=>
+       !['A','B','C'].includes(k)||typeof v!=='string'||v.length>48))))
+    throw Error('Invalid controller metadata: '+slug);
+  }
   if(typeof meta.entry!=='string'||!meta.entry.startsWith('./')||meta.entry.includes('..')||!meta.entry.endsWith('.js'))throw Error('Invalid entry: '+slug);
   const entry=meta.entry.slice(2),local=list(folder);
   if(!local.includes(entry))throw Error('Missing game entry: '+slug);
@@ -114,6 +124,7 @@ function build({write=false}={}){
   if(meta.cover!==undefined&&(typeof meta.cover!=='string'||meta.cover.startsWith('/')||meta.cover.includes('..')||!local.includes(meta.cover)))throw Error('Invalid cover: '+slug);
   out.push({id:meta.id,name:meta.name,version:meta.version,apiVersion:1,
    enabled:meta.enabled,players:meta.players,modes:meta.modes,controls:meta.controls,
+   controller:meta.controller||null,
    hash:fingerprint,entryUrl:'/'+base+entry,
    legacyUrls:legacy.map(x=>'/'+base+'legacy/'+x.name),global:meta.global||null,
    coverUrl:meta.cover?'/'+base+meta.cover:null});
