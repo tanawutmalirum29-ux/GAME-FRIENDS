@@ -64,7 +64,7 @@ async function run(){
   page.on('pageerror',error=>errors.push(String(error)));
   await page.goto('http://127.0.0.1:'+server.address().port+'/?host=1');
   await page.locator('#hostBtn').click();
-  await page.waitForFunction(()=>!!window.__peerInstances[0]&&!!window.__peerQA);
+  await page.waitForFunction(()=>!!window.__peerInstances[0]&&!!window.__peerQA,null,{polling:100});
   await page.evaluate(()=>__peerInstances[0].fire('open',__peerInstances[0].id));
   const initial=await page.evaluate(()=>{
    const peer=__peerInstances[0],a=new MockConnection();
@@ -85,7 +85,7 @@ async function run(){
   }));
   assert.equal(alive.x,.7,'existing DataConnection still delivers joystick after lost signaling');
   assert.equal(alive.connected,true);
-  await page.waitForFunction(()=>__peerInstances[0].reconnectCount===1,{},{timeout:10000});
+  await page.waitForFunction(()=>__peerInstances[0].reconnectCount===1,null,{polling:100,timeout:10000});
   const recovered=await page.evaluate(()=>{
    const peer=__peerInstances[0],b=new MockConnection();
    peer.fire('connection',b);
@@ -98,7 +98,7 @@ async function run(){
   assert.equal(recovered.instances,1,'do not replace a recoverable PeerJS instance');
   await page.locator('[data-session-mode="board"]').click();
   await page.locator('#startBtn').click();
-  await page.waitForFunction(()=>!!__peerQA.board,{},{timeout:15000});
+  await page.waitForFunction(()=>!!__peerQA.board,null,{polling:100,timeout:15000});
   const before=await page.evaluate(()=>{
    const s=__peerQA.board;
    window.__savedBoard=s;
@@ -111,7 +111,7 @@ async function run(){
    peer.fire('disconnected');
    __originalConn.close();
   });
-  await page.waitForFunction(()=>__peerInstances[0].reconnectCount===2,{},{timeout:10000});
+  await page.waitForFunction(()=>__peerInstances[0].reconnectCount===2,null,{polling:100,timeout:10000});
   const result=await page.evaluate(()=>{
    const peer=__peerInstances[0],c=new MockConnection();
    peer.fire('connection',c);
