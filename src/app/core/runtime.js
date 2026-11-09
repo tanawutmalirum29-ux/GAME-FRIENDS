@@ -422,7 +422,27 @@ const isIOSBrowser=()=>{
 const isStandaloneWebApp=()=>navigator?.standalone===true||
   !!window.matchMedia?.('(display-mode: standalone)')?.matches||
   !!window.matchMedia?.('(display-mode: fullscreen)')?.matches;
-let hostFullscreenWasEntered=false;
+// One orientation policy for installed Host/Controller apps and web Host rooms.
+ // Native orientation lock is best effort; CSS rotation covers unsupported iOS.
+ const physicalPortrait=()=>{
+  const match=window.matchMedia?.('(orientation: portrait)');
+  return typeof match?.matches==='boolean'?match.matches:
+    Number(window.innerHeight)>Number(window.innerWidth);
+ };
+ const usesVirtualLandscape=()=>document.body.classList.contains('gf-virtual-landscape');
+ function syncLandscapePresentation(){
+  const active=physicalPortrait()&&
+   (isStandaloneWebApp()||currentView==='hostLobby'||currentView==='game');
+  const was=usesVirtualLandscape();
+  document.body.classList.toggle('gf-virtual-landscape',active);
+  document.documentElement?.classList?.toggle?.('gf-landscape-screen',active);
+  if(was!==active)markArenaResolutionDirty();
+  if(currentView==='controller'&&controllerReady){
+   if(typeof followDeviceOrientation==='function')followDeviceOrientation();
+   if(typeof syncControllerVisibleViewport==='function')syncControllerVisibleViewport();
+  }
+ }
+ let hostFullscreenWasEntered=false;
 function syncWebAppHelp(){
  const show=currentView==='game'&&isIOSBrowser()&&!isStandaloneWebApp();
  $('webAppHelpBtn').classList.toggle('hidden',!show);
@@ -446,6 +466,7 @@ function setView(view) {
   if(view==='game')markArenaResolutionDirty();
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
+  syncLandscapePresentation();
   if(view!=='game')hostFullscreenWasEntered=false;
   syncZoomPolicy();syncWebAppHelp();syncFullscreenRecovery();
   // A joined QR link can open directly on the room-code form; try native
@@ -464,7 +485,12 @@ function tryLandscapeOrientation(){
     if(result&&typeof result.catch==='function')result.catch(()=>{});
   }catch(_){/* The device/browser controls physical orientation. */}
 }
-// Restore the original fullscreen behavior on any browser that supports it.
+// Orientation state follows physical rotation, URL bars and installation mode.
+ window.addEventListener('orientationchange',syncLandscapePresentation);
+ window.addEventListener('resize',syncLandscapePresentation);
+ window.addEventListener('pageshow',syncLandscapePresentation);
+ window.visualViewport?.addEventListener?.('resize',syncLandscapePresentation);
+ // Restore the original fullscreen behavior on any browser that supports it.
 // Browser/OS permission prompts remain under the browser's control.
 function requestHostFullscreen(){
   // A Home Screen Web App already has no browser bars. Entering the native
