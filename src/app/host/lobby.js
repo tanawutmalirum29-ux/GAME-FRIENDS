@@ -73,7 +73,7 @@ function beginGameSelection(mode){
   gameSelection={mode,elapsed:0,spinDuration:1.45,holdDuration:1.18,
     initial,final,winningIndex,winner,track,ready:true,error:null};
   const platform=window.GamePlatform,selection=gameSelection;
-  if(platform&&(!!window.GAME_CORE_VERSION||platform.descriptor(mode))&&
+  if(platform&&(!!window.GAME_CORE_HASH||platform.descriptor(mode))&&
      (!platform.revision||!platform.ready(mode))){
     selection.ready=false;
     void (async()=>{
@@ -277,7 +277,7 @@ $('videoStartBtn').addEventListener('click',()=>{
   const packet=pendingCameraGesture;pendingCameraGesture=null;
   if(!packet||!controllerReady||!controllerConn?.open||!boardCameraController?.enabled())return;
   send(controllerConn,{t:'board-camera-gesture',...packet,
-    turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
+    turnId:controllerBoard?.turnId,mapId:controllerBoard?.mapId});
  };
  const queueCameraGesture=gesture=>{
   if(pendingCameraGesture&&pendingCameraGesture.kind===gesture.kind){
@@ -349,7 +349,7 @@ boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
      if(controllerBoard?.boardPhase==='ready')renderPhoneBoard();
     if(notify&&controllerConn?.open)
       send(controllerConn,{t:'board-camera-mode',enabled,
-        turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
+        turnId:controllerBoard?.turnId,mapId:controllerBoard?.mapId});
   },
   onGesture:gesture=>{
     if(!controllerReady||!controllerConn?.open)return;

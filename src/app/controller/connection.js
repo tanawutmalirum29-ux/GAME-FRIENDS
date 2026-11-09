@@ -92,7 +92,7 @@ function updatePhoneGamePicker(phase,choice){
   const inspected=!!boardCameraController?.enabled();
   send(fast,{t:'axis',seq:++controllerFastAxisSeq,
    x:inspected?0:controllerKeys.axisX,y:inspected?0:controllerKeys.axisY,
-   turnId:controllerBoard?.turnId??null,mapVersion:controllerBoard?.mapVersion??null});
+   turnId:controllerBoard?.turnId??null,mapId:controllerBoard?.mapId??null});
   return true;
  }
  let controllerMediaCall=null;
@@ -447,7 +447,7 @@ function joinRoom(recovery=false){
     if(controllerPeer!==peer)return;
     const conn=peer.connect('gf-party-'+code,{reliable:true,serialization:'json'});
     controllerConn=conn;
-    conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken,...gfVersionHello()});controllerState('กำลังรอห้องรับผู้เล่น...');});
+    conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken,...gfConnectionHello()});controllerState('กำลังรอห้องรับผู้เล่น...');});
     peer.on('call',call=>{
       if(controllerPeer!==peer||call.peer!=='gf-party-'+code||!controllerPreviewEnabled){
         try{call.close();}catch(_){}
@@ -472,7 +472,7 @@ function joinRoom(recovery=false){
         safePeerDestroy();return;
       }
       if(data.t==='welcome'){
-        if(!gfVersionsCompatible(data)){
+        if(!gfConnectionCompatible(data)){
           controllerState('โฮสต์ใช้โปรโตคอลหรือ Core คนละเวอร์ชัน • อัปเดตแอปแล้วเข้าห้องอีกครั้ง',true);
           $('joinBtn').disabled=false;safePeerDestroy();return;
         }
@@ -800,7 +800,7 @@ function showControllerMode(mode){
     'กด A เพื่อโหวตเริ่มเกม • ครบทุกคนแล้วเกมเริ่มอัตโนมัติ':
     playing?(ui.help||'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่'):
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
-  // Native plug-ins describe their own controls through the versioned catalog.
+  // Native plug-ins describe their own controls through the game catalog.
   // The phone never downloads gameplay, physics, or host-only engine modules.
   if(playing&&plugin&&!plugin.global){
     const actions=plugin.controls||[];
@@ -907,7 +907,7 @@ function sendInputs(){
    keys.axisX=0;keys.axisY=0;keys.left=false;keys.right=false;keys.jump=false;keys.down=false;
    if(controllerBoard?.boardPhase==='ready'){keys.action=false;keys.alt=false;keys.cancel=false;}
  }
- send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId,clientAt:Math.floor(controllerNow())});
+ send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapId:controllerBoard?.mapId,actionId:++controllerActionId,clientAt:Math.floor(controllerNow())});
   sendControllerFastAxis();
 }
 function isPortraitScreen(){

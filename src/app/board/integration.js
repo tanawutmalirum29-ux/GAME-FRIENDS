@@ -148,7 +148,7 @@ function beginBoard(){
   const platform=window.GamePlatform;
   // Production no longer downloads legacy minigame engines at initial page load.
   // Wait for the versioned registry rather than mistaking them for missing games.
-  if(window.GAME_CORE_VERSION&&platform&&!platform.revision){
+  if(window.GAME_CORE_HASH&&platform&&!platform.revision){
     if(boardCatalogPending)return;
     boardCatalogPending=true;
     void platform.refresh().then(()=>{

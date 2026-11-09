@@ -76,7 +76,7 @@ async function refreshMaps(){
   if(!res.ok)throw Error('BOARD map catalog unavailable: '+res.status);
   const data=await res.json();
   // A different Core must wait for an explicit safe reload, not an active room.
-  if(window.GAME_CORE_VERSION&&data.coreHash!==window.GAME_CORE_VERSION)return false;
+  if(window.GAME_CORE_HASH&&data.coreHash!==window.GAME_CORE_HASH)return false;
   const next=inspect(data);
   if(!next.some(m=>m.id===DEFAULT&&m.enabled))throw Error('Default BOARD map unavailable');
   if(JSON.stringify(next)===JSON.stringify(catalog)){render();return false;}
@@ -173,7 +173,7 @@ if(typeof document!=='undefined'&&typeof document.getElementById==='function'){
 /* System plug-ins reuse the BOARD route and content-addressed deployment.
  * Discovery is metadata-only; all code changes activate at a NEW board session. */
 const systemCache=new Map(),activeSystems=new Map(),systemRejected=new Map();
-let systemCatalog=[],systemRevision=0,systemPrepared=!window.GAME_CORE_VERSION;
+let systemCatalog=[],systemRevision=0,systemPrepared=!window.GAME_CORE_HASH;
 let systemRefreshing=null;
 const categories=['items','spaces','events'];
 function inspectSystems(value){
@@ -211,7 +211,7 @@ async function refreshSystems(){
    throw Error('BOARD systems unavailable: '+response.status);
   }
   const data=await response.json();
-  if(window.GAME_CORE_VERSION&&data.coreHash!==window.GAME_CORE_VERSION)return false;
+  if(window.GAME_CORE_HASH&&data.coreHash!==window.GAME_CORE_HASH)return false;
   const next=inspectSystems(data);
   if(JSON.stringify(next)===JSON.stringify(systemCatalog))return false;
   systemCatalog=next;systemRevision++;systemPrepared=false;
