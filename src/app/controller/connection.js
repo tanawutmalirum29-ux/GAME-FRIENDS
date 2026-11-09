@@ -102,6 +102,7 @@ function stopControllerVideo(){
  if(call)try{call.close();}catch(_){}
  const video=$('controllerPreviewVideo');
  video.onloadeddata=null;video.onplaying=null;
+ video.classList.remove('pending-video');
  try{video.pause();}catch(_){}
  video.srcObject=null;video.classList.add('hidden');
  $('videoStartBtn').classList.add('hidden');
