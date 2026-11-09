@@ -34,7 +34,9 @@ test('all minigame timers are drawn by one host dispatcher', () => {
   ['chickens','playing',32,null,'clock'],['color_switch','playing',25,null,'clock'],
   ['shopping_time','playing',18,null,'clock'],['pizza_time','playing',20,null,'clock'],
   ['knight_match','playing',12,null,'clock'],['lawn_mower','playing',11,null,'clock'],
-  ['board','playing',null,null,'none']
+  ['board','playing',null,null,'none'],
+  ['new_game','countdown',null,2,'person'],
+  ['new_game','playing',25,null,'person']
  ];
  for(const [mode,phase,remaining,countdown,expected] of cases){
   const calls=[];
@@ -43,7 +45,12 @@ test('all minigame timers are drawn by one host dispatcher', () => {
    playerCount:(_g,n)=>calls.push(['person',n])
   }};
   const round={mode,phase,remaining,countdown};
-  runner(window,()=>({draw(){},hud(){return {survivors:6}}}),()=>{},{},[],round,0);
+  runner(window,()=>({
+   draw(){},hud(){return {survivors:6}},
+   hudBadge:mode==='shockwave'||mode==='new_game'?
+    {duringCountdown:'players',duringPlay:'players'}:
+    mode==='fruit_memory'?{duringCountdown:'clock',duringPlay:'players'}:undefined
+  }),()=>{},{},[],round,0);
   if(expected==='none')assert.equal(calls.length,0,mode);
   else{
    assert.equal(calls.length,1,mode+' displays exactly one badge');
@@ -111,8 +118,11 @@ test('no duplicate mode-level clocks or top-left information banners', () => {
  for(const [name,re] of Object.entries(forbidden))assert.doesNotMatch(read(name),re,name);
  assert.match(read('src/games/fruit-memory/fruit-memory.js'),/function drawSideScreens\(ctx,state,round\)/,
   'Fruit Memory uses mirrored SVG side screens');
- assert.match(read('app.js'),/r\.mode==='fruit_memory'/,
-  'Fruit Memory has a shared host countdown, not a memorize timer');
+ assert.match(read('src/games/fruit-memory/fruit-memory.js'),
+  /hudBadge:\{duringCountdown:"clock",duringPlay:"players"\}/,
+  'Fruit Memory owns the generic host badge policy without hardcoded core modes');
+ assert.doesNotMatch(read('src/app/rounds/render.js'),/r\.mode==='fruit_memory'/,
+  'Core must not special-case Fruit Memory badge rendering');
  assert.doesNotMatch(read('app.js'),/drawTargetFruits/,
   'old three-fruit HUD is removed');
 });

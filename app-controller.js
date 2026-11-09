@@ -2503,26 +2503,32 @@ function renderLeaderboard(){
 // All minigame clocks and survivor counts are painted ONLY here, after engines
 // finish their scene: one badge, one position, no in-engine duplicates.
 // SHOCKWAVE intentionally never displays a numerical warning timer.
-function hostClockValue(r){
-  if(!r||r.mode==='board'||r.mode==='shockwave')return null;
-  if(r.phase==='countdown')return Number.isFinite(r.countdown)?Math.max(0,r.countdown):null;
-  if(r.mode==='fruit_memory'||r.phase!=='playing')return null;
-  if(Number.isFinite(r.remaining))return Math.max(0,r.remaining);
+function hostClockValue(r,engine){
+  if(!r||r.mode==='board')return null;
+  // Game-owned display policy replaces per-game mode checks in shared HUD.
+  const badge=engine?.hudBadge||{};
+  if(r.phase==='countdown'){
+    if(badge.duringCountdown==='players')return null;
+    return Number.isFinite(r.countdown)?Math.max(0,r.countdown):null;
+  }
+  if(r.phase!=='playing'||badge.duringPlay==='players')return null;
   // Elapsed time is NOT a countdown: multiplayer survival shows the live
   // headcount instead. Solo survival still uses round.remaining above.
-  return null;
+  return Number.isFinite(r.remaining)?Math.max(0,r.remaining):null;
 }
 function drawGame(t){
   if(!round)return;
   syncArenaResolution();
-  gameEngine(round.mode).draw(g,t,round,players);
+  const engine=gameEngine(round.mode);
+  engine.draw(g,t,round,players);
   if(round.mode==='board')return; // BOARD PARTY has a separate HUD.
-  const seconds=hostClockValue(round);
+  const seconds=hostClockValue(round,engine);
   if(seconds!==null){
     window.PartyArenaScenes?.clock?.(g,seconds);
-  }else if(round.phase==='playing'||round.mode==='shockwave'||round.mode==='fruit_memory'){
+  }else if(round.phase==='playing'||
+    (round.phase==='countdown'&&engine?.hudBadge?.duringCountdown==='players')){
     // No countdown: use only the shared SVG person and survivor total.
-    const survivors=gameEngine(round.mode).hud?.(players,round)?.survivors;
+    const survivors=engine.hud?.(players,round)?.survivors;
     if(Number.isFinite(survivors)){
       window.PartyArenaScenes?.playerCount?.(g,survivors);
     }

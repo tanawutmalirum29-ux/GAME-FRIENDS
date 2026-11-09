@@ -453,7 +453,7 @@ function renderRoster(root,active,round){
     });return;
   
 }
-window.Shockwave=Object.freeze({renderRoster,getResultHeading,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
+window.Shockwave=Object.freeze({renderRoster,getResultHeading,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,hudBadge:{duringCountdown:"players",duringPlay:"players"},updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
  calculateDangerContact,calculateFootSupport,resolvePlayerCollision,calculateDangerWeights,
   dangerCount,requiredEscapeSeconds,
  selectDangerTiles,validateSafeRoutes,warningSeconds,intervalSeconds,distanceBias,

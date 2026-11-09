@@ -70,6 +70,13 @@ const engine = {
 export default engine;
 ```
 
+สำหรับ HUD ส่วนกลาง Engine ระบุ `hudBadge` ได้โดยไม่ต้องแก้ Core เช่น
+`hudBadge: {duringCountdown:'players', duringPlay:'players'}` สำหรับเกมที่
+แสดงจำนวนผู้รอดตั้งแต่ Countdown; ค่าเริ่มต้นคือแสดงเวลา Countdown และ
+แสดงเวลาคงเหลือระหว่างเล่นถ้ามี (มิฉะนั้นแสดงจำนวนผู้รอด).
+ตั้ง `duringPlay:'players'` เมื่อเกมมีตัวจับเวลาภายในฉากเอง เช่น FRUIT MEMORY
+เพื่อป้องกัน HUD แสดงเวลาซ้ำ
+
 มี Lifecycle เพิ่มเติมได้ตามความจำเป็น: `updateDuringCountdown: true` เพื่อให้เดินระหว่างนับถอยหลัง และ `onCountdownFinished(round,players)` เพื่อเริ่มสถานะจริงหลังนับเสร็จ. ผลการแข่งขันควบคุมผ่าน `getResult` ของเกมเดียวกันสำหรับทั้ง NORMAL และ BOARD; Core จัดอันดับร่วม คะแนนทัวร์นาเมนต์ UI และการแจกของในบอร์ดเอง
 
 ## Live Roster สำหรับเกมใหม่ (ทางเลือก)
