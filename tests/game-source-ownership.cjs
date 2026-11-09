@@ -51,6 +51,34 @@ const startStatus=roomCode.indexOf('function sendPlayerInventory(conn){');
 const endStatus=roomCode.indexOf('function broadcastPlayerInventories(){',startStatus);
 assert.ok(startStatus>=0&&endStatus>startStatus);
 const statusDispatch=roomCode.slice(startStatus,endStatus);
+
+const vm=require('node:vm');
+const deliveries=[],warnings=[];
+const badEngine={getControllerPacket(){throw Error('faulty update')}};
+const goodEngine={getControllerPacket(){return {t:'custom-status',mode:'forged',phase:'forged',score:7}}};
+let selectedEngine=badEngine;
+const peer={playerId:'p1'},context={
+ players:[{id:'p1',active:true}],round:{mode:'unknown_future_game'},
+ gameEngine:()=>selectedEngine,networkPhase:()=> 'playing',
+ send:(_,msg)=>deliveries.push(msg),
+ console:{warn:(...args)=>warnings.push(args)},
+ WeakSet
+};
+vm.createContext(context);
+vm.runInContext('const failedControllerStatusEngines=new WeakSet();\n'+statusDispatch+
+ '\nthis.dispatchControllerStatus=sendPlayerInventory;',context);
+assert.doesNotThrow(()=>context.dispatchControllerStatus(peer));
+assert.doesNotThrow(()=>context.dispatchControllerStatus(peer));
+assert.equal(warnings.length,1,'failed game packet must not spam or crash the room');
+assert.equal(deliveries.length,0,'broken hook must not emit invalid data');
+selectedEngine=goodEngine;
+context.dispatchControllerStatus(peer);
+assert.equal(deliveries.length,1);
+assert.equal(deliveries[0].mode,'unknown_future_game',
+ 'new game IDs work without Host branches');
+assert.equal(deliveries[0].phase,'playing',
+ 'Host phase cannot be overridden by a status hook');
+
 assert.match(statusDispatch,/gameEngine\(round\.mode\)\?\.getControllerPacket\?\.\(p,round,players\)/);
 assert.doesNotMatch(statusDispatch,/round\.mode\s*[!=]==?\s*['"][a-z_]+/);
 for(const slug of fs.readdirSync(gamesRoot).filter(x=>fs.statSync(path.join(gamesRoot,x)).isDirectory())){

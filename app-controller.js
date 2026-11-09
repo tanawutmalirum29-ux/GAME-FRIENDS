@@ -848,18 +848,30 @@ function nominatedGames(){
   return players.map(p=>p.choice).filter(mode=>Object.hasOwn(MODES,mode));
 }
 function updateHostQueue(){$('hostQueue').textContent='';}
+const failedControllerStatusEngines=new WeakSet();
 function sendPlayerInventory(conn){
- // Protocol packets belong to the pinned game engine. The Host never needs
- // game-ID conditionals to communicate a new or updated minigame's status.
+ // The pinned engine owns its status, never a list of game IDs in Host Core.
  if(!conn||!conn.playerId||!round||
     !['countdown','playing','paused'].includes(networkPhase()))return;
  const p=players.find(q=>q.id===conn.playerId);
  if(!p)return;
- const packet=gameEngine(round.mode)?.getControllerPacket?.(p,round,players);
+ let engine,packet;
+ try{
+  engine=gameEngine(round.mode);
+  packet=engine?.getControllerPacket?.(p,round,players);
+ }catch(error){
+  // A broken status hook cannot tear down a connected multiplayer room.
+  if(engine&&(typeof engine==='object'||typeof engine==='function')&&
+     !failedControllerStatusEngines.has(engine)){
+   failedControllerStatusEngines.add(engine);
+   console.warn('Game controller status hook failed',round.mode,error);
+  }
+  return;
+ }
  if(!packet||typeof packet!=='object'||Array.isArray(packet)||
     typeof packet.t!=='string'||!packet.t)return;
- // Phase is Host-authoritative, regardless of the plugin's returned data.
- send(conn,{...packet,phase:networkPhase()});
+ // The Host always owns room mode and phase, even for untrusted packet fields.
+ send(conn,{...packet,mode:round.mode,phase:networkPhase()});
 }
 function broadcastPlayerInventories(){
   for(const conn of hostConnections)sendPlayerInventory(conn);
