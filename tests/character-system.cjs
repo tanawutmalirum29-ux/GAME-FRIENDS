@@ -85,6 +85,6 @@ for(const filename of ['src/games/ghost-attack/ghost-attack.js','src/games/chick
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const assets=fs.readFileSync(path.join(root,'scripts/build-static.cjs'),'utf8');
 assert.ok(html.indexOf('src="./character-system.js"')>html.indexOf('src="./player-avatar.js"'));
-assert.ok(html.indexOf('src="./character-system.js"')<html.indexOf('src="./src/games/ghost-attack/ghost-attack.js"'));
-assert.match(assets,/'character-system\.js'/);
+assert.doesNotMatch(html,/src="\.\/src\/games\//,'game engine must load lazily after shared character core');
+assert.match(assets,/const deployAsset=/,'build must auto-version all HTML references');
 console.log('Shared character system PASS: solid default, pushing, exact overlaps, bounds, input, avatar and all 6 maps');
