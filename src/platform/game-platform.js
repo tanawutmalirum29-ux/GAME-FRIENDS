@@ -24,11 +24,22 @@ function inspect(data){
    typeof g.enabled!=='boolean'||typeof g.name!=='string'||
    !Array.isArray(g.modes)||g.modes.some(m=>!['normal','board'].includes(m))||
    !/^[a-f0-9]{24}$/.test(g.hash))throw Error('Malformed game: '+g?.id);
+  if(g.controller!==null&&g.controller!==undefined){
+   const ui=g.controller;
+   if(!ui||typeof ui!=='object'||Array.isArray(ui)||
+     (ui.help!==undefined&&(typeof ui.help!=='string'||ui.help.length>300))||
+     (ui.status!==undefined&&(typeof ui.status!=='string'||ui.status.length>180))||
+     (ui.labels!==undefined&&(!ui.labels||typeof ui.labels!=='object'||
+       Array.isArray(ui.labels)||Object.entries(ui.labels).some(([k,v])=>
+        !['A','B','C'].includes(k)||typeof v!=='string'||v.length>48))))
+    throw Error('Invalid game controller metadata: '+g.id);
+  }
   seen.add(g.id);
   const marker='/game-assets/'+g.id+'/'+g.hash+'/';
   if(!g.entryUrl.startsWith(marker)||!Array.isArray(g.legacyUrls)||g.legacyUrls.some(x=>!x.startsWith(marker)))throw Error('Mismatched asset revision');
   validUrl(g.entryUrl);g.legacyUrls.forEach(validUrl);
-  return Object.freeze({...g});
+  return Object.freeze({...g,controller:g.controller?
+   Object.freeze({...g.controller,labels:Object.freeze({...g.controller.labels})}):null});
  });
 }
 async function refresh(){

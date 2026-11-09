@@ -26,6 +26,11 @@ src/games/meteor-dodge/
   "players": { "min": 1, "max": 12 },
   "modes": ["normal", "board"],
   "controls": ["joystick", "A"],
+  "controller": {
+    "help": "หลบอุกกาบาตและกด A เพื่อกระโดด",
+    "labels": {"A": "กระโดด"},
+    "status": "{name} • เหลือ {remaining} วินาที"
+  },
   "entry": "./game.js",
   "cover": "cover.svg",
   "legacyScripts": []
@@ -37,6 +42,12 @@ src/games/meteor-dodge/
 Build จะสำเนาเป็น Asset ที่มี Game Hash ของเกมนั้น และ Hot Update ได้โดยไม่เพิ่ม
 Core Runtime หรือโหลดบน Controller ทุกครั้ง ไฟล์ `farm-ice-art.js` และ
 `graveyard-art.js` ไม่อยู่ Root แล้ว ห้ามอ้าง Root Legacy ในเกมใหม่
+
+สำหรับเกมใหม่ที่ไม่มี `global` ระบบ Controller อ่าน `controls` และ
+`controller.help`, `controller.labels.A/B/C`, `controller.status` จาก
+Manifest ที่อยู่ใน Game Catalog โดยตรงโดยไม่ต้องโหลด Engine ลงมือถือ
+ข้อความสถานะรองรับ `{name}`, `{survivors}` และ `{remaining}` (ปัดเวลาขึ้น)
+ปุ่มที่ไม่อยู่ใน `controls` จะถูกปิด และ Core ไม่ต้องเพิ่มกรณีพิเศษตาม ID
 
 เกมใหม่ควรใช้ native ES Module ไม่ใช้ global name; `global` มีไว้เฉพาะ Engine แบบเก่าที่ยังต้องรองรับ Dev Compatibility เท่านั้น
 
