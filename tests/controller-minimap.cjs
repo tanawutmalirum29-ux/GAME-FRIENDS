@@ -63,4 +63,29 @@ assert.match(ctrl,/reliable:false,serialization:'json'/);
 assert.match(host,/function acceptFastAxisConnection/);
 assert.match(host,/createFastAxisIngressGuard/);
 assert.match(host,/boardCameraGestureToken===board.turnId/);
+// PeerJS 1.5.5 omits maxRetransmits:0 by default: scope the native
+// createDataChannel override to exactly our labeled axis connection.
+const start=ctrl.indexOf('function connectControllerZeroRetryAxis(');
+const end=ctrl.indexOf('function startControllerFastAxis(',start);
+assert.ok(start>=0&&end>start);
+function PeerConnectionMock(){}
+const created=[];
+PeerConnectionMock.prototype.createDataChannel=function(label,opts){
+ created.push({label,opts});return{label,opts};
+};
+const native=PeerConnectionMock.prototype.createDataChannel;
+const axisScope={window:{RTCPeerConnection:PeerConnectionMock}};
+vm.createContext(axisScope);
+vm.runInContext(ctrl.slice(start,end)+'\nthis.openFast=connectControllerZeroRetryAxis;',axisScope);
+const mockPeer={connect:(_target,opts)=>{
+ const pc=new PeerConnectionMock();
+ pc.createDataChannel('unrelated',{ordered:true});
+ return pc.createDataChannel(opts.label,{ordered:false});
+}};
+const channel=axisScope.openFast(mockPeer,'host',{label:'gf-axis-v1'});
+assert.equal(channel.opts.maxRetransmits,0);
+assert.equal(channel.opts.ordered,false);
+assert.equal(created[0].opts.maxRetransmits,undefined,'regular PeerJS channels are untouched');
+assert.equal(PeerConnectionMock.prototype.createDataChannel,native,
+ 'native method must always be restored after synchronous PeerJS negotiation');
 console.log('CONTROLLER MINIMAP PASS: map-once, positions, preview toggle, secure fast path integration');
