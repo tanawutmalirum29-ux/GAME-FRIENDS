@@ -517,7 +517,21 @@ function getResult(round,players){
   return {id:p.id,value,label};
  });
 }
-window.ColorSwitch=Object.freeze({getResult,resultTitle:"ผู้ทำคะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,createArena,tileAt,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
+       const box=document.createElement('div');box.className='leader-chip color-switch-leader';
+       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
+       const score=document.createElement('small');score.className='leader-role';score.textContent='คะแนน '+p.score;
+       const status=document.createElement('span');status.className='leader-item-slot';
+       status.textContent=p.cs?.stunRemaining>0?'สตั้น':'';
+       box.append(color,name,score,status);root.append(box);
+     });return;
+   
+}
+window.ColorSwitch=Object.freeze({renderRoster,getResult,resultTitle:"ผู้ทำคะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,createArena,tileAt,
  captureTile,capturePathTiles,updateTerritoryScores,startPunch,resolvePunchHit,
  activateColorBlast,calculateBlastCells,spawnPowerBox,collectPowerBox,
  bankTerritory,fireRocketBurst,updateRockets,refreshScore,

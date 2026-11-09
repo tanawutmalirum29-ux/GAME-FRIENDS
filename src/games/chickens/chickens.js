@@ -477,6 +477,20 @@ function getResult(round,players){
   return {id:p.id,value,label:value+" ไก่"};
  });
 }
-window.Chickens=Object.freeze({getResult,resultTitle:"จับไก่ให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,dropChicken,gateInside,goalHead,drawHeldChicken,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+    active.sort((a,b)=>b.score-a.score).forEach(p=>{
+      const box=document.createElement('div');box.className='leader-chip chicken-leader';
+      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
+      const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' คะแนน';
+      const info=document.createElement('span');info.className='leader-item-slot';info.textContent=p.carriedChickenId!=null?'กำลังอุ้มไก่':'—';
+      box.append(color,name,score,info);root.append(box);
+    });
+    return;
+  
+}
+window.Chickens=Object.freeze({renderRoster,getResult,resultTitle:"จับไก่ให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,dropChicken,gateInside,goalHead,drawHeldChicken,
   constants:C});
 })();

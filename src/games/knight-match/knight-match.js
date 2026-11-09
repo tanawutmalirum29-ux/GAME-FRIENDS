@@ -426,7 +426,21 @@ function getResult(round,players){
   return {id:p.id,value,label:value+" คะแนน"};
  });
 }
-window.KnightMatch=Object.freeze({getResult,resultTitle:"แทงลูกโป่งสีตัวเองให้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,dimensions,inside,effectiveOwner,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+    active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
+      const box=document.createElement('div');box.className='leader-chip knight-leader';
+      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
+      const score=document.createElement('small');score.className='leader-role';score.textContent=(p.score??0)+' คะแนน';
+      const info=document.createElement('span');info.className='leader-item-slot';
+      info.textContent=p.km?.stun>0?'สตั้น':round.knightMatch?.rainbowOwnerId===p.id?'RAINBOW '+Math.ceil(Math.max(0,round.knightMatch.rainbowUntil-round.knightMatch.clock))+'s':'';
+      box.append(color,name,score,info);root.append(box);
+    });return;
+  
+}
+window.KnightMatch=Object.freeze({renderRoster,getResult,resultTitle:"แทงลูกโป่งสีตัวเองให้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,dimensions,inside,effectiveOwner,
  effectiveColor,popBalloon,spawnNormal,spawnRainbow,replenish,segmentDistance,
  startAttack,strike,lanceTip,finish,step,sweptCircleEntry,scales:Object.freeze({rider:RIDER_SCALE,balloon:BALLOON_SIZE_MULTIPLIER,speed:MOVE_SPEED_MULTIPLIER,playerRadius:PLAYER_RADIUS,lanceTipRadius:LANCE_TIP_RADIUS}),constants:CONFIG});
 })();

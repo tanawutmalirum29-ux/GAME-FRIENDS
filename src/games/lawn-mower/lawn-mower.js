@@ -480,6 +480,20 @@ function getResult(round,players){
   return {id:p.id,value,label:value+" คะแนน"};
  });
 }
-window.LawnMower=Object.freeze({getResult,resultTitle:"ผู้สะสมพระอาทิตย์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,step,finish,cutSwath,cutTuft,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+     active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
+       const box=document.createElement('div');box.className='leader-chip';
+       const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+       const score=document.createElement('small');score.className='leader-role';score.textContent=p.score+' คะแนน';
+       const suns=document.createElement('span');suns.className='leader-item-slot';
+       suns.textContent=(p.mower?.suns||0)+' ดวง';
+       box.append(color,name,score,suns);root.append(box);
+     });return;
+   
+}
+window.LawnMower=Object.freeze({renderRoster,getResult,resultTitle:"ผู้สะสมพระอาทิตย์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,step,finish,cutSwath,cutTuft,
   spawnPositions,generateGrass,botControl,size,mowerOverlap,mowerExtents,constrainMower,resolveMowerCollisions,config:CONFIG});
 })();

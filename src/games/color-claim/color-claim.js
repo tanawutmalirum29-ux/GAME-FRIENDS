@@ -682,7 +682,26 @@ function getResult(round,players){
   return {id:p.id,value,label};
  });
 }
-window.ColorClaim=Object.freeze({getResult,resultTitle:"ผู้ยึดพื้นที่มากที่สุด!",countdownSeconds:3,setup,update,step,draw,hud,finish,index,owned,claimDisk,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+    active.sort((a,b)=>(round.colorClaim.counts[b.cc?.slot]||0)-
+      (round.colorClaim.counts[a.cc?.slot]||0)||String(a.id).localeCompare(String(b.id)));
+    for(const p of active){
+      const box=document.createElement('div');box.className='leader-chip';
+      const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
+      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+      const score=document.createElement('small');score.className='leader-role';
+      score.textContent=(p.score||0).toFixed(1)+'%';
+      const status=document.createElement('span');status.className='leader-item-slot';
+      status.textContent=p.cc?.eliminated?'ตกรอบถาวร':!p.cc?.alive?'เกิดใหม่':
+        window.ColorClaim.freezeActive(round.colorClaim,p)?'แช่แข็ง':'';
+      box.append(dot,name,score,status);root.append(box);
+    }
+    return;
+  
+}
+window.ColorClaim=Object.freeze({renderRoster,getResult,resultTitle:"ผู้ยึดพื้นที่มากที่สุด!",countdownSeconds:3,setup,update,step,draw,hud,finish,index,owned,claimDisk,
  recount,captureMask,applyCaptures,segmentsTouch,pointSegment2,kill,revive,eliminate,
  largestTerritory,spawnPlace,discardCutFragments,pruneUnplayableTerritory,
  buildContours,traceSmoothTrail,freezeActive,

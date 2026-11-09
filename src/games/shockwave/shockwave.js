@@ -439,7 +439,21 @@ function getResultHeading(round,ranked){
  return winners.length>1?'ผู้ชนะร่วม: '+winners.map(p=>p.name).join(' / '):
   winners.length?'ผู้ชนะ: '+winners[0].name:'ไม่มีผู้ชนะ';
 }
-window.Shockwave=Object.freeze({getResultHeading,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+    active.sort((a,b)=>Number(b.shockAlive)-Number(a.shockAlive)||(b.shockEliminatedAt||0)-(a.shockEliminatedAt||0)).forEach(p=>{
+      const box=document.createElement('div');box.className='leader-chip shockwave-leader';
+      if(!p.shockAlive)box.classList.add('shockwave-eliminated');
+      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
+      const status=document.createElement('small');status.className='leader-role';status.textContent=p.shockAlive?'รอด':'ตกรอบ';
+      const info=document.createElement('span');info.className='leader-item-slot';info.textContent='Wave '+(round.shockwave?.wave||0);
+      box.append(color,name,status,info);root.append(box);
+    });return;
+  
+}
+window.Shockwave=Object.freeze({renderRoster,getResultHeading,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
  calculateDangerContact,calculateFootSupport,resolvePlayerCollision,calculateDangerWeights,
   dangerCount,requiredEscapeSeconds,
  selectDangerTiles,validateSafeRoutes,warningSeconds,intervalSeconds,distanceBias,
