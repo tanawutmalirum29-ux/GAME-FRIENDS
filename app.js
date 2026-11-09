@@ -3472,7 +3472,7 @@ function renderPhoneBoard(){
  $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing'||
    (info.boardPhase==='ready'&&!!boardCameraController?.enabled()));
  const bag=Array.isArray(info.bag)?info.bag:[],ready=info.boardPhase==='ready';
- const items=phoneBoardItemMeta?.sessionId===info.sessionId?
+ const items=phoneBoardItemMeta&&phoneBoardItemMeta.sessionId===info.sessionId?
   phoneBoardItemMeta:window.BoardItems||window.PartyBoardItemMeta;
  if(!items){$('controllerState').textContent='กำลังโหลดข้อมูลกระเป๋าเกม...';return;}
  const options=['roll',...items.ids],stock=Object.fromEntries(items.ids.map(id=>[id,0]));
