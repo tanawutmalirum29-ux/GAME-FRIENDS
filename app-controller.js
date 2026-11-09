@@ -3236,22 +3236,21 @@ if(launchedHost&&!joinCode){
  setStatus('พร้อมเข้าร่วมห้อง • กรอกรหัสหรือสแกน QR');
  if(code&&savedPhone?.code===code)setTimeout(()=>joinRoom(true),250);
 }
-// The live in-memory game cannot survive host navigation. Defer updates
-// while actually playing; all other host/controller pages can patch in place.
-window.GAME_CAN_AUTO_RELOAD=()=>(
- (currentView==='home'&&!onlineHost&&!hostPeer&&!round)
- ||(currentView==='hostLobby'&&!round&&(
-     onlineHost?saveHost():(!hostPeer&&saveOffline())
-   ))
- ||(currentView==='controller'&&
-   !['countdown','playing','paused'].includes(controllerGamePhase)&&
-   (controllerReady?savePhone():true))
-);
+// An online lobby is still a real PeerJS room. A full-core reload would
+// disconnect everyone even between rounds (or during BOARD roulette).
+// Minigame-only updates continue through GamePlatform's hot registry.
+window.GAME_CAN_AUTO_RELOAD=()=>{
+ if(round||gameSelection||boardSession||onlineHost||hostPeer||hostNetworkLoad||
+    controllerReady||controllerPeer||controllerConn||controllerNetworkLoad)return false;
+ if(currentView==='home')return true;
+ if(currentView==='hostLobby')return saveOffline();
+ return currentView==='controller';
+};
 window.GAME_PREPARE_AUTO_RELOAD=()=>{
  if(currentView==='hostLobby')return onlineHost?saveHost():(!hostPeer&&saveOffline());
  if(currentView==='controller'&&controllerReady)return savePhone();
  return true;
 };
-window.GAME_NOTIFY_UPDATE=()=>showToast('มีแพตช์ใหม่ • ระบบจะอัปเดตเมื่อออกจากเกม');
+window.GAME_NOTIFY_UPDATE=()=>showToast('มีแพตช์ใหม่ • ระบบจะอัปเดตเมื่อออกจากห้อง');
 requestAnimationFrame(animate);
 })();
