@@ -7,7 +7,6 @@ const scopeKey=encodeURIComponent(base);
 const GAME_CACHE='gf-immutable-games-v1:'+scopeKey;
 const CATALOG_CACHE='gf-catalog-v1:'+scopeKey;
 const BOARD_CACHE='gf-immutable-board-maps-v1:'+scopeKey;
-const MAX=120;
 self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 async function gameAsset(request){
@@ -18,8 +17,8 @@ async function gameAsset(request){
  if(res.ok){
   try{
    await cache.put(request,res.clone());
-   const entries=await cache.keys();
-   for(const key of entries.slice(0,Math.max(0,entries.length-MAX)))await cache.delete(key);
+   // No blanket LRU eviction: the current connected room may still need an
+   // immutable texture or script from any of these content-addressed hashes.
   }catch(_){/* cache is optional when storage is exhausted */}
  }
  return res;

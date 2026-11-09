@@ -73,10 +73,17 @@ async function suite(scope){
   'network-first catalog replaces previous version');
  const sysCatalog=ORIGIN+scope+'board-system-catalog.json?_=1';
  assert.equal((await sw.request(sysCatalog)).body,'fetched '+sysCatalog+' #1');
+ // A long-running party can reference assets from far more than 120 updates.
+ // The SW must never delete a still-pinned immutable asset on a new download.
+ for(let i=0;i<132;i++){
+  const hash=i.toString(16).padStart(24,'0');
+  await sw.request(ORIGIN+scope+'game-assets/ghost/'+hash+'/game.js');
+ }
  sw.setOffline(true);
  assert.equal((await sw.request(ORIGIN+scope+'game-catalog.json?_=3')).body,
   'fetched '+newestCatalog+' #1','offline catalog uses latest successful response');
  assert.equal((await sw.request(a)).body,'fetched '+a+' #1','offline v1 asset remains usable');
+ assert.equal((await sw.request(b)).body,'fetched '+b+' #1','offline v2 asset stays pinned beyond 120 new assets');
  assert.equal((await sw.request(sysAsset)).body,'fetched '+sysAsset+' #1','BOARD systems must work offline after caching');
  assert.equal((await sw.request(ORIGIN+scope+'board-system-catalog.json?_=2')).body,'fetched '+sysCatalog+' #1');
  assert.equal((await sw.request(b)).body,'fetched '+b+' #1','offline updated asset remains usable');
