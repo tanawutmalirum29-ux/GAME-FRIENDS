@@ -29,10 +29,12 @@ vm.runInContext(runtime.slice(begin,end)+
 const mid=world.point({clientX:195,clientY:422});
 assert.ok(Math.abs(mid.x-480)<.01&&Math.abs(mid.y-270)<.01,
  'the centered physical portrait tap must hit the logical world center');
-const corner=world.point({clientX:390,clientY:0});
+// The 844x390 viewport letterboxes a 960x540 world by ~75px on each side.
+const content=world.content(gameCanvas.getBoundingClientRect());
+const corner=world.point({clientX:390,clientY:content.left});
 assert.ok(Math.abs(corner.x)<.01&&Math.abs(corner.y)<.01,
- 'the 90-degree CSS rotation must correctly inverse-map the top-left game corner');
-const edge=world.point({clientX:0,clientY:844});
+ 'the rotated map content origin must map to world (0,0), not its letterbox');
+const edge=world.point({clientX:0,clientY:844-content.left});
 assert.ok(Math.abs(edge.x-960)<.01&&Math.abs(edge.y-540)<.01);
 portrait=false;
 gameCanvas.clientWidth=960;gameCanvas.clientHeight=540;
