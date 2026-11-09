@@ -2,14 +2,14 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const engineSource=fs.readFileSync('chickens.js','utf8');
+const engineSource=fs.readFileSync('src/games/chickens/chickens.js','utf8');
 const host=vm.createContext({window:{}});
 vm.runInContext(fs.readFileSync('arena-art.js','utf8'),host,{filename:'arena-art.js'});
 vm.runInContext(fs.readFileSync('player-avatar.js','utf8'),host,{filename:'player-avatar.js'});
 vm.runInContext(fs.readFileSync('combat-motion.js','utf8'),host,{filename:'combat-motion.js'});
 vm.runInContext(fs.readFileSync('character-system.js','utf8'),host,{filename:'character-system.js'});
 vm.runInContext(fs.readFileSync('farm-ice-art.js','utf8'),host,{filename:'farm-ice-art.js'});
-vm.runInContext(engineSource,host,{filename:'chickens.js'});
+vm.runInContext(engineSource,host,{filename:'src/games/chickens/chickens.js'});
 const chickens=host.window.Chickens;
 assert.ok(chickens,'CHICKENS engine is exported');
 const C=chickens.constants;

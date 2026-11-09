@@ -11,8 +11,8 @@ function engine(){
   const d=Math.hypot(x,y);if(d>1){x/=d;y/=d;}
   return {x,y};
  }}};
- vm.runInNewContext(fs.readFileSync('ice-race.js','utf8'),{window,console,Math},
-   {filename:'ice-race.js'});
+ vm.runInNewContext(fs.readFileSync('src/games/ice-race/ice-race.js','utf8'),{window,console,Math},
+   {filename:'src/games/ice-race/ice-race.js'});
  return window.IceRace;
 }
 function match(n,bots=false,seed=1459){
@@ -275,9 +275,9 @@ test('party selection, timed results, board ranking and cover are registered',()
  for(const term of ["ice_race:'ICE RACE'","ice_race:'IceRace'",
   "round.mode==='ice_race'","data.t==='ice-status'"])assert.ok(app.includes(term),term);
  assert.ok(html.includes('data-pick="ice_race"'));
- assert.ok(html.includes('src="./ice-race.js"'));
+ assert.ok(html.includes('src="./src/games/ice-race/ice-race.js"'));
  assert.ok(board.includes("case 'ice_race'"));
- assert.ok(build.includes("'ice-race.js'"));
+ assert.ok(build.includes("'src/games/ice-race/ice-race.js'"));
  assert.ok(covers.includes('ice_race:iceRaceScene'));
  const window={BoardDice:{shuffle:p=>p}};
  vm.runInNewContext(board,{window,console},{filename:'board-minigame.js'});

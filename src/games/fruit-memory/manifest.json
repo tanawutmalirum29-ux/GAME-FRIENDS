@@ -1,7 +1,7 @@
 {
   "id": "fruit_memory",
   "name": "FRUIT MEMORY",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "apiVersion": 1,
   "enabled": true,
   "players": {
@@ -21,6 +21,6 @@
   "entry": "./game.js",
   "global": "FruitMemory",
   "legacyScripts": [
-    "fruit-memory.js"
+    "src/games/fruit-memory/fruit-memory.js"
   ]
 }

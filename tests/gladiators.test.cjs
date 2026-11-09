@@ -6,7 +6,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
-const src=fs.readFileSync(path.join(root,'gladiators.js'),'utf8');
+const src=fs.readFileSync(path.join(root,'src/games/gladiators/gladiators.js'),'utf8');
 function harness(){
  const win={
   PartyCharacters:{
@@ -23,7 +23,7 @@ function harness(){
   }
  };
  const ctx=vm.createContext({window:win,Date,Math,Number,Object,Array,Map,Set});
- vm.runInContext(src,ctx,{filename:'gladiators.js'});
+ vm.runInContext(src,ctx,{filename:'src/games/gladiators/gladiators.js'});
  return win.Gladiators;
 }
 const player=(id,isBot=false)=>({id:'p'+id,name:'Player'+id,color:'#ee5588',isBot,input:{axisX:0,axisY:0},active:true,dir:{x:0,y:-1}});
@@ -39,8 +39,8 @@ test('registration and scripts are connected to both party modes',()=>{
  assert.match(app,/function endGladiatorsRound\(/);
  assert.match(board,/case 'gladiators'/);
  assert.match(html,/data-pick="gladiators"/);
- assert.ok(html.indexOf('gladiators-art.js')<html.indexOf('gladiators.js'));
- assert.ok(html.indexOf('gladiators.js')<html.indexOf('app.js'));
+ assert.ok(html.indexOf('src/games/gladiators/gladiators-art.js')<html.indexOf('src/games/gladiators/gladiators.js'));
+ assert.ok(html.indexOf('src/games/gladiators/gladiators.js')<html.indexOf('app.js'));
  assert.match(cover,/gladiators:gladiatorsScene/);
 });
 test('1, 6, 7, 12 active players get isolated spawns and two world scales',()=>{

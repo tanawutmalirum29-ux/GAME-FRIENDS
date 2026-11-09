@@ -2,8 +2,8 @@ name: GLADIATORS Physics QA
 on:
   pull_request:
     paths:
-      - 'gladiators.js'
-      - 'gladiators-art.js'
+      - 'src/games/gladiators/gladiators.js'
+      - 'src/games/gladiators/gladiators-art.js'
       - 'tests/gladiators.test.cjs'
       - 'app.js'
       - 'board-minigame.js'
@@ -13,8 +13,8 @@ on:
     branches:
       - feat/gladiators-physics-arena-v1
     paths:
-      - 'gladiators.js'
-      - 'gladiators-art.js'
+      - 'src/games/gladiators/gladiators.js'
+      - 'src/games/gladiators/gladiators-art.js'
       - 'tests/gladiators.test.cjs'
       - 'app.js'
       - 'board-minigame.js'
@@ -32,8 +32,8 @@ jobs:
           node-version: '22'
       - name: Syntax checks
         run: |
-          node --check gladiators.js
-          node --check gladiators-art.js
+          node --check src/games/gladiators/gladiators.js
+          node --check src/games/gladiators/gladiators-art.js
           node --check app.js
           node --check board-minigame.js
           node --check game-cover-art.js

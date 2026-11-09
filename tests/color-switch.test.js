@@ -4,8 +4,8 @@ const nodeAssert=require('node:assert/strict');
 global.window={};
 require('../combat-motion.js');
 require('../character-system.js');
-require('../color-switch-mayan.js');
-require('../color-switch.js');
+require('../src/games/color-switch/color-switch-mayan.js');
+require('../src/games/color-switch/color-switch.js');
 const E=global.window.ColorSwitch;
 
 let passed=0;

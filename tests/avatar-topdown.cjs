@@ -86,13 +86,13 @@ for(const theme of ['graveyard','egypt']){
 const shared=fs.readFileSync('character-system.js','utf8');
 assert.match(shared,/PartyPlayerAvatar\?\.draw/,
  'PartyCharacters must delegate to the canonical overhead avatar');
-for(const game of ['ghost-attack.js','chickens.js','fruit-memory.js','shockwave.js']){
+for(const game of ['src/games/ghost-attack/ghost-attack.js','src/games/chickens/chickens.js','src/games/fruit-memory/fruit-memory.js','src/games/shockwave/shockwave.js']){
  const src=fs.readFileSync(game,'utf8');
- const viaShared=game==='chickens.js'||game==='fruit-memory.js';
+ const viaShared=game==='src/games/chickens/chickens.js'||game==='src/games/fruit-memory/fruit-memory.js';
  assert.match(src,viaShared?/PartyCharacters\.draw/:/PartyPlayerAvatar\.draw/,
    game+' uses the same overhead avatar directly or through PartyCharacters');
 }
-const shock=fs.readFileSync('shockwave.js','utf8');
+const shock=fs.readFileSync('src/games/shockwave/shockwave.js','utf8');
 assert.doesNotMatch(shock,/footAnchor:true/,'old side-view foot offset is removed');
 assert.match(shock,/ctx\.arc\(p\.x,p\.y,C\.avatarRadius/,
  'displayed full-body blast marker uses exact physics centre');

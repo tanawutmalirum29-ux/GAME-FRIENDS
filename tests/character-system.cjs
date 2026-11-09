@@ -76,8 +76,8 @@ const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 }
 // All shipped modes must explicitly invoke the shared physics resolver; no
 // minigame should silently replace the global default with pass-through.
-for(const filename of ['ghost-attack.js','chickens.js','fruit-memory.js',
- 'shockwave.js','color-switch.js','pizza-time.js']){
+for(const filename of ['src/games/ghost-attack/ghost-attack.js','src/games/chickens/chickens.js','src/games/fruit-memory/fruit-memory.js',
+ 'src/games/shockwave/shockwave.js','src/games/color-switch/color-switch.js','src/games/pizza-time/pizza-time.js']){
  const text=fs.readFileSync(path.join(root,filename),'utf8');
  assert.match(text,/window\.PartyCharacters\.resolve\(/,filename+' must use the central rule');
  assert.doesNotMatch(text,/playersSolid\s*:\s*false/,filename+' cannot disable collisions without an approved rule');
@@ -85,6 +85,6 @@ for(const filename of ['ghost-attack.js','chickens.js','fruit-memory.js',
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const assets=fs.readFileSync(path.join(root,'scripts/build-static.cjs'),'utf8');
 assert.ok(html.indexOf('src="./character-system.js"')>html.indexOf('src="./player-avatar.js"'));
-assert.ok(html.indexOf('src="./character-system.js"')<html.indexOf('src="./ghost-attack.js"'));
+assert.ok(html.indexOf('src="./character-system.js"')<html.indexOf('src="./src/games/ghost-attack/ghost-attack.js"'));
 assert.match(assets,/'character-system\.js'/);
 console.log('Shared character system PASS: solid default, pushing, exact overlaps, bounds, input, avatar and all 6 maps');

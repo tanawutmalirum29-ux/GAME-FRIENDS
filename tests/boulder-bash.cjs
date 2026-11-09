@@ -1,9 +1,9 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const code=fs.readFileSync('boulder-bash.js','utf8');
+const code=fs.readFileSync('src/games/boulder-bash/boulder-bash.js','utf8');
 const context={window:{},Date,Math};
 vm.runInNewContext(fs.readFileSync('farm-ice-art.js','utf8'),context,{filename:'farm-ice-art.js'});
-vm.runInNewContext(code,context,{filename:'boulder-bash.js'});
+vm.runInNewContext(code,context,{filename:'src/games/boulder-bash/boulder-bash.js'});
 const G=context.window.BoulderBash;
 assert.ok(G.setup&&G.update&&G.draw&&G.hud&&G.sweptHit&&G.spawnWave);
 assert.equal(G.config.rockChance,.35,'colored boulder roll is 35%');

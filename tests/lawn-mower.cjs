@@ -3,7 +3,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.join(__dirname,'..');
 const sandbox={window:{},Math,Date};
-for(const f of ['character-system.js','lawn-mower.js'])
+for(const f of ['character-system.js','src/games/lawn-mower/lawn-mower.js'])
  vm.runInNewContext(fs.readFileSync(path.join(root,f),'utf8'),sandbox,{filename:f});
 const G=sandbox.window.LawnMower;
 assert.equal(G.config.speed,50.75,'30% slower than the previous 72.5 units/second');
@@ -168,6 +168,6 @@ const app=fs.readFileSync(path.join(root,'app.js'),'utf8'),
  board=fs.readFileSync(path.join(root,'board-minigame.js'),'utf8'),
  build=fs.readFileSync(path.join(root,'scripts/build-static.cjs'),'utf8');
 for(const re of [/lawn_mower:'LawnMower'/,/endLawnMowerRound/,/renderPhoneLawnStatus/,/lawn-status/])assert.match(app,re);
-assert.match(html,/data-pick="lawn_mower"/);assert.match(html,/src="\.\/lawn-mower\.js"/);
-assert.match(board,/case 'lawn_mower':/);assert.match(build,/'lawn-mower\.js'/);
+assert.match(html,/data-pick="lawn_mower"/);assert.match(html,/src="\.\/src\/games\/lawn-mower\/lawn-mower\.js"/);
+assert.match(board,/case 'lawn_mower':/);assert.match(build,/'src\/games\/lawn-mower\/lawn-mower\.js'/);
 console.log('LAWN MOWER: 30% slower movement, deck-aligned mowing, garden foreground, 55/20/15/10 odds, collisions and 1–12 bots PASS');

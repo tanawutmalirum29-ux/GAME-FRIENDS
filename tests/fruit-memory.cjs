@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const env={window:{},Image:class{constructor(){this.complete=true;this.naturalWidth=64;}}};
-for(const path of ['player-avatar.js','combat-motion.js','character-system.js','fruit-memory.js'])
+for(const path of ['player-avatar.js','combat-motion.js','character-system.js','src/games/fruit-memory/fruit-memory.js'])
  vm.runInNewContext(fs.readFileSync(path,'utf8'),env,{filename:path});
 const E=env.window.FruitMemory;
 assert.ok(E?.setup&&E?.update&&E?.draw&&E?.drawSideScreens);

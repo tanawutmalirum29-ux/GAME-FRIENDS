@@ -11,12 +11,12 @@ const code=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
 const scripts=[
  'arena-scale.js','player-avatar.js','combat-motion.js','character-system.js',
  'party-ui-art.js','arena-art.js','party-arena-scenes.js','graveyard-art.js',
- 'farm-ice-art.js','pizza-ingredient-art.js','pizza-kitchen-art.js',
- 'color-switch-mayan.js','gladiators-art.js',
- 'fruit-memory.js','color-switch.js','chickens.js','snow-brawl.js',
- 'knight-match.js','lawn-mower.js','color-claim.js','witching-snake.js',
- 'ghost-attack.js','ice-race.js','shockwave.js','boulder-bash.js',
- 'shopping-time.js','pizza-time.js','gladiators.js',
+ 'farm-ice-art.js','src/games/pizza-time/pizza-ingredient-art.js','src/games/pizza-time/pizza-kitchen-art.js',
+ 'src/games/color-switch/color-switch-mayan.js','src/games/gladiators/gladiators-art.js',
+ 'src/games/fruit-memory/fruit-memory.js','src/games/color-switch/color-switch.js','src/games/chickens/chickens.js','src/games/snow-brawl/snow-brawl.js',
+ 'src/games/knight-match/knight-match.js','src/games/lawn-mower/lawn-mower.js','src/games/color-claim/color-claim.js','src/games/witching-snake/witching-snake.js',
+ 'src/games/ghost-attack/ghost-attack.js','src/games/ice-race/ice-race.js','src/games/shockwave/shockwave.js','src/games/boulder-bash/boulder-bash.js',
+ 'src/games/shopping-time/shopping-time.js','src/games/pizza-time/pizza-time.js','src/games/gladiators/gladiators.js',
  'board-map.js','board-v7-design.js','board-v7-art.js','board-v7-adapter.js',
  'board-dice.js','board-items.js','board-party.js'
 ];
@@ -131,7 +131,7 @@ for(const [name,engine,stateKey] of entries){
   checks++;
  }
 }
-const claim=code('color-claim.js'),chickens=code('chickens.js');
+const claim=code('src/games/color-claim/color-claim.js'),chickens=code('src/games/chickens/chickens.js');
 assert.match(claim,/PartyCharacters\.draw\(g,p,\{time:t,combat:false,scale:unit\}\)/,
  'large COLOR CLAIM actors must scale like their world-space hitboxes');
 assert.match(claim,/trailHits\(map,from,to,5\*s\.w\/960\)/,
@@ -151,7 +151,7 @@ for(let n=1;n<=12;n++){
 }
 const html=code('index.html'),build=code('scripts/build-static.cjs');
 assert.match(html,/src="\.\/arena-scale\.js"/);
-assert.ok(html.indexOf('arena-scale.js')<html.indexOf('fruit-memory.js'));
-assert.ok(html.indexOf('arena-scale.js')<html.indexOf('color-switch.js'));
+assert.ok(html.indexOf('arena-scale.js')<html.indexOf('src/games/fruit-memory/fruit-memory.js'));
+assert.ok(html.indexOf('arena-scale.js')<html.indexOf('src/games/color-switch/color-switch.js'));
 assert.ok(build.includes("'arena-scale.js'"),'Amplify includes shared map geometry');
 console.log('GLOBAL MAP SCALE PASS: '+checks+' player/tier setups (15 minigames + BOARD PARTY) and projection contracts');

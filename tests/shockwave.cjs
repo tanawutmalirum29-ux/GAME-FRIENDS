@@ -2,13 +2,13 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const avatars=fs.readFileSync('player-avatar.js','utf8');
-const engine=fs.readFileSync('shockwave.js','utf8');
+const engine=fs.readFileSync('src/games/shockwave/shockwave.js','utf8');
 const env=vm.createContext({window:{},Date,Math});
 vm.runInContext(fs.readFileSync('arena-art.js','utf8'),env,{filename:'arena-art.js'});
 vm.runInContext(avatars,env,{filename:'player-avatar.js'});
 vm.runInContext(fs.readFileSync('party-ui-art.js','utf8'),env,{filename:'party-ui-art.js'});
 vm.runInContext(fs.readFileSync('character-system.js','utf8'),env,{filename:'character-system.js'});
-vm.runInContext(engine,env,{filename:'shockwave.js'});
+vm.runInContext(engine,env,{filename:'src/games/shockwave/shockwave.js'});
 const E=env.window.Shockwave;
 function players(n,bots=false){
  return Array.from({length:n},(_,i)=>({id:'p'+i,name:'P'+i,
