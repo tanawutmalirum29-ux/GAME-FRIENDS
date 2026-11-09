@@ -494,6 +494,11 @@ function renderRoster(root,active,round){
      });return;
    
 }
-window.LawnMower=Object.freeze({renderRoster,getResult,resultTitle:"ผู้สะสมพระอาทิตย์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,step,finish,cutSwath,cutTuft,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p){
+ const status=playerStatus(p);
+ return status?{t:'lawn-status',...status}:null;
+}
+window.LawnMower=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ผู้สะสมพระอาทิตย์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,step,finish,cutSwath,cutTuft,
   spawnPositions,generateGrass,botControl,size,mowerOverlap,mowerExtents,constrainMower,resolveMowerCollisions,config:CONFIG});
 })();

@@ -472,7 +472,12 @@ function renderRoster(root,active,round){
     });return;
   
 }
-window.PizzaTime=Object.freeze({renderRoster,getResult,resultTitle:"ส่งพิซซ่าให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,drawIngredient,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p){
+ const status=playerStatus(p);
+ return status?{t:'pizza-status',...status}:null;
+}
+window.PizzaTime=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ส่งพิซซ่าให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,drawIngredient,
   worldSize,tableCount,pairCost,aStar,fairnessCandidates,ingredients:INGREDIENTS,
   planOrderCards,rectanglesOverlap});
 })();

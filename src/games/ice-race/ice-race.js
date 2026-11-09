@@ -490,6 +490,11 @@ function renderRoster(root,active,round){
     });return;
    
 }
-window.IceRace=Object.freeze({renderRoster,getResult,resultTitle:"ผ่านเช็กพอยต์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,step,finish,checkpoint,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round){
+ return {t:'ice-status',mode:round.mode,score:p.score||0,
+  nextCheckpoint:p.ice?.nextCheckpoint??1,falling:p.ice?.state==='falling'};
+}
+window.IceRace=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ผ่านเช็กพอยต์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,step,finish,checkpoint,
  nearest,sample,collide,hullContact,hullPoints,fall,respawn,makeTrack,botVector,config:C});
 })();

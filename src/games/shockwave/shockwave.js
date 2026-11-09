@@ -453,7 +453,12 @@ function renderRoster(root,active,round){
     });return;
   
 }
-window.Shockwave=Object.freeze({renderRoster,getResultHeading,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,hudBadge:{duringCountdown:"players",duringPlay:"players"},updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round){
+ return {t:'shockwave-status',mode:round.mode,
+  eliminated:!p.shockAlive,wave:round.shockwave?.wave||0};
+}
+window.Shockwave=Object.freeze({getControllerPacket,renderRoster,getResultHeading,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,hudBadge:{duringCountdown:"players",duringPlay:"players"},updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
  calculateDangerContact,calculateFootSupport,resolvePlayerCollision,calculateDangerWeights,
   dangerCount,requiredEscapeSeconds,
  selectDangerTiles,validateSafeRoutes,warningSeconds,intervalSeconds,distanceBias,

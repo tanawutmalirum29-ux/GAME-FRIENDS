@@ -364,6 +364,11 @@ function renderRoster(root,active,round){
      });return;
    
 }
-window.ShoppingTime=Object.freeze({renderRoster,getResult,resultTitle:"คิดเงินให้ได้คะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,size,flowAt,spawn,step,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p){
+ const status=playerStatus(p);
+ return status?{t:'shopping-status',...status}:null;
+}
+window.ShoppingTime=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"คิดเงินให้ได้คะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,size,flowAt,spawn,step,
   bombHit,pickup,checkoutPlayer,finish,config:C});
 })();
