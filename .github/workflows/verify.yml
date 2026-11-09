@@ -46,6 +46,8 @@ jobs:
           node tests/player-name.cjs
           node tests/controller-ingress.cjs
           node tests/host-reconnect.cjs
+      - name: Controller video fallback, viewport scale and input diagnostics
+        run: node tests/controller-perf-regression.cjs
       - name: Verify immutable cache and offline catalog behavior
         run: node tests/cache-worker.cjs
       - name: Lazy online dependency bootstrap and retries
