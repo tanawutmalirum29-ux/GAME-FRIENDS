@@ -101,6 +101,13 @@
         "chromium": 42,
         "webkit": 65
       }
+    },
+    {
+      "file": "tests/host-reconnect-browser.cjs",
+      "browsers": {
+        "chromium": 15,
+        "webkit": 24
+      }
     }
   ]
 }
