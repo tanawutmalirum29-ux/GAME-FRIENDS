@@ -14,7 +14,7 @@ jobs:
           node-version: '22'
       - name: Check JavaScript syntax
         run: |
-          for source in app.js color-switch-mayan.js color-switch.js ghost-attack.js chickens.js fruit-memory.js shockwave.js; do
+          for source in app.js src/games/color-switch/color-switch-mayan.js src/games/color-switch/color-switch.js src/games/ghost-attack/ghost-attack.js src/games/chickens/chickens.js src/games/fruit-memory/fruit-memory.js src/games/shockwave/shockwave.js; do
             node --check "$source"
           done
       - name: BOARD PARTY geometry, camera and navigation regression
@@ -24,11 +24,11 @@ jobs:
           node tests/board-art.cjs
       - name: PIZZA TIME menu fairness and movement regression
         run: |
-          node --check pizza-time.js
+          node --check src/games/pizza-time/pizza-time.js
           node tests/pizza-time.test.cjs
       - name: KNIGHT MATCH physics, balloon and HUD regressions
         run: |
-          node --check knight-match.js
+          node --check src/games/knight-match/knight-match.js
           node --check tests/knight-match.cjs
           node tests/knight-match.cjs
       - name: Test COLOR SWITCH core rules and stress
@@ -52,5 +52,5 @@ jobs:
           node tests/svg-only-policy.cjs
       - name: Ensure fifth game is loaded by HTML
         run: |
-          grep -q 'src="./color-switch.js"' index.html
+          grep -q 'src="./src/games/color-switch/color-switch.js"' index.html
           grep -q 'data-pick="color_switch"' index.html
