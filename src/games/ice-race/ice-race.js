@@ -476,6 +476,20 @@ function getResult(round,players){
   return {id:p.id,value,label};
  });
 }
-window.IceRace=Object.freeze({getResult,resultTitle:"ผ่านเช็กพอยต์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,step,finish,checkpoint,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+    active.sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id))).forEach(p=>{
+      const box=document.createElement('div');box.className='leader-chip';
+      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+      const score=document.createElement('small');score.className='leader-role';score.textContent=(p.score||0)+' คะแนน';
+      const info=document.createElement('span');info.className='leader-item-slot';
+      info.textContent=p.ice?.state==='falling'?'ตกน้ำ':'CP '+((p.ice?.nextCheckpoint??1)+1)+'/4';
+      box.append(color,name,score,info);root.append(box);
+    });return;
+   
+}
+window.IceRace=Object.freeze({renderRoster,getResult,resultTitle:"ผ่านเช็กพอยต์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,step,finish,checkpoint,
  nearest,sample,collide,hullContact,hullPoints,fall,respawn,makeTrack,botVector,config:C});
 })();

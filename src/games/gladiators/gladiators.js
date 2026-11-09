@@ -507,6 +507,25 @@ function getResult(round,players){
   return {id:p.id,value,label};
  });
 }
-window.Gladiators=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,eliminate,spawnPositions,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+   const ordered=active.slice().sort((a,b)=>
+     Number(!!b.gladiator?.alive)-Number(!!a.gladiator?.alive)||
+     (b.gladiator?.eliminatedTick??0)-(a.gladiator?.eliminatedTick??0));
+   for(const p of ordered){
+    const box=document.createElement('div');box.className='leader-chip';
+    if(!p.gladiator?.alive)box.classList.add('shockwave-eliminated');
+    const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
+    const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+    const status=document.createElement('small');status.className='leader-role';
+    status.textContent=p.gladiator?.alive?'รอด':'ตกรอบ';
+    const empty=document.createElement('span');empty.className='leader-item-slot';
+    box.append(dot,name,status,empty);root.append(box);
+   }
+   return;
+  
+}
+window.Gladiators=Object.freeze({renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,eliminate,spawnPositions,
  boundsFor,impact,swept,living,config:C});
 })();

@@ -349,6 +349,24 @@ function getResult(round,players){
   return {id:p.id,value,label};
  });
 }
-window.BoulderBash=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,spawnPositions,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+     const ordered=[...active].sort((a,b)=>Number(b.bb?.alive)-Number(a.bb?.alive)||
+       (b.bb?.eliminatedTick||0)-(a.bb?.eliminatedTick||0));
+     for(const p of ordered){
+       const box=document.createElement('div');box.className='leader-chip';
+       if(!p.bb?.alive)box.classList.add('shockwave-eliminated');
+       const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
+       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+       const role=document.createElement('small');role.className='leader-role';
+       role.textContent=p.bb?.alive?'รอด':p.bb?.mode==='rock'?'ควบคุมหิน':'ตกรอบ';
+       const empty=document.createElement('span');empty.className='leader-item-slot';empty.textContent=' ';
+       box.append(dot,name,role,empty);root.append(box);
+     }
+     return;
+   
+}
+window.BoulderBash=Object.freeze({renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,spawnPositions,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
  sweptHit,finish,interval,bounds:BOUNDS,config:C});
 })();

@@ -576,6 +576,22 @@ function getResult(round,players){
   return {id:p.id,value,label};
  });
 }
-window.FruitMemory=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,hudBadge:{duringCountdown:"clock",duringPlay:"players"},updateDuringCountdown:true,setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
+// Game-specific roster presentation stays with its pinned engine revision.
+function renderRoster(root,active,round){
+
+    active.sort((a,b)=>Number(b.fruitAlive)-Number(a.fruitAlive)||b.fruitRounds-a.fruitRounds).forEach(p=>{
+      const box=document.createElement('div');box.className='leader-chip fruit-leader';
+      if(!p.fruitAlive)box.classList.add('fruit-eliminated');
+      const color=document.createElement('span');color.className='circle';color.style.background=p.color;
+      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;name.title=p.name;
+      const role=document.createElement('small');role.className='leader-role';
+      role.textContent=p.fruitAlive?(p.fruitStun>0?'สตั้น':'รอด'):'ตกรอบ';
+      const info=document.createElement('span');info.className='leader-item-slot';
+      info.textContent='รอบ '+(p.fruitRounds||0);
+      box.append(color,name,role,info);root.append(box);
+    });return;
+  
+}
+window.FruitMemory=Object.freeze({renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,hudBadge:{duringCountdown:"clock",duringPlay:"players"},updateDuringCountdown:true,setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
  calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawSideScreens,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();
