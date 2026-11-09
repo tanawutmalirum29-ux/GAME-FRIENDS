@@ -37,19 +37,21 @@ fs.writeFileSync(path.join(root,'build-version.js'),
    'window.GAME_GAME_HASHES='+JSON.stringify(Object.fromEntries(gameCatalog.games.map(g=>[g.id,g.hash])))+';\n':''));
 const indexPath=path.join(root,'index.html');
 let html=fs.readFileSync(indexPath,'utf8');
-const assets=['style.css','arena-scale.js','arena-art.js','src/shared/graveyard-art.js','combat-motion.js',
- 'player-avatar.js','character-system.js','board-controller-camera.js','party-ui-art.js','src/games/ghost-attack/ghost-attack.js','src/shared/farm-ice-art.js','src/games/chickens/chickens.js','src/games/fruit-memory/fruit-memory.js','src/games/shockwave/shockwave.js','src/games/color-switch/color-switch-mayan.js','src/games/color-switch/color-switch.js','src/games/pizza-time/pizza-ingredient-art.js','src/games/pizza-time/pizza-kitchen-art.js','src/games/pizza-time/pizza-time.js','party-arena-scenes.js','game-cover-art.js','src/games/shopping-time/shopping-time.js','src/games/knight-match/knight-match.js','src/games/boulder-bash/boulder-bash.js','src/games/snow-brawl/snow-brawl.js','src/games/witching-snake/witching-snake.js','reference-arena-art.js','src/games/lawn-mower/lawn-mower.js','src/games/color-claim/color-claim.js','src/games/ice-race/ice-race.js','src/games/gladiators/gladiators-art.js','src/games/gladiators/gladiators.js','board-map.js','board-v7-design.js','board-v7-art.js','board-branch-naming.js','board-v7-adapter.js','board-dice.js','board-dice-renderer.js','board-items.js','board-bots.js','board-minigame.js','board-party.js','board-art.js','app.js','auto-update.js','build-version.js','src/platform/board-items-brief.js','src/platform/runtime-deps.js','src/platform/host-runtime.js','src/platform/main-loader.js','src/platform/game-platform.js','src/platform/board-runtime.js',
- 'assets/game-friends-cover.svg','assets/game-friends-icon.svg',
- 'assets/game-friends-touch-icon.png','manifest.webmanifest'];
-const seen=new Set();
+// Version every local file referenced by HTML automatically. No game names,
+// artwork, or new app entrypoints belong in a hand-maintained asset allowlist.
+const deployAsset=/\.(?:js|css|svg|png|webp|jpe?g|ico|woff2?|webmanifest)$/i;
 html=html.replace(/\b(src|href)="(\.\/[^"?]+)(?:\?v=[^"]*)?"/g,
  (raw,attr,url)=>{
   const asset=url.slice(2);
-  if(!assets.includes(asset))return raw;
-  seen.add(asset);
+  if(!deployAsset.test(asset))return raw; // navigation, anchors, non-assets
+  if(asset.includes('..')||asset.includes('\\'))
+   throw Error('Unsafe deployment asset: '+asset);
+  const filename=path.resolve(root,asset);
+  if(!filename.startsWith(root+path.sep)||!fs.existsSync(filename)||
+     !fs.statSync(filename).isFile())
+   throw Error('Missing build asset: '+asset);
   return attr+'="'+url+'?v='+encodeURIComponent(id)+'"';
  });
-for(const asset of assets)if(!seen.has(asset))throw Error('Missing build asset: '+asset);
 if(gameCatalog){
  const lazy=require('./lazy-game-scripts.cjs');
  html=lazy.pruneGameCover(lazy.pruneAppBoot(lazy.pruneHostCore(lazy.pruneExternal(lazy.pruneBoardCore(lazy.pruneLegacy(html,gameCatalog))))));

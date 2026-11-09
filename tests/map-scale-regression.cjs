@@ -159,8 +159,12 @@ for(let n=1;n<=12;n++){
  checks++;
 }
 const html=code('index.html'),build=code('scripts/build-static.cjs');
-assert.match(html,/src="\.\/arena-scale\.js"/);
-assert.ok(html.indexOf('arena-scale.js')<html.indexOf('src/games/fruit-memory/fruit-memory.js'));
-assert.ok(html.indexOf('arena-scale.js')<html.indexOf('src/games/color-switch/color-switch.js'));
-assert.ok(build.includes("'arena-scale.js'"),'Amplify includes shared map geometry');
+assert.match(html,/src="\.\/arena-scale\.js"/,
+ 'Shared map geometry is part of the shell');
+assert.doesNotMatch(html,/src="\.\/src\/games\/[^"]+\.js"/,
+ 'Game engines are imported on demand from the folder registry, not from HTML');
+assert.match(html,/src="\.\/src\/platform\/game-platform\.js"/,
+ 'One platform registry discovers minigames for Normal and Board Party');
+assert.ok(build.includes("const deployAsset=")&&build.includes("fs.statSync(filename).isFile()"),
+ 'Amplify versions and validates HTML assets from their actual references');
 console.log('GLOBAL MAP SCALE PASS: '+checks+' player/tier setups (15 minigames + BOARD PARTY) and projection contracts');

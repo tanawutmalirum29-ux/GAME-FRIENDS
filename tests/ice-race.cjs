@@ -280,10 +280,12 @@ test('party selection, timed results, board ranking and cover are registered',()
   'ICE RACE owns its controller status packet');
  assert.doesNotMatch(fs.readFileSync('src/app/host/room.js','utf8'),/round\.mode==='ice_race'/,
   'Host dispatch no longer hardcodes ICE RACE');
- assert.ok(html.includes('data-pick="ice_race"'));
- assert.ok(html.includes('src="./src/games/ice-race/ice-race.js"'));
+ const manifest=JSON.parse(fs.readFileSync('src/games/ice-race/manifest.json','utf8'));
+ assert.deepEqual(manifest.modes,['normal','board'],'game folder self-registers in both modes');
+ assert.doesNotMatch(html,/data-pick="/,'game picker must be metadata-driven');
+ assert.doesNotMatch(html,/src="\.\/src\/games\//,'game scripts are not loaded at page boot');
  assert.ok(board.includes("plugin.getResult"),"BOARD must obtain standings from the owning game engine");
- assert.ok(build.includes("'src/games/ice-race/ice-race.js'"));
+ assert.ok(build.includes("const deployAsset="),'static builder must not hardcode game IDs');
  assert.ok(covers.includes('ice_race:iceRaceScene'));
  const window={BoardDice:{shuffle:p=>p}};
  vm.runInNewContext(board,{window,console},{filename:'board-minigame.js'});

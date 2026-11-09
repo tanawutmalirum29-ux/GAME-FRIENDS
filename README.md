@@ -42,7 +42,7 @@
 - `src/games/pizza-time/pizza-ingredient-art.js` เป็นชุด SVG วัตถุดิบ 10 ชนิด ใช้แหล่งเดียวกันกับสนาม PIZZA TIME, แถบคะแนนจอหลัก และจอยมือถือ ไม่มีการแปลงไอคอนเป็นอีโมจิ
 - `party-ui-art.js` เป็นชุด SVG สำหรับดาว ประกาย และสถานะ ส่วนไอคอนใน HTML เช่น เต็มจอและสัญลักษณ์แบรนด์เป็น inline SVG
 - กล่องออร์เดอร์ของ PIZZA TIME ใช้ `planOrderCards()` เลือกตำแหน่งจากกรอบตัวเชฟและกรอบกล่องอื่น โดยไม่วาดทับตัวเชฟหรือทับกัน แม้มีผู้เล่น 12 คน
-- ทดสอบระบบภาพด้วย `node tests/pizza-time.test.cjs` และระบบรวมด้วย `node tests/smoke.cjs` พร้อมตรวจว่าสคริปต์ SVG ทั้งสองไฟล์ถูกระบุใน `scripts/build-static.cjs` ก่อน Deploy เพื่อป้องกัน asset เก่าจากแคช
+- ทดสอบระบบภาพด้วย `node tests/pizza-time.test.cjs` และระบบรวมด้วย `node tests/smoke.cjs` โดยไม่ต้องเพิ่มชื่อไฟล์ SVG ลงใน `scripts/build-static.cjs` เพราะระบบ Build จะค้นพบไฟล์ของเกมจาก Manifest อัตโนมัติ เพื่อป้องกัน asset เก่าจากแคช
 
 ## ระบบกลางตัวละครและกฎชนกัน (ใช้กับทุกแมพ)
 
@@ -209,7 +209,7 @@ python3 -m http.server 8080
 - **สลับของทันที:** ถ้าถือมะเขือเทศแล้วไปรับชีสที่อยู่ในออร์เดอร์และยังไม่ส่ง มะเขือเทศจะถูกแทนที่ด้วยชีส ไม่สะสมจำนวน และยังไม่ได้คะแนน
 - **ระยะเดิน:** แจกออร์เดอร์โดยใช้ A* คำนวณเส้นทางจากตำแหน่งเกิด/ตำแหน่งปัจจุบัน → โต๊ะกลาง → **เชฟของตัวเอง** → โต๊ะกลางอีกชนิด → เชฟของตัวเอง เปรียบเทียบความยากกับออร์เดอร์สี่ชุดของผู้เล่นคนนั้น ไม่ชดเชยตามคะแนนหรือตำแหน่งคนอื่น
 - **บอทและระบบออนไลน์:** บอทเดินช้ากว่าผู้เล่นตามกติกาเดิม ใช้ A* เลี่ยงเฟอร์นิเจอร์และเพิ่มต้นทุนทางที่มีคนเบียด จอยมือถือแสดงออร์เดอร์สองชนิดและสถานะส่งจริง ปุ่ม A/B ไม่ใช้ระหว่างเล่นแต่ใช้โหวตหลังจบเหมือนเกมอื่น
-- **ป้องกันภาพไม่แสดง:** สคริปต์พิซซ่าทั้งสามไฟล์อยู่ในรายการ Versioned Assets ของ `scripts/build-static.cjs` ฉากสร้างแคชใหม่เมื่อ SVG โหลดเสร็จ และหากเอนจินหรือการเรนเดอร์ผิดพลาด ระบบจะแจ้งข้อผิดพลาดและกลับล็อบบี้แทนจอดำ
+- **ป้องกันภาพไม่แสดง:** สคริปต์และ SVG พิซซ่าจะถูกแพ็กจากโฟลเดอร์เกมผ่าน Manifest อัตโนมัติ ฉากสร้างแคชใหม่เมื่อ SVG โหลดเสร็จ และหากเอนจินหรือการเรนเดอร์ผิดพลาด ระบบจะแจ้งข้อผิดพลาดและกลับล็อบบี้แทนจอดำ
 
 ทดสอบกติกาและออร์เดอร์ด้วย `node tests/pizza-time.test.cjs` (เพิ่ม seed ด้วย `PIZZA_FAIR_SEEDS=1000`) และผังครัว การชน การถือ/วางอาหาร กับบอท 18 รอบเต็มด้วย `node tests/pizza-kitchen.cjs` ตรวจหน้า HOST จริงด้วย `node tests/pizza-kitchen-browser.cjs` หรือ `BOARD_BROWSER=webkit node tests/pizza-kitchen-browser.cjs` ภาพทดสอบอยู่ใน `/tmp/game-friends-board/pizza-kitchen` และ artifact ของ GitHub Actions การทดสอบเบราว์เซอร์นี้ไม่ใช่ผลทดสอบบนโทรศัพท์จริง
 
@@ -239,3 +239,7 @@ Development checks: \`node --check src/games/witching-snake/witching-snake.js\`,
 - Review all scenes at `tools/art-preview.html`; choose 4 or 12 players to compare their proportions. The three new games, all twelve cover illustrations and the shared assets are versioned in the deployment build.
 
 Checks: `node tests/party-arenas.cjs`, `node tests/shopping-time.cjs`, `node tests/knight-match.cjs`, `node tests/witching-snake.test.cjs`, `node tests/svg-only-policy.cjs`, and `node tests/party-arenas-browser.cjs`. The browser checks run against the real HOST in Chromium and WebKit, rasterize every cover, verify the three game interactions, exercise 1/4/6/9/12-player scenes and save images in `/tmp/game-friends-board/party-arenas`. GitHub Actions uploads these with the existing board, ghost and pizza screenshots.
+
+## เพิ่มมินิเกมใหม่โดยไม่แก้ HTML
+
+เพิ่มเพียงโฟลเดอร์ `src/games/<slug>/` พร้อม `manifest.json` และ `game.js` (มี `cover.svg` ได้) จากนั้น Deploy ตามปกติ ระบบจะสร้าง Game Catalog อัตโนมัติและแสดงเกมใหม่ใน NORMAL PARTY และ BOARD PARTY ตาม `modes` ใน Manifest โดยไม่ต้องแก้ `index.html`, `app.js`, `board-minigame.js` หรือ Build asset allowlist. โปรแกรมจะโหลด Engine เฉพาะตอนเลือกเกม ดู [คู่มือเพิ่มมินิเกม](docs/ADDING_MINIGAMES.md) และปฏิบัติตาม CI/QA สำหรับเกมใหม่

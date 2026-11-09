@@ -21,6 +21,8 @@ const server=http.createServer((req,res)=>{
  const file=path.resolve(root,'.'+(url.pathname==='/'?'/index.html':url.pathname));
  if(!file.startsWith(root+path.sep)||!fs.existsSync(file)){res.writeHead(404).end();return;}
  let body=fs.readFileSync(file);
+ if(file===path.join(root,'index.html'))
+  body=require('./helpers/legacy-game-html.cjs').withLegacyGameFixtures(body.toString());
  if(file===path.join(root,'app.js')){
   const source=body.toString();
   assert.ok(source.includes('requestAnimationFrame(animate);\n})();'),'HOST hook is required');

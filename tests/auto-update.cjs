@@ -7,15 +7,17 @@ const vm=require('node:vm');
 const {execFileSync}=require('node:child_process');
 const root=path.join(__dirname,'..');
 const watcher=fs.readFileSync(path.join(root,'auto-update.js'),'utf8');
-const build=path.join(root,'scripts/build-static.cjs');
 
 function buildTest(){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gf-auto-build-'));
   try{
-    fs.copyFileSync(path.join(root,'index.html'),path.join(dir,'index.html'));
+    fs.cpSync(root,dir,{recursive:true,filter:source=>{
+      const parts=path.relative(root,source).split(path.sep);
+      return !parts.some(part=>['.git','node_modules','game-assets','coverage'].includes(part));
+    }});
     const first='a'.repeat(40),second='b'.repeat(40);
     for(const rev of [first,second]){
-      execFileSync(process.execPath,[build],{
+      execFileSync(process.execPath,[path.join(dir,'scripts/build-static.cjs')],{
         env:{...process.env,GAME_BUILD_ROOT:dir,AWS_COMMIT_ID:rev},
         encoding:'utf8'
       });
@@ -23,13 +25,13 @@ function buildTest(){
       assert.match(fs.readFileSync(path.join(dir,'build-version.js'),'utf8'),
         new RegExp('GAME_BUILD_VERSION="'+rev+'"'));
       const html=fs.readFileSync(path.join(dir,'index.html'),'utf8');
-      for(const asset of ['style.css','arena-art.js','src/shared/graveyard-art.js','combat-motion.js',
-        'player-avatar.js','src/games/ghost-attack/ghost-attack.js','src/games/chickens/chickens.js','src/games/shockwave/shockwave.js','src/games/color-switch/color-switch-mayan.js','src/games/color-switch/color-switch.js','src/games/pizza-time/pizza-ingredient-art.js','src/games/pizza-time/pizza-kitchen-art.js','src/games/pizza-time/pizza-time.js','board-map.js','board-dice.js','board-dice-renderer.js','board-items.js','board-bots.js','board-minigame.js','board-party.js','board-art.js','app.js','auto-update.js','build-version.js',
-        'src/shared/farm-ice-art.js','party-arena-scenes.js','game-cover-art.js','assets/game-friends-cover.svg','assets/game-friends-icon.svg',
-        'assets/game-friends-touch-icon.png','manifest.webmanifest']){
-        assert.ok(html.includes('./'+asset+'?v='+rev),
-          'all asset URLs versioned on each deploy: '+asset);
+      const versions=[...html.matchAll(/\b(?:src|href)="\.\/([^"?]+)\?v=([a-f0-9]{40})"/g)];
+      assert.ok(versions.length>10,'actual HTML bootstrap assets must be revision pinned');
+      for(const match of versions){
+        assert.equal(match[2],rev,'every referenced asset uses this deploy revision: '+match[1]);
+        assert.ok(fs.existsSync(path.join(dir,match[1])),'referenced asset exists: '+match[1]);
       }
+      assert.doesNotMatch(html,/src="\.\/src\/games\//,'game engines must be lazy-loaded');
       assert.ok(!html.includes('?v='+ (rev===second?first:second)),
         'old deployment revision is removed');
     }

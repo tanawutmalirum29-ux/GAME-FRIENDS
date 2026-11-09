@@ -30,7 +30,10 @@ function paint(){
  return {g,points,images,texts};
 }
 const html=fs.readFileSync('index.html','utf8');
-const modes=[...html.matchAll(/data-pick="([^"]+)"/g)].map(m=>m[1]);
+const modes=fs.readdirSync('src/games',{withFileTypes:true})
+ .filter(entry=>entry.isDirectory())
+ .map(entry=>JSON.parse(fs.readFileSync('src/games/'+entry.name+'/manifest.json','utf8')))
+ .filter(meta=>Boolean(meta.global)).map(meta=>meta.id);
 assert.equal(covers.ids.length,15);
 assert.ok(covers.ids.includes('gladiators'));
 assert.deepEqual([...covers.ids].sort(),[...new Set(modes)].sort());
@@ -46,8 +49,12 @@ for(let copy=0;copy<3;copy++)for(const mode of covers.ids){
  assert.ok(svg.length>4500,'complete scene illustration '+mode);
 }
 assert.equal(covers.svg('__proto__'),'');assert.equal(covers.svg('missing'),'');
-assert.ok(html.indexOf('party-arena-scenes.js')<html.indexOf('game-cover-art.js'));
-assert.ok(html.indexOf('game-cover-art.js')<html.indexOf('./app.js'));
+assert.match(html,/src="\.\/src\/platform\/game-platform\.js"/,
+ 'production and development find covers through the folder catalog');
+assert.doesNotMatch(html,/src="\.\/game-cover-art\.js"/,
+ 'legacy cover renderer must not be eagerly loaded by HTML');
+assert.doesNotMatch(html,/data-pick="/,
+ 'the game picker is dynamically built from plugin manifests');
 console.log('PASS 15 original text-free covers, complete paths and isolated IDs across repeated cards');
 
 for(let n=1;n<=12;n++){

@@ -6038,3 +6038,16 @@ html.gf-landscape-screen{
   min-height:0!important;font-size:clamp(9px,1.6dvw,11px)!important;
  }
 }
+
+/* Unlimited folder-discovered games: the compact controller stage must scroll
+   instead of silently clipping the ninth and subsequent game buttons. */
+body.controller-playing #controller .phone-game-choices{
+  grid-template-rows:none;
+  grid-auto-rows:minmax(40px,auto);
+  align-content:start;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+}

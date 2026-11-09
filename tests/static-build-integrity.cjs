@@ -13,8 +13,30 @@ try{
   const parts=path.relative(root,source).split(path.sep);
   return !parts.some(part=>['.git','node_modules','game-assets'].includes(part));
  }});
+
+ // A new, unknown game is added exclusively to its own directory. Neither
+ // index.html, app.js, board-minigame.js nor the build script is edited.
+ // Normalize all generated Core files first; the second build must change
+ // only the catalog and the unknown native game's immutable asset folder.
  for(const file of ['board-v7-design.js','board-v7-art.js','game-catalog.json'])
   fs.rmSync(path.join(target,file),{force:true});
+ execFileSync(process.execPath,['scripts/build-static.cjs'],{
+  cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:version},
+  encoding:'utf8',stdio:['ignore','pipe','pipe']
+ });
+ const baseline=execFileSync(process.execPath,
+  ['-e',"process.stdout.write(require('./scripts/build-game-catalog.cjs').coreHash())"],
+  {cwd:target,env:{...process.env,GAME_BUILD_ROOT:target},encoding:'utf8'}).trim();
+ const fixture=path.join(target,'src/games/ci-autoload');
+ fs.mkdirSync(fixture,{recursive:true});
+ fs.writeFileSync(path.join(fixture,'manifest.json'),JSON.stringify({
+  id:'ci_autoload',name:'CI AUTOLOAD',version:'1.0.0',apiVersion:1,
+  enabled:true,players:{min:1,max:12},modes:['normal','board'],
+  controls:['joystick','A'],controller:{labels:{A:'Test'}},
+  entry:'./game.js',legacyScripts:[]
+ })+'\n');
+ fs.writeFileSync(path.join(fixture,'game.js'),
+  'export default {setup(){},update(){},draw(){},hud(){return {}},getResult(){return []}};\n');
  execFileSync(process.execPath,['scripts/build-static.cjs'],{
   cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:version},
   encoding:'utf8',stdio:['ignore','pipe','pipe']
@@ -35,6 +57,19 @@ try{
  }
  const catalog=JSON.parse(fs.readFileSync(path.join(target,'game-catalog.json'),'utf8'));
  assert.equal(catalog.schema,1);
+ assert.equal(catalog.coreHash,baseline,
+  'Adding a native folder-only game must not alter the shared core fingerprint');
+ const extra=catalog.games.find(game=>game.id==='ci_autoload');
+ assert.ok(extra,'New folder must become a registry entry automatically');
+ assert.deepEqual(extra.modes,['normal','board'],
+  'Normal Party and Board Party share the same generated game catalog');
+ assert.equal(extra.controller.labels.A,'Test','Controller UI metadata comes from the game folder');
+ assert.ok(!html.includes('src="./src/games/'),
+  'Neither game HTML imports nor hardcoded game names may appear in the bootstrap');
+ assert.ok(!html.includes('ci-autoload'),'HTML must remain unaware of newly added game IDs');
+ assert.ok(!html.includes('src="./game-cover-art.js'),
+  'Unused global cover artwork must not be requested during bootstrap');
+
  assert.ok(catalog.games.length>=15,'game discovery must produce all current plug-ins');
  for(const game of catalog.games){
   assert.match(game.hash,/^[a-f0-9]{24}$/);

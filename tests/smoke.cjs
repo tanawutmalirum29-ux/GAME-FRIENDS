@@ -182,46 +182,20 @@ assert.deepEqual(hostLaunch(false,'/host.html?launch=1'),['https://game.example/
 assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-icon.svg'));
 assert.ok(appManifest.icons.some(icon=>icon.src==='./assets/game-friends-touch-icon.png'));
 
-// Game catalog retains Ghost Attack and now adds CHICKENS as game two.
-assert.match(html,/data-pick="ghost"/);
-assert.equal([...html.matchAll(/data-pick="/g)].length,15);
-assert.match(html,/data-pick="gladiators"/);
-assert.match(html,/src="\.\/src\/games\/gladiators\/gladiators\.js"/);
-assert.doesNotMatch(html,/data-pick="stars"|data-pick="paint"|data-pick="tanks"/);
-assert.match(html,/src=".\/src\/games\/ghost-attack\/ghost-attack\.js"/);
-assert.match(html,/src=".\/src\/games\/chickens\/chickens\.js"/);
-assert.match(html,/data-pick="chickens"/);
-assert.match(html,/data-pick="fruit_memory"/);
-assert.match(html,/src=".\/src\/games\/fruit-memory\/fruit-memory\.js"/);
-assert.match(html,/data-pick="shockwave"/);
-assert.match(html,/src=".\/src\/games\/shockwave\/shockwave\.js"/);
-assert.match(html,/data-pick="color_switch"/);
-assert.match(html,/src="\.\/src\/games\/pizza-time\/pizza-ingredient-art\.js"/);
-assert.match(html,/src="\.\/src\/games\/pizza-time\/pizza-kitchen-art\.js"/);
-assert.match(html,/src="\.\/party-ui-art\.js"/);
-assert.match(html,/src="\.\/src\/games\/pizza-time\/pizza-time\.js"/);
-assert.match(html,/src="\.\/src\/games\/shopping-time\/shopping-time\.js"/);
-assert.match(html,/data-pick="shopping_time"/);
-assert.match(html,/src="\.\/src\/games\/knight-match\/knight-match\.js"/);
-assert.match(html,/src="\.\/src\/games\/boulder-bash\/boulder-bash\.js"/);
-assert.match(html,/src="\.\/src\/games\/snow-brawl\/snow-brawl\.js"/);
-assert.match(html,/data-pick="snow_brawl"/);
-assert.match(html,/data-pick="witching_snake"/);
-assert.match(html,/src="\.\/src\/games\/witching-snake\/witching-snake\.js"/);
-assert.match(html,/data-pick="lawn_mower"/);
-assert.match(html,/data-pick="color_claim"/);
-assert.match(html,/src="\.\/src\/games\/color-claim\/color-claim\.js"/);
-assert.doesNotMatch(html,/class="feature-tags"/,'homepage no longer renders redundant feature badges');
-assert.match(html,/src="\.\/src\/games\/lawn-mower\/lawn-mower\.js"/);
-assert.match(html,/src="\.\/src\/games\/ice-race\/ice-race\.js"/);
-assert.match(html,/data-pick="ice_race"/);
-assert.match(html,/data-pick="boulder_bash"/);
-assert.match(html,/data-pick="knight_match"/);
-assert.match(html,/src=".\/src\/games\/color-switch\/color-switch\.js"/);
-assert.match(html,/src=".\/src\/games\/color-switch\/color-switch-mayan\.js"/);
-assert.match(html,/src="\.\/src\/shared\/graveyard-art\.js"/);
+// Source HTML only bootstraps the registry. Games and the phone picker are
+// discovered from their own manifests, never enumerated as HTML script tags.
+assert.match(html,/id="phoneGameChoices"/);
+assert.match(html,/src="\.\/src\/platform\/game-platform\.js"/);
+assert.doesNotMatch(html,/data-pick="/,'phone picker buttons must be runtime-created');
+assert.doesNotMatch(html,/src="\.\/src\/games\//,
+ 'minigame engines must download only when selected');
+assert.doesNotMatch(html,/src="\.\/src\/shared\/(?:farm-ice-art|graveyard-art)\.js"/,
+ 'shared game scenery is a pinned per-game asset, not an eager dependency');
+assert.doesNotMatch(html,/src="\.\/game-cover-art\.js"/,'legacy cover art must not load on boot');
+assert.match(source,/button\.dataset\.pick=id/,
+ 'the app must render buttons directly from the discovered game metadata');
 assert.match(artSource,/window\.GhostCemeteryArt=Object\.freeze/);
-assert.match(html,/<script defer src="\.\/combat-motion\.js"><\/script>[\s\S]*?<script defer src="\.\/src\/games\/ghost-attack\/ghost-attack\.js"><\/script>/);
+assert.match(html,/src="\.\/combat-motion\.js"/,'shared combat runtime remains in the Host shell');
 assert.match(combatSource,/window\.PartyCombatMotion=/);
 assert.doesNotMatch(html,/src="\.\/minigames\.js"/);
 assert.equal(fs.existsSync('minigames.js'),false,'delete legacy game engine');
@@ -1044,7 +1018,9 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
       },
       addEventListener(name,fn){(handlers[name]??=[]).push(fn);},
       fire(name,extra={}){for(const fn of handlers[name]||[])fn({preventDefault(){},pointerId:1,...extra});},
-      append(...items){this.children.push(...items);},
+      append(...items){this.children.push(...items);if(id==='phoneGameChoices')for(const item of items){
+        if(item.dataset?.pick&&!pickButtons.includes(item))pickButtons.push(item);
+      }},
       replaceChildren(...items){this.children=items;this.textContent='';this.innerHTML='';},
       prepend(item){this.children.unshift(item);},
       setAttribute(name,value){this.attributes??={};this.attributes[name]=value;if(name==='content')this.content=value;},
@@ -1085,9 +1061,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   const sessionButtons=['queue','endless','board'].map(mode=>{
     const btn=makeElement('session-'+mode);btn.dataset.sessionMode=mode;return btn;
   });
-  const pickButtons=[...html.matchAll(/data-pick="([^"]+)"/g)].map(([,game])=>{
-    const button=makeElement('pick-'+game);button.dataset.pick=game;return button;
-  });
+  const pickButtons=[]; // Populated by the real renderModeChoices() DOM handler.
   const padButtons=Object.fromEntries(['action','alt','cancel'].map(key=>{
     const button=makeElement('pad-'+key);button.dataset.control=key;return [key,button];
   }));
@@ -2268,29 +2242,23 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,15);
-assert.equal(phone.pickButtons[13].dataset.pick,'ice_race');
-assert.equal(phone.pickButtons[14].dataset.pick,'gladiators');
-assert.equal(phone.pickButtons[4].dataset.pick,'color_switch');
-assert.equal(phone.pickButtons[5].dataset.pick,'pizza_time');
-assert.equal(phone.pickButtons[6].dataset.pick,'shopping_time');
- assert.equal(phone.pickButtons[7].dataset.pick,'knight_match');
-assert.equal(phone.pickButtons[8].dataset.pick,'boulder_bash');
-assert.equal(phone.pickButtons[9].dataset.pick,'snow_brawl');
- assert.equal(phone.pickButtons[10].dataset.pick,'witching_snake');
- assert.equal(phone.pickButtons[11].dataset.pick,'lawn_mower');
-assert.equal(phone.pickButtons[12].dataset.pick,'color_claim');
-assert.match(phone.pickButtons[9].children[0].innerHTML,/<svg[\s>]/);
-assert.match(phone.pickButtons[4].children[0].innerHTML,/<svg[\s>]/);
-assert.equal(phone.pickButtons[4].children[1].textContent,'COLOR SWITCH');
-assert.equal(phone.pickButtons[2].dataset.pick,'fruit_memory');
-assert.match(phone.pickButtons[2].children[0].innerHTML,/<svg[\s>]/);
-assert.equal(phone.pickButtons[2].children[1].textContent,'FRUIT MEMORY');
-assert.equal(phone.pickButtons[1].dataset.pick,'chickens');
-assert.match(phone.pickButtons[1].children[0].innerHTML,/<svg[\s>]/);
-assert.equal(phone.pickButtons[1].children[1].textContent,'CHICKENS');
-assert.match(phone.pickButtons[0].children[0].innerHTML,/<svg[\s>]/);
-assert.equal(phone.pickButtons[0].children[1].textContent,'GHOST ATTACK');
+assert.equal(phone.pickButtons.length,legacyManifests.length);
+assert.deepEqual(new Set(phone.pickButtons.map(btn=>btn.dataset.pick)),
+ new Set(legacyManifests.map(meta=>meta.id)),
+ 'dynamic picker must expose exactly the game-owned legacy manifests');
+const picker=id=>{
+ const button=phone.pickButtons.find(btn=>btn.dataset.pick===id);
+ assert.ok(button,'dynamic picker must render '+id);
+ return button;
+};
+for(const id of ['ghost','chickens','fruit_memory','snow_brawl','color_switch']){
+ assert.match(picker(id).children[0].innerHTML,/<svg[\s>]/,
+  'game cover SVG must appear for '+id);
+ assert.equal(picker(id).children[1].textContent,legacyModeNames[id],
+  'metadata label must appear for '+id);
+}
+for(const id of ['ice_race','gladiators','pizza_time','shopping_time','knight_match','boulder_bash',
+ 'witching_snake','lawn_mower','color_claim'])picker(id);
 phone.pick('ghost');
 assert.equal(phoneConn.sent.at(-1).mode,'ghost');
 phoneConn.fire('data',{t:'roster',phase:'playing',mode:'ghost',

@@ -55,7 +55,13 @@ assert.ok(originalHTML.includes('src="./app.js"'),'local dev retains immediate c
 assert.ok(!/src="\.\/src\/games\/[^\"]+\.js"/.test(lazyHTML),
  'production must not eagerly load folder-owned minigame scripts');
 assert.ok(!lazyHTML.includes('src="./game-cover-art.js"'),'production must not load all shared cover artwork');
-assert.ok(originalHTML.includes('src="./game-cover-art.js"'),'dev compatibility retains vector cover renderer');
+assert.ok(!originalHTML.includes('src="./game-cover-art.js"'),
+ 'HTML must not preload legacy covers; game-owned covers load from the catalog');
+assert.ok(!/src="\.\/src\/games\/[^\"]+\.js"/.test(originalHTML),
+ 'Source HTML must not declare any individual game script');
+for(const asset of ['farm-ice-art.js','graveyard-art.js'])
+ assert.ok(!originalHTML.includes('src="./src/shared/'+asset+'"'),
+  'Source HTML must not eagerly download game-owned scenery: '+asset);
 assert.ok(lazyHTML.includes('src="./src/platform/board-runtime.js"'),
  'production loads BOARD through the deferred core runtime');
 assert.equal(catalog.games.length,15,'all 15 legacy games must be automatically discovered');

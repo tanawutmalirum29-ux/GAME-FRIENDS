@@ -44,9 +44,18 @@ test('registration and scripts are connected to both party modes',()=>{
  assert.match(fs.readFileSync(path.join(root,'src/games/gladiators/gladiators.js'),'utf8'),/function getResult\(/);
  assert.doesNotMatch(board,/case 'gladiators'/);
  assert.match(board,/plugin\.getResult/);
- assert.match(html,/data-pick="gladiators"/);
- assert.ok(html.indexOf('src/games/gladiators/gladiators-art.js')<html.indexOf('src/games/gladiators/gladiators.js'));
- assert.ok(html.indexOf('src/games/gladiators/gladiators.js')<html.indexOf('app.js'));
+ const manifest=JSON.parse(fs.readFileSync(path.join(root,'src/games/gladiators/manifest.json'),'utf8'));
+ const entry=fs.readFileSync(path.join(root,'src/games/gladiators/game.js'),'utf8');
+ assert.deepEqual(manifest.modes,['normal','board'],
+  'a single game-owned manifest enables both party modes');
+ assert.ok(entry.indexOf("import './gladiators-art.js'")<entry.indexOf("import './gladiators.js'"),
+  'game-owned module imports art before the engine instead of depending on HTML order');
+ assert.doesNotMatch(html,/data-pick="/,
+  'game-picker markup must never hardcode an individual game ID');
+ assert.doesNotMatch(html,/src="\.\/src\/games\//,
+  'game scripts must load from the generated catalog only');
+ assert.match(app,/button\.dataset\.pick=id/,
+  'controller game picker renders buttons dynamically from the catalog');
  assert.match(cover,/gladiators:gladiatorsScene/);
 });
 test('1, 6, 7, 12 active players get isolated spawns and two world scales',()=>{

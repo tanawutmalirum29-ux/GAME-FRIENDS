@@ -222,9 +222,11 @@ assert.match(app,/"shopping_time": \{[\s\S]*?"global": "ShoppingTime"/,
 assert.match(app,/function endPluginRound\(/);
 assert.equal(typeof G.getResult,'function','SHOPPING TIME owns its scoring');
 assert.match(app,/renderPhoneShoppingStatus/);
-assert.match(html,/src="\.\/src\/games\/shopping-time\/shopping-time\.js"/);
-assert.match(html,/data-pick="shopping_time"/);
+const meta=JSON.parse(fs.readFileSync(path.join(root,'src/games/shopping-time/manifest.json'),'utf8'));
+assert.deepEqual(meta.modes,['normal','board'],'game folder owns its registration');
+assert.doesNotMatch(html,/src="\.\/src\/games\//);
+assert.doesNotMatch(html,/data-pick="/);
 assert.doesNotMatch(board,/case 'shopping_time':/);
 assert.match(board,/plugin\.getResult/);
-assert.match(build,/'src\/games\/shopping-time\/shopping-time\.js'/);
+assert.match(build,/const deployAsset=/,'game assets are discovered rather than manually enumerated');
 console.log('SHOPPING TIME: four conveyor lanes, rigid forward cart steering, collision, checkout, bomb immunity, 1–12 players, bots and integration PASS');

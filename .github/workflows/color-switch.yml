@@ -50,7 +50,9 @@ jobs:
           node tests/avatar-topdown.cjs
           node tests/auto-update.cjs
           node tests/svg-only-policy.cjs
-      - name: Ensure fifth game is loaded by HTML
+      - name: Ensure fifth game is discovered without editing HTML
         run: |
-          grep -q 'src="./src/games/color-switch/color-switch.js"' index.html
-          grep -q 'data-pick="color_switch"' index.html
+          node tests/game-platform.cjs
+          node -e "const m=require('./src/games/color-switch/manifest.json'); if(m.id!=='color_switch'||!m.modes.includes('normal')||!m.modes.includes('board'))process.exit(1)"
+          ! grep -q 'src="./src/games/' index.html
+          ! grep -q 'data-pick="' index.html

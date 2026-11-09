@@ -20,6 +20,10 @@ Read **[docs/CI_TESTING.md](docs/CI_TESTING.md)** before coding a new mode, chan
 
 Read [docs/BOARD_BRANCH_GRAPH_RULES.md](docs/BOARD_BRANCH_GRAPH_RULES.md) before changing BOARD PARTY nodes, edges, arrows or display IDs. Run the V9 strict graph audit after any deletion; any stranded node, bridge or sword pair must be resolved without inventing edges, and every explicit or necessary cleanup deletion must be documented. Keep internal IDs stable independently of display names, validate collisions, and do not merge partial graph migrations.
 
+## Zero-touch game folder discovery
+
+Read **[docs/ADDING_MINIGAMES.md](docs/ADDING_MINIGAMES.md)** before adding or changing a minigame. Register games ONLY by adding their own `src/games/<slug>/manifest.json` and `game.js`. NEVER add per-game `<script>` tags to HTML, game filenames to `scripts/build-static.cjs`, or switch/case IDs to Core/BOARD/Controller for game discovery. Host, Normal Party, Board Party and controllers consume the generated `game-catalog.json`. Keep Core hashes stable for native game-only updates. Run `node tests/static-build-integrity.cjs` (includes a simulated unknown game directory) before PR/Merge.
+
 ## Minigame live roster ownership
 
 Read [docs/PLUGIN_ROSTER_API.md](docs/PLUGIN_ROSTER_API.md) before adding a game or changing live scoreboards. All original 15 games own their custom `renderRoster` hooks, and new game IDs use the generic `getRoster` fallback without Core branches. Run `node tests/plugin-roster-ownership.cjs` before PR/Merge. Never change scoring or SVG layouts while moving roster code.
