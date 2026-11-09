@@ -61,6 +61,8 @@ function beginBoard(){
     tournament=null;gameSelection=null;
     boardSession=window.BoardParty.create(players);
     boardSession.camera.lowDetail=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
+     boardSession.camera.manualDetail=boardSession.camera.lowDetail;
+     boardSession.camera.autoDetailEngaged=false;
     window.BoardArt.overview(boardSession);
     players.forEach(p=>{p.active=true;});
     window.PartyPlayerAvatar.preload(boardSession.players);
