@@ -16,7 +16,17 @@ try{
 
  // A new, unknown game is added exclusively to its own directory. Neither
  // index.html, app.js, board-minigame.js nor the build script is edited.
- const baseline=require('../scripts/build-game-catalog.cjs').build();
+ // Normalize all generated Core files first; the second build must change
+ // only the catalog and the unknown native game's immutable asset folder.
+ for(const file of ['board-v7-design.js','board-v7-art.js','game-catalog.json'])
+  fs.rmSync(path.join(target,file),{force:true});
+ execFileSync(process.execPath,['scripts/build-static.cjs'],{
+  cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:version},
+  encoding:'utf8',stdio:['ignore','pipe','pipe']
+ });
+ const baseline=execFileSync(process.execPath,
+  ['-e',"process.stdout.write(require('./scripts/build-game-catalog.cjs').coreHash())"],
+  {cwd:target,env:{...process.env,GAME_BUILD_ROOT:target},encoding:'utf8'}).trim();
  const fixture=path.join(target,'src/games/ci-autoload');
  fs.mkdirSync(fixture,{recursive:true});
  fs.writeFileSync(path.join(fixture,'manifest.json'),JSON.stringify({
@@ -27,8 +37,6 @@ try{
  })+'\n');
  fs.writeFileSync(path.join(fixture,'game.js'),
   'export default {setup(){},update(){},draw(){},hud(){return {}},getResult(){return []}};\n');
- for(const file of ['board-v7-design.js','board-v7-art.js','game-catalog.json'])
-  fs.rmSync(path.join(target,file),{force:true});
  execFileSync(process.execPath,['scripts/build-static.cjs'],{
   cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:version},
   encoding:'utf8',stdio:['ignore','pipe','pipe']
