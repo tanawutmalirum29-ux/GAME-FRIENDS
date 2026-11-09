@@ -1,4 +1,4 @@
-/* GENERATED from src/games/*/manifest.json — do not edit by hand. */
+/* Generated legacy game metadata from game manifests. Do not edit. */
 const LEGACY_GAME_DATA=Object.freeze({
   "ghost": {
     "name": "GHOST ATTACK",

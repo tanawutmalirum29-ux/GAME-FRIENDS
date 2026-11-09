@@ -23,7 +23,7 @@ function generated(){
   const rank=id=>{const i=legacyOrder.indexOf(id);return i<0?legacyOrder.length:i;};
   return rank(a)-rank(b)||a.localeCompare(b);
  }));
- return '/* GENERATED from src/games/*/manifest.json — do not edit by hand. */\n'+
+ return '/* Generated legacy game metadata from game manifests. Do not edit. */\n'+
   'const LEGACY_GAME_DATA=Object.freeze('+JSON.stringify(sequence,null,2)+');\n';
 }
 function buildLegacyDefaults({write=false}={}){
