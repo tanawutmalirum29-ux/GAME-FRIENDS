@@ -37,6 +37,10 @@ jobs:
         run: |
           node scripts/build-game-catalog.cjs --check
           node tests/game-platform.cjs
+      - name: Validate BOARD map folder discovery and directed graph safety
+        run: |
+          node scripts/build-board-map-catalog.cjs --check
+          node tests/board-map-discovery.cjs
       - name: Enforce per-game source ownership and no root gameplay copies
         run: node tests/game-source-ownership.cjs
       - name: Enforce game-owned live roster and dynamic ID fallback

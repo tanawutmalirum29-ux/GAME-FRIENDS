@@ -27,3 +27,7 @@ Read **[docs/ADDING_MINIGAMES.md](docs/ADDING_MINIGAMES.md)** before adding or c
 ## Minigame live roster ownership
 
 Read [docs/PLUGIN_ROSTER_API.md](docs/PLUGIN_ROSTER_API.md) before adding a game or changing live scoreboards. All original 15 games own their custom `renderRoster` hooks, and new game IDs use the generic `getRoster` fallback without Core branches. Run `node tests/plugin-roster-ownership.cjs` before PR/Merge. Never change scoring or SVG layouts while moving roster code.
+
+## BOARD PARTY map plug-in discovery
+
+Read [docs/ADDING_BOARD_MAPS.md](docs/ADDING_BOARD_MAPS.md) before adding or editing a BOARD map. A new map is registered exclusively in `src/board-party/maps/<slug>/` with its manifest, both tier graphs and runtime entry. Never add per-map imports to HTML, `app.js` or `src/platform/board-runtime.js`. Keep the 302-node V10 map as the default; never replace it with the authored V6 base. Run `node tests/board-map-discovery.cjs` and BOARD regressions. Map hot-updates are metadata-only until the next BOARD session; never replace live BoardMap/BoardArt objects mid-session.

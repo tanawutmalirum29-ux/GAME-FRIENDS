@@ -29,6 +29,9 @@ if(turnUrl&&(!/^https:\/\/[^\s]+$/i.test(turnUrl)||turnUrl.length>512))
  throw Error('GF_TURN_CREDENTIALS_ENDPOINT must be a short HTTPS URL');
 const gameCatalog=fs.existsSync(path.join(root,'src','games'))?
   require('./build-game-catalog.cjs').build({write:true}):null;
+// Discover BOARD maps at build time. Do not eagerly fetch map engines.
+if(fs.existsSync(path.join(root,'src','board-party','maps')))
+ require('./build-board-map-catalog.cjs').build({write:true,coreHash:gameCatalog?.coreHash});
 fs.writeFileSync(path.join(root,'version.json'),JSON.stringify({version:id})+'\n');
 fs.writeFileSync(path.join(root,'build-version.js'),
   'window.GAME_BUILD_VERSION='+JSON.stringify(id)+';\n'+

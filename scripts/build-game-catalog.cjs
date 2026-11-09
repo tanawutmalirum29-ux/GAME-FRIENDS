@@ -64,6 +64,7 @@ function coreHash(){
   "board-controller-camera.js",
   "src/platform/game-platform.js","src/platform/runtime-deps.js",
   "src/platform/board-runtime.js","src/platform/main-loader.js","src/platform/host-runtime.js",
+  "src/board-party/maps/winter-expedition/manifest.json",
   "src/platform/board-items-brief.js"
 ]){
   if(fs.existsSync(path.join(root,relative))){

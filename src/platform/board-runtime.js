@@ -12,7 +12,7 @@ let pending=null,refreshing=null,legacy=null,active=DEFAULT,activeHash=null;
 let catalog=[{id:DEFAULT,name:'WINTER EXPEDITION',kind:'legacy',enabled:true}],revision=0,selector=null;
 const globalsReady=()=>required.every(id=>!!window[id]);
 function captureDefault(){
- if(!legacy&&globalsReady()&&window.BoardMap?.MAP_VERSION&&window.BoardArt?.draw)
+ if(!legacy&&globalsReady())
   legacy={map:window.BoardMap,art:window.BoardArt};
 }
 captureDefault();
@@ -81,7 +81,7 @@ async function refreshMaps(){
   if(window.GAME_CORE_VERSION&&data.coreHash!==window.GAME_CORE_VERSION)return false;
   const next=inspect(data);
   if(!next.some(m=>m.id===DEFAULT&&m.enabled))throw Error('Default BOARD map unavailable');
-  if(JSON.stringify(next)===JSON.stringify(catalog))return false;
+  if(JSON.stringify(next)===JSON.stringify(catalog)){render();return false;}
   catalog=next;revision++;render();return true;
  })().finally(()=>{refreshing=null;});
  return refreshing;
@@ -154,13 +154,13 @@ function mount(){
  mode.append(selector);render();
  for(const btn of mode.querySelectorAll('[data-session-mode]')){
   btn.addEventListener('click',()=>{
-   render();
+   queueMicrotask(render);
    if(btn.dataset.sessionMode==='board')
     void refreshMaps().catch(err=>console.warn('BOARD map catalog unavailable',err));
   });
  }
 }
-if(typeof document!=='undefined'){
+if(typeof document!=='undefined'&&typeof document.getElementById==='function'){
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
  else mount();
  setInterval(()=>{
