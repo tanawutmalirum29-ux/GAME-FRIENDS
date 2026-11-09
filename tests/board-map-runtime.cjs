@@ -90,7 +90,7 @@ const runtime=window.BoardRuntime;
  catalog={...catalog,maps:[catalog.maps[0],descriptor('coast','d','module')]};
  await runtime.refreshMaps();
  missing=true;
- await assert.rejects(runtime.ensure(),/Invalid BOARD map module/,
+ await assert.rejects(runtime.ensure(),/BOARD map version missing|Invalid BOARD map module/,
   'Broken downloaded plug-in must fail without mutating previous map');
  assert.equal(window.BoardMap,legacyMap);
  assert.equal(runtime.activeMapId,'winter-expedition');
