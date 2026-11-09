@@ -51,6 +51,7 @@ jobs:
           node scripts/build-board-system-catalog.cjs --check
           node tests/board-system-discovery.cjs
           node tests/board-system-runtime.cjs
+          node tests/board-controller-item-meta.cjs
       - name: Enforce per-game source ownership and no root gameplay copies
         run: node tests/game-source-ownership.cjs
       - name: Enforce game-owned live roster and dynamic ID fallback

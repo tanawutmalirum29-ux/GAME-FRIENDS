@@ -439,7 +439,7 @@ function joinRoom(recovery=false){
   if(!recovery)void requestLandscape();
   $('joinBtn').disabled=true;controllerState((recovery?'กำลังกลับเข้าห้อง ':'กำลังเชื่อมต่อห้อง ')+code+'...');
   disconnectRequested=true;safePeerDestroy();
-  phoneMiniMap=null;phoneMiniMapPositions=null;
+  phoneMiniMap=null;phoneMiniMapPositions=null;phoneBoardItemMeta=null;
   disconnectRequested=false;
   const peer=new Peer(undefined,partyPeerOptions());
   controllerPeer=peer;
@@ -522,6 +522,8 @@ function joinRoom(recovery=false){
         receivePhoneMiniMapMap(data);
       }else if(data.t==='board-minimap-positions'){
         receivePhoneMiniMapPositions(data);
+      }else if(data.t==='board-item-meta'){
+        receiveBoardItemMeta(data);
       }else if(data.t==='board-state'){
         receiveBoardState(data);
       }else if(data.t==='roster'){

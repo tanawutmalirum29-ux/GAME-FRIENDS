@@ -2427,7 +2427,7 @@ function joinRoom(recovery=false){
   if(!recovery)void requestLandscape();
   $('joinBtn').disabled=true;controllerState((recovery?'กำลังกลับเข้าห้อง ':'กำลังเชื่อมต่อห้อง ')+code+'...');
   disconnectRequested=true;safePeerDestroy();
-  phoneMiniMap=null;phoneMiniMapPositions=null;
+  phoneMiniMap=null;phoneMiniMapPositions=null;phoneBoardItemMeta=null;
   disconnectRequested=false;
   const peer=new Peer(undefined,partyPeerOptions());
   controllerPeer=peer;
@@ -2510,6 +2510,8 @@ function joinRoom(recovery=false){
         receivePhoneMiniMapMap(data);
       }else if(data.t==='board-minimap-positions'){
         receivePhoneMiniMapPositions(data);
+      }else if(data.t==='board-item-meta'){
+        receiveBoardItemMeta(data);
       }else if(data.t==='board-state'){
         receiveBoardState(data);
       }else if(data.t==='roster'){
@@ -3408,8 +3410,15 @@ function updateBoard(dt){
 function broadcastBoardState(){
   if(!boardSession||round?.mode!=='board')return;
   for(const conn of hostConnections){
+    // Send controller metadata once for this board, not with every live frame.
+    if(conn.boardItemMetaSession!==boardSession.id){
+      send(conn,{t:'board-item-meta',sessionId:boardSession.id,
+        ids:window.BoardItems.ids.slice(),
+        names:Object.fromEntries(window.BoardItems.ids.map(id=>[id,window.BoardItems.names[id]||id]))});
+      conn.boardItemMetaSession=boardSession.id;
+    }
     const p=boardSession.players.find(p=>p.id===conn.playerId);if(!p)continue;
-    send(conn,{t:'board-state',mapVersion:boardSession.map.version,phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
+    send(conn,{t:'board-state',sessionId:boardSession.id,mapVersion:boardSession.map.version,phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
       round:boardSession.roundNumber,hp:p.hp,usedRound:p.usedRound||0,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:window.BoardParty.isProtected(boardSession,p)?1:0,
       canZoom:round.phase==='playing'&&!round.paused&&window.BoardParty.current(boardSession)?.id===p.id&&
         window.BoardArt.canPan(boardSession),
@@ -3417,6 +3426,22 @@ function broadcastBoardState(){
       bag:window.BoardItems.bag(p).slice(),actionIndex:p.actionIndex||0,bagMessage:p.bagMessage||'',
       ...window.BoardParty.controls(boardSession,p.id)});
   }
+}
+let phoneBoardItemMeta=null;
+function validBoardItemMeta(packet){
+ if(!packet||typeof packet.sessionId!=='string'||packet.sessionId.length>120||
+    !Array.isArray(packet.ids)||packet.ids.length<6||packet.ids.length>60||
+    new Set(packet.ids).size!==packet.ids.length||
+    !packet.ids.every(id=>typeof id==='string'&&/^[a-z][a-z0-9-]*$/.test(id))||
+    !packet.names||typeof packet.names!=='object'||Array.isArray(packet.names))return false;
+ return packet.ids.every(id=>Object.hasOwn(packet.names,id)&&
+  typeof packet.names[id]==='string'&&packet.names[id].length>0&&packet.names[id].length<=80);
+}
+function receiveBoardItemMeta(packet){
+ if(!validBoardItemMeta(packet))return;
+ phoneBoardItemMeta={sessionId:packet.sessionId,ids:packet.ids.slice(),
+  names:Object.fromEntries(packet.ids.map(id=>[id,packet.names[id]]))};
+ if(controllerBoard?.sessionId===packet.sessionId)renderPhoneBoard();
 }
 function receiveBoardState(info){
   const previousToken=controllerBoard?.turnId;
@@ -3447,7 +3472,8 @@ function renderPhoneBoard(){
  $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing'||
    (info.boardPhase==='ready'&&!!boardCameraController?.enabled()));
  const bag=Array.isArray(info.bag)?info.bag:[],ready=info.boardPhase==='ready';
- const items=window.BoardItems||window.PartyBoardItemMeta;
+ const items=phoneBoardItemMeta?.sessionId===info.sessionId?
+  phoneBoardItemMeta:window.BoardItems||window.PartyBoardItemMeta;
  if(!items){$('controllerState').textContent='กำลังโหลดข้อมูลกระเป๋าเกม...';return;}
  const options=['roll',...items.ids],stock=Object.fromEntries(items.ids.map(id=>[id,0]));
  for(const id of bag)if(Object.hasOwn(stock,id))stock[id]++;
@@ -3461,7 +3487,7 @@ function renderPhoneBoard(){
    const id=options[i],qty=id==='roll'?null:stock[id],cell=doc.createElement('span');
    const locked=id!=='roll'&&info.usedRound===info.round;
    cell.className='board-bag-item'+(qty===0?' is-empty':'')+(locked?' is-locked':'')+(ready&&i===selected&&!locked&&qty!==0?' is-selected':'');
-   cell.innerHTML=id==='roll'?rollIcon:svg?.svg(id)||'';
+   cell.innerHTML=id==='roll'?rollIcon:svg?.svg(id)||'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true"><path fill="#9bdad6" stroke="#357382" stroke-width="3" d="M24 3 44 13v22L24 45 4 35V13Z"/><circle cx="24" cy="24" r="8" fill="#f9f4dc"/></svg>';
    cell.title=id==='roll'?'ทอยลูกเต๋า':items.names[id]||id;
    cell.setAttribute('aria-label',cell.title+(qty===null?'':' จำนวน '+qty));
    if(qty!==null){
@@ -3480,7 +3506,7 @@ function renderPhoneBoard(){
      'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':items.names[slot]||slot)+
      ' • A '+(info.a||'ยืนยัน')+' • B '+(info.b||'เปลี่ยนไอเทม')+
      (info.bagMessage?' • '+info.bagMessage:'')):
-   'ทอยลูกเต๋า + ไอเทมทั้ง 6 ชนิด';
+   'ทอยลูกเต๋า + ไอเทม '+items.ids.length+' ชนิด';
  $('controllerState').textContent=info.help||'';
 }
 function renderLeaderboard(){

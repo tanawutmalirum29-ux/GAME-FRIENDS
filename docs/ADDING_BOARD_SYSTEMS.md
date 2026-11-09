@@ -43,3 +43,7 @@ disconnect the room and cannot activate a half-loaded collection.
 Run `node scripts/build-board-system-catalog.cjs --check`,
 `node tests/board-system-discovery.cjs`, `node tests/board-system-runtime.cjs`,
 and complete BOARD regression/browser gates before merging.
+
+## Controller metadata (no runtime download on phones)
+
+When the Host creates a BOARD session it sends a validated `board-item-meta` packet with item IDs and display labels exactly once per session, **before** the first `board-state`. The Controller uses the host-provided slots rather than a stale six-item fallback. An unknown item renders with a generic SVG icon until its own artwork is supplied; actual item physics always stay Host-side. The packet is bounded to 60 IDs and labels are treated only as text. See `tests/board-controller-item-meta.cjs`.
