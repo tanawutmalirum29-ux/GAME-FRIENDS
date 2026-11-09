@@ -2223,7 +2223,6 @@ const phone=setup('https://game.example/?join=ABCDE3');
  peer.fire('disconnected');
  const pending=ui.timers.filter(t=>t.ms>=1000&&!t.cancelled);
  assert.ok(pending.length>0);
- ui.click('offlineBtn');ui.click('uiConfirmBtn');
  // Explicit close is asserted separately by the reconnect-manager unit test.
 }
 
