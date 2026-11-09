@@ -476,7 +476,7 @@ assert.match(avatars,/data:image\/svg\+xml/);
  E.startWave(s,x.ps);E.evaluateEliminations(s,x.ps,[...x.ps]);
  s.phase='EXPLOSION';s.timer=.01;x.round.phase='playing';run(x,.2);
  x.round.pluginEngine=E;
-  const ranking=adapter.ranking(x.round,x.ps);
+ const ranking=adapter.ranking(x.round,x.ps);
  assert.ok(ranking.every(p=>p.rank===1));
  const prizeIds=adapter.rewards(ranking,4);
  assert.equal(prizeIds.length,2,'reward quota remains 50 percent');

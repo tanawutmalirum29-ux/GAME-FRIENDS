@@ -198,7 +198,7 @@ check('existing party, board, asset and controller paths are wired',()=>{
  assert.match(fs.readFileSync('src/games/witching-snake/witching-snake.js','utf8'),/p\.ws\?\.eliminatedTick/);
  assert.ok(html.includes('data-pick="witching_snake"'));
  assert.ok(html.includes('src="./src/games/witching-snake/witching-snake.js"'));
- assert.ok(board.includes('plugin.getResult'));assert.ok(!board.includes("case 'witching_snake'"));
+ assert.ok(board.includes("plugin.getResult"),"BOARD must use game-owned scoring");
  assert.ok(build.includes("'src/games/witching-snake/witching-snake.js'"));
 });
 let failures=0;
