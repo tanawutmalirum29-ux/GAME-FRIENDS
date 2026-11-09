@@ -429,11 +429,17 @@ function getResult(round,players){
   const s=round.shockwave;
  const winners=s.winnerIds?.length?s.winnerIds:(s.winnerId?[s.winnerId]:[]);
  const value=winners.includes(p.id)?Infinity:(p.shockEliminatedAt||0);
- const label=winners.includes(p.id)?'ผู้รอดคนสุดท้าย':'ตกรอบ Wave '+(p.shockEliminatedWave||s.wave);
+ const label=winners.includes(p.id)?(winners.length>1?'อันดับ 1 ร่วม':'ผู้รอดคนสุดท้าย'):'ตกรอบ Wave '+(p.shockEliminatedWave||s.wave);
   return {id:p.id,value,label};
  });
 }
-window.Shockwave=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
+function getResultHeading(round,ranked){
+ const s=round.shockwave,ids=s.winnerIds?.length?s.winnerIds:(s.winnerId?[s.winnerId]:[]);
+ const winners=ranked.filter(p=>ids.includes(p.id));
+ return winners.length>1?'ผู้ชนะร่วม: '+winners.map(p=>p.name).join(' / '):
+  winners.length?'ผู้ชนะ: '+winners[0].name:'ไม่มีผู้ชนะ';
+}
+window.Shockwave=Object.freeze({getResultHeading,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
  calculateDangerContact,calculateFootSupport,resolvePlayerCollision,calculateDangerWeights,
   dangerCount,requiredEscapeSeconds,
  selectDangerTiles,validateSafeRoutes,warningSeconds,intervalSeconds,distanceBias,
