@@ -266,14 +266,33 @@ $('videoStartBtn').addEventListener('click',()=>{
     try{
       const p=video.play();
       if(p&&p.then)p.then(()=>{
-        $('videoStartBtn').classList.add('hidden');
-        if(controllerMediaCall)send(controllerConn,
-          {t:'video-ready',quality:controllerMediaCall.metadata?.quality||'medium'});
+        if(controllerMediaCall)activateControllerVideoIfReady(controllerMediaCall);
       }).catch(()=>{});
     }catch(_){}
   }
 });
-const cyclePhoneTarget=(direction)=>{
+// Coalesce BOARD camera gesture deltas into at most one update per paint.
+ let pendingCameraGesture=null,cameraGestureFrame=0;
+ const flushCameraGesture=()=>{
+  cameraGestureFrame=0;
+  const packet=pendingCameraGesture;pendingCameraGesture=null;
+  if(!packet||!controllerReady||!controllerConn?.open||!boardCameraController?.enabled())return;
+  send(controllerConn,{t:'board-camera-gesture',...packet,
+    turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
+ };
+ const queueCameraGesture=gesture=>{
+  if(pendingCameraGesture&&pendingCameraGesture.kind===gesture.kind){
+   if(gesture.kind==='pan'){
+    pendingCameraGesture.dx=clamp(pendingCameraGesture.dx+gesture.dx,-320,320);
+    pendingCameraGesture.dy=clamp(pendingCameraGesture.dy+gesture.dy,-240,240);
+   }else pendingCameraGesture.scale=clamp(pendingCameraGesture.scale*gesture.scale,.75,1.35);
+  }else{
+   if(pendingCameraGesture)flushCameraGesture();
+   pendingCameraGesture={...gesture};
+  }
+  if(!cameraGestureFrame)cameraGestureFrame=requestAnimationFrame(flushCameraGesture);
+ };
+ const cyclePhoneTarget=(direction)=>{
   if(!controllerReady||!controllerConn||!controllerConn.open)return;
   send(controllerConn,{t:'target-cycle',direction});
 };
@@ -327,15 +346,15 @@ boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
   releaseStick:()=>releaseStick(),
   onMode:(enabled,notify)=>{
     $('boardCameraModeHint').classList.toggle('hidden',!enabled);
-    if(controllerBoard?.boardPhase==='ready')renderPhoneBoard();
+    if(!enabled)pendingCameraGesture=null;
+     if(controllerBoard?.boardPhase==='ready')renderPhoneBoard();
     if(notify&&controllerConn?.open)
       send(controllerConn,{t:'board-camera-mode',enabled,
         turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
   },
   onGesture:gesture=>{
     if(!controllerReady||!controllerConn?.open)return;
-    send(controllerConn,{t:'board-camera-gesture',...gesture,
-      turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
+    queueCameraGesture(gesture);
   }
 });
 setInterval(sendInputs,100);
