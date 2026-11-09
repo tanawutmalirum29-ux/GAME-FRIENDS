@@ -115,6 +115,13 @@
         "chromium": 18,
         "webkit": 28
       }
+    },
+    {
+      "file": "tests/landscape-shell-browser.cjs",
+      "browsers": {
+        "chromium": 22,
+        "webkit": 35
+      }
     }
   ]
 }
