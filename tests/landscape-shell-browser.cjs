@@ -43,8 +43,9 @@ async function test(){
     assert.equal(await page.evaluate(()=>document.body.classList.contains('gf-virtual-landscape')),false,
      'web landing page remains readable before entering a room');
    }
-   await page.locator('#addLocalBtn').click();
+   // The offline button belongs to the home page; add bot is a lobby control.
    await page.locator('#offlineBtn').click();
+   await page.locator('#addLocalBtn').click();
    await page.waitForFunction(()=>document.body.classList.contains('gf-virtual-landscape'));
    const r=await page.evaluate(()=>{
     const x=document.getElementById('hostLobby').getBoundingClientRect();
