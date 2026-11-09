@@ -97,3 +97,19 @@ harnesses. This is actual route-level network code splitting, not just
 splitting files in the source tree. BOARD core loading now reuses already
 loaded modules when a mid-bundle request fails, so a retry does not
 reexecute the working scripts.
+
+### Production deployment rehearsal (CI)
+
+`tests/production-deploy-browser.cjs` runs the **actual**
+`scripts/build-static.cjs` production build twice in isolated temporary
+trees with different deployment versions, adds a fixture plug-in in each,
+and serves the resulting version-stamped HTML/JS, generated catalogs and
+content-addressed files to real Chromium and WebKit. The test checks
+on-demand Host startup, no eager app/BOARD/physics downloads, a live BOARD
+session, a same-core game update, new plug-in discovery, engine pinning,
+and safe deferral of a full build reload. This runs automatically in the
+weighted browser QA matrix and does **not** use a mocked build manifest.
+
+This is a **local deployment rehearsal**, not proof of the AWS Amplify CDN,
+production IAM permissions, network reliability or real-device behavior.
+External end-to-end deployment validation is still required.
