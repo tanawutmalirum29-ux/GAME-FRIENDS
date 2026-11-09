@@ -24,7 +24,7 @@ function collect(folder,prefix=''){
 }
 function build({write=false,coreHash}={}){
  const hash=coreHash||require('./build-game-catalog.cjs').coreHash();
- if(!/^[a-f0-9]{20}$/.test(hash))fail('invalid core version');
+ if(!/^[a-f0-9]{20}$/.test(hash))fail('invalid core fingerprint');
  const systems=[];
  for(const category of categories){
   const directory=path.join(rootDir,category);
@@ -36,14 +36,14 @@ function build({write=false,coreHash}={}){
    if(!files.includes('manifest.json'))fail('missing manifest '+category+'/'+id);
    const m=JSON.parse(fs.readFileSync(path.join(folder,'manifest.json'),'utf8'));
    if(m.id!==id||m.category!==category||m.apiVersion!==1||
-      typeof m.enabled!=='boolean'||! /^\d+\.\d+\.\d+$/.test(m.version)||
+      typeof m.enabled!=='boolean'||
       typeof m.name!=='string'||!m.name.trim()||m.name.length>80)fail('invalid manifest '+category+'/'+id);
    if(typeof m.entry!=='string'||!m.entry.startsWith('./')||m.entry.includes('..')||
       m.entry.includes('\\')||!m.entry.endsWith('.js')||!files.includes(m.entry.slice(2)))
       fail('missing/unsafe entry '+category+'/'+id);
    const digest=crypto.createHash('sha256');
    for(const file of files){digest.update(file+'\0');digest.update(fs.readFileSync(path.join(folder,file)));}
-   const versionHash=digest.digest('hex').slice(0,24),asset='board-system-assets/'+category+'/'+id+'/'+versionHash+'/';
+   const assetHash=digest.digest('hex').slice(0,24),asset='board-system-assets/'+category+'/'+id+'/' +assetHash+'/';
    if(write){
     for(const file of files){
      const destination=path.join(root,asset,file);
@@ -51,8 +51,8 @@ function build({write=false,coreHash}={}){
      fs.copyFileSync(path.join(folder,file),destination);
     }
    }
-   systems.push({category,id,name:m.name,version:m.version,apiVersion:1,enabled:m.enabled,
-    hash:versionHash,entryUrl:'/'+asset+m.entry.slice(2)});
+   systems.push({category,id,name:m.name,apiVersion:1,enabled:m.enabled,
+    hash:assetHash,entryUrl:'/'+asset+m.entry.slice(2)});
   }
  }
  const result={schema:1,coreHash:hash,systems};

@@ -1,4 +1,4 @@
-/* Build-time auto-discovery of version-pinned static game plug-ins.
+/* Build-time auto-discovery of content-addressed static game plug-ins.
  * No directory listing or game-name editing in index.html/app.js is needed. */
 'use strict';
 const fs=require('node:fs');
@@ -50,10 +50,10 @@ function coreHash(){
   "party-ui-art.js",
   "game-cover-art.js",
   "src/board-party/runtime/board-map.js",
-  "src/board-party/runtime/board-v7-design.js",
-  "src/board-party/runtime/board-v7-art.js",
+  "src/board-party/runtime/board-design.js",
+  "src/board-party/runtime/board-scenery.js",
   "src/board-party/runtime/board-branch-naming.js",
-  "src/board-party/runtime/board-v7-adapter.js",
+  "src/board-party/runtime/board-layout.js",
   "src/board-party/runtime/board-dice.js",
   "src/board-party/runtime/board-dice-renderer.js",
   "src/board-party/runtime/board-items.js",
@@ -86,7 +86,7 @@ function build({write=false}={}){
   if(!safeId.test(meta.id)||ids.has(meta.id))throw Error('Invalid/duplicate game ID: '+meta.id);
   ids.add(meta.id);
   if(typeof meta.name!=='string'||!meta.name.trim()||meta.name.length>80)throw Error('Invalid name: '+slug);
-  if(!/^\d+\.\d+\.\d+$/.test(meta.version)||meta.apiVersion!==1||typeof meta.enabled!=='boolean')throw Error('Unsupported version/API: '+slug);
+  if(meta.apiVersion!==1||typeof meta.enabled!=='boolean')throw Error('Unsupported version/API: '+slug);
   if(!meta.players||!Number.isInteger(meta.players.min)||!Number.isInteger(meta.players.max)||meta.players.min<1||meta.players.max>12||meta.players.min>meta.players.max)throw Error('Invalid players: '+slug);
   if(!Array.isArray(meta.modes)||!meta.modes.length||meta.modes.some(m=>!['normal','board'].includes(m))||new Set(meta.modes).size!==meta.modes.length)throw Error('Invalid modes: '+slug);
   if(!Array.isArray(meta.controls)||meta.controls.some(x=>!['joystick','A','B','C'].includes(x)))throw Error('Invalid controls: '+slug);
@@ -123,7 +123,7 @@ function build({write=false}={}){
    }
   }
   if(meta.cover!==undefined&&(typeof meta.cover!=='string'||meta.cover.startsWith('/')||meta.cover.includes('..')||!local.includes(meta.cover)))throw Error('Invalid cover: '+slug);
-  out.push({id:meta.id,name:meta.name,version:meta.version,apiVersion:1,
+  out.push({id:meta.id,name:meta.name,apiVersion:1,
    enabled:meta.enabled,players:meta.players,modes:meta.modes,controls:meta.controls,
    controller:meta.controller||null,
    hash:fingerprint,entryUrl:'/'+base+entry,
