@@ -53,36 +53,51 @@ async function run(){
     document.getElementById('qrBox').replaceChildren(canvas);
    });
    const bounds=await page.evaluate(()=>{
-    const r=id=>{const x=document.getElementById(id).getBoundingClientRect();return{
-      top:x.top,bottom:x.bottom,left:x.left,right:x.right,width:x.width,height:x.height};};
+    const rotated=document.body.classList.contains('gf-virtual-landscape');
+    // Compare in the LOGICAL landscape coordinate system, regardless of
+    // whether the device/browser physically rotated or the shell did.
+    const pos=el=>{
+     const x=el.getBoundingClientRect();
+     if(!rotated)return{top:x.top,bottom:x.bottom,left:x.left,right:x.right,
+       width:x.width,height:x.height};
+     return{top:innerWidth-x.right,bottom:innerWidth-x.left,
+       left:x.top,right:x.bottom,width:x.height,height:x.width};
+    };
+    const r=id=>pos(document.getElementById(id));
     const card=document.querySelector('#roster .roster-item');
-    const last=document.querySelector('#roster .roster-item:last-child').getBoundingClientRect();
-    const pick=card.querySelector('.roster-pick'),mode=pick.querySelector('.mode-choice-title');
-    const pos=e=>{const x=e.getBoundingClientRect();return{
-      top:x.top,bottom:x.bottom,left:x.left,right:x.right,width:x.width,height:x.height}};
-    return {vh:innerHeight,vw:innerWidth,qrPanel:r('roomPanel'),panel:r('hostLobby'),
-     qr:r('qrBox'),url:r('roomUrl'),copy:r('copyBtn'),playerPanel:r('roster'),
-     first:pos(card),last:pos({getBoundingClientRect:()=>last}),
+    const pick=card.querySelector('.roster-pick'),
+     mode=pick.querySelector('.mode-choice-title');
+    return{rotated,vh:rotated?innerWidth:innerHeight,
+     vw:rotated?innerHeight:innerWidth,
+     qrPanel:r('roomPanel'),panel:r('hostLobby'),
+     qr:r('qrBox'),url:r('roomUrl'),copy:r('copyBtn'),
+     playerPanel:r('roster'),first:pos(card),
+     last:pos(document.querySelector('#roster .roster-item:last-child')),
      pick:pos(pick),mode:pos(mode),
      rootScroll:document.documentElement.scrollHeight>innerHeight+1,
      pageScroll:document.documentElement.scrollWidth>innerWidth+1};
    });
-   assert.ok(bounds.qrPanel.height<=175,
-     'invite block should be compact, not the previous 255-315px tall column: '+JSON.stringify(bounds));
-   assert.ok(bounds.qr.width>=76&&bounds.qr.height>=76,
-     'real 256px QR is scaled into a still-legible square: '+JSON.stringify(bounds.qr));
+   assert.ok(bounds.rotated,'opened host rooms must present landscape even in portrait browser');
+   assert.ok(bounds.qrPanel.top>=bounds.panel.top-2&&
+     bounds.qrPanel.bottom<=bounds.panel.bottom+2&&
+     bounds.qrPanel.width<=bounds.panel.width*.52,
+     'invite section must occupy a compact left column: '+JSON.stringify(bounds));
+   assert.ok(bounds.qr.width>=65&&bounds.qr.height>=65,
+     'real 256px QR must remain legible on a small landscape viewport: '+JSON.stringify(bounds));
    assert.ok(bounds.qr.right+5<bounds.url.left&&bounds.qr.right+5<bounds.copy.left,
-     'QR is at LEFT of both share controls on a portrait handset');
+     'QR is at LEFT of both share controls in logical landscape coordinates');
    assert.ok(bounds.url.bottom<bounds.copy.top,
-     'URL and copy remain stacked to the RIGHT of the QR');
-   assert.ok(bounds.playerPanel.height>bounds.qrPanel.height*1.4,
-     '12-player grid gets significantly more space than QR');
-   assert.ok(bounds.last.bottom<=bounds.playerPanel.bottom+2,
-     'all 12 slots must remain inside roster panel');
-   assert.ok(bounds.mode.top>=bounds.pick.top-2&&bounds.mode.bottom<=bounds.pick.bottom+2,
-     'full game title must not escape its card');
+     'URL and copy remain stacked inside the share column');
+   assert.ok(bounds.playerPanel.width>bounds.qrPanel.width*.9&&
+      bounds.playerPanel.height>bounds.qrPanel.height*.55,
+     'twelve-seat grid must get a full right-hand landscape column');
+   assert.ok(bounds.last.bottom<=bounds.playerPanel.bottom+2&&
+     bounds.first.top>=bounds.playerPanel.top-2,
+     'all 12 slots remain inside the landscape roster panel');
+   assert.ok(bounds.mode.top>=bounds.pick.top-3&&bounds.mode.bottom<=bounds.pick.bottom+3,
+     'selected game title must remain inside its touch target');
    assert.ok(bounds.panel.bottom<=bounds.vh+2&&!bounds.rootScroll&&!bounds.pageScroll,
-     'lobby must fit its available viewport without document scrolling');
+     'landscape lobby must fit its viewport without document scrolling');
    assert.equal(await page.locator('#copyBtn').isVisible(),true);
    assert.equal(await page.locator('#startBtn').isVisible(),true);
    // Game-selection remains functional at full room capacity.
