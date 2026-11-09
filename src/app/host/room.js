@@ -787,6 +787,11 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!p)return;
         p.lastInputAt=Date.now();
+         if(Number.isSafeInteger(msg.actionId)&&Number.isFinite(msg.clientAt)&&
+            p.lastInputAt-(conn.lastInputAckAt||0)>=250){
+           conn.lastInputAckAt=p.lastInputAt;
+           send(conn,{t:'input-ack',actionId:msg.actionId,clientAt:msg.clientAt});
+         }
         if(round?.mode==='board'&&boardSession){
           const locked=conn.boardCameraGestureToken===boardSession.turnId;
           const input=locked?{...msg,keys:{...msg.keys,left:false,right:false,jump:false,
