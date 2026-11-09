@@ -294,7 +294,6 @@ document.addEventListener('webkitfullscreenchange',markArenaResolutionDirty);
 canvas.addEventListener('contextrestored',markArenaResolutionDirty);
 const rand=(a,b)=>a+Math.random()*(b-a);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-const cleanName=(value)=>String(value||'').trim().replace(/[<>]/g,'').slice(0,14)||'เพื่อนใหม่';
 const blankInput=()=>({left:false,right:false,jump:false,down:false,action:false,alt:false,cancel:false,axisX:0,axisY:0});
 function setStatus(text,bad=false){$('netStatus').textContent=text;$('netDot').classList.toggle('bad',bad);}
 
