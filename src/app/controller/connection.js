@@ -93,7 +93,8 @@ function setControllerPreviewEnabled(enabled){
     send(controllerConn,videoQualityPacket(controllerVideoQuality));
   }
   renderControllerPreviewToggle();
-  if(controllerReady)send(controllerConn,{t:'preview-toggle',enabled:controllerPreviewEnabled});
+  if(controllerReady)send(controllerConn,{t:'preview-toggle',enabled:controllerPreviewEnabled,minimap:true});
+  showPhoneMiniMap();
 }
 function stopControllerVideo(){
  const call=controllerMediaCall;controllerMediaCall=null;videoStreamActive=false;
@@ -152,7 +153,7 @@ function resetPhonePreview(){
   if(!videoStreamActive)$('controllerPreviewPlaceholder').classList.remove('hidden');
 }
 function receivePhonePreview(image){
-  if(!controllerPreviewEnabled||videoStreamActive)return;
+  if(!controllerPreviewEnabled||videoStreamActive||(controllerGameMode==='board'&&phoneMiniMap))return;
   if(typeof image!=='string'||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>24000)return;
   $('controllerPreviewImage').src=image;
   $('controllerPreviewImage').classList.remove('hidden');
@@ -349,6 +350,7 @@ function joinRoom(recovery=false){
   if(!recovery)void requestLandscape();
   $('joinBtn').disabled=true;controllerState((recovery?'กำลังกลับเข้าห้อง ':'กำลังเชื่อมต่อห้อง ')+code+'...');
   disconnectRequested=true;safePeerDestroy();
+  phoneMiniMap=null;phoneMiniMapPositions=null;
   disconnectRequested=false;
   const peer=new Peer(undefined,partyPeerOptions());
   controllerPeer=peer;
@@ -416,6 +418,10 @@ function joinRoom(recovery=false){
       }else if(data.t==='reject'){
         controllerState(data.reason||'ห้องไม่รับผู้เล่น',true);$('joinBtn').disabled=false;
         safePeerDestroy();
+      }else if(data.t==='board-minimap-map'){
+        receivePhoneMiniMapMap(data);
+      }else if(data.t==='board-minimap-positions'){
+        receivePhoneMiniMapPositions(data);
       }else if(data.t==='board-state'){
         receiveBoardState(data);
       }else if(data.t==='roster'){
@@ -637,6 +643,8 @@ function pluginControllerPlayingStatus(mode,data){
  return template.replace(/\{(name|survivors|remaining)\}/g,(_,key)=>values[key]);
 }
 function showControllerMode(mode){
+  if(mode!=='board'&&phoneMiniMap){phoneMiniMap=null;phoneMiniMapPositions=null;}
+  showPhoneMiniMap();
   const plugin=gameControllerDescriptor(mode);
   const ui=plugin?.controller||{},labels=ui.labels||{};
   if(mode==='board'&&controllerBoard&&!['results','summary'].includes(controllerGamePhase)){renderPhoneBoard();return;}
