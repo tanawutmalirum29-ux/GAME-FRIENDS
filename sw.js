@@ -1,6 +1,12 @@
 /* Store only version-pinned game files; never cache room state, HTML or core JS. */
 'use strict';
-const GAME_CACHE='gf-immutable-games-v1', CATALOG_CACHE='gf-catalog-v1', MAX=120;
+const scopePath=new URL(self.registration.scope).pathname;
+const base=scopePath.endsWith('/')?scopePath:scopePath+'/';
+// CacheStorage is shared by all registrations on an origin; isolate by scope.
+const scopeKey=encodeURIComponent(base);
+const GAME_CACHE='gf-immutable-games-v1:'+scopeKey;
+const CATALOG_CACHE='gf-catalog-v1:'+scopeKey;
+const MAX=120;
 self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 async function gameAsset(request){
@@ -34,9 +40,9 @@ self.addEventListener('fetch',e=>{
  if(e.request.method!=='GET')return;
  const url=new URL(e.request.url);
  if(url.origin!==self.location.origin)return;
- const base=new URL(self.registration.scope).pathname;
- if(url.pathname===base+'game-catalog.json')e.respondWith(catalog(e.request));
- else if(url.pathname.startsWith(base+'game-assets/')&&
-  /^\/game-assets\/[a-z][a-z0-9_]*\/[a-f0-9]{24}\//.test(url.pathname))
+ if(!url.pathname.startsWith(base))return;
+ const rel=url.pathname.slice(base.length);
+ if(rel==='game-catalog.json')e.respondWith(catalog(e.request));
+ else if(/^game-assets\/[a-z][a-z0-9_]*\/[a-f0-9]{24}\//.test(rel))
   e.respondWith(gameAsset(e.request));
 });
