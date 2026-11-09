@@ -87,7 +87,7 @@ good replacement and continued BOARD mounting without navigation.
 ### Host-only rendering and collision dependencies
 
 In AWS builds `src/platform/host-runtime.js` defers five host-only scripts:
-`arena-scale.js`, `arena-art.js`, `graveyard-art.js`,
+`arena-scale.js`, `arena-art.js`,
 `combat-motion.js` and `character-system.js`. A controller link loads
 `app.js` and its avatar/game-picker dependencies, but not this rendering
 and collision code. The host path loads these assets **before** executing the
@@ -150,3 +150,12 @@ same-core game patches and newly discovered minigames without a page
 navigation. A core-incompatible release is deferred until the user has
 actually left the connected room. Chromium/WebKit cold-start tests
 assert both connected and connecting Host/Controller paths.
+
+### Shared game artwork dependency migration
+The shared farm/ice and ghost cemetery scene painters now live in
+`src/shared/farm-ice-art.js` and `src/shared/graveyard-art.js`.
+Four game manifests list these as explicit `legacyScripts` dependencies.
+The catalog builder fingerprints and copies each dependency under its consuming
+`game-assets/<id>/<hash>/legacy/src/shared/` URL; it is not loaded on the
+Host or Controller bootstrap. This keeps art changes independent of the core
+fingerprint while preserving existing draw signatures and offline/local dev.

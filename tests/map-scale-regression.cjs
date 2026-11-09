@@ -10,8 +10,8 @@ global.Image=class{constructor(){this.complete=false;this.naturalWidth=0;}set sr
 const code=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
 const scripts=[
  'arena-scale.js','player-avatar.js','combat-motion.js','character-system.js',
- 'party-ui-art.js','arena-art.js','party-arena-scenes.js','graveyard-art.js',
- 'farm-ice-art.js','src/games/pizza-time/pizza-ingredient-art.js','src/games/pizza-time/pizza-kitchen-art.js',
+ 'party-ui-art.js','arena-art.js','party-arena-scenes.js','src/shared/graveyard-art.js',
+ 'src/shared/farm-ice-art.js','src/games/pizza-time/pizza-ingredient-art.js','src/games/pizza-time/pizza-kitchen-art.js',
  'src/games/color-switch/color-switch-mayan.js','src/games/gladiators/gladiators-art.js',
  'src/games/fruit-memory/fruit-memory.js','src/games/color-switch/color-switch.js','src/games/chickens/chickens.js','src/games/snow-brawl/snow-brawl.js',
  'src/games/knight-match/knight-match.js','src/games/lawn-mower/lawn-mower.js','src/games/color-claim/color-claim.js','src/games/witching-snake/witching-snake.js',
