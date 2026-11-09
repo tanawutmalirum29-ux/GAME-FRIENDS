@@ -5,10 +5,10 @@ const fs = require('node:fs');
 const read = name => fs.readFileSync(new URL('../'+name, 'file://' + __filename), 'utf8');
 
 const engines = [
- 'app.js','party-arena-scenes.js','chickens.js','ghost-attack.js',
- 'fruit-memory.js','shockwave.js','boulder-bash.js','snow-brawl.js',
- 'shopping-time.js','pizza-time.js','knight-match.js','lawn-mower.js',
- 'color-switch.js','witching-snake.js'
+ 'app.js','party-arena-scenes.js','src/games/chickens/chickens.js','src/games/ghost-attack/ghost-attack.js',
+ 'src/games/fruit-memory/fruit-memory.js','src/games/shockwave/shockwave.js','src/games/boulder-bash/boulder-bash.js','src/games/snow-brawl/snow-brawl.js',
+ 'src/games/shopping-time/shopping-time.js','src/games/pizza-time/pizza-time.js','src/games/knight-match/knight-match.js','src/games/lawn-mower/lawn-mower.js',
+ 'src/games/color-switch/color-switch.js','src/games/witching-snake/witching-snake.js'
 ];
 
 test('every changed JavaScript engine parses', () => {
@@ -95,20 +95,20 @@ test('clock and SVG count share the same safe screen position', () => {
 });
 
 test('no duplicate mode-level clocks or top-left information banners', () => {
- for(const name of ['shopping-time.js','pizza-time.js','knight-match.js','witching-snake.js'])
+ for(const name of ['src/games/shopping-time/shopping-time.js','src/games/pizza-time/pizza-time.js','src/games/knight-match/knight-match.js','src/games/witching-snake/witching-snake.js'])
   assert.doesNotMatch(read(name),/PartyArenaScenes\.clock\(|art\.clock\(|art\.drawClock\(/,name);
  const forbidden={
-  'chickens.js': /ctx\.fillText\('CHICKENS'/,
-  'ghost-attack.js': /drawCornerHud\(|id:'HUD-00'/,
-  'shockwave.js': /ctx\.fillText\('SHOCKWAVE'/,
-  'boulder-bash.js': /g\.fillText\('BOULDER BASH'/,
-  'snow-brawl.js': /ctx\.fillText\('SNOW BRAWL'/,
-  'lawn-mower.js': /ctx\.fillText\('LAWN MOWER'/,
-  'color-switch.js': /ctx\.fillText\('COLOR SWITCH'/,
-  'fruit-memory.js': /label\('FRUIT MEMORY'/
+  'src/games/chickens/chickens.js': /ctx\.fillText\('CHICKENS'/,
+  'src/games/ghost-attack/ghost-attack.js': /drawCornerHud\(|id:'HUD-00'/,
+  'src/games/shockwave/shockwave.js': /ctx\.fillText\('SHOCKWAVE'/,
+  'src/games/boulder-bash/boulder-bash.js': /g\.fillText\('BOULDER BASH'/,
+  'src/games/snow-brawl/snow-brawl.js': /ctx\.fillText\('SNOW BRAWL'/,
+  'src/games/lawn-mower/lawn-mower.js': /ctx\.fillText\('LAWN MOWER'/,
+  'src/games/color-switch/color-switch.js': /ctx\.fillText\('COLOR SWITCH'/,
+  'src/games/fruit-memory/fruit-memory.js': /label\('FRUIT MEMORY'/
  };
  for(const [name,re] of Object.entries(forbidden))assert.doesNotMatch(read(name),re,name);
- assert.match(read('fruit-memory.js'),/function drawSideScreens\(ctx,state,round\)/,
+ assert.match(read('src/games/fruit-memory/fruit-memory.js'),/function drawSideScreens\(ctx,state,round\)/,
   'Fruit Memory uses mirrored SVG side screens');
  assert.match(read('app.js'),/r\.mode==='fruit_memory'/,
   'Fruit Memory has a shared host countdown, not a memorize timer');
