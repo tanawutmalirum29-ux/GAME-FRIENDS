@@ -486,6 +486,7 @@ function joinRoom(recovery=false){
         $('controllerInventory').classList.remove('is-ghost');
         setControllerGameContext(data.mode,data.phase||'lobby',!!data.active);
         document.body.classList.add('controller-playing');
+        followDeviceOrientation(); // automatic: no orientation question
         syncControllerVisibleViewport();
         syncZoomPolicy();
         showControllerMode(data.mode);
@@ -922,11 +923,15 @@ function syncControllerVisibleViewport(){
   const style=$('controller')?.style;
   if(typeof style?.setProperty!=='function')return;
   const view=window.visualViewport;
-  const w=Number(view?.width)||Number(window.innerWidth);
-  const h=Number(view?.height)||Number(window.innerHeight);
+  const screenW=Number(view?.width)||Number(window.innerWidth);
+  const screenH=Number(view?.height)||Number(window.innerHeight);
+  const virtual=typeof usesVirtualLandscape==='function'&&usesVirtualLandscape();
+  // Installed app rotates the whole shell; do not double-rotate the gamepad.
+  const w=virtual?screenH:screenW,h=virtual?screenW:screenH;
   if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return;
-  const left=Number(view?.offsetLeft)||0,top=Number(view?.offsetTop)||0;
-  const portrait=document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
+  const left=virtual?0:Number(view?.offsetLeft)||0;
+  const top=virtual?0:Number(view?.offsetTop)||0;
+  const portrait=!virtual&&document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
   const measure=typeof window.getComputedStyle==='function'?
     window.getComputedStyle($('controller')):null;
   const inset=name=>Math.max(0,parseFloat(measure?.[name])||0);
@@ -956,27 +961,30 @@ window.addEventListener('orientationchange',syncControllerVisibleViewport);
 window.addEventListener('pageshow',syncControllerVisibleViewport);
 window.visualViewport?.addEventListener?.('resize',syncControllerVisibleViewport);
 window.visualViewport?.addEventListener?.('scroll',syncControllerVisibleViewport);
-// Opt-in only: by default the existing real-landscape controller remains unchanged.
+// Automatic no-dialog fallback if Screen Orientation lock is unavailable.
 function clearPortraitFallback(){
-  releaseStick();
-  document.body.classList.remove('portrait-fallback');
-  lastControllerViewport='';syncControllerVisibleViewport();
-  $('portraitRestoreBtn').classList.add('hidden');
+ if(document.body.classList.contains('portrait-fallback')){
+  releaseStick();document.body.classList.remove('portrait-fallback');
+ }
+ lastControllerViewport='';syncControllerVisibleViewport();
+ $('portraitRestoreBtn').classList.add('hidden');
 }
-function enablePortraitFallback(){
-  if(!controllerReady||!isPortraitScreen())return;
-  releaseStick();
-  document.body.classList.add('portrait-fallback');
-  syncControllerVisibleViewport();
-  $('portraitRestoreBtn').classList.remove('hidden');
-}
-// If the phone is eventually rotated, return to the normal landscape gamepad.
+function enablePortraitFallback(){followDeviceOrientation();}
 function followDeviceOrientation(){
-  if(!isPortraitScreen()&&document.body.classList.contains('portrait-fallback'))
-    clearPortraitFallback();
+ const needed=controllerReady&&isPortraitScreen()&&
+  !(typeof usesVirtualLandscape==='function'&&usesVirtualLandscape());
+ const had=document.body.classList.contains('portrait-fallback');
+ if(had!==needed){
+  releaseStick();
+  document.body.classList.toggle('portrait-fallback',needed);
+  lastControllerViewport='';
+ }
+ syncControllerVisibleViewport();
+ $('portraitRestoreBtn').classList.add('hidden');
 }
 window.addEventListener('orientationchange',followDeviceOrientation);
 window.addEventListener('resize',followDeviceOrientation);
+window.addEventListener('pageshow',followDeviceOrientation);
 // Request landscape from both the join form and the live controller. If a
 // browser rejects the lock, leave the form usable and let the player rotate.
 function requestLandscape(){
@@ -1004,7 +1012,9 @@ function bindAnalogStick(zone,base,knob,target){
     zone.classList.add('hint-dismissed');
     try{window.localStorage.setItem(hintStorageKey,'1');}catch(_){}
   };
-  const rotated=()=>document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
+  const rotated=()=>isPortraitScreen()&&
+   (document.body.classList.contains('portrait-fallback')||
+    (typeof usesVirtualLandscape==='function'&&usesVirtualLandscape()));
   const reset=()=>{
     pointerId=null;originX=0;originY=0;
     target.axisX=0;target.axisY=0;
