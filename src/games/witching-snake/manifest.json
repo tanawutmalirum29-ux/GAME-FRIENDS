@@ -1,7 +1,7 @@
 {
   "id": "witching_snake",
   "name": "WITCHING SNAKE",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "apiVersion": 1,
   "enabled": true,
   "players": {
@@ -21,6 +21,6 @@
   "entry": "./game.js",
   "global": "WitchingSnake",
   "legacyScripts": [
-    "witching-snake.js"
+    "src/games/witching-snake/witching-snake.js"
   ]
 }

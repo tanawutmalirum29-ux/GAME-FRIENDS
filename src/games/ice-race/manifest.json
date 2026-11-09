@@ -1,7 +1,7 @@
 {
   "id": "ice_race",
   "name": "ICE RACE",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "apiVersion": 1,
   "enabled": true,
   "players": {
@@ -21,6 +21,6 @@
   "entry": "./game.js",
   "global": "IceRace",
   "legacyScripts": [
-    "ice-race.js"
+    "src/games/ice-race/ice-race.js"
   ]
 }

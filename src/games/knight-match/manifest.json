@@ -1,7 +1,7 @@
 {
   "id": "knight_match",
   "name": "KNIGHT MATCH",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "apiVersion": 1,
   "enabled": true,
   "players": {
@@ -21,6 +21,6 @@
   "entry": "./game.js",
   "global": "KnightMatch",
   "legacyScripts": [
-    "knight-match.js"
+    "src/games/knight-match/knight-match.js"
   ]
 }
