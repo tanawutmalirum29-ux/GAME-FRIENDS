@@ -114,6 +114,7 @@ function activateControllerVideoIfReady(call){
  videoStreamActive=true;
  if(controllerVideoWatchdog!==null)clearTimeout(controllerVideoWatchdog);
  controllerVideoWatchdog=null;
+ video.classList.remove('pending-video');
  video.classList.remove('hidden');
  $('controllerPreviewImage').classList.add('hidden');
  $('controllerPreviewPlaceholder').classList.add('hidden');
