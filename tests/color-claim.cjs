@@ -343,7 +343,7 @@ check('board integration and ties rank by raw tile count',()=>{
  for(let y=6;y<9;y++)for(let x=32;x<35;x++)s.owner[y*s.cols+x]=c.cc.slot;
  z.e.recount(s,z.ps);z.e.finish(s,z.round,z.ps);
  z.round.pluginEngine=z.e;
-  const ranked=z.ctx.window.BoardMinigame.ranking(z.round,z.ps);
+ const ranked=z.ctx.window.BoardMinigame.ranking(z.round,z.ps);
  assert.equal(ranked.length,3);
  const own=x=>ranked.find(v=>v.id===x.id);
  assert.equal(own(a).rank,1);assert.equal(own(b).rank,1);assert.equal(own(c).rank,3);

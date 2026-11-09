@@ -170,5 +170,6 @@ const app=fs.readFileSync(path.join(root,'app.js'),'utf8'),
 for(const re of [/lawn_mower:'LawnMower'/,/function endPluginRound\(/,/renderPhoneLawnStatus/,/lawn-status/])assert.match(app,re);
 assert.match(html,/data-pick="lawn_mower"/);assert.match(html,/src="\.\/src\/games\/lawn-mower\/lawn-mower\.js"/);
 assert.equal(typeof G.getResult,'function','LAWN MOWER owns its results');
-assert.match(board,/plugin\.getResult/);assert.doesNotMatch(board,/case 'lawn_mower':/);assert.match(build,/'src\/games\/lawn-mower\/lawn-mower\.js'/);
+assert.doesNotMatch(board,/case 'lawn_mower':/);
+assert.match(board,/plugin\.getResult/);assert.match(build,/'src\/games\/lawn-mower\/lawn-mower\.js'/);
 console.log('LAWN MOWER: 30% slower movement, deck-aligned mowing, garden foreground, 55/20/15/10 odds, collisions and 1–12 bots PASS');

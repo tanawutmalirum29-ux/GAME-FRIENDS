@@ -469,6 +469,19 @@ function minigameEnded(s,ranking){
  s.nextOrder=[...s.order].sort((a,b)=>ranks.get(a)-ranks.get(b));
  s.pendingItems={};s.rewardGrantRound=null;phase(s,'standings',2.5);return true;
 }
+// If a new or updated plug-in cannot load, keep the BOARD PARTY session.
+ // The failed game grants no random items or advantage, and the original
+ // turn order, node positions and HP remain untouched.
+function minigameCancelled(s){
+ M().assertCompatible(s.map);
+ if(s.phase!=='minigame')return false;
+ s.results=s.players.map(p=>({id:p.id,rank:1,value:0,
+  label:'ข้ามมินิเกมที่ไม่พร้อมเล่น',reward:null}));
+ s.nextOrder=[...s.order];
+ s.pendingItems={};s.rewardGrantRound=null;
+ phase(s,'standings',2.5);
+ return true;
+}
 function grant(s){
  // A single minigame can never add rewards twice even if a stale render/update
  // repeats a transition. State and awarded count are owned by this round.
@@ -583,6 +596,6 @@ function controls(s,id){
  
  return{a:'',b:'',help:'กำลังดำเนินตา'};
 }
-const api={create,beginOrder,startOrder:beginIntroZoom,updateRocket,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,isProtected,blockHarm,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,snapshot,controls,remainingSteps};
+const api={create,beginOrder,startOrder:beginIntroZoom,updateRocket,MAX_HP,DAMAGE,HEAL,phase,current,axes,ready,startTurn,endTurn,effect,isProtected,blockHarm,damage,win,land,beginMove,step,roll,action,input,update,minigameStarted,minigameEnded,minigameCancelled,snapshot,controls,remainingSteps};
 window.BoardParty=Object.freeze(api);
 })();

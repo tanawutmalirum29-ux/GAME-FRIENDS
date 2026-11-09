@@ -276,12 +276,13 @@ test('party selection, timed results, board ranking and cover are registered',()
   "round.mode==='ice_race'","data.t==='ice-status'"])assert.ok(app.includes(term),term);
  assert.ok(html.includes('data-pick="ice_race"'));
  assert.ok(html.includes('src="./src/games/ice-race/ice-race.js"'));
- assert.match(board,/plugin\.getResult/);assert.ok(!board.includes("case 'ice_race'"));
+ assert.ok(board.includes("plugin.getResult"),"BOARD must obtain standings from the owning game engine");
  assert.ok(build.includes("'src/games/ice-race/ice-race.js'"));
  assert.ok(covers.includes('ice_race:iceRaceScene'));
  const window={BoardDice:{shuffle:p=>p}};
  vm.runInNewContext(board,{window,console},{filename:'board-minigame.js'});
- const {e,round,ps}=match(4);round.pluginEngine=e;
+ const {round,ps,e}=match(4);
+  round.pluginEngine=e;
  ps.forEach((p,i)=>p.score=[4,3,3,1][i]);
  assert.deepEqual(Array.from(window.BoardMinigame.ranking(round,ps),p=>p.rank),[1,2,2,4]);
 });

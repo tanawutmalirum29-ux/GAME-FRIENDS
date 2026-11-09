@@ -3,25 +3,13 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const ctx=vm.createContext({window:{},console});
 for(const f of ['board-map','board-dice','board-items','board-bots','board-minigame','board-party'])vm.runInContext(fs.readFileSync(f+'.js','utf8'),ctx,{filename:f+'.js'});
 const {BoardMap:M,BoardDice:D,BoardItems:I,BoardParty:P,BoardMinigame:G}=ctx.window;
-// The Board adapter never hardcodes game names or scoring. These test-only
-// providers emulate the game-owned getResult contract for synthetic rosters.
-const scoringModes=new Set(['chickens','color_switch','pizza_time','ghost','shockwave','fruit_memory']);
-ctx.window.GamePlatform={engine:mode=>scoringModes.has(mode)?{
- getResult(round,players){
-  return players.filter(p=>p.active).map(p=>{
-   const value=mode==='ghost'?Math.floor((Number.isFinite(p.infectedAt)?p.infectedAt:p.survival||0)*10+1e-7):
-    mode==='shockwave'?(p.id===round.shockwave?.winnerId?Infinity:p.shockEliminatedAt||0):
-    mode==='fruit_memory'?(p.id===round.fruitMemory?.winnerId?Infinity:p.fruitEliminatedRound||0):
-    Number(p.score)||0;
-   const label=mode==='shockwave'&&value!==Infinity?'ตกรอบชุดที่ '+value:
-    value===Infinity?'ผู้รอดชีวิต':String(value);
-   return {id:p.id,value,label};
-  });
- }
-}:null};
-
 const plain=x=>JSON.parse(JSON.stringify(x));
 const roster=(n,bots=false)=>Array.from({length:n},(_,i)=>({id:'p'+(i+1),name:'Player '+(i+1),color:'#66aacc',isBot:bots}));
+// The BOARD adapter must consume the game-owned result contract, never
+// reproduce individual game formulas or depend on an ID whitelist.
+const scoreProvider={getResult(round,ps){return ps.filter(p=>p.active).map(p=>({
+ id:p.id,value:Number(p.score)||0,label:(Number(p.score)||0)+' คะแนน'
+}));}};
 const game=(n=3,seed=42,bots=false)=>{
  const s=P.create(roster(n,bots),{seed,rng:M.random(seed)});
  assert.equal(s.phase,'overview');
@@ -1112,12 +1100,23 @@ test('250 RC cars: backward input cannot reverse, no repeated node, swept hit de
  assert.equal(I.segmentDistance({x:50,y:0},{x:0,y:0},{x:100,y:0}),0);
  const s=ready(),p=s.players[0],q=s.players[1];p.item='car';q.currentNodeId='n1';q.hp=1;q.worldPosition={...I.position(s,p)};s.players[2].currentNodeId='n20';press(s,p,'B');until(s,()=>s.phase==='effect');assert.equal(q.currentNodeId,'n0');assert.equal(q.hp,100);
 });
-test('Actual engine outcomes use competition ranking and survival semantics',()=>{
+test('Game-owned results handle competition ranks, ties and supplied labels',()=>{
  const list=roster(4).map((p,i)=>({...p,active:true,score:[15,12,12,7][i]}));
- for(const mode of ['chickens','color_switch','pizza_time'])assert.deepEqual(plain(G.ranking({mode},list).map(r=>r.rank)),[1,2,2,4]);
- list.forEach((p,i)=>{p.ghost=true;p.infectedAt=[9,7,7,3][i];p.shockEliminatedAt=[9,7,7,3][i];p.fruitEliminatedRound=[4,3,3,2][i];p.score=100-i;});
- for(const r of [{mode:'ghost'},{mode:'shockwave',shockwave:{winnerId:'p1'}},{mode:'fruit_memory',fruitMemory:{winnerId:'p1'}}])assert.deepEqual(plain(G.ranking(r,list).map(r=>r.rank)),[1,2,2,4]);
- assert.equal(G.ranking({mode:'shockwave',shockwave:{winnerId:'p1'}},list)[1].label,'ตกรอบชุดที่ 7','elimination event is not mislabeled as a wave number');
+ for(const mode of ['chickens','color_switch','pizza_time'])
+  assert.deepEqual(plain(G.ranking({mode,pluginEngine:scoreProvider},list).map(r=>r.rank)),[1,2,2,4]);
+ list.forEach((p,i)=>{p.infectedAt=[9,7,7,3][i];p.shockEliminatedAt=[9,7,7,3][i];
+  p.fruitEliminatedRound=[4,3,3,2][i];});
+ for(const mode of ['ghost','shockwave','fruit_memory']){
+  const provider={getResult:(_,ps)=>ps.map(p=>{
+   const value=p.id==='p1'?Infinity:(mode==='fruit_memory'?p.fruitEliminatedRound:
+    mode==='ghost'?p.infectedAt:p.shockEliminatedAt);
+   return {id:p.id,value,label:value===Infinity?'ผู้รอดชีวิต':'ตกรอบชุดที่ '+value};
+  })};
+  const ranked=G.ranking({mode,pluginEngine:provider},list);
+  assert.deepEqual(plain(ranked.map(r=>r.rank)),[1,2,2,4]);
+  assert.equal(ranked[1].label,mode==='fruit_memory'?'ตกรอบชุดที่ 3':'ตกรอบชุดที่ 7');
+ }
+ assert.throws(()=>G.ranking({mode:'missing_new_game'},list),/Missing minigame getResult provider/);
 });
 test('unknown future minigames use plugin score providers without Board adapters',()=>{
  const ps=roster(4).map((p,i)=>({...p,active:true,score:[12,10,10,3][i]}));
@@ -1130,7 +1129,7 @@ test('unknown future minigames use plugin score providers without Board adapters
 });
 test('Every count 1–12, 500 random tied rankings each: exact floor(50%) quota',()=>{
  for(let count=1;count<=12;count++)for(let seed=0;seed<500;seed++){
-  const rng=M.random(seed),scores=roster(count).map(p=>({...p,active:true,score:Math.floor(rng()*4)}));const r=G.ranking({mode:'chickens'},scores),before=plain(r),ids=G.rewards(r,count,rng);
+  const rng=M.random(seed),scores=roster(count).map(p=>({...p,active:true,score:Math.floor(rng()*4)}));const r=G.ranking({mode:'chickens',pluginEngine:scoreProvider},scores),before=plain(r),ids=G.rewards(r,count,rng);
   assert.equal(ids.length,Math.floor(count*.5));assert.equal(new Set(ids).size,ids.length);assert.deepEqual(plain(r),before);
   const bestExcluded=r.filter(p=>!ids.includes(p.id)).map(p=>p.rank);for(const id of ids)assert.ok(r.find(p=>p.id===id).rank<=Math.min(...bestExcluded));
  }
@@ -1198,6 +1197,31 @@ test('Next-round order follows actual minigame ranks; tied players retain prior 
 test('Registry filtering, unregistered/board excluded and consecutive repeats avoided',()=>{
  const engine={setup(){},update(){},draw(){}},registry={ghost:engine,chickens:engine,pizza_time:{...engine,minPlayers:4},missing:null,board:engine};
  assert.deepEqual(plain(G.eligible(registry,1)),['ghost','chickens']);for(let seed=0;seed<100;seed++)assert.equal(G.pick(registry,2,'ghost',M.random(seed)),'chickens');
+});
+test('Fresh plugin IDs enter the BOARD roulette and use the same result API',()=>{
+ const fresh={setup(){},update(){},draw(){},getResult:scoreProvider.getResult};
+ const registry={meteor_dash:fresh,board:fresh};
+ assert.deepEqual(plain(G.eligible(registry,2)),['meteor_dash']);
+ assert.equal(G.pick(registry,2,null,()=>0),'meteor_dash');
+ const ps=roster(2).map((p,i)=>({...p,active:true,score:i===0?1:3}));
+ const ranked=G.ranking({mode:'meteor_dash',pluginEngine:fresh},ps);
+ assert.deepEqual(plain(ranked.map(p=>p.id)),['p2','p1']);
+ assert.deepEqual(plain(ranked.map(p=>p.rank)),[1,2]);
+});
+test('A failed new plugin skips the mini-game without losing the BOARD session',()=>{
+ const s=ready(4,113),originalMap=s.map,originalOrder=plain(s.order);
+ const before=s.players.map(p=>({node:p.currentNodeId,hp:p.hp,bag:plain(I.bag(p))}));
+ P.phase(s,'minigame_pending');assert.equal(P.minigameStarted(s,'meteor_dash'),true);
+ assert.equal(P.minigameCancelled(s),true);
+ assert.equal(P.minigameCancelled(s),false,'cannot skip a minigame twice');
+ assert.equal(s.phase,'standings');
+ assert.equal(s.results.length,s.players.length);
+ assert.ok(s.results.every(x=>x.rank===1&&x.reward===null));
+ assert.equal(P.minigameEnded(s,[]),false,'cannot deliver stale results after skip');
+ until(s,()=>s.phase==='ready',20);
+ assert.equal(s.map,originalMap);
+ assert.deepEqual(plain(s.order),originalOrder);
+ assert.deepEqual(s.players.map(p=>({node:p.currentNodeId,hp:p.hp,bag:plain(I.bag(p))})),before);
 });
 test('Finish stops new actions and supports genuinely simultaneous finishers',()=>{
  const s=ready(),a=s.players[0],b=s.players[1];a.currentNodeId=s.map.finishId;b.currentNodeId=s.map.finishId;
@@ -1375,7 +1399,7 @@ test('Full-session stress: 1–12 bots, 20 seeds each, minigame rewards and fini
    if(phase==='ready'&&['aim','car','moving','effect'].includes(s.phase)&&item)used.add(item);
    if(s.phase==='minigame_pending'){
     const hp=s.players.map(p=>p.hp),positions=s.players.map(p=>p.currentNodeId);P.minigameStarted(s,'chickens');
-    const r=G.ranking({mode:'chickens'},s.players.map(p=>({...p,active:true,score:Math.floor(s.rng()*5)})));P.minigameEnded(s,r);rounds++;
+    const r=G.ranking({mode:'chickens',pluginEngine:scoreProvider},s.players.map(p=>({...p,active:true,score:Math.floor(s.rng()*5)})));P.minigameEnded(s,r);rounds++;
     nextOrder=[...order].sort((a,b)=>r.find(p=>p.id===a).rank-r.find(p=>p.id===b).rank);
     assert.deepEqual(s.players.map(p=>p.hp),hp);assert.deepEqual(s.players.map(p=>p.currentNodeId),positions);
    }

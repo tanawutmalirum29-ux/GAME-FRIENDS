@@ -39,7 +39,8 @@ test('registration and scripts are connected to both party modes',()=>{
  assert.match(app,/function endPluginRound\(/);
  assert.ok(!app.includes('function endGladiatorsRound('),'results must stay in owning game engine');
  assert.match(fs.readFileSync(path.join(root,'src/games/gladiators/gladiators.js'),'utf8'),/function getResult\(/);
- assert.match(board,/plugin\.getResult/);assert.doesNotMatch(board,/case 'gladiators'/);
+ assert.doesNotMatch(board,/case 'gladiators'/);
+ assert.match(board,/plugin\.getResult/);
  assert.match(html,/data-pick="gladiators"/);
  assert.ok(html.indexOf('src/games/gladiators/gladiators-art.js')<html.indexOf('src/games/gladiators/gladiators.js'));
  assert.ok(html.indexOf('src/games/gladiators/gladiators.js')<html.indexOf('app.js'));

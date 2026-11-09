@@ -16,6 +16,18 @@ function pickRandomEndlessGame(previous=null,random=Math.random){
   const index=Math.min(candidates.length-1,Math.max(0,Math.floor((Number.isFinite(draw)?draw:0)*candidates.length)));
   return candidates[index];
 }
+function recoverMinigameLoadFailure(mode,error){
+ const reason=String(error?.message||error||'unknown').slice(0,90);
+ // Never disconnect the host or lose BOARD progress because one newly
+ // discovered/updated game is temporarily unavailable.
+ if(boardSession?.phase==='minigame'&&window.BoardParty?.minigameCancelled?.(boardSession)){
+  showBoard();
+  showToast('ข้าม '+(MODES[mode]||mode)+' • โหลดเกมไม่สำเร็จ: '+reason,true);
+  return;
+ }
+ returnToLobby();
+ showToast('โหลดมินิเกมไม่สำเร็จ: '+reason,true);
+}
 function beginGameSelection(mode){
   if(!players.length||!modesFor(boardSession?'board':'normal').includes(mode)||gameSelection)return;
   // No actual engine starts until the reel settles; this also guards the
@@ -101,7 +113,8 @@ function updateGameSelection(dt){
     if(selection.error){
       const message=String(selection.error?.message||selection.error);
       console.error('Minigame preload failed',selection.mode,selection.error);
-      returnToLobby();showToast('โหลดมินิเกมไม่สำเร็จ: '+message.slice(0,100),true);return;
+      gameSelection=null;
+      recoverMinigameLoadFailure(selection.mode,selection.error);return;
     }
     if(!selection.ready){
       $('rouletteMessage').textContent='กำลังเตรียมเกมเวอร์ชันล่าสุด…';return;
@@ -110,7 +123,7 @@ function updateGameSelection(dt){
     gameSelection=null;
     $('gameRoulette').classList.add('hidden');
     startRound(mode);
-    if(!round) returnToLobby();
+    if(!round)recoverMinigameLoadFailure(mode,Error('Game setup failed'));
   }
 }
 function beginParty(){
