@@ -4,7 +4,7 @@ const root=path.resolve(__dirname,'..');
 const build=require('../scripts/build-app.cjs');
 const itemBuild=require('../scripts/build-board-item-brief.cjs');
 const outcome=build.assemble();
-assert.ok(outcome.controllerBytes<outcome.bytes-40000,
+assert.ok(outcome.controllerBytes<outcome.bytes-15000,
  'controller bundle must exclude substantial host authority code');
 itemBuild.build();
 const host=fs.readFileSync(path.join(root,'app.js'),'utf8');
@@ -27,4 +27,4 @@ for(const id of original.window.BoardItems.ids){
  assert.equal(small.window.PartyBoardItemMeta.names[id],original.window.BoardItems.names[id]);
 }
 assert.ok(controller.includes('window.BoardItems||window.PartyBoardItemMeta'));
-console.log('CONTROLLER BUNDLE PASS: role-specific runtime, 40KB+ saved, canonical BOARD metadata');
+console.log('CONTROLLER BUNDLE PASS: role-specific runtime, no Host round authority bundled, canonical BOARD metadata');
