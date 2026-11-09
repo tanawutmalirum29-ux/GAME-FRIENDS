@@ -839,7 +839,9 @@ function createControllerIngressGuard(clock=()=>Date.now()){
   if(!bounded(msg))return false;
   switch(msg.t){
    case 'join':return typeof msg.name==='string'&&msg.name.length<=256&&
-    (msg.clientToken===undefined||(typeof msg.clientToken==='string'&&msg.clientToken.length<=100));
+    (msg.clientToken===undefined||(typeof msg.clientToken==='string'&&msg.clientToken.length<=100))&&
+    (msg.protocolVersion===undefined||msg.protocolVersion===1)&&
+    (msg.coreHash===undefined||(typeof msg.coreHash==='string'&&/^[a-f0-9]{20}$/.test(msg.coreHash)));
    case 'input':{
     const keys=msg.keys;
     if(!keys||typeof keys!=='object'||Array.isArray(keys))return false;
@@ -909,6 +911,20 @@ function createFastAxisIngressGuard(clock=()=>Date.now()){
   },
   dispose(){closed=true;tokens=0;}
  };
+}
+/* Host-authoritative transport contract; versioned Core and plugin UX. */
+const GF_TRANSPORT_PROTOCOL=1;
+function gfVersionHello(){
+ const core=String(window.GAME_CORE_VERSION||'');
+ return /^[a-f0-9]{20}$/.test(core)?{protocolVersion:GF_TRANSPORT_PROTOCOL,coreHash:core}:{};
+}
+function gfVersionsCompatible(packet){
+ const expected=gfVersionHello();
+ // Local source HTML has no versioned build manifest; do not break offline
+ // regression harnesses. Real AWS builds always carry a SHA fingerprint.
+ if(!expected.coreHash)return true;
+ return !!packet&&packet.protocolVersion===GF_TRANSPORT_PROTOCOL&&
+  packet.coreHash===expected.coreHash;
 }
 /* Host-only PeerJS signaling recovery. DataConnections/Board session are
  * intentionally untouched: disconnect() keeps live WebRTC channels alive. */
@@ -1737,6 +1753,10 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     conn.on('data',msg=>{
       if(!ingress.accept(msg))return;
       if(msg.t==='join'&&!conn.playerId){
+        if(!gfVersionsCompatible(msg)){
+          send(conn,{t:'reject',reason:'เวอร์ชันจอยไม่ตรงกับโฮสต์ • ออกจากห้องแล้วอัปเดตแอป',...gfVersionHello()});
+          return;
+        }
         const token=typeof msg.clientToken==='string'&&msg.clientToken.length>=12&&msg.clientToken.length<=100?msg.clientToken:null;
         let p=token?players.find(q=>q.type==='remote'&&q.clientToken===token):null;
         if(p){
@@ -1755,7 +1775,9 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         conn.playerId=p.id;conn.previewEnabled=false;conn.boardMinimapCapable=false;
         conn.boardMiniMapSession=null;conn.fastAxisToken=fastAxisSessionToken();
         conn.fastAxisConn=null;conn.fastAxisLastAt=0;p.lastInputAt=Date.now();
-        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active,axisToken:conn.fastAxisToken});
+        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active,axisToken:conn.fastAxisToken,
+          ...gfVersionHello(),pluginHash:round?.pluginHash||null,
+          boardMapVersion:boardSession?.map.version||null});
         broadcastRoster();
         if(['results','summary'].includes(round?.phase))renderResultVotes(true);
       }else if(msg.t==='leave'&&conn.playerId){
@@ -2413,7 +2435,7 @@ function joinRoom(recovery=false){
     if(controllerPeer!==peer)return;
     const conn=peer.connect('gf-party-'+code,{reliable:true,serialization:'json'});
     controllerConn=conn;
-    conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken});controllerState('กำลังรอห้องรับผู้เล่น...');});
+    conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken,...gfVersionHello()});controllerState('กำลังรอห้องรับผู้เล่น...');});
     peer.on('call',call=>{
       if(controllerPeer!==peer||call.peer!=='gf-party-'+code||!controllerPreviewEnabled){
         try{call.close();}catch(_){}
@@ -2438,6 +2460,10 @@ function joinRoom(recovery=false){
         safePeerDestroy();return;
       }
       if(data.t==='welcome'){
+        if(!gfVersionsCompatible(data)){
+          controllerState('โฮสต์ใช้โปรโตคอลหรือ Core คนละเวอร์ชัน • อัปเดตแอปแล้วเข้าห้องอีกครั้ง',true);
+          $('joinBtn').disabled=false;safePeerDestroy();return;
+        }
         controllerId=data.id;controllerReady=true;
         if(data.axisToken)startControllerFastAxis(peer,data.axisToken);
         reconnectTries=0;

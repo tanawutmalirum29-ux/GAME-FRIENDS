@@ -447,7 +447,7 @@ function joinRoom(recovery=false){
     if(controllerPeer!==peer)return;
     const conn=peer.connect('gf-party-'+code,{reliable:true,serialization:'json'});
     controllerConn=conn;
-    conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken});controllerState('กำลังรอห้องรับผู้เล่น...');});
+    conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken,...gfVersionHello()});controllerState('กำลังรอห้องรับผู้เล่น...');});
     peer.on('call',call=>{
       if(controllerPeer!==peer||call.peer!=='gf-party-'+code||!controllerPreviewEnabled){
         try{call.close();}catch(_){}
@@ -472,6 +472,10 @@ function joinRoom(recovery=false){
         safePeerDestroy();return;
       }
       if(data.t==='welcome'){
+        if(!gfVersionsCompatible(data)){
+          controllerState('โฮสต์ใช้โปรโตคอลหรือ Core คนละเวอร์ชัน • อัปเดตแอปแล้วเข้าห้องอีกครั้ง',true);
+          $('joinBtn').disabled=false;safePeerDestroy();return;
+        }
         controllerId=data.id;controllerReady=true;
         if(data.axisToken)startControllerFastAxis(peer,data.axisToken);
         reconnectTries=0;

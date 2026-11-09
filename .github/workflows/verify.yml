@@ -50,6 +50,7 @@ jobs:
         run: |
           node scripts/build-board-system-catalog.cjs --check
           node tests/board-system-discovery.cjs
+          node tests/board-system-runtime.cjs
       - name: Enforce per-game source ownership and no root gameplay copies
         run: node tests/game-source-ownership.cjs
       - name: Enforce game-owned live roster and dynamic ID fallback
@@ -58,6 +59,7 @@ jobs:
         run: |
           node tests/player-name.cjs
           node tests/controller-ingress.cjs
+          node tests/version-handshake.cjs
           node tests/host-reconnect.cjs
       - name: Controller video, TURN, mini-map and fast transport regressions
         run: |

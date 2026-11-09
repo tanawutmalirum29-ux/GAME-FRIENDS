@@ -34,7 +34,9 @@ function createControllerIngressGuard(clock=()=>Date.now()){
   if(!bounded(msg))return false;
   switch(msg.t){
    case 'join':return typeof msg.name==='string'&&msg.name.length<=256&&
-    (msg.clientToken===undefined||(typeof msg.clientToken==='string'&&msg.clientToken.length<=100));
+    (msg.clientToken===undefined||(typeof msg.clientToken==='string'&&msg.clientToken.length<=100))&&
+    (msg.protocolVersion===undefined||msg.protocolVersion===1)&&
+    (msg.coreHash===undefined||(typeof msg.coreHash==='string'&&/^[a-f0-9]{20}$/.test(msg.coreHash)));
    case 'input':{
     const keys=msg.keys;
     if(!keys||typeof keys!=='object'||Array.isArray(keys))return false;

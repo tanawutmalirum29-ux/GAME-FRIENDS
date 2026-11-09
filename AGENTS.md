@@ -39,3 +39,7 @@ Read [docs/ADDING_BOARD_MAPS.md](docs/ADDING_BOARD_MAPS.md) before adding or edi
 ## BOARD systems (items/spaces/events) zero-touch plugin ownership
 
 Read [docs/ADDING_BOARD_SYSTEMS.md](docs/ADDING_BOARD_SYSTEMS.md). New BOARD systems are discovered from `src/board-party/plugins/{items,spaces,events}/<slug>/manifest.json` and loaded only when entering BOARD, not from `index.html` or `app.js`. Built-in item IDs and tile kinds remain reserved. Run `node tests/board-system-discovery.cjs` and complete BOARD regressions. Do not activate plugin updates mid-session.
+
+## PeerJS version negotiation
+
+Read [docs/VERSION_HANDSHAKE.md](docs/VERSION_HANDSHAKE.md) before changing peer messages. Production Host/Controller must agree on `protocolVersion` and `coreHash` at join/welcome; never disconnect an existing room merely to update. Minigame code is Host-authoritative and pinned until the next round. Run `node tests/version-handshake.cjs` and browser QA.

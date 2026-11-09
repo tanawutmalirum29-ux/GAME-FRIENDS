@@ -206,7 +206,12 @@ async function refreshSystems(){
   const url=new URL('./board-system-catalog.json',document.baseURI);
   url.searchParams.set('_',String(Date.now()));
   const response=await fetch(url.href,{cache:'no-store'});
-  if(!response.ok)throw Error('BOARD systems unavailable: '+response.status);
+  if(!response.ok){
+   // Existing source-only/browser fixtures and older deployments may have no
+   // optional system catalog. Preserve the original BOARD session in that case.
+   if(response.status===404&&!systemCatalog.length)return false;
+   throw Error('BOARD systems unavailable: '+response.status);
+  }
   const data=await response.json();
   if(window.GAME_CORE_VERSION&&data.coreHash!==window.GAME_CORE_VERSION)return false;
   const next=inspectSystems(data);
