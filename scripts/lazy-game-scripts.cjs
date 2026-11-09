@@ -15,7 +15,11 @@ function pruneLegacy(html,catalog){
   }
  }
  const tag=/^[ \t]*<script\s+defer\s+src="\.\/([^"?]+)(?:\?v=[^"]*)?"\s*><\/script>\s*$/gm;
- // Development HTML may list local ESM game sources, but production must\n // never eagerly load them: they belong to immutable per-game imports.\n const owned=/^src\\/games\\/[a-z0-9-]+\\/[a-zA-Z0-9._-]+\\.js$/;\n return html.replace(tag,(whole,asset)=>(legacy.has(asset)||owned.test(asset))?'':whole);
+ // Development HTML may list game-owned scripts, but production must never
+ // eagerly load them: immutable per-game modules import those files on demand.
+ const owned=/^src\/games\/[a-z0-9-]+\/[a-zA-Z0-9._-]+\.js$/;
+ return html.replace(tag,(whole,asset)=>(legacy.has(asset)||owned.test(asset))?'':whole);
+
 }
 const BOARD_CORE_SCRIPTS=new Set(["board-map.js","board-v7-design.js","board-v7-art.js","board-branch-naming.js","board-v7-adapter.js","board-dice.js","board-dice-renderer.js","board-items.js","board-bots.js","board-minigame.js","board-party.js","board-art.js"]);
 function pruneBoardCore(html){
