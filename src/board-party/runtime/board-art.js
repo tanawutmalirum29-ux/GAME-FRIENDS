@@ -218,8 +218,8 @@ function decoration(g,d){
  g.restore();
 }
 // V10 curated landmarks are independent of the precompiled V7 art atlas.
-function v10Landmarks(g,s){
- if(s.map.version!=='winter-expedition-152-v10')return;
+function mapLandmarks(g,s){
+ if(s.map.id!=='winter-expedition')return;
  const c=s.camera,z=Math.max(.06,c.zoom||1);
  for(const zone of s.map.islands){
   if(!['harbor','ginger'].includes(zone.id))continue;
@@ -324,8 +324,8 @@ function ground(g,s){
    try{
     c.width=Math.floor(s.map.width*scale);c.height=Math.floor(s.map.height*scale);
     const ctx=c.getContext('2d',{alpha:false});
-    if(ctx){ctx.scale(c.width/s.map.width,c.height/s.map.height);if(window.BOARD_PARTY_V7_ART&&window.BOARD_PARTY_V7_DESIGN){
-      window.BOARD_PARTY_V7_ART.render(ctx,window.BOARD_PARTY_V7_DESIGN,
+    if(ctx){ctx.scale(c.width/s.map.width,c.height/s.map.height);if(window.BOARD_SCENERY&&window.BOARD_DESIGN){
+      window.BOARD_SCENERY.render(ctx,window.BOARD_DESIGN,
        {layers:{nodes:0,labels:0}});
      }else scenery(ctx,s.map);
      terrain.canvas=c;}
@@ -360,7 +360,7 @@ function boardPaintIndex(map){
  const bridgeKinds=new Map((map.bridges||[]).map(([from,to])=>[
   from+'>'+to,map.bridgeStyles?.[from+'>'+to]||'wood'
  ]));
- const raised=new Set((window.BOARD_PARTY_V7_DESIGN?.overpasses||[])
+ const raised=new Set((window.BOARD_DESIGN?.overpasses||[])
   .filter(o=>/^xmw_/.test(o.upper)).map(o=>o.upper));
  const nodeList=Object.values(map.nodes);
  const branchById=new Map();
@@ -376,8 +376,8 @@ function boardPaintIndex(map){
  boardPaintCache.set(map,entry);
  return entry;
 }
-function v8RoadGuides(g,s){
- if(!/^winter-expedition-152-v(8|9|10)$/.test(s.map.version))return;
+function roadGuides(g,s){
+ if(s.map.id!=='winter-expedition')return;
  const map=s.map,c=s.camera,z=Math.max(.06,c.zoom||1);
  const hw=480/z+150,hh=(mapBottom(s)-94)/(2*z)+150;
  const isVisible=(a,b)=>Math.max(a.x,b.x)>=c.x-hw&&Math.min(a.x,b.x)<=c.x+hw&&
@@ -591,15 +591,15 @@ function nodes(g,s){
  for(const n of boardPaintIndex(s.map).nodeList)for(const id of n.nextNodes){const a=n.position,b=s.map.nodes[id].position;
   if(!edgeVisible(a,b))continue;
   const branch=boardPaintIndex(s.map).branchById.get(id);
-  const isV10=s.map.version==='winter-expedition-152-v10';
-  const realLabel=isV10&&n.nextNodes.length>1?decisionLabels(s.map,n.id)[id]:null;
+  const isCanonicalMap=s.map.id==='winter-expedition';
+  const realLabel=isCanonicalMap&&n.nextNodes.length>1?decisionLabels(s.map,n.id)[id]:null;
   const tint=branch?.kind==='risky'?'#b78964':branch?'#6e9d91':'#5c8ea5';
   // Only actual directed edges receive directional arrows. Route signs say
   // what pads EXIST before convergence, not that a player will land on one.
-  if(c.zoom>.55&&(isV10?realLabel:branch&&id===branch.nodeIds[0])){
+  if(c.zoom>.55&&(isCanonicalMap?realLabel:branch&&id===branch.nodeIds[0])){
    const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;
    const x=(a.x+b.x)/2-dy/d*72,y=(a.y+b.y)/2+dx/d*72;
-   const wording=isV10?realLabel:branch.kind==='risky'?'ลัด • เสี่ยง':'อ้อม • ฮีล / โชค';
+   const wording=isCanonicalMap?realLabel:branch.kind==='risky'?'ลัด • เสี่ยง':'อ้อม • ฮีล / โชค';
    box(g,x-72,y-11,144,22,6,'#edf9f8ed',tint);
    label(g,wording,x,y,9,'#36596c','center',700,137);
   }
@@ -1143,7 +1143,7 @@ function inspect(s,x,y){
   if(d<distance){best=n;distance=d;}}
  if(distance>Math.max(50,22/c.zoom))return null;
  c.selectedId=best.id;
- return {id:best.id,type:best.type,islandId:best.islandId,bridgeId:best.bridgeId||null,mapVersion:s.map.version,progress:best.progress,
+ return {id:best.id,type:best.type,islandId:best.islandId,bridgeId:best.bridgeId||null,mapId:s.map.id,progress:best.progress,
   next:[...best.nextNodes],previous:[...best.previousNodes],
   x:best.position.x,y:best.position.y,
   owner:s.map.territories[best.territoryId]?.ownerId||null,
@@ -1219,15 +1219,15 @@ function draw(g,t,s){
  c.x=clampCamera(c.x,halfW,b.minX,b.maxX);c.y=clampCamera(c.y,halfH,b.minY,b.maxY);
  g.clearRect(0,0,960,sceneHeight(s));g.fillStyle='#183e5d';g.fillRect(0,top,960,viewH);g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();g.translate(480,top+viewH/2);g.scale(c.zoom,c.zoom);g.translate(-c.x,-c.y);
  ground(g,s);
- v8RoadGuides(g,s);
-  const v7D=window.BOARD_PARTY_V7_DESIGN,v7A=window.BOARD_PARTY_V7_ART;
-  if(v7D&&v7A){
+ roadGuides(g,s);
+  const designData=window.BOARD_DESIGN,sceneryApi=window.BOARD_SCENERY;
+  if(designData&&sceneryApi){
    if(!c.lowDetail){
-    if(!s.__v7Fx)s.__v7Fx=v7A.createEffects(v7D,1);
-    s.__v7Fx.draw(g,{x:c.x-480/c.zoom,y:c.y-viewH/(2*c.zoom),w:960/c.zoom,h:viewH/c.zoom,zoom:c.zoom},t);
+    if(!s.__sceneryFx)s.__sceneryFx=sceneryApi.createEffects(designData,1);
+    s.__sceneryFx.draw(g,{x:c.x-480/c.zoom,y:c.y-viewH/(2*c.zoom),w:960/c.zoom,h:viewH/c.zoom,zoom:c.zoom},t);
    }
   }else{decorations(g,s);if(typeof ambience==='function'&&!c.lowDetail)ambience(g,s,t);}
-  v10Landmarks(g,s);
+  mapLandmarks(g,s);
   nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
  // Snow is a screen overlay; never modifies hitboxes or graph state.
  g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<(c.lowDetail?0:35);i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
