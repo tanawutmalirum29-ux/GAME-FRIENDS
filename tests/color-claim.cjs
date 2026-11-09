@@ -342,11 +342,12 @@ check('board integration and ties rank by raw tile count',()=>{
  for(let y=6;y<11;y++)for(let x=18;x<23;x++)s.owner[y*s.cols+x]=b.cc.slot;
  for(let y=6;y<9;y++)for(let x=32;x<35;x++)s.owner[y*s.cols+x]=c.cc.slot;
  z.e.recount(s,z.ps);z.e.finish(s,z.round,z.ps);
- const ranked=z.ctx.window.BoardMinigame.ranking(z.round,z.ps);
+ z.round.pluginEngine=z.e;
+  const ranked=z.ctx.window.BoardMinigame.ranking(z.round,z.ps);
  assert.equal(ranked.length,3);
  const own=x=>ranked.find(v=>v.id===x.id);
  assert.equal(own(a).rank,1);assert.equal(own(b).rank,1);assert.equal(own(c).rank,3);
- assert.ok(own(a).label.includes('ช่องพื้นที่'));
+ assert.ok(own(a).label.includes('% ของสนาม'));
 });
 check('1, 6, 7 and 12 bots run to timed results without NaN or ownership duplication',()=>{
  for(const n of [1,6,7,12]){

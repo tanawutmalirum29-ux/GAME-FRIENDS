@@ -223,6 +223,6 @@ assert.equal(typeof G.getResult,'function','SHOPPING TIME owns its scoring');
 assert.match(app,/renderPhoneShoppingStatus/);
 assert.match(html,/src="\.\/src\/games\/shopping-time\/shopping-time\.js"/);
 assert.match(html,/data-pick="shopping_time"/);
-assert.match(board,/case 'shopping_time':/);
+assert.match(board,/plugin\.getResult/);assert.doesNotMatch(board,/case 'shopping_time':/);
 assert.match(build,/'src\/games\/shopping-time\/shopping-time\.js'/);
 console.log('SHOPPING TIME: four conveyor lanes, rigid forward cart steering, collision, checkout, bomb immunity, 1–12 players, bots and integration PASS');
