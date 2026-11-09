@@ -18,7 +18,64 @@ function updatePhoneGamePicker(phase,choice){
     'เลือก '+MODES[myChosenMode]+' แล้ว • รอเจ้าของห้องสุ่มเกม':
     'เลือกหนึ่งเกม • เปลี่ยนใจก่อนเริ่มเล่นได้';
 }
-let controllerMediaCall=null;
+
+ // A dedicated zero-retransmission DataConnection is used only if the browser
+ // confirms its actual RTCDataChannel properties; reliable A/B/C remain intact.
+ let controllerFastAxisConn=null,controllerFastAxisAuthorized=false;
+ let controllerFastAxisHostReady=false,controllerFastAxisUnsupported=false;
+ let controllerFastAxisSeq=0,controllerFastAxisRetry=null;
+ function stopControllerFastAxis(){
+  if(controllerFastAxisRetry!==null)clearTimeout(controllerFastAxisRetry);
+  controllerFastAxisRetry=null;
+  const fast=controllerFastAxisConn;controllerFastAxisConn=null;
+  controllerFastAxisAuthorized=false;controllerFastAxisHostReady=false;
+  if(fast)try{fast.close();}catch(_){}
+ }
+ function startControllerFastAxis(peer,token){
+  if(controllerFastAxisUnsupported||!controllerReady||!controllerConn?.open||
+     !peer||!window.RTCPeerConnection||typeof token!=='string'||
+     !/^[a-f0-9]{32}$/.test(token))return;
+  stopControllerFastAxis();
+  const primary=controllerConn;
+  let fast=null;
+  try{
+   fast=peer.connect(primary.peer,{reliable:false,serialization:'json',
+     label:'gf-axis-v1',metadata:{kind:'gf-axis-v1',playerId:controllerId,token}});
+  }catch(_){return;}
+  if(!fast)return;
+  controllerFastAxisConn=fast;controllerFastAxisSeq=0;
+  fast.on('open',()=>{
+   if(controllerFastAxisConn!==fast||controllerConn!==primary)return;
+   const channel=fast.dataChannel;
+   if(channel?.ordered!==false||channel?.maxRetransmits!==0){
+    controllerFastAxisUnsupported=true;stopControllerFastAxis();return;
+   }
+   controllerFastAxisAuthorized=controllerFastAxisHostReady;
+  });
+  const gone=()=>{
+   if(controllerFastAxisConn!==fast)return;
+   controllerFastAxisConn=null;controllerFastAxisAuthorized=false;
+   controllerFastAxisHostReady=false;
+   if(controllerFastAxisUnsupported||!controllerReady||controllerConn!==primary)return;
+   controllerFastAxisRetry=setTimeout(()=>{
+    controllerFastAxisRetry=null;
+    if(controllerReady&&controllerConn===primary&&controllerPeer===peer)
+     startControllerFastAxis(peer,token);
+   },2000);
+  };
+  fast.on('close',gone);fast.on('error',gone);
+ }
+ function sendControllerFastAxis(){
+  const fast=controllerFastAxisConn;
+  if(!controllerFastAxisAuthorized||!fast?.open||
+     fast.dataChannel?.bufferedAmount>8192)return false;
+  const inspected=!!boardCameraController?.enabled();
+  send(fast,{t:'axis',seq:++controllerFastAxisSeq,
+   x:inspected?0:controllerKeys.axisX,y:inspected?0:controllerKeys.axisY,
+   turnId:controllerBoard?.turnId??null,mapVersion:controllerBoard?.mapVersion??null});
+  return true;
+ }
+ let controllerMediaCall=null;
 let videoStreamActive=false;
 let controllerVideoWatchdog=null;
 let controllerPreviewEnabled=false; // Default OFF on every fresh page load.
@@ -160,6 +217,7 @@ function receivePhonePreview(image){
   $('controllerPreviewPlaceholder').classList.add('hidden');
 }
 function safePeerDestroy(){
+  stopControllerFastAxis();
   stopControllerVideo();
   const conn=controllerConn,peer=controllerPeer;
   controllerConn=null;controllerPeer=null;
@@ -384,6 +442,7 @@ function joinRoom(recovery=false){
       }
       if(data.t==='welcome'){
         controllerId=data.id;controllerReady=true;
+        if(data.axisToken)startControllerFastAxis(peer,data.axisToken);
         reconnectTries=0;
         if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
         reconnectTimer=null;savePhone();
@@ -405,7 +464,12 @@ function joinRoom(recovery=false){
         setControllerVideoQuality(savedVideoQuality());
         setControllerPreviewEnabled(controllerPreviewEnabled);
         sendInputs();announceControllerTakeover();
-       }else if(data.t==='input-ack'){
+       }else if(data.t==='axis-ready'){
+        controllerFastAxisHostReady=true;
+        controllerFastAxisAuthorized=!!controllerFastAxisConn?.open&&
+          controllerFastAxisConn?.dataChannel?.ordered===false&&
+          controllerFastAxisConn?.dataChannel?.maxRetransmits===0;
+      }else if(data.t==='input-ack'){
         const ms=Math.floor(controllerNow()-Number(data.clientAt));
         if(Number.isSafeInteger(data.actionId)&&Number.isFinite(ms)&&ms>=0&&ms<60000){
           const latency=$('controllerLatency');
@@ -784,10 +848,11 @@ function queueAnalogInput(){
  if(!controllerReady)return;
  const now=controllerNow(),remaining=33-(now-lastAnalogInputAt);
  if(remaining<=0){
-  lastAnalogInputAt=now;sendInputs();
+  lastAnalogInputAt=now;if(!sendControllerFastAxis())sendInputs();
  }else if(analogInputTimer===null){
   analogInputTimer=setTimeout(()=>{
-   analogInputTimer=null;lastAnalogInputAt=controllerNow();sendInputs();
+   analogInputTimer=null;lastAnalogInputAt=controllerNow();
+      if(!sendControllerFastAxis())sendInputs();
   },remaining);
  }
 }
@@ -802,6 +867,7 @@ function sendInputs(){
    if(controllerBoard?.boardPhase==='ready'){keys.action=false;keys.alt=false;keys.cancel=false;}
  }
  send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId,clientAt:Math.floor(controllerNow())});
+  sendControllerFastAxis();
 }
 function isPortraitScreen(){
   if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
