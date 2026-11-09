@@ -3039,7 +3039,8 @@ $('closeRoomBtn').addEventListener('click',()=>{
 });
 $('copyBtn').addEventListener('click',copyInvite);
 $('exitBtn').addEventListener('click',returnToLobby);
-$('backBtn').addEventListener('click',onResultBack);
+// Results/scoring exists only in the Host bundle; bind lazily for Controller.
+$('backBtn').addEventListener('click',()=>onResultBack());
 $('replayBtn').addEventListener('click',advanceParty);
 document.querySelectorAll('[data-session-mode]').forEach(button=>{
  button.addEventListener('click',()=>{
