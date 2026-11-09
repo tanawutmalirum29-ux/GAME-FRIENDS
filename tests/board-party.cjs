@@ -3,6 +3,23 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const ctx=vm.createContext({window:{},console});
 for(const f of ['board-map','board-dice','board-items','board-bots','board-minigame','board-party'])vm.runInContext(fs.readFileSync(f+'.js','utf8'),ctx,{filename:f+'.js'});
 const {BoardMap:M,BoardDice:D,BoardItems:I,BoardParty:P,BoardMinigame:G}=ctx.window;
+// The Board adapter never hardcodes game names or scoring. These test-only
+// providers emulate the game-owned getResult contract for synthetic rosters.
+const scoringModes=new Set(['chickens','color_switch','pizza_time','ghost','shockwave','fruit_memory']);
+ctx.window.GamePlatform={engine:mode=>scoringModes.has(mode)?{
+ getResult(round,players){
+  return players.filter(p=>p.active).map(p=>{
+   const value=mode==='ghost'?Math.floor((Number.isFinite(p.infectedAt)?p.infectedAt:p.survival||0)*10+1e-7):
+    mode==='shockwave'?(p.id===round.shockwave?.winnerId?Infinity:p.shockEliminatedAt||0):
+    mode==='fruit_memory'?(p.id===round.fruitMemory?.winnerId?Infinity:p.fruitEliminatedRound||0):
+    Number(p.score)||0;
+   const label=mode==='shockwave'&&value!==Infinity?'ตกรอบชุดที่ '+value:
+    value===Infinity?'ผู้รอดชีวิต':String(value);
+   return {id:p.id,value,label};
+  });
+ }
+}:null};
+
 const plain=x=>JSON.parse(JSON.stringify(x));
 const roster=(n,bots=false)=>Array.from({length:n},(_,i)=>({id:'p'+(i+1),name:'Player '+(i+1),color:'#66aacc',isBot:bots}));
 const game=(n=3,seed=42,bots=false)=>{
@@ -1101,6 +1118,15 @@ test('Actual engine outcomes use competition ranking and survival semantics',()=
  list.forEach((p,i)=>{p.ghost=true;p.infectedAt=[9,7,7,3][i];p.shockEliminatedAt=[9,7,7,3][i];p.fruitEliminatedRound=[4,3,3,2][i];p.score=100-i;});
  for(const r of [{mode:'ghost'},{mode:'shockwave',shockwave:{winnerId:'p1'}},{mode:'fruit_memory',fruitMemory:{winnerId:'p1'}}])assert.deepEqual(plain(G.ranking(r,list).map(r=>r.rank)),[1,2,2,4]);
  assert.equal(G.ranking({mode:'shockwave',shockwave:{winnerId:'p1'}},list)[1].label,'ตกรอบชุดที่ 7','elimination event is not mislabeled as a wave number');
+});
+test('unknown future minigames use plugin score providers without Board adapters',()=>{
+ const ps=roster(4).map((p,i)=>({...p,active:true,score:[12,10,10,3][i]}));
+ const round={mode:'future_game',pluginEngine:{getResult:(_,people)=>
+  people.map(p=>({id:p.id,value:p.score,label:p.score+' stars'}))}};
+ const ranked=G.ranking(round,ps);
+ assert.deepEqual(plain(ranked.map(x=>x.rank)),[1,2,2,4]);
+ assert.equal(ranked[0].label,'12 stars');
+ assert.throws(()=>G.ranking({mode:'future_game'},ps),/Missing minigame getResult provider/);
 });
 test('Every count 1–12, 500 random tied rankings each: exact floor(50%) quota',()=>{
  for(let count=1;count<=12;count++)for(let seed=0;seed<500;seed++){
