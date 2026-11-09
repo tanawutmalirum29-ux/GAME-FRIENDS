@@ -2434,8 +2434,8 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  const hostState=JSON.parse(hostA.sessionData.get('gf-host-room-v2'));
  assert.equal(hostState.code,code);
  assert.equal(hostState.players[0].choice,'fruit_memory');
- assert.equal(hostA.scope.window.GAME_CAN_AUTO_RELOAD(),true,
-   'a joined, idle host lobby must apply patches automatically');
+ assert.equal(hostA.scope.window.GAME_CAN_AUTO_RELOAD(),false,
+   'a connected Host lobby must retain PeerJS clients until the owner leaves');
  const hostB=setup('https://game.example/?host=1',false,hostA.sessionData);
  assert.equal(hostB.elements.get('home').classList.contains('hidden'),false,
   'restored HOST waits at home while signaling reconnects');
@@ -2465,8 +2465,8 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.equal(hostB.scope.window.GAME_CAN_AUTO_RELOAD(),false,
    'a running match must NEVER be automatically refreshed');
  hostB.click('exitBtn');
- assert.equal(hostB.scope.window.GAME_CAN_AUTO_RELOAD(),true,
-   'auto updates resume once host returns to lobby');
+ assert.equal(hostB.scope.window.GAME_CAN_AUTO_RELOAD(),false,
+   'returning to an ONLINE lobby must not disconnect existing controllers');
  connC.fire('data',{t:'leave'});
  assert.equal(hostB.scope.window.__ghostTest.getPlayers().length,0,
    'intentional exit frees a player slot immediately');
@@ -2479,8 +2479,8 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  const firstJoin=first.sent.find(m=>m.t==='join');
  first.fire('data',{t:'welcome',id:'p3',name:'Phone Resume',color:'#ff628c',
    mode:'ghost',phase:'lobby',choice:'ghost',active:false});
- assert.equal(oldPhone.scope.window.GAME_CAN_AUTO_RELOAD(),true,
-   'joined controller lobby may apply a patch');
+ assert.equal(oldPhone.scope.window.GAME_CAN_AUTO_RELOAD(),false,
+   'joined controller lobby must not reload its open PeerJS transport');
  assert.equal(JSON.parse(oldPhone.sessionData.get('gf-phone-room-v2')).code,'ABCD23');
  const newPhone=setup('https://game.example/?join=ABCD23',false,oldPhone.sessionData);
  assert.equal(newPhone.elements.get('controller').classList.contains('hidden'),false);
@@ -2503,7 +2503,8 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
    'controller must not hot-reload while actually playing');
  next.fire('data',{t:'roster',phase:'lobby',mode:'ghost',
    players:[{id:'p3',active:false,choice:'ghost'}]});
- assert.equal(newPhone.scope.window.GAME_CAN_AUTO_RELOAD(),true);
+ assert.equal(newPhone.scope.window.GAME_CAN_AUTO_RELOAD(),false,
+   'even a controller showing the room lobby must remain connected');
 }
 {
  const offlineA=setup();offlineA.click('offlineBtn');
