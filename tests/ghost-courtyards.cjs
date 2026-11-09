@@ -5,7 +5,7 @@ let seed=1;
 const math=Object.create(Math);
 math.random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
 const host=vm.createContext({window:{},Math:math});
-for(const file of ['arena-art.js','player-avatar.js','combat-motion.js','character-system.js','graveyard-art.js','src/games/ghost-attack/ghost-attack.js']){
+for(const file of ['arena-art.js','player-avatar.js','combat-motion.js','character-system.js','src/shared/graveyard-art.js','src/games/ghost-attack/ghost-attack.js']){
  let source=fs.readFileSync(file,'utf8');
  // Exercise the production navigation, spawn and collision functions directly.
  if(file==='src/games/ghost-attack/ghost-attack.js')source=source.replace('window.GhostAttack={',

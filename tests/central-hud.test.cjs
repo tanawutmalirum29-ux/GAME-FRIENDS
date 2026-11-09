@@ -118,8 +118,11 @@ test('no duplicate mode-level clocks or top-left information banners', () => {
  for(const [name,re] of Object.entries(forbidden))assert.doesNotMatch(read(name),re,name);
  assert.match(read('src/games/fruit-memory/fruit-memory.js'),/function drawSideScreens\(ctx,state,round\)/,
   'Fruit Memory uses mirrored SVG side screens');
- assert.match(read('app.js'),/r\.mode==='fruit_memory'/,
-  'Fruit Memory has a shared host countdown, not a memorize timer');
+ assert.match(read('src/games/fruit-memory/fruit-memory.js'),
+  /hudBadge:\{duringCountdown:"clock",duringPlay:"players"\}/,
+  'Fruit Memory owns the generic host badge policy without hardcoded core modes');
+ assert.doesNotMatch(read('src/app/rounds/render.js'),/r\.mode==='fruit_memory'/,
+  'Core must not special-case Fruit Memory badge rendering');
  assert.doesNotMatch(read('app.js'),/drawTargetFruits/,
   'old three-fruit HUD is removed');
 });

@@ -32,6 +32,12 @@ src/games/meteor-dodge/
 }
 ```
 
+กรณีเกมหลายเกมใช้ศิลป์ฉากร่วมกัน ให้เก็บ Source ใน `src/shared/` แล้วใส่
+`src/shared/ชื่อไฟล์.js` ไว้ใน `legacyScripts` เฉพาะ Manifest ของเกมที่ต้องใช้
+Build จะสำเนาเป็น Asset ที่มี Game Hash ของเกมนั้น และ Hot Update ได้โดยไม่เพิ่ม
+Core Runtime หรือโหลดบน Controller ทุกครั้ง ไฟล์ `farm-ice-art.js` และ
+`graveyard-art.js` ไม่อยู่ Root แล้ว ห้ามอ้าง Root Legacy ในเกมใหม่
+
 เกมใหม่ควรใช้ native ES Module ไม่ใช้ global name; `global` มีไว้เฉพาะ Engine แบบเก่าที่ยังต้องรองรับ Dev Compatibility เท่านั้น
 
 ## สัญญา Engine API v1

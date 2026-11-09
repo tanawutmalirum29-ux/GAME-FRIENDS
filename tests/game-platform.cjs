@@ -10,6 +10,24 @@ const builder=require('../scripts/build-game-catalog.cjs');
 const catalog=builder.build();
 const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,pruneHostCore,pruneGameCover,BOARD_CORE_SCRIPTS,HOST_ROUTE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
 assert.equal(catalog.schema,1);
+// Scenery must be versioned with the consuming game, not an eager Root engine.
+const sharedDependencies={
+ ghost:['src/shared/graveyard-art.js'],
+ chickens:['src/shared/farm-ice-art.js'],
+ snow_brawl:['src/shared/farm-ice-art.js'],
+ boulder_bash:['src/shared/farm-ice-art.js']
+};
+for(const name of ['farm-ice-art.js','graveyard-art.js']){
+ assert.ok(!fs.existsSync(path.join(root,name)),
+  'Deprecated Root scenery must be removed: '+name);
+ assert.ok(fs.existsSync(path.join(root,'src/shared',name)),
+  'Shared scenery source is missing: '+name);
+}
+for(const game of catalog.games){
+ assert.deepEqual(game.legacyUrls.map(x=>x.split('/legacy/')[1]),
+  sharedDependencies[game.id]||[],
+  'Per-game dependencies must be explicit and version pinned: '+game.id);
+}
 const originalHTML=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const lazyHTML=pruneGameCover(pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog))))));
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/peerjs@'),'offline bootstrap never fetches PeerJS');
@@ -21,6 +39,9 @@ for(const file of BOARD_CORE_SCRIPTS)assert.ok(!lazyHTML.includes('src="./'+file
 for(const file of HOST_ROUTE_SCRIPTS)assert.ok(!lazyHTML.includes('src="./'+file+'"'),
  'controller bootstrap must defer host runtime: '+file);
 assert.ok(lazyHTML.includes('src="./src/platform/host-runtime.js"'));
+for(const name of ['farm-ice-art.js','graveyard-art.js'])
+ assert.ok(!lazyHTML.includes('src="./src/shared/'+name+'"'),
+  'Shared game scenery must load on demand: '+name);
 for(const game of catalog.games){
  for(const legacy of game.legacyUrls){
   const asset=legacy.split('/legacy/')[1];
