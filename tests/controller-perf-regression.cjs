@@ -55,7 +55,7 @@ assert.ok(viewportStart>=0&&viewportEnd>viewportStart);
 const props=new Map(),pending=[];
 const layout={
  window:{visualViewport:{width:844,height:390,offsetLeft:0,offsetTop:0}},
- document:{body:{classList:{contains:()=>false}}},
+ document:{body:{classList:{contains:name=>name==='controller-playing'}}},
  $:()=>({style:{setProperty:(name,value)=>props.set(name,value)}}),
  isPortraitScreen:()=>false,
  requestAnimationFrame:cb=>{pending.push(cb);return pending.length;}
