@@ -46,6 +46,7 @@ function createControllerIngressGuard(clock=()=>Date.now()){
      }else return false;
     }
     return (msg.actionId===undefined||(Number.isSafeInteger(msg.actionId)&&msg.actionId>=0))&&
+     (msg.clientAt===undefined||(Number.isFinite(msg.clientAt)&&msg.clientAt>=0&&msg.clientAt<1e10))&&
      (msg.turnId===undefined||msg.turnId===null||typeof msg.turnId==='string'||Number.isSafeInteger(msg.turnId))&&
      (msg.mapVersion===undefined||msg.mapVersion===null||
       (typeof msg.mapVersion==='string'&&msg.mapVersion.length<=80));

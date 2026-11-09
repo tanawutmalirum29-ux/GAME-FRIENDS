@@ -20,6 +20,7 @@ function updatePhoneGamePicker(phase,choice){
 }
 let controllerMediaCall=null;
 let videoStreamActive=false;
+let controllerVideoWatchdog=null;
 let controllerPreviewEnabled=false; // Default OFF on every fresh page load.
 const VIDEO_QUALITY_CYCLE=['high','medium','low','auto'];
 const VIDEO_QUALITY_TEXT={
@@ -95,35 +96,55 @@ function setControllerPreviewEnabled(enabled){
   if(controllerReady)send(controllerConn,{t:'preview-toggle',enabled:controllerPreviewEnabled});
 }
 function stopControllerVideo(){
-  const call=controllerMediaCall;
-  controllerMediaCall=null;
-  videoStreamActive=false;
-  if(call)try{call.close();}catch(_){}
-  const video=$('controllerPreviewVideo');
-  try{video.pause();}catch(_){}
-  video.srcObject=null;
-  video.classList.add('hidden');
-  $('videoStartBtn').classList.add('hidden');
+ const call=controllerMediaCall;controllerMediaCall=null;videoStreamActive=false;
+ if(controllerVideoWatchdog!==null)clearTimeout(controllerVideoWatchdog);
+ controllerVideoWatchdog=null;
+ if(call)try{call.close();}catch(_){}
+ const video=$('controllerPreviewVideo');
+ video.onloadeddata=null;video.onplaying=null;
+ video.classList.remove('pending-video');
+ try{video.pause();}catch(_){}
+ video.srcObject=null;video.classList.add('hidden');
+ $('videoStartBtn').classList.add('hidden');
+}
+function activateControllerVideoIfReady(call){
+ const video=$('controllerPreviewVideo');
+ if(controllerMediaCall!==call||!controllerPreviewEnabled||videoStreamActive||
+    video.paused||video.readyState<2||video.videoWidth<1)return false;
+ videoStreamActive=true;
+ if(controllerVideoWatchdog!==null)clearTimeout(controllerVideoWatchdog);
+ controllerVideoWatchdog=null;
+ video.classList.remove('pending-video');
+ video.classList.remove('hidden');
+ $('controllerPreviewImage').classList.add('hidden');
+ $('controllerPreviewPlaceholder').classList.add('hidden');
+ $('videoStartBtn').classList.add('hidden');
+ send(controllerConn,{t:'video-ready',quality:call.metadata?.quality||'medium'});
+ return true;
 }
 function showControllerVideo(stream,call){
-  if(controllerMediaCall!==call||!controllerPreviewEnabled||!stream)return;
-  const video=$('controllerPreviewVideo');
-  video.srcObject=stream;
-  video.muted=true;
-  video.playsInline=true;
-  video.classList.remove('hidden');
-  $('controllerPreviewImage').classList.add('hidden');
-  $('controllerPreviewPlaceholder').classList.add('hidden');
-  videoStreamActive=true;
-  if(typeof video.play==='function'){
-    try{
-      const p=video.play();
-      if(p&&p.then)p.then(()=>{
-        if(controllerMediaCall!==call||!controllerPreviewEnabled)return;
-        send(controllerConn,{t:'video-ready',quality:call.metadata?.quality||'medium'});
-      }).catch(()=>{$('videoStartBtn').classList.remove('hidden');});
-    }catch(_){$('videoStartBtn').classList.remove('hidden');}
-  }
+ if(controllerMediaCall!==call||!controllerPreviewEnabled||!stream)return;
+ const video=$('controllerPreviewVideo');
+ video.srcObject=stream;video.muted=true;video.playsInline=true;
+ // JPEG stays visible until a real frame is decoded and playback is active.
+ video.classList.remove('hidden');video.classList.add('pending-video');
+ videoStreamActive=false;
+ video.onloadeddata=()=>activateControllerVideoIfReady(call);
+ video.onplaying=()=>activateControllerVideoIfReady(call);
+ if(controllerVideoWatchdog!==null)clearTimeout(controllerVideoWatchdog);
+ controllerVideoWatchdog=setTimeout(()=>{
+  controllerVideoWatchdog=null;
+  if(controllerMediaCall===call&&!videoStreamActive&&controllerPreviewEnabled)
+   $('videoStartBtn').classList.remove('hidden');
+ },4000);
+ if(typeof video.play==='function')try{
+  const pending=video.play();
+  if(pending&&typeof pending.then==='function')
+   pending.then(()=>activateControllerVideoIfReady(call)).catch(()=>{
+    if(controllerMediaCall===call)$('videoStartBtn').classList.remove('hidden');
+   });
+  else activateControllerVideoIfReady(call);
+ }catch(_){$('videoStartBtn').classList.remove('hidden');}
 }
 function resetPhonePreview(){
   $('controllerPreviewImage').src='';
@@ -329,7 +350,7 @@ function joinRoom(recovery=false){
   $('joinBtn').disabled=true;controllerState((recovery?'กำลังกลับเข้าห้อง ':'กำลังเชื่อมต่อห้อง ')+code+'...');
   disconnectRequested=true;safePeerDestroy();
   disconnectRequested=false;
-  const peer=new Peer(undefined,{debug:0});
+  const peer=new Peer(undefined,partyPeerOptions());
   controllerPeer=peer;
   peer.on('open',()=>{
     if(controllerPeer!==peer)return;
@@ -382,7 +403,13 @@ function joinRoom(recovery=false){
         setControllerVideoQuality(savedVideoQuality());
         setControllerPreviewEnabled(controllerPreviewEnabled);
         sendInputs();announceControllerTakeover();
-      }else if(data.t==='preview'){
+       }else if(data.t==='input-ack'){
+        const ms=Math.floor(controllerNow()-Number(data.clientAt));
+        if(Number.isSafeInteger(data.actionId)&&Number.isFinite(ms)&&ms>=0&&ms<60000){
+          const latency=$('controllerLatency');
+          if(latency){latency.textContent=ms+' ms';latency.dataset.latency=ms>400?'slow':'ok';}
+        }
+       }else if(data.t==='preview'){
         if(controllerReady)receivePhonePreview(data.image);
       }else if(data.t==='preview-reset'){
         resetPhonePreview();
@@ -738,7 +765,26 @@ function renderPhoneInventory(info){
   $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
   showControllerMode(info.mode);
 }
+// Real browser time is monotonic; deterministic smoke harnesses may not expose
+// performance. The bounded Date fallback is only used outside browsers.
+function controllerNow(){
+ return typeof performance!=='undefined'&&typeof performance.now==='function'?
+  performance.now():Date.now()%1e10;
+}
+let analogInputTimer=null,lastAnalogInputAt=0;
+function queueAnalogInput(){
+ if(!controllerReady)return;
+ const now=controllerNow(),remaining=33-(now-lastAnalogInputAt);
+ if(remaining<=0){
+  lastAnalogInputAt=now;sendInputs();
+ }else if(analogInputTimer===null){
+  analogInputTimer=setTimeout(()=>{
+   analogInputTimer=null;lastAnalogInputAt=controllerNow();sendInputs();
+  },remaining);
+ }
+}
 function sendInputs(){
+ if(analogInputTimer!==null){clearTimeout(analogInputTimer);analogInputTimer=null;}
  if(!controllerReady)return;
  const keys={...controllerKeys};
  // Never let a delayed heartbeat or a stale held stick move a walking avatar
@@ -747,7 +793,7 @@ function sendInputs(){
    keys.axisX=0;keys.axisY=0;keys.left=false;keys.right=false;keys.jump=false;keys.down=false;
    if(controllerBoard?.boardPhase==='ready'){keys.action=false;keys.alt=false;keys.cancel=false;}
  }
- send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId});
+ send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId,clientAt:Math.floor(controllerNow())});
 }
 function isPortraitScreen(){
   if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
@@ -757,7 +803,14 @@ function isPortraitScreen(){
 // address bar/toolbar moves, without matching 100dvw/100dvh immediately.
 // Bound the phone gamepad to the visual viewport, never the oversized layout
 // viewport. The CSS fallback still works on browsers missing this API.
+let controllerViewportFrame=0,lastControllerViewport='';
 function syncControllerVisibleViewport(){
+ // Do not enqueue controller-only viewport rAF on host pages. This also
+ // keeps BOARD's first held animation frame owned by its game loop.
+ if(!document.body.classList.contains('controller-playing'))return;
+ if(controllerViewportFrame)return;
+ controllerViewportFrame=requestAnimationFrame(()=>{
+  controllerViewportFrame=0;
   const style=$('controller')?.style;
   if(typeof style?.setProperty!=='function')return;
   const view=window.visualViewport;
@@ -765,10 +818,20 @@ function syncControllerVisibleViewport(){
   const h=Number(view?.height)||Number(window.innerHeight);
   if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return;
   const left=Number(view?.offsetLeft)||0,top=Number(view?.offsetTop)||0;
+  const portrait=document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
+  const scale=Math.max(.1,Math.min((portrait?h:w)/844,(portrait?w:h)/390));
+  const signature=[w,h,left,top,scale.toFixed(4)].join('|');
+  if(signature===lastControllerViewport)return;
+  lastControllerViewport=signature;
   style.setProperty('--gf-controller-visible-width',w+'px');
   style.setProperty('--gf-controller-visible-height',h+'px');
   style.setProperty('--gf-controller-visible-left',left+'px');
   style.setProperty('--gf-controller-visible-top',top+'px');
+  style.setProperty('--gf-controller-action-track',Math.round(136*scale)+'px');
+  style.setProperty('--gf-controller-face-size',Math.round(102*scale)+'px');
+  style.setProperty('--gf-controller-stick-size',Math.round(72*scale)+'px');
+  style.setProperty('--gf-controller-knob-size',Math.round(30*scale)+'px');
+ });
 }
 // iOS fires visualViewport.resize independently of window.resize when the
 // Safari controls retract or expand; address both and orientation changes.
@@ -781,6 +844,7 @@ window.visualViewport?.addEventListener?.('scroll',syncControllerVisibleViewport
 function clearPortraitFallback(){
   releaseStick();
   document.body.classList.remove('portrait-fallback');
+  lastControllerViewport='';syncControllerVisibleViewport();
   $('portraitRestoreBtn').classList.add('hidden');
 }
 function enablePortraitFallback(){
@@ -828,7 +892,8 @@ function bindAnalogStick(zone,base,knob,target){
   const reset=()=>{
     pointerId=null;originX=0;originY=0;
     target.axisX=0;target.axisY=0;
-    knob.style.transform='translate(-50%,-50%)';
+    base.style.transform='translate(-50%,-50%)';
+     knob.style.transform='translate(-50%,-50%)';
     zone.classList.remove('is-active','is-moving');
     sendInputs();
   };
@@ -849,7 +914,7 @@ function bindAnalogStick(zone,base,knob,target){
     if(x===0)x=0;if(y===0)y=0;
     knob.style.transform='translate(calc(-50% + '+Math.round(x*knobTravel)+'px),calc(-50% + '+Math.round(y*knobTravel)+'px))';
     if(target.axisX!==x||target.axisY!==y){
-      target.axisX=x;target.axisY=y;sendInputs();
+      target.axisX=x;target.axisY=y;queueAnalogInput();
     }
   };
   zone.addEventListener('pointerdown',e=>{
@@ -866,8 +931,7 @@ function bindAnalogStick(zone,base,knob,target){
     const localHeight=rotated()?box.width:box.height;
     const offsetX=rotated()?e.clientY-halfY:e.clientX-halfX;
     const offsetY=rotated()?-(e.clientX-halfX):e.clientY-halfY;
-    base.style.left=(localWidth/2+offsetX)+'px';
-    base.style.top=(localHeight/2+offsetY)+'px';
+    base.style.transform='translate3d('+offsetX+'px,'+offsetY+'px,0) translate(-50%,-50%)';
     knob.style.transform='translate(-50%,-50%)';
     zone.classList.add('is-active');
     target.axisX=0;target.axisY=0;
