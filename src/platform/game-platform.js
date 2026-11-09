@@ -61,7 +61,7 @@ async function refresh(){
   if(!response.ok)throw Error('Catalog unavailable: '+response.status);
   const data=await response.json(),{valid:next,malformed}=inspect(data);
   // The initial HTML/JS can outlive a deployment. Never mix incompatible core code.
-  const initial=String(window.GAME_CORE_VERSION||'');
+  const initial=String(window.GAME_CORE_HASH||'');
   if(initial&&data.coreHash!==initial){pendingCore=true;return false;}
   if(coreHash&&coreHash!==data.coreHash){pendingCore=true;return false;}
   const enabled=[];

@@ -8,11 +8,19 @@ customHeaders:
     headers:
       - key: Cache-Control
         value: 'no-cache, max-age=0, s-maxage=0, must-revalidate'
-  - pattern: '/version.json'
+  - pattern: '/deployment.json'
     headers:
       - key: Cache-Control
         value: 'no-store, max-age=0, s-maxage=0'
-  - pattern: '/build-version.js'
+  - pattern: '/runtime-config.js'
     headers:
       - key: Cache-Control
         value: 'no-cache, max-age=0, s-maxage=0, must-revalidate'
+  - pattern: '**/*.js'
+    headers:
+      - key: Cache-Control
+        value: 'no-cache, max-age=0, must-revalidate'
+  - pattern: '**/*.css'
+    headers:
+      - key: Cache-Control
+        value: 'no-cache, max-age=0, must-revalidate'
