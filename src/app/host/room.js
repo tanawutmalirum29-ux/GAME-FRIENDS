@@ -571,6 +571,7 @@ function resetInputs(){
   players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
 }
 function closeHost({goHome=true}={}){
+  stopHostReconnect();
   lobbyReadyVotes.clear();
   ++hostOpenAttempt;
   if(hostRetryTimeout!==null){clearTimeout(hostRetryTimeout);hostRetryTimeout=null;}
@@ -633,6 +634,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     closeHost();showToast('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย',true);return;
   }
   const attempt=expectedAttempt??++hostOpenAttempt;
+  if(expectedAttempt===null)resetHostReconnect();
   const code=resumeCode||randomCode();
   if(!resumeCode)deleteSession(OFFLINE_SESSION);
   $('hostBtn').disabled=true;setStatus('กำลังสร้างห้อง...');
@@ -640,6 +642,11 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   hostPeer=peer;
   peer.on('open',()=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
+    resetHostReconnect();
+    if(onlineHost){
+      setStatus('เชื่อมต่อเซิร์ฟเวอร์ห้อง '+code+' อีกครั้ง');
+      return; // Preserve players, round, board HP/inventory and the game view.
+    }
     roomCode=code;onlineHost=true;$('roomCode').textContent=code;
     deleteSession(OFFLINE_SESSION);
     $('roomPanel').classList.remove('hidden');$('offlineRoomHint').classList.add('hidden');
@@ -652,8 +659,9 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   peer.on('connection',conn=>{
     if(hostPeer!==peer){conn.close();return;}
     hostConnections.add(conn);
+    const ingress=createControllerIngressGuard();
     conn.on('data',msg=>{
-      if(!msg||typeof msg!=='object')return;
+      if(!ingress.accept(msg))return;
       if(msg.t==='join'&&!conn.playerId){
         const token=typeof msg.clientToken==='string'&&msg.clientToken.length>=12&&msg.clientToken.length<=100?msg.clientToken:null;
         let p=token?players.find(q=>q.type==='remote'&&q.clientToken===token):null;
@@ -780,6 +788,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
       }
     });
     function lost(){
+      ingress.dispose();
       stopHostVideoCall(conn);hostConnections.delete(conn);
       if(!onlineHost||!conn.playerId)return;
       const p=players.find(q=>q.id===conn.playerId&&q.conn===conn);
@@ -791,29 +800,56 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     conn.on('close',lost);conn.on('error',lost);
   });
   peer.on('disconnected',()=>{
-    if(hostPeer===peer&&attempt===hostOpenAttempt)
-      setStatus('สัญญาณเซิร์ฟเวอร์ขาดชั่วคราว',true);
-    // A temporary signaling disconnect is not a room closure.
+    if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
+    if(onlineHost)recoverHostSignal(peer,attempt);
+    else setStatus('กำลังติดต่อเซิร์ฟเวอร์ห้องเดิม...',true);
   });
   peer.on('close',()=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
-    closeHost();
-    showToast('ห้องปิดแล้ว • กลับหน้าหลัก',true);
+    // PeerJS "close" means destroyed; never erase a live game/room because
+    // the library closed after a transient network error.
+    stopHostReconnect();
+    setStatus('การเชื่อมต่อห้องหยุดทำงาน • สถานะเกมยังถูกเก็บไว้',true);
   });
   peer.on('error',err=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
-    if(err.type==='unavailable-id'&&retries<(resumeCode?12:3)){
-      hostPeer=null;try{peer.destroy()}catch(_){}
+    const type=String(err?.type||'unknown');
+    const fatal=new Set(['browser-incompatible','invalid-id','invalid-key','ssl-unavailable']);
+    const recoverable=new Set(['network','socket-error','socket-closed','server-error','disconnected','webrtc']);
+    if(onlineHost){
+      if(fatal.has(type)||type==='unavailable-id'||peer.destroyed){
+        stopHostReconnect();
+        setStatus('ไม่สามารถเชื่อมต่อห้องเดิม: '+type+' • สถานะเกมยังอยู่',true);
+      }else if(recoverable.has(type)||!fatal.has(type)){
+        if(!peer.disconnected)try{peer.disconnect();}catch(_){}
+        recoverHostSignal(peer,attempt);
+      }
+      return; // No transient/fatal Peer error destroys active room or inventory.
+    }
+    // No players have joined yet. Retry the SAME room code, never a new ID.
+    if(retries<HOST_RECONNECT_MAX&&!fatal.has(type)&&!peer.destroyed){
+      hostPeer=null;try{peer.destroy();}catch(_){}
+      const delay=Math.min(16000,1000*2**retries);
       hostRetryTimeout=setTimeout(()=>{
         hostRetryTimeout=null;
-        if(attempt===hostOpenAttempt)startHost(retries+1,resumeCode,attempt);
-      },resumeCode?1200+retries*350:250);
+        if(attempt===hostOpenAttempt)startHost(retries+1,code,attempt);
+      },Math.round(delay*(1+Math.random()*.2)));
+      setStatus('กำลังคืนห้องเดิม ('+(retries+1)+'/'+HOST_RECONNECT_MAX+')',true);
       return;
     }
-    const type=err?.type||'network';
-    closeHost(); // Clears stale saved sessions, peers, board and lobby view.
-    setStatus('เปิดห้องไม่สำเร็จ: '+type,true);
-    showToast(resumeCode?'คืนห้องเดิมไม่ได้ • กลับหน้าหลัก':'เปิดห้องไม่สำเร็จ • กลับหน้าหลัก',true);
+    // An initial unrecoverable ID cannot yet have active WebRTC channels;
+    // still keep any restored room snapshot for manual recovery.
+    stopHostReconnect();
+    if(type==='unavailable-id'&&retries<HOST_RECONNECT_MAX){
+      hostPeer=null;try{peer.destroy();}catch(_){}
+      hostRetryTimeout=setTimeout(()=>{
+        hostRetryTimeout=null;
+        if(attempt===hostOpenAttempt)startHost(retries+1,code,attempt);
+      },1200+retries*350);
+      return;
+    }
+    $('hostBtn').disabled=false;
+    setStatus('เชื่อมต่อห้อง '+code+' ไม่สำเร็จ: '+type,true);
   });
 }
 function copyInvite(){
