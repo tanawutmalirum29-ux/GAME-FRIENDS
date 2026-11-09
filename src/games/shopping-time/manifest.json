@@ -13,13 +13,15 @@
     "board"
   ],
   "controls": [
-    "joystick",
-    "A",
-    "B",
-    "C"
+    "joystick"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "ShoppingTime",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "เข็นรถรับของสูงสุด 5 ชิ้น ไป CHECKOUT ชิ้นละ 1 คะแนน • หลบระเบิด -5 • A/B ไม่ใช้",
+    "labels": {},
+    "status": "SHOPPING TIME • เหลือ {remaining} วิ"
+  }
 }

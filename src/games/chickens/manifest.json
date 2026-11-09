@@ -14,14 +14,19 @@
   ],
   "controls": [
     "joystick",
-    "A",
-    "B",
-    "C"
+    "A"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "Chickens",
   "legacyScripts": [
     "src/shared/farm-ice-art.js"
-  ]
+  ],
+  "controller": {
+    "help": "วิ่งชนไก่เพื่อจับ • เอาหัวไก่จุ่มในคอก 0.15 วิ • A ตีให้ไก่หล่น",
+    "labels": {
+      "A": "ตีให้ไก่หล่น"
+    },
+    "status": "กำลังไล่จับไก่ • เหลือ {remaining} วิ"
+  }
 }

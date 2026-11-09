@@ -272,8 +272,10 @@ test('party selection, timed results, board ranking and cover are registered',()
   board=fs.readFileSync('board-minigame.js','utf8'),
   build=fs.readFileSync('scripts/build-static.cjs','utf8'),
   covers=fs.readFileSync('game-cover-art.js','utf8');
- for(const term of ["ice_race:'ICE RACE'","ice_race:'IceRace'",
-  "round.mode==='ice_race'","data.t==='ice-status'"])assert.ok(app.includes(term),term);
+ assert.match(app,/"ice_race": \{[\s\S]*?"name": "ICE RACE",[\s\S]*?"global": "IceRace"/,
+  'compiled manifest must register ICE RACE title and engine');
+ for(const term of ["round.mode==='ice_race'","data.t==='ice-status'"])
+  assert.ok(app.includes(term),term);
  assert.ok(html.includes('data-pick="ice_race"'));
  assert.ok(html.includes('src="./src/games/ice-race/ice-race.js"'));
  assert.ok(board.includes("plugin.getResult"),"BOARD must obtain standings from the owning game engine");

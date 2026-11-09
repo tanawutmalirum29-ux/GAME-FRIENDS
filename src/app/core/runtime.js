@@ -12,8 +12,9 @@ function pickUnusedColor(){
   const inUse = new Set(players.map(player => player.color));
   return COLORS.find(color => !inUse.has(color)) || null;
 }
-const MODES = {ghost:'GHOST ATTACK',chickens:'CHICKENS',fruit_memory:'FRUIT MEMORY',shockwave:'SHOCKWAVE',color_switch:'COLOR SWITCH',pizza_time:'PIZZA TIME',knight_match:'KNIGHT MATCH',boulder_bash:'BOULDER BASH',snow_brawl:'SNOW BRAWL',shopping_time:'SHOPPING TIME',witching_snake:'WITCHING SNAKE',lawn_mower:'LAWN MOWER',color_claim:'COLOR CLAIM',ice_race:'ICE RACE',gladiators:'GLADIATORS'};
-const ENGINES={ghost:'GhostAttack',chickens:'Chickens',fruit_memory:'FruitMemory',shockwave:'Shockwave',color_switch:'ColorSwitch',pizza_time:'PizzaTime',knight_match:'KnightMatch',boulder_bash:'BoulderBash',snow_brawl:'SnowBrawl',shopping_time:'ShoppingTime',witching_snake:'WitchingSnake',lawn_mower:'LawnMower',color_claim:'ColorClaim',ice_race:'IceRace',gladiators:'Gladiators'};
+// The legacy bridge is generated from each game's manifest, not authored here.
+const MODES=Object.fromEntries(Object.entries(LEGACY_GAME_DATA).map(([id,game])=>[id,game.name]));
+const ENGINES=Object.fromEntries(Object.entries(LEGACY_GAME_DATA).map(([id,game])=>[id,game.global]));
 const gameEngine=mode=>mode==='board'?BOARD_ENGINE:
  (round?.mode===mode&&round?.pluginEngine)||window.GamePlatform?.engine(mode)||
  (Object.hasOwn(ENGINES,mode)&&ENGINES[mode]?window[ENGINES[mode]]:null);

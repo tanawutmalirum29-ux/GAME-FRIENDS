@@ -217,7 +217,8 @@ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const board=fs.readFileSync(path.join(root,'board-minigame.js'),'utf8');
 const build=fs.readFileSync(path.join(root,'scripts/build-static.cjs'),'utf8');
-assert.match(app,/shopping_time:'ShoppingTime'/);
+assert.match(app,/"shopping_time": \{[\s\S]*?"global": "ShoppingTime"/,
+ 'compiled manifest must register SHOPPING TIME engine');
 assert.match(app,/function endPluginRound\(/);
 assert.equal(typeof G.getResult,'function','SHOPPING TIME owns its scoring');
 assert.match(app,/renderPhoneShoppingStatus/);

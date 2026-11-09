@@ -15,11 +15,18 @@
   "controls": [
     "joystick",
     "A",
-    "B",
-    "C"
+    "B"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "ColorSwitch",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "วิ่งทาสีสะสมคะแนน • A ต่อยสตั้น • B ระเบิดสี 3×3 • เก็บกล่องทองสะสมคะแนน",
+    "labels": {
+      "A": "ต่อย",
+      "B": "ระเบิดสี"
+    },
+    "status": "COLOR SWITCH • เหลือ {remaining} วิ"
+  }
 }

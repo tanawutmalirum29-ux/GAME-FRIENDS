@@ -60,7 +60,8 @@ assert.match(source,/send\(controllerConn,\{t:'lobby-ready'\}\)/,'controller A s
 // app.js source rather than copying a second palette into the tests.
 {
  const start=source.indexOf('const MAX_PLAYERS =');
- const stop=source.indexOf('const MODES =',start);
+ // The picker is generated from manifests; stop at its derived declaration.
+ const stop=source.indexOf('const MODES=Object.fromEntries(',start);
  const rStart=source.indexOf('function restorePlayers(');
  const rStop=source.indexOf('function cancelSeat(',rStart);
  assert.ok(start>=0&&stop>start&&rStart>=0&&rStop>rStart);

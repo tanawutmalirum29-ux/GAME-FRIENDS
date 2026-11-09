@@ -23,5 +23,14 @@
   "global": "GhostAttack",
   "legacyScripts": [
     "src/shared/graveyard-art.js"
-  ]
+  ],
+  "controller": {
+    "help": "ลากจากที่ว่างเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม",
+    "labels": {
+      "A": "ตีสตั้น",
+      "B": "ใช้ไอเทม",
+      "C": "ยกเลิก"
+    },
+    "status": "ผีกำลังไล่จับ • มนุษย์เหลือ {survivors} คน"
+  }
 }

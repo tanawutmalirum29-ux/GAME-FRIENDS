@@ -7,6 +7,24 @@ const outcome=build.assemble();
 assert.ok(outcome.controllerBytes<outcome.bytes-15000,
  'controller bundle must exclude substantial host authority code');
 itemBuild.build();
+const defaults=vm.runInNewContext(
+ fs.readFileSync(path.join(root,'src/app/core/legacy-game-defaults.js'),'utf8')+
+ '\nLEGACY_GAME_DATA',{}
+);
+assert.deepEqual(Object.keys(defaults),[
+ 'ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time',
+ 'knight_match','boulder_bash','snow_brawl','shopping_time','witching_snake',
+ 'lawn_mower','color_claim','ice_race','gladiators'
+],'Migrating to generated metadata must preserve the original picker order');
+assert.equal(defaults.ghost.controller.labels.A,'ตีสตั้น');
+assert.equal(defaults.shockwave.controller.status,'SHOCKWAVE • รอด {survivors} คน');
+const coreSource=fs.readFileSync(path.join(root,'src/app/core/runtime.js'),'utf8');
+assert.doesNotMatch(coreSource,/const MODES\s*=\s*\{ghost:/,
+ 'core cannot own a hardcoded list of games');
+assert.match(coreSource,/Object\.entries\(LEGACY_GAME_DATA\)/);
+const controllerSource=fs.readFileSync(path.join(root,'src/app/controller/connection.js'),'utf8');
+assert.doesNotMatch(controllerSource,/mode==='color_claim'\?'ลากเส้น/,
+ 'game-specific help should come from manifests');
 const host=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const controller=fs.readFileSync(path.join(root,'app-controller.js'),'utf8');
 assert.ok(host.includes('function startRound('));
@@ -29,7 +47,7 @@ for(const id of original.window.BoardItems.ids){
 assert.ok(controller.includes('window.BoardItems||window.PartyBoardItemMeta'));
 
 const sourceController=fs.readFileSync(path.join(root,'src/app/controller/connection.js'),'utf8');
-const first=sourceController.indexOf('function pluginControllerPlayingStatus(');
+const first=sourceController.indexOf('function gameControllerDescriptor(');
 const last=sourceController.indexOf('function renderPhoneLawnStatus(',first);
 assert.ok(first>=0&&last>first,'native controller plug-in metadata functions exist');
 const elements=new Map();
@@ -47,6 +65,7 @@ const candidate={id:'meteor_dash',name:'METEOR DASH',global:null,
  controller:{help:'หลบอุกกาบาตด้วยจอย',labels:{A:'กระโดด',C:'เปิดโล่'},
   status:'{name} • รอด {survivors} คน • อีก {remaining} วิ'}};
 const scope={window:{GamePlatform:{descriptor:id=>id==='meteor_dash'?candidate:null}},
+ controllerPlayerEliminated:false,
  MODES:{meteor_dash:'METEOR DASH'},controllerReady:true,controllerPlayerActive:true,
  controllerGamePhase:'playing',controllerBoard:null,controllerLobbyVotes:{total:0},
  controllerResultVotes:{},$:element};

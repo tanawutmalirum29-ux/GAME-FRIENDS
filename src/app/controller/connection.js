@@ -513,7 +513,8 @@ function joinRoom(recovery=false){
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         const pluginStatus=data.phase==='playing'?pluginControllerPlayingStatus(data.mode,data):null;
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
-          data.phase==='playing'?(pluginStatus!==null?pluginStatus:(data.mode==='fruit_memory'?'FRUIT MEMORY • รอด '+(data.survivors??'?')+' คน':data.mode==='chickens'?'กำลังไล่จับไก่ • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shockwave'?(controllerPlayerEliminated?'ตกรอบ • ดูเกมต่อ':'SHOCKWAVE • รอด '+(data.survivors??'?')+' คน'):data.mode==='color_switch'?'COLOR SWITCH • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='color_claim'?'COLOR CLAIM • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='boulder_bash'?'BOULDER BASH • รอด '+(data.survivors??'?')+' คน':data.mode==='witching_snake'?'WITCHING SNAKE • รอด '+(data.survivors??'?')+' คน':data.mode==='ice_race'?'ICE RACE • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='lawn_mower'?'LAWN MOWER • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='shopping_time'?'SHOPPING TIME • เหลือ '+Math.ceil(data.remaining||0)+' วิ':data.mode==='gladiators'?'GLADIATORS • รอด '+(data.survivors??'?')+' คน':'ผีกำลังไล่จับ • มนุษย์เหลือ '+(data.survivors??'?')+' คน')):
+          data.phase==='playing'?(pluginStatus||
+            (MODES[data.mode]||data.mode||'เกม')+' • กำลังเล่น'):
           data.phase==='results'?'จบรอบแล้ว • พบผู้ชนะ':'รอเริ่มรอบ';
         if(data.mode==='board'&&data.phase==='playing')renderPhoneBoard();
       }else if(data.t==='closed'){
@@ -590,20 +591,27 @@ function setControllerGameContext(mode,phase,active){
   }
   showControllerMode(controllerGameMode);
 }
+function gameControllerDescriptor(mode){
+ return window.GamePlatform?.descriptor(mode)||
+  (typeof LEGACY_GAME_DATA==='object'?LEGACY_GAME_DATA[mode]:null);
+}
 function pluginControllerPlayingStatus(mode,data){
- const plugin=window.GamePlatform?.descriptor(mode);
- // Legacy games keep their original individualized multiplayer status.
- if(!plugin||plugin.global)return null;
- const template=plugin.controller?.status||'{name} • กำลังเล่น';
+ const plugin=gameControllerDescriptor(mode);
+ if(!plugin)return null;
+ const template=plugin.controller?.status||(plugin.global?null:'{name} • กำลังเล่น');
+ if(!template)return null;
+ if(controllerPlayerEliminated)return 'ตกรอบ • ดูเกมต่อ';
  const values={
   name:plugin.name||mode,
   survivors:Number.isFinite(Number(data.survivors))?String(data.survivors):'?',
-  remaining:Number.isFinite(Number(data.remaining))?
+  remaining:data.remaining!=null&&Number.isFinite(Number(data.remaining))?
    String(Math.ceil(Math.max(0,Number(data.remaining)))):'?'
  };
  return template.replace(/\{(name|survivors|remaining)\}/g,(_,key)=>values[key]);
 }
 function showControllerMode(mode){
+  const plugin=gameControllerDescriptor(mode);
+  const ui=plugin?.controller||{},labels=ui.labels||{};
   if(mode==='board'&&controllerBoard&&!['results','summary'].includes(controllerGamePhase)){renderPhoneBoard();return;}
   const playing=controllerReady&&controllerPlayerActive&&
     ['countdown','playing','paused'].includes(controllerGamePhase);
@@ -617,10 +625,10 @@ function showControllerMode(mode){
     controllerResultVotes.nextLabel)+
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
-    ghost?'ตีสตั้น':chickens?'ตีให้ไก่หล่น':fruit?'ต่อย':colorSwitch?'ต่อย':knight?'แทงทวน':boulder?'ผลัก':snow?'ปล่อยหิมะ':'';
+    playing?(labels.A||''):'';
   const bLabel=voting?controllerResultVotes.backLabel+' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
     ghost?($('controllerButtons').classList.contains('has-target')?
-    'ยืนยันสโลว์':'ใช้ไอเทม'):colorSwitch?'ระเบิดสี':'';
+    'ยืนยันสโลว์':(labels.B||'ใช้ไอเทม')):(playing?(labels.B||''):'');
   $('controllerButtons').classList.remove('board-bomber-aim');
   $('buttonC').disabled=true;
   $('controllerButtons').classList.toggle('chickens-mode',chickens);
@@ -637,35 +645,25 @@ function showControllerMode(mode){
     $('buttonA').title='';
   }
   if(!fruit)$('buttonA').disabled=false;
-   if((mode==='witching_snake'||mode==='lawn_mower'||mode==='color_claim'||mode==='ice_race'||mode==='gladiators')&&playing){$('buttonA').disabled=true;$('buttonB').disabled=true;}
-   else $('buttonB').disabled=false;
+  $('buttonB').disabled=false;
+  if(playing&&plugin?.global){
+    const actions=plugin.controls||[];
+    if(!actions.includes('A'))$('buttonA').disabled=true;
+    if(!actions.includes('B'))$('buttonB').disabled=true;
+  }
   $('buttonALabel').textContent=aLabel;
   $('buttonBLabel').textContent=bLabel;
   $('buttonA').setAttribute('aria-label',aLabel?'ปุ่ม A '+aLabel:'ปุ่ม A');
   $('buttonB').setAttribute('aria-label',bLabel?'ปุ่ม B '+bLabel:'ปุ่ม B');
   $('controllerModeName').textContent=playing?(MODES[mode]||''):'';
-  $('controllerHelp').textContent=lobbyVoting?'กด A เพื่อโหวตเริ่มเกม • ครบทุกคนแล้วเกมเริ่มอัตโนมัติ':ghost?
-    'ลากจากที่ว่างเพื่อเดิน • A ตีสตั้น • B ใช้ไอเทม':
-    chickens?'วิ่งชนไก่เพื่อจับ • เอาหัวไก่จุ่มในคอก 0.15 วิ • A ตีให้ไก่หล่น':
-    fruit?'จำผลไม้แล้ววิ่งไปยังช่องที่ถูกต้อง • ดันกันได้ • A ต่อยให้สตั้น':
-    colorSwitch?'วิ่งทาสีสะสมคะแนน • A ต่อยสตั้น • B ระเบิดสี 3×3 • เก็บกล่องทองสะสมคะแนน':
-     shockwave?'แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง':
-     mode==='color_claim'?'ลากเส้นสีออกนอกเขตแล้วกลับมาปิดวง • ตัดเส้นคู่แข่งให้ตาย • เก็บเกล็ดหิมะเพื่อแช่แข็งทุกคน 4 วิ • A/B ไม่ใช้':
-     mode==='gladiators'?'เดิน หมุน และเปลี่ยนทิศเพื่อเหวี่ยงลูกตุ้มหนาม • โซ่ไม่ฆ่า • A/B ไม่ใช้':
-     mode==='witching_snake'?'เลี้ยวไม้กวาดด้วยจอย • หลบหางเวทมนตร์และขอบสนาม • ดาวเพิ่มความยาวหาง • A/B ไม่ใช้':
-      mode==='ice_race'?'เลื่อนน้ำแข็งลื่นมาก • ดริฟต์วนผ่านเช็กพอยต์ตามลำดับ • ตกแล้วเกิดใหม่ • A/B ไม่ใช้':
-      mode==='lawn_mower'?'ขับรถตัดหญ้าด้วยจอย • สุ่มพระอาทิตย์ 1–3 ดวง • ดวงละ 5 คะแนน • A/B ไม่ใช้':
-      mode==='snow_brawl'?'เดินปั้นลูกหิมะ • A หยุดเตรียม 0.15 วิแล้วปล่อย • B ไม่ใช้ • ผลักคู่แข่งตกเกาะ':
-      mode==='boulder_bash'?'ทางลาดหิมะลื่น • A ผลักโดยไม่สตั้น • หลบหินจากขวา • ตกรอบแล้วมีโอกาสบังคับหิน':
-     mode==='knight_match'?'ควบม้าใช้ทวนแทงลูกโป่งสีตัวเอง +1 สีอื่น -1 • A แทง / B ไม่ใช้':
-      mode==='shopping_time'?'เข็นรถรับของสูงสุด 5 ชิ้น ไป CHECKOUT ชิ้นละ 1 คะแนน • หลบระเบิด -5 • A/B ไม่ใช้':
-      mode==='pizza_time'?'รับวัตถุดิบทีละชิ้น กลับไปส่งเชฟ • เดินรับชนิดใหม่เพื่อเปลี่ยนของ • A/B ไม่ใช้':
+  $('controllerHelp').textContent=lobbyVoting?
+    'กด A เพื่อโหวตเริ่มเกม • ครบทุกคนแล้วเกมเริ่มอัตโนมัติ':
+    playing?(ui.help||'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่'):
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
   // Native plug-ins describe their own controls through the versioned catalog.
   // The phone never downloads gameplay, physics, or host-only engine modules.
-  const plugin=window.GamePlatform?.descriptor(mode);
   if(playing&&plugin&&!plugin.global){
-    const actions=plugin.controls||[],ui=plugin.controller||{},labels=ui.labels||{};
+    const actions=plugin.controls||[];
     for(const key of ['A','B','C']){
       const button=$('button'+key),label=$('button'+key+'Label');
       const allowed=actions.includes(key),caption=allowed?(labels[key]||'ความสามารถ'):'';

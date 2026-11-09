@@ -130,3 +130,14 @@ node tests/smoke.cjs
 ```
 
 ทดสอบอย่างน้อย 1, 6, 7 และ 12 ผู้เล่น; ล็อบบี้/การสุ่ม NORMAL และ BOARD, อันดับร่วม, อัปเดต Catalog ระหว่างรอบ, การย้อนกลับรุ่นเก่าเมื่อโหลดล้มเหลว, ปิดเกมด้วย `enabled:false`, การขาดเน็ต และ Browser QA Chromium/WebKit ทั้ง 7 Shards ก่อนรวมเข้า `main`.
+
+### ข้อมูล Controller สำหรับเกมเก่าและใหม่
+
+เกมทุกเกมระบุ `controls` และ `controller.help`, `controller.labels`, `controller.status`
+ผ่าน Manifest ของตนเอง ตัวโหลดใช้ Catalog สำหรับเกมใหม่และเกมที่เชื่อมต่ออยู่
+โดยไม่โหลด Engine/Physics ของ Host ลงบนจอย ส่วนเกมเก่า 15 เกมที่ยังมี
+`global` จะถูก Build เป็น `src/app/core/legacy-game-defaults.js`
+อัตโนมัติด้วย `scripts/build-legacy-defaults.cjs` เพื่อรักษาโหมด Dev ที่
+ไม่ได้ใช้ Production Catalog. ห้ามแก้ Generated Defaults หรือ `app.js`
+โดยตรง; คำสั่ง `node scripts/build-app.cjs --write` สร้างทั้งคู่ใหม่
+และ `--check` ป้องกันข้อมูลผิดรุ่น.

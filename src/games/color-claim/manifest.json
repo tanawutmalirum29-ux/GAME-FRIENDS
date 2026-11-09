@@ -13,13 +13,15 @@
     "board"
   ],
   "controls": [
-    "joystick",
-    "A",
-    "B",
-    "C"
+    "joystick"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "ColorClaim",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "ลากเส้นสีออกนอกเขตแล้วกลับมาปิดวง • ตัดเส้นคู่แข่งให้ตาย • เก็บเกล็ดหิมะเพื่อแช่แข็งทุกคน 4 วิ • A/B ไม่ใช้",
+    "labels": {},
+    "status": "COLOR CLAIM • เหลือ {remaining} วิ"
+  }
 }

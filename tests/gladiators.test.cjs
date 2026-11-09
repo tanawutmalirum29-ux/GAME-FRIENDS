@@ -35,7 +35,10 @@ test('registration and scripts are connected to both party modes',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const board=fs.readFileSync(path.join(root,'board-minigame.js'),'utf8');
  const cover=fs.readFileSync(path.join(root,'game-cover-art.js'),'utf8');
- assert.match(app,/gladiators:'GLADIATORS'/);assert.match(app,/gladiators:'Gladiators'/);
+ assert.match(app,/"gladiators": \{[\s\S]*?"name": "GLADIATORS",[\s\S]*?"global": "Gladiators"/,
+  'generated manifest metadata keeps the original GLADIATORS engine and title');
+ assert.match(app,/const MODES=Object\.fromEntries\(Object\.entries\(LEGACY_GAME_DATA\)/,
+  'game menu titles are derived from generated metadata instead of a hardcoded roster');
  assert.match(app,/function endPluginRound\(/);
  assert.ok(!app.includes('function endGladiatorsRound('),'results must stay in owning game engine');
  assert.match(fs.readFileSync(path.join(root,'src/games/gladiators/gladiators.js'),'utf8'),/function getResult\(/);

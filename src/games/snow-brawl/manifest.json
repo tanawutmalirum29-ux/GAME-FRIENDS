@@ -14,14 +14,19 @@
   ],
   "controls": [
     "joystick",
-    "A",
-    "B",
-    "C"
+    "A"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "SnowBrawl",
   "legacyScripts": [
     "src/shared/farm-ice-art.js"
-  ]
+  ],
+  "controller": {
+    "help": "เดินปั้นลูกหิมะ • A หยุดเตรียม 0.15 วิแล้วปล่อย • B ไม่ใช้ • ผลักคู่แข่งตกเกาะ",
+    "labels": {
+      "A": "ปล่อยหิมะ"
+    },
+    "status": "SNOW BRAWL • รอด {survivors} คน"
+  }
 }
