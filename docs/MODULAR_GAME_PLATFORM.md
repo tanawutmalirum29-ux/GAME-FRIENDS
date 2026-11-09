@@ -83,3 +83,17 @@ versioned asset after a new deployment. A fresh browser without an old engine
 will still fail safely and return to the lobby. Browser integration checks
 cover missing modules, invalid APIs, a freshly broken game, recovery after a
 good replacement and continued BOARD mounting without navigation.
+
+### Host-only rendering and collision dependencies
+
+In AWS builds `src/platform/host-runtime.js` defers five host-only scripts:
+`arena-scale.js`, `arena-art.js`, `graveyard-art.js`,
+`combat-motion.js` and `character-system.js`. A controller link loads
+`app.js` and its avatar/game-picker dependencies, but not this rendering
+and collision code. The host path loads these assets **before** executing the
+application bundle, both on a fresh host click and during a saved-host
+restoration. The local development index remains eager for old test
+harnesses. This is actual route-level network code splitting, not just
+splitting files in the source tree. BOARD core loading now reuses already
+loaded modules when a mid-bundle request fails, so a retry does not
+reexecute the working scripts.

@@ -17,6 +17,7 @@ const files=[
 ];
 const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt'];
 let pending=null;
+const loaded=new Set();
 function ready(){return required.every(name=>!!window[name]);}
 function inject(file){
  return new Promise((resolve,reject)=>{
@@ -26,7 +27,7 @@ function inject(file){
   const version=String(window.GAME_BUILD_VERSION||'');
   if(version)url.searchParams.set('v',version);
   tag.src=url.href;
-  tag.onload=()=>resolve();
+  tag.onload=()=>{loaded.add(file);resolve();};
   tag.onerror=()=>{tag.remove();reject(Error('BOARD PARTY asset unavailable: '+file));};
   document.head.append(tag);
  });
@@ -35,8 +36,13 @@ function ensure(){
  if(ready())return Promise.resolve();
  if(pending)return pending;
  pending=(async()=>{
-  for(const file of files)await inject(file);
-  if(!ready())throw Error('BOARD PARTY core loaded without required engines');
+  for(const file of files)if(!loaded.has(file))await inject(file);
+  if(!ready()){
+   // If an asset loads without exposing the expected public API, permit a
+   // subsequent retry instead of permanently treating the bundle as complete.
+   loaded.clear();
+   throw Error('BOARD PARTY core loaded without required engines');
+  }
  })().catch(error=>{pending=null;throw error;});
  return pending;
 }

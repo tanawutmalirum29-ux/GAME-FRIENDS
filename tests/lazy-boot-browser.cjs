@@ -8,7 +8,7 @@ const http=require('node:http');
 const {chromium,webkit}=require('playwright');
 const root=path.resolve(__dirname,'..'),kind=process.env.BOARD_BROWSER||'chromium';
 const {build}=require('../scripts/build-game-catalog.cjs');
-const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot}=require('../scripts/lazy-game-scripts.cjs');
+const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,pruneHostCore}=require('../scripts/lazy-game-scripts.cjs');
 const catalog=build();
 const manifests=new Map();
 for(const dir of fs.readdirSync(path.join(root,'src/games'),{withFileTypes:true}).filter(x=>x.isDirectory())){
@@ -16,7 +16,7 @@ for(const dir of fs.readdirSync(path.join(root,'src/games'),{withFileTypes:true}
  manifests.set(manifest.id,{folder,manifest});
 }
 const source=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const html=pruneAppBoot(pruneExternal(pruneBoardCore(pruneLegacy(source,catalog))));
+const html=pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(source,catalog)))));
 assert.ok(!html.includes('src="./ghost-attack.js"'),'production must strip eager ghost engine');
 assert.ok(!html.includes('src="./board-party.js"'),'production must defer BOARD core');
 const buildVersion='window.GAME_BUILD_VERSION="lazy-browser-test";'+
@@ -79,8 +79,22 @@ const server=http.createServer((req,res)=>{
   assert.equal(await page.evaluate(()=>window.GhostAttack),undefined,
    'host/controller start does not fetch unused minigame code');
   assert.equal(await page.evaluate(()=>window.__lazyGameTest),undefined,'fresh welcome defers app.js');
+  assert.equal(await page.evaluate(()=>window.PartyCharacters),undefined,'welcome defers host physics');
   await page.locator('#offlineBtn').click();
   await page.waitForFunction(()=>!!window.__lazyGameTest,null,{polling:100,timeout:15000});
+  assert.equal(await page.evaluate(()=>window.GameHostRuntime.ready()),true,
+   'host physics and scenery must finish loading before application init');
+  // Controller routes still load app.js for reconnection, but not the host physics.
+  const phone=await ctx.newPage(),phoneErrors=[];
+  phone.on('pageerror',e=>phoneErrors.push(String(e)));
+  await phone.goto('http://127.0.0.1:'+server.address().port+'/?join=ABC123');
+  await phone.waitForFunction(()=>!!window.__lazyGameTest,null,{polling:100,timeout:15000});
+  assert.equal(await phone.evaluate(()=>window.PartyCharacters),undefined,
+   'joining as controller must not fetch the collision/host runtime');
+  assert.equal(await phone.evaluate(()=>window.PartyArenaArt),undefined);
+  assert.equal(await phone.evaluate(()=>window.GhostCemeteryArt),undefined);
+  assert.deepEqual(phoneErrors,[],'controller startup must work without host assets');
+  await phone.close();
   await page.evaluate(()=>window.__lazyGameTest.beginGameSelection('ghost'));
   const initialSelection=await page.evaluate(()=>({
     url:location.href,view:__lazyGameTest.view,players:__lazyGameTest.players.length,
@@ -123,6 +137,6 @@ const server=http.createServer((req,res)=>{
   assert.equal(board.board,true);
   assert.equal(board.total,15);
   assert.deepEqual(errors,[],'no unhandled page errors in production-like lazy boot');
-  console.log('LAZY BOOT BROWSER PASS '+kind+': cold load, engine selection, BOARD PARTY');
+  console.log('LAZY BOOT BROWSER PASS '+kind+': host-only physics, controller cold start, engine selection, BOARD PARTY');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>server.close());
