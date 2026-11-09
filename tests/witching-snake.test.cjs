@@ -197,10 +197,14 @@ check('existing party, board, asset and controller paths are wired',()=>{
   'generated metadata preserves WITCHING SNAKE title and engine');
  for(const token of ["endPluginRound","witch-status"])assert.ok(app.includes(token),token);
  assert.match(fs.readFileSync('src/games/witching-snake/witching-snake.js','utf8'),/p\.ws\?\.eliminatedTick/);
- assert.ok(html.includes('data-pick="witching_snake"'));
- assert.ok(html.includes('src="./src/games/witching-snake/witching-snake.js"'));
+ const manifest=JSON.parse(fs.readFileSync('src/games/witching-snake/manifest.json','utf8'));
+ assert.deepEqual(manifest.modes,['normal','board'],'manifest enables both party modes');
+ assert.match(fs.readFileSync('src/games/witching-snake/game.js','utf8'),
+  /import '.\/witching-snake.js'/,'game entry imports its own engine');
+ assert.doesNotMatch(html,/data-pick="/,'picker is generated at runtime');
+ assert.doesNotMatch(html,/src="\.\/src\/games\//,'game engine is not an eager HTML dependency');
  assert.ok(board.includes("plugin.getResult"),"BOARD must use game-owned scoring");
- assert.ok(build.includes("'src/games/witching-snake/witching-snake.js'"));
+ assert.match(build,/const deployAsset=/,'build automatically versions referenced assets');
 });
 let failures=0;
 for(const t of tests){
