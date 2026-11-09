@@ -1954,6 +1954,26 @@ function updatePhoneGamePicker(phase,choice){
   controllerFastAxisAuthorized=false;controllerFastAxisHostReady=false;
   if(fast)try{fast.close();}catch(_){}
  }
+ // PeerJS 1.5.5 only forwards {ordered} to createDataChannel().
+ // Override THAT one synchronous call for our uniquely labeled channel, then
+ // restore the native method immediately. Never change regular game controls.
+ function connectControllerZeroRetryAxis(peer,target,options){
+  const proto=window.RTCPeerConnection?.prototype,original=proto?.createDataChannel;
+  if(typeof original!=='function')return null;
+  let installed=false;
+  try{
+   proto.createDataChannel=function(label,init){
+    return original.call(this,label,label==='gf-axis-v1'?
+     {...init,ordered:false,maxRetransmits:0}:init);
+   };
+   installed=proto.createDataChannel!==original;
+   if(!installed)return null;
+   return peer.connect(target,options);
+  }catch(_){return null;}
+  finally{
+   if(installed)proto.createDataChannel=original;
+  }
+ }
  function startControllerFastAxis(peer,token){
   if(controllerFastAxisUnsupported||!controllerReady||!controllerConn?.open||
      !peer||!window.RTCPeerConnection||typeof token!=='string'||
@@ -1962,7 +1982,7 @@ function updatePhoneGamePicker(phase,choice){
   const primary=controllerConn;
   let fast=null;
   try{
-   fast=peer.connect(primary.peer,{reliable:false,serialization:'json',
+   fast=connectControllerZeroRetryAxis(peer,primary.peer,{reliable:false,serialization:'json',
      label:'gf-axis-v1',metadata:{kind:'gf-axis-v1',playerId:controllerId,token}});
   }catch(_){return;}
   if(!fast)return;
@@ -2641,8 +2661,11 @@ function pluginControllerPlayingStatus(mode,data){
  return template.replace(/\{(name|survivors|remaining)\}/g,(_,key)=>values[key]);
 }
 function showControllerMode(mode){
-  if(mode!=='board'&&phoneMiniMap){phoneMiniMap=null;phoneMiniMapPositions=null;}
-  showPhoneMiniMap();
+  // Standalone controller descriptor tests intentionally omit BOARD runtime.
+  if(mode!=='board'&&typeof phoneMiniMap!=='undefined'&&phoneMiniMap){
+    phoneMiniMap=null;phoneMiniMapPositions=null;
+  }
+  if(typeof showPhoneMiniMap==='function')showPhoneMiniMap();
   const plugin=gameControllerDescriptor(mode);
   const ui=plugin?.controller||{},labels=ui.labels||{};
   if(mode==='board'&&controllerBoard&&!['results','summary'].includes(controllerGamePhase)){renderPhoneBoard();return;}
