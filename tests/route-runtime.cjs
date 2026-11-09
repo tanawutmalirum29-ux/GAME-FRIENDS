@@ -9,7 +9,6 @@ const root=path.join(__dirname,'..');
 const HOST={
  'arena-scale.js':'PartyArenaScale',
  'arena-art.js':'PartyArenaArt',
- 'graveyard-art.js':'GhostCemeteryArt',
  'combat-motion.js':'PartyCombatMotion',
  'character-system.js':'PartyCharacters'
 };
@@ -45,19 +44,19 @@ function fixture(file,mapping,failFile){
  return {window,calls};
 }
 async function host(){
- const {window,calls}=fixture('src/platform/host-runtime.js',HOST,'graveyard-art.js');
+ const {window,calls}=fixture('src/platform/host-runtime.js',HOST,'combat-motion.js');
  const api=window.GameHostRuntime;
  assert.equal(api.ready(),false);
- await assert.rejects(api.ensure(),/Host dependency unavailable: graveyard-art.js/);
+ await assert.rejects(api.ensure(),/Host dependency unavailable: combat-motion.js/);
  assert.deepEqual(calls.map(x=>x.filename),
-  ['arena-scale.js','arena-art.js','graveyard-art.js']);
+  ['arena-scale.js','arena-art.js','combat-motion.js']);
  assert.equal(api.ready(),false);
  const p1=api.ensure(),p2=api.ensure();
  await Promise.all([p1,p2]);
  assert.equal(api.ready(),true);
  assert.equal(calls.filter(x=>x.filename==='arena-scale.js').length,1);
  assert.equal(calls.filter(x=>x.filename==='arena-art.js').length,1);
- assert.equal(calls.filter(x=>x.filename==='graveyard-art.js').length,2);
+ assert.equal(calls.filter(x=>x.filename==='combat-motion.js').length,2);
  assert.ok(calls.every(x=>new URL(x.src).searchParams.get('v')==='route-test'));
  const before=calls.length;
  await api.ensure();

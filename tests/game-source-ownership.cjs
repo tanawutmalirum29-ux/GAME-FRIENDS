@@ -33,6 +33,9 @@ for(const slug of fs.readdirSync(gamesRoot).filter(x=>
   }
   assert.ok(!(meta.legacyScripts||[]).some(x=>x.startsWith('src/games/'+slug+'/')),
    'Game-owned imports must not also be copied as legacy dependencies: '+slug);
+  for(const shared of meta.legacyScripts||[])
+   assert.ok(shared.startsWith('src/shared/')&&fs.existsSync(path.join(root,shared)),
+    'Legacy dependencies must reference maintained shared game assets: '+slug);
   imported++;
  }else{
   assert.ok(code.length>200&&/export\s+default/.test(code),

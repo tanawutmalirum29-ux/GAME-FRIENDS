@@ -7,7 +7,7 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const files=['index.html','app.js','style.css','src/games/ghost-attack/ghost-attack.js','src/games/chickens/chickens.js',
  'src/games/fruit-memory/fruit-memory.js','src/games/shockwave/shockwave.js','src/games/color-switch/color-switch.js','src/games/color-switch/color-switch-mayan.js',
- 'farm-ice-art.js','party-arena-scenes.js','game-cover-art.js','src/games/pizza-time/pizza-time.js','src/games/pizza-time/pizza-kitchen-art.js','src/games/pizza-time/pizza-ingredient-art.js','party-ui-art.js','board-art.js','board-party.js','board-items.js'];
+ 'src/shared/farm-ice-art.js','party-arena-scenes.js','game-cover-art.js','src/games/pizza-time/pizza-time.js','src/games/pizza-time/pizza-kitchen-art.js','src/games/pizza-time/pizza-ingredient-art.js','party-ui-art.js','board-art.js','board-party.js','board-items.js'];
 const emoji=/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
 for(const name of files){
  const body=fs.readFileSync(path.join(root,name),'utf8');
@@ -18,7 +18,7 @@ for(const name of files){
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const assets=fs.readFileSync(path.join(root,'scripts/build-static.cjs'),'utf8');
 const scripts=[...html.matchAll(/<script[^>]*src="(\.\/[^"]+)"/g)].map(m=>m[1].replace('./',''));
-for(const name of ['farm-ice-art.js','party-arena-scenes.js','game-cover-art.js','party-ui-art.js','src/games/pizza-time/pizza-ingredient-art.js','src/games/pizza-time/pizza-kitchen-art.js','src/games/pizza-time/pizza-time.js']){
+for(const name of ['src/shared/farm-ice-art.js','party-arena-scenes.js','game-cover-art.js','party-ui-art.js','src/games/pizza-time/pizza-ingredient-art.js','src/games/pizza-time/pizza-kitchen-art.js','src/games/pizza-time/pizza-time.js']){
  assert.ok(scripts.includes(name),'missing '+name+' script in HTML');
  assert.ok(assets.includes("'"+name+"'"),'missing build version entry '+name);
 }
