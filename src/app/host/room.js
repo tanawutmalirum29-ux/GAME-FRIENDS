@@ -268,7 +268,7 @@ function renderRoster(){
   $('rosterCount').textContent=players.length+'/'+MAX_PLAYERS;
   // Reserve ALL twelve positions from room creation. Joined players replace
   // numbered placeholders, never change the number or size of grid rows.
-  const columns=window.matchMedia?.('(orientation:portrait) and (max-width:720px)')?.matches?2:3;
+  const columns=!usesVirtualLandscape()&&window.matchMedia?.('(orientation:portrait) and (max-width:720px)')?.matches?2:3;
   el.style.setProperty('--roster-cols',String(columns));
   el.style.setProperty('--roster-rows',String(MAX_PLAYERS/columns));
   $('addLocalBtn').disabled=players.length>=MAX_PLAYERS;
