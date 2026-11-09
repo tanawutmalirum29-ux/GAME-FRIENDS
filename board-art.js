@@ -352,23 +352,40 @@ const BOARD_ROAD_WIDTH=BOARD_NODE_DIAMETER;
 const BOARD_BRIDGE_WIDTH=BOARD_NODE_DIAMETER;
 // Guide graphics sit on the left shoulder rather than the centre walking lane.
 const BOARD_GUIDE_SIDE_OFFSET=32;
+// BOARD geometry is immutable for a session; index once per map instance.
+const boardPaintCache=new WeakMap();
+function boardPaintIndex(map){
+ let entry=boardPaintCache.get(map);
+ if(entry)return entry;
+ const bridgeKinds=new Map((map.bridges||[]).map(([from,to])=>[
+  from+'>'+to,map.bridgeStyles?.[from+'>'+to]||'wood'
+ ]));
+ const raised=new Set((window.BOARD_PARTY_V7_DESIGN?.overpasses||[])
+  .filter(o=>/^xmw_/.test(o.upper)).map(o=>o.upper));
+ const nodeList=Object.values(map.nodes);
+ const branchById=new Map();
+ for(const branch of map.branches||[])for(const id of branch.nodeIds)
+  if(!branchById.has(id))branchById.set(id,branch);
+ const edges=[];
+ for(const n of nodeList)for(const id of n.nextNodes){
+  const other=map.nodes[id];
+  if(other)edges.push({a:n.position,b:other.position,from:n.id,to:id,
+   kind:bridgeKinds.get(n.id+'>'+id)});
+ }
+ entry={raised,nodeList,branchById,edges};
+ boardPaintCache.set(map,entry);
+ return entry;
+}
 function v8RoadGuides(g,s){
  if(!/^winter-expedition-152-v(8|9|10)$/.test(s.map.version))return;
  const map=s.map,c=s.camera,z=Math.max(.06,c.zoom||1);
  const hw=480/z+150,hh=(mapBottom(s)-94)/(2*z)+150;
  const isVisible=(a,b)=>Math.max(a.x,b.x)>=c.x-hw&&Math.min(a.x,b.x)<=c.x+hw&&
   Math.max(a.y,b.y)>=c.y-hh&&Math.min(a.y,b.y)<=c.y+hh;
- const bridges=new Map(map.bridges.map(([from,to])=>[
-  from+'>'+to,map.bridgeStyles?.[from+'>'+to]||'wood'
- ]));
+ const {edges,raised}=boardPaintIndex(map);
  const regular=[],crossings=[];
- const raised=new Set((window.BOARD_PARTY_V7_DESIGN?.overpasses||[])
-   .filter(o=>/^xmw_/.test(o.upper)).map(o=>o.upper));
- for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
-  const next=map.nodes[id],a=n.position,b=next?.position;
-  if(!b||!isVisible(a,b))continue;
-  const key=n.id+'>'+id;
-  const edge={a,b,from:n.id,to:id,kind:bridges.get(key)};
+ for(const edge of edges){
+  if(!isVisible(edge.a,edge.b))continue;
   (edge.kind?crossings:regular).push(edge);
  }
  function trace(e){
@@ -571,9 +588,9 @@ function nodes(g,s){
  const edgeVisible=(a,b)=>Math.max(a.x,b.x)>=c.x-halfW&&
    Math.min(a.x,b.x)<=c.x+halfW&&Math.max(a.y,b.y)>=c.y-halfH&&
    Math.min(a.y,b.y)<=c.y+halfH;
- for(const n of Object.values(s.map.nodes))for(const id of n.nextNodes){const a=n.position,b=s.map.nodes[id].position;
+ for(const n of boardPaintIndex(s.map).nodeList)for(const id of n.nextNodes){const a=n.position,b=s.map.nodes[id].position;
   if(!edgeVisible(a,b))continue;
-  const branch=s.map.branches.find(v=>v.nodeIds.includes(id));
+  const branch=boardPaintIndex(s.map).branchById.get(id);
   const isV10=s.map.version==='winter-expedition-152-v10';
   const realLabel=isV10&&n.nextNodes.length>1?decisionLabels(s.map,n.id)[id]:null;
   const tint=branch?.kind==='risky'?'#b78964':branch?'#6e9d91':'#5c8ea5';
