@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.ColorClaim;
+import './color-claim.js';
+const engine=window.ColorClaim;
+if(!engine)throw Error('Missing ColorClaim game engine');
+export default engine;

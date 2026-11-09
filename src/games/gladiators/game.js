@@ -1,2 +1,5 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.Gladiators;
+import './gladiators-art.js';
+import './gladiators.js';
+const engine=window.Gladiators;
+if(!engine)throw Error('Missing Gladiators game engine');
+export default engine;

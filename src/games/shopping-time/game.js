@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.ShoppingTime;
+import './shopping-time.js';
+const engine=window.ShoppingTime;
+if(!engine)throw Error('Missing ShoppingTime game engine');
+export default engine;

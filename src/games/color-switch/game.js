@@ -1,2 +1,5 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.ColorSwitch;
+import './color-switch-mayan.js';
+import './color-switch.js';
+const engine=window.ColorSwitch;
+if(!engine)throw Error('Missing ColorSwitch game engine');
+export default engine;

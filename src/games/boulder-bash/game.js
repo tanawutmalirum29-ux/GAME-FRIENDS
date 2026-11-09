@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.BoulderBash;
+import './boulder-bash.js';
+const engine=window.BoulderBash;
+if(!engine)throw Error('Missing BoulderBash game engine');
+export default engine;

@@ -20,8 +20,5 @@
   ],
   "entry": "./game.js",
   "global": "ColorSwitch",
-  "legacyScripts": [
-    "src/games/color-switch/color-switch-mayan.js",
-    "src/games/color-switch/color-switch.js"
-  ]
+  "legacyScripts": []
 }

@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.KnightMatch;
+import './knight-match.js';
+const engine=window.KnightMatch;
+if(!engine)throw Error('Missing KnightMatch game engine');
+export default engine;

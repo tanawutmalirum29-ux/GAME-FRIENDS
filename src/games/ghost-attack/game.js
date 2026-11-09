@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.GhostAttack;
+import './ghost-attack.js';
+const engine=window.GhostAttack;
+if(!engine)throw Error('Missing GhostAttack game engine');
+export default engine;

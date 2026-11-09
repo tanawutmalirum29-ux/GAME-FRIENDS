@@ -20,7 +20,5 @@
   ],
   "entry": "./game.js",
   "global": "Shockwave",
-  "legacyScripts": [
-    "src/games/shockwave/shockwave.js"
-  ]
+  "legacyScripts": []
 }

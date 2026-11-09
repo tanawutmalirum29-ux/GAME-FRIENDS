@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.FruitMemory;
+import './fruit-memory.js';
+const engine=window.FruitMemory;
+if(!engine)throw Error('Missing FruitMemory game engine');
+export default engine;

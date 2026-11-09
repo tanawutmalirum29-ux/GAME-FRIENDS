@@ -21,7 +21,6 @@
   "entry": "./game.js",
   "global": "Chickens",
   "legacyScripts": [
-    "farm-ice-art.js",
-    "src/games/chickens/chickens.js"
+    "farm-ice-art.js"
   ]
 }

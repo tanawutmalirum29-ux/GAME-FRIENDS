@@ -21,7 +21,6 @@
   "entry": "./game.js",
   "global": "SnowBrawl",
   "legacyScripts": [
-    "farm-ice-art.js",
-    "src/games/snow-brawl/snow-brawl.js"
+    "farm-ice-art.js"
   ]
 }

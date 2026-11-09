@@ -31,6 +31,8 @@ for(const game of catalog.games){
 assert.ok(!lazyHTML.includes('src="./app.js"'));
 assert.ok(lazyHTML.includes('src="./src/platform/main-loader.js"'));
 assert.ok(originalHTML.includes('src="./app.js"'),'local dev retains immediate compatibility bundle');
+assert.ok(!/src="\.\/src\/games\/[^\"]+\.js"/.test(lazyHTML),
+ 'production must not eagerly load folder-owned minigame scripts');
 assert.ok(lazyHTML.includes('src="./game-cover-art.js"'));
 assert.ok(lazyHTML.includes('src="./src/platform/board-runtime.js"'),
  'production loads BOARD through the deferred core runtime');
@@ -40,7 +42,9 @@ for(const game of catalog.games){
  assert.match(game.hash,/^[a-f0-9]{24}$/);
  assert.ok(game.entryUrl.endsWith('/game.js'));
  assert.ok(game.modes.includes('board')&&game.modes.includes('normal'));
- assert.ok(game.legacyUrls.length>0,'original gameplay is retained by adapter');
+ assert.ok(Array.isArray(game.legacyUrls),'ES module games may have no legacy script dependencies');
+ assert.ok(!game.legacyUrls.some(url=>url.includes('/legacy/src/games/')),
+  'game-owned code must be loaded by its module import, not as a legacy script');
 }
 assert.ok(!fs.existsSync(path.join(root,'game-catalog.json')),
  'catalog is generated at build time, not relied upon as a manually committed index');

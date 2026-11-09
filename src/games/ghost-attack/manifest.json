@@ -21,7 +21,6 @@
   "entry": "./game.js",
   "global": "GhostAttack",
   "legacyScripts": [
-    "graveyard-art.js",
-    "src/games/ghost-attack/ghost-attack.js"
+    "graveyard-art.js"
   ]
 }

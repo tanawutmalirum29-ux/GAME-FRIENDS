@@ -20,7 +20,5 @@
   ],
   "entry": "./game.js",
   "global": "LawnMower",
-  "legacyScripts": [
-    "src/games/lawn-mower/lawn-mower.js"
-  ]
+  "legacyScripts": []
 }
