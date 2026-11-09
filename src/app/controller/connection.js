@@ -776,7 +776,7 @@ function queueAnalogInput(){
   lastAnalogInputAt=now;sendInputs();
  }else if(analogInputTimer===null){
   analogInputTimer=setTimeout(()=>{
-   analogInputTimer=null;lastAnalogInputAt=performance.now();sendInputs();
+   analogInputTimer=null;lastAnalogInputAt=controllerNow();sendInputs();
   },remaining);
  }
 }
