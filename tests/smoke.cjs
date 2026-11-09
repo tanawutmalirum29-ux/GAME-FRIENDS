@@ -1242,6 +1242,23 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
 
 
 
+// A game published after this app version must not be misidentified as a
+// ghost/human. Dynamic plugins provide their own score and status labels.
+{
+ const host=setup();host.click('addLocalBtn');host.click('addLocalBtn');
+ const api=host.scope.window.__ghostTest,ps=api.getPlayers();
+ ps.forEach((p,i)=>{p.active=true;p.score=i;});
+ api.setRound({mode:'meteor_dash',phase:'playing',paused:false,
+   pluginEngine:{getRoster:(_r,roster)=>roster.filter(p=>p.active).map((p,i)=>({
+    id:p.id,value:i===0?11:26,label:'ดาว '+(i+1),status:'พร้อมเล่น'
+   }))}});
+ api.renderLeaderboard();
+ const rows=host.elements.get('leaderboard').children;
+ assert.equal(rows.length,ps.length,'new plugin uses shared roster layout');
+ assert.ok(rows[0].children[2].textContent.startsWith('ดาว'),'plugin supplies metric label');
+ assert.equal(rows[0].children[3].textContent,'พร้อมเล่น');
+ assert.ok(rows.every(row=>row.children[2].textContent!=='คน'&&row.children[2].textContent!=='ผี'));
+}
 // WITCHING SNAKE smoke: actual host engine boot and BOARD PARTY rank adapter.
 {
  const witchHost=setup();witchHost.click('addLocalBtn');
@@ -2733,6 +2750,29 @@ require('./chickens.cjs');
 require('./shockwave.cjs');
 
 
+// A rejected new plug-in cannot eject everyone from an active BOARD session.
+{
+ const host=setup();host.click('offlineBtn');host.sessionButtons[2].fire('click');
+ host.click('startBtn');
+ const api=host.scope.window.__ghostTest,P=host.scope.window.BoardParty;
+ const s=api.getBoard(),oldOrder=Array.from(s.order);
+ const oldItems=s.players.map(p=>Array.from(p.bag||[]));
+ const oldNodes=s.players.map(p=>p.currentNodeId);
+ P.phase(s,'minigame_pending');
+ assert.equal(P.minigameStarted(s,'ghost'),true);
+ api.beginGameSelection('ghost');
+ const reel=api.getSelection();
+ assert.ok(reel,'BOARD roulette is active');
+ reel.error=Error('broken-new-game');
+ api.updateGameSelection(5);
+ assert.equal(api.getBoard(),s,'a broken game cannot reset the board');
+ assert.equal(api.getRound().mode,'board','host returns to the same BOARD screen');
+ assert.equal(s.phase,'standings','skipped game enters a neutral standings transition');
+ assert.deepEqual(Array.from(s.order),oldOrder);
+ assert.deepEqual(s.players.map(p=>Array.from(p.bag||[])),oldItems);
+ assert.deepEqual(s.players.map(p=>p.currentNodeId),oldNodes);
+ assert.ok(s.results.every(item=>item.reward===null),'failed game grants no rewards');
+}
 // BOARD PARTY integration uses the real app dispatcher and all six real engines.
 {
  const ui=setup();ui.click('offlineBtn');ui.sessionButtons[2].fire('click');

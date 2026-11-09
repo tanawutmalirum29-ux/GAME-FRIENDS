@@ -189,6 +189,34 @@ if(round.mode==='snow_brawl'){
     });
     return;
   }
+  // Native plug-ins need no Core mode branches: the optional getRoster API
+  // supplies live metrics; the default uses each player's current score.
+  // Keep the special Ghost HUD below solely for legacy inventory graphics.
+  if(round.mode!=='ghost'){
+    const engine=round.pluginEngine||gameEngine(round.mode);
+    const incoming=typeof engine?.getRoster==='function'?engine.getRoster(round,active):null;
+    const entries=new Map(Array.isArray(incoming)?incoming.filter(item=>
+      item&&typeof item.id==='string').map(item=>[item.id,item]):[]);
+    const scoreOf=p=>{
+      const item=entries.get(p.id);
+      const amount=Number(item?.value);
+      return Number.isFinite(amount)?amount:Number(p.score)||0;
+    };
+    active.sort((a,b)=>scoreOf(b)-scoreOf(a)||String(a.id).localeCompare(String(b.id)));
+    for(const p of active){
+      const item=entries.get(p.id);
+      const box=document.createElement('div');box.className='leader-chip';
+      if(item?.eliminated===true)box.classList.add('shockwave-eliminated');
+      const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
+      const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
+      const metric=document.createElement('small');metric.className='leader-role';
+      metric.textContent=typeof item?.label==='string'?item.label:scoreOf(p)+' คะแนน';
+      const status=document.createElement('span');status.className='leader-item-slot';
+      status.textContent=typeof item?.status==='string'?item.status:'';
+      box.append(dot,name,metric,status);root.append(box);
+    }
+    return;
+  }
   active.sort((a,b)=>Number(a.ghost)-Number(b.ghost)).forEach(p=>{
     const box=document.createElement('div');box.className='leader-chip';
     const color=document.createElement('span');
