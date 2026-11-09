@@ -103,6 +103,7 @@ async function run(){
    const s=__peerQA.board;
    window.__savedBoard=s;
    s.players[0].hp=73;
+   s.players[0].bag.push('shield');
    return {round:s.roundNumber,turn:s.turnId,players:s.players.length,
     room:__peerQA.room,playerId:__peerQA.players[0].id};
   });
@@ -117,11 +118,12 @@ async function run(){
    peer.fire('connection',c);
    c.fire('data',{t:'join',name:'Returning',clientToken:'stable-phone-aaaa'});
    return {same:__peerQA.board===__savedBoard,hp:__peerQA.board.players[0].hp,
+    bag:[...__peerQA.board.players[0].bag],
     round:__peerQA.board.roundNumber,turn:__peerQA.board.turnId,
     players:__peerQA.board.players.length,room:__peerQA.room,
     playerId:c.sent.find(x=>x.t==='welcome')?.id};
   });
-  assert.deepEqual(result,{same:true,hp:73,round:before.round,turn:before.turn,
+  assert.deepEqual(result,{same:true,hp:73,bag:['shield'],round:before.round,turn:before.turn,
    players:before.players,room:before.room,playerId:before.playerId},
    'BOARD session/HP/turn-order/seat identity survive signal loss and player rejoin');
   await page.evaluate(()=>{
