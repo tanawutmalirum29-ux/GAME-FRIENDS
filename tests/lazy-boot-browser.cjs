@@ -25,7 +25,26 @@ const buildVersion='window.GAME_BUILD_VERSION="lazy-browser-test";'+
 const injection=`window.__lazyGameTest={get round(){return round},
  get board(){return boardSession},get selection(){return gameSelection},
  get players(){return players},get view(){return currentView},
- beginBoard,beginGameSelection,updateGameSelection,returnToLobby,addLocal,receiveBoardState};
+ beginBoard,beginGameSelection,updateGameSelection,returnToLobby,addLocal,receiveBoardState,
+ simulateReloadGuard(kind){
+  const old={onlineHost,hostPeer,hostNetworkLoad,controllerReady,controllerPeer,
+   controllerConn,controllerNetworkLoad,currentView,round,gameSelection,boardSession};
+  try{
+   round=null;gameSelection=null;boardSession=null;
+   if(kind==='host-connected'){currentView='hostLobby';onlineHost=true;hostPeer={};}
+   else if(kind==='host-connecting'){currentView='home';hostNetworkLoad={};}
+   else if(kind==='controller-connected'){currentView='controller';controllerReady=true;controllerPeer={};}
+   else if(kind==='controller-connecting'){currentView='controller';controllerNetworkLoad={};}
+   else throw Error('Unknown reload guard scenario');
+   return window.GAME_CAN_AUTO_RELOAD();
+  }finally{
+   onlineHost=old.onlineHost;hostPeer=old.hostPeer;hostNetworkLoad=old.hostNetworkLoad;
+   controllerReady=old.controllerReady;controllerPeer=old.controllerPeer;
+   controllerConn=old.controllerConn;controllerNetworkLoad=old.controllerNetworkLoad;
+   currentView=old.currentView;round=old.round;gameSelection=old.gameSelection;
+   boardSession=old.boardSession;
+  }
+ }};
  requestAnimationFrame(animate);\n})();`;
 const server=http.createServer((req,res)=>{
  const url=new URL(req.url,'http://localhost'),pathname=url.pathname;
@@ -84,6 +103,11 @@ const server=http.createServer((req,res)=>{
   await page.waitForFunction(()=>!!window.__lazyGameTest,null,{polling:100,timeout:15000});
   assert.equal(await page.evaluate(()=>window.GameHostRuntime.ready()),true,
    'host physics and scenery must finish loading before application init');
+  assert.equal(await page.evaluate(()=>window.GAME_CAN_AUTO_RELOAD()),true,
+   'offline host lobby may safely preserve bots and reload');
+  for(const mode of ['host-connected','host-connecting'])
+   assert.equal(await page.evaluate(m=>__lazyGameTest.simulateReloadGuard(m),mode),false,
+    'core releases must not disconnect an online/connecting Host');
   // Controller routes still load app.js for reconnection, but not the host physics.
   const phone=await ctx.newPage(),phoneErrors=[],phoneRequests=[];
   phone.on('pageerror',e=>phoneErrors.push(String(e)));
@@ -114,6 +138,9 @@ const server=http.createServer((req,res)=>{
   assert.equal(inventory.selected,'Healing Potion');
   assert.ok(inventory.mode.includes('BOARD PARTY'));
   assert.deepEqual(phoneErrors,[],'controller startup/BOARD inventory must have no errors');
+  for(const mode of ['controller-connected','controller-connecting'])
+   assert.equal(await phone.evaluate(m=>__lazyGameTest.simulateReloadGuard(m),mode),false,
+    'core releases must not drop connected or reconnecting controllers');
   await phone.close();
   await page.evaluate(()=>window.__lazyGameTest.beginGameSelection('ghost'));
   const initialSelection=await page.evaluate(()=>({
