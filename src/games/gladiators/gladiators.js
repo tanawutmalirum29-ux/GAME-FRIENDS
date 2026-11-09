@@ -500,6 +500,6 @@ function draw(g,time,round,ps){
  g.restore();
  // Clock / survivors badge is painted once by app.js, never here.
 }
-window.Gladiators=Object.freeze({setup,update,draw,hud,step,finish,eliminate,spawnPositions,
+window.Gladiators=Object.freeze({resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,eliminate,spawnPositions,
  boundsFor,impact,swept,living,config:C});
 })();

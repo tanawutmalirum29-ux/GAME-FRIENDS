@@ -474,6 +474,6 @@ function draw(ctx,time,round,ps){
  // Arena size is reflected by the field itself; no top-left status panel.
  ctx.restore();
 }
-window.LawnMower=Object.freeze({setup,update,draw,hud,playerStatus,step,finish,cutSwath,cutTuft,
+window.LawnMower=Object.freeze({resultTitle:"ผู้สะสมพระอาทิตย์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,step,finish,cutSwath,cutTuft,
   spawnPositions,generateGrass,botControl,size,mowerOverlap,mowerExtents,constrainMower,resolveMowerCollisions,config:CONFIG});
 })();

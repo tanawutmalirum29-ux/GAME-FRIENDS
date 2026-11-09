@@ -675,7 +675,7 @@ function draw(g,t,round,ps){
  }
  g.restore();
 }
-window.ColorClaim=Object.freeze({setup,update,step,draw,hud,finish,index,owned,claimDisk,
+window.ColorClaim=Object.freeze({resultTitle:"ผู้ยึดพื้นที่มากที่สุด!",countdownSeconds:3,setup,update,step,draw,hud,finish,index,owned,claimDisk,
  recount,captureMask,applyCaptures,segmentsTouch,pointSegment2,kill,revive,eliminate,
  largestTerritory,spawnPlace,discardCutFragments,pruneUnplayableTerritory,
  buildContours,traceSmoothTrail,freezeActive,

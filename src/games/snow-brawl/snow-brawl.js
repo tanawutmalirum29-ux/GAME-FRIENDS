@@ -554,7 +554,7 @@ function draw(ctx,time,round,ps){
  ctx.restore();
 }
 // Diagnostic hooks are pure engine operations used by regression tests.
-window.SnowBrawl=Object.freeze({setup,update,draw,hud,step,finish,
+window.SnowBrawl=Object.freeze({resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,
  islandRadius,viewScale,rollSpeed,ballMass,growthRadius,makeBall,ballFor,release,
  destroy,eliminate,solveBallCollisions,resolveBodies,contactTime,
  config:C});

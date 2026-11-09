@@ -30,7 +30,7 @@ function startRound(forcedMode=null){
     return;
   }
   $('results').classList.add('hidden');
-  round={mode,pluginEngine:engine,pluginHash:window.GamePlatform?.descriptor(mode)?.hash||null,phase:'countdown',paused:false,countdown:mode==='shockwave'?2:3,remaining:null,autoNextRemaining:0,
+  round={mode,pluginEngine:engine,pluginHash:window.GamePlatform?.descriptor(mode)?.hash||null,phase:'countdown',paused:false,countdown:Number.isFinite(engine.countdownSeconds)?engine.countdownSeconds:3,remaining:null,autoNextRemaining:0,
     rules:{viewMode:'topdown'}};
   try{
     // Reset cross-minigame punch state before each new match.
@@ -44,7 +44,7 @@ function startRound(forcedMode=null){
     return;
   }
   $('results').querySelector('.eyebrow').textContent=MODES[mode];
-  $('results').querySelector('h2').textContent=mode==='ghost'?'ผู้รอดคนสุดท้าย!':(mode==='fruit_memory'||mode==='shockwave')?'ผู้รอดชีวิตคนสุดท้าย!':mode==='color_switch'?'ผู้ทำคะแนนสูงสุด!':mode==='color_claim'?'ผู้ยึดพื้นที่มากที่สุด!':mode==='ice_race'?'ผ่านเช็กพอยต์มากที่สุด!':mode==='lawn_mower'?'ผู้สะสมพระอาทิตย์มากที่สุด!':mode==='shopping_time'?'คิดเงินให้ได้คะแนนสูงสุด!':mode==='pizza_time'?'ส่งพิซซ่าให้ได้มากที่สุด!':mode==='knight_match'?'แทงลูกโป่งสีตัวเองให้มากที่สุด!':(mode==='boulder_bash'||mode==='snow_brawl'||mode==='witching_snake'||mode==='gladiators')?'ผู้รอดชีวิตคนสุดท้าย!':'จับไก่ให้ได้มากที่สุด!';
+  $('results').querySelector('h2').textContent=engine.resultTitle||'ผลการแข่งขัน';
   // Countdown and player count now live in the solid map-corner HUD.
   $('gameBanner').textContent='';
   $('replayBtn').textContent=tournament?'เกมถัดไป':'เล่นอีกครั้ง';
@@ -64,14 +64,12 @@ function updateRound(dt){
   if(!round||round.paused)return;
   if(round.mode==='board'){updateBoard(dt);return;}
   if(round.phase==='countdown'){
-    if(round.mode==='ghost')window.GhostAttack.update(dt,round,players);
-     if(round.mode==='shockwave')window.Shockwave.update(dt,round,players);
-    if(round.mode==='fruit_memory')window.FruitMemory.update(dt,round,players);
+    if(round.pluginEngine?.updateDuringCountdown)round.pluginEngine.update(dt,round,players);
     round.countdown=Math.max(0,round.countdown-dt);
     $('gameBanner').textContent='';
     if(round.countdown===0){
       round.phase='playing';
-      if(round.mode==='ghost')round.ghost.ghostSpawned=true;
+      round.pluginEngine?.onCountdownFinished?.(round,players);
       $('gameBanner').textContent='';
       broadcastRoster();
     }

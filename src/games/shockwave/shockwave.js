@@ -424,7 +424,7 @@ function draw(ctx,time,round,ps){
  // the common SVG headcount badge is drawn by app.js.
  ctx.restore();
 }
-window.Shockwave=Object.freeze({setup,update,draw,hud,createGrid,spawnPlayers,
+window.Shockwave=Object.freeze({resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
  calculateDangerContact,calculateFootSupport,resolvePlayerCollision,calculateDangerWeights,
   dangerCount,requiredEscapeSeconds,
  selectDangerTiles,validateSafeRoutes,warningSeconds,intervalSeconds,distanceBias,

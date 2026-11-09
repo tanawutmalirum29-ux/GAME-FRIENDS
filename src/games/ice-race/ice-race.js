@@ -469,6 +469,6 @@ function draw(g,t,round,ps){
  }
  g.restore();
 }
-window.IceRace=Object.freeze({setup,update,draw,hud,step,finish,checkpoint,
+window.IceRace=Object.freeze({resultTitle:"ผ่านเช็กพอยต์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,step,finish,checkpoint,
  nearest,sample,collide,hullContact,hullPoints,fall,respawn,makeTrack,botVector,config:C});
 })();

@@ -62,7 +62,8 @@ test('shared start countdown advances Fruit Memory movement before memorization'
    'updateBoard','gameEngine','endRound',app.slice(start,end)+'\nupdateRound(dt);');
  const updates=[],signals=[],banner={textContent:''};
  const window={FruitMemory:{update(dt){updates.push(dt);}}};
- const round={mode:'fruit_memory',phase:'countdown',paused:false,countdown:3};
+ const round={mode:'fruit_memory',phase:'countdown',paused:false,countdown:3,
+  pluginEngine:{updateDuringCountdown:true,update(dt){updates.push(dt);}}};
  const go=dt=>runner(window,round,[],dt,()=>banner,()=>signals.push('playing'),
    ()=>{},()=>({update(){return null;}}),()=>{});
  go(1);
