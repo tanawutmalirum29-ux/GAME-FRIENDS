@@ -30,7 +30,13 @@ assert.equal(ingress.accept({t:'input',keys:{},nested:{huge:'x'.repeat(8000)}}),
 const cyclic={t:'input',keys:{}};cyclic.self=cyclic;
 assert.equal(ingress.accept(cyclic),false);
 assert.equal(ingress.accept({t:'board-camera-zoom',direction:8}),false);
+clock+=1000;
 assert.equal(ingress.accept({t:'result-vote',choice:'next'}),true);
+const malformedFlood=create();
+for(let i=0;i<1000;i++)malformedFlood.accept({t:'unknown'});
+assert.equal(malformedFlood.accept(input),false,'malformed flood consumes its token bucket');
+clock+=1000;
+assert.equal(malformedFlood.accept(input),true,'valid traffic resumes after refill');
 ingress.dispose();assert.equal(ingress.accept(input),false,'closed data connection is inert');
 const independent=create();assert.equal(independent.accept(input),true,'per-connection counters isolated');
 console.log('CONTROLLER INGRESS PASS: valid joystick, 180Hz refill, burst, payload/type/structure guards, cleanup');
