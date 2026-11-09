@@ -18,7 +18,84 @@ function updatePhoneGamePicker(phase,choice){
     'เลือก '+MODES[myChosenMode]+' แล้ว • รอเจ้าของห้องสุ่มเกม':
     'เลือกหนึ่งเกม • เปลี่ยนใจก่อนเริ่มเล่นได้';
 }
-let controllerMediaCall=null;
+
+ // A dedicated zero-retransmission DataConnection is used only if the browser
+ // confirms its actual RTCDataChannel properties; reliable A/B/C remain intact.
+ let controllerFastAxisConn=null,controllerFastAxisAuthorized=false;
+ let controllerFastAxisHostReady=false,controllerFastAxisUnsupported=false;
+ let controllerFastAxisSeq=0,controllerFastAxisRetry=null;
+ function stopControllerFastAxis(){
+  if(controllerFastAxisRetry!==null)clearTimeout(controllerFastAxisRetry);
+  controllerFastAxisRetry=null;
+  const fast=controllerFastAxisConn;controllerFastAxisConn=null;
+  controllerFastAxisAuthorized=false;controllerFastAxisHostReady=false;
+  if(fast)try{fast.close();}catch(_){}
+ }
+ // PeerJS 1.5.5 only forwards {ordered} to createDataChannel().
+ // Override THAT one synchronous call for our uniquely labeled channel, then
+ // restore the native method immediately. Never change regular game controls.
+ function connectControllerZeroRetryAxis(peer,target,options){
+  const proto=window.RTCPeerConnection?.prototype,original=proto?.createDataChannel;
+  if(typeof original!=='function')return null;
+  let installed=false;
+  try{
+   proto.createDataChannel=function(label,init){
+    return original.call(this,label,label==='gf-axis-v1'?
+     {...init,ordered:false,maxRetransmits:0}:init);
+   };
+   installed=proto.createDataChannel!==original;
+   if(!installed)return null;
+   return peer.connect(target,options);
+  }catch(_){return null;}
+  finally{
+   if(installed)proto.createDataChannel=original;
+  }
+ }
+ function startControllerFastAxis(peer,token){
+  if(controllerFastAxisUnsupported||!controllerReady||!controllerConn?.open||
+     !peer||!window.RTCPeerConnection||typeof token!=='string'||
+     !/^[a-f0-9]{32}$/.test(token))return;
+  stopControllerFastAxis();
+  const primary=controllerConn;
+  let fast=null;
+  try{
+   fast=connectControllerZeroRetryAxis(peer,primary.peer,{reliable:false,serialization:'json',
+     label:'gf-axis-v1',metadata:{kind:'gf-axis-v1',playerId:controllerId,token}});
+  }catch(_){return;}
+  if(!fast)return;
+  controllerFastAxisConn=fast;controllerFastAxisSeq=0;
+  fast.on('open',()=>{
+   if(controllerFastAxisConn!==fast||controllerConn!==primary)return;
+   const channel=fast.dataChannel;
+   if(channel?.ordered!==false||channel?.maxRetransmits!==0){
+    controllerFastAxisUnsupported=true;stopControllerFastAxis();return;
+   }
+   controllerFastAxisAuthorized=controllerFastAxisHostReady;
+  });
+  const gone=()=>{
+   if(controllerFastAxisConn!==fast)return;
+   controllerFastAxisConn=null;controllerFastAxisAuthorized=false;
+   controllerFastAxisHostReady=false;
+   if(controllerFastAxisUnsupported||!controllerReady||controllerConn!==primary)return;
+   controllerFastAxisRetry=setTimeout(()=>{
+    controllerFastAxisRetry=null;
+    if(controllerReady&&controllerConn===primary&&controllerPeer===peer)
+     startControllerFastAxis(peer,token);
+   },2000);
+  };
+  fast.on('close',gone);fast.on('error',gone);
+ }
+ function sendControllerFastAxis(){
+  const fast=controllerFastAxisConn;
+  if(!controllerFastAxisAuthorized||!fast?.open||
+     fast.dataChannel?.bufferedAmount>8192)return false;
+  const inspected=!!boardCameraController?.enabled();
+  send(fast,{t:'axis',seq:++controllerFastAxisSeq,
+   x:inspected?0:controllerKeys.axisX,y:inspected?0:controllerKeys.axisY,
+   turnId:controllerBoard?.turnId??null,mapVersion:controllerBoard?.mapVersion??null});
+  return true;
+ }
+ let controllerMediaCall=null;
 let videoStreamActive=false;
 let controllerVideoWatchdog=null;
 let controllerPreviewEnabled=false; // Default OFF on every fresh page load.
@@ -93,7 +170,8 @@ function setControllerPreviewEnabled(enabled){
     send(controllerConn,videoQualityPacket(controllerVideoQuality));
   }
   renderControllerPreviewToggle();
-  if(controllerReady)send(controllerConn,{t:'preview-toggle',enabled:controllerPreviewEnabled});
+  if(controllerReady)send(controllerConn,{t:'preview-toggle',enabled:controllerPreviewEnabled,minimap:true});
+  showPhoneMiniMap();
 }
 function stopControllerVideo(){
  const call=controllerMediaCall;controllerMediaCall=null;videoStreamActive=false;
@@ -152,13 +230,14 @@ function resetPhonePreview(){
   if(!videoStreamActive)$('controllerPreviewPlaceholder').classList.remove('hidden');
 }
 function receivePhonePreview(image){
-  if(!controllerPreviewEnabled||videoStreamActive)return;
+  if(!controllerPreviewEnabled||videoStreamActive||(controllerGameMode==='board'&&phoneMiniMap))return;
   if(typeof image!=='string'||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>24000)return;
   $('controllerPreviewImage').src=image;
   $('controllerPreviewImage').classList.remove('hidden');
   $('controllerPreviewPlaceholder').classList.add('hidden');
 }
 function safePeerDestroy(){
+  stopControllerFastAxis();
   stopControllerVideo();
   const conn=controllerConn,peer=controllerPeer;
   controllerConn=null;controllerPeer=null;
@@ -338,6 +417,17 @@ function joinRoom(recovery=false){
     }
     controllerState('ไม่สามารถโหลดระบบจอยออนไลน์ได้',true);return;
   }
+  const turnBootstrap=partyIceCredentialsReady();
+  if(turnBootstrap){
+    const inputCode=$('roomCodeInput').value,activeView=currentView;
+    $('joinBtn').disabled=true;
+    controllerState('กำลังเตรียม TURN สำหรับจอย...');
+    void turnBootstrap.then(()=>{
+      if(currentView===activeView&&activeView==='controller'&&
+         $('roomCodeInput').value===inputCode)joinRoom(recovery);
+    });
+    return;
+  }
   if(!recovery)reconnectTries=0;
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;
@@ -349,6 +439,7 @@ function joinRoom(recovery=false){
   if(!recovery)void requestLandscape();
   $('joinBtn').disabled=true;controllerState((recovery?'กำลังกลับเข้าห้อง ':'กำลังเชื่อมต่อห้อง ')+code+'...');
   disconnectRequested=true;safePeerDestroy();
+  phoneMiniMap=null;phoneMiniMapPositions=null;
   disconnectRequested=false;
   const peer=new Peer(undefined,partyPeerOptions());
   controllerPeer=peer;
@@ -382,6 +473,7 @@ function joinRoom(recovery=false){
       }
       if(data.t==='welcome'){
         controllerId=data.id;controllerReady=true;
+        if(data.axisToken)startControllerFastAxis(peer,data.axisToken);
         reconnectTries=0;
         if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
         reconnectTimer=null;savePhone();
@@ -403,7 +495,12 @@ function joinRoom(recovery=false){
         setControllerVideoQuality(savedVideoQuality());
         setControllerPreviewEnabled(controllerPreviewEnabled);
         sendInputs();announceControllerTakeover();
-       }else if(data.t==='input-ack'){
+       }else if(data.t==='axis-ready'){
+        controllerFastAxisHostReady=true;
+        controllerFastAxisAuthorized=!!controllerFastAxisConn?.open&&
+          controllerFastAxisConn?.dataChannel?.ordered===false&&
+          controllerFastAxisConn?.dataChannel?.maxRetransmits===0;
+      }else if(data.t==='input-ack'){
         const ms=Math.floor(controllerNow()-Number(data.clientAt));
         if(Number.isSafeInteger(data.actionId)&&Number.isFinite(ms)&&ms>=0&&ms<60000){
           const latency=$('controllerLatency');
@@ -416,6 +513,10 @@ function joinRoom(recovery=false){
       }else if(data.t==='reject'){
         controllerState(data.reason||'ห้องไม่รับผู้เล่น',true);$('joinBtn').disabled=false;
         safePeerDestroy();
+      }else if(data.t==='board-minimap-map'){
+        receivePhoneMiniMapMap(data);
+      }else if(data.t==='board-minimap-positions'){
+        receivePhoneMiniMapPositions(data);
       }else if(data.t==='board-state'){
         receiveBoardState(data);
       }else if(data.t==='roster'){
@@ -637,6 +738,11 @@ function pluginControllerPlayingStatus(mode,data){
  return template.replace(/\{(name|survivors|remaining)\}/g,(_,key)=>values[key]);
 }
 function showControllerMode(mode){
+  // Standalone controller descriptor tests intentionally omit BOARD runtime.
+  if(mode!=='board'&&typeof phoneMiniMap!=='undefined'&&phoneMiniMap){
+    phoneMiniMap=null;phoneMiniMapPositions=null;
+  }
+  if(typeof showPhoneMiniMap==='function')showPhoneMiniMap();
   const plugin=gameControllerDescriptor(mode);
   const ui=plugin?.controller||{},labels=ui.labels||{};
   if(mode==='board'&&controllerBoard&&!['results','summary'].includes(controllerGamePhase)){renderPhoneBoard();return;}
@@ -776,10 +882,11 @@ function queueAnalogInput(){
  if(!controllerReady)return;
  const now=controllerNow(),remaining=33-(now-lastAnalogInputAt);
  if(remaining<=0){
-  lastAnalogInputAt=now;sendInputs();
+  lastAnalogInputAt=now;if(!sendControllerFastAxis())sendInputs();
  }else if(analogInputTimer===null){
   analogInputTimer=setTimeout(()=>{
-   analogInputTimer=null;lastAnalogInputAt=controllerNow();sendInputs();
+   analogInputTimer=null;lastAnalogInputAt=controllerNow();
+      if(!sendControllerFastAxis())sendInputs();
   },remaining);
  }
 }
@@ -794,6 +901,7 @@ function sendInputs(){
    if(controllerBoard?.boardPhase==='ready'){keys.action=false;keys.alt=false;keys.cancel=false;}
  }
  send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId,clientAt:Math.floor(controllerNow())});
+  sendControllerFastAxis();
 }
 function isPortraitScreen(){
   if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
@@ -819,18 +927,26 @@ function syncControllerVisibleViewport(){
   if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return;
   const left=Number(view?.offsetLeft)||0,top=Number(view?.offsetTop)||0;
   const portrait=document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
-  const scale=Math.max(.1,Math.min((portrait?h:w)/844,(portrait?w:h)/390));
-  const signature=[w,h,left,top,scale.toFixed(4)].join('|');
+  const measure=typeof window.getComputedStyle==='function'?
+    window.getComputedStyle($('controller')):null;
+  const inset=name=>Math.max(0,parseFloat(measure?.[name])||0);
+  const usableW=Math.max(1,w-inset('paddingLeft')-inset('paddingRight'));
+  const usableH=Math.max(1,h-inset('paddingTop')-inset('paddingBottom'));
+  const scale=portrait?Math.min(usableH/844,usableW/390):
+    Math.min(usableW/844,usableH/390);
+  const signature=[w,h,left,top,portrait,scale.toFixed(6)].join('|');
   if(signature===lastControllerViewport)return;
   lastControllerViewport=signature;
   style.setProperty('--gf-controller-visible-width',w+'px');
   style.setProperty('--gf-controller-visible-height',h+'px');
   style.setProperty('--gf-controller-visible-left',left+'px');
   style.setProperty('--gf-controller-visible-top',top+'px');
-  style.setProperty('--gf-controller-action-track',Math.round(136*scale)+'px');
-  style.setProperty('--gf-controller-face-size',Math.round(102*scale)+'px');
-  style.setProperty('--gf-controller-stick-size',Math.round(72*scale)+'px');
-  style.setProperty('--gf-controller-knob-size',Math.round(30*scale)+'px');
+  style.setProperty('--gf-controller-stage-scale',scale.toFixed(6));
+  // Buttons are fixed reference pixels INSIDE the transformed stage.
+  style.setProperty('--gf-controller-action-track','136px');
+  style.setProperty('--gf-controller-face-size','102px');
+  style.setProperty('--gf-controller-stick-size','72px');
+  style.setProperty('--gf-controller-knob-size','30px');
  });
 }
 // iOS fires visualViewport.resize independently of window.resize when the
@@ -900,12 +1016,13 @@ function bindAnalogStick(zone,base,knob,target){
   const move=e=>{
     // Movement is measured from the first touch, not a fixed screen position.
     // CSS rotated portrait mode needs inverse rotation of the finger delta.
-    const dx=e.clientX-originX,dy=e.clientY-originY;
+    const stageScale=parseFloat($('controller')?.style?.getPropertyValue?.('--gf-controller-stage-scale'))||1;
+    const dx=(e.clientX-originX)/stageScale,dy=(e.clientY-originY)/stageScale;
     const localX=rotated()?dy:dx,localY=rotated()?-dx:dy;
     const box=base.getBoundingClientRect();
     // Input force derives from finger distance, not the visual ring's size.
     const travel=64;
-    const knobTravel=Math.max(12,Math.min(box.width,box.height)*.28);
+    const knobTravel=Math.max(12,Math.min(box.width,box.height)/stageScale*.28);
     const len=Math.hypot(localX,localY),factor=len>travel?travel/len:1;
     let x=Math.round(localX*factor/travel*100)/100;
     let y=Math.round(localY*factor/travel*100)/100;
@@ -929,8 +1046,9 @@ function bindAnalogStick(zone,base,knob,target){
     const halfX=box.left+box.width/2,halfY=box.top+box.height/2;
     const localWidth=rotated()?box.height:box.width;
     const localHeight=rotated()?box.width:box.height;
-    const offsetX=rotated()?e.clientY-halfY:e.clientX-halfX;
-    const offsetY=rotated()?-(e.clientX-halfX):e.clientY-halfY;
+    const stageScale=parseFloat($('controller')?.style?.getPropertyValue?.('--gf-controller-stage-scale'))||1;
+    const offsetX=(rotated()?e.clientY-halfY:e.clientX-halfX)/stageScale;
+    const offsetY=(rotated()?-(e.clientX-halfX):e.clientY-halfY)/stageScale;
     base.style.transform='translate3d('+offsetX+'px,'+offsetY+'px,0) translate(-50%,-50%)';
     knob.style.transform='translate(-50%,-50%)';
     zone.classList.add('is-active');

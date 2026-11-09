@@ -364,6 +364,76 @@ function partyPeerOptions(){
  }));
  return iceServers.length?{debug:0,config:{iceServers}}:{debug:0};
 }
+
+ // An optional public endpoint issues coturn REST credentials for each Peer
+ // lifecycle. No shared TURN secret is ever present in browser source.
+ let partyIceFetch=null,partyIceExpiry=0,partyIceLastAttempt=0,partyIceTimer=null;
+ function partyIceUpdatePeers(servers){
+  for(const peer of [hostPeer,controllerPeer]){
+   if(!peer?.options)return;
+   try{peer.options.config={...peer.options.config,iceServers:servers};}catch(_){}
+  }
+ }
+ function partyIceRefreshLater(expiresAt){
+  if(partyIceTimer!==null)clearTimeout(partyIceTimer);
+  partyIceTimer=setTimeout(()=>{
+   partyIceTimer=null;
+   const pending=partyIceCredentialsReady();
+   if(pending)void pending.catch(()=>{});
+  },Math.max(30000,expiresAt-Date.now()-90000));
+ }
+ // Return null for unconfigured/fresh/cooldown paths, Promise only when an
+ // asynchronous fetch is actually required. Existing offline and smoke flows
+ // keep their synchronous Peer creation behavior.
+ function partyIceCredentialsReady(){
+  const setting=window.GF_TURN_CREDENTIALS_ENDPOINT;
+  if(typeof setting!=='string'||!setting.trim())return null;
+  const now=Date.now();
+  if(partyIceExpiry-now>90000)return null;
+  if(partyIceFetch)return partyIceFetch;
+  if(now-partyIceLastAttempt<30000)return null;
+  let endpoint;
+  try{
+   endpoint=new URL(setting,window.location?.href||location.href);
+   if(endpoint.protocol!=='https:'&&!(endpoint.hostname==='localhost'&&endpoint.protocol==='http:'))
+    return null;
+  }catch(_){return null;}
+  partyIceLastAttempt=now;
+  partyIceFetch=(async()=>{
+   const abort=typeof AbortController==='function'?new AbortController():null;
+   const timeout=abort?setTimeout(()=>abort.abort(),4000):null;
+   try{
+    const response=await fetch(endpoint.href,{method:'GET',credentials:'omit',
+      cache:'no-store',signal:abort?.signal});
+    if(!response.ok)throw Error('TURN endpoint returned HTTP '+response.status);
+    const data=await response.json();
+    if(!data||!Array.isArray(data.iceServers)||!Number.isFinite(data.expiresAt)||
+       data.expiresAt<Date.now()+60000||data.expiresAt>Date.now()+3600000||
+       !data.iceServers.some(entry=>{
+        const urls=Array.isArray(entry?.urls)?entry.urls:[entry?.urls];
+        return urls.some(url=>typeof url==='string'&&/^turns?:/i.test(url));
+       }))throw Error('TURN endpoint returned invalid/expired ICE data');
+    const before=window.GF_ICE_SERVERS;
+    window.GF_ICE_SERVERS=data.iceServers;
+    const validated=partyPeerOptions().config?.iceServers;
+    if(!validated){window.GF_ICE_SERVERS=before;throw Error('Invalid ICE configuration');}
+    partyIceExpiry=data.expiresAt;
+    partyIceUpdatePeers(validated);
+    partyIceRefreshLater(partyIceExpiry);
+   }catch(error){
+    if(partyIceExpiry<=Date.now()){
+     partyIceExpiry=0;window.GF_ICE_SERVERS=null;
+    }
+    console.warn('TURN credentials unavailable; using direct PeerJS ICE fallback',error);
+    if(hostPeer||controllerPeer)partyIceRefreshLater(Date.now()+120000);
+   }finally{
+    if(timeout!==null)clearTimeout(timeout);
+    partyIceFetch=null;
+   }
+  })();
+  return partyIceFetch;
+ }
+
 const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
 const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
 const seatTimers=new Map();let reconnectTimer=null,reconnectTries=0;
@@ -771,6 +841,33 @@ function createControllerIngressGuard(clock=()=>Date.now()){
   dispose(){closed=true;tokens=0;}
  };
 }
+
+
+/* Dedicated analog ingress, never shared with reliable A/B/C commands.
+ * Unordered messages must be monotone and rate limited per authenticated
+ * data connection. A leaked/forged channel cannot grant action permissions. */
+function createFastAxisIngressGuard(clock=()=>Date.now()){
+ let tokens=60,lastTime=clock(),lastSeq=-1,closed=false;
+ return {
+  accept(msg){
+   if(closed)return false;
+   const now=clock(),elapsed=Math.max(0,Math.min(1000,now-lastTime));
+   lastTime=now;tokens=Math.min(60,tokens+elapsed*40/1000);
+   if(tokens<1)return false;tokens--;
+   if(!msg||typeof msg!=='object'||Array.isArray(msg)||
+      Object.keys(msg).some(k=>!['t','seq','x','y','turnId','mapVersion'].includes(k))||
+      msg.t!=='axis'||!Number.isSafeInteger(msg.seq)||msg.seq<0||
+      msg.seq<=lastSeq||!Number.isFinite(msg.x)||!Number.isFinite(msg.y)||
+      Math.abs(msg.x)>1.01||Math.abs(msg.y)>1.01||
+      (msg.turnId!==null&&msg.turnId!==undefined&&
+        !(typeof msg.turnId==='string'&&msg.turnId.length<=128))||
+      (msg.mapVersion!==null&&msg.mapVersion!==undefined&&
+        !(typeof msg.mapVersion==='string'&&msg.mapVersion.length<=80)))return false;
+   lastSeq=msg.seq;return true;
+  },
+  dispose(){closed=true;tokens=0;}
+ };
+}
 /* Host-only PeerJS signaling recovery. DataConnections/Board session are
  * intentionally untouched: disconnect() keeps live WebRTC channels alive. */
 const HOST_RECONNECT_MAX=8;
@@ -977,6 +1074,7 @@ function stopAllHostVideoCalls(){
   hostVideoSources.clear();
 }
 function startHostVideoCall(conn){
+  if(round?.mode==='board'&&conn?.boardMinimapCapable===true){stopHostVideoCall(conn);return;}
   if(!round||round.phase==='roulette'||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId||conn.previewEnabled!==true)return;
   stopHostVideoCall(conn);
   conn.videoReady=false;
@@ -1002,7 +1100,8 @@ function startHostVideoCall(conn){
 function broadcastGamePreview(){
   if(!round||!onlineHost||!remotePreviewContext||hostConnections.size===0)return;
   const active=[...hostConnections].filter(c=>
-    c.open&&c.playerId&&c.previewEnabled===true&&!c.videoReady&&
+    c.open&&c.playerId&&c.previewEnabled===true&&
+    !(round?.mode==='board'&&c.boardMinimapCapable===true)&&!c.videoReady&&
     (!c.dataChannel||c.dataChannel.bufferedAmount<65536));
   if(!active.length||typeof remotePreviewCanvas.toDataURL!=='function')return;
   try{
@@ -1467,6 +1566,65 @@ function renderQr(code){
   }
   box.textContent='QR ไม่พร้อม กรุณาคัดลอกลิงก์';
 }
+
+function fastAxisSessionToken(){
+ const bytes=new Uint8Array(16);
+ if(!window.crypto?.getRandomValues)return null;
+ window.crypto.getRandomValues(bytes);
+ return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+}
+function acceptFastAxisConnection(conn){
+ const meta=conn?.metadata;
+ const player=meta?.kind==='gf-axis-v1'&&typeof meta.playerId==='string'&&
+   typeof meta.token==='string'&&/^[a-f0-9]{32}$/.test(meta.token)?
+   players.find(p=>p.id===meta.playerId&&p.conn?.peer===conn.peer&&
+     p.conn?.fastAxisToken===meta.token):null;
+ if(!player){try{conn.close();}catch(_){}return;}
+ const primary=player.conn,guard=createFastAxisIngressGuard();
+ const cleanup=()=>{
+  guard.dispose();
+  if(primary.fastAxisConn===conn){
+    primary.fastAxisConn=null;primary.fastAxisLastAt=0;
+    // Avoid a held direction when the unacknowledged fast path disappears.
+    player.input.axisX=0;player.input.axisY=0;
+  }
+ };
+ conn.on('open',()=>{
+  // Only true unordered zero-retransmission RTCDataChannels qualify.
+  const dc=conn.dataChannel;
+  if(primary!==player.conn||dc?.ordered!==false||dc?.maxRetransmits!==0){
+   try{conn.close();}catch(_){}return;
+  }
+  if(primary.fastAxisConn&&primary.fastAxisConn!==conn)
+   try{primary.fastAxisConn.close();}catch(_){}
+  primary.fastAxisConn=conn;primary.fastAxisLastAt=0;
+  send(primary,{t:'axis-ready'});
+ });
+ conn.on('data',packet=>{
+  if(primary.fastAxisConn!==conn||player.conn!==primary||
+     !conn.open||!guard.accept(packet)||!round||round.paused)return;
+  const x=Math.max(-1,Math.min(1,packet.x)),y=Math.max(-1,Math.min(1,packet.y));
+  primary.fastAxisX=x;primary.fastAxisY=y;primary.fastAxisLastAt=Date.now();
+  player.lastInputAt=Date.now();
+  if(round.mode==='board'&&boardSession){
+   const board=boardSession;
+   if(packet.turnId!==board.turnId||packet.mapVersion!==board.map.version||
+      window.BoardParty.current(board)?.id!==player.id||
+      primary.boardCameraGestureToken===board.turnId)return;
+   const previous=board.inputs[player.id];
+   const held=previous?.turnId===board.turnId?previous:{};
+   window.BoardParty.input(board,player.id,{
+    turnId:board.turnId,mapVersion:board.map.version,
+    actionId:(board.lastActions[player.id]??-1)+1,
+    keys:{axisX:x,axisY:y,action:held.a===true,alt:held.b===true,cancel:held.c===true}
+   });
+  }else if(round.phase==='playing'){
+   player.input.axisX=x;player.input.axisY=y;
+  }
+ });
+ conn.on('close',cleanup);conn.on('error',cleanup);
+}
+
 let hostNetworkLoad=null;
 function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   if(expectedAttempt!==null&&expectedAttempt!==hostOpenAttempt)return;
@@ -1494,6 +1652,17 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   if(location.protocol==='file:'){
     closeHost();showToast('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย',true);return;
   }
+  const turnBootstrap=partyIceCredentialsReady();
+  if(turnBootstrap){
+    const initialAttempt=hostOpenAttempt,initialView=currentView;
+    $('hostBtn').disabled=true;
+    setStatus('กำลังเตรียมการเชื่อมต่อเครือข่าย...');
+    void turnBootstrap.then(()=>{
+      if(initialAttempt===hostOpenAttempt&&initialView===currentView)
+        startHost(retries,resumeCode,expectedAttempt);
+    });
+    return;
+  }
   const attempt=expectedAttempt??++hostOpenAttempt;
   if(expectedAttempt===null)resetHostReconnect();
   const code=resumeCode||randomCode();
@@ -1519,6 +1688,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   });
   peer.on('connection',conn=>{
     if(hostPeer!==peer){conn.close();return;}
+    if(conn.metadata?.kind==='gf-axis-v1'){acceptFastAxisConnection(conn);return;}
     hostConnections.add(conn);
     const ingress=createControllerIngressGuard();
     conn.on('data',msg=>{
@@ -1539,8 +1709,10 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
           p.clientToken=token;
           if(round&&round.phase!=='results')p.active=false;
         }
-        conn.playerId=p.id;conn.previewEnabled=false;p.lastInputAt=Date.now();
-        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active});
+        conn.playerId=p.id;conn.previewEnabled=false;conn.boardMinimapCapable=false;
+        conn.boardMiniMapSession=null;conn.fastAxisToken=fastAxisSessionToken();
+        conn.fastAxisConn=null;conn.fastAxisLastAt=0;p.lastInputAt=Date.now();
+        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active,axisToken:conn.fastAxisToken});
         broadcastRoster();
         if(['results','summary'].includes(round?.phase))renderResultVotes(true);
       }else if(msg.t==='leave'&&conn.playerId){
@@ -1557,8 +1729,11 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         if(conn.previewEnabled===true&&msg.quality===conn.videoQuality)conn.videoReady=true;
       }else if(msg.t==='preview-toggle'&&conn.playerId&&typeof msg.enabled==='boolean'){
         conn.previewEnabled=msg.enabled;
-        if(msg.enabled){if(round)startHostVideoCall(conn);}
-        else stopHostVideoCall(conn);
+        if(msg.enabled){
+          conn.boardMinimapCapable=msg.minimap===true;
+          if(round){startHostVideoCall(conn);sendBoardMiniMap(conn);}
+        }
+        else{conn.boardMinimapCapable=false;stopHostVideoCall(conn);}
       }else if(msg.t==='board-camera-mode'&&conn.playerId){
         const s=boardSession;
         const valid=round?.mode==='board'&&round.phase==='playing'&&!round.paused&&s&&
@@ -1641,20 +1816,36 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
            conn.lastInputAckAt=p.lastInputAt;
            send(conn,{t:'input-ack',actionId:msg.actionId,clientAt:msg.clientAt});
          }
+        if(Number.isSafeInteger(msg.actionId)){
+          if(msg.actionId<=(conn.lastReliableActionId??-1))return;
+          conn.lastReliableActionId=msg.actionId;
+        }
         if(round?.mode==='board'&&boardSession){
           const locked=conn.boardCameraGestureToken===boardSession.turnId;
           const input=locked?{...msg,keys:{...msg.keys,left:false,right:false,jump:false,
             down:false,axisX:0,axisY:0,
              ...(boardSession.phase==='ready'?{action:false,alt:false,cancel:false}:{})}}:msg;
+          if(conn.fastAxisConn?.open){
+            // Independent server sequence prevents unordered axis updates from
+            // suppressing a later reliable A/B/C button transition.
+            input.actionId=(boardSession.lastActions[p.id]??-1)+1;
+            if(Date.now()-(conn.fastAxisLastAt||0)<250){
+              input.keys.axisX=conn.fastAxisX||0;input.keys.axisY=conn.fastAxisY||0;
+            }
+          }
           window.BoardParty.input(boardSession,p.id,input);return;
         }
         for(const k of INPUT_NAMES)p.input[k]=msg.keys&&msg.keys[k]===true;
-        p.input.axisX=Number.isFinite(msg.keys&&msg.keys.axisX)?clamp(msg.keys.axisX,-1,1):0;
-        p.input.axisY=Number.isFinite(msg.keys&&msg.keys.axisY)?clamp(msg.keys.axisY,-1,1):0;
+        if(!(conn.fastAxisConn?.open&&Date.now()-(conn.fastAxisLastAt||0)<250)){
+          p.input.axisX=Number.isFinite(msg.keys&&msg.keys.axisX)?clamp(msg.keys.axisX,-1,1):0;
+          p.input.axisY=Number.isFinite(msg.keys&&msg.keys.axisY)?clamp(msg.keys.axisY,-1,1):0;
+        }
       }
     });
     function lost(){
       ingress.dispose();
+      if(conn.fastAxisConn)try{conn.fastAxisConn.close();}catch(_){}
+      conn.fastAxisToken=null;conn.fastAxisConn=null;
       stopHostVideoCall(conn);hostConnections.delete(conn);
       if(!onlineHost||!conn.playerId)return;
       const p=players.find(q=>q.id===conn.playerId&&q.conn===conn);
@@ -1750,7 +1941,84 @@ function updatePhoneGamePicker(phase,choice){
     'เลือก '+MODES[myChosenMode]+' แล้ว • รอเจ้าของห้องสุ่มเกม':
     'เลือกหนึ่งเกม • เปลี่ยนใจก่อนเริ่มเล่นได้';
 }
-let controllerMediaCall=null;
+
+ // A dedicated zero-retransmission DataConnection is used only if the browser
+ // confirms its actual RTCDataChannel properties; reliable A/B/C remain intact.
+ let controllerFastAxisConn=null,controllerFastAxisAuthorized=false;
+ let controllerFastAxisHostReady=false,controllerFastAxisUnsupported=false;
+ let controllerFastAxisSeq=0,controllerFastAxisRetry=null;
+ function stopControllerFastAxis(){
+  if(controllerFastAxisRetry!==null)clearTimeout(controllerFastAxisRetry);
+  controllerFastAxisRetry=null;
+  const fast=controllerFastAxisConn;controllerFastAxisConn=null;
+  controllerFastAxisAuthorized=false;controllerFastAxisHostReady=false;
+  if(fast)try{fast.close();}catch(_){}
+ }
+ // PeerJS 1.5.5 only forwards {ordered} to createDataChannel().
+ // Override THAT one synchronous call for our uniquely labeled channel, then
+ // restore the native method immediately. Never change regular game controls.
+ function connectControllerZeroRetryAxis(peer,target,options){
+  const proto=window.RTCPeerConnection?.prototype,original=proto?.createDataChannel;
+  if(typeof original!=='function')return null;
+  let installed=false;
+  try{
+   proto.createDataChannel=function(label,init){
+    return original.call(this,label,label==='gf-axis-v1'?
+     {...init,ordered:false,maxRetransmits:0}:init);
+   };
+   installed=proto.createDataChannel!==original;
+   if(!installed)return null;
+   return peer.connect(target,options);
+  }catch(_){return null;}
+  finally{
+   if(installed)proto.createDataChannel=original;
+  }
+ }
+ function startControllerFastAxis(peer,token){
+  if(controllerFastAxisUnsupported||!controllerReady||!controllerConn?.open||
+     !peer||!window.RTCPeerConnection||typeof token!=='string'||
+     !/^[a-f0-9]{32}$/.test(token))return;
+  stopControllerFastAxis();
+  const primary=controllerConn;
+  let fast=null;
+  try{
+   fast=connectControllerZeroRetryAxis(peer,primary.peer,{reliable:false,serialization:'json',
+     label:'gf-axis-v1',metadata:{kind:'gf-axis-v1',playerId:controllerId,token}});
+  }catch(_){return;}
+  if(!fast)return;
+  controllerFastAxisConn=fast;controllerFastAxisSeq=0;
+  fast.on('open',()=>{
+   if(controllerFastAxisConn!==fast||controllerConn!==primary)return;
+   const channel=fast.dataChannel;
+   if(channel?.ordered!==false||channel?.maxRetransmits!==0){
+    controllerFastAxisUnsupported=true;stopControllerFastAxis();return;
+   }
+   controllerFastAxisAuthorized=controllerFastAxisHostReady;
+  });
+  const gone=()=>{
+   if(controllerFastAxisConn!==fast)return;
+   controllerFastAxisConn=null;controllerFastAxisAuthorized=false;
+   controllerFastAxisHostReady=false;
+   if(controllerFastAxisUnsupported||!controllerReady||controllerConn!==primary)return;
+   controllerFastAxisRetry=setTimeout(()=>{
+    controllerFastAxisRetry=null;
+    if(controllerReady&&controllerConn===primary&&controllerPeer===peer)
+     startControllerFastAxis(peer,token);
+   },2000);
+  };
+  fast.on('close',gone);fast.on('error',gone);
+ }
+ function sendControllerFastAxis(){
+  const fast=controllerFastAxisConn;
+  if(!controllerFastAxisAuthorized||!fast?.open||
+     fast.dataChannel?.bufferedAmount>8192)return false;
+  const inspected=!!boardCameraController?.enabled();
+  send(fast,{t:'axis',seq:++controllerFastAxisSeq,
+   x:inspected?0:controllerKeys.axisX,y:inspected?0:controllerKeys.axisY,
+   turnId:controllerBoard?.turnId??null,mapVersion:controllerBoard?.mapVersion??null});
+  return true;
+ }
+ let controllerMediaCall=null;
 let videoStreamActive=false;
 let controllerVideoWatchdog=null;
 let controllerPreviewEnabled=false; // Default OFF on every fresh page load.
@@ -1825,7 +2093,8 @@ function setControllerPreviewEnabled(enabled){
     send(controllerConn,videoQualityPacket(controllerVideoQuality));
   }
   renderControllerPreviewToggle();
-  if(controllerReady)send(controllerConn,{t:'preview-toggle',enabled:controllerPreviewEnabled});
+  if(controllerReady)send(controllerConn,{t:'preview-toggle',enabled:controllerPreviewEnabled,minimap:true});
+  showPhoneMiniMap();
 }
 function stopControllerVideo(){
  const call=controllerMediaCall;controllerMediaCall=null;videoStreamActive=false;
@@ -1884,13 +2153,14 @@ function resetPhonePreview(){
   if(!videoStreamActive)$('controllerPreviewPlaceholder').classList.remove('hidden');
 }
 function receivePhonePreview(image){
-  if(!controllerPreviewEnabled||videoStreamActive)return;
+  if(!controllerPreviewEnabled||videoStreamActive||(controllerGameMode==='board'&&phoneMiniMap))return;
   if(typeof image!=='string'||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(image)||image.length>24000)return;
   $('controllerPreviewImage').src=image;
   $('controllerPreviewImage').classList.remove('hidden');
   $('controllerPreviewPlaceholder').classList.add('hidden');
 }
 function safePeerDestroy(){
+  stopControllerFastAxis();
   stopControllerVideo();
   const conn=controllerConn,peer=controllerPeer;
   controllerConn=null;controllerPeer=null;
@@ -2070,6 +2340,17 @@ function joinRoom(recovery=false){
     }
     controllerState('ไม่สามารถโหลดระบบจอยออนไลน์ได้',true);return;
   }
+  const turnBootstrap=partyIceCredentialsReady();
+  if(turnBootstrap){
+    const inputCode=$('roomCodeInput').value,activeView=currentView;
+    $('joinBtn').disabled=true;
+    controllerState('กำลังเตรียม TURN สำหรับจอย...');
+    void turnBootstrap.then(()=>{
+      if(currentView===activeView&&activeView==='controller'&&
+         $('roomCodeInput').value===inputCode)joinRoom(recovery);
+    });
+    return;
+  }
   if(!recovery)reconnectTries=0;
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;
@@ -2081,6 +2362,7 @@ function joinRoom(recovery=false){
   if(!recovery)void requestLandscape();
   $('joinBtn').disabled=true;controllerState((recovery?'กำลังกลับเข้าห้อง ':'กำลังเชื่อมต่อห้อง ')+code+'...');
   disconnectRequested=true;safePeerDestroy();
+  phoneMiniMap=null;phoneMiniMapPositions=null;
   disconnectRequested=false;
   const peer=new Peer(undefined,partyPeerOptions());
   controllerPeer=peer;
@@ -2114,6 +2396,7 @@ function joinRoom(recovery=false){
       }
       if(data.t==='welcome'){
         controllerId=data.id;controllerReady=true;
+        if(data.axisToken)startControllerFastAxis(peer,data.axisToken);
         reconnectTries=0;
         if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
         reconnectTimer=null;savePhone();
@@ -2135,7 +2418,12 @@ function joinRoom(recovery=false){
         setControllerVideoQuality(savedVideoQuality());
         setControllerPreviewEnabled(controllerPreviewEnabled);
         sendInputs();announceControllerTakeover();
-       }else if(data.t==='input-ack'){
+       }else if(data.t==='axis-ready'){
+        controllerFastAxisHostReady=true;
+        controllerFastAxisAuthorized=!!controllerFastAxisConn?.open&&
+          controllerFastAxisConn?.dataChannel?.ordered===false&&
+          controllerFastAxisConn?.dataChannel?.maxRetransmits===0;
+      }else if(data.t==='input-ack'){
         const ms=Math.floor(controllerNow()-Number(data.clientAt));
         if(Number.isSafeInteger(data.actionId)&&Number.isFinite(ms)&&ms>=0&&ms<60000){
           const latency=$('controllerLatency');
@@ -2148,6 +2436,10 @@ function joinRoom(recovery=false){
       }else if(data.t==='reject'){
         controllerState(data.reason||'ห้องไม่รับผู้เล่น',true);$('joinBtn').disabled=false;
         safePeerDestroy();
+      }else if(data.t==='board-minimap-map'){
+        receivePhoneMiniMapMap(data);
+      }else if(data.t==='board-minimap-positions'){
+        receivePhoneMiniMapPositions(data);
       }else if(data.t==='board-state'){
         receiveBoardState(data);
       }else if(data.t==='roster'){
@@ -2369,6 +2661,11 @@ function pluginControllerPlayingStatus(mode,data){
  return template.replace(/\{(name|survivors|remaining)\}/g,(_,key)=>values[key]);
 }
 function showControllerMode(mode){
+  // Standalone controller descriptor tests intentionally omit BOARD runtime.
+  if(mode!=='board'&&typeof phoneMiniMap!=='undefined'&&phoneMiniMap){
+    phoneMiniMap=null;phoneMiniMapPositions=null;
+  }
+  if(typeof showPhoneMiniMap==='function')showPhoneMiniMap();
   const plugin=gameControllerDescriptor(mode);
   const ui=plugin?.controller||{},labels=ui.labels||{};
   if(mode==='board'&&controllerBoard&&!['results','summary'].includes(controllerGamePhase)){renderPhoneBoard();return;}
@@ -2508,10 +2805,11 @@ function queueAnalogInput(){
  if(!controllerReady)return;
  const now=controllerNow(),remaining=33-(now-lastAnalogInputAt);
  if(remaining<=0){
-  lastAnalogInputAt=now;sendInputs();
+  lastAnalogInputAt=now;if(!sendControllerFastAxis())sendInputs();
  }else if(analogInputTimer===null){
   analogInputTimer=setTimeout(()=>{
-   analogInputTimer=null;lastAnalogInputAt=controllerNow();sendInputs();
+   analogInputTimer=null;lastAnalogInputAt=controllerNow();
+      if(!sendControllerFastAxis())sendInputs();
   },remaining);
  }
 }
@@ -2526,6 +2824,7 @@ function sendInputs(){
    if(controllerBoard?.boardPhase==='ready'){keys.action=false;keys.alt=false;keys.cancel=false;}
  }
  send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId,clientAt:Math.floor(controllerNow())});
+  sendControllerFastAxis();
 }
 function isPortraitScreen(){
   if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
@@ -2551,18 +2850,26 @@ function syncControllerVisibleViewport(){
   if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return;
   const left=Number(view?.offsetLeft)||0,top=Number(view?.offsetTop)||0;
   const portrait=document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
-  const scale=Math.max(.1,Math.min((portrait?h:w)/844,(portrait?w:h)/390));
-  const signature=[w,h,left,top,scale.toFixed(4)].join('|');
+  const measure=typeof window.getComputedStyle==='function'?
+    window.getComputedStyle($('controller')):null;
+  const inset=name=>Math.max(0,parseFloat(measure?.[name])||0);
+  const usableW=Math.max(1,w-inset('paddingLeft')-inset('paddingRight'));
+  const usableH=Math.max(1,h-inset('paddingTop')-inset('paddingBottom'));
+  const scale=portrait?Math.min(usableH/844,usableW/390):
+    Math.min(usableW/844,usableH/390);
+  const signature=[w,h,left,top,portrait,scale.toFixed(6)].join('|');
   if(signature===lastControllerViewport)return;
   lastControllerViewport=signature;
   style.setProperty('--gf-controller-visible-width',w+'px');
   style.setProperty('--gf-controller-visible-height',h+'px');
   style.setProperty('--gf-controller-visible-left',left+'px');
   style.setProperty('--gf-controller-visible-top',top+'px');
-  style.setProperty('--gf-controller-action-track',Math.round(136*scale)+'px');
-  style.setProperty('--gf-controller-face-size',Math.round(102*scale)+'px');
-  style.setProperty('--gf-controller-stick-size',Math.round(72*scale)+'px');
-  style.setProperty('--gf-controller-knob-size',Math.round(30*scale)+'px');
+  style.setProperty('--gf-controller-stage-scale',scale.toFixed(6));
+  // Buttons are fixed reference pixels INSIDE the transformed stage.
+  style.setProperty('--gf-controller-action-track','136px');
+  style.setProperty('--gf-controller-face-size','102px');
+  style.setProperty('--gf-controller-stick-size','72px');
+  style.setProperty('--gf-controller-knob-size','30px');
  });
 }
 // iOS fires visualViewport.resize independently of window.resize when the
@@ -2632,12 +2939,13 @@ function bindAnalogStick(zone,base,knob,target){
   const move=e=>{
     // Movement is measured from the first touch, not a fixed screen position.
     // CSS rotated portrait mode needs inverse rotation of the finger delta.
-    const dx=e.clientX-originX,dy=e.clientY-originY;
+    const stageScale=parseFloat($('controller')?.style?.getPropertyValue?.('--gf-controller-stage-scale'))||1;
+    const dx=(e.clientX-originX)/stageScale,dy=(e.clientY-originY)/stageScale;
     const localX=rotated()?dy:dx,localY=rotated()?-dx:dy;
     const box=base.getBoundingClientRect();
     // Input force derives from finger distance, not the visual ring's size.
     const travel=64;
-    const knobTravel=Math.max(12,Math.min(box.width,box.height)*.28);
+    const knobTravel=Math.max(12,Math.min(box.width,box.height)/stageScale*.28);
     const len=Math.hypot(localX,localY),factor=len>travel?travel/len:1;
     let x=Math.round(localX*factor/travel*100)/100;
     let y=Math.round(localY*factor/travel*100)/100;
@@ -2661,8 +2969,9 @@ function bindAnalogStick(zone,base,knob,target){
     const halfX=box.left+box.width/2,halfY=box.top+box.height/2;
     const localWidth=rotated()?box.height:box.width;
     const localHeight=rotated()?box.width:box.height;
-    const offsetX=rotated()?e.clientY-halfY:e.clientX-halfX;
-    const offsetY=rotated()?-(e.clientX-halfX):e.clientY-halfY;
+    const stageScale=parseFloat($('controller')?.style?.getPropertyValue?.('--gf-controller-stage-scale'))||1;
+    const offsetX=(rotated()?e.clientY-halfY:e.clientX-halfX)/stageScale;
+    const offsetY=(rotated()?-(e.clientX-halfX):e.clientY-halfY)/stageScale;
     base.style.transform='translate3d('+offsetX+'px,'+offsetY+'px,0) translate(-50%,-50%)';
     knob.style.transform='translate(-50%,-50%)';
     zone.classList.add('is-active');
@@ -2738,6 +3047,130 @@ window.addEventListener('blur',()=>{
 // BOARD PARTY owns a session, not a seventh entry in the minigame registry.
 // Catalog entries are eligible even when their engine bytes have not been
 // fetched. The selected game is loaded and validated before the reel ends.
+
+ // BOARD controller minimap: immutable road topology once per board session,
+ // then at most twelve lightweight live positions at roughly 12 Hz.
+ let boardMiniMapClock=0,boardMiniMapCache=null;
+ function boardMiniMapTopology(){
+   const s=boardSession;if(!s)return null;
+   if(boardMiniMapCache?.session===s.id)return boardMiniMapCache;
+   const ids=Object.keys(s.map.nodes),byId=new Map(ids.map((id,i)=>[id,i]));
+   const nodes=ids.map(id=>{
+     const p=s.map.nodes[id].position;
+     return [Math.round(p.x),Math.round(p.y)];
+   });
+   const links=[];
+   for(const [i,id] of ids.entries())for(const next of s.map.nodes[id].nextNodes)
+     if(byId.has(next))links.push([i,byId.get(next)]);
+   boardMiniMapCache={session:s.id,
+     packet:{t:'board-minimap-map',session:s.id,version:s.map.version,
+       width:s.map.width,height:s.map.height,nodes,links}};
+   return boardMiniMapCache;
+ }
+ function sendBoardMiniMap(conn){
+   const s=boardSession;
+   if(!s||round?.mode!=='board'||!conn?.open||!conn.playerId||
+      conn.previewEnabled!==true||conn.boardMinimapCapable!==true)return;
+   const cache=boardMiniMapTopology();
+   if(conn.boardMiniMapSession!==cache.session){
+     send(conn,cache.packet);
+     conn.boardMiniMapSession=cache.session;
+   }
+   const active=window.BoardParty.current(s);
+   send(conn,{t:'board-minimap-positions',session:s.id,turnId:s.turnId,
+     activeId:active?.id||null,
+     players:s.players.map(p=>{
+       const v=window.BoardItems.position(s,p);
+       return [p.id,Math.round(v.x),Math.round(v.y),p.color];
+     })});
+ }
+ function broadcastBoardMiniMap(dt){
+   boardMiniMapClock+=Math.min(.1,Math.max(0,Number(dt)||0));
+   if(boardMiniMapClock<1/12)return;
+   boardMiniMapClock=0;
+   for(const conn of hostConnections)sendBoardMiniMap(conn);
+ }
+ let phoneMiniMap=null,phoneMiniMapPositions=null;
+ function showPhoneMiniMap(){
+   const visible=controllerPreviewEnabled&&controllerGameMode==='board'&&!!phoneMiniMap;
+   const canvas=$('controllerBoardMinimap');
+   canvas.classList.toggle('hidden',!visible);
+   if(!visible)return;
+   $('controllerPreviewImage').classList.add('hidden');
+   $('controllerPreviewVideo').classList.add('hidden');
+   $('controllerPreviewPlaceholder').classList.add('hidden');
+   renderPhoneMiniMap();
+ }
+ function receivePhoneMiniMapMap(packet){
+   if(!packet||typeof packet.session!=='string'||packet.session.length>120||
+      !Array.isArray(packet.nodes)||packet.nodes.length>600||
+      !Array.isArray(packet.links)||packet.links.length>1000||
+      !Number.isFinite(packet.width)||!Number.isFinite(packet.height)||
+      packet.width<=0||packet.height<=0||packet.width>100000||packet.height>100000)return;
+   if(!packet.nodes.every(n=>Array.isArray(n)&&n.length===2&&n.every(v=>
+      Number.isFinite(v)&&v>=0&&v<=100000)))return;
+   if(!packet.links.every(l=>Array.isArray(l)&&l.length===2&&l.every(i=>
+      Number.isSafeInteger(i)&&i>=0&&i<packet.nodes.length)))return;
+   phoneMiniMap={session:packet.session,width:packet.width,height:packet.height,
+      nodes:packet.nodes,links:packet.links};
+   phoneMiniMapPositions=null;showPhoneMiniMap();
+ }
+ function receivePhoneMiniMapPositions(packet){
+   if(!phoneMiniMap||packet?.session!==phoneMiniMap.session||
+      !Array.isArray(packet.players)||packet.players.length>12||
+      !packet.players.every(p=>Array.isArray(p)&&p.length===4&&
+        typeof p[0]==='string'&&p[0].length<50&&
+        Number.isFinite(p[1])&&Number.isFinite(p[2])&&
+        typeof p[3]==='string'&&/^#[a-fA-F0-9]{6}$/.test(p[3])))return;
+   phoneMiniMapPositions=packet;
+   showPhoneMiniMap();
+ }
+ function renderPhoneMiniMap(){
+   const canvas=$('controllerBoardMinimap'),map=phoneMiniMap;
+   if(!map||!canvas||typeof canvas.getContext!=='function')return;
+   const ctx=canvas.getContext('2d');
+   if(!ctx)return;
+   const w=canvas.width,h=canvas.height;
+   ctx.fillStyle='#0b1927';ctx.fillRect(0,0,w,h);
+   const players=phoneMiniMapPositions?.players||[];
+   const mine=players.find(p=>p[0]===controllerId);
+   // Follow the local player without requiring full-board JPEG retransmission.
+   const worldW=Math.min(map.width,Math.max(1150,map.width*.37));
+   const worldH=Math.min(map.height,Math.max(670,map.height*.37));
+   const focusX=mine?.[1]??map.width/2,focusY=mine?.[2]??map.height/2;
+   const left=Math.max(0,Math.min(map.width-worldW,focusX-worldW/2));
+   const top=Math.max(0,Math.min(map.height-worldH,focusY-worldH/2));
+   const scale=Math.min((w-16)/worldW,(h-16)/worldH);
+   const originX=(w-worldW*scale)/2,originY=(h-worldH*scale)/2;
+   const project=(x,y)=>[originX+(x-left)*scale,originY+(y-top)*scale];
+   ctx.beginPath();
+   ctx.strokeStyle='#728ba3';ctx.lineWidth=2.5;ctx.lineCap='round';
+   for(const [a,b] of map.links){
+     const u=map.nodes[a],v=map.nodes[b];
+     if(Math.max(u[0],v[0])<left||Math.min(u[0],v[0])>left+worldW||
+        Math.max(u[1],v[1])<top||Math.min(u[1],v[1])>top+worldH)continue;
+     const [x,y]=project(u[0],u[1]),[x2,y2]=project(v[0],v[1]);
+     ctx.moveTo(x,y);ctx.lineTo(x2,y2);
+   }
+   ctx.stroke();
+   ctx.fillStyle='#d5e8e9';
+   for(const n of map.nodes){
+     if(n[0]<left||n[0]>left+worldW||n[1]<top||n[1]>top+worldH)continue;
+     const [x,y]=project(...n);
+     ctx.beginPath();ctx.arc(x,y,1.8,0,Math.PI*2);ctx.fill();
+   }
+   for(const p of players){
+     const [x,y]=project(p[1],p[2]);
+     if(x<0||x>w||y<0||y>h)continue;
+     const own=p[0]===controllerId,active=p[0]===phoneMiniMapPositions.activeId;
+     ctx.beginPath();ctx.fillStyle=p[3];ctx.arc(x,y,own?8:5.8,0,Math.PI*2);ctx.fill();
+     ctx.strokeStyle=own?'#ffffff':active?'#ffe49a':'#142536';
+     ctx.lineWidth=own?2.5:2;ctx.stroke();
+   }
+   ctx.fillStyle='#eaf8ff';ctx.font='bold 12px system-ui';
+   ctx.fillText('BOARD • ตำแหน่งสด',9,17);
+   ctx.font='10px system-ui';ctx.fillText(players.length+'/12',w-38,17);
+ }
 function boardRegistry(){return Object.fromEntries(modesFor('board').map(id=>{
  const platform=window.GamePlatform,d=platform?.descriptor(id);
  if(d&&(players.length<d.players.min||players.length>d.players.max))return [id,null];
@@ -2800,6 +3233,7 @@ function beginBoard(){
   try{
     tournament=null;gameSelection=null;
     boardSession=window.BoardParty.create(players);
+     boardMiniMapCache=null;boardMiniMapClock=0;
     boardSession.camera.lowDetail=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
      boardSession.camera.manualDetail=boardSession.camera.lowDetail;
      boardSession.camera.autoDetailEngaged=false;
@@ -2860,7 +3294,7 @@ function showBoard(){
   canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
   renderLeaderboard();broadcastRoster();renderBotTestPad();
   remotePreviewClock=1.1;
-  for(const conn of hostConnections)startHostVideoCall(conn);
+  for(const conn of hostConnections){startHostVideoCall(conn);sendBoardMiniMap(conn);}
 }
 function updateBoard(dt){
   const s=boardSession;if(!s||round.phase==='results')return;
@@ -2890,6 +3324,7 @@ function updateBoard(dt){
   boardStateClock+=dt;
   const stateKey=s.turnId+':'+s.phase+':'+window.BoardParty.remainingSteps(s,window.BoardParty.current(s)?.id);
   if(boardStateToken!==stateKey||boardStateClock>.2){broadcastBoardState();boardStateClock=0;boardStateToken=stateKey;}
+  broadcastBoardMiniMap(dt);
 }
 function broadcastBoardState(){
   if(!boardSession||round?.mode!=='board')return;

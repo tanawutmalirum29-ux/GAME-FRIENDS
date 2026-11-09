@@ -122,6 +122,76 @@ function partyPeerOptions(){
  }));
  return iceServers.length?{debug:0,config:{iceServers}}:{debug:0};
 }
+
+ // An optional public endpoint issues coturn REST credentials for each Peer
+ // lifecycle. No shared TURN secret is ever present in browser source.
+ let partyIceFetch=null,partyIceExpiry=0,partyIceLastAttempt=0,partyIceTimer=null;
+ function partyIceUpdatePeers(servers){
+  for(const peer of [hostPeer,controllerPeer]){
+   if(!peer?.options)return;
+   try{peer.options.config={...peer.options.config,iceServers:servers};}catch(_){}
+  }
+ }
+ function partyIceRefreshLater(expiresAt){
+  if(partyIceTimer!==null)clearTimeout(partyIceTimer);
+  partyIceTimer=setTimeout(()=>{
+   partyIceTimer=null;
+   const pending=partyIceCredentialsReady();
+   if(pending)void pending.catch(()=>{});
+  },Math.max(30000,expiresAt-Date.now()-90000));
+ }
+ // Return null for unconfigured/fresh/cooldown paths, Promise only when an
+ // asynchronous fetch is actually required. Existing offline and smoke flows
+ // keep their synchronous Peer creation behavior.
+ function partyIceCredentialsReady(){
+  const setting=window.GF_TURN_CREDENTIALS_ENDPOINT;
+  if(typeof setting!=='string'||!setting.trim())return null;
+  const now=Date.now();
+  if(partyIceExpiry-now>90000)return null;
+  if(partyIceFetch)return partyIceFetch;
+  if(now-partyIceLastAttempt<30000)return null;
+  let endpoint;
+  try{
+   endpoint=new URL(setting,window.location?.href||location.href);
+   if(endpoint.protocol!=='https:'&&!(endpoint.hostname==='localhost'&&endpoint.protocol==='http:'))
+    return null;
+  }catch(_){return null;}
+  partyIceLastAttempt=now;
+  partyIceFetch=(async()=>{
+   const abort=typeof AbortController==='function'?new AbortController():null;
+   const timeout=abort?setTimeout(()=>abort.abort(),4000):null;
+   try{
+    const response=await fetch(endpoint.href,{method:'GET',credentials:'omit',
+      cache:'no-store',signal:abort?.signal});
+    if(!response.ok)throw Error('TURN endpoint returned HTTP '+response.status);
+    const data=await response.json();
+    if(!data||!Array.isArray(data.iceServers)||!Number.isFinite(data.expiresAt)||
+       data.expiresAt<Date.now()+60000||data.expiresAt>Date.now()+3600000||
+       !data.iceServers.some(entry=>{
+        const urls=Array.isArray(entry?.urls)?entry.urls:[entry?.urls];
+        return urls.some(url=>typeof url==='string'&&/^turns?:/i.test(url));
+       }))throw Error('TURN endpoint returned invalid/expired ICE data');
+    const before=window.GF_ICE_SERVERS;
+    window.GF_ICE_SERVERS=data.iceServers;
+    const validated=partyPeerOptions().config?.iceServers;
+    if(!validated){window.GF_ICE_SERVERS=before;throw Error('Invalid ICE configuration');}
+    partyIceExpiry=data.expiresAt;
+    partyIceUpdatePeers(validated);
+    partyIceRefreshLater(partyIceExpiry);
+   }catch(error){
+    if(partyIceExpiry<=Date.now()){
+     partyIceExpiry=0;window.GF_ICE_SERVERS=null;
+    }
+    console.warn('TURN credentials unavailable; using direct PeerJS ICE fallback',error);
+    if(hostPeer||controllerPeer)partyIceRefreshLater(Date.now()+120000);
+   }finally{
+    if(timeout!==null)clearTimeout(timeout);
+    partyIceFetch=null;
+   }
+  })();
+  return partyIceFetch;
+ }
+
 const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
 const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
 const seatTimers=new Map();let reconnectTimer=null,reconnectTries=0;

@@ -128,6 +128,7 @@ function stopAllHostVideoCalls(){
   hostVideoSources.clear();
 }
 function startHostVideoCall(conn){
+  if(round?.mode==='board'&&conn?.boardMinimapCapable===true){stopHostVideoCall(conn);return;}
   if(!round||round.phase==='roulette'||!hostPeer||!onlineHost||!conn||!conn.open||!conn.playerId||conn.previewEnabled!==true)return;
   stopHostVideoCall(conn);
   conn.videoReady=false;
@@ -153,7 +154,8 @@ function startHostVideoCall(conn){
 function broadcastGamePreview(){
   if(!round||!onlineHost||!remotePreviewContext||hostConnections.size===0)return;
   const active=[...hostConnections].filter(c=>
-    c.open&&c.playerId&&c.previewEnabled===true&&!c.videoReady&&
+    c.open&&c.playerId&&c.previewEnabled===true&&
+    !(round?.mode==='board'&&c.boardMinimapCapable===true)&&!c.videoReady&&
     (!c.dataChannel||c.dataChannel.bufferedAmount<65536));
   if(!active.length||typeof remotePreviewCanvas.toDataURL!=='function')return;
   try{
@@ -618,6 +620,65 @@ function renderQr(code){
   }
   box.textContent='QR ไม่พร้อม กรุณาคัดลอกลิงก์';
 }
+
+function fastAxisSessionToken(){
+ const bytes=new Uint8Array(16);
+ if(!window.crypto?.getRandomValues)return null;
+ window.crypto.getRandomValues(bytes);
+ return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+}
+function acceptFastAxisConnection(conn){
+ const meta=conn?.metadata;
+ const player=meta?.kind==='gf-axis-v1'&&typeof meta.playerId==='string'&&
+   typeof meta.token==='string'&&/^[a-f0-9]{32}$/.test(meta.token)?
+   players.find(p=>p.id===meta.playerId&&p.conn?.peer===conn.peer&&
+     p.conn?.fastAxisToken===meta.token):null;
+ if(!player){try{conn.close();}catch(_){}return;}
+ const primary=player.conn,guard=createFastAxisIngressGuard();
+ const cleanup=()=>{
+  guard.dispose();
+  if(primary.fastAxisConn===conn){
+    primary.fastAxisConn=null;primary.fastAxisLastAt=0;
+    // Avoid a held direction when the unacknowledged fast path disappears.
+    player.input.axisX=0;player.input.axisY=0;
+  }
+ };
+ conn.on('open',()=>{
+  // Only true unordered zero-retransmission RTCDataChannels qualify.
+  const dc=conn.dataChannel;
+  if(primary!==player.conn||dc?.ordered!==false||dc?.maxRetransmits!==0){
+   try{conn.close();}catch(_){}return;
+  }
+  if(primary.fastAxisConn&&primary.fastAxisConn!==conn)
+   try{primary.fastAxisConn.close();}catch(_){}
+  primary.fastAxisConn=conn;primary.fastAxisLastAt=0;
+  send(primary,{t:'axis-ready'});
+ });
+ conn.on('data',packet=>{
+  if(primary.fastAxisConn!==conn||player.conn!==primary||
+     !conn.open||!guard.accept(packet)||!round||round.paused)return;
+  const x=Math.max(-1,Math.min(1,packet.x)),y=Math.max(-1,Math.min(1,packet.y));
+  primary.fastAxisX=x;primary.fastAxisY=y;primary.fastAxisLastAt=Date.now();
+  player.lastInputAt=Date.now();
+  if(round.mode==='board'&&boardSession){
+   const board=boardSession;
+   if(packet.turnId!==board.turnId||packet.mapVersion!==board.map.version||
+      window.BoardParty.current(board)?.id!==player.id||
+      primary.boardCameraGestureToken===board.turnId)return;
+   const previous=board.inputs[player.id];
+   const held=previous?.turnId===board.turnId?previous:{};
+   window.BoardParty.input(board,player.id,{
+    turnId:board.turnId,mapVersion:board.map.version,
+    actionId:(board.lastActions[player.id]??-1)+1,
+    keys:{axisX:x,axisY:y,action:held.a===true,alt:held.b===true,cancel:held.c===true}
+   });
+  }else if(round.phase==='playing'){
+   player.input.axisX=x;player.input.axisY=y;
+  }
+ });
+ conn.on('close',cleanup);conn.on('error',cleanup);
+}
+
 let hostNetworkLoad=null;
 function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   if(expectedAttempt!==null&&expectedAttempt!==hostOpenAttempt)return;
@@ -645,6 +706,17 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   if(location.protocol==='file:'){
     closeHost();showToast('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย',true);return;
   }
+  const turnBootstrap=partyIceCredentialsReady();
+  if(turnBootstrap){
+    const initialAttempt=hostOpenAttempt,initialView=currentView;
+    $('hostBtn').disabled=true;
+    setStatus('กำลังเตรียมการเชื่อมต่อเครือข่าย...');
+    void turnBootstrap.then(()=>{
+      if(initialAttempt===hostOpenAttempt&&initialView===currentView)
+        startHost(retries,resumeCode,expectedAttempt);
+    });
+    return;
+  }
   const attempt=expectedAttempt??++hostOpenAttempt;
   if(expectedAttempt===null)resetHostReconnect();
   const code=resumeCode||randomCode();
@@ -670,6 +742,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   });
   peer.on('connection',conn=>{
     if(hostPeer!==peer){conn.close();return;}
+    if(conn.metadata?.kind==='gf-axis-v1'){acceptFastAxisConnection(conn);return;}
     hostConnections.add(conn);
     const ingress=createControllerIngressGuard();
     conn.on('data',msg=>{
@@ -690,8 +763,10 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
           p.clientToken=token;
           if(round&&round.phase!=='results')p.active=false;
         }
-        conn.playerId=p.id;conn.previewEnabled=false;p.lastInputAt=Date.now();
-        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active});
+        conn.playerId=p.id;conn.previewEnabled=false;conn.boardMinimapCapable=false;
+        conn.boardMiniMapSession=null;conn.fastAxisToken=fastAxisSessionToken();
+        conn.fastAxisConn=null;conn.fastAxisLastAt=0;p.lastInputAt=Date.now();
+        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active,axisToken:conn.fastAxisToken});
         broadcastRoster();
         if(['results','summary'].includes(round?.phase))renderResultVotes(true);
       }else if(msg.t==='leave'&&conn.playerId){
@@ -708,8 +783,11 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         if(conn.previewEnabled===true&&msg.quality===conn.videoQuality)conn.videoReady=true;
       }else if(msg.t==='preview-toggle'&&conn.playerId&&typeof msg.enabled==='boolean'){
         conn.previewEnabled=msg.enabled;
-        if(msg.enabled){if(round)startHostVideoCall(conn);}
-        else stopHostVideoCall(conn);
+        if(msg.enabled){
+          conn.boardMinimapCapable=msg.minimap===true;
+          if(round){startHostVideoCall(conn);sendBoardMiniMap(conn);}
+        }
+        else{conn.boardMinimapCapable=false;stopHostVideoCall(conn);}
       }else if(msg.t==='board-camera-mode'&&conn.playerId){
         const s=boardSession;
         const valid=round?.mode==='board'&&round.phase==='playing'&&!round.paused&&s&&
@@ -792,20 +870,36 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
            conn.lastInputAckAt=p.lastInputAt;
            send(conn,{t:'input-ack',actionId:msg.actionId,clientAt:msg.clientAt});
          }
+        if(Number.isSafeInteger(msg.actionId)){
+          if(msg.actionId<=(conn.lastReliableActionId??-1))return;
+          conn.lastReliableActionId=msg.actionId;
+        }
         if(round?.mode==='board'&&boardSession){
           const locked=conn.boardCameraGestureToken===boardSession.turnId;
           const input=locked?{...msg,keys:{...msg.keys,left:false,right:false,jump:false,
             down:false,axisX:0,axisY:0,
              ...(boardSession.phase==='ready'?{action:false,alt:false,cancel:false}:{})}}:msg;
+          if(conn.fastAxisConn?.open){
+            // Independent server sequence prevents unordered axis updates from
+            // suppressing a later reliable A/B/C button transition.
+            input.actionId=(boardSession.lastActions[p.id]??-1)+1;
+            if(Date.now()-(conn.fastAxisLastAt||0)<250){
+              input.keys.axisX=conn.fastAxisX||0;input.keys.axisY=conn.fastAxisY||0;
+            }
+          }
           window.BoardParty.input(boardSession,p.id,input);return;
         }
         for(const k of INPUT_NAMES)p.input[k]=msg.keys&&msg.keys[k]===true;
-        p.input.axisX=Number.isFinite(msg.keys&&msg.keys.axisX)?clamp(msg.keys.axisX,-1,1):0;
-        p.input.axisY=Number.isFinite(msg.keys&&msg.keys.axisY)?clamp(msg.keys.axisY,-1,1):0;
+        if(!(conn.fastAxisConn?.open&&Date.now()-(conn.fastAxisLastAt||0)<250)){
+          p.input.axisX=Number.isFinite(msg.keys&&msg.keys.axisX)?clamp(msg.keys.axisX,-1,1):0;
+          p.input.axisY=Number.isFinite(msg.keys&&msg.keys.axisY)?clamp(msg.keys.axisY,-1,1):0;
+        }
       }
     });
     function lost(){
       ingress.dispose();
+      if(conn.fastAxisConn)try{conn.fastAxisConn.close();}catch(_){}
+      conn.fastAxisToken=null;conn.fastAxisConn=null;
       stopHostVideoCall(conn);hostConnections.delete(conn);
       if(!onlineHost||!conn.playerId)return;
       const p=players.find(q=>q.id===conn.playerId&&q.conn===conn);

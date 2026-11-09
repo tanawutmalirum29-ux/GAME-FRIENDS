@@ -1,3 +1,127 @@
+
+ // BOARD controller minimap: immutable road topology once per board session,
+ // then at most twelve lightweight live positions at roughly 12 Hz.
+ let boardMiniMapClock=0,boardMiniMapCache=null;
+ function boardMiniMapTopology(){
+   const s=boardSession;if(!s)return null;
+   if(boardMiniMapCache?.session===s.id)return boardMiniMapCache;
+   const ids=Object.keys(s.map.nodes),byId=new Map(ids.map((id,i)=>[id,i]));
+   const nodes=ids.map(id=>{
+     const p=s.map.nodes[id].position;
+     return [Math.round(p.x),Math.round(p.y)];
+   });
+   const links=[];
+   for(const [i,id] of ids.entries())for(const next of s.map.nodes[id].nextNodes)
+     if(byId.has(next))links.push([i,byId.get(next)]);
+   boardMiniMapCache={session:s.id,
+     packet:{t:'board-minimap-map',session:s.id,version:s.map.version,
+       width:s.map.width,height:s.map.height,nodes,links}};
+   return boardMiniMapCache;
+ }
+ function sendBoardMiniMap(conn){
+   const s=boardSession;
+   if(!s||round?.mode!=='board'||!conn?.open||!conn.playerId||
+      conn.previewEnabled!==true||conn.boardMinimapCapable!==true)return;
+   const cache=boardMiniMapTopology();
+   if(conn.boardMiniMapSession!==cache.session){
+     send(conn,cache.packet);
+     conn.boardMiniMapSession=cache.session;
+   }
+   const active=window.BoardParty.current(s);
+   send(conn,{t:'board-minimap-positions',session:s.id,turnId:s.turnId,
+     activeId:active?.id||null,
+     players:s.players.map(p=>{
+       const v=window.BoardItems.position(s,p);
+       return [p.id,Math.round(v.x),Math.round(v.y),p.color];
+     })});
+ }
+ function broadcastBoardMiniMap(dt){
+   boardMiniMapClock+=Math.min(.1,Math.max(0,Number(dt)||0));
+   if(boardMiniMapClock<1/12)return;
+   boardMiniMapClock=0;
+   for(const conn of hostConnections)sendBoardMiniMap(conn);
+ }
+ let phoneMiniMap=null,phoneMiniMapPositions=null;
+ function showPhoneMiniMap(){
+   const visible=controllerPreviewEnabled&&controllerGameMode==='board'&&!!phoneMiniMap;
+   const canvas=$('controllerBoardMinimap');
+   canvas.classList.toggle('hidden',!visible);
+   if(!visible)return;
+   $('controllerPreviewImage').classList.add('hidden');
+   $('controllerPreviewVideo').classList.add('hidden');
+   $('controllerPreviewPlaceholder').classList.add('hidden');
+   renderPhoneMiniMap();
+ }
+ function receivePhoneMiniMapMap(packet){
+   if(!packet||typeof packet.session!=='string'||packet.session.length>120||
+      !Array.isArray(packet.nodes)||packet.nodes.length>600||
+      !Array.isArray(packet.links)||packet.links.length>1000||
+      !Number.isFinite(packet.width)||!Number.isFinite(packet.height)||
+      packet.width<=0||packet.height<=0||packet.width>100000||packet.height>100000)return;
+   if(!packet.nodes.every(n=>Array.isArray(n)&&n.length===2&&n.every(v=>
+      Number.isFinite(v)&&v>=0&&v<=100000)))return;
+   if(!packet.links.every(l=>Array.isArray(l)&&l.length===2&&l.every(i=>
+      Number.isSafeInteger(i)&&i>=0&&i<packet.nodes.length)))return;
+   phoneMiniMap={session:packet.session,width:packet.width,height:packet.height,
+      nodes:packet.nodes,links:packet.links};
+   phoneMiniMapPositions=null;showPhoneMiniMap();
+ }
+ function receivePhoneMiniMapPositions(packet){
+   if(!phoneMiniMap||packet?.session!==phoneMiniMap.session||
+      !Array.isArray(packet.players)||packet.players.length>12||
+      !packet.players.every(p=>Array.isArray(p)&&p.length===4&&
+        typeof p[0]==='string'&&p[0].length<50&&
+        Number.isFinite(p[1])&&Number.isFinite(p[2])&&
+        typeof p[3]==='string'&&/^#[a-fA-F0-9]{6}$/.test(p[3])))return;
+   phoneMiniMapPositions=packet;
+   showPhoneMiniMap();
+ }
+ function renderPhoneMiniMap(){
+   const canvas=$('controllerBoardMinimap'),map=phoneMiniMap;
+   if(!map||!canvas||typeof canvas.getContext!=='function')return;
+   const ctx=canvas.getContext('2d');
+   if(!ctx)return;
+   const w=canvas.width,h=canvas.height;
+   ctx.fillStyle='#0b1927';ctx.fillRect(0,0,w,h);
+   const players=phoneMiniMapPositions?.players||[];
+   const mine=players.find(p=>p[0]===controllerId);
+   // Follow the local player without requiring full-board JPEG retransmission.
+   const worldW=Math.min(map.width,Math.max(1150,map.width*.37));
+   const worldH=Math.min(map.height,Math.max(670,map.height*.37));
+   const focusX=mine?.[1]??map.width/2,focusY=mine?.[2]??map.height/2;
+   const left=Math.max(0,Math.min(map.width-worldW,focusX-worldW/2));
+   const top=Math.max(0,Math.min(map.height-worldH,focusY-worldH/2));
+   const scale=Math.min((w-16)/worldW,(h-16)/worldH);
+   const originX=(w-worldW*scale)/2,originY=(h-worldH*scale)/2;
+   const project=(x,y)=>[originX+(x-left)*scale,originY+(y-top)*scale];
+   ctx.beginPath();
+   ctx.strokeStyle='#728ba3';ctx.lineWidth=2.5;ctx.lineCap='round';
+   for(const [a,b] of map.links){
+     const u=map.nodes[a],v=map.nodes[b];
+     if(Math.max(u[0],v[0])<left||Math.min(u[0],v[0])>left+worldW||
+        Math.max(u[1],v[1])<top||Math.min(u[1],v[1])>top+worldH)continue;
+     const [x,y]=project(u[0],u[1]),[x2,y2]=project(v[0],v[1]);
+     ctx.moveTo(x,y);ctx.lineTo(x2,y2);
+   }
+   ctx.stroke();
+   ctx.fillStyle='#d5e8e9';
+   for(const n of map.nodes){
+     if(n[0]<left||n[0]>left+worldW||n[1]<top||n[1]>top+worldH)continue;
+     const [x,y]=project(...n);
+     ctx.beginPath();ctx.arc(x,y,1.8,0,Math.PI*2);ctx.fill();
+   }
+   for(const p of players){
+     const [x,y]=project(p[1],p[2]);
+     if(x<0||x>w||y<0||y>h)continue;
+     const own=p[0]===controllerId,active=p[0]===phoneMiniMapPositions.activeId;
+     ctx.beginPath();ctx.fillStyle=p[3];ctx.arc(x,y,own?8:5.8,0,Math.PI*2);ctx.fill();
+     ctx.strokeStyle=own?'#ffffff':active?'#ffe49a':'#142536';
+     ctx.lineWidth=own?2.5:2;ctx.stroke();
+   }
+   ctx.fillStyle='#eaf8ff';ctx.font='bold 12px system-ui';
+   ctx.fillText('BOARD • ตำแหน่งสด',9,17);
+   ctx.font='10px system-ui';ctx.fillText(players.length+'/12',w-38,17);
+ }
 function boardRegistry(){return Object.fromEntries(modesFor('board').map(id=>{
  const platform=window.GamePlatform,d=platform?.descriptor(id);
  if(d&&(players.length<d.players.min||players.length>d.players.max))return [id,null];
@@ -60,6 +184,7 @@ function beginBoard(){
   try{
     tournament=null;gameSelection=null;
     boardSession=window.BoardParty.create(players);
+     boardMiniMapCache=null;boardMiniMapClock=0;
     boardSession.camera.lowDetail=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
      boardSession.camera.manualDetail=boardSession.camera.lowDetail;
      boardSession.camera.autoDetailEngaged=false;
@@ -120,7 +245,7 @@ function showBoard(){
   canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
   renderLeaderboard();broadcastRoster();renderBotTestPad();
   remotePreviewClock=1.1;
-  for(const conn of hostConnections)startHostVideoCall(conn);
+  for(const conn of hostConnections){startHostVideoCall(conn);sendBoardMiniMap(conn);}
 }
 function updateBoard(dt){
   const s=boardSession;if(!s||round.phase==='results')return;
@@ -150,6 +275,7 @@ function updateBoard(dt){
   boardStateClock+=dt;
   const stateKey=s.turnId+':'+s.phase+':'+window.BoardParty.remainingSteps(s,window.BoardParty.current(s)?.id);
   if(boardStateToken!==stateKey||boardStateClock>.2){broadcastBoardState();boardStateClock=0;boardStateToken=stateKey;}
+  broadcastBoardMiniMap(dt);
 }
 function broadcastBoardState(){
   if(!boardSession||round?.mode!=='board')return;
