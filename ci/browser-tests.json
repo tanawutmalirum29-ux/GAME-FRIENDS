@@ -108,6 +108,13 @@
         "chromium": 15,
         "webkit": 24
       }
+    },
+    {
+      "file": "tests/controller-stage-browser.cjs",
+      "browsers": {
+        "chromium": 18,
+        "webkit": 28
+      }
     }
   ]
 }
