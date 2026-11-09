@@ -1,7 +1,6 @@
 {
   "id": "color_switch",
   "name": "COLOR SWITCH",
-  "version": "1.0.1",
   "apiVersion": 1,
   "enabled": true,
   "players": {

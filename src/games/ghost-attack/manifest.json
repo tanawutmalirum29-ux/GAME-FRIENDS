@@ -1,7 +1,6 @@
 {
   "id": "ghost",
   "name": "GHOST ATTACK",
-  "version": "1.0.1",
   "apiVersion": 1,
   "enabled": true,
   "players": {
