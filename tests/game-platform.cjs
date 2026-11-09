@@ -8,15 +8,18 @@ const {execFileSync,spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..');
 const builder=require('../scripts/build-game-catalog.cjs');
 const catalog=builder.build();
-const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,BOARD_CORE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
+const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,pruneHostCore,BOARD_CORE_SCRIPTS,HOST_ROUTE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
 assert.equal(catalog.schema,1);
 const originalHTML=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const lazyHTML=pruneAppBoot(pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog))));
+const lazyHTML=pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog)))));
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/peerjs@'),'offline bootstrap never fetches PeerJS');
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/qrcodejs@'),'controller bootstrap never fetches QRCode');
 assert.ok(lazyHTML.includes('src="./src/platform/runtime-deps.js"'));
 
 for(const file of BOARD_CORE_SCRIPTS)assert.ok(!lazyHTML.includes('src="./'+file+'"'),'BOARD core should be lazy: '+file);
+for(const file of HOST_ROUTE_SCRIPTS)assert.ok(!lazyHTML.includes('src="./'+file+'"'),
+ 'controller bootstrap must defer host runtime: '+file);
+assert.ok(lazyHTML.includes('src="./src/platform/host-runtime.js"'));
 for(const game of catalog.games){
  for(const legacy of game.legacyUrls){
   const asset=legacy.split('/legacy/')[1];

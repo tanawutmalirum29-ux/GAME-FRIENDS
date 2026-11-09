@@ -5,9 +5,19 @@
 // Development/test HTML still loads the app.js compatibility bundle normally.
 if(document.querySelector('script[defer][src^="./app.js"]'))return;
 let loadPromise=null,delayedChoice=null;
+const params=new URLSearchParams(location.search);
+let saved=false;
+try{saved=Boolean(sessionStorage.getItem('gf-host-room-v2')||
+ sessionStorage.getItem('gf-offline-room-v1'));}catch(_){}
+const needHostAssets=params.get('host')==='1'||saved;
 function loadApp(){
  if(loadPromise)return loadPromise;
- loadPromise=new Promise((resolve,reject)=>{
+ loadPromise=Promise.resolve().then(()=>{
+  if(needHostAssets){
+   if(!window.GameHostRuntime)throw Error('Host runtime loader is missing');
+   return window.GameHostRuntime.ensure();
+  }
+ }).then(()=>new Promise((resolve,reject)=>{
   const script=document.createElement('script');
   const url=new URL('./app.js',document.baseURI);
   if(window.GAME_BUILD_VERSION)url.searchParams.set('v',String(window.GAME_BUILD_VERSION));
@@ -15,13 +25,9 @@ function loadApp(){
   script.onload=resolve;
   script.onerror=()=>{script.remove();reject(Error('Application bundle download failed'));};
   document.head.append(script);
- }).catch(error=>{loadPromise=null;throw error;});
+ })).catch(error=>{loadPromise=null;throw error;});
  return loadPromise;
 }
-const params=new URLSearchParams(location.search);
-let saved=false;
-try{saved=Boolean(sessionStorage.getItem('gf-host-room-v2')||
- sessionStorage.getItem('gf-offline-room-v1'));}catch(_){}
 const welcome=params.get('host')==='1'&&!params.get('join')&&!saved;
 if(!welcome){
  // A controller link and an existing room must restore immediately.

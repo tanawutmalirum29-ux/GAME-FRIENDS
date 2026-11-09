@@ -38,4 +38,10 @@ function pruneAppBoot(html){
  const tag=/^[ \t]*<script\s+defer\s+src="\.\/app\.js(?:\?v=[^"]*)?"\s*><\/script>\s*$/gm;
  return html.replace(tag,'');
 }
-module.exports={pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,BOARD_CORE_SCRIPTS,CDN_LIBRARIES};
+const HOST_ROUTE_SCRIPTS=new Set(["arena-scale.js","arena-art.js","graveyard-art.js","combat-motion.js","character-system.js"]);
+function pruneHostCore(html){
+ assert(typeof html==='string','index source must be a string');
+ const tag=/^[ \t]*<script\s+defer\s+src="\.\/([^"?]+)(?:\?v=[^"]*)?"\s*><\/script>\s*$/gm;
+ return html.replace(tag,(whole,asset)=>HOST_ROUTE_SCRIPTS.has(asset)?'':whole);
+}
+module.exports={pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,pruneHostCore,BOARD_CORE_SCRIPTS,HOST_ROUTE_SCRIPTS,CDN_LIBRARIES};
