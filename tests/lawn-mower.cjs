@@ -3,7 +3,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.join(__dirname,'..');
 const sandbox={window:{},Math,Date};
-for(const f of ['character-system.js','lawn-mower.js'])
+for(const f of ['character-system.js','src/games/lawn-mower/lawn-mower.js'])
  vm.runInNewContext(fs.readFileSync(path.join(root,f),'utf8'),sandbox,{filename:f});
 const G=sandbox.window.LawnMower;
 assert.equal(G.config.speed,50.75,'30% slower than the previous 72.5 units/second');
