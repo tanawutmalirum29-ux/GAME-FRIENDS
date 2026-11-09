@@ -706,6 +706,17 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   if(location.protocol==='file:'){
     closeHost();showToast('โปรดเปิดเว็บไซต์ผ่าน HTTPS เพื่อใช้มือถือเป็นจอย',true);return;
   }
+  const turnBootstrap=partyIceCredentialsReady();
+  if(turnBootstrap){
+    const initialAttempt=hostOpenAttempt,initialView=currentView;
+    $('hostBtn').disabled=true;
+    setStatus('กำลังเตรียมการเชื่อมต่อเครือข่าย...');
+    void turnBootstrap.then(()=>{
+      if(initialAttempt===hostOpenAttempt&&initialView===currentView)
+        startHost(retries,resumeCode,expectedAttempt);
+    });
+    return;
+  }
   const attempt=expectedAttempt??++hostOpenAttempt;
   if(expectedAttempt===null)resetHostReconnect();
   const code=resumeCode||randomCode();
