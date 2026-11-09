@@ -2,6 +2,7 @@
   "schema": 1,
   "description": "Source-of-truth components of app.js, assembled in order within the same lexical closure. Do not edit app.js directly.",
   "parts": [
+    "src/app/core/legacy-game-defaults.js",
     "src/app/core/runtime.js",
     "src/app/host/room.js",
     "src/app/controller/connection.js",

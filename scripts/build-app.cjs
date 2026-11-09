@@ -8,6 +8,9 @@ const output=path.join(root,'app.js'),controllerOutput=path.join(root,'app-contr
  manifestFile=path.join(root,'src/app/modules.json');
 const HOST_ONLY=new Set(['src/app/rounds/engine.js','src/app/rounds/results.js']);
 function assemble({write=false}={}){
+ // Build-time metadata is derived from game-owned manifests. Native game additions
+ // do not change this fallback nor the Core hash.
+ require('./build-legacy-defaults.cjs').buildLegacyDefaults({write});
  const manifest=JSON.parse(fs.readFileSync(manifestFile,'utf8'));
  assert.equal(manifest.schema,1);
  assert.ok(Array.isArray(manifest.parts)&&manifest.parts.length>=4);

@@ -7,6 +7,24 @@ const outcome=build.assemble();
 assert.ok(outcome.controllerBytes<outcome.bytes-15000,
  'controller bundle must exclude substantial host authority code');
 itemBuild.build();
+const defaults=vm.runInNewContext(
+ fs.readFileSync(path.join(root,'src/app/core/legacy-game-defaults.js'),'utf8')+
+ '\nLEGACY_GAME_DATA',{}
+);
+assert.deepEqual(Object.keys(defaults),[
+ 'ghost','chickens','fruit_memory','shockwave','color_switch','pizza_time',
+ 'knight_match','boulder_bash','snow_brawl','shopping_time','witching_snake',
+ 'lawn_mower','color_claim','ice_race','gladiators'
+],'Migrating to generated metadata must preserve the original picker order');
+assert.equal(defaults.ghost.controller.labels.A,'ตีสตั้น');
+assert.equal(defaults.shockwave.controller.status,'SHOCKWAVE • รอด {survivors} คน');
+const coreSource=fs.readFileSync(path.join(root,'src/app/core/runtime.js'),'utf8');
+assert.doesNotMatch(coreSource,/const MODES\\s*=\\s*\\{ghost:/,
+ 'core cannot own a hardcoded list of games');
+assert.match(coreSource,/Object.entries\\(LEGACY_GAME_DATA\\)/);
+const controllerSource=fs.readFileSync(path.join(root,'src/app/controller/connection.js'),'utf8');
+assert.doesNotMatch(controllerSource,/mode==='color_claim'\\?'ลากเส้น/,
+ 'game-specific help should come from manifests');
 const host=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const controller=fs.readFileSync(path.join(root,'app-controller.js'),'utf8');
 assert.ok(host.includes('function startRound('));
