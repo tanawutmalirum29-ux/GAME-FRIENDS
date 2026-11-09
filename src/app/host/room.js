@@ -815,12 +815,16 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
     const type=String(err?.type||'unknown');
     const fatal=new Set(['browser-incompatible','invalid-id','invalid-key','ssl-unavailable']);
-    const recoverable=new Set(['network','socket-error','socket-closed','server-error','disconnected','webrtc']);
+    const signaling=new Set(['network','socket-error','socket-closed','server-error','disconnected']);
     if(onlineHost){
       if(fatal.has(type)||type==='unavailable-id'||peer.destroyed){
         stopHostReconnect();
         setStatus('ไม่สามารถเชื่อมต่อห้องเดิม: '+type+' • สถานะเกมยังอยู่',true);
-      }else if(recoverable.has(type)||!fatal.has(type)){
+      }else if(peer.open&&!peer.disconnected&&!signaling.has(type)){
+        // peer-unavailable, per-connection WebRTC and unknown errors do
+        // not imply a lost signaling socket. Do not disrupt other clients.
+        setStatus('ข้อผิดพลาดการเชื่อมต่อย่อย: '+type+' • ห้องยังเปิดอยู่',true);
+      }else{
         if(!peer.disconnected)try{peer.disconnect();}catch(_){}
         recoverHostSignal(peer,attempt);
       }
