@@ -159,3 +159,13 @@ The catalog builder fingerprints and copies each dependency under its consuming
 `game-assets/<id>/<hash>/legacy/src/shared/` URL; it is not loaded on the
 Host or Controller bootstrap. This keeps art changes independent of the core
 fingerprint while preserving existing draw signatures and offline/local dev.
+
+### Partial catalog corruption isolation
+
+Valid same-core game releases can still appear when another catalog entry is
+malformed. The loader rejects the invalid entry individually, exposes the
+error using `GamePlatform.getInvalid()`, and keeps the most recently verified
+in-memory engine for that ID only if it is still explicitly enabled. A broken
+previously unseen game remains unavailable; malformed top-level catalog and
+incompatible core versions still fail closed. This does not make an invalid
+production build acceptable: the build-time catalog validator remains strict.
