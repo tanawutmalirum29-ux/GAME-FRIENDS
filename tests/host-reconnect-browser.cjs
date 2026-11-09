@@ -13,6 +13,8 @@ const server=http.createServer((req,res)=>{
  const file=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
  if(!file.startsWith(root+path.sep)||!fs.existsSync(file)){res.writeHead(404).end();return;}
  let content=fs.readFileSync(file);
+ if(file===path.join(root,'index.html'))
+  content=require('./helpers/legacy-game-html.cjs').withLegacyGameFixtures(content.toString());
  if(file===path.join(root,'app.js')){
   const source=content.toString();
   assert.ok(source.includes('requestAnimationFrame(animate);\n})();'));
