@@ -2,7 +2,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const ctx=vm.createContext({window:{},console});
-for(const file of ['board-map','board-dice','board-items','board-minigame','board-party'])vm.runInContext(fs.readFileSync(file+'.js','utf8'),ctx,{filename:file+'.js'});
+for(const file of ['board-map','board-dice','board-items','board-minigame','board-party'])vm.runInContext(fs.readFileSync('src/board-party/runtime/'+file+'.js','utf8'),ctx,{filename:file+'.js'});
 const {BoardMap:M,BoardItems:I,BoardParty:P}=ctx.window;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const pointInside=(p,poly)=>{let yes=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){

@@ -2,7 +2,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(){},drawFront(){},costumeFor(){return null;}}},console});
-for(const f of ['board-map','board-dice','board-items','board-bots','board-minigame','board-party','board-art'])vm.runInContext(fs.readFileSync(f+'.js','utf8'),ctx);
+for(const f of ['board-map','board-dice','board-items','board-bots','board-minigame','board-party','board-art'])vm.runInContext(fs.readFileSync('src/board-party/runtime/'+f+'.js','utf8'),ctx);
 const {BoardMap:M,BoardParty:P,BoardArt:A,BoardBots:B,BoardItems:I}=ctx.window;
 const game=()=>{const s=P.create([{id:'p1',name:'Explorer',color:'#ffc76e'}],{seed:23});s.order=['p1'];P.startTurn(s);return s;};
 const map=M.create(0),nodes=Object.values(map.nodes);
