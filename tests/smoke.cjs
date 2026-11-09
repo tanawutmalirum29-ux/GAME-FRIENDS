@@ -7,7 +7,7 @@ const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
 // production code or relying on internal globals.
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
-  'window.__ghostTest={getBoard:()=>boardSession,updateBoard,updateRound,beginBoard,showBoard,finishBoard,returnToLobby,getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,pickRandomEndlessGame,beginGameSelection,updateGameSelection,startRound,getSelection:()=>gameSelection,getTournament:()=>tournament,setRound:r=>{round=r;},possessBot,releaseBotPossession,toggleInfiniteBotItems,renderBotTestPad};\nrequestAnimationFrame(animate);\n})();');
+  'window.__ghostTest={getBoard:()=>boardSession,updateBoard,updateRound,beginBoard,showBoard,finishBoard,returnToLobby,getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,pickRandomEndlessGame,beginGameSelection,updateGameSelection,startRound,getSelection:()=>gameSelection,getTournament:()=>tournament,setRound:r=>{round=r;},possessBot,releaseBotPossession,toggleInfiniteBotItems,renderBotTestPad};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
@@ -1568,7 +1568,7 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
   mode:'fruit_memory',phase:'playing',paused:false,
   fruitMemory:{winnerId:null,tieIds:[three[0].id,three[1].id],rounds:2}
  });
- ui.scope.window.__ghostTest.endFruitMemoryRound();
+ ui.scope.window.__ghostTest.endRound();
  const heading=ui.elements.get('results').querySelector('h2');
  assert.match(heading.textContent,/เสมอ/);
  const rows=ui.elements.get('resultList').children;
@@ -1645,7 +1645,7 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  for(let rank=0;rank<12;rank++){
    for(let n=0;n<12-rank;n++)tiles[tileIndex++].ownerId=people[rank].id;
  }
- ui.scope.window.__ghostTest.endColorSwitchRound();
+ ui.scope.window.__ghostTest.endRound();
  const list=ui.elements.get('resultList');
  const rows=list.children.filter(row=>row.className==='result-player');
  assert.equal(rows.length,12,'all twelve result rows are present');
@@ -1833,7 +1833,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  let cursor=0;
  for(let rank=0;rank<players.length;rank++)
    for(let amount=0;amount<12-rank;amount++)tiles[cursor++].ownerId=players[rank].id;
- api.endColorSwitchRound();
+ api.endRound();
  assert.equal(round.phase,'results');
  assert.equal(round.autoNextRemaining,7,'seven-second result vote timer is unchanged');
  assert.equal(ui.elements.get('backBtn').textContent,'สรุปคะแนน');
@@ -1878,7 +1878,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  const ps=api.getPlayers(),s=api.getRound().colorSwitch;
  for(const tile of s.tiles)tile.ownerId=null;
  s.tiles[0].ownerId=ps[0].id;s.tiles[1].ownerId=ps[1].id;
- api.endColorSwitchRound();
+ api.endRound();
  assert.equal(ps[0].lastRoundPoints,11,'joint first gets 11');
  assert.equal(ps[1].lastRoundPoints,11,'joint first ties get 11');
  ui.click('backBtn');
@@ -1903,7 +1903,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  ui.click('startBtn');finishReel(ui);
  const api=ui.scope.window.__ghostTest;
  api.startRound('color_switch');
- const game=api.getRound();api.endColorSwitchRound();
+ const game=api.getRound();api.endRound();
  assert.equal(game.phase,'results');
  const packet=cons[0].sent.filter(x=>x.t==='result-votes').at(-1);
  assert.equal(packet.backLabel,'สรุปคะแนน');

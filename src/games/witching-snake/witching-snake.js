@@ -358,7 +358,14 @@ function draw(g,t,round,ps){
  // app.js paints the common clock for countdown/solo, or SVG headcount for
  // multiplayer survival; avoid painting a competing elapsed-time badge here.
 }
-window.WitchingSnake=Object.freeze({resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,spawnPositions,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const value=p.ws?.alive?Infinity:(p.ws?.eliminatedTick??0);
+  const label=(p.ws?.alive?'รอดชีวิต':'ตกรอบ')+' • '+(p.ws?.eliminatedAt??round.witchingSnake.clock).toFixed(1)+' วิ • ดาว '+(p.ws?.stars||0);
+  return {id:p.id,value,label};
+ });
+}
+window.WitchingSnake=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,spawnPositions,
  inside,segmentsTouch,distPointSegment2,addTrail,indexTrails,strikesTrail,
  eliminate,finish,config:CONFIG});
 })();

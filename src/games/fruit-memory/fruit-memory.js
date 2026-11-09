@@ -568,6 +568,14 @@ function draw(ctx,time,round,players){
  for(const p of players)drawPlayer(ctx,p,state,time);
  ctx.restore();
 }
-window.FruitMemory=Object.freeze({resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,updateDuringCountdown:true,setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const s=round.fruitMemory;
+ const value=p.id===s.winnerId?Infinity:(p.fruitEliminatedRound||p.fruitRounds||0);
+ const label=p.id===s.winnerId?'ผู้รอดคนสุดท้าย':(!s.winnerId&&s.tieIds?.includes(p.id)?'อันดับร่วม • ':'')+'ตกรอบ รอบ '+(p.fruitEliminatedRound||s.rounds);
+  return {id:p.id,value,label};
+ });
+}
+window.FruitMemory=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,updateDuringCountdown:true,setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
  calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawSideScreens,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();

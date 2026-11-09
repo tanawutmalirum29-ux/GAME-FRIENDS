@@ -344,6 +344,12 @@ function draw(ctx,time,round,ps){
  ctx.restore();
  // app.js draws the standardized clock after the engine render.
 }
-window.ShoppingTime=Object.freeze({resultTitle:"คิดเงินให้ได้คะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,size,flowAt,spawn,step,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const value=Number(p.score)||0;
+  return {id:p.id,value,label:value+" คะแนน"};
+ });
+}
+window.ShoppingTime=Object.freeze({getResult,resultTitle:"คิดเงินให้ได้คะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,size,flowAt,spawn,step,
   bombHit,pickup,checkoutPlayer,finish,config:C});
 })();

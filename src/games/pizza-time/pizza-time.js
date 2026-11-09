@@ -449,7 +449,13 @@ function draw(ctx,time,round,ps){
  }
  ctx.restore(); // Clock is drawn centrally by app.js.
 }
-window.PizzaTime=Object.freeze({resultTitle:"ส่งพิซซ่าให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,drawIngredient,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const value=Number(p.score)||0;
+  return {id:p.id,value,label:value+" ออร์เดอร์"};
+ });
+}
+window.PizzaTime=Object.freeze({getResult,resultTitle:"ส่งพิซซ่าให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,playerStatus,drawIngredient,
   worldSize,tableCount,pairCost,aStar,fairnessCandidates,ingredients:INGREDIENTS,
   planOrderCards,rectanglesOverlap});
 })();

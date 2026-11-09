@@ -1013,7 +1013,14 @@ function draw(ctx,t,round,players){
   drawObstacleIds(ctx,state);
   ctx.restore();
 }
-window.GhostAttack={resultTitle:"ผู้รอดคนสุดท้าย!",countdownSeconds:3,updateDuringCountdown:true,onCountdownFinished(round){round.ghost.ghostSpawned=true;},setup,update,draw,hud,itemStatus,cycleTarget,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const value=!p.ghost?Infinity:Math.floor((Number.isFinite(p.infectedAt)?p.infectedAt:Number.isFinite(p.survival)?p.survival:0)*10+1e-7);
+  const label=p.ghost?'ตกรอบ'+(Number.isFinite(p.infectedAt)?' • '+p.infectedAt.toFixed(1)+' วิ':''):'ผู้รอดคนสุดท้าย';
+  return {id:p.id,value,label};
+ });
+}
+window.GhostAttack={getResult,resultTitle:"ผู้รอดคนสุดท้าย!",countdownSeconds:3,updateDuringCountdown:true,onCountdownFinished(round){round.ghost.ghostSpawned=true;},setup,update,draw,hud,itemStatus,cycleTarget,
   mapInfo,obstacleAt,
   ITEM_NAMES,ITEM_SVG,getItemIconImage,constants:C};
 })();

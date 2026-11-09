@@ -65,6 +65,15 @@ for(const [name,engine,stateKey] of entries){
   const returned=E.setup(round,ps),s=round[stateKey]||returned;
   assert.ok(s,name+' '+n+': no map state');
   assert.equal(ps.length,n);
+  // A newly discovered plug-in must supply its own complete, ordered results
+  // for every supported 1–12 player tier without any per-mode Core branches.
+  assert.equal(typeof E.getResult,'function',name+' result provider');
+  const results=E.getResult(round,ps);
+  assert.equal(results.length,n,name+' result count at '+n+' players');
+  assert.equal(new Set(results.map(item=>item.id)).size,n,name+' duplicate result ID');
+  assert.ok(results.every(item=>typeof item.value==='number'&&!Number.isNaN(item.value)&&
+   typeof item.label==='string'),name+' malformed player results');
+  assert.ok(ps.every(p=>results.some(item=>item.id===p.id)),name+' missing player score');
   assert.ok(ps.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)),
     name+' '+n+': invalid spawn positions');
   const coords=new Set(ps.map(p=>p.x.toFixed(3)+','+p.y.toFixed(3)));

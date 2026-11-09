@@ -202,13 +202,16 @@ function castResultVote(conn,choice){
     else onResultBack();
   }
 }
+// All game-specific score calculations live in the owning engine's getResult API.
 function endPluginRound(){
- const results=round.pluginEngine.getResult(round,players),active=players.filter(p=>p.active);
+ const engine=round.pluginEngine,results=engine.getResult(round,players);
+ const active=players.filter(p=>p.active);
  if(!Array.isArray(results)||results.length!==active.length)throw Error('Incomplete plugin result');
  const scores=new Map();
  for(const item of results){
   if(!item||typeof item.id!=='string'||scores.has(item.id)||
-   typeof item.value!=='number'||Number.isNaN(item.value))throw Error('Invalid plugin result');
+   typeof item.value!=='number'||Number.isNaN(item.value))
+   throw Error('Invalid plugin result');
   scores.set(item.id,item);
  }
  if(active.some(p=>!scores.has(p.id)))throw Error('Result missing a participant');
@@ -220,7 +223,9 @@ function endPluginRound(){
  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
  round.autoNextRemaining=canAutoAdvanceResults()?7:0;
  const winners=ranked.filter(p=>rank(p)===1);
- $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'เสมอ • อันดับ 1 ร่วม';
+ const customTitle=engine.getResultHeading?.(round,ranked,winners);
+ $('results').querySelector('h2').textContent=typeof customTitle==='string'&&customTitle?
+  customTitle:winners.length===1?'ผู้ชนะ: '+winners[0].name:'เสมอ • อันดับ 1 ร่วม';
  const list=$('resultList');list.replaceChildren();
  for(const p of ranked){
   const item=scores.get(p.id),row=document.createElement('div');
@@ -229,584 +234,50 @@ function endPluginRound(){
   label.textContent='อันดับ '+rank(p)+(winners.length>1&&rank(p)===1?' ร่วม':'')+' • '+p.name;
   const detail=document.createElement('span');
   detail.textContent=(typeof item.label==='string'?item.label:
-    value(p)===Infinity?'ผู้รอดชีวิต':value(p)+' คะแนน')+totalScoreNote(p);
+   value(p)===Infinity?'ผู้รอดชีวิต':value(p)+' คะแนน')+totalScoreNote(p);
   row.append(label,detail);list.append(row);
  }
- $('results').classList.remove('hidden');$('gameBanner').textContent='';
- beginResultVoting();renderLeaderboard();
-}
-function endRound(){
-  if(!round||round.phase==='results')return;
-  if(boardSession?.phase==='minigame'){
-    const ranking=window.BoardMinigame.ranking(round,players);
-    // Ignore duplicate end notifications: board state accepts one result only.
-    if(window.BoardParty.minigameEnded(boardSession,ranking))showBoard();
-    return;
-  }
-  // After returning to the board, any delayed minigame "end" callback must
-  // not open the normal results page a second time.
-  if(boardSession&&round.mode==='board')return;
-  if(round.pluginEngine?.getResult&&round.mode!=='ghost'){endPluginRound();return;}
-   if(round.mode==='color_claim'){endColorClaimRound();return;}
-   if(round.mode==='snow_brawl'){endSnowBrawlRound();return;}
-   if(round.mode==='boulder_bash'){endBoulderBashRound();return;}
-    if(round.mode==='gladiators'){endGladiatorsRound();return;}
-    if(round.mode==='witching_snake'){endWitchingSnakeRound();return;}
-
-   if(round.mode==='lawn_mower'){endLawnMowerRound();return;}
-   if(round.mode==='ice_race'){endShoppingTimeRound();return;}
-   if(round.mode==='shopping_time'){endShoppingTimeRound();return;}
-   if(round.mode==='pizza_time'){endPizzaTimeRound();return;}
-   if(round.mode==='knight_match'){endKnightMatchRound();return;}
-   if(round.mode==='color_switch'){endColorSwitchRound();return;}
-  if(round.mode==='chickens'){endChickensRound();return;}
-  if(round.mode==='fruit_memory'){endFruitMemoryRound();return;}
-   if(round.mode==='shockwave'){endShockwaveRound();return;}
-  round.phase='results';round.paused=false;resetInputs();broadcastRoster();
-  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
-  // Same infection frame OR same 0.1-second score -> shared competition rank.
-  // When all humans are infected, winnerId is a fallback, not proof of a solo winner.
-  const finishValue=p=>!p.ghost?Infinity:
-    Math.floor((Number.isFinite(p.infectedAt)?p.infectedAt:
-      Number.isFinite(p.survival)?p.survival:0)*10+1e-7);
-  const ranked=players.filter(p=>p.active).sort((a,b)=>
-    finishValue(b)-finishValue(a)||String(a.id).localeCompare(String(b.id)));
-  const rankOf=p=>1+ranked.filter(q=>finishValue(q)>finishValue(p)).length;
-  const first=ranked.filter(p=>rankOf(p)===1);
-  $('results').querySelector('h2').textContent=first.length>1?
-    'เสมอ! อันดับ 1 ร่วม':first[0]&&!first[0].ghost?
-      'ผู้รอดคนสุดท้าย!':'อยู่รอดนานที่สุด!';
-  awardRoundPoints(ranked,rankOf);
-  round.autoNextRemaining=canAutoAdvanceResults()?7:0;
-  const list=$('resultList');list.replaceChildren();
-  ranked.forEach(p=>{
-    const rank=rankOf(p),tied=ranked.filter(q=>rankOf(q)===rank).length>1;
-    const row=document.createElement('div');row.className='result-player';
-    const label=document.createElement('div');
-    label.textContent=(rank===1?'ผู้ชนะ ':'')+'อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
-    label.style.color=p.color;
-    const detail=document.createElement('span');
-    detail.textContent=(p.ghost?'ตกรอบ':'ผู้รอดคนสุดท้าย')+
-      (p.ghost&&Number.isFinite(p.infectedAt)?' • '+p.infectedAt.toFixed(1)+' วิ':'')+
-      totalScoreNote(p);
-    row.append(label,detail);list.append(row);
-  });
-  if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-    const overall=[...ranked].sort((a,b)=>b.total-a.total);
-    list.replaceChildren();
-    overall.forEach(p=>{
-      const row=document.createElement('div');row.className='result-player';
-      const rank=1+overall.filter(q=>q.total>p.total).length;
-      const name=document.createElement('div');name.textContent='อันดับ '+rank+'. '+p.name;
-      name.style.color=p.color;
-      const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
-      row.append(name,score);list.append(row);
-    });
-    const heading=document.createElement('div');heading.className='tournament-header';
-    const top=overall.filter(p=>p.total===overall[0].total);
-    heading.textContent=top.length===1?'ผู้ชนะรวม: '+top[0].name:
-      'คะแนนรวมเสมอ: '+top.map(p=>p.name).join(', ');list.prepend(heading);
-  }
-  $('results').classList.remove('hidden');$('gameBanner').textContent='';
-  beginResultVoting();
-  renderLeaderboard();
-}
-
-function endColorClaimRound(){
- const state=round.colorClaim;
- round.phase='results';round.paused=false;resetInputs();broadcastRoster();
- $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
- const value=p=>state.counts[p.cc?.slot]||0;
- const ranked=players.filter(p=>p.active).slice().sort((a,b)=>value(b)-value(a)||String(a.id).localeCompare(String(b.id)));
- const rankOf=p=>1+ranked.filter(q=>value(q)>value(p)).length;
- awardRoundPoints(ranked,rankOf);
- round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- const winners=ranked.filter(p=>rankOf(p)===1);
- $('results').querySelector('h2').textContent=winners.length===1?
-  'ผู้ชนะ: '+winners[0].name:'เสมอ! อันดับ 1 ร่วม';
- const list=$('resultList');list.replaceChildren();
- const render=(people,totals=false)=>{
-  const score=p=>totals?(p.total||0):value(p);
-  for(const p of people){
-   const rank=1+people.filter(q=>score(q)>score(p)).length;
-   const tied=people.filter(q=>score(q)===score(p)).length>1;
-   const row=document.createElement('div');row.className='result-player';
-   const label=document.createElement('div');label.style.color=p.color;
-   label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
-   const detail=document.createElement('span');
-   detail.textContent=totals?p.total+' คะแนนรวม':
-    p.score.toFixed(2)+'% ของสนาม'+(p.cc?.eliminated?' • พื้นที่หมด • ตกรอบถาวร':'')+totalScoreNote(p);
-   row.append(label,detail);list.append(row);
-  }
- };
- render(ranked);
+ // A finite party shows ONE aggregate scoreboard after the last game, not
+ // another copy of all round rows. New plug-ins get this behavior for free.
  if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-  const overall=ranked.slice().sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
-  list.replaceChildren();render(overall,true);
-  const joint=overall.filter(p=>p.total===overall[0].total);
-  const head=document.createElement('div');head.className='tournament-header';
-  head.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:
-   'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
-  list.prepend(head);
- }
- $('results').classList.remove('hidden');$('gameBanner').textContent='';
- beginResultVoting();renderLeaderboard();
-}
-function endGladiatorsRound(){
- const s=round.gladiators;
- round.phase='results';round.paused=false;resetInputs();broadcastRoster();
- $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
- const value=p=>p.gladiator?.alive?Infinity:(p.gladiator?.eliminatedTick??-1);
- const ranked=players.filter(p=>p.active).slice().sort((a,b)=>value(b)-value(a)||String(a.id).localeCompare(String(b.id)));
- const rankOf=p=>1+ranked.filter(q=>value(q)>value(p)).length;
- awardRoundPoints(ranked,rankOf);
- round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- const top=ranked.filter(p=>rankOf(p)===1);
- $('results').querySelector('h2').textContent=ranked.length===1?
-  (top[0]?.gladiator?.alive?'รอดชีวิตครบ 60 วินาที!':'เอาตัวรอดไม่สำเร็จ'):
-  top.length>1?'เสมอ! อันดับ 1 ร่วม':
-  top[0]?.gladiator?.alive?'ผู้ชนะ: '+top[0].name:'อยู่รอดนานที่สุด: '+top[0]?.name;
- const list=$('resultList');list.replaceChildren();
- const show=(people,useTotal=false)=>{
-  const get=p=>useTotal?p.total:value(p);
-  for(const p of people){
-   const rank=1+people.filter(q=>get(q)>get(p)).length;
-   const tied=people.some(q=>q!==p&&get(q)===get(p));
-   const row=document.createElement('div');row.className='result-player';
-   const label=document.createElement('div');label.style.color=p.color;
-   label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
-   const detail=document.createElement('span');
-   detail.textContent=useTotal?p.total+' คะแนนรวม':
-    (p.gladiator?.alive?'ผู้รอดชีวิต':'ตกรอบ')+' • '+
-     (p.gladiator?.eliminatedAt??s.clock).toFixed(1)+' วิ'+totalScoreNote(p);
-   row.append(label,detail);list.append(row);
-  }
- };
- show(ranked);
- if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-  list.replaceChildren();const overall=ranked.slice().sort((a,b)=>b.total-a.total);
-  show(overall,true);
-  const leaders=overall.filter(p=>p.total===overall[0].total);
-  const title=document.createElement('div');title.className='tournament-header';
-  title.textContent=leaders.length>1?'คะแนนรวมเสมอ: '+leaders.map(p=>p.name).join(', '):
-   'ผู้ชนะรวม: '+leaders[0].name;list.prepend(title);
- }
- $('results').classList.remove('hidden');$('gameBanner').textContent='';
- beginResultVoting();renderLeaderboard();
-}
-function endWitchingSnakeRound(){
- const state=round.witchingSnake;
- round.phase='results';round.paused=false;resetInputs();broadcastRoster();
- $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
- const ranked=players.filter(p=>p.active).slice().sort((a,b)=>
-  Number(!!b.ws?.alive)-Number(!!a.ws?.alive)||
-  (b.ws?.eliminatedTick??0)-(a.ws?.eliminatedTick??0)||
-  String(a.id).localeCompare(String(b.id)));
- const value=p=>p.ws?.alive?Infinity:(p.ws?.eliminatedTick??0);
- const rankOf=p=>1+ranked.filter(q=>value(q)>value(p)).length;
- awardRoundPoints(ranked,rankOf);
- round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- const top=ranked.filter(p=>rankOf(p)===1);
- $('results').querySelector('h2').textContent=ranked.length===1?
-  (top[0]?.ws?.alive?'เอาตัวรอดครบ 60 วินาที!':'เอาตัวรอดไม่สำเร็จ'):
-  top.length>1?'เสมอ! อันดับ 1 ร่วม':
-  top[0]?.ws?.alive?'ผู้ชนะ: '+top[0].name:'อยู่รอดนานที่สุด: '+top[0]?.name;
- const list=$('resultList');list.replaceChildren();
- const show=(people,useTotal=false)=>{
-  const get=q=>useTotal?q.total:value(q);
-  for(const p of people){
-   const rank=1+people.filter(q=>get(q)>get(p)).length;
-   const tied=people.filter(q=>get(q)===get(p)).length>1;
-   const row=document.createElement('div');row.className='result-player';
-   const label=document.createElement('div');label.style.color=p.color;
-   label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
-   const detail=document.createElement('span');
-   detail.textContent=useTotal?p.total+' คะแนนรวม':
-    (p.ws?.alive?'รอดชีวิต':'ตกรอบ')+' • '+(p.ws?.eliminatedAt??state.clock).toFixed(1)+
-    ' วิ • ดาว '+(p.ws?.stars||0)+totalScoreNote(p);
-   row.append(label,detail);list.append(row);
-  }
- };
- show(ranked);
- if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-  list.replaceChildren();const overall=ranked.slice().sort((a,b)=>b.total-a.total);
-  show(overall,true);
-  const first=overall.filter(p=>p.total===overall[0].total);
-  const header=document.createElement('div');header.className='tournament-header';
-  header.textContent=first.length===1?'ผู้ชนะรวม: '+first[0].name:
-   'คะแนนรวมเสมอ: '+first.map(p=>p.name).join(', ');
-  list.prepend(header);
- }
- $('results').classList.remove('hidden');$('gameBanner').textContent='';
- beginResultVoting();renderLeaderboard();
-}
-function endShockwaveRound(){
- const s=round.shockwave;round.phase='results';round.paused=false;resetInputs();broadcastRoster();
- $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
- const winners=new Set(s.winnerIds?.length?s.winnerIds:(s.winnerId?[s.winnerId]:[]));
- const value=p=>winners.has(p.id)?Infinity:(p.shockEliminatedAt||0);
- const ranked=players.filter(p=>p.active).sort((a,b)=>
-   value(b)-value(a)||String(a.id).localeCompare(String(b.id)));
- const rankOf=p=>1+ranked.filter(q=>value(q)>value(p)).length;
- if(tournament){
-   awardRoundPoints(ranked,rankOf);
-   $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
-     'สุ่มชุดใหม่จากตัวเลือกเดิม':'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
- }else $('replayBtn').textContent='เล่นอีกครั้ง';
- round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- const firstPlace=ranked.filter(p=>winners.has(p.id));
- $('results').querySelector('h2').textContent=firstPlace.length>1?
-   'ผู้ชนะร่วม: '+firstPlace.map(p=>p.name).join(' / '):
-   firstPlace.length?'ผู้ชนะ: '+firstPlace[0].name:'ไม่มีผู้ชนะ';
- const list=$('resultList');list.replaceChildren();
- ranked.forEach(p=>{
-   const row=document.createElement('div');row.className='result-player';
-   const name=document.createElement('div');name.style.color=p.color;
-   name.textContent='อันดับ '+rankOf(p)+' • '+p.name;
-   const detail=document.createElement('span');
-   detail.textContent=(winners.has(p.id)?(firstPlace.length>1?'อันดับ 1 ร่วม':'ผู้รอดคนสุดท้าย'):'ตกรอบ Wave '+(p.shockEliminatedWave||s.wave))+
-     totalScoreNote(p);
-   row.append(name,detail);list.append(row);
- });
- if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-   const overall=[...ranked].sort((a,b)=>b.total-a.total);list.replaceChildren();
-   overall.forEach((p,i)=>{
-     const row=document.createElement('div');row.className='result-player';
-     const name=document.createElement('div');name.textContent='อันดับ '+(1+overall.filter(q=>q.total>p.total).length)+' • '+p.name;name.style.color=p.color;
-     const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
-     row.append(name,score);list.append(row);
-   });
-   const joint=overall.filter(p=>p.total===overall[0].total);
-   const heading=document.createElement('div');heading.className='tournament-header';
-   heading.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
-   list.prepend(heading);
- }
- $('results').classList.remove('hidden');$('gameBanner').textContent='';
-  beginResultVoting();
-  renderLeaderboard();
-}
-function endSnowBrawlRound(){
- const state=round.snowBrawl,byId=new Map(state.ranking.map(x=>[x.id,x]));
- round.phase='results';round.paused=false;resetInputs();broadcastRoster();
- $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
- const ranked=players.filter(p=>p.active).sort((a,b)=>
-  (byId.get(a.id)?.rank||99)-(byId.get(b.id)?.rank||99)||
-  String(a.id).localeCompare(String(b.id)));
- const winners=ranked.filter(p=>state.winnerIds.includes(p.id));
- awardRoundPoints(ranked,p=>byId.get(p.id)?.rank||ranked.length);
- round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:
-  winners.length>1?'เสมอ • อันดับ 1 ร่วม':'ไม่มีผู้รอดชีวิต';
- const list=$('resultList');list.replaceChildren();
- const render=(people,useTotal=false)=>{
-  const value=p=>useTotal?(p.total||0):-(byId.get(p.id)?.rank||people.length);
-  for(const p of people){
-   const rank=1+people.filter(q=>value(q)>value(p)).length;
-   const tied=people.filter(q=>value(q)===value(p)).length>1;
-   const row=document.createElement('div');row.className='result-player';
-   const name=document.createElement('div');name.style.color=p.color;
-   name.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
-   const detail=document.createElement('span');
-   detail.textContent=useTotal?p.total+' คะแนนรวม':
-     (p.snow?.alive?'รอดชีวิต':(p.snow?.eliminatedAt||0).toFixed(1)+' วินาที')+totalScoreNote(p);
-   row.append(name,detail);list.append(row);
-  }
- };
- render(ranked);
- if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-  list.replaceChildren();const overall=[...ranked].sort((a,b)=>b.total-a.total);
-  render(overall,true);
-  const joint=overall.filter(p=>p.total===overall[0].total);
-  const heading=document.createElement('div');heading.className='tournament-header';
-  heading.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:
-   'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
-  list.prepend(heading);
- }
- $('results').classList.remove('hidden');$('gameBanner').textContent='';
- beginResultVoting();renderLeaderboard();
-}
-function endBoulderBashRound(){
- const s=round.boulderBash,byId=new Map(s.ranking.map(r=>[r.id,r]));
- round.phase='results';round.paused=false;resetInputs();broadcastRoster();
- $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
- const ranked=players.filter(p=>p.active).sort((a,b)=>(byId.get(a.id)?.rank||99)-(byId.get(b.id)?.rank||99));
- const winners=ranked.filter(p=>s.winnerIds.includes(p.id));
- awardRoundPoints(ranked,p=>byId.get(p.id)?.rank||ranked.length);
- round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:
-   winners.length>1?'เสมอ • อันดับ 1 ร่วม':'ไม่มีผู้รอดชีวิต';
- const list=$('resultList');list.replaceChildren();
- const render=(people,useTotal=false)=>{
-   const score=p=>useTotal?p.total:-(byId.get(p.id)?.rank||ranked.length);
-   for(const p of people){
-     const rank=1+people.filter(q=>score(q)>score(p)).length;
-     const tied=people.some(q=>q!==p&&score(q)===score(p));
-     const row=document.createElement('div');row.className='result-player';
-     const name=document.createElement('div');name.style.color=p.color;
-     name.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
-     const note=document.createElement('span');
-     note.textContent=useTotal?p.total+' คะแนนรวม':
-       (p.bb?.alive?'รอดชีวิต':(p.bb?.eliminatedAt||0).toFixed(1)+' วินาที')+totalScoreNote(p);
-     row.append(name,note);list.append(row);
-   }
- };
- render(ranked);
- if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-   list.replaceChildren();const overall=[...ranked].sort((a,b)=>b.total-a.total);
-   render(overall,true);
-   const joint=overall.filter(p=>p.total===overall[0].total);
-   const heading=document.createElement('div');heading.className='tournament-header';
-   heading.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
-   list.prepend(heading);
- }
- $('results').classList.remove('hidden');$('gameBanner').textContent='';
- beginResultVoting();renderLeaderboard();
-}
-function endColorSwitchRound(){
- const s=round.colorSwitch;
- window.ColorSwitch.calculateFinalRanking(s,players);
- round.phase='results';round.paused=false;resetInputs();broadcastRoster();
- $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
- const byId=new Map(s.ranking.map(r=>[r.id,r]));
- const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
- const winners=ranked.filter(p=>s.winnerIds.includes(p.id));
- if(tournament){
-   awardRoundPoints(ranked,p=>byId.get(p.id)?.rank||ranked.length);
-   $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
-     'สุ่มชุดใหม่จากตัวเลือกเดิม':'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
- }else $('replayBtn').textContent='เล่นอีกครั้ง';
- round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ!';
- const list=$('resultList');list.replaceChildren();
- ranked.forEach(p=>{
-   const row=document.createElement('div');row.className='result-player';
-   const name=document.createElement('div');name.style.color=p.color;
-   const rank=byId.get(p.id)?.rank||1;
-    const tied=ranked.filter(q=>(byId.get(q.id)?.rank||1)===rank).length>1;
-    name.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
-   const score=document.createElement('span');
-   score.textContent=p.score+' คะแนน'+totalScoreNote(p);
-   row.append(name,score);list.append(row);
- });
- if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-   const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
-   list.replaceChildren();
-   overall.forEach(p=>{
-     const row=document.createElement('div');row.className='result-player';
-     const name=document.createElement('div');name.textContent='อันดับ '+(1+overall.filter(q=>q.total>p.total).length)+' • '+p.name;name.style.color=p.color;
-     const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
-     row.append(name,score);list.append(row);
-   });
-   const joint=overall.filter(p=>p.total===overall[0].total);
-   const heading=document.createElement('div');heading.className='tournament-header';
-   heading.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
-   list.prepend(heading);
- }
- $('results').classList.remove('hidden');$('gameBanner').textContent='';
-  beginResultVoting();
-  renderLeaderboard();
-}
-function endKnightMatchRound(){
- round.phase='results';round.paused=false;resetInputs();broadcastRoster();
- $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
- const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
- const top=ranked[0]?.score??0,winners=ranked.filter(p=>p.score===top);
- awardRoundPoints(ranked,p=>1+ranked.filter(q=>q.score>p.score).length);
- round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ • อันดับ 1 ร่วม';
- const list=$('resultList');list.replaceChildren();
- const show=(people,useTotal=false)=>people.forEach(p=>{
-  const value=q=>useTotal?q.total:q.score;
-  const rank=1+people.filter(q=>value(q)>value(p)).length;
-  const row=document.createElement('div');row.className='result-player';
-  const label=document.createElement('div');label.style.color=p.color;
-  label.textContent='อันดับ '+rank+(people.filter(q=>value(q)===value(p)).length>1?' ร่วม':'')+' • '+p.name;
-  const score=document.createElement('span');score.textContent=value(p)+(useTotal?' คะแนนรวม':' คะแนน')+(useTotal?'':totalScoreNote(p));
-  row.append(label,score);list.append(row);
- });
- show(ranked);
- if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
+  const overall=ranked.slice().sort((a,b)=>
+   (b.total||0)-(a.total||0)||String(a.id).localeCompare(String(b.id)));
   list.replaceChildren();
-  const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
-  show(overall,true);
-  const first=overall.filter(p=>p.total===overall[0].total);
-  const title=document.createElement('div');title.className='tournament-header';
-  title.textContent=first.length===1?'ผู้ชนะรวม: '+first[0].name:'คะแนนรวมเสมอ: '+first.map(p=>p.name).join(', ');
-  list.prepend(title);
- }
- $('results').classList.remove('hidden');$('gameBanner').textContent='';
- beginResultVoting();renderLeaderboard();
-}
-function endLawnMowerRound(){
-  endShoppingTimeRound();
-}
-function endShoppingTimeRound(){
- round.phase='results';round.paused=false;resetInputs();broadcastRoster();
- $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
- const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
- const top=ranked[0]?.score??0,winners=ranked.filter(p=>p.score===top);
- awardRoundPoints(ranked,p=>1+ranked.filter(q=>q.score>p.score).length);
- round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ • อันดับ 1 ร่วม';
- const list=$('resultList');list.replaceChildren();
- const show=(people,useTotal=false)=>people.forEach(p=>{
-   const value=q=>useTotal?q.total:q.score;
-   const rank=1+people.filter(q=>value(q)>value(p)).length;
-   const tied=people.filter(q=>value(q)===value(p)).length>1;
+  const topScore=overall[0].total||0,leaders=overall.filter(p=>(p.total||0)===topScore);
+  const heading=document.createElement('div');heading.className='tournament-header';
+  heading.textContent=leaders.length===1?'ผู้ชนะรวม: '+leaders[0].name:
+   'คะแนนรวมเสมอ: '+leaders.map(p=>p.name).join(', ');
+  list.append(heading);
+  for(const p of overall){
+   const ranking=1+overall.filter(q=>(q.total||0)>(p.total||0)).length;
    const row=document.createElement('div');row.className='result-player';
-   const label=document.createElement('div');label.style.color=p.color;
-   label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
-   const score=document.createElement('span');
-   score.textContent=useTotal?p.total+' คะแนนรวม':p.score+' คะแนน'+totalScoreNote(p);
-   row.append(label,score);list.append(row);
- });
- show(ranked);
- if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-   list.replaceChildren();
-   const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
-   show(overall,true);
-   const first=overall.filter(p=>p.total===overall[0].total);
-   const title=document.createElement('div');title.className='tournament-header';
-   title.textContent=first.length===1?'ผู้ชนะรวม: '+first[0].name:'คะแนนรวมเสมอ: '+first.map(p=>p.name).join(', ');
-   list.prepend(title);
+   const name=document.createElement('div');name.style.color=p.color;
+   name.textContent='อันดับ '+ranking+' • '+p.name;
+   const detail=document.createElement('span');detail.textContent=(p.total||0)+' คะแนนรวม';
+   row.append(name,detail);list.append(row);
+  }
  }
  $('results').classList.remove('hidden');$('gameBanner').textContent='';
  beginResultVoting();renderLeaderboard();
 }
-function endPizzaTimeRound(){
- round.phase='results';round.paused=false;resetInputs();broadcastRoster();
- $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
- const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score||String(a.id).localeCompare(String(b.id)));
- const top=ranked[0]?.score??0,winners=ranked.filter(p=>p.score===top);
- awardRoundPoints(ranked,p=>1+ranked.filter(q=>q.score>p.score).length);
- round.autoNextRemaining=canAutoAdvanceResults()?7:0;
- $('results').querySelector('h2').textContent=winners.length===1?'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ • อันดับ 1 ร่วม';
- const list=$('resultList');list.replaceChildren();
- const show=(people,useTotal=false)=>people.forEach(p=>{
-   const value=q=>useTotal?q.total:q.score;
-   const rank=1+people.filter(q=>value(q)>value(p)).length;
-   const tied=people.filter(q=>value(q)===value(p)).length>1;
-   const row=document.createElement('div');row.className='result-player';
-   const label=document.createElement('div');label.style.color=p.color;
-   label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
-   const score=document.createElement('span');
-   score.textContent=useTotal?p.total+' คะแนนรวม':p.score+' ออร์เดอร์'+totalScoreNote(p);
-   row.append(label,score);list.append(row);
- });
- show(ranked);
- if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-   list.replaceChildren();
-   const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
-   show(overall,true);
-   const first=overall.filter(p=>p.total===overall[0].total);
-   const title=document.createElement('div');title.className='tournament-header';
-   title.textContent=first.length===1?'ผู้ชนะรวม: '+first[0].name:'คะแนนรวมเสมอ: '+first.map(p=>p.name).join(', ');
-   list.prepend(title);
+
+function endRound(){
+ if(!round||round.phase==='results')return;
+ if(boardSession?.phase==='minigame'){
+  const ranking=window.BoardMinigame.ranking(round,players);
+  if(window.BoardParty.minigameEnded(boardSession,ranking))showBoard();
+  return;
  }
- $('results').classList.remove('hidden');$('gameBanner').textContent='';
- beginResultVoting();renderLeaderboard();
+ if(boardSession&&round.mode==='board')return;
+ // Always use the exact pinned engine for the current round. A hot-patched
+ // game is activated only for its next round, not in the middle of results.
+ const engine=round.pluginEngine||gameEngine(round.mode);
+ if(!engine||typeof engine.getResult!=='function'){
+  console.error('Missing minigame getResult provider',round.mode);
+  showToast('ระบบอันดับของมินิเกมยังไม่พร้อม',true);
+  return;
+ }
+ round.pluginEngine=engine;
+ endPluginRound();
 }
-function endChickensRound(){
-  round.phase='results';round.paused=false;resetInputs();broadcastRoster();
-  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
-  const ranked=players.filter(p=>p.active).sort((a,b)=>b.score-a.score);
-  const best=ranked[0]?.score??0;
-  const winners=ranked.filter(p=>p.score===best);
-  if(tournament){
-    awardRoundPoints(ranked,p=>1+ranked.filter(q=>q.score>p.score).length);
-    $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
-      'สุ่มชุดใหม่จากตัวเลือกเดิม':
-      'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
-  }else $('replayBtn').textContent='เล่นอีกครั้ง';
-  round.autoNextRemaining=canAutoAdvanceResults()?7:0;
-  $('results').querySelector('h2').textContent=winners.length===1?
-    'ผู้ชนะ: '+winners[0].name:'คะแนนเสมอ!';
-  const list=$('resultList');list.replaceChildren();
-  ranked.forEach((p,i)=>{
-    const row=document.createElement('div');row.className='result-player';
-    const name=document.createElement('div');name.style.color=p.color;
-    const rank=1+ranked.filter(q=>q.score>p.score).length;
-    name.textContent='อันดับ '+rank+
-      (ranked.filter(q=>q.score===p.score).length>1?' ร่วม':'')+' • '+p.name;
-    const score=document.createElement('span');
-    score.textContent=p.score+' ไก่'+totalScoreNote(p);
-    row.append(name,score);list.append(row);
-  });
-  if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-    const overall=[...ranked].sort((a,b)=>b.total-a.total);
-    list.replaceChildren();
-    overall.forEach((p,i)=>{
-      const row=document.createElement('div');row.className='result-player';
-      const name=document.createElement('div');name.style.color=p.color;
-      name.textContent='อันดับ '+(1+overall.filter(q=>q.total>p.total).length)+' • '+p.name;
-      const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
-      row.append(name,score);list.append(row);
-    });
-    const joint=overall.filter(p=>p.total===overall[0].total);
-    const heading=document.createElement('div');heading.className='tournament-header';
-    heading.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
-    list.prepend(heading);
-  }
-  $('results').classList.remove('hidden');$('gameBanner').textContent='';
-  beginResultVoting();
-  renderLeaderboard();
-}
-function endFruitMemoryRound(){
-  const s=round.fruitMemory;
-  round.phase='results';round.paused=false;resetInputs();broadcastRoster();
-  $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.add('hidden');
-  const winnerId=s.winnerId;
-  // Competition ranking: people who fell together share a rank, and players
-  // eliminated in earlier memory rounds always place below later survivors.
-  const finishWave=p=>p.id===winnerId?Infinity:
-    (p.fruitEliminatedRound||p.fruitRounds||0);
-  const ranked=players.filter(p=>p.active).sort((a,b)=>
-    finishWave(b)-finishWave(a)||String(a.id).localeCompare(String(b.id)));
-  const rankOf=p=>1+ranked.filter(q=>finishWave(q)>finishWave(p)).length;
-  if(tournament){
-    awardRoundPoints(ranked,rankOf);
-    $('replayBtn').textContent=tournament.index===tournament.schedule.length-1?
-      'สุ่มชุดใหม่จากตัวเลือกเดิม':
-      'เกมถัดไป ('+(tournament.index+2)+'/'+tournament.schedule.length+')';
-  }else $('replayBtn').textContent='เล่นอีกครั้ง';
-  round.autoNextRemaining=canAutoAdvanceResults()?7:0;
-  const winner=ranked.find(p=>p.id===winnerId);
-  $('results').querySelector('h2').textContent=winner?
-    'ผู้ชนะ: '+winner.name:s.tieIds?.length?'เสมอ! ไม่มีผู้รอด':'ไม่มีผู้ชนะ';
-  const list=$('resultList');list.replaceChildren();
-  ranked.forEach(p=>{
-    const row=document.createElement('div');row.className='result-player';
-    const name=document.createElement('div');name.style.color=p.color;
-    name.textContent='อันดับ '+rankOf(p)+' • '+p.name;
-    const detail=document.createElement('span');
-    const tied=!winnerId&&s.tieIds?.includes(p.id);
-    detail.textContent=(p.id===winnerId?'ผู้รอดคนสุดท้าย':
-      tied?'อันดับร่วม • ตกรอบพร้อมกัน รอบ '+(p.fruitEliminatedRound||s.rounds):
-      'ตกรอบ รอบ '+(p.fruitEliminatedRound||s.rounds))+
-      totalScoreNote(p);
-    row.append(name,detail);list.append(row);
-  });
-  if(tournament&&!tournament.endless&&tournament.index===tournament.schedule.length-1&&ranked.length){
-    const overall=[...ranked].sort((a,b)=>b.total-a.total||String(a.id).localeCompare(String(b.id)));
-    // The old design appended twelve more total rows after the twelve
-    // round rows (24 rows), hiding some names on compact screens. Show the
-    // complete final tournament ranking instead, as every other mode does.
-    list.replaceChildren();
-    const heading=document.createElement('div');heading.className='tournament-header';
-    const joint=overall.filter(p=>p.total===overall[0].total);
-    heading.textContent=joint.length===1?'ผู้ชนะรวม: '+joint[0].name:
-      'คะแนนรวมเสมอ: '+joint.map(p=>p.name).join(', ');
-    list.prepend(heading);
-    overall.forEach((p,i)=>{
-      const row=document.createElement('div');row.className='result-player';
-      const name=document.createElement('div');name.style.color=p.color;
-      const competitionRank=1+overall.filter(q=>q.total>p.total).length;
-      name.textContent='อันดับ '+competitionRank+' • '+p.name;
-      const score=document.createElement('span');score.textContent=p.total+' คะแนนรวม';
-      row.append(name,score);list.append(row);
-    });
-  }
-  $('results').classList.remove('hidden');$('gameBanner').textContent='';
-  beginResultVoting();
-  renderLeaderboard();
-}
+
