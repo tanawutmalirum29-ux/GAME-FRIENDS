@@ -1,4 +1,4 @@
-/* BOARD source assembler: exact lexical compatibility with board-party.js. */
+/* BOARD source assembler: exact lexical compatibility with src/board-party/runtime/board-party.js. */
 'use strict';
 const fs=require('node:fs');
 const path=require('node:path');
@@ -18,10 +18,10 @@ function assemble({write=false,check=false}={}){
   return fs.readFileSync(path.join(root,part),'utf8');
  });
  const result=prefix+contents.join('')+suffix;
- const output=path.join(root,'board-party.js');
+ const output=path.join(root,'src/board-party/runtime/board-party.js');
  if(check&&fs.readFileSync(output,'utf8')!==result)
-  throw Error('Generated board-party.js differs from src/board-party/modules.json; run --write');
- if(write)fs.writeFileSync(output,result);
+  throw Error('Generated src/board-party/runtime/board-party.js differs from src/board-party/modules.json; run --write');
+ if(write){fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,result);}
  return result;
 }
 if(require.main===module){

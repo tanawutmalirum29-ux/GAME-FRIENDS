@@ -18,7 +18,7 @@ for(const dir of fs.readdirSync(path.join(root,'src/games'),{withFileTypes:true}
 const source=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const html=pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(source,catalog)))));
 assert.ok(!html.includes('src="./src/games/ghost-attack/ghost-attack.js"'),'production must strip eager ghost engine');
-assert.ok(!html.includes('src="./board-party.js"'),'production must defer BOARD core');
+assert.ok(!html.includes('src="./src/board-party/runtime/board-party.js"'),'production must defer BOARD core');
 const buildVersion='window.GAME_BUILD_VERSION="lazy-browser-test";'+
  'window.GAME_CORE_VERSION='+JSON.stringify(catalog.coreHash)+';'+
  'window.GAME_GAME_HASHES='+JSON.stringify(Object.fromEntries(catalog.games.map(g=>[g.id,g.hash])))+';';

@@ -242,4 +242,4 @@ Checks: `node tests/party-arenas.cjs`, `node tests/shopping-time.cjs`, `node tes
 
 ## เพิ่มมินิเกมใหม่โดยไม่แก้ HTML
 
-เพิ่มเพียงโฟลเดอร์ `src/games/<slug>/` พร้อม `manifest.json` และ `game.js` (มี `cover.svg` ได้) จากนั้น Deploy ตามปกติ ระบบจะสร้าง Game Catalog อัตโนมัติและแสดงเกมใหม่ใน NORMAL PARTY และ BOARD PARTY ตาม `modes` ใน Manifest โดยไม่ต้องแก้ `index.html`, `app.js`, `board-minigame.js` หรือ Build asset allowlist. โปรแกรมจะโหลด Engine เฉพาะตอนเลือกเกม ดู [คู่มือเพิ่มมินิเกม](docs/ADDING_MINIGAMES.md) และปฏิบัติตาม CI/QA สำหรับเกมใหม่
+เพิ่มเพียงโฟลเดอร์ `src/games/<slug>/` พร้อม `manifest.json` และ `game.js` (มี `cover.svg` ได้) จากนั้น Deploy ตามปกติ ระบบจะสร้าง Game Catalog อัตโนมัติและแสดงเกมใหม่ใน NORMAL PARTY และ BOARD PARTY ตาม `modes` ใน Manifest โดยไม่ต้องแก้ `index.html`, `app.js`, `src/board-party/runtime/board-minigame.js` หรือ Build asset allowlist. โปรแกรมจะโหลด Engine เฉพาะตอนเลือกเกม ดู [คู่มือเพิ่มมินิเกม](docs/ADDING_MINIGAMES.md) และปฏิบัติตาม CI/QA สำหรับเกมใหม่

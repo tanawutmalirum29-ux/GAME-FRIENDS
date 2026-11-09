@@ -470,7 +470,7 @@ assert.match(avatars,/data:image\/svg\+xml/);
 {
  // BOARD PARTY ranking retains competition ranks when co-winners exhaust quota.
  const context=vm.createContext({window:{BoardDice:{shuffle:ids=>[...ids]}}});
- vm.runInContext(fs.readFileSync('board-minigame.js','utf8'),context);
+ vm.runInContext(fs.readFileSync('src/board-party/runtime/board-minigame.js','utf8'),context);
  const adapter=context.window.BoardMinigame;
  const x=game(4),s=x.state;
  E.startWave(s,x.ps);E.evaluateEliminations(s,x.ps,[...x.ps]);

@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const surfaces=[],labels=[],labelDraws=[],avatarDraws=[],portraitDraws=[],portraitPositions=[],ringArcs=[];let denyTerrain=false,paintClock=0;
-const artSource=fs.readFileSync('board-art.js','utf8');
+const artSource=fs.readFileSync('src/board-party/runtime/board-art.js','utf8');
 assert.match(artSource,/else sceneryLite\(g,s\)/,
  'low-memory renderer must avoid repainting full scenery every frame');
 assert.match(artSource,/if\(!visible\(x,y,75\)\)continue/,
@@ -20,7 +20,7 @@ const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(_g,p){avatarDraws.pu
   return denyTerrain?null:brush();
  }};surfaces.push(surface);return surface;
 }}});
-for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-minigame','board-party','board-art'])vm.runInContext(fs.readFileSync(name+'.js','utf8'),ctx,{filename:name+'.js'});
+for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-minigame','board-party','board-art'])vm.runInContext(fs.readFileSync('src/board-party/runtime/'+name+'.js','utf8'),ctx,{filename:name+'.js'});
 const {BoardParty:P,BoardArt:A}=ctx.window,g=brush(true);
 function game(seed){return P.create(Array.from({length:12},(_,i)=>({id:'p'+i,name:'Player '+i,color:'#66aacc'})),{seed});}
 

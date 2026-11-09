@@ -1,10 +1,10 @@
 # BOARD PARTY authored source modules
 
-The deployed `board-party.js` remains a **single classic-script runtime**
+The deployed `src/board-party/runtime/board-party.js` remains a **single classic-script runtime**
 because Host, multiplayer events, dice, movement, effects and board UI
 currently share one lexical state contract. Its source is now maintained
 under `src/board-party/` and ordered by `src/board-party/modules.json`.
-The assembler regenerates **byte-for-byte equivalent** `board-party.js` from
+The assembler regenerates **byte-for-byte equivalent** `src/board-party/runtime/board-party.js` from
 the original 602-line source, with no changes to game rules, V10 map,
 turn movement, item handling or renderer integration.
 
@@ -23,7 +23,7 @@ Source ownership:
 
 For any behavior change edit only the corresponding authored source. Run
 `node scripts/build-board-party.cjs --write` and commit both source
-and regenerated `board-party.js`; CI requires `--check`.
+and regenerated `src/board-party/runtime/board-party.js`; CI requires `--check`.
 Do not add individual game IDs, maps or import declarations to the manifest.
 Minigames use GamePlatform, board maps use the map catalog.
 

@@ -18,7 +18,7 @@ function getCommit(){
 // Restore and integrity-check the committed v7 source bundle first.
 require('./build-board-v7.cjs');
 // Derive controller-only BOARD metadata from the authoritative game rules.
-if(fs.existsSync(path.join(root,'board-items.js')))
+if(fs.existsSync(path.join(root,'src/board-party/runtime/board-items.js')))
  require('./build-board-item-brief.cjs').build({write:true});
 // Build BOARD logic from maintainable source fragments without changing runtime behavior.
 if(fs.existsSync(path.join(root,'src','board-party','modules.json')))

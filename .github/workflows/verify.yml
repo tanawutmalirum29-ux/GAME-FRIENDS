@@ -29,6 +29,7 @@ jobs:
         run: |
           node scripts/build-board-party.cjs --check
           node tests/board-source-modules.cjs
+          node tests/board-no-root-assets.cjs
       - name: Enforce Host and Controller app bundle integrity
         run: node scripts/build-app.cjs --check
       - name: Verify canonical controller BOARD metadata and split runtime
@@ -101,7 +102,7 @@ jobs:
         run: node tests/knight-match.cjs
       - name: BOARD PARTY rules and simulations
         run: |
-          for source in board-*.js; do node --check "$source"; done
+          for source in src/board-party/runtime/board-*.js; do node --check "$source"; done
           node tests/board-v7.cjs
           node tests/board-v8-layout.cjs
           node tests/board-branch-naming.cjs

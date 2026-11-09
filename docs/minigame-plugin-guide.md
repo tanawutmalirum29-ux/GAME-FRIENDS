@@ -12,7 +12,7 @@ src/games/meteor-dodge/
 └── ... ไฟล์ Engine, Bot, Map และ SVG ที่เกม import ใช้งาน
 ```
 
-ไม่ต้องเพิ่มชื่อเกมหรือ `<script>` ใหม่ลง `app.js`, `index.html`, `board-minigame.js` หรือรายการพิเศษในตัวเลือกเกม และไม่ต้องบันทึก Game Registry ด้วยมือ เพราะ `scripts/build-game-catalog.cjs` ค้นหาโฟลเดอร์ที่มี `manifest.json` ตอน Build และคัดลอกไฟล์เป็น `game-assets/<id>/<hash>/` โดยอัตโนมัติ
+ไม่ต้องเพิ่มชื่อเกมหรือ `<script>` ใหม่ลง `app.js`, `index.html`, `src/board-party/runtime/board-minigame.js` หรือรายการพิเศษในตัวเลือกเกม และไม่ต้องบันทึก Game Registry ด้วยมือ เพราะ `scripts/build-game-catalog.cjs` ค้นหาโฟลเดอร์ที่มี `manifest.json` ตอน Build และคัดลอกไฟล์เป็น `game-assets/<id>/<hash>/` โดยอัตโนมัติ
 
 `manifest.json` ตัวอย่าง:
 

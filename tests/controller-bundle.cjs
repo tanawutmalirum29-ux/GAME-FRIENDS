@@ -37,7 +37,7 @@ assert.ok(controller.includes('function receiveBoardState('),
  'controller BOARD state must survive code splitting');
 assert.ok(controller.includes('function joinRoom('));
 const original={window:{}},small={window:{}};
-vm.runInNewContext(fs.readFileSync(path.join(root,'board-items.js'),'utf8'),original);
+vm.runInNewContext(fs.readFileSync(path.join(root,'src/board-party/runtime/board-items.js'),'utf8'),original);
 vm.runInNewContext(fs.readFileSync(path.join(root,'src/platform/board-items-brief.js'),'utf8'),small);
 assert.deepEqual(Array.from(small.window.PartyBoardItemMeta.ids),
  Array.from(original.window.BoardItems.ids));

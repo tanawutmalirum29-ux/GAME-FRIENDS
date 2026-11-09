@@ -165,7 +165,7 @@ for(const n of [1,2,4,6,7,9,12]){
 // Board + browser deployment references must remain in sync.
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8'),
  html=fs.readFileSync(path.join(root,'index.html'),'utf8'),
- board=fs.readFileSync(path.join(root,'board-minigame.js'),'utf8'),
+ board=fs.readFileSync(path.join(root,'src/board-party/runtime/board-minigame.js'),'utf8'),
  build=fs.readFileSync(path.join(root,'scripts/build-static.cjs'),'utf8');
 assert.match(app,/"lawn_mower": \{[\s\S]*?"global": "LawnMower"/,
  'compiled manifest must retain LAWN MOWER engine registration');

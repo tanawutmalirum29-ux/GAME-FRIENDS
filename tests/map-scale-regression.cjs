@@ -17,8 +17,8 @@ const scripts=[
  'src/games/knight-match/knight-match.js','src/games/lawn-mower/lawn-mower.js','src/games/color-claim/color-claim.js','src/games/witching-snake/witching-snake.js',
  'src/games/ghost-attack/ghost-attack.js','src/games/ice-race/ice-race.js','src/games/shockwave/shockwave.js','src/games/boulder-bash/boulder-bash.js',
  'src/games/shopping-time/shopping-time.js','src/games/pizza-time/pizza-time.js','src/games/gladiators/gladiators.js',
- 'board-map.js','board-v7-design.js','board-v7-art.js','board-v7-adapter.js',
- 'board-dice.js','board-items.js','board-party.js'
+ 'src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-v7-art.js','src/board-party/runtime/board-v7-adapter.js',
+ 'src/board-party/runtime/board-dice.js','src/board-party/runtime/board-items.js','src/board-party/runtime/board-party.js'
 ];
 for(const file of scripts)require(path.join('..',file));
 const S=window.PartyArenaScale,close=(a,b,e=1e-8)=>Math.abs(a-b)<e;

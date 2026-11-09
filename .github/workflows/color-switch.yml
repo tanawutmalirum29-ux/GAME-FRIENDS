@@ -19,7 +19,8 @@ jobs:
           done
       - name: BOARD PARTY geometry, camera and navigation regression
         run: |
-          for source in board-*.js; do node --check "$source"; done
+          node scripts/build-board-v7.cjs
+          for source in src/board-party/runtime/board-*.js; do node --check "$source"; done
           node tests/board-party.cjs
           node tests/board-art.cjs
       - name: PIZZA TIME menu fairness and movement regression

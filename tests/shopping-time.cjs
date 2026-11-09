@@ -215,7 +215,7 @@ for(let n=1;n<=12;n++)for(let seed=1;seed<=3;seed++){
 // Static integration guards protect the picker, Board Party and deploy references.
 const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const board=fs.readFileSync(path.join(root,'board-minigame.js'),'utf8');
+const board=fs.readFileSync(path.join(root,'src/board-party/runtime/board-minigame.js'),'utf8');
 const build=fs.readFileSync(path.join(root,'scripts/build-static.cjs'),'utf8');
 assert.match(app,/"shopping_time": \{[\s\S]*?"global": "ShoppingTime"/,
  'compiled manifest must register SHOPPING TIME engine');

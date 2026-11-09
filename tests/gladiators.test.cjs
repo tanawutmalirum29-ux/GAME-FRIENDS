@@ -33,7 +33,7 @@ function hypot(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
 test('registration and scripts are connected to both party modes',()=>{
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
- const board=fs.readFileSync(path.join(root,'board-minigame.js'),'utf8');
+ const board=fs.readFileSync(path.join(root,'src/board-party/runtime/board-minigame.js'),'utf8');
  const cover=fs.readFileSync(path.join(root,'game-cover-art.js'),'utf8');
  assert.match(app,/"gladiators": \{[\s\S]*?"name": "GLADIATORS",[\s\S]*?"global": "Gladiators"/,
   'generated manifest metadata keeps the original GLADIATORS engine and title');

@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
-const source=fs.readFileSync(path.join(__dirname,'..','board-controller-camera.js'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'..','src/board-party/runtime/board-controller-camera.js'),'utf8');
 const window={};let now=1000;
 vm.runInNewContext(source,{window,Date:{now:()=>now}});
 const handlers={};

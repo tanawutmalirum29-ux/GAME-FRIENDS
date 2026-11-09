@@ -3,7 +3,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const ctx=vm.createContext({window:{},console});
 for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-minigame','board-party']){
- vm.runInContext(fs.readFileSync(name+'.js','utf8'),ctx,{filename:name+'.js'});
+ vm.runInContext(fs.readFileSync('src/board-party/runtime/'+name+'.js','utf8'),ctx,{filename:name+'.js'});
 }
 const {BoardDiceRenderer:R,BoardDice:D,BoardParty:P}=ctx.window;
 assert.equal(R.DURATION,D.TIMING.throw);

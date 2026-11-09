@@ -3,7 +3,7 @@ require('../scripts/build-board-v7.cjs');
 const verbose=process.argv.includes('--verbose')||process.env.BOARD_LAYOUT_DEBUG==='1';
 const detail=(...parts)=>{if(verbose)console.log(...parts);};
 const fs=require('fs'),vm=require('vm'),ctx=vm.createContext({window:{},Math,Date,console});
-for(const file of ['board-map.js','board-v7-design.js','board-v7-adapter.js'])
+for(const file of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-v7-adapter.js'])
  vm.runInContext(fs.readFileSync(file,'utf8'),ctx,{filename:file});
 const M=ctx.window.BoardMap,D=ctx.window.BOARD_PARTY_V7_DESIGN,m=M.create(0);
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);

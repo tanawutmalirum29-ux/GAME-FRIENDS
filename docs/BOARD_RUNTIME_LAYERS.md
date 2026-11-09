@@ -3,18 +3,18 @@
 The repository intentionally contains two graph representations; they are
 **not** two competing production map selections.
 
-- `board-map.js` defines the deterministic, pre-adapter authored base
+- `src/board-party/runtime/board-map.js` defines the deterministic, pre-adapter authored base
   (`winter-expedition-152-v6`, **213 nodes / 9 islands**). Its original
   constraints remain covered by `tests/board-fixed.cjs` and other legacy
   unit tests that load this module alone.
-- `board-v7-design.js` and `board-v7-art.js` are generated from the
+- `src/board-party/runtime/board-v7-design.js` and `src/board-party/runtime/board-v7-art.js` are generated from the
   verified, checksum-pinned source pieces by
   `node scripts/build-board-v7.cjs`. This build is idempotent; a fresh
   checkout does not need manually checked-in generated files.
-- `board-branch-naming.js` and `board-v7-adapter.js` apply the later
+- `src/board-party/runtime/board-branch-naming.js` and `src/board-party/runtime/board-v7-adapter.js` apply the later
   migrations to `window.BoardMap` in the browser, yielding
   **302 nodes / 17 islands**, version `winter-expedition-152-v10`.
-  `board-party.js` subsequently reads `window.BoardMap` and thus
+  `src/board-party/runtime/board-party.js` subsequently reads `window.BoardMap` and thus
   uses the V10 graph, not the unadapted v6 fixture.
 
 **Runtime entrypoints:** the source `index.html` loads board files in this

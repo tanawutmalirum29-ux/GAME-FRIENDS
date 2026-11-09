@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {alphabet,assign}=require('../board-branch-naming.js');
+const {alphabet,assign}=require('../src/board-party/runtime/board-branch-naming.js');
 assert.deepEqual([0,1,25,26,27,51,52].map(alphabet),['a','b','z','aa','ab','az','ba']);
 const records=[
  {internalId:'root-b',parentId:'n',sourceOrder:20,nodeIds:['b1'],terminalBranchId:'n'},

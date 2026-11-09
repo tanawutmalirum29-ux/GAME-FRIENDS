@@ -6,7 +6,7 @@ on:
       - 'src/games/gladiators/gladiators-art.js'
       - 'tests/gladiators.test.cjs'
       - 'app.js'
-      - 'board-minigame.js'
+      - 'src/board-party/runtime/board-minigame.js'
       - 'index.html'
       - 'game-cover-art.js'
   push:
@@ -17,7 +17,7 @@ on:
       - 'src/games/gladiators/gladiators-art.js'
       - 'tests/gladiators.test.cjs'
       - 'app.js'
-      - 'board-minigame.js'
+      - 'src/board-party/runtime/board-minigame.js'
       - 'index.html'
       - 'game-cover-art.js'
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
           node --check src/games/gladiators/gladiators.js
           node --check src/games/gladiators/gladiators-art.js
           node --check app.js
-          node --check board-minigame.js
+          node --check src/board-party/runtime/board-minigame.js
           node --check game-cover-art.js
       - name: GLADIATORS regression tests
         run: node --test tests/gladiators.test.cjs

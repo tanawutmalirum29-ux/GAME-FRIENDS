@@ -7,7 +7,7 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const files=['index.html','app.js','style.css','src/games/ghost-attack/ghost-attack.js','src/games/chickens/chickens.js',
  'src/games/fruit-memory/fruit-memory.js','src/games/shockwave/shockwave.js','src/games/color-switch/color-switch.js','src/games/color-switch/color-switch-mayan.js',
- 'src/shared/farm-ice-art.js','party-arena-scenes.js','game-cover-art.js','src/games/pizza-time/pizza-time.js','src/games/pizza-time/pizza-kitchen-art.js','src/games/pizza-time/pizza-ingredient-art.js','party-ui-art.js','board-art.js','board-party.js','board-items.js'];
+ 'src/shared/farm-ice-art.js','party-arena-scenes.js','game-cover-art.js','src/games/pizza-time/pizza-time.js','src/games/pizza-time/pizza-kitchen-art.js','src/games/pizza-time/pizza-ingredient-art.js','party-ui-art.js','src/board-party/runtime/board-art.js','src/board-party/runtime/board-party.js','src/board-party/runtime/board-items.js'];
 const emoji=/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
 for(const name of files){
  const body=fs.readFileSync(path.join(root,name),'utf8');

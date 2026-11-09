@@ -5,7 +5,7 @@ require('../scripts/build-board-v7.cjs');
  * courts, real directed connectivity and renderer/playable-coordinate parity. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const context=vm.createContext({window:{},Math,Date,console});
-for(const file of ['board-map.js','board-v7-design.js','board-branch-naming.js','board-v7-adapter.js'])
+for(const file of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-branch-naming.js','src/board-party/runtime/board-v7-adapter.js'])
  vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
 const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D}=context.window;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);

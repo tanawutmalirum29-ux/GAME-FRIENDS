@@ -3,7 +3,7 @@
 require('../scripts/build-board-v7.cjs');
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const ctx=vm.createContext({window:{},Math,Date,console});
-for(const path of ['board-map.js','board-v7-design.js','board-branch-naming.js','board-v7-adapter.js'])
+for(const path of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-branch-naming.js','src/board-party/runtime/board-v7-adapter.js'])
  vm.runInContext(fs.readFileSync(path,'utf8'),ctx,{filename:path});
 const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D,BoardBranchNaming:N}=ctx.window;
 const map=M.create(0),ids=Object.keys(map.nodes),edges=Object.values(map.nodes).flatMap(n=>n.nextNodes.map(to=>n.id+'>'+to));
