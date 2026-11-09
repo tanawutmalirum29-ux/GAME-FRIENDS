@@ -8,9 +8,9 @@ const artCode=read('farm-ice-art.js');
 
 test('all three ice/farm games choose full-width HOST rendering',()=>{
  const expected=[
-  ['boulder-bash.js',/FarmIceArt\.beginScene\(g,'#d3f2ee',\{fullWidth:true\}\)/],
-  ['chickens.js',/FarmIceArt\.beginScene\(ctx,'#91c631',\{fullWidth:true\}\)/],
-  ['snow-brawl.js',/FarmIceArt\.beginScene\(ctx,'#1165c8',\{fullWidth:true\}\)/]
+  ['src/games/boulder-bash/boulder-bash.js',/FarmIceArt\.beginScene\(g,'#d3f2ee',\{fullWidth:true\}\)/],
+  ['src/games/chickens/chickens.js',/FarmIceArt\.beginScene\(ctx,'#91c631',\{fullWidth:true\}\)/],
+  ['src/games/snow-brawl/snow-brawl.js',/FarmIceArt\.beginScene\(ctx,'#1165c8',\{fullWidth:true\}\)/]
  ];
  for(const [path,re] of expected)assert.match(read(path),re,path);
 });

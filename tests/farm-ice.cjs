@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 let seed=271828;
 const math=Object.create(Math);math.random=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return(seed>>>0)/4294967296;};
 const host=vm.createContext({window:{},Math:math,Date});
-for(const file of ['arena-art.js','player-avatar.js','combat-motion.js','character-system.js','farm-ice-art.js','chickens.js','snow-brawl.js','boulder-bash.js'])
+for(const file of ['arena-art.js','player-avatar.js','combat-motion.js','character-system.js','farm-ice-art.js','src/games/chickens/chickens.js','src/games/snow-brawl/snow-brawl.js','src/games/boulder-bash/boulder-bash.js'])
  vm.runInContext(fs.readFileSync(file,'utf8'),host,{filename:file});
 const {Chickens:Ch,SnowBrawl:Sn,BoulderBash:Bo,FarmIceArt:Art}=host.window;
 const players=n=>Array.from({length:n},(_,i)=>({id:'p'+i,name:'Player '+i,color:'#51afe9',type:'remote',isBot:false,active:true,input:{},score:0}));
