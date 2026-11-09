@@ -509,7 +509,15 @@ function draw(ctx,time,round,ps){
  // Common top-centre clock is the only match HUD.
  ctx.restore();
 }
-window.ColorSwitch=Object.freeze({resultTitle:"ผู้ทำคะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,createArena,tileAt,
+function getResult(round,players){
+ calculateFinalRanking(round.colorSwitch,players);
+ return players.filter(p=>p.active).map(p=>{
+ const value=Number(p.score)||0;
+ const label=value+' คะแนน';
+  return {id:p.id,value,label};
+ });
+}
+window.ColorSwitch=Object.freeze({getResult,resultTitle:"ผู้ทำคะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,createArena,tileAt,
  captureTile,capturePathTiles,updateTerritoryScores,startPunch,resolvePunchHit,
  activateColorBlast,calculateBlastCells,spawnPowerBox,collectPowerBox,
  bankTerritory,fireRocketBurst,updateRockets,refreshScore,

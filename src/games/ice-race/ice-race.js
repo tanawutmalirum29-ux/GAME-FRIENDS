@@ -469,6 +469,13 @@ function draw(g,t,round,ps){
  }
  g.restore();
 }
-window.IceRace=Object.freeze({resultTitle:"ผ่านเช็กพอยต์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,step,finish,checkpoint,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const value=Number(p.score)||0;
+ const label=value+' คะแนน';
+  return {id:p.id,value,label};
+ });
+}
+window.IceRace=Object.freeze({getResult,resultTitle:"ผ่านเช็กพอยต์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,step,finish,checkpoint,
  nearest,sample,collide,hullContact,hullPoints,fall,respawn,makeTrack,botVector,config:C});
 })();

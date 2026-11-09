@@ -554,7 +554,16 @@ function draw(ctx,time,round,ps){
  ctx.restore();
 }
 // Diagnostic hooks are pure engine operations used by regression tests.
-window.SnowBrawl=Object.freeze({resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const byId=new Map(round.snowBrawl.ranking.map(x=>[x.id,x]));
+ const rank=byId.get(p.id)?.rank||players.length;
+ const value=-rank;
+ const label=p.snow?.alive?'รอดชีวิต':(p.snow?.eliminatedAt||0).toFixed(1)+' วินาที';
+  return {id:p.id,value,label};
+ });
+}
+window.SnowBrawl=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,
  islandRadius,viewScale,rollSpeed,ballMass,growthRadius,makeBall,ballFor,release,
  destroy,eliminate,solveBallCollisions,resolveBodies,contactTime,
  config:C});

@@ -420,7 +420,13 @@ function draw(ctx,time,round,ps){
  ctx.restore(); // Rainbow state is visible from colored balloons and players.
  // Shared clock is drawn by app.js instead of an overlapping power banner.
 }
-window.KnightMatch=Object.freeze({resultTitle:"แทงลูกโป่งสีตัวเองให้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,dimensions,inside,effectiveOwner,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const value=Number(p.score)||0;
+  return {id:p.id,value,label:value+" คะแนน"};
+ });
+}
+window.KnightMatch=Object.freeze({getResult,resultTitle:"แทงลูกโป่งสีตัวเองให้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,dimensions,inside,effectiveOwner,
  effectiveColor,popBalloon,spawnNormal,spawnRainbow,replenish,segmentDistance,
  startAttack,strike,lanceTip,finish,step,sweptCircleEntry,scales:Object.freeze({rider:RIDER_SCALE,balloon:BALLOON_SIZE_MULTIPLIER,speed:MOVE_SPEED_MULTIPLIER,playerRadius:PLAYER_RADIUS,lanceTipRadius:LANCE_TIP_RADIUS}),constants:CONFIG});
 })();

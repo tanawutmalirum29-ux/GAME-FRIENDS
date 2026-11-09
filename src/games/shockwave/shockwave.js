@@ -424,7 +424,16 @@ function draw(ctx,time,round,ps){
  // the common SVG headcount badge is drawn by app.js.
  ctx.restore();
 }
-window.Shockwave=Object.freeze({resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const s=round.shockwave;
+ const winners=s.winnerIds?.length?s.winnerIds:(s.winnerId?[s.winnerId]:[]);
+ const value=winners.includes(p.id)?Infinity:(p.shockEliminatedAt||0);
+ const label=winners.includes(p.id)?'ผู้รอดคนสุดท้าย':'ตกรอบ Wave '+(p.shockEliminatedWave||s.wave);
+  return {id:p.id,value,label};
+ });
+}
+window.Shockwave=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
  calculateDangerContact,calculateFootSupport,resolvePlayerCollision,calculateDangerWeights,
   dangerCount,requiredEscapeSeconds,
  selectDangerTiles,validateSafeRoutes,warningSeconds,intervalSeconds,distanceBias,

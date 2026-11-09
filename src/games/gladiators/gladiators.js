@@ -500,6 +500,13 @@ function draw(g,time,round,ps){
  g.restore();
  // Clock / survivors badge is painted once by app.js, never here.
 }
-window.Gladiators=Object.freeze({resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,eliminate,spawnPositions,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const value=p.gladiator?.alive?Infinity:(p.gladiator?.eliminatedTick??-1);
+  const label=(p.gladiator?.alive?'ผู้รอดชีวิต':'ตกรอบ')+' • '+(p.gladiator?.eliminatedAt??round.gladiators.clock).toFixed(1)+' วิ';
+  return {id:p.id,value,label};
+ });
+}
+window.Gladiators=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,eliminate,spawnPositions,
  boundsFor,impact,swept,living,config:C});
 })();

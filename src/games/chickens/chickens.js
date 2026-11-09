@@ -471,6 +471,12 @@ function draw(ctx,time,round,players){
   // Per-mode top-left HUD was removed; player score stays in the roster.
   ctx.restore();
 }
-window.Chickens=Object.freeze({resultTitle:"จับไก่ให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,dropChicken,gateInside,goalHead,drawHeldChicken,
+function getResult(round,players){
+ return players.filter(p=>p.active).map(p=>{
+  const value=Number(p.score)||0;
+  return {id:p.id,value,label:value+" ไก่"};
+ });
+}
+window.Chickens=Object.freeze({getResult,resultTitle:"จับไก่ให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,dropChicken,gateInside,goalHead,drawHeldChicken,
   constants:C});
 })();

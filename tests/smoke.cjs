@@ -7,7 +7,7 @@ const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
 // production code or relying on internal globals.
 const appForTest=source.replace('requestAnimationFrame(animate);\n})();',
-  'window.__ghostTest={getBoard:()=>boardSession,updateBoard,updateRound,beginBoard,showBoard,finishBoard,returnToLobby,getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,endFruitMemoryRound,endColorSwitchRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,pickRandomEndlessGame,beginGameSelection,updateGameSelection,startRound,getSelection:()=>gameSelection,getTournament:()=>tournament,setRound:r=>{round=r;},possessBot,releaseBotPossession,toggleInfiniteBotItems,renderBotTestPad};\nrequestAnimationFrame(animate);\n})();');
+  'window.__ghostTest={getBoard:()=>boardSession,updateBoard,updateRound,beginBoard,showBoard,finishBoard,returnToLobby,getRound:()=>round,getPlayers:()=>players,renderLeaderboard,endRound,layoutFinalResults,resultVoteSnapshot,castResultVote,advanceParty,showCumulativeScores,pointsForRank,pickRandomEndlessGame,beginGameSelection,updateGameSelection,startRound,getSelection:()=>gameSelection,getTournament:()=>tournament,setRound:r=>{round=r;},possessBot,releaseBotPossession,toggleInfiniteBotItems,renderBotTestPad};\nrequestAnimationFrame(animate);\n})();');
 assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
@@ -1568,7 +1568,7 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
   mode:'fruit_memory',phase:'playing',paused:false,
   fruitMemory:{winnerId:null,tieIds:[three[0].id,three[1].id],rounds:2}
  });
- ui.scope.window.__ghostTest.endFruitMemoryRound();
+ ui.scope.window.__ghostTest.endRound();
  const heading=ui.elements.get('results').querySelector('h2');
  assert.match(heading.textContent,/เสมอ/);
  const rows=ui.elements.get('resultList').children;
