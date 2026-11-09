@@ -20,9 +20,5 @@
   ],
   "entry": "./game.js",
   "global": "PizzaTime",
-  "legacyScripts": [
-    "src/games/pizza-time/pizza-ingredient-art.js",
-    "src/games/pizza-time/pizza-kitchen-art.js",
-    "src/games/pizza-time/pizza-time.js"
-  ]
+  "legacyScripts": []
 }

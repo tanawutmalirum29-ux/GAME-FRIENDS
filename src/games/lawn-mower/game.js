@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.LawnMower;
+import './lawn-mower.js';
+const engine=window.LawnMower;
+if(!engine)throw Error('Missing LawnMower game engine');
+export default engine;

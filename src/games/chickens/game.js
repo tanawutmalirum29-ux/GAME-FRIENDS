@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.Chickens;
+import './chickens.js';
+const engine=window.Chickens;
+if(!engine)throw Error('Missing Chickens game engine');
+export default engine;

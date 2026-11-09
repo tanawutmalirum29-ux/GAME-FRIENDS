@@ -21,7 +21,6 @@
   "entry": "./game.js",
   "global": "BoulderBash",
   "legacyScripts": [
-    "farm-ice-art.js",
-    "src/games/boulder-bash/boulder-bash.js"
+    "farm-ice-art.js"
   ]
 }

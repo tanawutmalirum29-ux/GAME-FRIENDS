@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.WitchingSnake;
+import './witching-snake.js';
+const engine=window.WitchingSnake;
+if(!engine)throw Error('Missing WitchingSnake game engine');
+export default engine;

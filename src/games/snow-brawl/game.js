@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.SnowBrawl;
+import './snow-brawl.js';
+const engine=window.SnowBrawl;
+if(!engine)throw Error('Missing SnowBrawl game engine');
+export default engine;

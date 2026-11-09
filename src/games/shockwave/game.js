@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.Shockwave;
+import './shockwave.js';
+const engine=window.Shockwave;
+if(!engine)throw Error('Missing Shockwave game engine');
+export default engine;

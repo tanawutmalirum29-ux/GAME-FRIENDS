@@ -20,7 +20,5 @@
   ],
   "entry": "./game.js",
   "global": "IceRace",
-  "legacyScripts": [
-    "src/games/ice-race/ice-race.js"
-  ]
+  "legacyScripts": []
 }

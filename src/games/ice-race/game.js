@@ -1,2 +1,4 @@
-// Compatibility adapter: the original gameplay, bots and physics stay authoritative.
-export default window.IceRace;
+import './ice-race.js';
+const engine=window.IceRace;
+if(!engine)throw Error('Missing IceRace game engine');
+export default engine;

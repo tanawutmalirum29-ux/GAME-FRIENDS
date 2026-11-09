@@ -20,7 +20,5 @@
   ],
   "entry": "./game.js",
   "global": "ColorClaim",
-  "legacyScripts": [
-    "src/games/color-claim/color-claim.js"
-  ]
+  "legacyScripts": []
 }

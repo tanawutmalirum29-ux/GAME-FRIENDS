@@ -20,8 +20,5 @@
   ],
   "entry": "./game.js",
   "global": "Gladiators",
-  "legacyScripts": [
-    "src/games/gladiators/gladiators-art.js",
-    "src/games/gladiators/gladiators.js"
-  ]
+  "legacyScripts": []
 }
