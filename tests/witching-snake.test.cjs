@@ -3,7 +3,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const source=fs.readFileSync('witching-snake.js','utf8');
+const source=fs.readFileSync('src/games/witching-snake/witching-snake.js','utf8');
 const tests=[];
 const check=(name,run)=>tests.push({name,run});
 function engine(doc){
@@ -22,7 +22,7 @@ function engine(doc){
  }}};
  const sandbox={window,Math,console,...(doc?{document:doc}:{})};
  vm.runInNewContext(fs.readFileSync('party-arena-scenes.js','utf8'),sandbox,{filename:'party-arena-scenes.js'});
- vm.runInNewContext(source,sandbox,{filename:'witching-snake.js'});
+ vm.runInNewContext(source,sandbox,{filename:'src/games/witching-snake/witching-snake.js'});
  return window.WitchingSnake;
 }
 function roster(n){
@@ -196,9 +196,9 @@ check('existing party, board, asset and controller paths are wired',()=>{
  for(const token of ["witching_snake:'WITCHING SNAKE'","witching_snake:'WitchingSnake'",
   "endWitchingSnakeRound","witch-status","p.ws?.eliminatedTick"])assert.ok(app.includes(token),token);
  assert.ok(html.includes('data-pick="witching_snake"'));
- assert.ok(html.includes('src="./witching-snake.js"'));
+ assert.ok(html.includes('src="./src/games/witching-snake/witching-snake.js"'));
  assert.ok(board.includes("case 'witching_snake'"));
- assert.ok(build.includes("'witching-snake.js'"));
+ assert.ok(build.includes("'src/games/witching-snake/witching-snake.js'"));
 });
 let failures=0;
 for(const t of tests){

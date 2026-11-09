@@ -5,10 +5,10 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 const root=path.join(__dirname,'..');
-const source=fs.readFileSync(path.join(root,'shopping-time.js'),'utf8');
+const source=fs.readFileSync(path.join(root,'src/games/shopping-time/shopping-time.js'),'utf8');
 const sandbox={window:{},Date,Math};
 vm.runInNewContext(fs.readFileSync(path.join(root,'character-system.js'),'utf8'),sandbox,{filename:'character-system.js'});
-vm.runInNewContext(source,sandbox,{filename:'shopping-time.js'});
+vm.runInNewContext(source,sandbox,{filename:'src/games/shopping-time/shopping-time.js'});
 const G=sandbox.window.ShoppingTime,C=G.config;
 assert.ok(['setup','update','draw','hud','playerStatus'].every(f=>typeof G[f]==='function'));
 const make=(n,bots=false)=>Array.from({length:n},(_,i)=>({

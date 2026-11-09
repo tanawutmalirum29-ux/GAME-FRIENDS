@@ -1,9 +1,9 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const code=fs.readFileSync('snow-brawl.js','utf8');
+const code=fs.readFileSync('src/games/snow-brawl/snow-brawl.js','utf8');
 const ctx=vm.createContext({window:{PartyPlayerAvatar:{draw(){}}},Math,Date});
 vm.runInContext(fs.readFileSync('farm-ice-art.js','utf8'),ctx,{filename:'farm-ice-art.js'});
-vm.runInContext(code,ctx,{filename:'snow-brawl.js'});
+vm.runInContext(code,ctx,{filename:'src/games/snow-brawl/snow-brawl.js'});
 const G=ctx.window.SnowBrawl,C=G.config;
 assert.ok(G.setup&&G.update&&G.draw&&G.hud&&G.resolveBodies&&G.contactTime);
 const make=(n,bot=false)=>Array.from({length:n},(_,i)=>({
