@@ -132,3 +132,21 @@ production removed that physics module from controller routes. The build
 now generates the small `src/platform/board-items-brief.js` directly
 from `board-items.js`; the controller uses that ID/name catalogue when
 the full host physics module is unavailable. CI verifies it is current.
+
+## Zero-disconnect core-update safety gate
+
+A new *core* deployment must never force any connected PeerJS room to
+navigate, even if the Host is in the lobby or a Controller is watching
+a roulette/results screen. Previously the safe-reload decision allowed
+those connected-but-not-playing states and therefore could briefly
+disconnect active players. The new `GAME_CAN_AUTO_RELOAD` denies a
+full reload whenever Host/Controller Peer objects, open sessions,
+pending dependency requests, active rounds, BOARD sessions or a pending
+roulette exist. Idle offline Host rooms may still save their bot state
+and reload; a disconnected Controller/Host welcome may reload.
+
+The independent `GamePlatform.refresh()` still activates compatible
+same-core game patches and newly discovered minigames without a page
+navigation. A core-incompatible release is deferred until the user has
+actually left the connected room. Chromium/WebKit cold-start tests
+assert both connected and connecting Host/Controller paths.
