@@ -2242,29 +2242,23 @@ phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'premature inventory messages must not render in lobby');
 assert.equal(phone.elements.get('targetCycleControls').classList.contains('hidden'),true);
-assert.equal(phone.pickButtons.length,15);
-assert.equal(phone.pickButtons[13].dataset.pick,'ice_race');
-assert.equal(phone.pickButtons[14].dataset.pick,'gladiators');
-assert.equal(phone.pickButtons[4].dataset.pick,'color_switch');
-assert.equal(phone.pickButtons[5].dataset.pick,'pizza_time');
-assert.equal(phone.pickButtons[6].dataset.pick,'shopping_time');
- assert.equal(phone.pickButtons[7].dataset.pick,'knight_match');
-assert.equal(phone.pickButtons[8].dataset.pick,'boulder_bash');
-assert.equal(phone.pickButtons[9].dataset.pick,'snow_brawl');
- assert.equal(phone.pickButtons[10].dataset.pick,'witching_snake');
- assert.equal(phone.pickButtons[11].dataset.pick,'lawn_mower');
-assert.equal(phone.pickButtons[12].dataset.pick,'color_claim');
-assert.match(phone.pickButtons[9].children[0].innerHTML,/<svg[\s>]/);
-assert.match(phone.pickButtons[4].children[0].innerHTML,/<svg[\s>]/);
-assert.equal(phone.pickButtons[4].children[1].textContent,'COLOR SWITCH');
-assert.equal(phone.pickButtons[2].dataset.pick,'fruit_memory');
-assert.match(phone.pickButtons[2].children[0].innerHTML,/<svg[\s>]/);
-assert.equal(phone.pickButtons[2].children[1].textContent,'FRUIT MEMORY');
-assert.equal(phone.pickButtons[1].dataset.pick,'chickens');
-assert.match(phone.pickButtons[1].children[0].innerHTML,/<svg[\s>]/);
-assert.equal(phone.pickButtons[1].children[1].textContent,'CHICKENS');
-assert.match(phone.pickButtons[0].children[0].innerHTML,/<svg[\s>]/);
-assert.equal(phone.pickButtons[0].children[1].textContent,'GHOST ATTACK');
+assert.equal(phone.pickButtons.length,legacyManifests.length);
+assert.deepEqual(new Set(phone.pickButtons.map(btn=>btn.dataset.pick)),
+ new Set(legacyManifests.map(meta=>meta.id)),
+ 'dynamic picker must expose exactly the game-owned legacy manifests');
+const picker=id=>{
+ const button=phone.pickButtons.find(btn=>btn.dataset.pick===id);
+ assert.ok(button,'dynamic picker must render '+id);
+ return button;
+};
+for(const id of ['ghost','chickens','fruit_memory','snow_brawl','color_switch']){
+ assert.match(picker(id).children[0].innerHTML,/<svg[\s>]/,
+  'game cover SVG must appear for '+id);
+ assert.equal(picker(id).children[1].textContent,legacyModeNames[id],
+  'metadata label must appear for '+id);
+}
+for(const id of ['ice_race','gladiators','pizza_time','shopping_time','knight_match','boulder_bash',
+ 'witching_snake','lawn_mower','color_claim'])picker(id);
 phone.pick('ghost');
 assert.equal(phoneConn.sent.at(-1).mode,'ghost');
 phoneConn.fire('data',{t:'roster',phase:'playing',mode:'ghost',
