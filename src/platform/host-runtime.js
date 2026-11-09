@@ -28,8 +28,6 @@ function inject(file,api){
   const script=document.createElement('script');
   script.async=false;
   const url=new URL('./'+file,document.baseURI);
-  const version=String(window.GAME_BUILD_VERSION||'');
-  if(version)url.searchParams.set('v',version);
   script.src=url.href;
   script.onload=()=>window[api]?resolve():reject(Error('Host dependency missing API: '+api));
   script.onerror=()=>{script.remove();reject(Error('Host dependency unavailable: '+file));};

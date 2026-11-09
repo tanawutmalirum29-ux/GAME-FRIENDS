@@ -663,13 +663,13 @@ function acceptFastAxisConnection(conn){
   player.lastInputAt=Date.now();
   if(round.mode==='board'&&boardSession){
    const board=boardSession;
-   if(packet.turnId!==board.turnId||packet.mapVersion!==board.map.version||
+   if(packet.turnId!==board.turnId||packet.mapId!==board.map.id||
       window.BoardParty.current(board)?.id!==player.id||
       primary.boardCameraGestureToken===board.turnId)return;
    const previous=board.inputs[player.id];
    const held=previous?.turnId===board.turnId?previous:{};
    window.BoardParty.input(board,player.id,{
-    turnId:board.turnId,mapVersion:board.map.version,
+    turnId:board.turnId,mapId:board.map.id,
     actionId:(board.lastActions[player.id]??-1)+1,
     keys:{axisX:x,axisY:y,action:held.a===true,alt:held.b===true,cancel:held.c===true}
    });
@@ -773,7 +773,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         conn.fastAxisConn=null;conn.fastAxisLastAt=0;p.lastInputAt=Date.now();
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active,axisToken:conn.fastAxisToken,
           ...gfVersionHello(),pluginHash:round?.pluginHash||null,
-          boardMapVersion:boardSession?.map.version||null});
+          boardMapId:boardSession?.map.id||null});
         broadcastRoster();
         if(['results','summary'].includes(round?.phase))renderResultVotes(true);
       }else if(msg.t==='leave'&&conn.playerId){
@@ -798,7 +798,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
       }else if(msg.t==='board-camera-mode'&&conn.playerId){
         const s=boardSession;
         const valid=round?.mode==='board'&&round.phase==='playing'&&!round.paused&&s&&
-          msg.turnId===s.turnId&&msg.mapVersion===s.map.version&&
+          msg.turnId===s.turnId&&msg.mapId===s.map.id&&
           window.BoardParty.current(s)?.id===conn.playerId&&
           (s.phase==='ready'||(['move_ready','branch','moving'].includes(s.phase)&&s.move?.kind==='walk'))&&
           window.BoardArt?.canPan?.(s)&&
@@ -814,7 +814,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
       }else if(msg.t==='board-camera-gesture'&&conn.playerId){
         const s=boardSession;
         if(round?.mode!=='board'||round.phase!=='playing'||round.paused||!s||
-          msg.turnId!==s.turnId||msg.mapVersion!==s.map.version||
+          msg.turnId!==s.turnId||msg.mapId!==s.map.id||
           conn.boardCameraGestureToken!==s.turnId||
           !(s.phase==='ready'||(['move_ready','branch','moving'].includes(s.phase)&&s.move?.kind==='walk'))||
           window.BoardParty.current(s)?.id!==conn.playerId||

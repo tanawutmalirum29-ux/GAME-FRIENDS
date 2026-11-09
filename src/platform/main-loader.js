@@ -22,7 +22,6 @@ function loadApp(){
  }).then(()=>new Promise((resolve,reject)=>{
   const script=document.createElement('script');
   const url=new URL('./'+bundle,document.baseURI);
-  if(window.GAME_BUILD_VERSION)url.searchParams.set('v',String(window.GAME_BUILD_VERSION));
   script.src=url.href;script.async=true;
   script.onload=resolve;
   script.onerror=()=>{script.remove();reject(Error('Application bundle download failed: '+bundle));};
