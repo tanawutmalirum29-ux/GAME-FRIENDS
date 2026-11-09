@@ -14,12 +14,17 @@
   ],
   "controls": [
     "joystick",
-    "A",
-    "B",
-    "C"
+    "A"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "FruitMemory",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "จำผลไม้แล้ววิ่งไปยังช่องที่ถูกต้อง • ดันกันได้ • A ต่อยให้สตั้น",
+    "labels": {
+      "A": "ต่อย"
+    },
+    "status": "FRUIT MEMORY • รอด {survivors} คน"
+  }
 }

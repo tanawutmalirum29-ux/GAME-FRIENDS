@@ -14,12 +14,17 @@
   ],
   "controls": [
     "joystick",
-    "A",
-    "B",
-    "C"
+    "A"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "KnightMatch",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "ควบม้าใช้ทวนแทงลูกโป่งสีตัวเอง +1 สีอื่น -1 • A แทง / B ไม่ใช้",
+    "labels": {
+      "A": "แทงทวน"
+    },
+    "status": "KNIGHT MATCH • เหลือ {remaining} วิ"
+  }
 }

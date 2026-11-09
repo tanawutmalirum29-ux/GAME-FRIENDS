@@ -13,13 +13,15 @@
     "board"
   ],
   "controls": [
-    "joystick",
-    "A",
-    "B",
-    "C"
+    "joystick"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "PizzaTime",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "รับวัตถุดิบทีละชิ้น กลับไปส่งเชฟ • เดินรับชนิดใหม่เพื่อเปลี่ยนของ • A/B ไม่ใช้",
+    "labels": {},
+    "status": "PIZZA TIME • เหลือ {remaining} วิ"
+  }
 }

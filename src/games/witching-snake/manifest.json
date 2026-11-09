@@ -13,13 +13,15 @@
     "board"
   ],
   "controls": [
-    "joystick",
-    "A",
-    "B",
-    "C"
+    "joystick"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "WitchingSnake",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "เลี้ยวไม้กวาดด้วยจอย • หลบหางเวทมนตร์และขอบสนาม • ดาวเพิ่มความยาวหาง • A/B ไม่ใช้",
+    "labels": {},
+    "status": "WITCHING SNAKE • รอด {survivors} คน"
+  }
 }

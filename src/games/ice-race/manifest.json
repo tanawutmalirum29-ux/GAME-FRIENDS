@@ -13,13 +13,15 @@
     "board"
   ],
   "controls": [
-    "joystick",
-    "A",
-    "B",
-    "C"
+    "joystick"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "IceRace",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "เลื่อนน้ำแข็งลื่นมาก • ดริฟต์วนผ่านเช็กพอยต์ตามลำดับ • ตกแล้วเกิดใหม่ • A/B ไม่ใช้",
+    "labels": {},
+    "status": "ICE RACE • เหลือ {remaining} วิ"
+  }
 }

@@ -13,13 +13,14 @@
     "board"
   ],
   "controls": [
-    "joystick",
-    "A",
-    "B",
-    "C"
+    "joystick"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "Shockwave",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง",
+    "labels": {}
+  }
 }

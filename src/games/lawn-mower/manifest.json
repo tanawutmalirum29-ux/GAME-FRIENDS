@@ -13,13 +13,15 @@
     "board"
   ],
   "controls": [
-    "joystick",
-    "A",
-    "B",
-    "C"
+    "joystick"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "LawnMower",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "ขับรถตัดหญ้าด้วยจอย • สุ่มพระอาทิตย์ 1–3 ดวง • ดวงละ 5 คะแนน • A/B ไม่ใช้",
+    "labels": {},
+    "status": "LAWN MOWER • เหลือ {remaining} วิ"
+  }
 }

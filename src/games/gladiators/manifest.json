@@ -13,13 +13,15 @@
     "board"
   ],
   "controls": [
-    "joystick",
-    "A",
-    "B",
-    "C"
+    "joystick"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "Gladiators",
-  "legacyScripts": []
+  "legacyScripts": [],
+  "controller": {
+    "help": "เดิน หมุน และเปลี่ยนทิศเพื่อเหวี่ยงลูกตุ้มหนาม • โซ่ไม่ฆ่า • A/B ไม่ใช้",
+    "labels": {},
+    "status": "GLADIATORS • รอด {survivors} คน"
+  }
 }

@@ -14,14 +14,19 @@
   ],
   "controls": [
     "joystick",
-    "A",
-    "B",
-    "C"
+    "A"
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
   "global": "BoulderBash",
   "legacyScripts": [
     "src/shared/farm-ice-art.js"
-  ]
+  ],
+  "controller": {
+    "help": "ทางลาดหิมะลื่น • A ผลักโดยไม่สตั้น • หลบหินจากขวา • ตกรอบแล้วมีโอกาสบังคับหิน",
+    "labels": {
+      "A": "ผลัก"
+    },
+    "status": "BOULDER BASH • รอด {survivors} คน"
+  }
 }
