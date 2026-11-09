@@ -170,8 +170,13 @@ const app=fs.readFileSync(path.join(root,'app.js'),'utf8'),
 assert.match(app,/"lawn_mower": \{[\s\S]*?"global": "LawnMower"/,
  'compiled manifest must retain LAWN MOWER engine registration');
 for(const re of [/const MODES=Object\.fromEntries\(/,/function endPluginRound\(/,/renderPhoneLawnStatus/,/lawn-status/])assert.match(app,re);
-assert.match(html,/data-pick="lawn_mower"/);assert.match(html,/src="\.\/src\/games\/lawn-mower\/lawn-mower\.js"/);
+assert.doesNotMatch(html,/data-pick="/,'game picker must be generated from registry');
+assert.doesNotMatch(html,/src="\.\/src\/games\//,'game sources must load on demand');
+const meta=JSON.parse(fs.readFileSync(path.join(root,'src/games/lawn-mower/manifest.json'),'utf8'));
+assert.deepEqual(meta.modes,['normal','board'],'manifest enables both party modes');
+assert.match(fs.readFileSync(path.join(root,'src/games/lawn-mower/game.js'),'utf8'),/import '.\/lawn-mower.js'/);
 assert.equal(typeof G.getResult,'function','LAWN MOWER owns its results');
 assert.doesNotMatch(board,/case 'lawn_mower':/);
-assert.match(board,/plugin\.getResult/);assert.match(build,/'src\/games\/lawn-mower\/lawn-mower\.js'/);
+assert.match(board,/plugin\.getResult/);
+assert.ok(build.includes("const deployAsset="),'static build auto-validates referenced assets');
 console.log('LAWN MOWER: 30% slower movement, deck-aligned mowing, garden foreground, 55/20/15/10 odds, collisions and 1–12 bots PASS');
