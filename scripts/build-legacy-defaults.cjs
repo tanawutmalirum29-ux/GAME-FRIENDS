@@ -18,8 +18,13 @@ function generated(){
   values[meta.id]={name:meta.name,global:meta.global,
    controls:meta.controls,controller:meta.controller||null};
  }
- return '/* GENERATED from src/games/*/manifest.json — do not edit by hand. */\\n'.replace('\\n','\n')+
-  'const LEGACY_GAME_DATA=Object.freeze('+JSON.stringify(values,null,2)+');\n';
+ const legacyOrder=["ghost","chickens","fruit_memory","shockwave","color_switch","pizza_time","knight_match","boulder_bash","snow_brawl","shopping_time","witching_snake","lawn_mower","color_claim","ice_race","gladiators"];
+ const sequence=Object.fromEntries(Object.entries(values).sort(([a],[b])=>{
+  const rank=id=>{const i=legacyOrder.indexOf(id);return i<0?legacyOrder.length:i;};
+  return rank(a)-rank(b)||a.localeCompare(b);
+ }));
+ return '/* GENERATED from src/games/*/manifest.json — do not edit by hand. */\n'+
+  'const LEGACY_GAME_DATA=Object.freeze('+JSON.stringify(sequence,null,2)+');\n';
 }
 function buildLegacyDefaults({write=false}={}){
  const content=generated();

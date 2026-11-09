@@ -21,6 +21,7 @@
   "legacyScripts": [],
   "controller": {
     "help": "แตะช่องระเบิดแม้แค่ปลายแขนก็ตกรอบ • หนีให้ทั้งตัวพ้นช่องแดง",
-    "labels": {}
+    "labels": {},
+    "status": "SHOCKWAVE • รอด {survivors} คน"
   }
 }
