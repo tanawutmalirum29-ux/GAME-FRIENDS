@@ -1056,7 +1056,12 @@ function renderRoster(root,active,round){
     root.append(box);
   });
 }
-window.GhostAttack={renderRoster,getResult,resultTitle:"ผู้รอดคนสุดท้าย!",countdownSeconds:3,updateDuringCountdown:true,onCountdownFinished(round){round.ghost.ghostSpawned=true;},setup,update,draw,hud,itemStatus,cycleTarget,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round,players){
+ const info=itemStatus(players).find(q=>q.id===p.id);
+ return info?{t:'inventory',mode:round.mode,...info}:null;
+}
+window.GhostAttack={getControllerPacket,renderRoster,getResult,resultTitle:"ผู้รอดคนสุดท้าย!",countdownSeconds:3,updateDuringCountdown:true,onCountdownFinished(round){round.ghost.ghostSpawned=true;},setup,update,draw,hud,itemStatus,cycleTarget,
   mapInfo,obstacleAt,
   ITEM_NAMES,ITEM_SVG,getItemIconImage,constants:C};
 })();

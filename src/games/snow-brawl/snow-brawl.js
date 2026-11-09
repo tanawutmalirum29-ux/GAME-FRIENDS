@@ -581,7 +581,15 @@ function renderRoster(root,active,round){
      return;
    
 }
-window.SnowBrawl=Object.freeze({renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round){
+ const sb=p.snow||{},held=round.snowBrawl?.balls.find(b=>b.id===sb.ballId);
+ return {t:'snow-status',mode:round.mode,alive:!!sb.alive,
+  windup:Math.max(0,sb.windup||0),flat:Math.max(0,sb.flat||0),
+  ballRadius:held?.r||0,
+  survivors:round.snowBrawl?.roster.filter(q=>q.active&&q.snow?.alive).length||0};
+}
+window.SnowBrawl=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,
  islandRadius,viewScale,rollSpeed,ballMass,growthRadius,makeBall,ballFor,release,
  destroy,eliminate,solveBallCollisions,resolveBodies,contactTime,
  config:C});

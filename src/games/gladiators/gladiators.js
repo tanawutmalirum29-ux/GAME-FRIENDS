@@ -526,6 +526,14 @@ function renderRoster(root,active,round){
    return;
   
 }
-window.Gladiators=Object.freeze({renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,eliminate,spawnPositions,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round,players){
+ const st=p.gladiator||{},ball=st.ball||{};
+ return {t:'gladiators-status',mode:round.mode,alive:!!st.alive,
+  survivors:hud(players,round).survivors,
+  ball:{x:ball.x||0,y:ball.y||0,vx:ball.vx||0,vy:ball.vy||0},
+  chain:{x:st.anchorX||0,y:st.anchorY||0},eliminatedTick:st.eliminatedTick};
+}
+window.Gladiators=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,finish,eliminate,spawnPositions,
  boundsFor,impact,swept,living,config:C});
 })();

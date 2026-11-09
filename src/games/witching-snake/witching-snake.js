@@ -383,7 +383,11 @@ function renderRoster(root,active,round){
    return;
   
 }
-window.WitchingSnake=Object.freeze({renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,spawnPositions,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round){
+ return {t:'witch-status',mode:round.mode,alive:!!p.ws?.alive,stars:p.ws?.stars||0};
+}
+window.WitchingSnake=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,update,draw,hud,step,spawnPositions,
  inside,segmentsTouch,distPointSegment2,addTrail,indexTrails,strikesTrail,
  eliminate,finish,config:CONFIG});
 })();

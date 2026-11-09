@@ -531,7 +531,15 @@ function renderRoster(root,active,round){
      });return;
    
 }
-window.ColorSwitch=Object.freeze({renderRoster,getResult,resultTitle:"ผู้ทำคะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,createArena,tileAt,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round){
+ const cs=p.cs||{};
+ return {t:'color-status',mode:round.mode,score:p.score||0,
+  stun:cs.stunRemaining||0,cooldownA:cs.punchCooldown||0,
+  cooldownB:cs.blastCooldown||0,
+  bankedScore:cs.bankedScore||0,territoryScore:cs.territoryScore||0};
+}
+window.ColorSwitch=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ผู้ทำคะแนนสูงสุด!",countdownSeconds:3,setup,update,draw,hud,createArena,tileAt,
  captureTile,capturePathTiles,updateTerritoryScores,startPunch,resolvePunchHit,
  activateColorBlast,calculateBlastCells,spawnPowerBox,collectPowerBox,
  bankTerritory,fireRocketBurst,updateRockets,refreshScore,

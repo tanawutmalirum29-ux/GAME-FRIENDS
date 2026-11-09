@@ -491,6 +491,12 @@ function renderRoster(root,active,round){
     return;
   
 }
-window.Chickens=Object.freeze({renderRoster,getResult,resultTitle:"จับไก่ให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,dropChicken,gateInside,goalHead,drawHeldChicken,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round){
+ return {t:'chicken-status',mode:round.mode,
+  cooldown:Math.max(0,p.chickenAttackCooldown||0),
+  carrying:p.carriedChickenId!=null};
+}
+window.Chickens=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"จับไก่ให้ได้มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,dropChicken,gateInside,goalHead,drawHeldChicken,
   constants:C});
 })();

@@ -43,4 +43,50 @@ for(const slug of fs.readdirSync(gamesRoot).filter(x=>
  }
 }
 assert.equal(imported,15,'Expected all 15 existing minigames to own their imports');
+
+// Each legacy game owns its controller-state packet; generic Host dispatch may
+// not accumulate per-mode branches as new plug-ins are added.
+const roomCode=fs.readFileSync(path.join(root,'src/app/host/room.js'),'utf8');
+const startStatus=roomCode.indexOf('function sendPlayerInventory(conn){');
+const endStatus=roomCode.indexOf('function broadcastPlayerInventories(){',startStatus);
+assert.ok(startStatus>=0&&endStatus>startStatus);
+const statusDispatch=roomCode.slice(startStatus,endStatus);
+
+const vm=require('node:vm');
+const deliveries=[],warnings=[];
+const badEngine={getControllerPacket(){throw Error('faulty update')}};
+const goodEngine={getControllerPacket(){return {t:'custom-status',mode:'forged',phase:'forged',score:7}}};
+let selectedEngine=badEngine;
+const peer={playerId:'p1'},context={
+ players:[{id:'p1',active:true}],round:{mode:'unknown_future_game'},
+ gameEngine:()=>selectedEngine,networkPhase:()=> 'playing',
+ send:(_,msg)=>deliveries.push(msg),
+ console:{warn:(...args)=>warnings.push(args)},
+ WeakSet
+};
+vm.createContext(context);
+vm.runInContext('const failedControllerStatusEngines=new WeakSet();\n'+statusDispatch+
+ '\nthis.dispatchControllerStatus=sendPlayerInventory;',context);
+assert.doesNotThrow(()=>context.dispatchControllerStatus(peer));
+assert.doesNotThrow(()=>context.dispatchControllerStatus(peer));
+assert.equal(warnings.length,1,'failed game packet must not spam or crash the room');
+assert.equal(deliveries.length,0,'broken hook must not emit invalid data');
+selectedEngine=goodEngine;
+context.dispatchControllerStatus(peer);
+assert.equal(deliveries.length,1);
+assert.equal(deliveries[0].mode,'unknown_future_game',
+ 'new game IDs work without Host branches');
+assert.equal(deliveries[0].phase,'playing',
+ 'Host phase cannot be overridden by a status hook');
+
+assert.match(statusDispatch,/engine=gameEngine\(round\.mode\)/);
+assert.match(statusDispatch,/engine\?\.getControllerPacket\?\.\(p,round,players\)/);
+assert.doesNotMatch(statusDispatch,/round\.mode\s*[!=]==?\s*['"][a-z_]+/);
+for(const slug of fs.readdirSync(gamesRoot).filter(x=>fs.statSync(path.join(gamesRoot,x)).isDirectory())){
+ const meta=JSON.parse(fs.readFileSync(path.join(gamesRoot,slug,'manifest.json'),'utf8'));
+ if(!meta.global||meta.id==='knight_match')continue; // KNIGHT has no custom status packet
+ const source=fs.readFileSync(path.join(gamesRoot,slug,slug+'.js'),'utf8');
+ assert.match(source,/function getControllerPacket\(/,slug+' controller packet must be game-owned');
+ assert.match(source,/window\.[A-Za-z]+=(?:Object\.freeze\()?\{getControllerPacket,/,slug+' must expose its packet hook');
+}
 console.log('GAME SOURCE OWNERSHIP PASS: '+imported+' independently imported local game sources');
