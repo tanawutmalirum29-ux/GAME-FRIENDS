@@ -3,7 +3,7 @@
  * types until the owner reviews them. Do not import offline art into logic. */
 (()=>{
 'use strict';
-const Base=window.BoardMap,D=window.BOARD_PARTY_V7_DESIGN;
+const Base=window.BoardMap,D=window.BOARD_DESIGN;
 if(!Base||!D)throw Error('BOARD v7: load board-map and design before adapter');
 const VERSION='winter-expedition-152-v10',copy=x=>JSON.parse(JSON.stringify(x));
 const BASE_NODES=213,EXTRA_NODES=146,ISLANDS=17,BRIDGES=20;
