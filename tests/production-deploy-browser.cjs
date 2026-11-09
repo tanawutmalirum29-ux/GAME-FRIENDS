@@ -49,7 +49,7 @@ function build(target,version){
  assert.ok(html.includes('src="./src/platform/board-items-brief.js?v='+version+'"'),
   'phone BOARD metadata must be version pinned');
  assert.ok(!html.includes('src="./character-system.js?'),'host physics must be lazy');
- assert.ok(!html.includes('src="./board-party.js?'),'BOARD core must be lazy');
+ assert.ok(!html.includes('src="./src/board-party/runtime/board-party.js?'),'BOARD core must be lazy');
  assert.ok(!html.includes('cdn.jsdelivr.net/npm/peerjs@'),'peer library must be on demand');
  assert.ok(fs.existsSync(path.join(target,'game-assets/ci_probe',
   catalog.games.find(g=>g.id==='ci_probe').hash,'game.js')));

@@ -26,7 +26,7 @@ function pruneGameCover(html){
  // Game-owned SVGs replace the 17 KB legacy shared cover renderer in production.
  return html.replace(/^[ \t]*<script\s+defer\s+src="\.\/game-cover-art\.js(?:\?v=[^"]*)?"\s*><\/script>\s*$/gm,'');
 }
-const BOARD_CORE_SCRIPTS=new Set(["board-map.js","board-v7-design.js","board-v7-art.js","board-branch-naming.js","board-v7-adapter.js","board-dice.js","board-dice-renderer.js","board-items.js","board-bots.js","board-minigame.js","board-party.js","board-art.js"]);
+const BOARD_CORE_SCRIPTS=new Set(["src/board-party/runtime/board-map.js","src/board-party/runtime/board-v7-design.js","src/board-party/runtime/board-v7-art.js","src/board-party/runtime/board-branch-naming.js","src/board-party/runtime/board-v7-adapter.js","src/board-party/runtime/board-dice.js","src/board-party/runtime/board-dice-renderer.js","src/board-party/runtime/board-items.js","src/board-party/runtime/board-bots.js","src/board-party/runtime/board-minigame.js","src/board-party/runtime/board-party.js","src/board-party/runtime/board-art.js"]);
 function pruneBoardCore(html){
  assert(typeof html==='string','index source must be a string');
  const tag=/^[ \t]*<script\s+defer\s+src="\.\/([^"?]+)(?:\?v=[^"]*)?"\s*><\/script>\s*$/gm;

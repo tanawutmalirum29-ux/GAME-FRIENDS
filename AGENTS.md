@@ -34,7 +34,7 @@ Read [docs/ADDING_BOARD_MAPS.md](docs/ADDING_BOARD_MAPS.md) before adding or edi
 
 ## BOARD engine source ownership
 
-`board-party.js` is a generated lexical compatibility bundle; author changes in `src/board-party/core/`, `systems/` or `ui/` and regenerate with `node scripts/build-board-party.cjs --write`. Never insert named minigames or map-specific imports into BOARD source manifest. `node scripts/build-board-party.cjs --check` and `node tests/board-source-modules.cjs` must pass. This source split preserves the exact gameplay runtime; it is not independent per-feature network chunking. See [docs/BOARD_SOURCE_MODULES.md](docs/BOARD_SOURCE_MODULES.md).
+`src/board-party/runtime/board-party.js` is a generated lexical compatibility bundle; author changes in `src/board-party/core/`, `systems/` or `ui/` and regenerate with `node scripts/build-board-party.cjs --write`. Never insert named minigames or map-specific imports into BOARD source manifest. `node scripts/build-board-party.cjs --check` and `node tests/board-source-modules.cjs` must pass. This source split preserves the exact gameplay runtime; it is not independent per-feature network chunking. See [docs/BOARD_SOURCE_MODULES.md](docs/BOARD_SOURCE_MODULES.md).
 
 ## BOARD systems (items/spaces/events) zero-touch plugin ownership
 
@@ -43,3 +43,7 @@ Read [docs/ADDING_BOARD_SYSTEMS.md](docs/ADDING_BOARD_SYSTEMS.md). New BOARD sys
 ## PeerJS version negotiation
 
 Read [docs/VERSION_HANDSHAKE.md](docs/VERSION_HANDSHAKE.md) before changing peer messages. Production Host/Controller must agree on `protocolVersion` and `coreHash` at join/welcome; never disconnect an existing room merely to update. Minigame code is Host-authoritative and pinned until the next round. Run `node tests/version-handshake.cjs` and browser QA.
+
+## Single BOARD runtime location (no legacy root duplicates)
+
+BOARD runtime scripts are owned only at `src/board-party/runtime/` and the archived V7 source at `src/board-party/legacy/v7-source/`. Do not restore any `board-*.js` to the repository root or add a second compiled bundle. The `src/board-party/core|systems|ui/` sources assemble the **one** runtime `src/board-party/runtime/board-party.js`. Maintain `scripts/build-board-v7.cjs`, `scripts/build-board-party.cjs`, `index.html`, `src/platform/board-runtime.js` and `scripts/lazy-game-scripts.cjs` together. Run `node tests/board-no-root-assets.cjs`, all BOARD tests and Chromium/WebKit Browser QA before merge.

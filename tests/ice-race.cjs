@@ -269,7 +269,7 @@ test('all-bot races run entire 40/70 second limits with real checkpoint scores',
 test('party selection, timed results, board ranking and cover are registered',()=>{
  const app=fs.readFileSync('app.js','utf8'),
   html=fs.readFileSync('index.html','utf8'),
-  board=fs.readFileSync('board-minigame.js','utf8'),
+  board=fs.readFileSync('src/board-party/runtime/board-minigame.js','utf8'),
   build=fs.readFileSync('scripts/build-static.cjs','utf8'),
   covers=fs.readFileSync('game-cover-art.js','utf8');
  assert.match(app,/"ice_race": \{[\s\S]*?"name": "ICE RACE",[\s\S]*?"global": "IceRace"/,
@@ -288,7 +288,7 @@ test('party selection, timed results, board ranking and cover are registered',()
  assert.ok(build.includes("const deployAsset="),'static builder must not hardcode game IDs');
  assert.ok(covers.includes('ice_race:iceRaceScene'));
  const window={BoardDice:{shuffle:p=>p}};
- vm.runInNewContext(board,{window,console},{filename:'board-minigame.js'});
+ vm.runInNewContext(board,{window,console},{filename:'src/board-party/runtime/board-minigame.js'});
  const {round,ps,e}=match(4);
   round.pluginEngine=e;
  ps.forEach((p,i)=>p.score=[4,3,3,1][i]);

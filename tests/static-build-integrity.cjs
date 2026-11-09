@@ -15,10 +15,10 @@ try{
  }});
 
  // A new, unknown game is added exclusively to its own directory. Neither
- // index.html, app.js, board-minigame.js nor the build script is edited.
+ // index.html, app.js, src/board-party/runtime/board-minigame.js nor the build script is edited.
  // Normalize all generated Core files first; the second build must change
  // only the catalog and the unknown native game's immutable asset folder.
- for(const file of ['board-v7-design.js','board-v7-art.js','game-catalog.json'])
+ for(const file of ['src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-v7-art.js','game-catalog.json'])
   fs.rmSync(path.join(target,file),{force:true});
  execFileSync(process.execPath,['scripts/build-static.cjs'],{
   cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:version},
@@ -44,7 +44,7 @@ try{
  const exists=file=>assert.ok(fs.statSync(path.join(target,file)).isFile(),
   'static deploy missing file: '+file);
  for(const file of ['index.html','version.json','build-version.js',
-  'app.js','app-controller.js','board-v7-design.js','board-v7-art.js',
+  'app.js','app-controller.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-v7-art.js',
   'game-catalog.json','board-map-catalog.json','board-system-catalog.json','sw.js'])exists(file);
  assert.equal(JSON.parse(fs.readFileSync(path.join(target,'version.json'),'utf8')).version,version);
  const html=fs.readFileSync(path.join(target,'index.html'),'utf8');

@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const surfaces=[],labels=[],labelDraws=[],avatarDraws=[],portraitDraws=[],portraitPositions=[],ringArcs=[];let denyTerrain=false,paintClock=0;
-const artSource=fs.readFileSync('board-art.js','utf8');
+const artSource=fs.readFileSync('src/board-party/runtime/board-art.js','utf8');
 assert.match(artSource,/else sceneryLite\(g,s\)/,
  'low-memory renderer must avoid repainting full scenery every frame');
 assert.match(artSource,/if\(!visible\(x,y,75\)\)continue/,

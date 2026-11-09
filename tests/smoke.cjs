@@ -12,7 +12,7 @@ assert.notEqual(appForTest,source,'test injection must find the IIFE footer');
 const arenaSource=fs.readFileSync('arena-art.js','utf8');
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
 const characterSource=fs.readFileSync('character-system.js','utf8');
-const boardCameraSource=fs.readFileSync('board-controller-camera.js','utf8');
+const boardCameraSource=fs.readFileSync('src/board-party/runtime/board-controller-camera.js','utf8');
 const uiArtSource=fs.readFileSync('party-ui-art.js','utf8');
 const pizzaArtSource=fs.readFileSync('src/games/pizza-time/pizza-ingredient-art.js','utf8');
 const pizzaSource=fs.readFileSync('src/games/pizza-time/pizza-time.js','utf8');
@@ -1205,7 +1205,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
   vm.runInContext(artSource,scope,{filename:'src/shared/graveyard-art.js'});
    vm.runInContext(avatarSource,scope,{filename:'player-avatar.js'});
   vm.runInContext(characterSource,scope,{filename:'character-system.js'});
-   vm.runInContext(boardCameraSource,scope,{filename:'board-controller-camera.js'});
+   vm.runInContext(boardCameraSource,scope,{filename:'src/board-party/runtime/board-controller-camera.js'});
   vm.runInContext(uiArtSource,scope,{filename:'party-ui-art.js'});
   vm.runInContext(ghostSource,scope,{filename:'src/games/ghost-attack/ghost-attack.js'});
   vm.runInContext(farmIceSource,scope,{filename:'src/shared/farm-ice-art.js'});

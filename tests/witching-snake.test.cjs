@@ -191,7 +191,7 @@ check('bots use physical steering and never teleport',()=>{
 check('existing party, board, asset and controller paths are wired',()=>{
  const app=fs.readFileSync('app.js','utf8'),
   html=fs.readFileSync('index.html','utf8'),
-  board=fs.readFileSync('board-minigame.js','utf8'),
+  board=fs.readFileSync('src/board-party/runtime/board-minigame.js','utf8'),
   build=fs.readFileSync('scripts/build-static.cjs','utf8');
  assert.match(app,/"witching_snake": \{[\s\S]*?"name": "WITCHING SNAKE",[\s\S]*?"global": "WitchingSnake"/,
   'generated metadata preserves WITCHING SNAKE title and engine');

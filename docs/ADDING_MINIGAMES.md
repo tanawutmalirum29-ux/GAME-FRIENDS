@@ -4,7 +4,7 @@
 
 A new game must be self-contained under `src/games/<unique-slug>/`. **Do not edit**
 `index.html`, `host.html`, `app.js`, `app-controller.js`,
-`board-minigame.js`, `src/app/modules.json`, or a global game list.
+`src/board-party/runtime/board-minigame.js`, `src/app/modules.json`, or a global game list.
 The deploy builder discovers every direct child directory of `src/games/`,
 validates its manifest, publishes versioned assets, and generates
 `game-catalog.json`. Host, phone picker, game roulette, Normal Party and

@@ -4,7 +4,7 @@ require('./build-board-v7.cjs');
 /* Non-destructive final V10 graph audit. Run with --strict in CI. */
 const fs=require('node:fs'),vm=require('node:vm');
 const ctx=vm.createContext({window:{},Math,Date,console});
-for(const file of ['board-map.js','board-v7-design.js','board-branch-naming.js','board-v7-adapter.js'])
+for(const file of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-branch-naming.js','src/board-party/runtime/board-v7-adapter.js'])
  vm.runInContext(fs.readFileSync(file,'utf8'),ctx,{filename:file});
 const M=ctx.window.BoardMap,D=ctx.window.BOARD_PARTY_V7_DESIGN,m=M.create(0),graph=M.GRAPH_MIGRATION;
 const ids=Object.keys(m.nodes),edges=Object.values(m.nodes).flatMap(n=>n.nextNodes.map(to=>n.id+'>'+to));

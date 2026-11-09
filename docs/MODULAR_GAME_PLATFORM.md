@@ -130,7 +130,7 @@ remaining common closure has not been migrated to independent ES modules.
 The BOARD phone previously accessed `window.BoardItems` even though
 production removed that physics module from controller routes. The build
 now generates the small `src/platform/board-items-brief.js` directly
-from `board-items.js`; the controller uses that ID/name catalogue when
+from `src/board-party/runtime/board-items.js`; the controller uses that ID/name catalogue when
 the full host physics module is unavailable. CI verifies it is current.
 
 ## Zero-disconnect core-update safety gate

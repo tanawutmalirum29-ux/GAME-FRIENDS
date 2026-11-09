@@ -1,13 +1,13 @@
-/* Derive compact BOARD labels from authoritative board-items.js at build time. */
+/* Derive compact BOARD labels from authoritative src/board-party/runtime/board-items.js at build time. */
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const assert=require('node:assert/strict');
 const root=path.resolve(process.env.GAME_BUILD_ROOT||path.join(__dirname,'..'));
-const source=path.join(root,'board-items.js');
+const source=path.join(root,'src/board-party/runtime/board-items.js');
 const output=path.join(root,'src/platform/board-items-brief.js');
 function build({write=false}={}){
  const context={window:{}};
- vm.runInNewContext(fs.readFileSync(source,'utf8'),context,{filename:'board-items.js',timeout:1500});
+ vm.runInNewContext(fs.readFileSync(source,'utf8'),context,{filename:'src/board-party/runtime/board-items.js',timeout:1500});
  const api=context.window.BoardItems;
  assert.ok(api&&api.names&&Array.isArray(api.ids)&&api.ids.length>0);
  const names=Object.fromEntries(api.ids.map(id=>{
@@ -16,12 +16,12 @@ function build({write=false}={}){
   assert.ok(typeof label==='string'&&label.length>0&&label.length<=80,'invalid board item name');
   return [id,label];
  }));
- const payload='/* Auto-generated from board-items.js; do not edit manually. */\n'+
+ const payload='/* Auto-generated from src/board-party/runtime/board-items.js; do not edit manually. */\n'+
   '(()=>{\n"use strict";\nconst names=Object.freeze('+JSON.stringify(names)+');\n'+
   'window.PartyBoardItemMeta=Object.freeze({names,ids:Object.freeze(Object.keys(names))});\n})();\n';
  if(write){fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,payload);}
  else assert.equal(fs.readFileSync(output,'utf8'),payload,
-  'BOARD item brief is not synchronized with board-items.js');
+  'BOARD item brief is not synchronized with src/board-party/runtime/board-items.js');
  return {ids:Object.keys(names),bytes:Buffer.byteLength(payload)};
 }
 if(require.main===module){

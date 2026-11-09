@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "description": "Authored BOARD engine parts. Concatenate as one lexical IIFE; generated board-party.js is the runtime compatibility artifact.",
+  "description": "Authored BOARD engine modules. Generate exactly one classic runtime bundle at src/board-party/runtime/board-party.js; never recreate root board-party.js.",
   "parts": [
     "src/board-party/core/engine.js",
     "src/board-party/core/turn-manager.js",

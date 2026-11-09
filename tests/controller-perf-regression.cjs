@@ -79,6 +79,6 @@ assert.match(css,/controllerBoardMinimap/);
 assert.match(controller,/function queueAnalogInput\(/);
 assert.match(host,/t:'input-ack'/);
 assert.match(controller,/data\.t==='input-ack'/);
-assert.match(read('board-art.js'),/const boardPaintCache=new WeakMap\(\)/);
+assert.match(read('src/board-party/runtime/board-art.js'),/const boardPaintCache=new WeakMap\(\)/);
 assert.match(read('src/app/rounds/render.js'),/function updateAdaptiveBoardDetail/);
 console.log('CONTROLLER PERFORMANCE PASS: ICE config, first-frame fallback, viewport batching and diagnostics');

@@ -2,14 +2,14 @@ name: BOARD PARTY layout audit
 on:
   pull_request:
     paths:
-      - 'board-map.js'
-      - 'board-v7-adapter.js'
-      - 'board-v7-source/**'
+      - 'src/board-party/runtime/board-map.js'
+      - 'src/board-party/runtime/board-v7-adapter.js'
+      - 'src/board-party/legacy/v7-source/**'
       - 'scripts/build-board-v7.cjs'
       - 'tests/board-build-fresh.cjs'
       - 'tests/board-runtime-layers.cjs'
       - 'tests/static-build-integrity.cjs'
-      - 'board-art.js'
+      - 'src/board-party/runtime/board-art.js'
       - 'tests/board-layout-audit.cjs'
       - '.github/workflows/board-layout-audit.yml'
 permissions:

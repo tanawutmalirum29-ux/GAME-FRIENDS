@@ -13,13 +13,13 @@ const HOST={
  'character-system.js':'PartyCharacters'
 };
 const BOARD={
- 'board-map.js':'BoardMap',
- 'board-dice.js':'BoardDice',
- 'board-items.js':'BoardItems',
- 'board-bots.js':'BoardBots',
- 'board-minigame.js':'BoardMinigame',
- 'board-party.js':'BoardParty',
- 'board-art.js':'BoardArt'
+ 'src/board-party/runtime/board-map.js':'BoardMap',
+ 'src/board-party/runtime/board-dice.js':'BoardDice',
+ 'src/board-party/runtime/board-items.js':'BoardItems',
+ 'src/board-party/runtime/board-bots.js':'BoardBots',
+ 'src/board-party/runtime/board-minigame.js':'BoardMinigame',
+ 'src/board-party/runtime/board-party.js':'BoardParty',
+ 'src/board-party/runtime/board-art.js':'BoardArt'
 };
 function fixture(file,mapping,failFile){
  const window={GAME_BUILD_VERSION:'route-test'},calls=[];
@@ -28,7 +28,8 @@ function fixture(file,mapping,failFile){
   baseURI:'https://example.org/subdir/index.html',
   createElement(name){assert.equal(name,'script');return {remove(){}};},
   head:{append(tag){
-   const filename=new URL(tag.src).pathname.split('/').pop();
+   const base=new URL(document.baseURI).pathname.replace(/[^/]*$/,'');
+   const filename=new URL(tag.src).pathname.slice(base.length);
    calls.push({filename,src:tag.src});
    setImmediate(()=>{
     if(failurePending&&filename===failFile){
@@ -63,17 +64,17 @@ async function host(){
  assert.equal(calls.length,before,'host reloads do not refetch loaded assets');
 }
 async function board(){
- const {window,calls}=fixture('src/platform/board-runtime.js',BOARD,'board-v7-art.js');
+ const {window,calls}=fixture('src/platform/board-runtime.js',BOARD,'src/board-party/runtime/board-v7-art.js');
  const api=window.BoardRuntime;
- await assert.rejects(api.ensure(),/BOARD PARTY asset unavailable: board-v7-art.js/);
+ await assert.rejects(api.ensure(),/BOARD PARTY asset unavailable: src\/board-party\/runtime\/board-v7-art\.js/);
  const first=calls.map(x=>x.filename);
- assert.deepEqual(first,['board-map.js','board-v7-design.js','board-v7-art.js']);
+ assert.deepEqual(first,['src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-v7-art.js']);
  const p1=api.ensure(),p2=api.ensure();
  await Promise.all([p1,p2]);
  assert.equal(api.ready(),true);
- assert.equal(calls.filter(x=>x.filename==='board-map.js').length,1);
- assert.equal(calls.filter(x=>x.filename==='board-v7-design.js').length,1);
- assert.equal(calls.filter(x=>x.filename==='board-v7-art.js').length,2);
+ assert.equal(calls.filter(x=>x.filename==='src/board-party/runtime/board-map.js').length,1);
+ assert.equal(calls.filter(x=>x.filename==='src/board-party/runtime/board-v7-design.js').length,1);
+ assert.equal(calls.filter(x=>x.filename==='src/board-party/runtime/board-v7-art.js').length,2);
  assert.equal(calls.length,13,'12-board-file bundle plus one retried broken asset');
  const before=calls.length;await api.ensure();
  assert.equal(calls.length,before);

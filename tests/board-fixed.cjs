@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('board-map.js','utf8'),ctx=vm.createContext({window:{},console});
-vm.runInContext(source,ctx,{filename:'board-map.js'});
+const source=fs.readFileSync('src/board-party/runtime/board-map.js','utf8'),ctx=vm.createContext({window:{},console});
+vm.runInContext(source,ctx,{filename:'src/board-party/runtime/board-map.js'});
 const M=ctx.window.BoardMap,plain=x=>JSON.parse(JSON.stringify(x));
 const normalize=map=>{const copy=plain(map);delete copy.seed;return JSON.stringify(copy);};
 const map=M.create(0),expected=normalize(map),nodes=Object.values(map.nodes);

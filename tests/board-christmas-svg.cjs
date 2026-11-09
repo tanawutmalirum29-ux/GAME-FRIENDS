@@ -24,8 +24,8 @@ for(const kind of kinds){
 }
 assert.equal(art.svg('nonexistent'),'','unknown assets do not cause an image fetch');
 assert.match(art.svg('bag'),/<svg\b/,'non-board symbols remain supported');
-const board=fs.readFileSync('board-art.js','utf8');
-const dice=fs.readFileSync('board-dice-renderer.js','utf8');
+const board=fs.readFileSync('src/board-party/runtime/board-art.js','utf8');
+const dice=fs.readFileSync('src/board-party/runtime/board-dice-renderer.js','utf8');
 assert.match(board,/window\.PartyUiArt\?\.draw\?\.\(g,kind,x,y,size\*2\.05\)/,
  'board uses the same original SVG symbols as the phone');
 assert.match(board,/I\.bomberFlight\(fx\.points,s\.time-fx\.at\)/,
