@@ -1230,7 +1230,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
    vm.runInContext(iceRaceSource,scope,{filename:'src/games/ice-race/ice-race.js'});
   vm.runInContext(claimSource,scope,{filename:'src/games/color-claim/color-claim.js'});
   for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-bots','board-minigame','board-party','board-art'])
-    vm.runInContext(fs.readFileSync(name+'.js','utf8'),scope,{filename:name+'.js'});
+    vm.runInContext(fs.readFileSync('src/board-party/runtime/'+name+'.js','utf8'),scope,{filename:'src/board-party/runtime/'+name+'.js'});
   vm.runInContext(appForTest,scope,{filename:'app.js'});
   return {elements,pickButtons,sessionButtons,padButtons,padZones,instances,scope,sessionData,timers,canvasTransforms,
     mediaCall(peer){return new FakeMediaCall(peer);},
