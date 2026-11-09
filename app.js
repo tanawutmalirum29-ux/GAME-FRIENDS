@@ -346,6 +346,24 @@ let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=f
 let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
 let controllerLobbyVotes={ready:0,total:0,selfReady:false};
 let disconnectRequested=false;
+// Optional, deployment-supplied short-lived TURN credentials. Without them,
+// leave PeerJS defaults intact rather than advertising STUN as a TURN fix.
+// Both host and controllers must use the same ICE configuration.
+function partyPeerOptions(){
+ const servers=window.GF_ICE_SERVERS;
+ if(!Array.isArray(servers))return {debug:0};
+ const iceServers=servers.slice(0,8).filter(server=>{
+  if(!server||typeof server!=='object')return false;
+  const urls=Array.isArray(server.urls)?server.urls:[server.urls];
+  return urls.length>0&&urls.length<=4&&urls.every(url=>
+   typeof url==='string'&&url.length<256&&/^(stun|stuns|turn|turns):/i.test(url));
+ }).map(server=>({
+  urls:server.urls,
+  ...(typeof server.username==='string'?{username:server.username}:{}),
+  ...(typeof server.credential==='string'?{credential:server.credential}:{})
+ }));
+ return iceServers.length?{debug:0,config:{iceServers}}:{debug:0};
+}
 const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
 const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
 const seatTimers=new Map();let reconnectTimer=null,reconnectTries=0;
@@ -721,6 +739,7 @@ function createControllerIngressGuard(clock=()=>Date.now()){
      }else return false;
     }
     return (msg.actionId===undefined||(Number.isSafeInteger(msg.actionId)&&msg.actionId>=0))&&
+     (msg.clientAt===undefined||(Number.isFinite(msg.clientAt)&&msg.clientAt>=0&&msg.clientAt<1e10))&&
      (msg.turnId===undefined||msg.turnId===null||typeof msg.turnId==='string'||Number.isSafeInteger(msg.turnId))&&
      (msg.mapVersion===undefined||msg.mapVersion===null||
       (typeof msg.mapVersion==='string'&&msg.mapVersion.length<=80));
@@ -929,8 +948,14 @@ function releaseHostVideoSourcesWhenIdle(){
   }
   hostVideoSources.clear();
 }
+let lastHostVideoFrameAt=0;
 function renderHostVideoFrames(){
   if(!round||hostVideoCalls.size===0)return;
+  // Copy at most 30 frames/s instead of resampling all streams on every
+  // high-refresh-rate host paint. This never changes game physics/timing.
+  const now=performance.now();
+  if(now-lastHostVideoFrameAt<33)return;
+  lastHostVideoFrameAt=now;
   for(const source of hostVideoSources.values()){
     try{source.context.drawImage(canvas,0,0,source.canvas.width,source.canvas.height);}
     catch(_){}
@@ -989,6 +1014,12 @@ function broadcastGamePreview(){
       remotePreviewContext.drawImage(canvas,0,0,192,108);
       image=remotePreviewCanvas.toDataURL('image/jpeg',.2);
       // Resize back immediately so no subsequent frames are cropped.
+      remotePreviewCanvas.width=256;remotePreviewCanvas.height=144;
+    }
+    if(image.length>24000){
+      remotePreviewCanvas.width=128;remotePreviewCanvas.height=72;
+      remotePreviewContext.drawImage(canvas,0,0,128,72);
+      image=remotePreviewCanvas.toDataURL('image/jpeg',.14);
       remotePreviewCanvas.width=256;remotePreviewCanvas.height=144;
     }
     if(!image.startsWith('data:image/jpeg;base64,')||image.length>24000)return;
@@ -1468,7 +1499,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   const code=resumeCode||randomCode();
   if(!resumeCode)deleteSession(OFFLINE_SESSION);
   $('hostBtn').disabled=true;setStatus('กำลังสร้างห้อง...');
-  const peer=new Peer('gf-party-'+code,{debug:0});
+  const peer=new Peer('gf-party-'+code,partyPeerOptions());
   hostPeer=peer;
   peer.on('open',()=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
@@ -1605,6 +1636,11 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!p)return;
         p.lastInputAt=Date.now();
+         if(Number.isSafeInteger(msg.actionId)&&Number.isFinite(msg.clientAt)&&
+            p.lastInputAt-(conn.lastInputAckAt||0)>=250){
+           conn.lastInputAckAt=p.lastInputAt;
+           send(conn,{t:'input-ack',actionId:msg.actionId,clientAt:msg.clientAt});
+         }
         if(round?.mode==='board'&&boardSession){
           const locked=conn.boardCameraGestureToken===boardSession.turnId;
           const input=locked?{...msg,keys:{...msg.keys,left:false,right:false,jump:false,
@@ -1716,6 +1752,7 @@ function updatePhoneGamePicker(phase,choice){
 }
 let controllerMediaCall=null;
 let videoStreamActive=false;
+let controllerVideoWatchdog=null;
 let controllerPreviewEnabled=false; // Default OFF on every fresh page load.
 const VIDEO_QUALITY_CYCLE=['high','medium','low','auto'];
 const VIDEO_QUALITY_TEXT={
@@ -1791,35 +1828,52 @@ function setControllerPreviewEnabled(enabled){
   if(controllerReady)send(controllerConn,{t:'preview-toggle',enabled:controllerPreviewEnabled});
 }
 function stopControllerVideo(){
-  const call=controllerMediaCall;
-  controllerMediaCall=null;
-  videoStreamActive=false;
-  if(call)try{call.close();}catch(_){}
-  const video=$('controllerPreviewVideo');
-  try{video.pause();}catch(_){}
-  video.srcObject=null;
-  video.classList.add('hidden');
-  $('videoStartBtn').classList.add('hidden');
+ const call=controllerMediaCall;controllerMediaCall=null;videoStreamActive=false;
+ if(controllerVideoWatchdog!==null)clearTimeout(controllerVideoWatchdog);
+ controllerVideoWatchdog=null;
+ if(call)try{call.close();}catch(_){}
+ const video=$('controllerPreviewVideo');
+ video.onloadeddata=null;video.onplaying=null;
+ try{video.pause();}catch(_){}
+ video.srcObject=null;video.classList.add('hidden');
+ $('videoStartBtn').classList.add('hidden');
+}
+function activateControllerVideoIfReady(call){
+ const video=$('controllerPreviewVideo');
+ if(controllerMediaCall!==call||!controllerPreviewEnabled||videoStreamActive||
+    video.paused||video.readyState<2||video.videoWidth<1)return false;
+ videoStreamActive=true;
+ if(controllerVideoWatchdog!==null)clearTimeout(controllerVideoWatchdog);
+ controllerVideoWatchdog=null;
+ video.classList.remove('hidden');
+ $('controllerPreviewImage').classList.add('hidden');
+ $('controllerPreviewPlaceholder').classList.add('hidden');
+ $('videoStartBtn').classList.add('hidden');
+ send(controllerConn,{t:'video-ready',quality:call.metadata?.quality||'medium'});
+ return true;
 }
 function showControllerVideo(stream,call){
-  if(controllerMediaCall!==call||!controllerPreviewEnabled||!stream)return;
-  const video=$('controllerPreviewVideo');
-  video.srcObject=stream;
-  video.muted=true;
-  video.playsInline=true;
-  video.classList.remove('hidden');
-  $('controllerPreviewImage').classList.add('hidden');
-  $('controllerPreviewPlaceholder').classList.add('hidden');
-  videoStreamActive=true;
-  if(typeof video.play==='function'){
-    try{
-      const p=video.play();
-      if(p&&p.then)p.then(()=>{
-        if(controllerMediaCall!==call||!controllerPreviewEnabled)return;
-        send(controllerConn,{t:'video-ready',quality:call.metadata?.quality||'medium'});
-      }).catch(()=>{$('videoStartBtn').classList.remove('hidden');});
-    }catch(_){$('videoStartBtn').classList.remove('hidden');}
-  }
+ if(controllerMediaCall!==call||!controllerPreviewEnabled||!stream)return;
+ const video=$('controllerPreviewVideo');
+ video.srcObject=stream;video.muted=true;video.playsInline=true;
+ // JPEG stays visible until a real frame is decoded and playback is active.
+ video.classList.add('hidden');videoStreamActive=false;
+ video.onloadeddata=()=>activateControllerVideoIfReady(call);
+ video.onplaying=()=>activateControllerVideoIfReady(call);
+ if(controllerVideoWatchdog!==null)clearTimeout(controllerVideoWatchdog);
+ controllerVideoWatchdog=setTimeout(()=>{
+  controllerVideoWatchdog=null;
+  if(controllerMediaCall===call&&!videoStreamActive&&controllerPreviewEnabled)
+   $('videoStartBtn').classList.remove('hidden');
+ },4000);
+ if(typeof video.play==='function')try{
+  const pending=video.play();
+  if(pending&&typeof pending.then==='function')
+   pending.then(()=>activateControllerVideoIfReady(call)).catch(()=>{
+    if(controllerMediaCall===call)$('videoStartBtn').classList.remove('hidden');
+   });
+  else activateControllerVideoIfReady(call);
+ }catch(_){$('videoStartBtn').classList.remove('hidden');}
 }
 function resetPhonePreview(){
   $('controllerPreviewImage').src='';
@@ -2025,7 +2079,7 @@ function joinRoom(recovery=false){
   $('joinBtn').disabled=true;controllerState((recovery?'กำลังกลับเข้าห้อง ':'กำลังเชื่อมต่อห้อง ')+code+'...');
   disconnectRequested=true;safePeerDestroy();
   disconnectRequested=false;
-  const peer=new Peer(undefined,{debug:0});
+  const peer=new Peer(undefined,partyPeerOptions());
   controllerPeer=peer;
   peer.on('open',()=>{
     if(controllerPeer!==peer)return;
@@ -2078,7 +2132,13 @@ function joinRoom(recovery=false){
         setControllerVideoQuality(savedVideoQuality());
         setControllerPreviewEnabled(controllerPreviewEnabled);
         sendInputs();announceControllerTakeover();
-      }else if(data.t==='preview'){
+       }else if(data.t==='input-ack'){
+        const ms=Math.floor(performance.now()-Number(data.clientAt));
+        if(Number.isSafeInteger(data.actionId)&&Number.isFinite(ms)&&ms>=0&&ms<60000){
+          const latency=$('controllerLatency');
+          if(latency){latency.textContent=ms+' ms';latency.dataset.latency=ms>400?'slow':'ok';}
+        }
+       }else if(data.t==='preview'){
         if(controllerReady)receivePhonePreview(data.image);
       }else if(data.t==='preview-reset'){
         resetPhonePreview();
@@ -2434,7 +2494,20 @@ function renderPhoneInventory(info){
   $('targetName').textContent=info.targetName||'ไม่มีเป้าหมาย';
   showControllerMode(info.mode);
 }
+let analogInputTimer=null,lastAnalogInputAt=0;
+function queueAnalogInput(){
+ if(!controllerReady)return;
+ const now=performance.now(),remaining=33-(now-lastAnalogInputAt);
+ if(remaining<=0){
+  lastAnalogInputAt=now;sendInputs();
+ }else if(analogInputTimer===null){
+  analogInputTimer=setTimeout(()=>{
+   analogInputTimer=null;lastAnalogInputAt=performance.now();sendInputs();
+  },remaining);
+ }
+}
 function sendInputs(){
+ if(analogInputTimer!==null){clearTimeout(analogInputTimer);analogInputTimer=null;}
  if(!controllerReady)return;
  const keys={...controllerKeys};
  // Never let a delayed heartbeat or a stale held stick move a walking avatar
@@ -2443,7 +2516,7 @@ function sendInputs(){
    keys.axisX=0;keys.axisY=0;keys.left=false;keys.right=false;keys.jump=false;keys.down=false;
    if(controllerBoard?.boardPhase==='ready'){keys.action=false;keys.alt=false;keys.cancel=false;}
  }
- send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId});
+ send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId,clientAt:Math.floor(performance.now())});
 }
 function isPortraitScreen(){
   if(window.matchMedia)return window.matchMedia('(orientation: portrait)').matches;
@@ -2453,7 +2526,11 @@ function isPortraitScreen(){
 // address bar/toolbar moves, without matching 100dvw/100dvh immediately.
 // Bound the phone gamepad to the visual viewport, never the oversized layout
 // viewport. The CSS fallback still works on browsers missing this API.
+let controllerViewportFrame=0,lastControllerViewport='';
 function syncControllerVisibleViewport(){
+ if(controllerViewportFrame)return;
+ controllerViewportFrame=requestAnimationFrame(()=>{
+  controllerViewportFrame=0;
   const style=$('controller')?.style;
   if(typeof style?.setProperty!=='function')return;
   const view=window.visualViewport;
@@ -2461,10 +2538,20 @@ function syncControllerVisibleViewport(){
   const h=Number(view?.height)||Number(window.innerHeight);
   if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0)return;
   const left=Number(view?.offsetLeft)||0,top=Number(view?.offsetTop)||0;
+  const portrait=document.body.classList.contains('portrait-fallback')&&isPortraitScreen();
+  const scale=Math.max(.1,Math.min((portrait?h:w)/844,(portrait?w:h)/390));
+  const signature=[w,h,left,top,scale.toFixed(4)].join('|');
+  if(signature===lastControllerViewport)return;
+  lastControllerViewport=signature;
   style.setProperty('--gf-controller-visible-width',w+'px');
   style.setProperty('--gf-controller-visible-height',h+'px');
   style.setProperty('--gf-controller-visible-left',left+'px');
   style.setProperty('--gf-controller-visible-top',top+'px');
+  style.setProperty('--gf-controller-action-track',Math.round(136*scale)+'px');
+  style.setProperty('--gf-controller-face-size',Math.round(102*scale)+'px');
+  style.setProperty('--gf-controller-stick-size',Math.round(72*scale)+'px');
+  style.setProperty('--gf-controller-knob-size',Math.round(30*scale)+'px');
+ });
 }
 // iOS fires visualViewport.resize independently of window.resize when the
 // Safari controls retract or expand; address both and orientation changes.
@@ -2477,6 +2564,7 @@ window.visualViewport?.addEventListener?.('scroll',syncControllerVisibleViewport
 function clearPortraitFallback(){
   releaseStick();
   document.body.classList.remove('portrait-fallback');
+  lastControllerViewport='';syncControllerVisibleViewport();
   $('portraitRestoreBtn').classList.add('hidden');
 }
 function enablePortraitFallback(){
@@ -2524,7 +2612,8 @@ function bindAnalogStick(zone,base,knob,target){
   const reset=()=>{
     pointerId=null;originX=0;originY=0;
     target.axisX=0;target.axisY=0;
-    knob.style.transform='translate(-50%,-50%)';
+    base.style.transform='translate(-50%,-50%)';
+     knob.style.transform='translate(-50%,-50%)';
     zone.classList.remove('is-active','is-moving');
     sendInputs();
   };
@@ -2545,7 +2634,7 @@ function bindAnalogStick(zone,base,knob,target){
     if(x===0)x=0;if(y===0)y=0;
     knob.style.transform='translate(calc(-50% + '+Math.round(x*knobTravel)+'px),calc(-50% + '+Math.round(y*knobTravel)+'px))';
     if(target.axisX!==x||target.axisY!==y){
-      target.axisX=x;target.axisY=y;sendInputs();
+      target.axisX=x;target.axisY=y;queueAnalogInput();
     }
   };
   zone.addEventListener('pointerdown',e=>{
@@ -2562,8 +2651,7 @@ function bindAnalogStick(zone,base,knob,target){
     const localHeight=rotated()?box.width:box.height;
     const offsetX=rotated()?e.clientY-halfY:e.clientX-halfX;
     const offsetY=rotated()?-(e.clientX-halfX):e.clientY-halfY;
-    base.style.left=(localWidth/2+offsetX)+'px';
-    base.style.top=(localHeight/2+offsetY)+'px';
+    base.style.transform='translate3d('+offsetX+'px,'+offsetY+'px,0) translate(-50%,-50%)';
     knob.style.transform='translate(-50%,-50%)';
     zone.classList.add('is-active');
     target.axisX=0;target.axisY=0;
@@ -2701,6 +2789,8 @@ function beginBoard(){
     tournament=null;gameSelection=null;
     boardSession=window.BoardParty.create(players);
     boardSession.camera.lowDetail=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
+     boardSession.camera.manualDetail=boardSession.camera.lowDetail;
+     boardSession.camera.autoDetailEngaged=false;
     window.BoardArt.overview(boardSession);
     players.forEach(p=>{p.active=true;});
     window.PartyPlayerAvatar.preload(boardSession.players);
@@ -3316,6 +3406,24 @@ function drawGame(t){
     }
   }
 }
+// Adaptive BOARD rendering never changes physics, zoom or user camera control.
+// Manual detail choices and reduced-motion are always authoritative.
+let slowBoardSeconds=0,fastBoardSeconds=0;
+function updateAdaptiveBoardDetail(elapsed){
+ const c=round?.mode==='board'&&boardSession?.camera;
+ if(!c||c.manualDetail||round.paused){
+  slowBoardSeconds=0;fastBoardSeconds=0;return;
+ }
+ const delta=Math.min(.1,Math.max(0,elapsed));
+ if(elapsed>.04){slowBoardSeconds+=delta;fastBoardSeconds=0;}
+ else if(elapsed<.025){fastBoardSeconds+=delta;slowBoardSeconds=0;}
+ else{slowBoardSeconds=Math.max(0,slowBoardSeconds-delta);fastBoardSeconds=0;}
+ if(slowBoardSeconds>=3&&!c.lowDetail){
+  c.lowDetail=true;c.autoDetailEngaged=true;slowBoardSeconds=0;refreshBoardTools();
+ }else if(fastBoardSeconds>=8&&c.lowDetail&&c.autoDetailEngaged){
+  c.lowDetail=false;c.autoDetailEngaged=false;fastBoardSeconds=0;refreshBoardTools();
+ }
+}
 function animate(ts){
   const elapsed=Math.max(0,(ts-frameLast)/1000||.016);
   const dt=Math.min(.045,elapsed);
@@ -3444,7 +3552,9 @@ $('boardOverviewBtn').addEventListener('click',()=>{
 });
 $('boardStartDiceBtn').addEventListener('click',()=>{if(boardSession&&window.BoardParty.startOrder(boardSession))refreshBoardTools();});
 $('boardFollowBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom()){window.BoardArt.follow(boardSession);if(round.paused)resumeGame();refreshBoardTools();}});
-$('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;refreshBoardTools();}});
+$('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;
+ boardSession.camera.manualDetail=true;boardSession.camera.autoDetailEngaged=false;
+ refreshBoardTools();}});
 $('boardZoomInBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,1.25);});
 $('boardZoomOutBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,.8);});
 $('boardNodeDebugBtn').addEventListener('click',()=>{if(boardSession&&boardSession.players.every(p=>p.isBot)){window.BoardArt.toggleDebug(boardSession);refreshBoardTools();}});
@@ -3741,14 +3851,33 @@ $('videoStartBtn').addEventListener('click',()=>{
     try{
       const p=video.play();
       if(p&&p.then)p.then(()=>{
-        $('videoStartBtn').classList.add('hidden');
-        if(controllerMediaCall)send(controllerConn,
-          {t:'video-ready',quality:controllerMediaCall.metadata?.quality||'medium'});
+        if(controllerMediaCall)activateControllerVideoIfReady(controllerMediaCall);
       }).catch(()=>{});
     }catch(_){}
   }
 });
-const cyclePhoneTarget=(direction)=>{
+// Coalesce BOARD camera gesture deltas into at most one update per paint.
+ let pendingCameraGesture=null,cameraGestureFrame=0;
+ const flushCameraGesture=()=>{
+  cameraGestureFrame=0;
+  const packet=pendingCameraGesture;pendingCameraGesture=null;
+  if(!packet||!controllerReady||!controllerConn?.open||!boardCameraController?.enabled())return;
+  send(controllerConn,{t:'board-camera-gesture',...packet,
+    turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
+ };
+ const queueCameraGesture=gesture=>{
+  if(pendingCameraGesture&&pendingCameraGesture.kind===gesture.kind){
+   if(gesture.kind==='pan'){
+    pendingCameraGesture.dx=clamp(pendingCameraGesture.dx+gesture.dx,-320,320);
+    pendingCameraGesture.dy=clamp(pendingCameraGesture.dy+gesture.dy,-240,240);
+   }else pendingCameraGesture.scale=clamp(pendingCameraGesture.scale*gesture.scale,.75,1.35);
+  }else{
+   if(pendingCameraGesture)flushCameraGesture();
+   pendingCameraGesture={...gesture};
+  }
+  if(!cameraGestureFrame)cameraGestureFrame=requestAnimationFrame(flushCameraGesture);
+ };
+ const cyclePhoneTarget=(direction)=>{
   if(!controllerReady||!controllerConn||!controllerConn.open)return;
   send(controllerConn,{t:'target-cycle',direction});
 };
@@ -3802,15 +3931,15 @@ boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
   releaseStick:()=>releaseStick(),
   onMode:(enabled,notify)=>{
     $('boardCameraModeHint').classList.toggle('hidden',!enabled);
-    if(controllerBoard?.boardPhase==='ready')renderPhoneBoard();
+    if(!enabled)pendingCameraGesture=null;
+     if(controllerBoard?.boardPhase==='ready')renderPhoneBoard();
     if(notify&&controllerConn?.open)
       send(controllerConn,{t:'board-camera-mode',enabled,
         turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
   },
   onGesture:gesture=>{
     if(!controllerReady||!controllerConn?.open)return;
-    send(controllerConn,{t:'board-camera-gesture',...gesture,
-      turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
+    queueCameraGesture(gesture);
   }
 });
 setInterval(sendInputs,100);
