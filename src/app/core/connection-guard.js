@@ -66,11 +66,13 @@ function createControllerIngressGuard(clock=()=>Date.now()){
  return {
   accept(packet){
    if(closed)return false;
-   try{if(!valid(packet))return false;}catch(_){return false;}
+   // Charge ALL attempts before parsing/validating: malformed floods must
+   // consume the same ingress budget as valid joystick packets.
    const now=clock(),elapsed=Math.max(0,Math.min(60000,now-last));
    last=now;tokens=Math.min(BURST,tokens+elapsed*RATE/1000);
    if(tokens<1)return false;
-   tokens--;return true;
+   tokens--;
+   try{return valid(packet);}catch(_){return false;}
   },
   dispose(){closed=true;tokens=0;}
  };
