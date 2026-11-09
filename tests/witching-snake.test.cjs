@@ -193,8 +193,9 @@ check('existing party, board, asset and controller paths are wired',()=>{
   html=fs.readFileSync('index.html','utf8'),
   board=fs.readFileSync('board-minigame.js','utf8'),
   build=fs.readFileSync('scripts/build-static.cjs','utf8');
- for(const token of ["witching_snake:'WITCHING SNAKE'","witching_snake:'WitchingSnake'",
-  "endPluginRound","witch-status"])assert.ok(app.includes(token),token);
+ assert.match(app,/"witching_snake": \{[\s\S]*?"name": "WITCHING SNAKE",[\s\S]*?"global": "WitchingSnake"/,
+  'generated metadata preserves WITCHING SNAKE title and engine');
+ for(const token of ["endPluginRound","witch-status"])assert.ok(app.includes(token),token);
  assert.match(fs.readFileSync('src/games/witching-snake/witching-snake.js','utf8'),/p\.ws\?\.eliminatedTick/);
  assert.ok(html.includes('data-pick="witching_snake"'));
  assert.ok(html.includes('src="./src/games/witching-snake/witching-snake.js"'));
