@@ -1753,6 +1753,10 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     conn.on('data',msg=>{
       if(!ingress.accept(msg))return;
       if(msg.t==='join'&&!conn.playerId){
+        if(!gfVersionsCompatible(msg)){
+          send(conn,{t:'reject',reason:'เวอร์ชันจอยไม่ตรงกับโฮสต์ • ออกจากห้องแล้วอัปเดตแอป',...gfVersionHello()});
+          return;
+        }
         const token=typeof msg.clientToken==='string'&&msg.clientToken.length>=12&&msg.clientToken.length<=100?msg.clientToken:null;
         let p=token?players.find(q=>q.type==='remote'&&q.clientToken===token):null;
         if(p){
@@ -1771,7 +1775,9 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         conn.playerId=p.id;conn.previewEnabled=false;conn.boardMinimapCapable=false;
         conn.boardMiniMapSession=null;conn.fastAxisToken=fastAxisSessionToken();
         conn.fastAxisConn=null;conn.fastAxisLastAt=0;p.lastInputAt=Date.now();
-        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active,axisToken:conn.fastAxisToken});
+        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active,axisToken:conn.fastAxisToken,
+          ...gfVersionHello(),pluginHash:round?.pluginHash||null,
+          boardMapVersion:boardSession?.map.version||null});
         broadcastRoster();
         if(['results','summary'].includes(round?.phase))renderResultVotes(true);
       }else if(msg.t==='leave'&&conn.playerId){
