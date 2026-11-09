@@ -5801,3 +5801,33 @@ body.host-playing.board-playing #game .game-toolbar{
 /* The external minigame roster is already hidden for BOARD PARTY; keep that
    contract even when host-playing media queries change their dimensions. */
 body.host-playing.board-playing #game .game-center-hud{display:none!important}
+
+/* One 844×390 controller reference: JS computes every visible control size
+   from the same VisualViewport scale instead of competing vw/vh/dvh clamps. */
+body.controller-playing #controller #controllerActive .controller-buttons:not(.shockwave-mode){
+ grid-template-columns:minmax(0,1fr) minmax(0,var(--gf-controller-action-track,136px))!important;
+}
+body.controller-playing #controller #controllerActive .controller-buttons .gamepad-face-buttons .face-button{
+ --gf-face-diameter:var(--gf-controller-face-size,102px)!important;
+ width:min(100%,var(--gf-controller-face-size,102px))!important;
+ height:min(100%,var(--gf-controller-face-size,102px))!important;
+}
+body.controller-playing #controller #controllerActive .controller-buttons.has-target:not(.shockwave-mode) .gamepad-face-buttons .face-button{
+ --gf-face-diameter:var(--gf-controller-face-size,102px)!important;
+}
+body.controller-playing #controller #controllerActive #joystickZone .joystick-base{
+ width:var(--gf-controller-stick-size,72px)!important;
+ height:var(--gf-controller-stick-size,72px)!important;
+ left:50%;top:50%;
+ visibility:visible!important;
+ opacity:.34!important;
+ will-change:transform!important;
+ backdrop-filter:none!important;
+ -webkit-backdrop-filter:none!important;
+}
+body.controller-playing #controller #controllerActive #joystickZone.is-active .joystick-base{opacity:1!important}
+body.controller-playing #controller #controllerActive #joystickZone.board-camera-mode .joystick-base{opacity:.16!important}
+body.controller-playing #controller #controllerActive #joystickZone .joystick-knob{
+ width:var(--gf-controller-knob-size,30px)!important;
+ height:var(--gf-controller-knob-size,30px)!important;
+}
