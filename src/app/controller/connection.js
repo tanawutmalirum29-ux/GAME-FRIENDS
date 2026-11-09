@@ -718,8 +718,11 @@ function pluginControllerPlayingStatus(mode,data){
  return template.replace(/\{(name|survivors|remaining)\}/g,(_,key)=>values[key]);
 }
 function showControllerMode(mode){
-  if(mode!=='board'&&phoneMiniMap){phoneMiniMap=null;phoneMiniMapPositions=null;}
-  showPhoneMiniMap();
+  // Standalone controller descriptor tests intentionally omit BOARD runtime.
+  if(mode!=='board'&&typeof phoneMiniMap!=='undefined'&&phoneMiniMap){
+    phoneMiniMap=null;phoneMiniMapPositions=null;
+  }
+  if(typeof showPhoneMiniMap==='function')showPhoneMiniMap();
   const plugin=gameControllerDescriptor(mode);
   const ui=plugin?.controller||{},labels=ui.labels||{};
   if(mode==='board'&&controllerBoard&&!['results','summary'].includes(controllerGamePhase)){renderPhoneBoard();return;}
