@@ -9,9 +9,9 @@ class FakeSvgImage {
 }
 const context=vm.createContext({window:{},Image:FakeSvgImage});
 const avatarSource=fs.readFileSync('player-avatar.js','utf8');
-const artSource=fs.readFileSync('graveyard-art.js','utf8');
+const artSource=fs.readFileSync('src/shared/graveyard-art.js','utf8');
 vm.runInContext(avatarSource,context,{filename:'player-avatar.js'});
-vm.runInContext(artSource,context,{filename:'graveyard-art.js'});
+vm.runInContext(artSource,context,{filename:'src/shared/graveyard-art.js'});
 const Avatar=context.window.PartyPlayerAvatar,Art=context.window.GhostCemeteryArt;
 const p={id:'one',name:'Tester',color:'#ff628c',x:420,y:285,
  dir:{x:0,y:-1},vx:0,vy:0};
