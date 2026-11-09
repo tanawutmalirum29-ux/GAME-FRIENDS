@@ -18,15 +18,20 @@ for(const name of files){
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const assets=fs.readFileSync(path.join(root,'scripts/build-static.cjs'),'utf8');
 const scripts=[...html.matchAll(/<script[^>]*src="(\.\/[^"]+)"/g)].map(m=>m[1].replace('./',''));
-for(const name of ['src/shared/farm-ice-art.js','party-arena-scenes.js','game-cover-art.js','party-ui-art.js','src/games/pizza-time/pizza-ingredient-art.js','src/games/pizza-time/pizza-kitchen-art.js','src/games/pizza-time/pizza-time.js']){
- assert.ok(scripts.includes(name),'missing '+name+' script in HTML');
- assert.ok(assets.includes("'"+name+"'"),'missing build version entry '+name);
-}
-assert.ok(scripts.indexOf('party-ui-art.js')<scripts.indexOf('src/games/color-switch/color-switch.js'));
-assert.ok(scripts.indexOf('party-ui-art.js')<scripts.indexOf('src/games/shockwave/shockwave.js'));
-assert.ok(scripts.indexOf('src/games/pizza-time/pizza-ingredient-art.js')<scripts.indexOf('src/games/pizza-time/pizza-time.js'));
-assert.ok(scripts.indexOf('src/games/pizza-time/pizza-kitchen-art.js')<scripts.indexOf('src/games/pizza-time/pizza-time.js'));
-assert.ok(scripts.indexOf('src/games/pizza-time/pizza-time.js')<scripts.indexOf('app.js'));
+for(const name of ['party-arena-scenes.js','party-ui-art.js','app.js'])
+ assert.ok(scripts.includes(name),'shared shell dependency must remain: '+name);
+assert.doesNotMatch(html,/src="\.\/src\/games\//,
+ 'all game-specific JS and art are deferred to the per-folder registry');
+assert.doesNotMatch(html,/src="\.\/game-cover-art\.js"/,
+ 'the shared legacy cover renderer is not boot-time production code');
+assert.match(assets,/const deployAsset=/,'build validates links without a game allowlist');
+const meta=JSON.parse(fs.readFileSync(path.join(root,'src/games/pizza-time/manifest.json'),'utf8'));
+assert.deepEqual(meta.modes,['normal','board']);
+const entry=fs.readFileSync(path.join(root,'src/games/pizza-time/game.js'),'utf8');
+for(const filename of ['pizza-ingredient-art.js','pizza-kitchen-art.js','pizza-time.js'])
+ assert.ok(entry.includes("import './"+filename+"'"),'Pizza engine must import its own SVG art: '+filename);
+assert.ok(entry.indexOf("import './pizza-ingredient-art.js'")<entry.indexOf("import './pizza-time.js'"));
+assert.ok(entry.indexOf("import './pizza-kitchen-art.js'")<entry.indexOf("import './pizza-time.js'"));
 const vm=require('node:vm');
 const context=vm.createContext({window:{}});
 for(const name of ['party-ui-art.js','src/games/pizza-time/pizza-ingredient-art.js'])
