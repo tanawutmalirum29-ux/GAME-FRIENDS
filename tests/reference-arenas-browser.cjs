@@ -22,6 +22,8 @@ const server=http.createServer((req,res)=>{
   res.writeHead(404).end();return;
  }
  let body=fs.readFileSync(target);
+ if(target===path.join(root,'index.html'))
+  body=require('./helpers/legacy-game-html.cjs').withLegacyGameFixtures(body.toString());
  if(target===path.join(root,'app.js')){
   const app=body.toString();
   assert.ok(app.includes('requestAnimationFrame(animate);\n})();'),'HOST test hook missing');
