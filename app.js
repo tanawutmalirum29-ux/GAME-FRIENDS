@@ -44,14 +44,19 @@ const BOARD_ENGINE={draw:(g,t)=>window.BoardArt.draw(g,t,boardSession),hud:()=>(
 function gameCover(mode){
  const cover=document.createElement('span');
  cover.className='mode-cover';
- const picture=window.PartyGameCovers.svg(mode);
- if(picture)cover.innerHTML=picture;
- else{
-  const uri=window.GamePlatform?.descriptor(mode)?.coverUrl;
-  if(uri){const img=document.createElement('img');img.src=uri;img.alt='';cover.append(img);}
+ // A versioned, game-owned cover is independent of Core and can hot-update
+ // alongside the engine. The legacy inline SVG is for development fallback.
+ const uri=window.GamePlatform?.descriptor(mode)?.coverUrl;
+ if(uri){
+  const img=document.createElement('img');img.src=uri;img.alt='';
+  img.width=320;img.height=180;img.decoding='async';
+  cover.append(img);
+ }else{
+  const picture=window.PartyGameCovers?.svg?.(mode);
+  if(picture)cover.innerHTML=picture;
   else{
-    cover.classList.add('mode-cover-generic');
-    cover.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4 39 25 60 32 39 39 32 60 25 39 4 32 25 25Z" fill="#bce8ff" stroke="#5479ab" stroke-width="2"/></svg>';
+   cover.classList.add('mode-cover-generic');
+   cover.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4 39 25 60 32 39 39 32 60 25 39 4 32 25 25Z" fill="#bce8ff" stroke="#5479ab" stroke-width="2"/></svg>';
   }
  }
  cover.setAttribute('aria-hidden','true');

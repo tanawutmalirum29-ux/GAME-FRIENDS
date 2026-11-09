@@ -8,10 +8,10 @@ const {execFileSync,spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..');
 const builder=require('../scripts/build-game-catalog.cjs');
 const catalog=builder.build();
-const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,pruneHostCore,BOARD_CORE_SCRIPTS,HOST_ROUTE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
+const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,pruneHostCore,pruneGameCover,BOARD_CORE_SCRIPTS,HOST_ROUTE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
 assert.equal(catalog.schema,1);
 const originalHTML=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const lazyHTML=pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog)))));
+const lazyHTML=pruneGameCover(pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog))))));
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/peerjs@'),'offline bootstrap never fetches PeerJS');
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/qrcodejs@'),'controller bootstrap never fetches QRCode');
 assert.ok(lazyHTML.includes('src="./src/platform/runtime-deps.js"'));
@@ -33,7 +33,8 @@ assert.ok(lazyHTML.includes('src="./src/platform/main-loader.js"'));
 assert.ok(originalHTML.includes('src="./app.js"'),'local dev retains immediate compatibility bundle');
 assert.ok(!/src="\.\/src\/games\/[^\"]+\.js"/.test(lazyHTML),
  'production must not eagerly load folder-owned minigame scripts');
-assert.ok(lazyHTML.includes('src="./game-cover-art.js"'));
+assert.ok(!lazyHTML.includes('src="./game-cover-art.js"'),'production must not load all shared cover artwork');
+assert.ok(originalHTML.includes('src="./game-cover-art.js"'),'dev compatibility retains vector cover renderer');
 assert.ok(lazyHTML.includes('src="./src/platform/board-runtime.js"'),
  'production loads BOARD through the deferred core runtime');
 assert.equal(catalog.games.length,15,'all 15 legacy games must be automatically discovered');
@@ -41,6 +42,7 @@ assert.equal(new Set(catalog.games.map(g=>g.id)).size,15);
 for(const game of catalog.games){
  assert.match(game.hash,/^[a-f0-9]{24}$/);
  assert.ok(game.entryUrl.endsWith('/game.js'));
+ assert.ok(game.coverUrl?.endsWith('/cover.svg'),'each game owns its versioned cover');
  assert.ok(game.modes.includes('board')&&game.modes.includes('normal'));
  assert.ok(Array.isArray(game.legacyUrls),'ES module games may have no legacy script dependencies');
  assert.ok(!game.legacyUrls.some(url=>url.includes('/legacy/src/games/')),
@@ -57,10 +59,11 @@ function fixture(){
  fs.writeFileSync(path.join(temp,'index.html'),'<html></html>\n');
  const manifest={id:'demo_game',name:'DEMO GAME',version:'1.0.0',apiVersion:1,enabled:true,
   players:{min:1,max:12},modes:['normal','board'],controls:['joystick'],
-  entry:'./game.js',legacyScripts:[]};
+  entry:'./game.js',cover:'cover.svg',legacyScripts:[]};
  fs.writeFileSync(path.join(folder,'manifest.json'),JSON.stringify(manifest));
  fs.writeFileSync(path.join(folder,'game.js'),
   'export default {setup(){},update(){},draw(){},hud(){return {survivors:1}},getResult(){return []}};');
+ fs.writeFileSync(path.join(folder,'cover.svg'),'<svg xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>');
  const run=()=>execFileSync(process.execPath,[path.join(root,'scripts/build-game-catalog.cjs'),'--write'],
   {env:{...process.env,GAME_BUILD_ROOT:temp},encoding:'utf8'});
  try{
@@ -69,12 +72,21 @@ function fixture(){
   assert.equal(first.games.length,1);
   const source=path.join(temp,first.games[0].entryUrl.slice(1));
   assert.equal(fs.readFileSync(source,'utf8'),fs.readFileSync(path.join(folder,'game.js'),'utf8'));
+  assert.ok(first.games[0].coverUrl.endsWith('/cover.svg'));
+  const previousCover=path.join(temp,first.games[0].coverUrl.slice(1));
+  assert.equal(fs.readFileSync(previousCover,'utf8'),fs.readFileSync(path.join(folder,'cover.svg'),'utf8'));
   fs.appendFileSync(path.join(folder,'game.js'),'// v2\n');
   run();
   const second=JSON.parse(fs.readFileSync(path.join(temp,'game-catalog.json'),'utf8'));
   assert.notEqual(first.games[0].hash,second.games[0].hash,
    'changing game bytes creates an entirely new asset path');
   assert.ok(fs.existsSync(source),'old version stays present in this build directory');
+  fs.appendFileSync(path.join(folder,'cover.svg'),'<!-- updated illustration -->');
+  run();
+  const third=JSON.parse(fs.readFileSync(path.join(temp,'game-catalog.json'),'utf8'));
+  assert.notEqual(second.games[0].hash,third.games[0].hash,'changing a local SVG updates only this game hash');
+  assert.equal(second.coreHash,third.coreHash,'game-owned SVG must not require a Core reload');
+  assert.ok(fs.existsSync(previousCover),'previous versioned artwork remains available');
   manifest.entry='./../escape.js';
   fs.writeFileSync(path.join(folder,'manifest.json'),JSON.stringify(manifest));
   const bad=spawnSync(process.execPath,[path.join(root,'scripts/build-game-catalog.cjs'),'--check'],
