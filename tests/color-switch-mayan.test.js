@@ -4,8 +4,8 @@ global.window={};
 require('../combat-motion.js');
 require('../character-system.js');
 require('../party-ui-art.js');
-require('../color-switch-mayan.js');
-require('../color-switch.js');
+require('../src/games/color-switch/color-switch-mayan.js');
+require('../src/games/color-switch/color-switch.js');
 const E=window.ColorSwitch,M=window.ColorSwitchMayan;
 let checks=0;
 function ok(v,msg){assert.ok(v,msg);checks++;}

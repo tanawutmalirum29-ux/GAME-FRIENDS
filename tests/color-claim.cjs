@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const checks=[];const check=(name,run)=>checks.push({name,run});
 function make(n=2,bots=false,seed=13271){
  const ctx=vm.createContext({window:{},console,Math});
- for(const file of ['character-system.js','board-minigame.js','color-claim.js'])
+ for(const file of ['character-system.js','board-minigame.js','src/games/color-claim/color-claim.js'])
   vm.runInContext(fs.readFileSync(file,'utf8'),ctx,{filename:file});
  const e=ctx.window.ColorClaim,ps=Array.from({length:n},(_,i)=>({
   id:'p'+i,name:'player'+i,color:['#ff3366','#39c4ff','#60e24f','#ffcc44'][i%4],
