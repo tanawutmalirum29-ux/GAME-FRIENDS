@@ -63,15 +63,22 @@ async function suite(scope){
  assert.equal(await sw.request(a,'POST'),null,'non-GET must not be intercepted');
  assert.equal(await sw.request('https://other.example'+scope+'game-assets/ghost/'+ 'a'.repeat(24) +'/game.js'),null,
   'cross-origin requests must never be intercepted');
+ const sysAsset=ORIGIN+scope+'board-system-assets/items/bonus/'+'c'.repeat(24)+'/index.js';
+ assert.equal((await sw.request(sysAsset)).body,'fetched '+sysAsset+' #1');
+ assert.equal((await sw.request(sysAsset)).body,'fetched '+sysAsset+' #1');
  const firstCatalog=ORIGIN+scope+'game-catalog.json?_=1';
  const newestCatalog=ORIGIN+scope+'game-catalog.json?_=2';
  assert.equal((await sw.request(firstCatalog)).body,'fetched '+firstCatalog+' #1');
  assert.equal((await sw.request(newestCatalog)).body,'fetched '+newestCatalog+' #1',
   'network-first catalog replaces previous version');
+ const sysCatalog=ORIGIN+scope+'board-system-catalog.json?_=1';
+ assert.equal((await sw.request(sysCatalog)).body,'fetched '+sysCatalog+' #1');
  sw.setOffline(true);
  assert.equal((await sw.request(ORIGIN+scope+'game-catalog.json?_=3')).body,
   'fetched '+newestCatalog+' #1','offline catalog uses latest successful response');
  assert.equal((await sw.request(a)).body,'fetched '+a+' #1','offline v1 asset remains usable');
+ assert.equal((await sw.request(sysAsset)).body,'fetched '+sysAsset+' #1','BOARD systems must work offline after caching');
+ assert.equal((await sw.request(ORIGIN+scope+'board-system-catalog.json?_=2')).body,'fetched '+sysCatalog+' #1');
  assert.equal((await sw.request(b)).body,'fetched '+b+' #1','offline updated asset remains usable');
  await assert.rejects(sw.request(asset(scope,'c')),/offline/,'uncached version cannot be invented offline');
  return sw;

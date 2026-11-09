@@ -89,6 +89,18 @@ function land(s,applyTile=true){
   effect(s,{kind:'land',points:[I().position(s,p)],targets:[p.id],
    next:m?.kind==='rocket'?'ready':'end'},.5);return;
  }
+ const extension=window.BoardSystemPlugins?.get('spaces',n.type);
+ if(extension){
+  const outcome=extension.onLand({session:s,player:p,node:n,
+   api:Object.freeze({damage,heal:HEAL,MAX_HP,effect,phase,isProtected,blockHarm,
+    addItem:kind=>I().add(p,kind)})});
+  if(outcome?.handled){
+   effect(s,{kind:outcome.dead?'death':outcome.kind||'land',points:[n.position],
+    targets:[p.id],next:!outcome.dead&&m?.kind==='rocket'?'ready':'end'},
+    outcome.dead?1.5:.8);
+   return;
+  }
+ }
  if(n.type==='lucky'){
   // Only a final landing is eligible; grant once per player turn. Stacked
   // duplicates are legitimate backpack entries, never replacements.
@@ -559,6 +571,8 @@ function update(s,dt){
   s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',1.8);
  }
  else if(s.phase==='round_order'&&s.time>=s.deadline)startTurn(s);
+ for(const plugin of window.BoardSystemPlugins?.list('events')||[])
+  plugin.onUpdate({session:s,dt,api});
  window.BoardBots?.update(s,dt,api);
 }
 function snapshot(s){M().assertCompatible(s.map);return JSON.parse(JSON.stringify({mapVersion:s.map.version,map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}

@@ -52,10 +52,10 @@ self.addEventListener('fetch',e=>{
  if(url.origin!==self.location.origin)return;
  if(!url.pathname.startsWith(base))return;
  const rel=url.pathname.slice(base.length);
- if(rel==='game-catalog.json'||rel==='board-map-catalog.json')
+ if(rel==='game-catalog.json'||rel==='board-map-catalog.json'||rel==='board-system-catalog.json')
   e.respondWith(catalog(e.request,rel));
  else if(/^game-assets\/[a-z][a-z0-9_]*\/[a-f0-9]{24}\//.test(rel))
   e.respondWith(gameAsset(e.request));
- else if(/^board-map-assets\/[a-z][a-z0-9-]*\/[a-f0-9]{24}\//.test(rel))
+ else if(/^(?:board-map-assets\/[a-z][a-z0-9-]*|board-system-assets\/(?:items|spaces|events)\/[a-z][a-z0-9-]*)\/[a-f0-9]{24}\//.test(rel))
   e.respondWith(boardAsset(e.request));
 });

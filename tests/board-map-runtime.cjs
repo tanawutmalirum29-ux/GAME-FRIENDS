@@ -49,7 +49,7 @@ let catalog={schema:1,coreHash:core,maps:[
 let requested=0,imported=0,missing=false;
 const context={window,document,URL,Date,console,location:{origin:'https://example.test'},
  setInterval(){},
- async fetch(){requested++;return {ok:true,async json(){return catalog;}};}};
+ async fetch(url){requested++;return {ok:true,async json(){return String(url).includes('board-system-catalog')?{schema:1,coreHash:core,systems:[]}:catalog;}};}};
 window.__testImport=async url=>{
  imported++;
  assert.ok(url.startsWith('https://example.test/board-map-assets/coast/'));
@@ -62,6 +62,8 @@ vm.runInNewContext(source.replace('await import(url.href)',
  'await window.__testImport(url.href)'),context,{filename:'board-runtime.js'});
 const runtime=window.BoardRuntime;
 (async()=>{
+ assert.equal(runtime.ready(),false,'BOARD needs a validated systems catalog before startup');
+ await runtime.ensure();
  assert.equal(runtime.ready(),true,'Existing V10 map remains ready and untouched');
  await runtime.refreshMaps();
  assert.equal(runtime.maps().length,2);

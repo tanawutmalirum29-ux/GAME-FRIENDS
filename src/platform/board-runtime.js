@@ -18,7 +18,7 @@ function captureDefault(){
 captureDefault();
 const chosen=()=>selector?.value||DEFAULT;
 function ready(){
- if(!globalsReady()||chosen()!==active)return false;
+ if(!globalsReady()||chosen()!==active||!systemPrepared)return false;
  if(active===DEFAULT)return true;
  return catalog.some(m=>m.id===active&&m.enabled&&m.hash===activeHash);
 }
@@ -139,7 +139,8 @@ async function ensure(){
   if(!globalsReady()){loaded.clear();throw Error('BOARD PARTY core is incomplete');}
   captureDefault();
   await activate(chosen());
-  if(!ready())throw Error('BOARD map activation incomplete');
+  await prepareSystems();
+  if(!ready())throw Error('BOARD map/system activation incomplete');
  })().finally(()=>{pending=null;});
  return pending;
 }
@@ -167,8 +168,107 @@ if(typeof document!=='undefined'&&typeof document.getElementById==='function'){
   if(!document.hidden&&selector&&
     document.querySelector('[data-session-mode="board"]')?.classList.contains('active'))
    void refreshMaps().catch(()=>{});
+  if(!document.hidden)void refreshSystems().catch(()=>{});
  },45000);
 }
+
+/* System plug-ins reuse the BOARD route and content-addressed deployment.
+ * Discovery is metadata-only; all code changes activate at a NEW board session. */
+const systemCache=new Map(),activeSystems=new Map(),systemRejected=new Map();
+let systemCatalog=[],systemRevision=0,systemPrepared=!window.GAME_CORE_VERSION;
+let systemRefreshing=null;
+const categories=['items','spaces','events'];
+function inspectSystems(value){
+ if(!value||value.schema!==1||!Array.isArray(value.systems)||
+    !/^[a-f0-9]{20}$/.test(value.coreHash))throw Error('Invalid BOARD system catalog');
+ const seen=new Set();
+ return value.systems.map(item=>{
+  if(!item||!categories.includes(item.category)||
+     !/^[a-z][a-z0-9-]*$/.test(item.id)||
+     typeof item.name!=='string'||!item.name||
+     typeof item.enabled!=='boolean'||item.apiVersion!==1||
+     !/^\d+\.\d+\.\d+$/.test(item.version)||
+     !/^[a-f0-9]{24}$/.test(item.hash))
+   throw Error('Invalid BOARD system descriptor');
+  const key=item.category+':'+item.id;
+  if(seen.has(key))throw Error('Duplicate BOARD system: '+key);
+  seen.add(key);
+  const root='/board-system-assets/'+item.category+'/'+item.id+'/'+item.hash+'/';
+  if(typeof item.entryUrl!=='string'||!item.entryUrl.startsWith(root)||
+     !/^[a-z0-9][a-z0-9/._-]*\.js$/.test(item.entryUrl.slice(root.length))||
+     item.entryUrl.includes('..'))throw Error('Invalid BOARD system URL');
+  return Object.freeze({...item});
+ });
+}
+async function refreshSystems(){
+ if(systemRefreshing)return systemRefreshing;
+ systemRefreshing=(async()=>{
+  const url=new URL('./board-system-catalog.json',document.baseURI);
+  url.searchParams.set('_',String(Date.now()));
+  const response=await fetch(url.href,{cache:'no-store'});
+  if(!response.ok)throw Error('BOARD systems unavailable: '+response.status);
+  const data=await response.json();
+  if(window.GAME_CORE_VERSION&&data.coreHash!==window.GAME_CORE_VERSION)return false;
+  const next=inspectSystems(data);
+  if(JSON.stringify(next)===JSON.stringify(systemCatalog))return false;
+  systemCatalog=next;systemRevision++;systemPrepared=false;
+  return true;
+ })().finally(()=>{systemRefreshing=null;});
+ return systemRefreshing;
+}
+function checkSystem(impl,meta){
+ if(!impl||typeof impl!=='object'||impl.id!==meta.id||
+    impl.category!==meta.category)throw Error('Invalid BOARD system identity: '+meta.id);
+ const required=meta.category==='items'?'begin':
+   meta.category==='spaces'?'onLand':'onUpdate';
+ if(typeof impl[required]!=='function')throw Error('BOARD system missing '+required+': '+meta.id);
+ for(const method of ['begin','confirm','update','onLand','onUpdate'])
+  if(impl[method]!==undefined&&typeof impl[method]!=='function')
+   throw Error('BOARD system lifecycle invalid: '+meta.id);
+ return Object.freeze(impl);
+}
+async function prepareSystems(){
+ if(systemPrepared)return;
+ await refreshSystems();
+ const next=new Map();
+ // Download only BOARD systems, never any minigame or unused map modules.
+ // Keep the previous active set until EVERY enabled system loads and validates.
+ try{
+  for(const meta of systemCatalog.filter(item=>item.enabled)){
+   const key=meta.category+':'+meta.id+':'+meta.hash;
+   let impl=systemCache.get(key);
+   if(!impl){
+    const url=new URL(meta.entryUrl,location.origin);
+    if(url.origin!==location.origin||url.pathname!==meta.entryUrl)
+     throw Error('Unsafe BOARD system URL');
+    impl=checkSystem((await import(url.href)).default,meta);
+    systemCache.set(key,impl);
+   }
+   next.set(meta.category+':'+meta.id,impl);
+  }
+ }catch(error){
+  // A failed optional system does not replace active implementations.
+  systemRejected.set(String(error?.message||error).slice(0,160),Date.now());
+  if(activeSystems.size===0&&systemCatalog.some(item=>item.enabled))throw error;
+  console.warn('Retaining last stable BOARD systems',error);
+  systemPrepared=true;
+  return;
+ }
+ activeSystems.clear();
+ for(const [key,impl] of next)activeSystems.set(key,impl);
+ window.BoardItems?.registerPlugins?.([...next.values()].filter(m=>m.category==='items'));
+ systemPrepared=true;
+}
+const systemGet=(category,id)=>activeSystems.get(category+':'+id)||null;
+window.BoardSystemPlugins=Object.freeze({
+ refresh:refreshSystems,prepare:prepareSystems,get:systemGet,
+ list:category=>[...activeSystems.entries()].filter(([key])=>key.startsWith(category+':')).map(([,impl])=>impl),
+ descriptors:category=>systemCatalog.filter(x=>!category||x.category===category).map(x=>({...x})),
+ get revision(){return systemRevision;},
+ get pending(){return !systemPrepared;},
+ get rejected(){return [...systemRejected.keys()];}
+});
+
 window.BoardRuntime=Object.freeze({ready,ensure,refreshMaps,maps:()=>catalog.map(m=>({...m})),
  get selectedMapId(){return chosen();},
  get activeMapId(){return active;},

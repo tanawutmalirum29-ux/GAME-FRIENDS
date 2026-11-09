@@ -35,3 +35,7 @@ Read [docs/ADDING_BOARD_MAPS.md](docs/ADDING_BOARD_MAPS.md) before adding or edi
 ## BOARD engine source ownership
 
 `board-party.js` is a generated lexical compatibility bundle; author changes in `src/board-party/core/`, `systems/` or `ui/` and regenerate with `node scripts/build-board-party.cjs --write`. Never insert named minigames or map-specific imports into BOARD source manifest. `node scripts/build-board-party.cjs --check` and `node tests/board-source-modules.cjs` must pass. This source split preserves the exact gameplay runtime; it is not independent per-feature network chunking. See [docs/BOARD_SOURCE_MODULES.md](docs/BOARD_SOURCE_MODULES.md).
+
+## BOARD systems (items/spaces/events) zero-touch plugin ownership
+
+Read [docs/ADDING_BOARD_SYSTEMS.md](docs/ADDING_BOARD_SYSTEMS.md). New BOARD systems are discovered from `src/board-party/plugins/{items,spaces,events}/<slug>/manifest.json` and loaded only when entering BOARD, not from `index.html` or `app.js`. Built-in item IDs and tile kinds remain reserved. Run `node tests/board-system-discovery.cjs` and complete BOARD regressions. Do not activate plugin updates mid-session.

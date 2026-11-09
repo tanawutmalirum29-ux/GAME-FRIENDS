@@ -46,6 +46,10 @@ jobs:
           node scripts/build-board-map-catalog.cjs --check
           node tests/board-map-discovery.cjs
           node tests/board-map-runtime.cjs
+      - name: Validate folder-discovered BOARD items, spaces and events
+        run: |
+          node scripts/build-board-system-catalog.cjs --check
+          node tests/board-system-discovery.cjs
       - name: Enforce per-game source ownership and no root gameplay copies
         run: node tests/game-source-ownership.cjs
       - name: Enforce game-owned live roster and dynamic ID fallback

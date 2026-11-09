@@ -59,5 +59,7 @@ function update(s,dt){
   s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',1.8);
  }
  else if(s.phase==='round_order'&&s.time>=s.deadline)startTurn(s);
+ for(const plugin of window.BoardSystemPlugins?.list('events')||[])
+  plugin.onUpdate({session:s,dt,api});
  window.BoardBots?.update(s,dt,api);
 }

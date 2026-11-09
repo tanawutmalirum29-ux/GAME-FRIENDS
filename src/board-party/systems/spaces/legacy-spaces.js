@@ -8,6 +8,18 @@ function land(s,applyTile=true){
   effect(s,{kind:'land',points:[I().position(s,p)],targets:[p.id],
    next:m?.kind==='rocket'?'ready':'end'},.5);return;
  }
+ const extension=window.BoardSystemPlugins?.get('spaces',n.type);
+ if(extension){
+  const outcome=extension.onLand({session:s,player:p,node:n,
+   api:Object.freeze({damage,heal:HEAL,MAX_HP,effect,phase,isProtected,blockHarm,
+    addItem:kind=>I().add(p,kind)})});
+  if(outcome?.handled){
+   effect(s,{kind:outcome.dead?'death':outcome.kind||'land',points:[n.position],
+    targets:[p.id],next:!outcome.dead&&m?.kind==='rocket'?'ready':'end'},
+    outcome.dead?1.5:.8);
+   return;
+  }
+ }
  if(n.type==='lucky'){
   // Only a final landing is eligible; grant once per player turn. Stacked
   // duplicates are legitimate backpack entries, never replacements.
