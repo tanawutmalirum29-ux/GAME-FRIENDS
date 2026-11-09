@@ -5831,3 +5831,10 @@ body.controller-playing #controller #controllerActive #joystickZone .joystick-kn
  width:var(--gf-controller-knob-size,30px)!important;
  height:var(--gf-controller-knob-size,30px)!important;
 }
+
+/* RTT is sampled from host input acknowledgements, not guessed from frame rate. */
+body.controller-playing #controllerActive .controller-latency{
+ display:inline-block;white-space:nowrap;flex:0 0 auto;margin-left:auto;
+ font:700 10px/1.2 system-ui,sans-serif;opacity:.9;color:#b8f5d5;
+}
+body.controller-playing #controllerActive .controller-latency[data-latency=slow]{color:#ffd18b}
