@@ -31,3 +31,7 @@ Read [docs/PLUGIN_ROSTER_API.md](docs/PLUGIN_ROSTER_API.md) before adding a game
 ## BOARD PARTY map plug-in discovery
 
 Read [docs/ADDING_BOARD_MAPS.md](docs/ADDING_BOARD_MAPS.md) before adding or editing a BOARD map. A new map is registered exclusively in `src/board-party/maps/<slug>/` with its manifest, both tier graphs and runtime entry. Never add per-map imports to HTML, `app.js` or `src/platform/board-runtime.js`. Keep the 302-node V10 map as the default; never replace it with the authored V6 base. Run `node tests/board-map-discovery.cjs` and BOARD regressions. Map hot-updates are metadata-only until the next BOARD session; never replace live BoardMap/BoardArt objects mid-session.
+
+## BOARD engine source ownership
+
+`board-party.js` is a generated lexical compatibility bundle; author changes in `src/board-party/core/`, `systems/` or `ui/` and regenerate with `node scripts/build-board-party.cjs --write`. Never insert named minigames or map-specific imports into BOARD source manifest. `node scripts/build-board-party.cjs --check` and `node tests/board-source-modules.cjs` must pass. This source split preserves the exact gameplay runtime; it is not independent per-feature network chunking. See [docs/BOARD_SOURCE_MODULES.md](docs/BOARD_SOURCE_MODULES.md).

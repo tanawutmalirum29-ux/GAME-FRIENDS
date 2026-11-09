@@ -25,6 +25,10 @@ jobs:
         run: node tests/board-runtime-layers.cjs
       - name: Audit BOARD PARTY island density, crossings and swords
         run: node tests/board-layout-audit.cjs
+      - name: Verify BOARD PARTY source ownership and byte-for-byte engine bundle
+        run: |
+          node scripts/build-board-party.cjs --check
+          node tests/board-source-modules.cjs
       - name: Enforce Host and Controller app bundle integrity
         run: node scripts/build-app.cjs --check
       - name: Verify canonical controller BOARD metadata and split runtime

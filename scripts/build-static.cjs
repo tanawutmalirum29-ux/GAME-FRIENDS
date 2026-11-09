@@ -20,6 +20,9 @@ require('./build-board-v7.cjs');
 // Derive controller-only BOARD metadata from the authoritative game rules.
 if(fs.existsSync(path.join(root,'board-items.js')))
  require('./build-board-item-brief.cjs').build({write:true});
+// Build BOARD logic from maintainable source fragments without changing runtime behavior.
+if(fs.existsSync(path.join(root,'src','board-party','modules.json')))
+ require('./build-board-party.cjs').assemble({write:true});
 // Generate Host and Controller bundles from maintainable source modules.
 if(fs.existsSync(path.join(root,'src','app','modules.json')))
  require('./build-app.cjs').assemble({write:true});
