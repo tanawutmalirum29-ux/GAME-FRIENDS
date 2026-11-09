@@ -827,7 +827,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
       return; // No transient/fatal Peer error destroys active room or inventory.
     }
     // No players have joined yet. Retry the SAME room code, never a new ID.
-    if(retries<HOST_RECONNECT_MAX&&!fatal.has(type)&&!peer.destroyed){
+    if(retries<HOST_RECONNECT_MAX&&!fatal.has(type)&&!peer.destroyed&&type!=='unavailable-id'){
       hostPeer=null;try{peer.destroy();}catch(_){}
       const delay=Math.min(16000,1000*2**retries);
       hostRetryTimeout=setTimeout(()=>{
