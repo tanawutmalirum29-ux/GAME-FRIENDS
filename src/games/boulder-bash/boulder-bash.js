@@ -367,6 +367,13 @@ function renderRoster(root,active,round){
      return;
    
 }
-window.BoulderBash=Object.freeze({renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,spawnPositions,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round){
+ const b=p.bb||{};
+ return {t:'boulder-status',mode:round.mode,status:b.mode||'alive',
+  cooldown:b.pushCooldown||0,
+  survivorCount:round.boulderBash?.roster.filter(q=>q.active&&q.bb?.alive).length||0};
+}
+window.BoulderBash=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,setup,spawnPositions,update,draw,hud,step,spawnWarning,spawnWave,rockAt,eliminate,
  sweptHit,finish,interval,bounds:BOUNDS,config:C});
 })();

@@ -701,7 +701,13 @@ function renderRoster(root,active,round){
     return;
   
 }
-window.ColorClaim=Object.freeze({renderRoster,getResult,resultTitle:"ผู้ยึดพื้นที่มากที่สุด!",countdownSeconds:3,setup,update,step,draw,hud,finish,index,owned,claimDisk,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round){
+ return {t:'claim-status',mode:round.mode,percent:p.score||0,
+  frozen:freezeActive(round.colorClaim,p),
+  eliminated:!!p.cc?.eliminated,alive:!!p.cc?.alive};
+}
+window.ColorClaim=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ผู้ยึดพื้นที่มากที่สุด!",countdownSeconds:3,setup,update,step,draw,hud,finish,index,owned,claimDisk,
  recount,captureMask,applyCaptures,segmentsTouch,pointSegment2,kill,revive,eliminate,
  largestTerritory,spawnPlace,discardCutFragments,pruneUnplayableTerritory,
  buildContours,traceSmoothTrail,freezeActive,

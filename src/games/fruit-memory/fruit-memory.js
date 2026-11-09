@@ -592,6 +592,12 @@ function renderRoster(root,active,round){
     });return;
   
 }
-window.FruitMemory=Object.freeze({renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,hudBadge:{duringCountdown:"clock",duringPlay:"players"},updateDuringCountdown:true,setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
+// Game-owned controller packet; Host forwards this without mode-specific branches.
+function getControllerPacket(p,round){
+ return {t:'fruit-status',mode:round.mode,
+  cooldown:Math.max(0,p.fruitCooldown||0),
+  eliminated:!p.fruitAlive,stun:p.fruitStun||0};
+}
+window.FruitMemory=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,hudBadge:{duringCountdown:"clock",duringPlay:"players"},updateDuringCountdown:true,setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
  calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawSideScreens,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();
