@@ -1645,7 +1645,7 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
  for(let rank=0;rank<12;rank++){
    for(let n=0;n<12-rank;n++)tiles[tileIndex++].ownerId=people[rank].id;
  }
- ui.scope.window.__ghostTest.endColorSwitchRound();
+ ui.scope.window.__ghostTest.endRound();
  const list=ui.elements.get('resultList');
  const rows=list.children.filter(row=>row.className==='result-player');
  assert.equal(rows.length,12,'all twelve result rows are present');
@@ -1833,7 +1833,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  let cursor=0;
  for(let rank=0;rank<players.length;rank++)
    for(let amount=0;amount<12-rank;amount++)tiles[cursor++].ownerId=players[rank].id;
- api.endColorSwitchRound();
+ api.endRound();
  assert.equal(round.phase,'results');
  assert.equal(round.autoNextRemaining,7,'seven-second result vote timer is unchanged');
  assert.equal(ui.elements.get('backBtn').textContent,'สรุปคะแนน');
@@ -1878,7 +1878,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  const ps=api.getPlayers(),s=api.getRound().colorSwitch;
  for(const tile of s.tiles)tile.ownerId=null;
  s.tiles[0].ownerId=ps[0].id;s.tiles[1].ownerId=ps[1].id;
- api.endColorSwitchRound();
+ api.endRound();
  assert.equal(ps[0].lastRoundPoints,11,'joint first gets 11');
  assert.equal(ps[1].lastRoundPoints,11,'joint first ties get 11');
  ui.click('backBtn');
@@ -1903,7 +1903,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  ui.click('startBtn');finishReel(ui);
  const api=ui.scope.window.__ghostTest;
  api.startRound('color_switch');
- const game=api.getRound();api.endColorSwitchRound();
+ const game=api.getRound();api.endRound();
  assert.equal(game.phase,'results');
  const packet=cons[0].sent.filter(x=>x.t==='result-votes').at(-1);
  assert.equal(packet.backLabel,'สรุปคะแนน');
