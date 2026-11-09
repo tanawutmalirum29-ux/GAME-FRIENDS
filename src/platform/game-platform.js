@@ -1,4 +1,4 @@
-/* GAME-FRIENDS plug-in registry and immutable-version loader.
+/* GAME-FRIENDS plug-in registry and content-addressed loader.
  * Existing engines remain active until the next round. Only same-core catalogs
  * can activate in a running room; a core release still waits for safe reload. */
 (()=>{
@@ -85,7 +85,7 @@ async function refresh(){
   invalidEntries=malformed;
   const changed=!coreHash||enabled.length!==catalog.size||enabled.some(g=>{
    const old=catalog.get(g.id);return !old||old.hash!==g.hash||old.name!==g.name||
-    old.version!==g.version||old.players.min!==g.players.min||
+    old.players.min!==g.players.min||
     old.players.max!==g.players.max||old.modes.join(',')!==g.modes.join(',');
   });
   coreHash=data.coreHash;

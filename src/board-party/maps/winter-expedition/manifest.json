@@ -1,7 +1,6 @@
 {
   "id": "winter-expedition",
   "name": "WINTER EXPEDITION",
-  "version": "10.0.0",
   "apiVersion": 1,
   "enabled": true,
   "kind": "legacy",
