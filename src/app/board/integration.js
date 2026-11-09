@@ -191,7 +191,9 @@ function renderPhoneBoard(){
  $('controllerInventory').classList.toggle('hidden',controllerGamePhase!=='playing'||
    (info.boardPhase==='ready'&&!!boardCameraController?.enabled()));
  const bag=Array.isArray(info.bag)?info.bag:[],ready=info.boardPhase==='ready';
- const options=['roll',...window.BoardItems.ids],stock=Object.fromEntries(window.BoardItems.ids.map(id=>[id,0]));
+ const items=window.BoardItems||window.PartyBoardItemMeta;
+ if(!items){$('controllerState').textContent='กำลังโหลดข้อมูลกระเป๋าเกม...';return;}
+ const options=['roll',...items.ids],stock=Object.fromEntries(items.ids.map(id=>[id,0]));
  for(const id of bag)if(Object.hasOwn(stock,id))stock[id]++;
  const selected=ready&&Number.isInteger(info.actionIndex)?Math.max(0,Math.min(options.length-1,info.actionIndex)):0;
  $('controllerRole').textContent='HP '+info.hp+'/100 • เหลือ '+(info.stepsRemaining||0)+' ก้าว • ไอเทม '+bag.length+' ชิ้น'+(info.shieldTurns?' • โล่ป้องกัน':'');
@@ -204,7 +206,7 @@ function renderPhoneBoard(){
    const locked=id!=='roll'&&info.usedRound===info.round;
    cell.className='board-bag-item'+(qty===0?' is-empty':'')+(locked?' is-locked':'')+(ready&&i===selected&&!locked&&qty!==0?' is-selected':'');
    cell.innerHTML=id==='roll'?rollIcon:svg?.svg(id)||'';
-   cell.title=id==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[id]||id;
+   cell.title=id==='roll'?'ทอยลูกเต๋า':items.names[id]||id;
    cell.setAttribute('aria-label',cell.title+(qty===null?'':' จำนวน '+qty));
    if(qty!==null){
      const badge=doc.createElement('span');
@@ -219,7 +221,7 @@ function renderPhoneBoard(){
  guide.textContent=mapInspection?'กำลังดูแผนที่ • ดับเบิลแท็บบนจอยอีกครั้งเพื่อเปิดกระเป๋า':info.boardPhase==='aim'?
    'เล็งเป้า • A '+(info.a||'ยืนยัน')+' • B '+(info.b||'ไม่ใช้')+' • C '+(info.c||'ยกเลิก'):
    ready?(info.usedRound===info.round?'ใช้ไอเทมแล้ว 1 ชิ้น • A ทอยลูกเต๋าต่อ':
-     'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':window.BoardItems.names[slot]||slot)+
+     'เลือก: '+(slot==='roll'?'ทอยลูกเต๋า':items.names[slot]||slot)+
      ' • A '+(info.a||'ยืนยัน')+' • B '+(info.b||'เปลี่ยนไอเทม')+
      (info.bagMessage?' • '+info.bagMessage:'')):
    'ทอยลูกเต๋า + ไอเทมทั้ง 6 ชนิด';

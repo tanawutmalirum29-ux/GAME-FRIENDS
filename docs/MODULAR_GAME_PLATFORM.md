@@ -113,3 +113,22 @@ weighted browser QA matrix and does **not** use a mocked build manifest.
 This is a **local deployment rehearsal**, not proof of the AWS Amplify CDN,
 production IAM permissions, network reliability or real-device behavior.
 External end-to-end deployment validation is still required.
+
+## Two network-delivered application bundles
+
+The source manifest remains the authority. The assembler emits `app.js`
+for Host (complete authority, physics, round results), and the smaller
+`app-controller.js` for QR/controller routes. The latter excludes host-only
+`rounds/engine.js` and `rounds/results.js`, while keeping the same shared
+connection and controller view closures. Both generated bundles are checked
+against their source in CI. Valid QR links take priority over a Host route and
+stale stored Host data. This is genuine route-based code delivery; the
+remaining common closure has not been migrated to independent ES modules.
+
+## Controller BOARD item catalogue
+
+The BOARD phone previously accessed `window.BoardItems` even though
+production removed that physics module from controller routes. The build
+now generates the small `src/platform/board-items-brief.js` directly
+from `board-items.js`; the controller uses that ID/name catalogue when
+the full host physics module is unavailable. CI verifies it is current.
