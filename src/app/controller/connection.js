@@ -127,7 +127,8 @@ function showControllerVideo(stream,call){
  const video=$('controllerPreviewVideo');
  video.srcObject=stream;video.muted=true;video.playsInline=true;
  // JPEG stays visible until a real frame is decoded and playback is active.
- video.classList.add('hidden');videoStreamActive=false;
+ video.classList.remove('hidden');video.classList.add('pending-video');
+ videoStreamActive=false;
  video.onloadeddata=()=>activateControllerVideoIfReady(call);
  video.onplaying=()=>activateControllerVideoIfReady(call);
  if(controllerVideoWatchdog!==null)clearTimeout(controllerVideoWatchdog);
