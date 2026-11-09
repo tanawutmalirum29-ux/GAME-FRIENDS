@@ -86,7 +86,7 @@ async function platform(){
   modes:['normal','board'],players:{min:1,max:12},controls:[],
   hash:'b'.repeat(24),global:'GhostAttack',
   entryUrl:'/game-assets/ghost/'+ 'b'.repeat(24) +'/game.js',
-  legacyUrls:['/game-assets/ghost/'+ 'b'.repeat(24) +'/legacy/ghost-attack.js']
+  legacyUrls:['/game-assets/ghost/'+ 'b'.repeat(24) +'/legacy/src/games/ghost-attack/ghost-attack.js']
  }]};
  const moduleSource=fs.readFileSync(path.join(root,'src/platform/game-platform.js'),'utf8');
  const listeners={},window={
@@ -116,7 +116,7 @@ async function platform(){
  const failingHash='c'.repeat(24);
  data.games[0]={...data.games[0],hash:failingHash,
   entryUrl:'/game-assets/ghost/'+failingHash+'/game.js',
-  legacyUrls:['/game-assets/ghost/'+failingHash+'/legacy/ghost-attack.js']};
+  legacyUrls:['/game-assets/ghost/'+failingHash+'/legacy/src/games/ghost-attack/ghost-attack.js']};
  assert.equal(await window.GamePlatform.refresh(),true);
  assert.equal(window.GamePlatform.ready('ghost'),false,'new hash must not reuse old engine');
  assert.equal(await window.GamePlatform.ensure('ghost'),window.GhostAttack,
