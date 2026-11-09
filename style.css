@@ -5908,3 +5908,115 @@ body.controller-playing #controller #controllerActive .gamepad-face-buttons :is(
   grid-template-rows:minmax(0,1fr)!important;
  }
 }
+
+/* UNIVERSAL IMMERSIVE LANDSCAPE
+   Installed PWAs use the manifest orientation hint. iOS/WebKit can ignore it:
+   rotate one entire shell (not its individual buttons) to match landscape.
+   The web Host activates this after opening the lobby. The web Controller
+   retains its fixed 844x390 stage and rotates automatically after welcome. */
+html.gf-landscape-screen{
+ overflow:hidden!important;
+ width:100%!important;height:100%!important;
+ overscroll-behavior:none!important;
+ background:#060b14;
+}
+@media(orientation:portrait){
+ body.gf-virtual-landscape{
+  position:fixed!important;
+  left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+  width:100dvh!important;height:100dvw!important;
+  min-width:100dvh!important;max-width:100dvh!important;
+  min-height:100dvw!important;max-height:100dvw!important;
+  padding:0!important;margin:0!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;overscroll-behavior:none!important;
+  transform:translate(-50%,-50%) rotate(90deg)!important;
+  transform-origin:center center!important;
+  background:#060b14;
+ }
+ body.gf-virtual-landscape .app{
+  position:relative!important;
+  box-sizing:border-box!important;
+  width:100%!important;height:100%!important;
+  min-width:0!important;max-width:none!important;
+  min-height:0!important;max-height:none!important;
+  overflow:auto;overscroll-behavior:contain;
+ }
+ body.gf-virtual-landscape #home.party-entry{
+  max-width:none;width:100%;min-height:0;
+ }
+ body.gf-virtual-landscape #hostLobby.host-lobby{
+  position:fixed!important;inset:0!important;
+  width:100%!important;height:100%!important;max-height:100%!important;
+  box-sizing:border-box!important;
+  display:flex;flex-direction:column;
+  padding:6px max(9px,env(safe-area-inset-bottom,0px))
+          6px max(9px,env(safe-area-inset-top,0px))!important;
+  gap:5px;overflow:hidden!important;
+ }
+ body.gf-virtual-landscape #hostLobby .host-lobby-grid{
+  grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr)!important;
+  min-height:0!important;overflow:hidden!important;gap:7px!important;
+ }
+ body.gf-virtual-landscape #hostLobby .lobby-qr-panel,
+ body.gf-virtual-landscape #hostLobby .lobby-player-panel{
+  min-width:0!important;min-height:0!important;
+  padding:7px!important;overflow:auto!important;
+ }
+ body.gf-virtual-landscape #hostLobby .lobby-controls{
+  grid-template-columns:minmax(0,1fr) max-content!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  min-height:0;max-height:none!important;overflow:visible!important;
+  padding:6px!important;
+ }
+ body.gf-virtual-landscape #hostLobby .lobby-controls>.lobby-room-actions{
+  grid-column:2!important;grid-row:1!important;
+ }
+ body.gf-virtual-landscape #hostLobby .lobby-controls>.lobby-session-control{
+  grid-column:1!important;grid-row:1!important;
+ }
+ body.gf-virtual-landscape #hostLobby .qr-box{
+  width:clamp(70px,14dvh,118px)!important;
+  height:clamp(70px,14dvh,118px)!important;
+ }
+ body.gf-virtual-landscape #hostLobby .share-layout{
+  display:flex!important;flex-wrap:nowrap!important;gap:8px!important;
+ }
+ body.gf-virtual-landscape #hostLobby .lobby-roster{
+  grid-template-columns:repeat(var(--roster-cols,3),minmax(0,1fr))!important;
+  grid-template-rows:repeat(var(--roster-rows,4),minmax(0,1fr))!important;
+  min-height:0!important;height:100%!important;overflow:auto!important;
+ }
+ body.gf-virtual-landscape.host-playing #game.game-page{
+  position:fixed!important;inset:0!important;
+  left:0!important;top:0!important;right:0!important;bottom:0!important;
+  width:100%!important;height:100%!important;
+  min-width:0!important;min-height:0!important;
+  max-width:100%!important;max-height:100%!important;
+  padding:0!important;margin:0!important;
+  transform:none!important;overflow:hidden!important;
+ }
+ body.gf-virtual-landscape #game .game-frame,
+ body.gf-virtual-landscape #game .game-frame canvas{
+  width:100%!important;height:100%!important;
+ }
+ body.gf-virtual-landscape #game .game-center-hud{
+  width:min(calc(100% - 22px),1020px)!important;
+ }
+ body.gf-virtual-landscape #controller.controller-page{
+  position:fixed!important;inset:0!important;
+  left:0!important;top:0!important;
+  width:100%!important;height:100%!important;
+  max-width:100%!important;max-height:100%!important;
+  overflow:hidden!important;box-sizing:border-box!important;
+ }
+ body.gf-virtual-landscape.controller-playing #controller #controllerActive.controller-active{
+  transform:translate(-50%,-50%) scale(var(--gf-controller-stage-scale,1))!important;
+ }
+}
+/* Removed legacy orientation chooser: portrait fallback is automatic and
+   never covers the joystick. Buttons remain DOM-bound for older test hosts. */
+#controller #rotateNotice,
+#controller #joinForm .join-orientation,
+#controller #portraitRestoreBtn,
+#controller #landscapeBtn{display:none!important}
