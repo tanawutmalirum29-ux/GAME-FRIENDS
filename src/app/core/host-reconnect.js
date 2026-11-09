@@ -3,6 +3,7 @@
 const HOST_RECONNECT_MAX=8;
 let hostReconnectTimer=null,hostReconnectWatchdog=null;
 let hostReconnectTries=0,hostReconnectPending=false,hostReconnectStopped=false;
+let hostReconnectSuppressDisconnect=false;
 function clearHostReconnectTimers(){
  if(hostReconnectTimer!==null)clearTimeout(hostReconnectTimer);
  if(hostReconnectWatchdog!==null)clearTimeout(hostReconnectWatchdog);
@@ -36,7 +37,9 @@ function scheduleHostReconnect(peer,attempt){
   // An earlier, unanswered reconnect can leave PeerJS "connecting", where
   // reconnect() is a no-op. Restore its disconnected precondition first.
   if(!peer.disconnected){
+   hostReconnectSuppressDisconnect=true;
    try{peer.disconnect();}catch(_){}
+   hostReconnectSuppressDisconnect=false;
   }
   if(!peer.disconnected){scheduleHostReconnect(peer,attempt);return;}
   hostReconnectTries++;
@@ -54,13 +57,18 @@ function scheduleHostReconnect(peer,attempt){
     hostReconnectWatchdog=null;
     if(!hostReconnectPending||hostPeer!==peer||attempt!==hostOpenAttempt)return;
     hostReconnectPending=false;
-    if(!peer.disconnected){try{peer.disconnect();}catch(_){}}
+    if(!peer.disconnected){
+      hostReconnectSuppressDisconnect=true;
+      try{peer.disconnect();}catch(_){}
+      hostReconnectSuppressDisconnect=false;
+    }
     scheduleHostReconnect(peer,attempt);
    },5000);
   }
  },wait);
 }
 function recoverHostSignal(peer,attempt){
+ if(hostReconnectSuppressDisconnect)return;
  if(hostReconnectStopped||hostPeer!==peer||attempt!==hostOpenAttempt||!onlineHost)return;
  if(hostReconnectWatchdog!==null){clearTimeout(hostReconnectWatchdog);hostReconnectWatchdog=null;}
  hostReconnectPending=false;
