@@ -93,7 +93,7 @@ function build({write=false}={}){
   const entry=meta.entry.slice(2),local=list(folder);
   if(!local.includes(entry))throw Error('Missing game entry: '+slug);
   if(!Array.isArray(meta.legacyScripts)||meta.legacyScripts.some(x=>typeof x!=='string'||!x.endsWith('.js')))throw Error('Invalid legacyScripts: '+slug);
-  if(meta.global!==undefined&&(!/^[A-Za-z_$][\w$]*$/.test(meta.global)||!meta.legacyScripts.length))throw Error('Invalid legacy global: '+slug);
+  if(meta.global!==undefined&&!/^[A-Za-z_$][\w$]*$/.test(meta.global))throw Error('Invalid legacy global: '+slug);
   const legacy=meta.legacyScripts.map(x=>{const abs=source(x);return {name:x,abs};});
   const hash=crypto.createHash('sha256');
   for(const relative of local){hash.update('local:'+relative+'\0');hash.update(fs.readFileSync(path.join(folder,relative)));}
