@@ -342,7 +342,7 @@ const art=ghostSandbox.window.GhostCemeteryArt;
 assert.match(ghostSource,/GHOST_VISUAL_SCALE=1\.26/);
 assert.match(ghostSource,/GHOST_NAME_COLOR='#ff454f'/);
 assert.match(ghostSource,/ctx\.fillStyle=ghost\?GHOST_NAME_COLOR:'#fff'/);
-assert.match(source,/name\.style\.color='#ff454f'/);
+assert.match(ghostSource,/name\.style\.color='#ff454f'/);
 assert.match(ghostSource,/const PLAYER_BODY_RADIUS=16/);
 for(const theme of ['graveyard','egypt']){
  const scales=[];
