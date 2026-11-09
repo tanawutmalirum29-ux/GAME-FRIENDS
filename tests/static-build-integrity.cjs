@@ -24,9 +24,9 @@ try{
   enabled:true,players:{min:1,max:12},modes:['normal','board'],
   controls:['joystick','A'],controller:{labels:{A:'Test'}},
   entry:'./game.js',legacyScripts:[]
- })+'\\n');
+ })+'\n');
  fs.writeFileSync(path.join(fixture,'game.js'),
-  'export default {setup(){},update(){},draw(){},hud(){return {}},getResult(){return []}};\\n');
+  'export default {setup(){},update(){},draw(){},hud(){return {}},getResult(){return []}};\n');
  for(const file of ['board-v7-design.js','board-v7-art.js','game-catalog.json'])
   fs.rmSync(path.join(target,file),{force:true});
  execFileSync(process.execPath,['scripts/build-static.cjs'],{
