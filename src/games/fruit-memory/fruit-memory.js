@@ -576,6 +576,6 @@ function getResult(round,players){
   return {id:p.id,value,label};
  });
 }
-window.FruitMemory=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,updateDuringCountdown:true,setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
+window.FruitMemory=Object.freeze({getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:3,hudBadge:{duringCountdown:"clock",duringPlay:"players"},updateDuringCountdown:true,setup,update,draw,hud,generateGrid,buildRevealSchedule,memoryPace,
  calculateFootSupport,evaluateSurvivors,chooseTargetFruit,resolvePlayerCollisions,drawPlayer,drawSideScreens,constants:C,fruitTypes:FRUITS.map(f=>f.id)});
 })();

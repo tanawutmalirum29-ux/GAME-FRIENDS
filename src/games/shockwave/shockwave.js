@@ -439,7 +439,7 @@ function getResultHeading(round,ranked){
  return winners.length>1?'ผู้ชนะร่วม: '+winners.map(p=>p.name).join(' / '):
   winners.length?'ผู้ชนะ: '+winners[0].name:'ไม่มีผู้ชนะ';
 }
-window.Shockwave=Object.freeze({getResultHeading,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
+window.Shockwave=Object.freeze({getResultHeading,getResult,resultTitle:"ผู้รอดชีวิตคนสุดท้าย!",countdownSeconds:2,hudBadge:{duringCountdown:"players",duringPlay:"players"},updateDuringCountdown:true,setup,update,draw,hud,createGrid,spawnPlayers,
  calculateDangerContact,calculateFootSupport,resolvePlayerCollision,calculateDangerWeights,
   dangerCount,requiredEscapeSeconds,
  selectDangerTiles,validateSafeRoutes,warningSeconds,intervalSeconds,distanceBias,
