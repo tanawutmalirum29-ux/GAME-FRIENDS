@@ -49,10 +49,14 @@ assert.match(css,/body\.host-playing #game \.game-toolbar\{\s*height:max\(96px,/
  'top background strip stays flush with the field beneath the roster');
 assert.doesNotMatch(source,/const ENGINE_CLOCK_MODES=/,
  'no engine-specific clocks should bypass the one central HUD');
-assert.match(source,/const seconds=hostClockValue\(round\)/,
+assert.match(source,/const seconds=hostClockValue\(round,engine\)/,
  'every minigame routes its time through the same HUD dispatcher');
-assert.match(source,/function hostClockValue\(r\)\{[\s\S]*?r\.mode==='shockwave'/,
- 'SHOCKWAVE must never display a numeric host timer');
+const hostClockSource=source.slice(source.indexOf('function hostClockValue('),
+ source.indexOf('function drawGame(t)'));
+assert.doesNotMatch(hostClockSource,/shockwave|fruit_memory/,
+ 'the central badge dispatcher may not hardcode any game IDs');
+assert.match(shockwaveSource,/hudBadge:\{duringCountdown:"players",duringPlay:"players"\}/,
+ 'SHOCKWAVE must declare its own player-count badge policy');
 assert.match(source,/window\.PartyArenaScenes\?\.clock\?\.\(g,seconds\)/,
  'other timed minigames use the Shopping/Knight clock badge');
 for(const [name,body] of [
