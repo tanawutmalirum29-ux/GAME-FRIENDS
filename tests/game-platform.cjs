@@ -59,10 +59,11 @@ function fixture(){
  fs.writeFileSync(path.join(temp,'index.html'),'<html></html>\n');
  const manifest={id:'demo_game',name:'DEMO GAME',version:'1.0.0',apiVersion:1,enabled:true,
   players:{min:1,max:12},modes:['normal','board'],controls:['joystick'],
-  entry:'./game.js',legacyScripts:[]};
+  entry:'./game.js',cover:'cover.svg',legacyScripts:[]};
  fs.writeFileSync(path.join(folder,'manifest.json'),JSON.stringify(manifest));
  fs.writeFileSync(path.join(folder,'game.js'),
   'export default {setup(){},update(){},draw(){},hud(){return {survivors:1}},getResult(){return []}};');
+ fs.writeFileSync(path.join(folder,'cover.svg'),'<svg xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20"/></svg>');
  const run=()=>execFileSync(process.execPath,[path.join(root,'scripts/build-game-catalog.cjs'),'--write'],
   {env:{...process.env,GAME_BUILD_ROOT:temp},encoding:'utf8'});
  try{
@@ -71,12 +72,21 @@ function fixture(){
   assert.equal(first.games.length,1);
   const source=path.join(temp,first.games[0].entryUrl.slice(1));
   assert.equal(fs.readFileSync(source,'utf8'),fs.readFileSync(path.join(folder,'game.js'),'utf8'));
+  assert.ok(first.games[0].coverUrl.endsWith('/cover.svg'));
+  const previousCover=path.join(temp,first.games[0].coverUrl.slice(1));
+  assert.equal(fs.readFileSync(previousCover,'utf8'),fs.readFileSync(path.join(folder,'cover.svg'),'utf8'));
   fs.appendFileSync(path.join(folder,'game.js'),'// v2\n');
   run();
   const second=JSON.parse(fs.readFileSync(path.join(temp,'game-catalog.json'),'utf8'));
   assert.notEqual(first.games[0].hash,second.games[0].hash,
    'changing game bytes creates an entirely new asset path');
   assert.ok(fs.existsSync(source),'old version stays present in this build directory');
+  fs.appendFileSync(path.join(folder,'cover.svg'),'<!-- updated illustration -->');
+  run();
+  const third=JSON.parse(fs.readFileSync(path.join(temp,'game-catalog.json'),'utf8'));
+  assert.notEqual(second.games[0].hash,third.games[0].hash,'changing a local SVG updates only this game hash');
+  assert.equal(second.coreHash,third.coreHash,'game-owned SVG must not require a Core reload');
+  assert.ok(fs.existsSync(previousCover),'previous versioned artwork remains available');
   manifest.entry='./../escape.js';
   fs.writeFileSync(path.join(folder,'manifest.json'),JSON.stringify(manifest));
   const bad=spawnSync(process.execPath,[path.join(root,'scripts/build-game-catalog.cjs'),'--check'],
