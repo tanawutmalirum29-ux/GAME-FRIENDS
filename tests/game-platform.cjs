@@ -179,6 +179,29 @@ async function platform(){
   'fresh broken game must fail closed');
  assert.equal(window.GamePlatform.descriptor('missing'),null,'unplayable new game is hidden');
  assert.equal(window.GamePlatform.games().length,1);
+ // A malformed new game cannot poison another valid game update in the
+ // same catalog; an invalid revision of an already loaded engine fails over.
+ const futureHash='e'.repeat(24);
+ const future={...data.games[0],id:'future_game',name:'FUTURE GAME',
+  global:null,legacyUrls:[],hash:futureHash,
+  entryUrl:'/game-assets/future_game/'+futureHash+'/game.js'};
+ data.games.push(future,{
+  ...data.games[0],id:'bad_game',name:'BAD GAME',hash:'corrupt',
+  entryUrl:'/game-assets/bad_game/corrupt/game.js'
+ },{
+  ...data.games[0],id:'ghost',hash:'corrupt',
+  entryUrl:'/game-assets/ghost/corrupt/game.js'
+ });
+ assert.equal(await window.GamePlatform.refresh(),true);
+ assert.ok(window.GamePlatform.descriptor('future_game'),'valid unknown ID survives a bad peer');
+ assert.equal(window.GamePlatform.descriptor('bad_game'),null,'bad new release is skipped');
+ assert.equal(window.GamePlatform.descriptor('ghost').hash,'b'.repeat(24),
+  'verified existing engine remains available despite a malformed duplicate');
+ assert.equal(window.GamePlatform.getInvalid().length,2,
+  'per-entry validation failures remain visible for diagnostics');
+ data.games.splice(-3);
+ assert.equal(await window.GamePlatform.refresh(),true);
+ assert.equal(window.GamePlatform.getInvalid().length,0,'repaired catalog clears diagnostics');
  outage=true;
  await assert.rejects(window.GamePlatform.refresh(),/offline/);
  assert.equal(window.GamePlatform.ready('ghost'),true,'catalog outage preserves last good engine');

@@ -6,7 +6,7 @@
 const current=new Map(),catalog=new Map(),pending=new Map(),rejected=new Map();
 // Broken immutable assets must not trap a running BOARD PARTY in a failed roulette.
 const RETRY_DELAY_MS=90_000;
-let coreHash='',pendingCore=false,refreshing=null,revision=0;
+let coreHash='',pendingCore=false,refreshing=null,revision=0,invalidEntries=[];
 const emitted=()=>{if(typeof window.dispatchEvent==='function'&&typeof CustomEvent==='function')
  window.dispatchEvent(new CustomEvent('gameplatform:catalog',{detail:{revision}}));};
 function validUrl(value){
@@ -17,8 +17,9 @@ function validUrl(value){
 }
 function inspect(data){
  if(!data||data.schema!==1||!Array.isArray(data.games)||typeof data.coreHash!=='string'||!/^[a-f0-9]{20}$/.test(data.coreHash))throw Error('Invalid game catalog');
- const seen=new Set();
- return data.games.map(g=>{
+ const seen=new Set(),malformed=[];
+ const valid=data.games.flatMap(g=>{
+  try{
   if(!g||! /^[a-z][a-z0-9_]*$/.test(g.id)||seen.has(g.id)||g.apiVersion!==1||
    !g.players||g.players.min<1||g.players.max>12||g.players.min>g.players.max||
    typeof g.enabled!=='boolean'||typeof g.name!=='string'||
@@ -38,9 +39,18 @@ function inspect(data){
   const marker='/game-assets/'+g.id+'/'+g.hash+'/';
   if(!g.entryUrl.startsWith(marker)||!Array.isArray(g.legacyUrls)||g.legacyUrls.some(x=>!x.startsWith(marker)))throw Error('Mismatched asset revision');
   validUrl(g.entryUrl);g.legacyUrls.forEach(validUrl);
-  return Object.freeze({...g,controller:g.controller?
-   Object.freeze({...g.controller,labels:Object.freeze({...g.controller.labels})}):null});
+  return [Object.freeze({...g,controller:g.controller?
+   Object.freeze({...g.controller,labels:Object.freeze({...g.controller.labels})}):null})];
+  }catch(error){
+   // A malformed game must not block other same-core catalog updates.
+   const id=typeof g?.id==='string'&&/^[a-z][a-z0-9_]*$/.test(g.id)?g.id:null;
+   malformed.push({id,enabled:g?.enabled===true,
+    reason:String(error?.message||error).slice(0,160)});
+   console.warn('Malformed game catalog entry ignored',id,error);
+   return [];
+  }
  });
+ return {valid,malformed};
 }
 async function refresh(){
  if(refreshing)return refreshing;
@@ -49,7 +59,7 @@ async function refresh(){
   url.searchParams.set('_',String(Date.now()));
   const response=await fetch(url.href,{cache:'no-store'});
   if(!response.ok)throw Error('Catalog unavailable: '+response.status);
-  const data=await response.json(),next=inspect(data);
+  const data=await response.json(),{valid:next,malformed}=inspect(data);
   // The initial HTML/JS can outlive a deployment. Never mix incompatible core code.
   const initial=String(window.GAME_CORE_VERSION||'');
   if(initial&&data.coreHash!==initial){pendingCore=true;return false;}
@@ -67,6 +77,12 @@ async function refresh(){
    if(failure)rejected.delete(g.id);
    enabled.push(g);
   }
+  for(const broken of malformed){
+   if(!broken.id||!broken.enabled||enabled.some(g=>g.id===broken.id))continue;
+   const stable=current.get(broken.id);
+   if(stable?.descriptor?.enabled)enabled.push(stable.descriptor);
+  }
+  invalidEntries=malformed;
   const changed=!coreHash||enabled.length!==catalog.size||enabled.some(g=>{
    const old=catalog.get(g.id);return !old||old.hash!==g.hash||old.name!==g.name||
     old.version!==g.version||old.players.min!==g.players.min||
@@ -162,6 +178,7 @@ function adoptLegacy(){
 async function initialize(){try{await refresh();adoptLegacy();}catch(e){console.warn('Game catalog unavailable; retaining legacy engines',e);}}
 window.GamePlatform=Object.freeze({initialize,refresh,games,descriptor,engine,ready,ensure,adoptLegacy,
  get pendingCoreUpdate(){return pendingCore;},get revision(){return revision;},
+ getInvalid:()=>invalidEntries.map(x=>({...x})),
  getRejected:()=>[...rejected.entries()].filter(([,v])=>v.until>Date.now())
   .map(([id,v])=>({id,hash:v.hash,retryAfter:v.until,message:v.message}))});
 if(typeof window.addEventListener==='function'){
