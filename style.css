@@ -5851,3 +5851,60 @@ body.controller-playing #controllerActive #controllerBoardMinimap.gamepad-board-
  object-fit:contain;background:#0b1927;pointer-events:none;
 }
 body.controller-playing #controllerActive #controllerBoardMinimap.hidden{display:none!important}
+
+/* A SINGLE reference stage for every phone, including rotated portrait.
+   Letterboxing and safe area are OUTSIDE the 844 x 390 gamepad. The complete
+   stage, not independently clamped buttons, is scaled with one transform. */
+body.controller-playing #controller.controller-page{
+ box-sizing:border-box!important;
+ padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px)
+   env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)!important;
+ background:#060b14!important;
+}
+body.controller-playing #controller #controllerActive.controller-active{
+ position:absolute!important;
+ display:flex!important;flex-direction:column!important;
+ width:844px!important;height:390px!important;
+ min-width:844px!important;max-width:844px!important;
+ min-height:390px!important;max-height:390px!important;
+ left:calc(50% + (env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))/2)!important;
+ top:calc(50% + (env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))/2)!important;
+ right:auto!important;bottom:auto!important;
+ margin:0!important;padding:0!important;overflow:hidden!important;
+ transform:translate(-50%,-50%) scale(var(--gf-controller-stage-scale,1))!important;
+ transform-origin:center center!important;
+ background:#0b1625;
+}
+body.controller-playing.portrait-fallback #controller #controllerActive.controller-active{
+ width:844px!important;height:390px!important;
+ min-width:844px!important;max-width:844px!important;
+ min-height:390px!important;max-height:390px!important;
+ transform:translate(-50%,-50%) rotate(90deg)
+   scale(var(--gf-controller-stage-scale,1))!important;
+}
+body.controller-playing #controller #controllerActive .gamepad-hud{
+ box-sizing:border-box!important;flex:0 0 46px!important;
+ min-height:46px!important;max-height:46px!important;height:46px!important;
+}
+body.controller-playing #controller #controllerActive .controller-buttons:not(.shockwave-mode){
+ box-sizing:border-box!important;
+ flex:1 1 auto!important;min-height:0!important;
+ width:844px!important;height:344px!important;
+ grid-template-columns:minmax(0,1fr) 136px!important;
+ grid-template-rows:minmax(0,1fr)!important;
+ column-gap:6px!important;
+}
+body.controller-playing #controller #controllerActive #joystickZone .joystick-base{
+ width:72px!important;height:72px!important;
+}
+body.controller-playing #controller #controllerActive .gamepad-face-buttons :is(.face-button-a,.face-button-b){
+ --gf-face-diameter:102px!important;
+ width:102px!important;height:102px!important;
+ max-width:102px!important;max-height:102px!important;
+}
+@media(orientation:portrait){
+ body.controller-playing.portrait-fallback #controller #controllerActive .controller-buttons:not(.shockwave-mode){
+  grid-template-columns:minmax(0,1fr) 136px!important;
+  grid-template-rows:minmax(0,1fr)!important;
+ }
+}
