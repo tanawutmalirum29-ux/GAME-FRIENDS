@@ -18,6 +18,7 @@
     "B",
     "C"
   ],
+  "cover": "cover.svg",
   "entry": "./game.js",
   "global": "SnowBrawl",
   "legacyScripts": [

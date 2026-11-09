@@ -15,6 +15,10 @@ for(const slug of fs.readdirSync(gamesRoot).filter(x=>
  const meta=JSON.parse(fs.readFileSync(file,'utf8'));
  const descriptor=catalog.games.find(game=>game.id===meta.id);
  assert.ok(descriptor,'Catalog must discover '+slug);
+ assert.equal(meta.cover,'cover.svg','Every legacy game now owns a standalone cover');
+ assert.ok(descriptor.coverUrl?.endsWith('/cover.svg'),'Catalog should version each game-owned SVG');
+ const svg=fs.readFileSync(path.join(gamesRoot,slug,meta.cover),'utf8');
+ assert.ok(svg.startsWith('<svg')&&svg.includes('</svg>')&&svg.length>2000,'Missing original game SVG: '+slug);
  const entry=path.join(gamesRoot,slug,meta.entry.slice(2));
  const code=fs.readFileSync(entry,'utf8');
  const imports=[...code.matchAll(/^\s*import\s+['"]\.\/([^'"]+\.js)['"];?\s*$/gm)].map(x=>x[1]);

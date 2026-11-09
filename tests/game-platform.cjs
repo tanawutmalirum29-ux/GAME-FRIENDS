@@ -8,10 +8,10 @@ const {execFileSync,spawnSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..');
 const builder=require('../scripts/build-game-catalog.cjs');
 const catalog=builder.build();
-const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,pruneHostCore,BOARD_CORE_SCRIPTS,HOST_ROUTE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
+const {pruneLegacy,pruneBoardCore,pruneExternal,pruneAppBoot,pruneHostCore,pruneGameCover,BOARD_CORE_SCRIPTS,HOST_ROUTE_SCRIPTS}=require('../scripts/lazy-game-scripts.cjs');
 assert.equal(catalog.schema,1);
 const originalHTML=fs.readFileSync(path.join(root,'index.html'),'utf8');
-const lazyHTML=pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog)))));
+const lazyHTML=pruneGameCover(pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog))))));
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/peerjs@'),'offline bootstrap never fetches PeerJS');
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/qrcodejs@'),'controller bootstrap never fetches QRCode');
 assert.ok(lazyHTML.includes('src="./src/platform/runtime-deps.js"'));
@@ -33,7 +33,8 @@ assert.ok(lazyHTML.includes('src="./src/platform/main-loader.js"'));
 assert.ok(originalHTML.includes('src="./app.js"'),'local dev retains immediate compatibility bundle');
 assert.ok(!/src="\.\/src\/games\/[^\"]+\.js"/.test(lazyHTML),
  'production must not eagerly load folder-owned minigame scripts');
-assert.ok(lazyHTML.includes('src="./game-cover-art.js"'));
+assert.ok(!lazyHTML.includes('src="./game-cover-art.js"'),'production must not load all shared cover artwork');
+assert.ok(originalHTML.includes('src="./game-cover-art.js"'),'dev compatibility retains vector cover renderer');
 assert.ok(lazyHTML.includes('src="./src/platform/board-runtime.js"'),
  'production loads BOARD through the deferred core runtime');
 assert.equal(catalog.games.length,15,'all 15 legacy games must be automatically discovered');
@@ -41,6 +42,7 @@ assert.equal(new Set(catalog.games.map(g=>g.id)).size,15);
 for(const game of catalog.games){
  assert.match(game.hash,/^[a-f0-9]{24}$/);
  assert.ok(game.entryUrl.endsWith('/game.js'));
+ assert.ok(game.coverUrl?.endsWith('/cover.svg'),'each game owns its versioned cover');
  assert.ok(game.modes.includes('board')&&game.modes.includes('normal'));
  assert.ok(Array.isArray(game.legacyUrls),'ES module games may have no legacy script dependencies');
  assert.ok(!game.legacyUrls.some(url=>url.includes('/legacy/src/games/')),

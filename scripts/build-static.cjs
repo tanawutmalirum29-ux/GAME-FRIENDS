@@ -48,7 +48,7 @@ html=html.replace(/\b(src|href)="(\.\/[^"?]+)(?:\?v=[^"]*)?"/g,
 for(const asset of assets)if(!seen.has(asset))throw Error('Missing build asset: '+asset);
 if(gameCatalog){
  const lazy=require('./lazy-game-scripts.cjs');
- html=lazy.pruneAppBoot(lazy.pruneHostCore(lazy.pruneExternal(lazy.pruneBoardCore(lazy.pruneLegacy(html,gameCatalog)))));
+ html=lazy.pruneGameCover(lazy.pruneAppBoot(lazy.pruneHostCore(lazy.pruneExternal(lazy.pruneBoardCore(lazy.pruneLegacy(html,gameCatalog))))));
 }
 fs.writeFileSync(indexPath,html);
 process.stdout.write('Static deploy '+id.slice(0,12)+'\n');
