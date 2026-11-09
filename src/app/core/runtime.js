@@ -266,23 +266,38 @@ function holdSeat(p){
  },60000));
 }
 const canvas=$('arena'), g=canvas.getContext('2d');
+// Read UNTRANSFORMED landscape CSS pixels. CSS rotation transposes
+// getBoundingClientRect and used to break BOARD drag, pinch and map hit-tests.
+function arenaIsRotated(){return physicalPortrait()&&currentView==='game';}
+function arenaLayoutRect(visual){
+ if(!arenaIsRotated())return {left:visual.left,top:visual.top,
+  width:Number(visual.width)||960,height:Number(visual.height)||540,rotated:false};
+ return {left:0,top:0,width:Number(canvas.clientWidth)||Number(visual.height)||960,
+  height:Number(canvas.clientHeight)||Number(visual.width)||540,rotated:true};
+}
 function arenaContentRect(rect){
- const width=Number(rect.width)||960,height=Number(rect.height)||540;
- // BOARD PARTY extends its logical map vertically instead of letterboxing
- // the fixed 16:9 world. Keep 960 X units and a uniform physical pixel scale.
+ const frame=arenaLayoutRect(rect),{width,height}=frame;
  if(round?.mode==='board'&&boardSession&&height/width>540/960){
-  return {left:rect.left,top:rect.top,scale:width/960,height:960*height/width};
+  return {left:frame.left,top:frame.top,scale:width/960,height:960*height/width};
  }
  const scale=Math.min(width/960,height/540);
- return {left:rect.left+(width-960*scale)/2,top:rect.top+(height-540*scale)/2,scale,height:540};
+ return {left:frame.left+(width-960*scale)/2,
+  top:frame.top+(height-540*scale)/2,scale,height:540};
+}
+function arenaPointer(e){
+ const visual=canvas.getBoundingClientRect(),frame=arenaLayoutRect(visual),
+  content=arenaContentRect(visual);
+ // Inverse of CSS rotate(90deg): screen Y -> local X, -screen X -> local Y.
+ const x=frame.rotated?(e.clientY-visual.top)*frame.width/Math.max(1,visual.height):e.clientX;
+ const y=frame.rotated?(visual.right-e.clientX)*frame.height/Math.max(1,visual.width):e.clientY;
+ return {x:(x-content.left)/content.scale,y:(y-content.top)/content.scale};
 }
 // Host map gestures: drag to pan, pinch to zoom and tap nodes in Debug mode.
 // Game input remains exclusively on the controller; pause freezes simulation.
 {
  const pointers=new Map();let pinchDistance=0,gestureMoved=false,downAt=null;
  const enabled=()=>round?.mode==='board'&&!!boardSession&&!!window.BoardArt?.canPan(boardSession);
- const coords=e=>{const rect=arenaContentRect(canvas.getBoundingClientRect());
-   return {x:(e.clientX-rect.left)/rect.scale,y:(e.clientY-rect.top)/rect.scale};};
+ const coords=e=>arenaPointer(e);
  canvas.addEventListener('pointerdown',e=>{
   if(!enabled())return;
   const pt=coords(e),top=94;
@@ -335,7 +350,8 @@ function syncArenaResolution(){
  const denseBoard=round?.mode==='board'&&boardSession?.players.length>=8;
  const modeKey=denseBoard?'board-dense':round?.mode==='board'?'board':'normal';
  const box=canvas.getBoundingClientRect?.();
- const boxKey=(Number(box?.width)||0)+'x'+(Number(box?.height)||0);
+ const layoutBox=arenaLayoutRect(box||{left:0,top:0,width:960,height:540});
+ const boxKey=layoutBox.width+'x'+layoutBox.height+':'+arenaIsRotated();
  if(!arenaResolutionDirty&&arenaLastDpr===dpr&&arenaLastModeKey===modeKey&&arenaLastBoxKey===boxKey)return;
  arenaResolutionDirty=false;arenaLastDpr=dpr;arenaLastModeKey=modeKey;arenaLastBoxKey=boxKey;
  const boardActive=round?.mode==='board'&&!!boardSession;
@@ -359,7 +375,7 @@ function syncArenaResolution(){
  const displayScale=longSide>0&&shortSide>0?
    Math.max(longSide/ARENA_WIDTH,shortSide/ARENA_HEIGHT):1;
  const logicalHeight=boardActive?content.height:ARENA_HEIGHT;
- const screenScale=boardActive&&box?.width?content.scale:displayScale;
+ const screenScale=boardActive&&layoutBox.width?content.scale:displayScale;
  // Cap the portrait/split-screen board bitmap budget at 3.6 MP.
  const bitmapBudget=boardActive?Math.sqrt(3600000/(ARENA_WIDTH*logicalHeight)):MAX_ARENA_SCALE;
  const scale=Math.min(denseBoard?2.4:MAX_ARENA_SCALE,bitmapBudget,Math.max(1,screenScale*dpr));
