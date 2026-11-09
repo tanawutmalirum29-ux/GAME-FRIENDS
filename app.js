@@ -741,11 +741,13 @@ function createControllerIngressGuard(clock=()=>Date.now()){
  return {
   accept(packet){
    if(closed)return false;
-   try{if(!valid(packet))return false;}catch(_){return false;}
+   // Charge ALL attempts before parsing/validating: malformed floods must
+   // consume the same ingress budget as valid joystick packets.
    const now=clock(),elapsed=Math.max(0,Math.min(60000,now-last));
    last=now;tokens=Math.min(BURST,tokens+elapsed*RATE/1000);
    if(tokens<1)return false;
-   tokens--;return true;
+   tokens--;
+   try{return valid(packet);}catch(_){return false;}
   },
   dispose(){closed=true;tokens=0;}
  };
@@ -1643,12 +1645,16 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
     const type=String(err?.type||'unknown');
     const fatal=new Set(['browser-incompatible','invalid-id','invalid-key','ssl-unavailable']);
-    const recoverable=new Set(['network','socket-error','socket-closed','server-error','disconnected','webrtc']);
+    const signaling=new Set(['network','socket-error','socket-closed','server-error','disconnected']);
     if(onlineHost){
       if(fatal.has(type)||type==='unavailable-id'||peer.destroyed){
         stopHostReconnect();
         setStatus('ไม่สามารถเชื่อมต่อห้องเดิม: '+type+' • สถานะเกมยังอยู่',true);
-      }else if(recoverable.has(type)||!fatal.has(type)){
+      }else if(peer.open&&!peer.disconnected&&!signaling.has(type)){
+        // peer-unavailable, per-connection WebRTC and unknown errors do
+        // not imply a lost signaling socket. Do not disrupt other clients.
+        setStatus('ข้อผิดพลาดการเชื่อมต่อย่อย: '+type+' • ห้องยังเปิดอยู่',true);
+      }else{
         if(!peer.disconnected)try{peer.disconnect();}catch(_){}
         recoverHostSignal(peer,attempt);
       }
