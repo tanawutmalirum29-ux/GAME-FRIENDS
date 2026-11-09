@@ -9,6 +9,8 @@ const server=http.createServer((req,res)=>{
  if(!file.startsWith(root+path.sep)||!fs.existsSync(file)){res.writeHead(404).end();return;}
  const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.json':'application/json'};
  let data=fs.readFileSync(file);
+ if(file===path.join(root,'index.html'))
+  data=require('./helpers/legacy-game-html.cjs').withLegacyGameFixtures(data.toString());
  if(file===path.join(root,'app.js'))data=data.toString().replace('requestAnimationFrame(animate);\n})();','window.__boardStartup={get board(){return boardSession},get view(){return currentView},get locals(){return players},refreshBoardTools};requestAnimationFrame(animate);\n})();');
  res.writeHead(200,{'content-type':mime[path.extname(file)]||'application/octet-stream'});res.end(data);
 });
