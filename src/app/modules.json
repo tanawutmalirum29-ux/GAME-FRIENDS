@@ -6,6 +6,7 @@
     "src/app/core/player-name.js",
     "src/app/core/runtime.js",
     "src/app/core/connection-guard.js",
+    "src/app/core/version-protocol.js",
     "src/app/core/host-reconnect.js",
     "src/app/host/room.js",
     "src/app/controller/connection.js",

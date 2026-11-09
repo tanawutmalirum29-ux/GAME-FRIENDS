@@ -5,6 +5,20 @@ const ids=Object.keys(names),radius=18,ufoRadius=48,blastRadius=72,UFO_AIM_TRAVE
 // Only UFO ends the current turn. Every other item permits exactly one dice
 // roll afterward; the round-wide one-item limit is independent of this rule.
 const afterUse=kind=>kind==='ufo'?'end':'ready';
+
+/* New system items append after the original six stable UI slots. */
+let pluginItemIds=[];
+function registerPlugins(plugins=[]){
+ for(const id of pluginItemIds){delete names[id];const i=ids.indexOf(id);if(i!==-1)ids.splice(i,1);}
+ pluginItemIds=[];
+ for(const plugin of plugins){
+  if(!plugin||plugin.category!=='items'||! /^[a-z][a-z0-9-]*$/.test(plugin.id)||
+     ids.includes(plugin.id)||typeof plugin.begin!=='function')
+    throw Error('Invalid or duplicate BOARD item plugin');
+  names[plugin.id]=plugin.name||plugin.id;ids.push(plugin.id);pluginItemIds.push(plugin.id);
+ }
+}
+
 function bag(p){
  if(!Array.isArray(p.bag))p.bag=[];
  // Accept older single-slot session data without losing a previously held item.
@@ -89,6 +103,8 @@ function consume(s,p,kind){
 function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
  if(s.phase!=='ready'||!kind||!bag(p).includes(kind)||
    p.usedRound===s.roundNumber||s.rolled||s.time>=s.readyDeadline)return false;
+ const extension=window.BoardSystemPlugins?.get('items',kind);
+ if(extension)return extension.begin(s,p,api,{consume,position,afterUse});
  if(kind==='potion'){
   if(p.hp>=api.MAX_HP)return false;
   const gained=Math.min(api.MAX_HP-p.hp,api.HEAL.potion);
@@ -125,6 +141,8 @@ function confirm(s,button,api){
  if(s.phase!=='aim')return false;
  const skill=s.skill,p=api.current(s);
  if(!skill||!p)return false;
+ const extension=window.BoardSystemPlugins?.get('items',skill.kind);
+ if(extension?.confirm)return extension.confirm(s,button,api,{consume,position,afterUse});
  if(button==='C'&&(skill.kind==='bomber'||skill.kind==='ufo')){
   // Aiming is reversible: keep every item, player position and dice state.
   const kind=skill.kind;api.ready(s);
@@ -187,6 +205,8 @@ function explode(s,api){
 }
 function update(s,dt,api){
  const skill=s.skill,p=api.current(s);if(!skill||!p)return;
+ const extension=window.BoardSystemPlugins?.get('items',skill.kind);
+ if(extension?.update)return extension.update(s,dt,api,{consume,position,afterUse});
  const input=api.axes(s,p.id);
  if(s.phase==='aim'){
   const speed=skill.kind==='ufo'?420:360;
@@ -244,5 +264,5 @@ function update(s,dt,api){
 
  }
 }
-window.BoardItems=Object.freeze({names,ids,radius,ufoRadius,blastRadius,UFO_AIM_TRAVEL_MIN,afterUse,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,bomberFlight,BOMBER_FLIGHT_SECONDS,BOMBER_EFFECT_SECONDS,victims,begin,confirm,update,segmentDistance});
+window.BoardItems=Object.freeze({names,ids,radius,ufoRadius,blastRadius,UFO_AIM_TRAVEL_MIN,afterUse,bag,counts,availableSlots,add,position,positionOnNode,target,bombs,bomberFlight,BOMBER_FLIGHT_SECONDS,BOMBER_EFFECT_SECONDS,victims,begin,confirm,update,segmentDistance,registerPlugins});
 })();

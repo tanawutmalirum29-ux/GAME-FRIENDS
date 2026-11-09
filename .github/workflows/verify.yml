@@ -25,6 +25,10 @@ jobs:
         run: node tests/board-runtime-layers.cjs
       - name: Audit BOARD PARTY island density, crossings and swords
         run: node tests/board-layout-audit.cjs
+      - name: Verify BOARD PARTY source ownership and byte-for-byte engine bundle
+        run: |
+          node scripts/build-board-party.cjs --check
+          node tests/board-source-modules.cjs
       - name: Enforce Host and Controller app bundle integrity
         run: node scripts/build-app.cjs --check
       - name: Verify canonical controller BOARD metadata and split runtime
@@ -37,6 +41,17 @@ jobs:
         run: |
           node scripts/build-game-catalog.cjs --check
           node tests/game-platform.cjs
+      - name: Validate BOARD map folder discovery and directed graph safety
+        run: |
+          node scripts/build-board-map-catalog.cjs --check
+          node tests/board-map-discovery.cjs
+          node tests/board-map-runtime.cjs
+      - name: Validate folder-discovered BOARD items, spaces and events
+        run: |
+          node scripts/build-board-system-catalog.cjs --check
+          node tests/board-system-discovery.cjs
+          node tests/board-system-runtime.cjs
+          node tests/board-controller-item-meta.cjs
       - name: Enforce per-game source ownership and no root gameplay copies
         run: node tests/game-source-ownership.cjs
       - name: Enforce game-owned live roster and dynamic ID fallback
@@ -45,6 +60,7 @@ jobs:
         run: |
           node tests/player-name.cjs
           node tests/controller-ingress.cjs
+          node tests/version-handshake.cjs
           node tests/host-reconnect.cjs
       - name: Controller video, TURN, mini-map and fast transport regressions
         run: |

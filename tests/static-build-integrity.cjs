@@ -45,7 +45,7 @@ try{
   'static deploy missing file: '+file);
  for(const file of ['index.html','version.json','build-version.js',
   'app.js','app-controller.js','board-v7-design.js','board-v7-art.js',
-  'game-catalog.json','sw.js'])exists(file);
+  'game-catalog.json','board-map-catalog.json','board-system-catalog.json','sw.js'])exists(file);
  assert.equal(JSON.parse(fs.readFileSync(path.join(target,'version.json'),'utf8')).version,version);
  const html=fs.readFileSync(path.join(target,'index.html'),'utf8');
  assert.ok(html.includes('src="./src/platform/board-runtime.js?v='+version+'"'),
@@ -57,6 +57,13 @@ try{
  }
  const catalog=JSON.parse(fs.readFileSync(path.join(target,'game-catalog.json'),'utf8'));
  assert.equal(catalog.schema,1);
+ const boardCatalog=JSON.parse(fs.readFileSync(path.join(target,'board-map-catalog.json'),'utf8'));
+ assert.equal(boardCatalog.schema,1);
+ assert.equal(boardCatalog.coreHash,catalog.coreHash);
+ const systems=JSON.parse(fs.readFileSync(path.join(target,'board-system-catalog.json'),'utf8'));
+ assert.equal(systems.schema,1);assert.equal(systems.coreHash,catalog.coreHash);
+ assert.ok(boardCatalog.maps.some(m=>m.id==='winter-expedition'&&m.kind==='legacy'));
+ assert.ok(!html.includes('board-map-assets/'),'Map plug-ins must not eager load from HTML');
  assert.equal(catalog.coreHash,baseline,
   'Adding a native folder-only game must not alter the shared core fingerprint');
  const extra=catalog.games.find(game=>game.id==='ci_autoload');

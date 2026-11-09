@@ -20,6 +20,9 @@ require('./build-board-v7.cjs');
 // Derive controller-only BOARD metadata from the authoritative game rules.
 if(fs.existsSync(path.join(root,'board-items.js')))
  require('./build-board-item-brief.cjs').build({write:true});
+// Build BOARD logic from maintainable source fragments without changing runtime behavior.
+if(fs.existsSync(path.join(root,'src','board-party','modules.json')))
+ require('./build-board-party.cjs').assemble({write:true});
 // Generate Host and Controller bundles from maintainable source modules.
 if(fs.existsSync(path.join(root,'src','app','modules.json')))
  require('./build-app.cjs').assemble({write:true});
@@ -29,6 +32,11 @@ if(turnUrl&&(!/^https:\/\/[^\s]+$/i.test(turnUrl)||turnUrl.length>512))
  throw Error('GF_TURN_CREDENTIALS_ENDPOINT must be a short HTTPS URL');
 const gameCatalog=fs.existsSync(path.join(root,'src','games'))?
   require('./build-game-catalog.cjs').build({write:true}):null;
+// Detect BOARD item/space/event plugins by their own manifests.
+require('./build-board-system-catalog.cjs').build({write:true,coreHash:gameCatalog?.coreHash});
+// Discover BOARD maps at build time. Do not eagerly fetch map engines.
+if(fs.existsSync(path.join(root,'src','board-party','maps')))
+ require('./build-board-map-catalog.cjs').build({write:true,coreHash:gameCatalog?.coreHash});
 fs.writeFileSync(path.join(root,'version.json'),JSON.stringify({version:id})+'\n');
 fs.writeFileSync(path.join(root,'build-version.js'),
   'window.GAME_BUILD_VERSION='+JSON.stringify(id)+';\n'+

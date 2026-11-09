@@ -27,3 +27,19 @@ Read **[docs/ADDING_MINIGAMES.md](docs/ADDING_MINIGAMES.md)** before adding or c
 ## Minigame live roster ownership
 
 Read [docs/PLUGIN_ROSTER_API.md](docs/PLUGIN_ROSTER_API.md) before adding a game or changing live scoreboards. All original 15 games own their custom `renderRoster` hooks, and new game IDs use the generic `getRoster` fallback without Core branches. Run `node tests/plugin-roster-ownership.cjs` before PR/Merge. Never change scoring or SVG layouts while moving roster code.
+
+## BOARD PARTY map plug-in discovery
+
+Read [docs/ADDING_BOARD_MAPS.md](docs/ADDING_BOARD_MAPS.md) before adding or editing a BOARD map. A new map is registered exclusively in `src/board-party/maps/<slug>/` with its manifest, both tier graphs and runtime entry. Never add per-map imports to HTML, `app.js` or `src/platform/board-runtime.js`. Keep the 302-node V10 map as the default; never replace it with the authored V6 base. Run `node tests/board-map-discovery.cjs` and BOARD regressions. Map hot-updates are metadata-only until the next BOARD session; never replace live BoardMap/BoardArt objects mid-session.
+
+## BOARD engine source ownership
+
+`board-party.js` is a generated lexical compatibility bundle; author changes in `src/board-party/core/`, `systems/` or `ui/` and regenerate with `node scripts/build-board-party.cjs --write`. Never insert named minigames or map-specific imports into BOARD source manifest. `node scripts/build-board-party.cjs --check` and `node tests/board-source-modules.cjs` must pass. This source split preserves the exact gameplay runtime; it is not independent per-feature network chunking. See [docs/BOARD_SOURCE_MODULES.md](docs/BOARD_SOURCE_MODULES.md).
+
+## BOARD systems (items/spaces/events) zero-touch plugin ownership
+
+Read [docs/ADDING_BOARD_SYSTEMS.md](docs/ADDING_BOARD_SYSTEMS.md). New BOARD systems are discovered from `src/board-party/plugins/{items,spaces,events}/<slug>/manifest.json` and loaded only when entering BOARD, not from `index.html` or `app.js`. Built-in item IDs and tile kinds remain reserved. Run `node tests/board-system-discovery.cjs` and complete BOARD regressions. Do not activate plugin updates mid-session.
+
+## PeerJS version negotiation
+
+Read [docs/VERSION_HANDSHAKE.md](docs/VERSION_HANDSHAKE.md) before changing peer messages. Production Host/Controller must agree on `protocolVersion` and `coreHash` at join/welcome; never disconnect an existing room merely to update. Minigame code is Host-authoritative and pinned until the next round. Run `node tests/version-handshake.cjs` and browser QA.

@@ -10,7 +10,7 @@ const HEAL=Object.freeze({tile:20,event:15,potion:50});
 let serial=0;
 function create(roster,{seed=Date.now(),rng=Math.random}={}){
  if(!roster.length||roster.length>12)throw Error('BOARD PARTY needs 1–12 players');
- const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,actionIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,shieldRound:null,shieldBrokenAt:null,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],swordRewards:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
+ const s={id:'board-'+seed+'-'+(++serial),map:M().create(seed,{players:roster.length}),rng,players:roster.map(p=>({id:p.id,name:p.name,color:p.color,costume:window.PartyPlayerAvatar?.costumeFor(p)||p.costume,isBot:!!p.isBot,currentNodeId:'n0',hp:MAX_HP,item:null,bag:[],bagOpen:false,bagIndex:0,actionIndex:0,bagMessage:'',usedRound:0,shieldTurns:0,shieldRound:null,shieldBrokenAt:null,dice:null,rollAt:0})),order:[],turnIndex:0,roundNumber:1,time:0,revision:0,turnId:'',inputs:{},lastActions:{},phase:'',deadline:0,rolled:false,move:null,skill:null,effect:null,lucky:null,luckyGrantKey:null,results:[],pendingItems:{},winnerIds:[],hits:[],heals:[],swordRewards:[],camera:{x:900,y:1400,zoom:.2,explore:true,overview:true},lastMinigame:null};
  s.camera.x=s.map.width/2;s.camera.y=s.map.height/2;
  phase(s,'overview',Infinity);return s;
 }
@@ -88,6 +88,18 @@ function land(s,applyTile=true){
  if(!applyTile){
   effect(s,{kind:'land',points:[I().position(s,p)],targets:[p.id],
    next:m?.kind==='rocket'?'ready':'end'},.5);return;
+ }
+ const extension=window.BoardSystemPlugins?.get('spaces',n.type);
+ if(extension){
+  const outcome=extension.onLand({session:s,player:p,node:n,
+   api:Object.freeze({damage,heal:HEAL,MAX_HP,effect,phase,isProtected,blockHarm,
+    addItem:kind=>I().add(p,kind)})});
+  if(outcome?.handled){
+   effect(s,{kind:outcome.dead?'death':outcome.kind||'land',points:[n.position],
+    targets:[p.id],next:!outcome.dead&&m?.kind==='rocket'?'ready':'end'},
+    outcome.dead?1.5:.8);
+   return;
+  }
  }
  if(n.type==='lucky'){
   // Only a final landing is eligible; grant once per player turn. Stacked
@@ -559,6 +571,8 @@ function update(s,dt){
   s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',1.8);
  }
  else if(s.phase==='round_order'&&s.time>=s.deadline)startTurn(s);
+ for(const plugin of window.BoardSystemPlugins?.list('events')||[])
+  plugin.onUpdate({session:s,dt,api});
  window.BoardBots?.update(s,dt,api);
 }
 function snapshot(s){M().assertCompatible(s.map);return JSON.parse(JSON.stringify({mapVersion:s.map.version,map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}

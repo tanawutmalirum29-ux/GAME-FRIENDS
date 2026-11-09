@@ -1,16 +1,26 @@
-# Offline game assets
+# Immutable assets & offline recovery
 
-The service worker caches only \`game-assets/<id>/<content-hash>/...\` and
-a last-successful, network-first \`game-catalog.json\`. It neither navigates
-the page nor intercepts HTML, core JavaScript or multiplayer traffic.
-It limits the asset cache to 120 requests; browser storage can be evicted.
-Games can be replayed offline only after their assets and compatible catalog
-were previously downloaded; fresh games cannot appear offline.
+The service worker caches only immutable, content-addressed assets from
+`game-assets/<id>/<hash>/`, `board-map-assets/<id>/<hash>/` and
+`board-system-assets/<category>/<id>/<hash>/`. It stores the last
+successful `game-catalog.json`, `board-map-catalog.json` and
+`board-system-catalog.json` using network-first, offline-fallback reads.
+It never intercepts HTML, mutable Core JS, or multiplayer traffic.
 
-The service worker computes game-asset paths relative to its registration scope
-(`/` or a subpath such as `/GAME-FRIENDS/`). Catalog and immutable game
-CacheStorage names are scoped independently because CacheStorage is shared
-across all workers for the same origin. A request outside the worker's scope is
-not intercepted. The content hash in the asset URL still determines updates.
-`node tests/cache-worker.cjs` covers both deployment modes, offline fallback,
-version replacement, and cross-scope isolation.
+**No automatic deletion of cached hashed assets:** previously the game
+cache deleted entries above a global 120-request threshold. That could evict
+assets still being used by a live BOARD minigame after frequent hot deploys.
+The worker now never removes immutable game/map/system assets while a connected
+session may be using them. The browser may still evict stored data due to
+storage quotas or device pressure; there is no guarantee of indefinite offline
+persistence. Do not implement naive LRU eviction without a reliable session pin
+protocol covering all connected clients and current rounds.
+
+CacheStorage names are isolated per Service Worker registration scope, whether
+at `/` or a subpath. Fresh game/module versions load only when chosen; the
+worker never precaches all games or maps to discover them. Offline fallback
+requires that the relevant version was fetched while online. Same-core catalog
+updates do not reload connected rooms; incompatible Core updates remain deferred.
+
+Run `node tests/cache-worker.cjs` for update, offline, scope isolation and
+more-than-120 immutable assets, plus Chromium/WebKit browser QA.
