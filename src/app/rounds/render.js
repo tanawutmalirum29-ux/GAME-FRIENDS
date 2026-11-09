@@ -73,6 +73,24 @@ function drawGame(t){
     }
   }
 }
+// Adaptive BOARD rendering never changes physics, zoom or user camera control.
+// Manual detail choices and reduced-motion are always authoritative.
+let slowBoardSeconds=0,fastBoardSeconds=0;
+function updateAdaptiveBoardDetail(elapsed){
+ const c=round?.mode==='board'&&boardSession?.camera;
+ if(!c||c.manualDetail||round.paused){
+  slowBoardSeconds=0;fastBoardSeconds=0;return;
+ }
+ const delta=Math.min(.1,Math.max(0,elapsed));
+ if(elapsed>.04){slowBoardSeconds+=delta;fastBoardSeconds=0;}
+ else if(elapsed<.025){fastBoardSeconds+=delta;slowBoardSeconds=0;}
+ else{slowBoardSeconds=Math.max(0,slowBoardSeconds-delta);fastBoardSeconds=0;}
+ if(slowBoardSeconds>=3&&!c.lowDetail){
+  c.lowDetail=true;c.autoDetailEngaged=true;slowBoardSeconds=0;refreshBoardTools();
+ }else if(fastBoardSeconds>=8&&c.lowDetail&&c.autoDetailEngaged){
+  c.lowDetail=false;c.autoDetailEngaged=false;fastBoardSeconds=0;refreshBoardTools();
+ }
+}
 function animate(ts){
   const elapsed=Math.max(0,(ts-frameLast)/1000||.016);
   const dt=Math.min(.045,elapsed);
@@ -201,7 +219,9 @@ $('boardOverviewBtn').addEventListener('click',()=>{
 });
 $('boardStartDiceBtn').addEventListener('click',()=>{if(boardSession&&window.BoardParty.startOrder(boardSession))refreshBoardTools();});
 $('boardFollowBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom()){window.BoardArt.follow(boardSession);if(round.paused)resumeGame();refreshBoardTools();}});
-$('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;refreshBoardTools();}});
+$('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;
+ boardSession.camera.manualDetail=true;boardSession.camera.autoDetailEngaged=false;
+ refreshBoardTools();}});
 $('boardZoomInBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,1.25);});
 $('boardZoomOutBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,.8);});
 $('boardNodeDebugBtn').addEventListener('click',()=>{if(boardSession&&boardSession.players.every(p=>p.isBot)){window.BoardArt.toggleDebug(boardSession);refreshBoardTools();}});
