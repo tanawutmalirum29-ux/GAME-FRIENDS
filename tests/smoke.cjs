@@ -2072,6 +2072,8 @@ safari.instances[0].fire('open');
 safari.instances[0].conn.fire('open');
 safari.instances[0].conn.fire('data',{t:'welcome',id:'ios1',name:'iPhone',color:'#ff628c',
  mode:'ghost',phase:'playing'});
+// Controller viewport writes are coalesced into the next paint.
+safari.step(0);
 assert.equal(safari.elements.get('controller').style['--gf-controller-visible-width'],'667px');
 assert.equal(safari.elements.get('controller').style['--gf-controller-visible-height'],'305px');
 safari.scope.window.visualViewport.width=640;
@@ -2079,6 +2081,7 @@ safari.scope.window.visualViewport.height=274;
 safari.scope.window.visualViewport.offsetLeft=5;
 safari.scope.window.visualViewport.offsetTop=16;
 safari.scope.window.visualViewport.fire('resize');
+safari.step(16);
 assert.equal(safari.elements.get('controller').style['--gf-controller-visible-width'],'640px',
  'Safari toolbar resize must resize the controller without a page reload');
 assert.equal(safari.elements.get('controller').style['--gf-controller-visible-height'],'274px');
@@ -2086,6 +2089,7 @@ assert.equal(safari.elements.get('controller').style['--gf-controller-visible-le
 assert.equal(safari.elements.get('controller').style['--gf-controller-visible-top'],'16px');
 safari.scope.window.visualViewport.offsetLeft=7;
 safari.scope.window.visualViewport.fire('scroll');
+safari.step(32);
 assert.equal(safari.elements.get('controller').style['--gf-controller-visible-left'],'7px',
  'panning/visual offset updates must not clip the controller at either edge');
 // The fixed right column must never overflow the viewport even on narrow phones.
