@@ -9,7 +9,9 @@ const params=new URLSearchParams(location.search);
 let saved=false;
 try{saved=Boolean(sessionStorage.getItem('gf-host-room-v2')||
  sessionStorage.getItem('gf-offline-room-v1'));}catch(_){}
-const needHostAssets=params.get('host')==='1'||saved;
+const validJoin=/^[A-Z2-9]{6}$/.test(String(params.get('join')||'').toUpperCase());
+const needHostAssets=params.get('host')==='1'&&!validJoin;
+const bundle=needHostAssets?'app.js':'app-controller.js';
 function loadApp(){
  if(loadPromise)return loadPromise;
  loadPromise=Promise.resolve().then(()=>{
@@ -19,11 +21,11 @@ function loadApp(){
   }
  }).then(()=>new Promise((resolve,reject)=>{
   const script=document.createElement('script');
-  const url=new URL('./app.js',document.baseURI);
+  const url=new URL('./'+bundle,document.baseURI);
   if(window.GAME_BUILD_VERSION)url.searchParams.set('v',String(window.GAME_BUILD_VERSION));
   script.src=url.href;script.async=true;
   script.onload=resolve;
-  script.onerror=()=>{script.remove();reject(Error('Application bundle download failed'));};
+  script.onerror=()=>{script.remove();reject(Error('Application bundle download failed: '+bundle));};
   document.head.append(script);
  })).catch(error=>{loadPromise=null;throw error;});
  return loadPromise;

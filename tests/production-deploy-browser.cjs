@@ -44,6 +44,10 @@ function build(target,version){
  const html=fs.readFileSync(path.join(target,'index.html'),'utf8');
  assert.ok(html.includes('src="./src/platform/main-loader.js?v='+version+'"'));
  assert.ok(!html.includes('src="./app.js?'),'production app must be lazy');
+ assert.ok(fs.existsSync(path.join(target,'app-controller.js')),
+  'build must emit controller-only app bundle');
+ assert.ok(html.includes('src="./src/platform/board-items-brief.js?v='+version+'"'),
+  'phone BOARD metadata must be version pinned');
  assert.ok(!html.includes('src="./character-system.js?'),'host physics must be lazy');
  assert.ok(!html.includes('src="./board-party.js?'),'BOARD core must be lazy');
  assert.ok(!html.includes('cdn.jsdelivr.net/npm/peerjs@'),'peer library must be on demand');
@@ -96,6 +100,28 @@ async function run(){
   const context=await browser.newContext({viewport:{width:1280,height:800}});
   const errors=[],page=await context.newPage();
   page.on('pageerror',error=>errors.push(String(error)));
+  const phone=await context.newPage(),phoneRequests=[],phoneErrors=[];
+  phone.on('pageerror',e=>phoneErrors.push(String(e)));
+  phone.on('request',r=>phoneRequests.push(new URL(r.url()).pathname));
+  await phone.goto(base+'/?join=ABC123');
+  await phone.waitForFunction(()=>document.getElementById('controller')?.classList.contains('hidden')===false,
+   null,{timeout:15000,polling:100}).catch(async error=>{
+    console.error('CONTROLLER BOOT DIAGNOSTIC',JSON.stringify({
+     requests:phoneRequests.slice(-15),pageErrors:phoneErrors,
+     state:await phone.evaluate(()=>({
+      view:document.getElementById('controller')?.className,
+      hasPeer:typeof window.GameRuntimeDeps,
+      loadedScripts:[...document.scripts].filter(x=>/app-(controller|host)|app\\.js/.test(x.src)).map(x=>x.src)
+     })).catch(e=>({error:String(e)}))
+    }));
+    throw error;
+   });
+  assert.deepEqual(phoneErrors,[],'controller bundle must initialize without page errors');
+  assert.ok(phoneRequests.includes('/app-controller.js'));
+  assert.ok(!phoneRequests.includes('/app.js'));
+  assert.equal(await phone.evaluate(()=>window.BoardItems),undefined);
+  assert.equal(await phone.evaluate(()=>!!window.PartyBoardItemMeta),true);
+  await phone.close();
   await page.goto(base+'/?host=1');
   await page.waitForFunction(()=>window.GamePlatform?.revision>0,null,{timeout:20000,polling:100});
   assert.equal(await page.evaluate(()=>window.PartyCharacters),undefined);
