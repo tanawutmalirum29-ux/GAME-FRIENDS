@@ -43,7 +43,7 @@ vm.runInNewContext(source.replaceAll('await import(url.href)','await window.__te
  assert.equal(imports,0);
  await api.ensure();
  assert.equal(api.ready(),true);
- assert.deepEqual(registration,['bonus']);
+ assert.equal(registration.join(','),'bonus'); // VM array has a different realm prototype
  assert.equal(imports,3);
  assert.equal(registry.list('spaces').length,1);
  assert.equal(registry.list('events').length,1);
