@@ -99,8 +99,14 @@ function releaseHostVideoSourcesWhenIdle(){
   }
   hostVideoSources.clear();
 }
+let lastHostVideoFrameAt=0;
 function renderHostVideoFrames(){
   if(!round||hostVideoCalls.size===0)return;
+  // Copy at most 30 frames/s instead of resampling all streams on every
+  // high-refresh-rate host paint. This never changes game physics/timing.
+  const now=performance.now();
+  if(now-lastHostVideoFrameAt<33)return;
+  lastHostVideoFrameAt=now;
   for(const source of hostVideoSources.values()){
     try{source.context.drawImage(canvas,0,0,source.canvas.width,source.canvas.height);}
     catch(_){}
@@ -159,6 +165,12 @@ function broadcastGamePreview(){
       remotePreviewContext.drawImage(canvas,0,0,192,108);
       image=remotePreviewCanvas.toDataURL('image/jpeg',.2);
       // Resize back immediately so no subsequent frames are cropped.
+      remotePreviewCanvas.width=256;remotePreviewCanvas.height=144;
+    }
+    if(image.length>24000){
+      remotePreviewCanvas.width=128;remotePreviewCanvas.height=72;
+      remotePreviewContext.drawImage(canvas,0,0,128,72);
+      image=remotePreviewCanvas.toDataURL('image/jpeg',.14);
       remotePreviewCanvas.width=256;remotePreviewCanvas.height=144;
     }
     if(!image.startsWith('data:image/jpeg;base64,')||image.length>24000)return;
@@ -638,7 +650,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   const code=resumeCode||randomCode();
   if(!resumeCode)deleteSession(OFFLINE_SESSION);
   $('hostBtn').disabled=true;setStatus('กำลังสร้างห้อง...');
-  const peer=new Peer('gf-party-'+code,{debug:0});
+  const peer=new Peer('gf-party-'+code,partyPeerOptions());
   hostPeer=peer;
   peer.on('open',()=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
