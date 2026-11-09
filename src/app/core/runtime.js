@@ -104,6 +104,24 @@ let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=f
 let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
 let controllerLobbyVotes={ready:0,total:0,selfReady:false};
 let disconnectRequested=false;
+// Optional, deployment-supplied short-lived TURN credentials. Without them,
+// leave PeerJS defaults intact rather than advertising STUN as a TURN fix.
+// Both host and controllers must use the same ICE configuration.
+function partyPeerOptions(){
+ const servers=window.GF_ICE_SERVERS;
+ if(!Array.isArray(servers))return {debug:0};
+ const iceServers=servers.slice(0,8).filter(server=>{
+  if(!server||typeof server!=='object')return false;
+  const urls=Array.isArray(server.urls)?server.urls:[server.urls];
+  return urls.length>0&&urls.length<=4&&urls.every(url=>
+   typeof url==='string'&&url.length<256&&/^(stun|stuns|turn|turns):/i.test(url));
+ }).map(server=>({
+  urls:server.urls,
+  ...(typeof server.username==='string'?{username:server.username}:{}),
+  ...(typeof server.credential==='string'?{credential:server.credential}:{})
+ }));
+ return iceServers.length?{debug:0,config:{iceServers}}:{debug:0};
+}
 const HOST_SESSION='gf-host-room-v2',OFFLINE_SESSION='gf-offline-room-v1';
 const PHONE_SESSION='gf-phone-room-v2',PHONE_TOKEN='gf-phone-token-v2';
 const seatTimers=new Map();let reconnectTimer=null,reconnectTries=0;
