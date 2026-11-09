@@ -19,11 +19,11 @@ assert.deepEqual(Object.keys(defaults),[
 assert.equal(defaults.ghost.controller.labels.A,'ตีสตั้น');
 assert.equal(defaults.shockwave.controller.status,'SHOCKWAVE • รอด {survivors} คน');
 const coreSource=fs.readFileSync(path.join(root,'src/app/core/runtime.js'),'utf8');
-assert.doesNotMatch(coreSource,/const MODES\\s*=\\s*\\{ghost:/,
+assert.doesNotMatch(coreSource,/const MODES\s*=\s*\{ghost:/,
  'core cannot own a hardcoded list of games');
-assert.match(coreSource,/Object.entries\\(LEGACY_GAME_DATA\\)/);
+assert.match(coreSource,/Object\.entries\(LEGACY_GAME_DATA\)/);
 const controllerSource=fs.readFileSync(path.join(root,'src/app/controller/connection.js'),'utf8');
-assert.doesNotMatch(controllerSource,/mode==='color_claim'\\?'ลากเส้น/,
+assert.doesNotMatch(controllerSource,/mode==='color_claim'\?'ลากเส้น/,
  'game-specific help should come from manifests');
 const host=fs.readFileSync(path.join(root,'app.js'),'utf8');
 const controller=fs.readFileSync(path.join(root,'app-controller.js'),'utf8');
@@ -47,7 +47,7 @@ for(const id of original.window.BoardItems.ids){
 assert.ok(controller.includes('window.BoardItems||window.PartyBoardItemMeta'));
 
 const sourceController=fs.readFileSync(path.join(root,'src/app/controller/connection.js'),'utf8');
-const first=sourceController.indexOf('function pluginControllerPlayingStatus(');
+const first=sourceController.indexOf('function gameControllerDescriptor(');
 const last=sourceController.indexOf('function renderPhoneLawnStatus(',first);
 assert.ok(first>=0&&last>first,'native controller plug-in metadata functions exist');
 const elements=new Map();
@@ -65,6 +65,7 @@ const candidate={id:'meteor_dash',name:'METEOR DASH',global:null,
  controller:{help:'หลบอุกกาบาตด้วยจอย',labels:{A:'กระโดด',C:'เปิดโล่'},
   status:'{name} • รอด {survivors} คน • อีก {remaining} วิ'}};
 const scope={window:{GamePlatform:{descriptor:id=>id==='meteor_dash'?candidate:null}},
+ controllerPlayerEliminated:false,
  MODES:{meteor_dash:'METEOR DASH'},controllerReady:true,controllerPlayerActive:true,
  controllerGamePhase:'playing',controllerBoard:null,controllerLobbyVotes:{total:0},
  controllerResultVotes:{},$:element};
