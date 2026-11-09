@@ -94,6 +94,13 @@
         "chromium": 15,
         "webkit": 25
       }
+    },
+    {
+      "file": "tests/production-deploy-browser.cjs",
+      "browsers": {
+        "chromium": 42,
+        "webkit": 65
+      }
     }
   ]
 }
