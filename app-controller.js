@@ -691,8 +691,15 @@ const isStandaloneWebApp=()=>navigator?.standalone===true||
     Number(window.innerHeight)>Number(window.innerWidth);
  };
  const usesVirtualLandscape=()=>document.body.classList.contains('gf-virtual-landscape');
+ // Camera APIs and QR decoder use physical viewport coordinates. Never rotate
+ // the entire page while the scanner is open: iOS WebKit otherwise rotates
+ // the <video> but not its underlying sensor/decoder coordinate system.
+ const isRoomScannerActive=()=>{
+  const scanner=document.getElementById('roomScannerPanel');
+  return !!scanner&&!scanner.classList.contains('hidden');
+ };
  function syncLandscapePresentation(){
-  const active=physicalPortrait()&&
+  const active=!isRoomScannerActive()&&physicalPortrait()&&
    (isStandaloneWebApp()||currentView==='hostLobby'||currentView==='game');
   const was=usesVirtualLandscape();
   document.body.classList.toggle('gf-virtual-landscape',active);
@@ -2334,6 +2341,7 @@ async function stopRoomScanner(){
   const session=activeQrSession;
   activeQrSession=null;
   $('roomScannerPanel').classList.add('hidden');
+  syncLandscapePresentation();
   await releaseQrSession(session);
 }
 async function startRoomScanner(){
@@ -2341,6 +2349,9 @@ async function startRoomScanner(){
   const session={reader:null,started:null,found:false};
   activeQrSession=session;
   $('roomScannerPanel').classList.remove('hidden');
+  // QR scanning must follow the actual camera and screen orientation, not
+  // the 90-degree CSS-rotated gamepad/PWA layout.
+  syncLandscapePresentation();
   $('scanRoomStatus').textContent='กำลังเปิดกล้องเพื่อสแกน QR...';
   try{
     await loadQrLibrary();
@@ -2348,7 +2359,15 @@ async function startRoomScanner(){
     const config=window.Html5QrcodeSupportedFormats?
       {formatsToSupport:[window.Html5QrcodeSupportedFormats.QR_CODE]}:{};
     session.reader=new window.Html5Qrcode('roomQrReader',config);
-    session.started=session.reader.start({facingMode:'environment'},{fps:8,qrbox:220},decoded=>{
+    session.started=session.reader.start({facingMode:'environment'},{
+      fps:8,
+      // Size the scanning region from the camera viewport itself; 220 CSS px
+      // can be much too large when iOS reports a portrait sensor frame.
+      qrbox:(width,height)=>{
+        const side=Math.max(96,Math.min(240,Math.floor(Math.min(width,height)*.7)));
+        return {width:side,height:side};
+      }
+    },decoded=>{
       if(activeQrSession!==session||session.found)return;
       const code=parseRoomCode(decoded);
       if(!code){$('scanRoomStatus').textContent='QR ไม่ใช่รหัสห้อง GAME-FRIENDS';return;}
@@ -3005,6 +3024,9 @@ window.addEventListener('pageshow',followDeviceOrientation);
 function requestLandscape(){
   const panel=$('controller');
   let request=null;
+  // Installed PWAs already own the screen. A nested Fullscreen request on
+  // iOS can cause the camera and orientation transforms to disagree.
+  if(isStandaloneWebApp()){tryLandscapeOrientation();return Promise.resolve();}
   try{
     if(panel.requestFullscreen&&!document.fullscreenElement)
       request=panel.requestFullscreen();
@@ -3403,6 +3425,8 @@ function hostCanControlBoardZoom(){
 function refreshBoardTools(){
  const active=round?.mode==='board'&&!!boardSession;
  $('boardTools').classList.toggle('hidden',!active);
+ // Exit must be available during normal BOARD play, not only while paused.
+ $('boardExitBtn').classList.toggle('hidden',!active);
  if(active){
   const c=boardSession.camera;
   const botsOnly=boardSession.players.every(p=>p.isBot);
@@ -3431,7 +3455,7 @@ function showBoard(){
   resetInputs();boardStateToken=null;
   $('gameRoulette').classList.add('hidden');$('results').classList.add('hidden');
   $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.remove('hidden');
-  $('boardExitBtn').classList.add('hidden');
+  $('boardExitBtn').classList.remove('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');$('gameBanner').textContent='';
   document.body.classList.add('board-playing');
   setView('game');
@@ -3783,7 +3807,7 @@ function resumeGame(){
   round.paused=false;
   if(round.mode==='board'&&boardSession){const s=boardSession;s.camera.paused=false;s.camera.overview=false;s.camera.manualZoom=null;s.inputs={};}
   $('pauseMenu').classList.add('hidden');
-  $('boardExitBtn').classList.add('hidden');
+  $('boardExitBtn').classList.toggle('hidden',round.mode!=='board'||!boardSession);
   $('pauseBtn').setAttribute('aria-expanded','false');
   refreshBoardTools();
   broadcastRoster();
@@ -3806,12 +3830,13 @@ function returnToLobby(){
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
 $('boardExitBtn').addEventListener('click',()=>{
- if(round?.mode!=='board'||!round.paused||!boardSession)return;
+ if(currentView!=='game'||round?.mode!=='board'||!boardSession)return;
  confirmAction('ต้องการออกจาก BOARD PARTY และกลับไปยังล็อบบี้หรือไม่? ความคืบหน้าบอร์ดเกมรอบนี้จะสิ้นสุด',{
   title:'ยืนยันออกจากบอร์ดเกม',confirmLabel:'ยืนยันออกเกม',danger:true
  }).then(confirmed=>{
-  // Cancel leaves the board paused; only an explicit confirmation exits.
-  if(confirmed&&round?.mode==='board'&&round.paused&&boardSession)returnToLobby();
+  // Cancel preserves the existing running/paused state. The confirmation may
+  // complete on a later event loop tick; don't tear down another session.
+  if(confirmed&&currentView==='game'&&round?.mode==='board'&&boardSession)returnToLobby();
  });
 });
 // Re-enter native fullscreen only after a real user click (required by the API).
@@ -4096,13 +4121,18 @@ $('portraitRestoreBtn').addEventListener('click',()=>{
   clearPortraitFallback();
   void requestLandscape();
 });
-$('joinBtn').addEventListener('click',joinRoom);
+$('joinBtn').addEventListener('click',()=>{
+ // Screen Orientation/fullscreen requests require the original user gesture,
+ // before asynchronous PeerJS and TURN handshakes consume it.
+ void requestLandscape();
+ joinRoom();
+});
 $('nick').addEventListener('input',rememberNickname);
-$('nick').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
+$('nick').addEventListener('keydown',e=>{if(e.key==='Enter'){void requestLandscape();joinRoom();}});
 $('roomCodeInput').addEventListener('input',()=>{
   $('roomCodeInput').value=$('roomCodeInput').value.toUpperCase().replace(/[^A-Z2-9]/g,'').slice(0,6);
 });
-$('roomCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
+$('roomCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter'){void requestLandscape();joinRoom();}});
 $('switchRoomBtn').addEventListener('click',()=>{
   resetControllerForRoomChange('เปลี่ยนห้องในแท็บเดิมได้เลย สแกน QR หรือกรอกรหัสใหม่');
 });

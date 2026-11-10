@@ -325,6 +325,7 @@ async function stopRoomScanner(){
   const session=activeQrSession;
   activeQrSession=null;
   $('roomScannerPanel').classList.add('hidden');
+  syncLandscapePresentation();
   await releaseQrSession(session);
 }
 async function startRoomScanner(){
@@ -332,6 +333,9 @@ async function startRoomScanner(){
   const session={reader:null,started:null,found:false};
   activeQrSession=session;
   $('roomScannerPanel').classList.remove('hidden');
+  // QR scanning must follow the actual camera and screen orientation, not
+  // the 90-degree CSS-rotated gamepad/PWA layout.
+  syncLandscapePresentation();
   $('scanRoomStatus').textContent='กำลังเปิดกล้องเพื่อสแกน QR...';
   try{
     await loadQrLibrary();
@@ -339,7 +343,15 @@ async function startRoomScanner(){
     const config=window.Html5QrcodeSupportedFormats?
       {formatsToSupport:[window.Html5QrcodeSupportedFormats.QR_CODE]}:{};
     session.reader=new window.Html5Qrcode('roomQrReader',config);
-    session.started=session.reader.start({facingMode:'environment'},{fps:8,qrbox:220},decoded=>{
+    session.started=session.reader.start({facingMode:'environment'},{
+      fps:8,
+      // Size the scanning region from the camera viewport itself; 220 CSS px
+      // can be much too large when iOS reports a portrait sensor frame.
+      qrbox:(width,height)=>{
+        const side=Math.max(96,Math.min(240,Math.floor(Math.min(width,height)*.7)));
+        return {width:side,height:side};
+      }
+    },decoded=>{
       if(activeQrSession!==session||session.found)return;
       const code=parseRoomCode(decoded);
       if(!code){$('scanRoomStatus').textContent='QR ไม่ใช่รหัสห้อง GAME-FRIENDS';return;}
@@ -996,6 +1008,9 @@ window.addEventListener('pageshow',followDeviceOrientation);
 function requestLandscape(){
   const panel=$('controller');
   let request=null;
+  // Installed PWAs already own the screen. A nested Fullscreen request on
+  // iOS can cause the camera and orientation transforms to disagree.
+  if(isStandaloneWebApp()){tryLandscapeOrientation();return Promise.resolve();}
   try{
     if(panel.requestFullscreen&&!document.fullscreenElement)
       request=panel.requestFullscreen();

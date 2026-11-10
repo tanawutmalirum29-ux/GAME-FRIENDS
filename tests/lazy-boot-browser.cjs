@@ -26,6 +26,7 @@ const injection=`window.__lazyGameTest={get round(){return round},
  get board(){return boardSession},get selection(){return gameSelection},
  get players(){return players},get view(){return currentView},
  beginBoard,beginGameSelection,updateGameSelection,updateBoard,animate,returnToLobby,addLocal,receiveBoardState,
+ startRoomScanner,stopRoomScanner,syncLandscapePresentation,
  simulateReloadGuard(kind){
   const old={onlineHost,hostPeer,hostNetworkLoad,controllerReady,controllerPeer,
    controllerConn,controllerNetworkLoad,currentView,round,gameSelection,boardSession};
@@ -141,6 +142,39 @@ const server=http.createServer((req,res)=>{
   for(const mode of ['controller-connected','controller-connecting'])
    assert.equal(await phone.evaluate(m=>__lazyGameTest.simulateReloadGuard(m),mode),false,
     'core releases must not drop connected or reconnecting controllers');
+  // Installed iOS-like controller in portrait: visually rotated PWA must
+  // temporarily unrotate for physical camera, then restore after cancel.
+  await phone.setViewportSize({width:390,height:844});
+  const cameraSetup=await phone.evaluate(()=>{
+   Object.defineProperty(navigator,'standalone',{configurable:true,value:true});
+   window.Html5Qrcode=function(){
+    this.start=(_camera,settings)=>{window.__scannerSettings=settings;return Promise.resolve();};
+    this.stop=()=>Promise.resolve();this.clear=()=>{};
+   };
+   __lazyGameTest.syncLandscapePresentation();
+   return document.body.classList.contains('gf-virtual-landscape');
+  });
+  assert.equal(cameraSetup,true,'installed portrait PWA starts with a rotated landscape shell');
+  await phone.locator('#scanRoomBtn').evaluate(button=>button.click());
+  await phone.waitForFunction(()=>!!window.__scannerSettings,null,{timeout:8000});
+  const scanned=await phone.evaluate(()=>{
+   const panel=document.getElementById('roomScannerPanel');
+   const rect=panel.getBoundingClientRect();
+   return {visible:!panel.classList.contains('hidden'),
+    rotated:document.body.classList.contains('gf-virtual-landscape'),
+    size:[rect.width,rect.height],frame:window.__scannerSettings.qrbox(300,520)};
+  });
+  assert.equal(scanned.visible,true);
+  assert.equal(scanned.rotated,false,'camera must not inherit virtual landscape CSS rotation');
+  assert.ok(Math.abs(scanned.size[0]-390)<2&&Math.abs(scanned.size[1]-844)<2,
+   'QR overlay matches real device portrait bounds: '+JSON.stringify(scanned));
+  assert.equal(scanned.frame.width,210);
+  assert.equal(scanned.frame.height,210);
+  await phone.locator('#cancelScanBtn').evaluate(button=>button.click());
+  await phone.waitForFunction(()=>document.body.classList.contains('gf-virtual-landscape'),
+   null,{timeout:8000});
+  assert.equal(await phone.locator('#roomScannerPanel').isVisible(),false);
+  assert.deepEqual(phoneErrors,[],'QR camera fallback must not cause page errors');
   await phone.close();
   await page.evaluate(()=>window.__lazyGameTest.beginGameSelection('ghost'));
   const initialSelection=await page.evaluate(()=>({

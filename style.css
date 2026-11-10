@@ -1368,7 +1368,10 @@ body:not(.controller-playing) #roomScannerPanel.room-scanner-panel:not(.hidden){
   width:min(100%,450px);overflow:hidden!important;
 }
 #roomScannerPanel #roomQrReader video{
-  width:100%!important;height:100%!important;
+  /* html5-qrcode computes its decoder overlay from intrinsic video geometry.
+     Forcing height:100% stretches the preview but not the decoder canvas. */
+  display:block;max-width:100%!important;
+  width:100%!important;height:auto!important;
   max-height:calc(100dvh - 145px)!important;object-fit:contain;
 }
 #roomScannerPanel .hint{margin:0;font-size:11px;flex:0 0 auto}
@@ -4359,6 +4362,9 @@ body:has(#home:not(.hidden)) footer{
  background:#a52a40;color:#fff;border:1px solid #f27a8e;border-radius:7px;
  font:800 11px/1 system-ui,sans-serif;box-shadow:0 3px 9px #270e1bc0;
  transform-origin:top left;z-index:14;cursor:pointer;
+ /* .game-toolbar intentionally has pointer-events:none so the BOARD canvas
+    stays touchable. The exit is its child, so it must explicitly opt back in. */
+ pointer-events:auto;
  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
 }
 .board-playing #game #boardExitBtn:active{background:#c43f57}
