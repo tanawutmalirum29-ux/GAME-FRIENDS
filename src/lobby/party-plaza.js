@@ -35,7 +35,7 @@ function initialize(){
  canvas=$('plazaCanvas');if(!canvas)return;
  ctx=canvas.getContext('2d',{alpha:false});
  if(!ctx)return;
- const dpr=Math.min(Math.max(window.devicePixelRatio||1,1),3);
+ const dpr=Math.max(window.devicePixelRatio||1,1);
  canvas.width=Math.round(WORLD.width*dpr);canvas.height=Math.round(WORLD.height*dpr);
  canvas.style.aspectRatio='16 / 9';
  $('hostLobby')?.classList.add('plaza-loaded','plaza-show-room');
