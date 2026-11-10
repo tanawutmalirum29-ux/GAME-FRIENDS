@@ -19,7 +19,7 @@ const C=Object.freeze({
  mineRespawn:3.2,
  respawnDelay:.8,spawnProtection:.9,
  maxAttempts:14,
- radar:Object.freeze({bodyR:34,minR:62,shrinkTime:1.8}),
+ radar:Object.freeze({bodyR:34,minR:62,shrinkTime:2.5}),
  small:Object.freeze({w:960,h:540,field:Object.freeze({x:60,y:50,w:840,h:440}),zone:100,duration:60,crates:2}),
  large:Object.freeze({w:1280,h:720,field:Object.freeze({x:70,y:60,w:1140,h:600}),zone:120,duration:80,crates:4})
 });
@@ -135,31 +135,30 @@ function carvePath(L,rng,open,from,to,jit,pen){
  return out;
 }
 function carveRoutes(L,rng,open,template,fallback){
- // Two winding alternatives: zigzag every ~2 columns, no straight
- // cross-map highway. Spawn and goal boundaries connect all lanes.
+ // Exactly ONE traversable winding spine across the minefield.
+ // Boundary lanes connect all start and finish positions to this spine.
  const {cols,rows}=L;
- const mark=(i,j)=>{if(i<0||i>=cols||j<0||j>=rows||L.forbid[j*cols+i])return false;
-  open[j*cols+i]=1;return true;};
- for(let j=0;j<rows;j++)if(!mark(0,j)||!mark(cols-1,j))return false;
- for(const top of [true,false]){
-  let prev=top?1:rows-2;
-  if(!mark(0,prev))return false;
-  const offset=(template+(top?0:1))%2;
-  for(let i=1;i<cols;i++){
-   const flip=(Math.floor((i+offset)/2)&1);
-   const row=top?1+flip:rows-2-flip;
-   for(let j=Math.min(prev,row);j<=Math.max(prev,row);j++)if(!mark(i,j))return false;
-   prev=row;
+ const mark=(i,j)=>{
+  if(i<0||j<0||i>=cols||j>=rows||L.forbid[j*cols+i])return false;
+  open[j*cols+i]=1;return true;
+ };
+ for(let j=0;j<rows;j++){
+  if(!mark(0,j)||!mark(cols-1,j))return false;
+ }
+ const top=(template%2)===0;
+ const upper=top?1:rows-2,lower=top?2:rows-3;
+ let row=upper;
+ if(!mark(0,row))return false;
+ for(let i=1;i<cols-1;i++){
+  if(!mark(i,row))return false;
+  // Every three columns change level; do not open parallel highways.
+  if(i%3===0){
+   const next=row===upper?lower:upper;
+   if(!mark(i,next))return false;
+   row=next;
   }
  }
- if(!fallback){
-  // Short branches are decoys; they never open a long linear shortcut.
-  for(let q=0;q<Math.min(4,Math.floor(cols/3));q++){
-   const i=2+Math.floor(rng()*(cols-4)),top=rng()<.5,j=top?2:rows-3;
-   if(!L.forbid[j*cols+i])open[j*cols+i]=1;
-  }
- }
- return true;
+ return mark(cols-1,row);
 }
 function generate(s,attempt,fallback){
  const rng=mk((s.seed^Math.imul(attempt+1,0x9e3779b1))>>>0),f=s.field,rp=s.radarPos,L=lattice(s);
@@ -197,18 +196,8 @@ function analyse(s,cand){
  let start=0;
  for(const sl of s.slots){const v=D[cellOf(nav,sl.x,sl.y)];if(!isFinite(v))return null;start=Math.max(start,v);}
  if(start<=0)return null;
- // Second independent route: remove the middle of the best path and re-check reachability.
- const mid=s.slots[Math.floor(s.slotRows/2)],path=[];
- let c=cellOf(nav,mid.x,mid.y);
- for(let k=0;k<nav.n&&c>=0;k++){path.push(c);c=bestNeighbor(nav,D,c);}
- let alternate=true;
- if(path.length>16){
-  const blocked2=blocked.slice();
-  for(let k=Math.floor(path.length*.25);k<Math.floor(path.length*.75);k++)stampCircle(nav,blocked2,cellX(nav,path[k]),cellY(nav,path[k]),34);
-  const D2=new Float64Array(nav.n);dijkstra(nav,blocked2,null,goalSeeds(s,blocked2),D2);
-  alternate=isFinite(D2[cellOf(nav,mid.x,mid.y)]);
- }
- return{base,blocked,D,start,seeds,alternate};
+ // Only one connected spine is intentional: do not require an alternate.
+ return{base,blocked,D,start,seeds,alternate:false};
 }
 function buildWorld(s){
  s.nav=makeNav(s);s.slots=makeSlots(s);
@@ -216,7 +205,7 @@ function buildWorld(s){
  let cand=null,info=null,attempts=0;
  for(;attempts<C.maxAttempts&&!info;attempts++){
   cand=generate(s,attempts,false);if(!cand)continue;
-  const a=analyse(s,cand);if(a&&a.alternate)info=a;
+  const a=analyse(s,cand);if(a)info=a;
  }
  if(!info){cand=generate(s,0,true);info=analyse(s,cand);s.usedFallback=true;}
  s.attempts=attempts;s.mines=cand.mines;s.obstacles=cand.obstacles;
@@ -262,12 +251,12 @@ function launchPlane(s){
 }
 function nextRegime(s){
  const r=s.radar,rr=r.rng,R=s.rmax;
- if(r.regime==='low'&&rr()<.6){
-  if(rr()<.72){r.regime='mid';r.left=.8+rr()*.8;r.target=R*(.30+rr()*.25);}
-  else{r.regime='high';r.left=.5+rr()*.5;r.target=R*(.82+rr()*.18);}
+ if(r.regime==='low'&&rr()<.28){
+  if(rr()<.82){r.regime='mid';r.left=.45+rr()*.45;r.target=R*(.22+rr()*.16);}
+  else{r.regime='high';r.left=.3+rr()*.3;r.target=R*(.65+rr()*.12);}
  }else{
-  r.regime='low';r.left=1.4+rr()*1.6;r.target=C.radar.minR+rr()*R*.1;
-  r.flickerIn=rr()<.35?rr()*r.left:-1;
+  r.regime='low';r.left=3.4+rr()*2.7;r.target=C.radar.minR+rr()*R*.05;
+  r.flickerIn=rr()<.14?rr()*r.left:-1;
  }
 }
 function addEffect(s,e){s.effects.push(e);if(s.effects.length>70)s.effects.shift();}
@@ -292,7 +281,7 @@ function stepRadar(s,dt){
  if(r.phase==='shrink'){
   r.phaseT+=dt;const u=clamp(r.phaseT/C.radar.shrinkTime,0,1),e=u*u*(3-2*u);
   r.radius=lerp(s.rmax,r.shrinkTo,e);
-  if(u>=1){r.phase='cycle';r.regime='low';r.left=1.2+r.rng()*1.4;r.target=r.shrinkTo;}
+  if(u>=1){r.phase='cycle';r.regime='low';r.left=3.4+r.rng()*2.7;r.target=r.shrinkTo;}
   return;
  }
  r.left-=dt;
