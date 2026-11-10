@@ -838,7 +838,7 @@ function createControllerIngressGuard(clock=()=>Date.now()){
   if(!msg||typeof msg!=='object'||Array.isArray(msg)||typeof msg.t!=='string'||!types.has(msg.t))return false;
   if(!bounded(msg))return false;
   switch(msg.t){
-   case 'join':return typeof msg.name==='string'&&msg.name.length<=256&&
+   case 'join':return !Object.hasOwn(msg,'protocolVersion')&&typeof msg.name==='string'&&msg.name.length<=256&&
     (msg.clientToken===undefined||(typeof msg.clientToken==='string'&&msg.clientToken.length<=100))&&
      (msg.coreHash===undefined||(typeof msg.coreHash==='string'&&/^[a-f0-9]{20}$/.test(msg.coreHash)));
    case 'input':{
@@ -917,6 +917,8 @@ function gfConnectionHello(){
  return /^[a-f0-9]{20}$/.test(core)?{coreHash:core}:{};
 }
 function gfConnectionCompatible(packet){
+ // Reject obsolete numeric release tokens even when a Core hash matches.
+ if(packet&&Object.hasOwn(packet,'protocolVersion'))return false;
  const expected=gfConnectionHello();
  // Development fixtures have no generated core fingerprint.
  if(!expected.coreHash)return true;
