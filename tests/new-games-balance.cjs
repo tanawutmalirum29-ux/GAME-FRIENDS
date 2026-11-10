@@ -53,5 +53,16 @@ async function load(slug){
   for(let tick=0;tick<240;tick++)scoop.update(1/120,round,players);
   for(const p of players)assert.ok(Number.isFinite(p.x+p.y));
  }
+ // Deterministic bot-only race: the new target commitment must actually
+ // merge five scattered ice-cream balls, not just stop visibly spinning.
+ {
+  const player=participants(1,['#abc123'])[0];player.isBot=true;
+  const round={phase:'playing',paused:false,scoopRushSeed:20261110};
+  const state=scoop.setup(round,[player]);
+  for(let tick=0;tick<3600&&!state.finished;tick++)scoop.update(1/120,round,[player]);
+  assert.equal(state.finished,true,'solo AI must merge all five scoops within 30s');
+  assert.ok(state.merges>=4,'bot must execute four real scoop merges');
+  assert.equal(player.sr.flavor,'#abc123');
+ }
  console.log('TWO NEW PARTY GAMES, UFO 12/24 SPIKES AND SCOOP COLOURS PASS');
 })().catch(e=>{console.error(e);process.exitCode=1;});
