@@ -239,7 +239,7 @@ function startWave(s,ps){
  s.blastSchedule=[];s.blastCursor=0;s.blastElapsed=0;s.blastDuration=0;
  s.plannedWarningDuration=0;s.plannedDangerCount=0;
 }
-// Each selected danger tile has a distinct ignition timestamp, within 0.8s.
+// Every selected tile ignites in a <=0.5s explosion window.
 // Distance is measured in square rings from the board's outside inward.
 // The first danger tile ignites at t=0; gaps vary rather than synchronizing.
 function buildBlastSchedule(s,chosen=s.danger){
@@ -261,7 +261,7 @@ function buildBlastSchedule(s,chosen=s.danger){
  }
  if(ordered.length===0)return [];
  if(ordered.length===1)return [{id:ordered[0],at:0}];
- const total=.64+random(s)*.15; // Last tile ignites before 0.8 seconds.
+ const total=.40+random(s)*.02; // Last ignition by 0.42s, plus 0.08s afterglow.
  const gaps=Array.from({length:ordered.length-1},()=>.25+random(s)*.75);
  const sum=gaps.reduce((a,b)=>a+b,0);
  let time=0;
@@ -296,8 +296,8 @@ function triggerExplosion(s,ps){
  }
  s.blastSchedule=buildBlastSchedule(s);
  s.blastCursor=0;s.blastElapsed=0;
- // The last ignition occurs before .8 seconds; allow a brief afterglow.
- s.blastDuration=(s.blastSchedule.at(-1)?.at||0)+.18;
+ // Complete the entire cascade, including afterglow, within 0.5 seconds.
+ s.blastDuration=(s.blastSchedule.at(-1)?.at||0)+.08;
  s.phase='EXPLOSION';s.timer=s.blastDuration;
  igniteScheduledTiles(s,ps);
 }
