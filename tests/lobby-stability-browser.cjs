@@ -48,8 +48,13 @@ async function geometry(page){
    await page.locator('#offlineBtn').click();
    assert.equal(await page.locator('#plazaCanvas').isVisible(),true,'scene visible');
    await page.locator('#plazaRoomToggle').click();
+   assert.equal(await page.locator('#plazaRoomToggle').getAttribute('aria-expanded'),'true');
    await page.locator('#plazaRosterToggle').click();
    assert.equal(await page.locator('#roster').isVisible(),true);
+   assert.equal(await page.locator('#plazaRoomPanel').isVisible(),false,
+    'opening roster closes the QR popup instead of layering both');
+   assert.equal(await page.locator('#plazaRoomToggle').getAttribute('aria-expanded'),'false');
+   assert.equal(await page.locator('#plazaRosterToggle').getAttribute('aria-expanded'),'true');
    assert.equal(await page.locator('#plazaCanvas').evaluate(e=>[e.width,e.height].every(n=>n>=540)),true,'DPR-backed canvas');
    // Remove offline demo bots via their original, preserved DOM actions.
    while(await page.locator('#roster .roster-item:not(.roster-empty)').count())
