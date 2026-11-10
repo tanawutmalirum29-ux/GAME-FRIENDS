@@ -38,8 +38,22 @@ for(const slug of fs.readdirSync(gamesRoot).filter(x=>
     'Legacy dependencies must reference maintained shared game assets: '+slug);
   imported++;
  }else{
-  assert.ok(code.length>200&&/export\s+default/.test(code),
-   'Native plug-in must supply a real ES module entry: '+slug);
+  // Native ES module plugins may use a tiny game.js entry that re-exports
+  // their substantial gameplay engine from a second file in the same folder.
+  if(code.length>200&&/export\s+default/.test(code)){
+   assert.ok(true);
+  }else{
+   const wrapper=code.match(/^\s*import\s+(\w+)\s+from\s+['"]\.\/([a-z0-9-]+\.js)['"];?\s*export\s+default\s+(\w+)\s*;?\s*$/);
+   assert.ok(wrapper&&wrapper[1]===wrapper[3],
+    'Native entry must export its same-folder engine: '+slug);
+   const enginePath=path.join(gamesRoot,slug,wrapper[2]);
+   assert.ok(fs.existsSync(enginePath),'Native game engine missing: '+slug);
+   const engine=fs.readFileSync(enginePath,'utf8');
+   assert.ok(engine.length>200&&/export\s+default/.test(engine),
+    'Native engine must be substantial and export a real API: '+slug);
+   assert.ok(!fs.existsSync(path.join(root,wrapper[2])),
+    'Native gameplay source must not be duplicated at Root: '+slug);
+  }
  }
 }
 assert.ok(imported>=15,'All original game imports remain owned by their plug-ins as new minigames are added');
