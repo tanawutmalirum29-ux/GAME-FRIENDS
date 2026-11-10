@@ -232,13 +232,18 @@ $('portraitRestoreBtn').addEventListener('click',()=>{
   clearPortraitFallback();
   void requestLandscape();
 });
-$('joinBtn').addEventListener('click',joinRoom);
+$('joinBtn').addEventListener('click',()=>{
+ // Screen Orientation/fullscreen requests require the original user gesture,
+ // before asynchronous PeerJS and TURN handshakes consume it.
+ void requestLandscape();
+ joinRoom();
+});
 $('nick').addEventListener('input',rememberNickname);
-$('nick').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
+$('nick').addEventListener('keydown',e=>{if(e.key==='Enter'){void requestLandscape();joinRoom();}});
 $('roomCodeInput').addEventListener('input',()=>{
   $('roomCodeInput').value=$('roomCodeInput').value.toUpperCase().replace(/[^A-Z2-9]/g,'').slice(0,6);
 });
-$('roomCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
+$('roomCodeInput').addEventListener('keydown',e=>{if(e.key==='Enter'){void requestLandscape();joinRoom();}});
 $('switchRoomBtn').addEventListener('click',()=>{
   resetControllerForRoomChange('เปลี่ยนห้องในแท็บเดิมได้เลย สแกน QR หรือกรอกรหัสใหม่');
 });
