@@ -4249,15 +4249,37 @@ window.addEventListener('beforeunload',()=>{
 // PARTY PLAZA overlays never resize/reflow the map. Existing room, roster and
 // session controls are retained; only their presentation changes.
 const plazaHost=$('hostLobby');
-const togglePlazaPanel=(name)=>{
- const visible=plazaHost.classList.toggle('plaza-show-'+name);
- const selector={room:'.lobby-qr-panel',roster:'.lobby-player-panel',controls:'.lobby-controls'}[name];
- const panel=selector&&plazaHost.querySelector(selector);
- if(panel)panel.style.setProperty('display',visible?(name==='controls'?'grid':'flex'):'none','important');
+// The header owns ONE popup at a time. Independent toggles previously left
+// settings, QR and roster layered across each other (and under the safe-area
+// header on iPad), obscuring both the scene and the existing controls.
+const plazaPanelButtons={
+ room:$('plazaRoomToggle'),roster:$('plazaRosterToggle'),controls:$('plazaSettingsToggle')
 };
+const plazaPanelNames=Object.keys(plazaPanelButtons);
+function setPlazaPanel(name=null){
+ if(!plazaHost)return;
+ for(const key of plazaPanelNames){
+  const open=key===name;
+  plazaHost.classList.toggle('plaza-show-'+key,open);
+  const btn=plazaPanelButtons[key];
+  if(btn)btn.setAttribute('aria-expanded',String(open));
+ }
+}
+function togglePlazaPanel(name){
+ if(!plazaPanelNames.includes(name))return;
+ setPlazaPanel(plazaHost?.classList.contains('plaza-show-'+name)?null:name);
+}
 $('plazaRoomToggle')?.addEventListener('click',()=>togglePlazaPanel('room'));
 $('plazaRosterToggle')?.addEventListener('click',()=>togglePlazaPanel('roster'));
 $('plazaSettingsToggle')?.addEventListener('click',()=>togglePlazaPanel('controls'));
+plazaHost?.addEventListener('pointerdown',e=>{
+ if(currentView!=='hostLobby')return;
+ if(e.target?.closest?.('.lobby-bar,.lobby-qr-panel,.lobby-player-panel,.lobby-controls'))return;
+ setPlazaPanel();
+});
+document.addEventListener('keydown',e=>{
+ if(currentView==='hostLobby'&&e.key==='Escape')setPlazaPanel();
+});
 $('plazaStartBtn')?.addEventListener('click',()=>{if(!$('startBtn').disabled)beginParty();});
 window.PartyPlaza?.configure({
  interact(p,z){
