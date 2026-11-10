@@ -1,55 +1,33 @@
 'use strict';
-// Deterministic render cadence tests: physics/input are never frame-capped.
+// Uncapped presentation: browser requestAnimationFrame controls the cadence,
+// not a 30/60fps limiter in the application.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const vm=require('node:vm');
 const render=fs.readFileSync('src/app/rounds/render.js','utf8');
 const runtime=fs.readFileSync('src/app/core/runtime.js','utf8');
-const start=render.indexOf('let lastBoardPaintAt=0;');
-const end=render.indexOf('function animate(ts)',start);
-assert.ok(start>=0&&end>start,'BOARD paint-budget helper must be present');
-const helper=render.slice(start,end)+'\nthis.paint=shouldPaintBoardFrame;this.paintNormal=shouldPaintNormalFrame;\n';
-function countPaints(hz,lowDetail,dense){
- const ctx={};
- vm.runInNewContext(helper,ctx);
- let frames=0;
- for(let i=0;i<hz;i++){
-  if(ctx.paint(1000+i*1000/hz,lowDetail,dense))frames++;
- }
- return frames;
-}
-function countNormalPaints(hz){
- const ctx={};
- vm.runInNewContext(helper,ctx);
- let frames=0;
- for(let i=0;i<hz;i++)if(ctx.paintNormal(1000+i*1000/hz))frames++;
- return frames;
-}
-const regular120=countNormalPaints(120);
-assert.ok(regular120>=59&&regular120<=61,
- 'normal minigames must paint near 60/s on a 120Hz screen, got '+regular120);
-assert.equal(countNormalPaints(60),60,
- 'normal minigames must retain every physical 60Hz frame');
-const board120=countPaints(120,false,true);
-assert.ok(board120>=29&&board120<=31,
- 'dense BOARD on 120 Hz must be near 30 paints/s, got '+board120);
-const normal120=countPaints(120,false,false);
-assert.ok(normal120>=59&&normal120<=61,
- 'small BOARD on 120 Hz must be near 60 paints/s, got '+normal120);
-const board60=countPaints(60,false,true);
-assert.ok(board60>=29&&board60<=31,
- 'dense BOARD on 60 Hz must remain near 30 paints/s, got '+board60);
-const low120=countPaints(120,true,false);
-assert.ok(low120>=29&&low120<=31,
- 'adaptive low-detail BOARD must conserve GPU with 30 paints/s, got '+low120);
-const update=render.indexOf("updateRound(round.mode==='board'?boardDt:dt);");
-const paint=render.indexOf('const shouldDraw=',update);
-assert.ok(update>=0&&paint>update,
- 'simulation must update on every animation frame before optional drawing');
-assert.match(render.slice(update,paint),/if\(round&&!gameSelection\)/,
+assert.doesNotMatch(render,/shouldPaintBoardFrame|shouldPaintNormalFrame|lastBoardPaintAt|lastNormalPaintAt/,
+ 'No BOARD or normal mini-game paint quotas may remain');
+assert.doesNotMatch(render,/const shouldDraw=|if\(shouldDraw\)/,
+ 'Host must draw every eligible animation frame');
+const start=render.indexOf('function animate(ts)');
+const update=render.indexOf("updateRound(round.mode==='board'?boardDt:dt);",start);
+const draw=render.indexOf('drawGame(graphicsClock);',update);
+const video=render.indexOf('renderHostVideoFrames();',draw);
+assert.ok(start>=0&&update>start&&draw>update&&video>draw,
+ 'Physics/input must update first, then renderer + phone video on every RAF');
+assert.match(render.slice(update,draw),/if\(round&&!gameSelection\)/,
  'BOARD-to-minigame roulette must never draw an unloaded engine');
 assert.match(render,/if\(onBoard\)updateAdaptiveBoardDetail\(elapsed\)/,
- 'adaptive quality must actually be called by the host animation loop');
+ 'Auto quality can reduce excessive work without limiting FPS');
 assert.match(runtime,/if\(!arenaResolutionDirty&&arenaLastDpr===dpr&&arenaLastModeKey===modeKey\)return;/,
- 'unchanged canvas frames must not synchronously force DOM layout');
-console.log('HOST RENDER BUDGET PASS: 120/60Hz paint quotas, input physics isolation, roulette safety and layout cache');
+ 'Unchanged canvas frames must avoid forcing DOM layout');
+const board=fs.readFileSync('src/board-party/runtime/board-art.js','utf8');
+assert.doesNotMatch(board,/sceneryApi\.createEffects|__sceneryFx\.draw\(/,
+ 'Animated terrain/scenery effects must be removed');
+assert.doesNotMatch(board,/for\(let i=0;i<\(c\.lowDetail\?0:35\);i\+\+\)/,
+ 'Moving snow overlay must be removed');
+assert.match(board,/ground\(g,s\);/,
+ 'Static cached BOARD terrain is still drawn');
+assert.match(board,/nodes\(g,s\);actors\(g,s,t\);effects\(g,s,t\)/,
+ 'Important hazards and items must remain clearly visible');
+console.log('UNCAPPED HOST RENDER PASS: no frame quota, physics-first RAF, cached terrain, no cosmetic FX');
