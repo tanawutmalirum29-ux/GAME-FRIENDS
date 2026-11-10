@@ -116,6 +116,8 @@ jobs:
       - name: LAWN MOWER 1–12 player race and sun distribution checks
         if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:lawn-mower') }}
         run: node tests/lawn-mower.cjs
+      - name: New DINO PANIC and COWBOY CROSSFIRE, UFO spikes and scoop colour smoke
+        run: node tests/new-games-balance.cjs
       - name: UFO ARENA and DANGERFIELD winding minefield regression
         if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:ufo-arena') || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:dangerfield') }}
         run: |
