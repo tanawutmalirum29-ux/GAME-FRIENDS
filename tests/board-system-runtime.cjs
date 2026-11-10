@@ -4,12 +4,12 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const source=fs.readFileSync('src/platform/board-runtime.js','utf8');
 const build='f'.repeat(20),hash=n=>n.repeat(24);
 const entry=(category,id,h)=>({category,id,hash:hash(h),name:id.toUpperCase(),
- version:'1.0.0',apiVersion:1,enabled:true,
+ apiVersion:1,enabled:true,
  entryUrl:'/board-system-assets/'+category+'/'+id+'/'+hash(h)+'/index.js'});
 let manifest={schema:1,coreHash:build,systems:[
  entry('items','bonus','a'),entry('spaces','treasure','b'),entry('events','meteor','c')]};
 let imports=0,registration=[],broken=false,counts=[];
-const map={MAP_VERSION:'v10',create(){return{}},validate(){return true},assertCompatible(){return true}};
+const map={MAP_ID:'v10',create(){return{}},validate(){return true},assertCompatible(){return true}};
 const art={draw(){}},btn={classList:{contains(){return true}},dataset:{sessionMode:'board'},addEventListener(){}};
 const dom={readyState:'complete',baseURI:'https://board.local/index.html',
  hidden:false,getElementById(){return null},querySelector(){return btn;}};

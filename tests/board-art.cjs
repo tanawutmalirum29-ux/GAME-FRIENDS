@@ -46,7 +46,7 @@ assert.doesNotMatch(artSource,/g\.strokeStyle='#263b60b3'|g\.lineWidth=105\s*;\s
  'no dark shadow band may connect adjacent sword tiles');
 {
  const s=game(8891),g=brush();
- s.map.version='winter-expedition-152-v8';
+ s.map.id='winter-expedition';
  s.camera.overview=true;s.camera.manualZoom=.65;s.camera.zoom=.65;
  const strokes=[];
  g.stroke=function(){
@@ -69,7 +69,7 @@ assert.doesNotMatch(artSource,/g\.strokeStyle='#263b60b3'|g\.lineWidth=105\s*;\s
 // Capture real painted arrowhead tips at an inbound/outbound fork.
 // This prevents direction flips for future geometry or styling changes.
 {
- const s=game(8891);s.map.version='winter-expedition-152-v10';
+ const s=game(8891);s.map.id='winter-expedition';
  s.camera.overview=true;s.camera.zoom=.65;s.camera.manualZoom=.65;
  s.camera.x=s.map.nodes.n3.position.x;s.camera.y=s.map.nodes.n3.position.y;
  const arrowTips=[],spy=brush(),points=[];
@@ -119,7 +119,7 @@ assert.doesNotMatch(artSource,/g\.strokeStyle='#263b60b3'|g\.lineWidth=105\s*;\s
  const info=A.inspect(s,x,y);
  assert.ok(info&&info.id==='n35');assert.equal(info.type,n.type);
  assert.equal(info.islandId,n.islandId,'debug inspector reports fixed island ID');
- assert.equal(info.mapVersion,s.map.version,'debug inspector reports map version');
+ assert.equal(info.mapId,s.map.id,'debug inspector reports map version');
  assert.deepEqual(JSON.parse(JSON.stringify(info.next)),JSON.parse(JSON.stringify(n.nextNodes)));
  assert.equal(s.camera.selectedId,'n35','inspector stores selected visible node without changing game state');
  assert.equal(JSON.stringify(s.players),original,'debug selection cannot move or damage players');

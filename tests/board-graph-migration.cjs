@@ -1,13 +1,13 @@
 'use strict';
 // A standalone test from a fresh checkout restores only missing/stale outputs.
-require('../scripts/build-board-v7.cjs');
+require('../scripts/build-board-assets.cjs');
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const ctx=vm.createContext({window:{},Math,Date,console});
-for(const path of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-branch-naming.js','src/board-party/runtime/board-v7-adapter.js'])
+for(const path of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-design.js','src/board-party/runtime/board-branch-naming.js','src/board-party/runtime/board-layout.js'])
  vm.runInContext(fs.readFileSync(path,'utf8'),ctx,{filename:path});
-const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D,BoardBranchNaming:N}=ctx.window;
+const {BoardMap:M,BOARD_DESIGN:D,BoardBranchNaming:N}=ctx.window;
 const map=M.create(0),ids=Object.keys(map.nodes),edges=Object.values(map.nodes).flatMap(n=>n.nextNodes.map(to=>n.id+'>'+to));
-assert.equal(map.version,'winter-expedition-152-v10');
+assert.equal(map.id,'winter-expedition');
 for(const [a,b] of [['m7','m0'],['w7','w0'],['s7','s0'],['xmout_2','n108']])
  assert.equal(map.nodes[a].nextNodes.includes(b),false,'V10 cannot return to original entry: '+a+'>'+b);
 for(const [a,b] of [['m7','xmout_1'],['w7','xwf_1'],['s7','xba_1'],['xmout_2','n56']])
@@ -39,7 +39,7 @@ for(const [from,mid,to] of [
   'preserve the real Workshop island route across retired '+mid);
  assert.equal(map.nodes[from].nextNodes.includes(mid),false);
 }
-assert.equal(map.territories['v8-court-workshop-watch'].nodeIds.join(','),'w6,w7',
+assert.equal(map.territories['court-workshop-watch'].nodeIds.join(','),'w6,w7',
  'do not delete/move the two adjacent workshop swords');
 const visible=new Set(D.allPathSegments.map(p=>p.from_+'>'+p.to));
 const artworkMetadata={
@@ -68,7 +68,7 @@ const collisions=Object.entries(map.idMigration.reduce((groups,row)=>{
  (groups[row.displayId]??=[]).push(row.internalId);return groups;
 },{})).filter(([,list])=>list.length>1).map(([displayId])=>displayId).sort();
 assert.deepEqual(collisions,JSON.parse(JSON.stringify(map.pathIdCollisions.map(c=>c.displayId).sort())));
-for(const [territory,a,b] of [['v8-court-harbor-watch','h2','h3'],['v8-court-ginger-watch','g4','g5']]){
+for(const [territory,a,b] of [['court-harbor-watch','h2','h3'],['court-ginger-watch','g4','g5']]){
  assert.deepEqual(JSON.parse(JSON.stringify(map.territories[territory].nodeIds)),[a,b]);
  assert.equal(map.nodes[a].nextNodes.includes(b),true);
 }

@@ -7,17 +7,17 @@ const path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../src/platform/board-runtime.js'),'utf8');
 const hash=value=>value.repeat(24);
 const core='f'.repeat(20);
-const descriptor=(id,h,kind)=>({id,name:id.toUpperCase(),version:'1.0.0',apiVersion:1,
+const descriptor=(id,h,kind)=>({id,name:id.toUpperCase(),apiVersion:1,
  enabled:true,kind,players:{min:1,max:12},hash:hash(h),
  entryUrl:kind==='legacy'?null:'/board-map-assets/'+id+'/'+hash(h)+'/index.js'});
-const legacyMap={MAP_VERSION:'winter-v10',create(){return{};},
+const legacyMap={MAP_ID:'winter-v10',create(){return{};},
  validate(){return true;},assertCompatible(){return true;},
  choose(){return null;},neighbors(){return [];}};
 const legacyArt={draw(){}};
-const plugin=(version)=>({
- map:{MAP_VERSION:version,
+const plugin=(mapId)=>({
+ map:{MAP_ID:mapId,
   create(_seed,{players}={}){assert.ok([1,6,7,12].includes(players));
-   return {version,startId:'n0',finishId:'n1',width:1000,height:600,
+   return {id:mapId,startId:'n0',finishId:'n1',width:1000,height:600,
     nodes:{n0:{id:'n0'},n1:{id:'n1'}}};},
   validate(){return true;},assertCompatible(){return true;},
   choose(){return null;},neighbors(){return []}},
@@ -53,7 +53,7 @@ const context={window,document,URL,Date,console,location:{origin:'https://exampl
 window.__testImport=async url=>{
  imported++;
  assert.ok(url.startsWith('https://example.test/board-map-assets/coast/'));
- return {default:missing?{map:{},art:{}}:plugin('coast-v1')};
+ return {default:missing?{map:{},art:{}}:plugin('coast')};
 };
 // The sole network import call is swapped with an injected module resolver for
 // this Node VM; production keeps the actual native import() syntax.
@@ -92,7 +92,7 @@ const runtime=window.BoardRuntime;
  catalog={...catalog,maps:[catalog.maps[0],descriptor('coast','d','module')]};
  await runtime.refreshMaps();
  missing=true;
- await assert.rejects(runtime.ensure(),/BOARD map version missing|Invalid BOARD map module/,
+ await assert.rejects(runtime.ensure(),/BOARD map identity missing|Invalid BOARD map module/,
   'Broken downloaded plug-in must fail without mutating previous map');
  assert.equal(window.BoardMap,legacyMap);
  assert.equal(runtime.activeMapId,'winter-expedition');
