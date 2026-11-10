@@ -4,6 +4,13 @@ const {classify,fromEnvironment}=require('../scripts/ci-impact.cjs');
 const {readManifest,validateManifest,expandTasks,selectManifest,createPlan,matrix}
   = require('../scripts/ci-browser-scheduler.cjs');
 const games = new Set(['ufo-arena','dangerfield','pizza-time','ghost-attack']);
+const {testFilesForGame,impactedGames}=require('../scripts/ci-game-tests.cjs');
+assert.deepEqual(testFilesForGame('ufo-arena',[
+ 'ufo-arena.cjs','ufo-arena-browser.cjs','ufo-arena-physics.cjs',
+ 'other-game.cjs','ufo-arena.test.js'
+]),['tests/ufo-arena-physics.cjs','tests/ufo-arena.cjs','tests/ufo-arena.test.js']);
+assert.deepEqual(impactedGames({mode:'targeted',full:false,areas:['game:ufo-arena','game:dangerfield','platform']}),['dangerfield','ufo-arena']);
+assert.deepEqual(impactedGames({mode:'full',full:true,areas:[]}),[]);
 function check(files, mode, expectedAreas=[]) {
   const result=classify(files,games);
   assert.equal(result.mode,mode,JSON.stringify(files));
