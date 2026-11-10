@@ -95,6 +95,9 @@ global.window={PartyCharacters:{
   const ps=[{id:'wall',name:'Wall',active:false,isBot:false,color:'#ffeeaa',input:{axisX:0,axisY:0}}];
   const round={phase:'playing',paused:false,ufoArenaSeed:9191+n+edgeId},
    state=engine.setup(round,ps),p=ps[0],u=state.geo.u,e=state.geo.edges[edgeId],R=engine.config.radius*u;
+  // Isolate restitution from the new continuously armed spikes: an
+  // independently triggered spike knock would add its own 2x knockback.
+  for(const z of state.zones){z.state='idle';z.ext=0;}
   const midX=(e.a.x+e.b.x)/2,midY=(e.a.y+e.b.y)/2;
   p.x=midX+e.n.x*(R-.8*u);
   p.y=midY+e.n.y*(R-.8*u);
