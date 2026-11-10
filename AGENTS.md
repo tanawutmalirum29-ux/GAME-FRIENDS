@@ -1,5 +1,14 @@
 # GAME-FRIENDS repository instructions for coding agents
 
+## FAST PR-FIRST WORKFLOW — mandatory for every future AI
+
+**Never run the entire QA matrix before opening a Pull Request.** Check the latest `main` and existing PRs, implement the smallest scoped change, run syntax and a relevant game-level preflight, then **commit, push, and OPEN a non-draft PR immediately**. Creating a PR does not require completed CI checks. Let GitHub Actions test while the PR is open; merge only after all applicable required checks pass on the latest head and there are no conflicts.
+
+**Do not spend time testing unrelated minigames on a single-game update.** PR QA automatically computes changed paths with `scripts/ci-impact.cjs`, chooses relevant Node and Chromium/WebKit suites from `ci/browser-tests.json`, and uses the weighted parallel shards in `scripts/ci-browser-scheduler.cjs`. Unknown/shared/core changes or uncertain diffs trigger **full** QA. Full coverage still runs on `main` pushes, weekly runs and manual dispatch. A docs-only PR skips Playwright installation, but retains stable success/failure checks. New tests must declare their impacted areas; never remove tests just to accelerate CI.
+
+**Always read [docs/CI_TESTING.md](docs/CI_TESTING.md) before QA/PR/merge operations.** Run `node tests/ci-impact.cjs` and `node tests/ci-browser-workflow.cjs` for CI changes. Prioritize real failures, avoid repeated pushes that restart in-progress jobs, and never fake statuses, force-merge, or use `continue-on-error`.
+
+
 All changes to any minigame arena, character SVG size, world dimensions, grid, physics hitbox, pathing, pickup, camera or controller must follow **[docs/MAP_SCALE_RULES.md](docs/MAP_SCALE_RULES.md)** (MAP-001…MAP-007).
 
 Before editing: inspect the current `main` HEAD, the engine's specific tiers, `arena-scale.js`, existing shared character/physics code, and the engine's tests. Reuse existing functions; do not force all engines into the same world dimensions.
@@ -10,11 +19,11 @@ A PR must not merge on syntax-only evidence, missing CI checks or failed regress
 
 ## Mandatory, scalable QA policy (ALL future AI agents)
 
-Read **[docs/CI_TESTING.md](docs/CI_TESTING.md)** before coding a new mode, changing CI, running QA, or merging. The `Verify static game` workflow has a **dynamic weighted Chromium/WebKit matrix**, with its source of truth in **[ci/browser-tests.json](ci/browser-tests.json)** and a stable required check named **Browser QA / required gate**. Do NOT assume it always has exactly four browser jobs. The number of shards grows automatically with estimated workload, bounded by `minShards`, `targetSecondsPerShard` and `maxShards`. Never omit or skip slow tests to reduce elapsed time.
+Read **[docs/CI_TESTING.md](docs/CI_TESTING.md)** before coding a new mode, changing CI, running QA, or merging. The `Verify static game` workflow uses an **impact-selected weighted Chromium/WebKit matrix**, with its source of truth in **[ci/browser-tests.json](ci/browser-tests.json)** and a stable required check named **Browser QA / required gate**. Do NOT assume any fixed shard count. The number of shards adapts to **selected relevant tests** with `minShards`, `targetSecondsPerShard`, and `maxShards`. Keep every test registered; full coverage is mandatory for uncertain impact and on main/weekly/manual runs.
 
-**When adding a minigame or browser test:** add its engine Node regressions; update `tests/map-scale-regression.cjs` and `tests/map-scale-browser.cjs` where appropriate; create `tests/<name>-browser.cjs` and register its supported browsers and estimated seconds in `ci/browser-tests.json`. Unregistered `*-browser.cjs` files cause CI to fail, making the policy enforceable even if an AI does not read this paragraph. Prefer both Chromium and WebKit; explain intentional Chromium-only legacy exceptions in the registry. All new JS/CJS/MJS files are syntax-checked automatically.
+**When adding a minigame or browser test:** add its engine Node regressions; update `tests/map-scale-regression.cjs` and `tests/map-scale-browser.cjs` where appropriate; create `tests/<name>-browser.cjs` and register its supported browsers, **impacted `areas` tags**, and estimated seconds in `ci/browser-tests.json`. Unregistered `*-browser.cjs` files cause CI to fail, making the policy enforceable even if an AI does not read this paragraph. Prefer both Chromium and WebKit; explain intentional Chromium-only legacy exceptions in the registry. All new JS/CJS/MJS files are syntax-checked automatically.
 
-**Before PR/Merge:** run `node tests/ci-browser-scheduler.cjs`, `node tests/ci-browser-workflow.cjs`, `node scripts/ci-browser-scheduler.cjs --plan`, relevant gameplay regressions, and `node tests/map-scale-regression.cjs` for map or character changes. Merge only after `validate`, every generated `Browser QA / shard-NN` job, the **Browser QA / required gate**, and every other required GitHub workflow pass for the **latest PR head**. No fake statuses, path-based bypass, `continue-on-error`, or cancellation of main checks. Read real job logs and per-test `ci-metrics` artifacts for bottlenecks.
+**Before opening a PR:** only a quick syntax + relevant owned-game preflight is required; open the PR as soon as the branch is ready. **For CI changes:** run `node tests/ci-impact.cjs`, `node tests/ci-browser-scheduler.cjs`, `node tests/ci-browser-workflow.cjs`, and `node scripts/ci-browser-scheduler.cjs --plan`. **Before merge:** require `validate`, all selected `Browser QA / shard-NN` jobs (or validated no-browser-impact), the **Browser QA / required gate**, and other required GitHub workflows to pass for the **latest PR head**. No fake statuses, unknown-path bypass, `continue-on-error`, or cancellation of main checks. Use failing job logs and `ci-metrics` artifacts for bottlenecks.
 
 ## BOARD PARTY graph migration policy
 
