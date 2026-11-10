@@ -6066,7 +6066,7 @@ body.controller-playing #controller .phone-game-choices{
 
 
 /* PARTY PLAZA / fullscreen host scene, UI overlays independent of world geometry. */
-#hostLobby.host-lobby.plaza-loaded{
+#hostLobby.host-lobby.plaza-loaded:not(.hidden){
   position:fixed!important;inset:0!important;
   box-sizing:border-box;width:100dvw!important;height:100dvh!important;
   min-height:0!important;max-width:none!important;max-height:none!important;
