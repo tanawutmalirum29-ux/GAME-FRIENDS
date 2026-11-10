@@ -135,30 +135,40 @@ function carvePath(L,rng,open,from,to,jit,pen){
  return out;
 }
 function carveRoutes(L,rng,open,template,fallback){
- // A SINGLE continuous winding corridor, with no parallel alternative
- // from start to finish. Each horizontal run links to the next only
- // through a turn at the opposite end, extending play time naturally.
- const {cols,rows}=L,left=Math.max(2,Math.floor((cols-1)*.28)),right=cols-1-left;
- const bottom=rows-2,mid=bottom-2,upper=bottom-4;
- if(upper<=1||right<=left+2)return false;
+ // One genuinely serpentine ROAD, not the old almost-full-width straight
+ // lower lane. Grid tiles and mine sizes are untouched; topology uses every
+ // available vertical lane while reserving the fixed central radar.
+ const {cols,rows}=L,top=1,bottom=rows-2;
+ if(cols<9||bottom-top<4)return false;
  const set=(i,j)=>{
   if(i<0||j<0||i>=cols||j>=rows||L.forbid[j*cols+i])return false;
   open[j*cols+i]=1;return true;
  };
  const line=(a,b)=>{
-  let [x,y]=a;const [tx,ty]=b;
+  let[x,y]=a;const [tx,ty]=b;
   if(x!==tx&&y!==ty)return false;
   const dx=Math.sign(tx-x),dy=Math.sign(ty-y);
   for(;;){if(!set(x,y))return false;if(x===tx&&y===ty)return true;x+=dx;y+=dy;}
  };
- const waypoints=[
-  [0,1],[left,1],[left,3],[0,3],[0,bottom],
-  [cols-1,bottom],[cols-1,mid],[right,mid],
-  [right,upper],[cols-1,upper]
- ];
- for(let i=1;i<waypoints.length;i++)
-  if(!line(waypoints[i-1],waypoints[i]))return false;
- return true;
+ // Alternate vertical crossings every two columns; keeping one empty
+ // lattice column between adjacent hairpins prevents cross-links/forks.
+ // Skip vertical crossings near the radar, but pass above/below it.
+ const mid=(cols-1)/2,radarGap=C.radar.bodyR+C.radius+20;
+ const turns=[];
+ for(let i=2;i<cols-1;i+=2){
+  const distance=Math.abs((i-mid)*((L.nodes[1].x-L.nodes[0].x)||C.pitch));
+  if(distance>radarGap)turns.push(i);
+ }
+ if(turns.length<3)return false;
+ const first=template%2?bottom:top;
+ let prev=[0,first],row=first;
+ for(const x of turns){
+  if(!line(prev,[x,row]))return false;
+  const next=row===top?bottom:top;
+  if(!line([x,row],[x,next]))return false;
+  prev=[x,next];row=next;
+ }
+ return line(prev,[cols-1,row]);
 }
 function generate(s,attempt,fallback){
  const rng=mk((s.seed^Math.imul(attempt+1,0x9e3779b1))>>>0),f=s.field,rp=s.radarPos,L=lattice(s);
@@ -166,20 +176,24 @@ function generate(s,attempt,fallback){
  for(const [cx,cy] of[[f.x+22,f.y+22],[f.x+f.w-22,f.y+22],[f.x+22,f.y+f.h-22],[f.x+f.w-22,f.y+f.h-22]])
   obstacles.push({type:'crate',x:cx,y:cy,hw:18,hh:18,corner:true});
  obstacles.push({type:'radar',x:rp.x,y:rp.y,r:C.radar.bodyR});
- // Loose crates standing on lattice nodes (never in the first/last two columns).
+ // Radar is the only immutable obstacle when routing. Place optional
+ // decorative crates AFTER the single route, off its entire clearance.
+ for(const nd of L.nodes){
+  const v=nd.j*L.cols+nd.i;
+  if(Math.hypot(nd.x-rp.x,nd.y-rp.y)<C.radar.bodyR+C.radius+15)L.forbid[v]=1;
+ }
+ const open=new Uint8Array(L.cols*L.rows);
+ if(!carveRoutes(L,rng,open,Math.floor(rng()*4),fallback))return null;
+ const route=L.nodes.filter(nd=>open[nd.j*L.cols+nd.i]);
  const crates=[];
- for(let tries=0;!fallback&&crates.length<s.cfg.crates&&tries<60;tries++){
+ for(let tries=0;!fallback&&crates.length<s.cfg.crates&&tries<100;tries++){
   const i=2+Math.floor(rng()*(L.cols-4)),j=1+Math.floor(rng()*(L.rows-2)),nd=L.nodes[j*L.cols+i];
-  if(Math.hypot(nd.x-rp.x,nd.y-rp.y)<110)continue;
-  if(crates.some(c=>Math.hypot(c.x-nd.x,c.y-nd.y)<C.pitch*2))continue;
+  if(open[j*L.cols+i]||Math.hypot(nd.x-rp.x,nd.y-rp.y)<105)continue;
+  if(route.some(q=>Math.hypot(q.x-nd.x,q.y-nd.y)<C.navR+46))continue;
+  if(crates.some(q=>Math.hypot(q.x-nd.x,q.y-nd.y)<C.pitch*2))continue;
   crates.push({type:'crate',x:nd.x,y:nd.y,hw:18,hh:18});
  }
  obstacles.push(...crates);
- for(const nd of L.nodes){const v=nd.j*L.cols+nd.i;
-  if(Math.hypot(nd.x-rp.x,nd.y-rp.y)<C.radar.bodyR+28)L.forbid[v]=1;
-  for(const c of crates)if(Math.abs(nd.x-c.x)<46&&Math.abs(nd.y-c.y)<46)L.forbid[v]=1;}
- const open=new Uint8Array(L.cols*L.rows);
- if(!carveRoutes(L,rng,open,Math.floor(rng()*4),fallback))return null;
  const mines=[];
  for(const nd of L.nodes){
   const v=nd.j*L.cols+nd.i;if(open[v])continue;
