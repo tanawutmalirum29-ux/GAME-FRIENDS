@@ -81,6 +81,28 @@ async function main(){
    });
    await page.locator('#boardOverviewBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
    await page.locator('#boardFollowBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
+   // EXIT must be available in live BOARD, without having to pause first.
+   assert.equal(await page.locator('#boardExitBtn').isVisible(),true,
+    'board exit remains visible while a session is running');
+   await page.locator('#boardExitBtn').click();
+   assert.equal(await page.locator('#uiModal').isVisible(),true,
+    'exit requires a separate confirmation');
+   await page.locator('#uiCancelBtn').click();
+   assert.equal(await page.evaluate(()=>__boardStartup.view),'game',
+    'cancel keeps the current board session');
+   assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
+   // Exit while paused, cancel and resume must also work on WebKit.
+   await page.locator('#pauseBtn').click();
+   await page.locator('#boardExitBtn').click();
+   await page.locator('#uiCancelBtn').click();
+   assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
+   await page.locator('#pauseBtn').click();
+   await page.locator('#boardExitBtn').click();
+   await page.locator('#uiConfirmBtn').click();
+   await page.waitForFunction(()=>__boardStartup.board===null&&__boardStartup.view==='hostLobby',
+    null,{timeout:10000});
+   assert.equal(await page.locator('#boardExitBtn').isVisible(),false,
+    'exit control disappears on returning to lobby');
    assert.deepEqual(errors,[]);await context.close();
   }
   console.log('STARTUP PASS ('+engine+'): actual Start, 2/12 players, DPR 2, delayed rAF, old clip reset, <=3.5MP terrain, allocation failure fallback, pause/resume/overview/follow');
