@@ -353,7 +353,7 @@ function pairCollide(s,live,previousContacts,currentContacts){
   const key=i+','+j;
   const fresh=!previousContacts.has(key)&&!currentContacts.has(key);
   currentContacts.add(key);
-  if(d<1e-5){dx=String(a.id)<String(b.id)?1:-1;dy=0;d=1e-5;}
+  if(d<1e-5){dx=String(a.id)<String(b.id)?1:-1;dy=0;d=1;} // unit fallback normal; never divide by 1e-5
   const nx=dx/d,ny=dy/d,ma=a.ufo.mass,mb=b.ufo.mass,im=1/ma+1/mb;
   const separation=(R2-d+.35*u)/im;
   a.x-=nx*separation/ma;a.y-=ny*separation/ma;
