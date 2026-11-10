@@ -72,7 +72,7 @@ function updateTiles(s,dt){
  }
  if(changed)s.version++;
 }
-/* ===== Collapse scheduler ===== */
+/* ===== Historic collapse algorithms (not used by the footprint-only game mode) ===== */
 function difficulty(s){
  const gone=(s.holes+s.active.length)/s.total,tf=clamp(s.clock/s.cap,0,1);
  return clamp(.5*tf+.5*clamp(gone/.82,0,1),0,1);
@@ -213,6 +213,23 @@ function breakInterval(s,d){
  let t=lerp(2.6,.7,Math.pow(d,.85));
  if(s.clock>s.cap)t*=Math.max(.35,1-(s.clock-s.cap)/25);
  return t*(.85+rng(s)*.3);
+}
+/* A stepped-on tile is intact until the player leaves it. Cracks advance behind
+   moving players, one tile at a time; no random off-path floor collapse. */
+function crackFootprints(s,ps){
+ let changed=false;
+ for(const p of ps){
+  if(!p.active||!p.bk?.alive)continue;
+  const now=tileAt(s,p.x,p.y),prev=p.bk.lastTile;
+  if(prev===now)continue;
+  p.bk.lastTile=now;
+  if(prev<0||s.st[prev]!==0)continue;
+  // Keep the tile solid while someone else is still standing on it.
+  if(ps.some(q=>q!==p&&q.active&&q.bk?.alive&&tileAt(s,q.x,q.y)===prev))continue;
+  s.st[prev]=1;s.tm[prev]=0;s.wp[prev]=1;
+  s.active.push(prev);s.dirty.push(prev);changed=true;
+ }
+ if(changed)s.version++;
 }
 /* ===== Movement / collision / falling ===== */
 function stick(p){
@@ -381,7 +398,7 @@ function setup(round,ps){
  ps.forEach((p,i)=>{
   const c=tileCenter(s,tiles[i]);p.active=true;p.score=0;p.x=c.x;p.y=c.y;p.vx=0;p.vy=0;
   const dx=mid.x-c.x,dy=mid.y-c.y,m=Math.hypot(dx,dy)||1;p.dir={x:dx/m,y:dy/m};p.face=dx<0?-1:1;
-  p.bk={alive:true,falling:false,fallT:0,eliminatedAt:null,eliminatedTick:null,mode:'alive',pit:null,bot:null};
+  p.bk={alive:true,falling:false,fallT:0,eliminatedAt:null,eliminatedTick:null,mode:'alive',pit:null,bot:null,lastTile:tiles[i]};
   if(p.isBot)p.bk.bot=newBot(s,p);});
  if(typeof document!=='undefined')s.cache=A.build(L,seed);
  return s;
@@ -403,10 +420,8 @@ function step(dt,round,ps){
  for(const p of live)clampField(s,p);
  resolveBodies(s,live);
  for(const p of live){clampField(s,p);if(supportCount(s,p.x,p.y)<C.supportMin)startFall(s,p);}
+ crackFootprints(s,live);
  updateTiles(s,dt);
- if(s.clock>=s.nextBreak){
-  const d=difficulty(s);
-  s.nextBreak=s.clock+(scheduleBreak(s)?breakInterval(s,d):.4);}
  updateFallers(s,ps,dt);updateParts(s,dt);
  const survivors=living(ps).length;
  if(s.originalCount===1){if(!survivors||s.clock>=s.cap)finish(s,round,ps);}
