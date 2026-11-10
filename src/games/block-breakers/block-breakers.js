@@ -5,7 +5,7 @@
 'use strict';
 const STEP=1/60,TAU=Math.PI*2;
 // All timings are central constants (seconds) and are advanced by the fixed step, never by frame rate.
-const TIMING=Object.freeze({crack:.55,heavy:.45,collapse:.35,lateScale:.74});
+const TIMING=Object.freeze({crack:.85,heavy:.45,collapse:.9,secondReady:.45,lateScale:.74});
 const STAGE=[TIMING.crack,TIMING.heavy,TIMING.collapse];
 const C=Object.freeze({radius:15,foot:11,supportMin:4,accel:900,drag:5.2,hardSpeed:300,restitution:.78,maxShift:3.5,
  botSpeed:150,fallTime:.75,soloDuration:60,maxDuration:90,startDelay:2.2,maxParticles:170});
@@ -31,8 +31,11 @@ function supportCount(s,x,y){
  return n;
 }
 function timeLeft(s,i){
- const k=s.st[i];if(k>=4)return -1;if(k===0)return Infinity;
- const w=s.wp[i]||1;let t=Math.max(0,STAGE[k-1]*w-s.tm[i]);for(let j=k;j<3;j++)t+=STAGE[j]*w;return t;
+ const k=s.st[i];if(k>=4)return -1;
+ // The first layer and the exposed second layer do not become a hole
+ // until the bottom layer is actually stepped on.
+ if(k<=2)return Infinity;
+ return Math.max(0,TIMING.collapse*(s.wp[i]||1)-s.tm[i]);
 }
 function neighbors(s,i,out){
  const c=colOf(s,i),r=rowOf(s,i);let n=0;
@@ -64,11 +67,22 @@ function updateParts(s,dt){
 function updateTiles(s,dt){
  let changed=false;
  for(let k=s.active.length-1;k>=0;k--){
-  const i=s.active[k];s.tm[i]+=dt;const state=s.st[i];
+  const i=s.active[k],state=s.st[i];
+  if(state!==1&&state!==3){s.active[k]=s.active[s.active.length-1];s.active.pop();continue;}
+  s.tm[i]+=dt;
   if(state===3&&fxr(s)<.22){const c=tileCenter(s,i);dust(s,c.x+(fxr(s)-.5)*30,c.y+(fxr(s)-.5)*30,1,false);}
-  if(s.tm[i]<STAGE[state-1]*s.wp[i])continue;
-  s.tm[i]=0;s.st[i]=state+1;changed=true;
-  if(s.st[i]>=4){s.st[i]=4;s.holes++;s.active[k]=s.active[s.active.length-1];s.active.pop();s.dirty.push(i);burst(s,i);}
+  const duration=(state===1?TIMING.crack:TIMING.collapse)*s.wp[i];
+  if(s.tm[i]<duration)continue;
+  s.tm[i]=0;
+  s.active[k]=s.active[s.active.length-1];s.active.pop();
+  if(state===1){
+   // Only the top layer breaks: exposed bottom remains solid until second touch.
+   s.st[i]=2;s.ready[i]=s.clock+TIMING.secondReady;
+  }else{
+   // Only the second layer breaks into a pit.
+   s.st[i]=4;s.holes++;s.dirty.push(i);burst(s,i);
+  }
+  changed=true;
  }
  if(changed)s.version++;
 }
@@ -214,20 +228,19 @@ function breakInterval(s,d){
  if(s.clock>s.cap)t*=Math.max(.35,1-(s.clock-s.cap)/25);
  return t*(.85+rng(s)*.3);
 }
-/* A stepped-on tile is intact until the player leaves it. Cracks advance behind
-   moving players, one tile at a time; no random off-path floor collapse. */
-function crackFootprints(s,ps){
+/* Contact-based, not movement-based: standing in place triggers both
+   layers after their independent delay and grace period. */
+function triggerContact(s,ps){
  let changed=false;
  for(const p of ps){
   if(!p.active||!p.bk?.alive)continue;
-  const now=tileAt(s,p.x,p.y),prev=p.bk.lastTile;
-  if(prev===now)continue;
-  p.bk.lastTile=now;
-  if(prev<0||s.st[prev]!==0)continue;
-  // Keep the tile solid while someone else is still standing on it.
-  if(ps.some(q=>q!==p&&q.active&&q.bk?.alive&&tileAt(s,q.x,q.y)===prev))continue;
-  s.st[prev]=1;s.tm[prev]=0;s.wp[prev]=1;
-  s.active.push(prev);s.dirty.push(prev);changed=true;
+  const i=tileAt(s,p.x,p.y);p.bk.lastTile=i;
+  if(i<0)continue;
+  if(s.st[i]===0){
+   s.st[i]=1;s.tm[i]=0;s.active.push(i);changed=true;
+  }else if(s.st[i]===2&&s.clock>=s.ready[i]){
+   s.st[i]=3;s.tm[i]=0;s.active.push(i);changed=true;
+  }
  }
  if(changed)s.version++;
 }
@@ -388,7 +401,7 @@ function setup(round,ps){
  const seed=((Number(round.blockBreakersSeed)||(Date.now()^0x5bd1e99))>>>0)||1;
  const s={clock:0,tick:0,accumulator:0,seed,fxSeed:(seed^0x9e3779b9)>>>0||1,layout:L,big:L.big,cols:L.cols,rows:L.rows,total,
   T:L.tile,x0:L.x,y0:L.y,w:L.w,h:L.h,
-  st:new Uint8Array(total),tm:new Float32Array(total),wp:new Float32Array(total).fill(1),active:[],holes:0,version:0,dirty:[],
+  st:new Uint8Array(total),tm:new Float32Array(total),ready:new Float32Array(total),wp:new Float32Array(total).fill(1),active:[],holes:0,version:0,dirty:[],
   q:new Int16Array(total),lab:new Int16Array(total),dist:new Int16Array(total),bdist:new Int16Array(total),bpar:new Int16Array(total),
   nmask:new Uint8Array(total),nbuf:[0,0,0,0],nav:{version:-1,lab:new Int16Array(total),sizes:[0]},
   parts:[],nextBreak:C.startDelay,lastPattern:null,planBudget:2,finished:false,winnerIds:[],ranking:[],roster:ps,originalCount:n,
@@ -420,12 +433,12 @@ function step(dt,round,ps){
  for(const p of live)clampField(s,p);
  resolveBodies(s,live);
  for(const p of live){clampField(s,p);if(supportCount(s,p.x,p.y)<C.supportMin)startFall(s,p);}
- crackFootprints(s,live);
+ triggerContact(s,live);
  updateTiles(s,dt);
  updateFallers(s,ps,dt);updateParts(s,dt);
  const survivors=living(ps).length;
  if(s.originalCount===1){if(!survivors||s.clock>=s.cap)finish(s,round,ps);}
- else if(survivors<=1)finish(s,round,ps);
+ else if(survivors<=1||s.clock>=s.cap)finish(s,round,ps);
  if(!s.finished)round.remaining=ps.length===1?Math.max(0,s.cap-s.clock):null;
 }
 function update(dt,round,ps){
@@ -461,8 +474,10 @@ function draw(g,time,round,ps){
  g.drawImage(cache.backdrop,0,0,L.W,L.H);
  g.drawImage(cache.floor,s.x0,s.y0,s.w,s.h);
  g.drawImage(cache.holes,s.x0,s.y0,s.w,s.h);
+ // The lower layer stays visibly exposed between the two impacts.
+ for(let i=0;i<s.total;i++)if(s.st[i]===2)A.drawBreaking(g,L,cache,i,2,0,s.clock);
  for(const i of s.active){
-  const state=s.st[i],dur=STAGE[state-1]*s.wp[i];
+  const state=s.st[i],dur=(state===1?TIMING.crack:TIMING.collapse)*s.wp[i];
   A.drawBreaking(g,L,cache,i,state,clamp(s.tm[i]/dur,0,1),s.clock);}
  for(const p of ps){const b=p.bk;if(!p.active||!b?.falling)continue;
   const e=clamp(b.fallT/C.fallTime,0,1),sc=1-.82*e;
