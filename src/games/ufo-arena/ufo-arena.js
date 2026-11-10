@@ -5,11 +5,11 @@ import * as Art from './ufo-art.js';
 
 const STEP=1/120,TAU=Math.PI*2,EPS=1e-9;
 const C=Object.freeze({
- radius:17,acc:330,fric:1.65,brake:1.95,maxSpeed:780,mass:1,
- ufoRest:.82,impactMultiplier:3,
- wallRest:.42,
- cornerRest:1.3,cornerBase:300,cornerGain:1.0,        // strong bumper: out = max(|vn|*rest, base + min(|vn|,260)*gain)
- bumperRest:1.15,bumperBase:230,bumperGain:.8,bumperRadius:42,
+ radius:17,acc:330,fric:1.85,brake:2.15,maxSpeed:560,mass:1,
+ ufoRest:.4,impactMultiplier:1.25,
+ wallRest:.38,
+ cornerRest:.8,cornerBase:190,cornerGain:.45,        // strong bumper: out = max(|vn|*rest, base + min(|vn|,260)*gain)
+ bumperRest:.65,bumperBase:165,bumperGain:.38,bumperRadius:42,
  hp:5,invuln:.8,
  spike:{len:27,warn:.6,actMin:1.2,actMax:1.8,restMin:.8,restMax:1.4,extend:.09,retract:.2,knock:190,
   slot:84,maxLiveFrac:.5,maxLiveEdges:8},
@@ -306,7 +306,7 @@ function bounceOff(p,nx,ny,rest,base,gain,u){
  const inN=-vn;
  const out=Math.max(inN*rest,base?base*u+Math.min(inN,260*u)*gain:0)*C.impactMultiplier;
  p.vx+=nx*(out-vn);p.vy+=ny*(out-vn);
- p.ufo.impactT=.5; // keep collision velocity instead of clamping it next frame
+ p.ufo.impactT=.3; // short impact allowance; no multi-body energy explosion
  return inN;
 }
 function envCollide(s,p){
@@ -348,7 +348,7 @@ function pairCollide(s,live){
   if(rel<0){
    const j2=-(1+C.ufoRest)*rel/im*C.impactMultiplier;
    a.vx-=j2*nx/ma;a.vy-=j2*ny/ma;b.vx+=j2*nx/mb;b.vy+=j2*ny/mb;
-   a.ufo.impactT=b.ufo.impactT=.5;
+   a.ufo.impactT=b.ufo.impactT=.3;
    if(-rel>90*u&&a.ufo.fxCool<=0&&b.ufo.fxCool<=0){
     a.ufo.fxCool=b.ufo.fxCool=.12;
     impactFx(s,(a.x+b.x)/2,(a.y+b.y)/2,'#fff4c2',clamp(-rel/(260*u),.2,1));

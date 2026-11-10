@@ -24,8 +24,8 @@ for(const n of [1,2,6,7,12]){
 }
 // Balance contract: slower traversal, larger mines, and early radar plane.
 assert.equal(G.config.speed,67.5);
-assert.equal(G.config.mineR,16);
-assert.equal(G.config.hazard,26);
+assert.equal(G.config.mineR,20.8);
+assert.equal(G.config.hazard,33.8);
 assert.equal(G.config.introSeconds,3);
 assert.equal(G.config.mineRespawn,3.2);
 // Repeated generation cannot produce a disconnected alternative route.
@@ -34,6 +34,13 @@ for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
  const round={phase:'countdown',dangerSeed:seed};
  const s=G.setup(round,ps);
  assert.ok(s.mines.length>0);
+ // A single unbranched continuous spine: just two endpoints and no forks.
+ const route=s.routeNodes||[],nodes=new Set(route.map(p=>p.i+','+p.j));
+ const degree=p=>[[1,0],[-1,0],[0,1],[0,-1]]
+  .filter(([di,dj])=>nodes.has((p.i+di)+','+(p.j+dj))).length;
+ assert.ok(route.length>15,'danger route must extend beyond a straight crossing');
+ assert.equal(route.filter(p=>degree(p)===1).length,2,'two unique route endpoints');
+ assert.ok(route.every(p=>degree(p)===1||degree(p)===2),'no parallel split or branching corridor');
  assert.ok(s.slots.every(q=>Number.isFinite(G.remainingAt(s,q.x,q.y))),
   'winding route disconnected for '+n+'/'+seed);
 }

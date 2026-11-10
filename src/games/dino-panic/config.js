@@ -2,7 +2,8 @@
 export const STEP=1/60,TAU=Math.PI*2;
 export const C=Object.freeze({
  R:15,                // body hit radius (PartyCharacters default). Sprite is 52 wide and is NOT a hit circle.
- speed:150,           // max walking speed of EVERY runner and the constant speed of the dinosaur (units/s)
+ speed:130,           // reduced shared runner/dinosaur speed; retains a fair constant-speed chase
+ pushFactor:.38,      // pushing a solid obstacle is deliberately slower than walking
  gap0:440,            // distance from dinosaur front to the first spawn column
  colGap:34,           // extra column spacing when 10–12 runners need two spawn columns
  firstGap:520,        // free run between the last spawn column and the first obstacle chunk

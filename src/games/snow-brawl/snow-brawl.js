@@ -60,7 +60,7 @@ function setup(round,players){
   p.vx=0;p.vy=0;p.kvx=0;p.kvy=0;p.dir={x:-Math.cos(angle)||1,y:-Math.sin(angle)};
   p.face=p.dir.x<0?-1:1;p.active=true;p.score=0;
   p.snow={alive:true,ballId:null,phase:'COLLECTING',windup:0,
-   flat:0,flatImmunity:0,prevA:false,rebuildCooldown:0,eliminatedTick:null,eliminatedAt:null,
+   flat:0,flatImmunity:0,prevA:false,prevMoving:false,rebuildCooldown:0,eliminatedTick:null,eliminatedAt:null,
    faceX:p.dir.x,faceY:p.dir.y,botOrbit:i%2?1:-1,botReplan:0,
    botTarget:null,botTargetUntil:0,botAim:false,shotsFired:0,
    botProbeX:p.x,botProbeY:p.y,botProbeAt:2.5,botAggroUntil:0};
@@ -230,6 +230,11 @@ function playerStep(s,p,dt){
  const pressingA=p.isBot?!!input.action:!!p.input?.action;
  const actionEdge=pressingA&&!b.prevA;
  b.prevA=pressingA;
+ const moving=mag(input.x,input.y)>.15;
+ // Releasing the movement joystick fires the held snowball as if A was
+ // pressed. An idle joystick at spawn must not trigger an empty shot.
+ const joystickReleased=!p.isBot&&b.prevMoving&&mag(input.x,input.y)<.08;
+ b.prevMoving=moving;
  const ball=ballFor(s,p);
  if(b.phase==='WINDUP'){
   p.vx=0;p.vy=0;
@@ -256,7 +261,7 @@ function playerStep(s,p,dt){
   }
   const speed=mag(p.vx,p.vy);
   if(speed>C.maxMoveSpeed){p.vx*=C.maxMoveSpeed/speed;p.vy*=C.maxMoveSpeed/speed;}
-  if(actionEdge&&ball&&ball.r>=C.baseRadius)beginWindup(s,p,ball);
+  if((actionEdge||joystickReleased)&&ball&&ball.r>=C.baseRadius)beginWindup(s,p,ball);
  }
  // Knockback is separate from motor movement, so movement cannot cancel
  // momentum in one frame. Flattened players can still be knocked around.
@@ -558,8 +563,12 @@ function draw(ctx,time,round,ps){
   ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,fx.r+(1-fx.life/fx.max)*32,0,TAU);ctx.stroke();
   ctx.restore();
  }
+ // Victims flattened underneath a foreign held snowball must render BEHIND
+ // it. Previously every player was drawn after every snowball, so crushed
+ // players appeared to stand on top of the ball that flattened them.
+ for(const p of ps)if(p.snow?.alive&&p.snow.flat>0)drawPerson(ctx,p,time);
  for(const b of s.balls)if(b.state!=='DESTROYED')drawBall(ctx,b);
- for(const p of ps)drawPerson(ctx,p,time);
+ for(const p of ps)if(p.snow?.alive&&p.snow.flat<=0)drawPerson(ctx,p,time);
  ctx.restore(); // drawIsland leaves a translated/scaled world transform
  // Extra mode/status banners removed; shared centre badge is the only HUD.
  ctx.restore();

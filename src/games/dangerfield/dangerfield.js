@@ -10,9 +10,9 @@ const STEP=1/60,TAU=Math.PI*2;
 // Tunables (balance values are meant to be edited here).
 const C=Object.freeze({
  radius:14,          // body radius (world px, never scaled with the screen)
- mineR:16,           // larger mines on the field
- hazard:26,          // larger explosion collision radius
- navR:36.5,          // conservative safe navigation clearance
+ mineR:20.8,         // 30% bigger visible landmines
+ hazard:33.8,        // 30% bigger actual trigger/explosion radius
+ navR:41,            // expanded safe navigation clearance
  cell:12,pitch:50,
  speed:67.5,botSpeed:.93, // move at half of the old speed
  introSeconds:3,planeSpeed:760,bombTime:.55,
@@ -135,30 +135,30 @@ function carvePath(L,rng,open,from,to,jit,pen){
  return out;
 }
 function carveRoutes(L,rng,open,template,fallback){
- // Exactly ONE traversable winding spine across the minefield.
- // Boundary lanes connect all start and finish positions to this spine.
- const {cols,rows}=L;
- const mark=(i,j)=>{
+ // A SINGLE continuous winding corridor, with no parallel alternative
+ // from start to finish. Each horizontal run links to the next only
+ // through a turn at the opposite end, extending play time naturally.
+ const {cols,rows}=L,left=Math.max(2,Math.floor((cols-1)*.28)),right=cols-1-left;
+ const bottom=rows-2,mid=bottom-2,upper=bottom-4;
+ if(upper<=1||right<=left+2)return false;
+ const set=(i,j)=>{
   if(i<0||j<0||i>=cols||j>=rows||L.forbid[j*cols+i])return false;
   open[j*cols+i]=1;return true;
  };
- for(let j=0;j<rows;j++){
-  if(!mark(0,j)||!mark(cols-1,j))return false;
- }
- const top=(template%2)===0;
- const upper=top?1:rows-2,lower=top?2:rows-3;
- let row=upper;
- if(!mark(0,row))return false;
- for(let i=1;i<cols-1;i++){
-  if(!mark(i,row))return false;
-  // Every three columns change level; do not open parallel highways.
-  if(i%3===0){
-   const next=row===upper?lower:upper;
-   if(!mark(i,next))return false;
-   row=next;
-  }
- }
- return mark(cols-1,row);
+ const line=(a,b)=>{
+  let [x,y]=a;const [tx,ty]=b;
+  if(x!==tx&&y!==ty)return false;
+  const dx=Math.sign(tx-x),dy=Math.sign(ty-y);
+  for(;;){if(!set(x,y))return false;if(x===tx&&y===ty)return true;x+=dx;y+=dy;}
+ };
+ const waypoints=[
+  [0,1],[left,1],[left,3],[0,3],[0,bottom],
+  [cols-1,bottom],[cols-1,mid],[right,mid],
+  [right,upper],[cols-1,upper]
+ ];
+ for(let i=1;i<waypoints.length;i++)
+  if(!line(waypoints[i-1],waypoints[i]))return false;
+ return true;
 }
 function generate(s,attempt,fallback){
  const rng=mk((s.seed^Math.imul(attempt+1,0x9e3779b1))>>>0),f=s.field,rp=s.radarPos,L=lattice(s);
@@ -186,7 +186,7 @@ function generate(s,attempt,fallback){
   if(obstacles.some(ob=>overlaps(ob,nd.x,nd.y,C.mineR+4)))continue;
   mines.push({id:mines.length,x:nd.x+(rng()-.5)*6,y:nd.y+(rng()-.5)*6,r:C.mineR,alive:true,respawnAt:Infinity,seed:rng()});
  }
- return{mines,obstacles};
+ return{mines,obstacles,routeNodes:L.nodes.filter(nd=>open[nd.j*L.cols+nd.i]).map(nd=>({i:nd.i,j:nd.j,x:nd.x,y:nd.y}))};
 }
 function analyse(s,cand){
  const nav=s.nav,base=staticBlocked(s,cand.obstacles),blocked=base.slice();
@@ -208,7 +208,7 @@ function buildWorld(s){
   const a=analyse(s,cand);if(a)info=a;
  }
  if(!info){cand=generate(s,0,true);info=analyse(s,cand);s.usedFallback=true;}
- s.attempts=attempts;s.mines=cand.mines;s.obstacles=cand.obstacles;
+ s.attempts=attempts;s.mines=cand.mines;s.obstacles=cand.obstacles;s.routeNodes=cand.routeNodes;
  s.navBase=info.base;s.D0=info.D;s.startDist=info.start;s.goalSeeds=info.seeds;
  // Live snapshot: mines that exploded stop blocking, recomputed once per explosion tick.
  s.blockedLive=info.blocked.slice();s.dLive=Float64Array.from(info.D);
@@ -349,7 +349,7 @@ function mineHit(s,x0,y0,x1,y1){
 }
 function explode(s,m,victims){
  m.alive=false;m.respawnAt=s.clock+C.mineRespawn;
- s.burns.push({x:m.x,y:m.y,r:18+m.seed*6,a:m.seed*TAU});
+ s.burns.push({x:m.x,y:m.y,r:(18+m.seed*6)*1.3,a:m.seed*TAU});
  addEffect(s,{type:'boom',x:m.x,y:m.y,life:.9,max:.9,seed:m.seed});
  for(const p of victims){
   const d=p.df;d.state='dead';d.respawnLeft=C.respawnDelay;d.deaths++;p.vx=0;p.vy=0;

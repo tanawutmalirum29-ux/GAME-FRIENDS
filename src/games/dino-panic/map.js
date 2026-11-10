@@ -148,13 +148,38 @@ export function buildTrack(tier,seed,playerCount){
  }
  const buckets=new Map();
  for(const o of obstacles){const e=o.shape==='circle'?o.r:o.hw;
-  for(let b=Math.floor((o.x-e)/BUCKET);b<=Math.floor((o.x+e)/BUCKET);b++){let a=buckets.get(b);if(!a)buckets.set(b,a=[]);a.push(o);}}
+  o._bucketLo=Math.floor((o.x-e)/BUCKET);o._bucketHi=Math.floor((o.x+e)/BUCKET);
+  for(let b=o._bucketLo;b<=o._bucketHi;b++){let a=buckets.get(b);if(!a)buckets.set(b,a=[]);a.push(o);}}
  let stamp=0;
  const query=(xa,xb)=>{const out=[];stamp++;
   for(let b=Math.floor(xa/BUCKET);b<=Math.floor(xb/BUCKET);b++){const a=buckets.get(b);if(!a)continue;
    for(const o of a)if(o.alive&&o._q!==stamp){o._q=stamp;out.push(o);}}
   return out;};
- return{tier,top,bottom,H,cy,cols,perCol,spawnX,lastSpawn,finishX,endX,obstacles,chunks,query,
+ // Obstacles stay in the bucket index when shoved by a runner: otherwise
+ // colliders and visible sprites would diverge after crossing a bucket edge.
+ const moveObstacle=(o,dx,dy)=>{
+  if(!o.alive||(!dx&&!dy))return false;
+  const rx=o.shape==='circle'?o.r:o.hw,ry=o.shape==='circle'?o.r:o.hh;
+  const nx=o.x+dx,ny=o.y+dy;
+  if(ny-ry<top-3||ny+ry>bottom+3||nx-rx<lastSpawn+45||nx+rx>finishX-35)return false;
+  for(const q of query(nx-rx-5,nx+rx+5)){
+   if(q===o)continue;
+   const qx=q.shape==='circle'?q.r:q.hw,qy=q.shape==='circle'?q.r:q.hh;
+   if(Math.abs(nx-q.x)<rx+qx+3&&Math.abs(ny-q.y)<ry+qy+3)return false;
+  }
+  const lo=Math.floor((nx-rx)/BUCKET),hi=Math.floor((nx+rx)/BUCKET);
+  if(lo!==o._bucketLo||hi!==o._bucketHi){
+   for(let i=o._bucketLo;i<=o._bucketHi;i++){
+    const list=buckets.get(i);if(!list)continue;
+    const at=list.indexOf(o);if(at>=0)list.splice(at,1);
+    if(!list.length)buckets.delete(i);
+   }
+   for(let i=lo;i<=hi;i++){let list=buckets.get(i);if(!list)buckets.set(i,list=[]);list.push(o);}
+   o._bucketLo=lo;o._bucketHi=hi;
+  }
+  o.x=nx;o.y=ny;return true;
+ };
+ return{tier,top,bottom,H,cy,cols,perCol,spawnX,lastSpawn,finishX,endX,obstacles,chunks,query,moveObstacle,
   overhead:prevOver,fallbacks,seed};
 }
 
