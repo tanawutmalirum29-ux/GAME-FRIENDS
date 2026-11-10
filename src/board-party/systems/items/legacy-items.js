@@ -59,7 +59,7 @@ function action(s,id,button){
 }
 function input(s,id,packet){
  M().assertCompatible(s.map);
- if(packet.mapVersion&&packet.mapVersion!==s.map.version)return false;
+ if(packet.mapId&&packet.mapId!==s.map.id)return false;
  // Turn tokens change at every control boundary, including returning from a game.
  if(packet.turnId!==s.turnId||!Number.isSafeInteger(packet.actionId)||packet.actionId<0||packet.actionId<=(s.lastActions[id]??-1))return false;
  const p=s.players.find(p=>p.id===id);if(!p||s.phase==='finished'||s.phase==='minigame')return false;

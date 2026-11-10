@@ -1,4 +1,4 @@
-function snapshot(s){M().assertCompatible(s.map);return JSON.parse(JSON.stringify({mapVersion:s.map.version,map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}
+function snapshot(s){M().assertCompatible(s.map);return JSON.parse(JSON.stringify({mapId:s.map.id,map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}
 function controls(s,id){
  const p=s.players.find(p=>p.id===id),mine=current(s)?.id===id;
  if(s.phase==='overview')return{a:'เริ่มทอยลำดับ',b:'',help:'ลากและซูมสำรวจแผนที่ • กด A เมื่อพร้อม'};
