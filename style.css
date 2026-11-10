@@ -4362,6 +4362,9 @@ body:has(#home:not(.hidden)) footer{
  background:#a52a40;color:#fff;border:1px solid #f27a8e;border-radius:7px;
  font:800 11px/1 system-ui,sans-serif;box-shadow:0 3px 9px #270e1bc0;
  transform-origin:top left;z-index:14;cursor:pointer;
+ /* .game-toolbar intentionally has pointer-events:none so the BOARD canvas
+    stays touchable. The exit is its child, so it must explicitly opt back in. */
+ pointer-events:auto;
  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
 }
 .board-playing #game #boardExitBtn:active{background:#c43f57}
