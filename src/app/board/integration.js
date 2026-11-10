@@ -18,28 +18,52 @@
        width:s.map.width,height:s.map.height,nodes,links}};
    return boardMiniMapCache;
  }
- function sendBoardMiniMap(conn){
+ // BOARD positions are identical for all connected controllers. Build the
+ // immutable packet once per simulation tick instead of once per remote peer.
+ let boardPositionCache=null,boardLastPositionKey='',boardLastPositionAt=0;
+ function boardMiniMapPositions(s){
+   if(boardPositionCache?.session===s.id&&boardPositionCache.time===s.time&&
+      boardPositionCache.turnId===s.turnId)return boardPositionCache.packet;
+   const active=window.BoardParty.current(s);
+   const packet={t:'board-minimap-positions',session:s.id,turnId:s.turnId,
+     activeId:active?.id||null,
+     players:s.players.map(p=>{
+       const v=window.BoardItems.position(s,p);
+       return [p.id,Math.round(v.x),Math.round(v.y),p.color];
+     })};
+   boardPositionCache={session:s.id,time:s.time,turnId:s.turnId,packet};
+   return packet;
+ }
+ function sendBoardMiniMap(conn,positions=null){
    const s=boardSession;
    if(!s||round?.mode!=='board'||!conn?.open||!conn.playerId||
       conn.previewEnabled!==true||conn.boardMinimapCapable!==true)return;
+   // Never queue stale minimap frames ahead of actual controller state.
+   if((conn.dataChannel?.bufferedAmount||0)>32768)return;
    const cache=boardMiniMapTopology();
    if(conn.boardMiniMapSession!==cache.session){
      send(conn,cache.packet);
      conn.boardMiniMapSession=cache.session;
    }
-   const active=window.BoardParty.current(s);
-   send(conn,{t:'board-minimap-positions',session:s.id,turnId:s.turnId,
-     activeId:active?.id||null,
-     players:s.players.map(p=>{
-       const v=window.BoardItems.position(s,p);
-       return [p.id,Math.round(v.x),Math.round(v.y),p.color];
-     })});
+   send(conn,positions||boardMiniMapPositions(s));
  }
  function broadcastBoardMiniMap(dt){
    boardMiniMapClock+=Math.min(.1,Math.max(0,Number(dt)||0));
    if(boardMiniMapClock<1/12)return;
    boardMiniMapClock=0;
-   for(const conn of hostConnections)sendBoardMiniMap(conn);
+   const s=boardSession;
+   if(!s||round?.mode!=='board')return;
+   const observers=[...hostConnections].filter(conn=>
+     conn.open&&conn.playerId&&conn.previewEnabled===true&&
+     conn.boardMinimapCapable===true);
+   if(!observers.length)return;
+   const packet=boardMiniMapPositions(s);
+   const key=JSON.stringify([packet.session,packet.turnId,packet.activeId,packet.players]);
+   // A turn-based BOARD is often completely still for seconds. Keep a 1 Hz
+   // heartbeat, but preserve ~12 Hz whenever a player actually moves.
+   if(key===boardLastPositionKey&&s.time-boardLastPositionAt<1)return;
+   boardLastPositionKey=key;boardLastPositionAt=s.time;
+   for(const conn of observers)sendBoardMiniMap(conn,packet);
  }
  let phoneMiniMap=null,phoneMiniMapPositions=null;
  function showPhoneMiniMap(){
