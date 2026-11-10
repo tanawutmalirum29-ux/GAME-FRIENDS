@@ -1,0 +1,17 @@
+{
+  "id": "mole_mayhem",
+  "name": "MOLE MAYHEM",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": { "min": 1, "max": 12 },
+  "modes": ["normal", "board"],
+  "controls": ["joystick", "A"],
+  "cover": "cover.svg",
+  "entry": "./game.js",
+  "legacyScripts": [],
+  "controller": {
+    "help": "เดินด้วยจอย • กด A ตีตุ่นด้วยค้อน (ง้าง 0.2 วิ) • ตุ่นหมวกเหมือง ต้องตี 2 ครั้ง ผู้ตีครั้งสุดท้ายได้ 10 คะแนน • ตีเพื่อนทำให้สตัน 1.2 วิ • B ไม่ใช้",
+    "labels": { "A": "ตีค้อน", "B": "" },
+    "status": "MOLE MAYHEM • เหลือ {remaining} วิ"
+  }
+}
