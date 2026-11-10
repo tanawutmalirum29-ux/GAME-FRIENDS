@@ -366,7 +366,8 @@ function syncArenaResolution(){
  }
  if(boardActive&&box?.width){
   const toolScale=content.scale,originX=content.left,originY=content.top;
-  $('boardTools').style.cssText='left:'+(originX+600*toolScale)+'px;top:'+(originY+99*toolScale)+'px;transform:scale('+toolScale+');';
+  // The only BOARD toolbar control is Show ID, directly beneath Exit.
+  $('boardTools').style.cssText='left:'+(originX+872*toolScale)+'px;top:'+(originY+169*toolScale)+'px;transform:scale('+toolScale+');';
   $('pauseBtn').style.cssText='left:'+(originX+921*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
    // Right-align the full-size red Exit button with the tiny Pause control.
    $('boardExitBtn').style.cssText='left:'+(originX+872*toolScale)+'px;top:'+(originY+135*toolScale)+'px;transform:scale('+toolScale+');';
