@@ -449,8 +449,15 @@ const isStandaloneWebApp=()=>navigator?.standalone===true||
     Number(window.innerHeight)>Number(window.innerWidth);
  };
  const usesVirtualLandscape=()=>document.body.classList.contains('gf-virtual-landscape');
+ // Camera APIs and QR decoder use physical viewport coordinates. Never rotate
+ // the entire page while the scanner is open: iOS WebKit otherwise rotates
+ // the <video> but not its underlying sensor/decoder coordinate system.
+ const isRoomScannerActive=()=>{
+  const scanner=document.getElementById('roomScannerPanel');
+  return !!scanner&&!scanner.classList.contains('hidden');
+ };
  function syncLandscapePresentation(){
-  const active=physicalPortrait()&&
+  const active=!isRoomScannerActive()&&physicalPortrait()&&
    (isStandaloneWebApp()||currentView==='hostLobby'||currentView==='game');
   const was=usesVirtualLandscape();
   document.body.classList.toggle('gf-virtual-landscape',active);
