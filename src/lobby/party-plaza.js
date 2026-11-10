@@ -55,7 +55,10 @@ async function loadArt(){
   image=next;
  }catch(error){console.warn('Party Plaza art unavailable; using fallback',error);}
 }
-function configure(hooks){callbacks=hooks||{};initialize();}
+// Render the compressed SVG only while a live host lobby is visible.
+ // Preloading it on every game/controller entry caused WebKit to report
+ // blocked blob loads if an unrelated host test immediately reloaded.
+ function configure(hooks){callbacks=hooks||{};if(active)initialize();}
 function setActive(value){active=!!value;if(active)initialize();}
 function getSpawn(slot){return layout.spawnPoints[(slot%layout.spawnPoints.length+layout.spawnPoints.length)%layout.spawnPoints.length]||{x:480,y:327};}
 function isFree(x,y,exclude){
