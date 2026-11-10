@@ -18,12 +18,28 @@ function pickRandomEndlessGame(previous=null,random=Math.random){
 }
 function recoverMinigameLoadFailure(mode,error){
  const reason=String(error?.message||error||'unknown').slice(0,90);
- // Never disconnect the host or lose BOARD progress because one newly
- // discovered/updated game is temporarily unavailable.
- if(boardSession?.phase==='minigame'&&window.BoardParty?.minigameCancelled?.(boardSession)){
-  showBoard();
-  showToast('ข้าม '+(MODES[mode]||mode)+' • โหลดเกมไม่สำเร็จ: '+reason,true);
-  return;
+ // An unavailable game must never strand the active BOARD session or force
+ // a skipped round when another already-verified minigame can run.
+ if(boardSession?.phase==='minigame'){
+  const failed=boardSession.failedMinigames||(boardSession.failedMinigames=new Set());
+  failed.add(mode);
+  const platform=window.GamePlatform;
+  const alternatives=platform?.games('board').filter(game=>
+   !failed.has(game.id)&&platform.ready(game.id)&&
+   boardSession.players.length>=game.players.min&&
+   boardSession.players.length<=game.players.max) || [];
+  if(alternatives.length){
+   const fallback=alternatives.find(game=>game.id!==boardSession.lastMinigame)||alternatives[0];
+   boardSession.lastMinigame=fallback.id;
+   showToast('เกม '+(MODES[mode]||mode)+' โหลดไม่สำเร็จ • เปลี่ยนเป็น '+fallback.name,true);
+   beginGameSelection(fallback.id);
+   if(gameSelection)return;
+  }
+  if(window.BoardParty?.minigameCancelled?.(boardSession)){
+   showBoard();
+   showToast('ข้าม '+(MODES[mode]||mode)+' • ยังไม่มีมินิเกมที่โหลดได้: '+reason,true);
+   return;
+  }
  }
  returnToLobby();
  showToast('โหลดมินิเกมไม่สำเร็จ: '+reason,true);
@@ -200,6 +216,7 @@ document.querySelectorAll('[data-session-mode]').forEach(button=>{
    other.setAttribute('aria-pressed',String(active));
   }
   broadcastRoster();
+  if(selectedSessionMode==='board')prewarmBoardCore();
   if(onlineHost)saveHost();else saveOffline();
  });
 });
