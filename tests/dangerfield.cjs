@@ -63,7 +63,10 @@ for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
  assert.ok(turns>=4,'road requires multiple real hairpin turns, not a straight crossing');
  assert.ok(longestStraight<=6,'road must not have a long straight highway across the screen');
  assert.ok(walk.length>12+(n>6?20:12),'winding road must use the arena height');
- assert.ok(s.slots.every(q=>Number.isFinite(G.remainingAt(s,q.x,q.{
+ assert.ok(s.slots.every(q=>Number.isFinite(G.remainingAt(s,q.x,q.y))),
+  'winding route disconnected for '+n+'/'+seed);
+}
+{
  const ps=[{id:'solo',active:false,isBot:false,input:{axisX:0,axisY:0}}],
   round={phase:'playing',paused:false,dangerSeed:789},s=G.setup(round,ps),mine=s.mines[0];
  ps[0].x=mine.x;ps[0].y=mine.y;
@@ -72,8 +75,6 @@ for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
  assert.equal(ps[0].df.state,'dead','explosion sends the runner to respawn');
  assert.ok(Math.abs((mine.respawnAt-s.clock)-.2)<1e-8,'exactly 0.2 s cooldown from blast clock');
  const deadline=mine.respawnAt;
- // A mine is off until the deadline; it must reappear no later than one
- // fixed simulation tick after 200 ms (60 Hz simulation).
  while(s.clock+1/60<deadline-1e-9)G.step(1/60,round,ps);
  assert.equal(mine.alive,false,'mine must stay hidden before 0.2 seconds');
  while(s.clock<deadline)G.step(1/60,round,ps);
@@ -83,7 +84,5 @@ for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
  // Radar plane remains a separate three-second event, not tied to mine rearm.
  while(s.clock<3.1&&!s.finished)G.step(1/60,round,ps);
  assert.ok(s.plane,'airplane must arrive after its own 3-second trigger');
-}
-ane,'airplane must arrive from the 3-second trigger');
 }
 console.log('DANGERFIELD setup/navigation, mines, speed and airplane regression OK');
