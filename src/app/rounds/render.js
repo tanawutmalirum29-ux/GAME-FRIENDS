@@ -1,4 +1,4 @@
-let boardLeaderboardCleared=false;
+var boardLeaderboardCleared=false;
 function renderLeaderboard(){
   // BOARD uses its own canvas HUD; clearing the empty HTML HUD 4-5 times per
   // second creates useless layout/style work and intermittent iPad jank.
