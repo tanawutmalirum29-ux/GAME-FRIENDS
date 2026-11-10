@@ -441,4 +441,17 @@ assert.equal(left.snow.ballId,null);assert.equal(right.snow.ballId,null);
  G.step(1/60,g.round,g.ps);
  assert.equal(g.s.suddenDeath,true,'mixed rounds still enter sudden death at 90s');
 }
+// A runner's own movement cannot take them off the island. An external
+// body/snowball knockback still can: existing impact tests cover that force.
+{
+ const g=match(1),p=g.ps[0];
+ p.input.axisY=-1; // solo spawn is at the northern rim
+ for(let t=0;t<180;t++){
+  if(g.s.finished)break;
+  G.update(1/60,g.round,g.ps);
+  assert.equal(p.snow.alive,true,'walking off the island must not eliminate yourself');
+  assert.ok(Math.hypot(p.x,p.y)+C.playerRadius*.75<=g.s.radius+1e-6,
+   'motor movement must stop at island edge');
+ }
+}
 console.log('SNOW BRAWL PASS: 1–12 spawns, 0.15s windup, slow turns/front-locked ball, holder recoil, constant rolling speed <= 1.5x, chain impulses and bots');
