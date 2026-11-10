@@ -4057,6 +4057,15 @@ function shouldPaintBoardFrame(ts,lowDetail,dense){
  }
  return false;
 }
+// Other 3D/SVG minigames also need a 60 Hz drawing ceiling on ProMotion
+// devices. Input, combat and physics continue at the device's RAF cadence.
+let lastNormalPaintAt=0;
+function shouldPaintNormalFrame(ts){
+ if(!lastNormalPaintAt||ts<lastNormalPaintAt||ts-lastNormalPaintAt>=1000/60-0.5){
+  lastNormalPaintAt=ts;return true;
+ }
+ return false;
+}
 function animate(ts){
   const elapsed=Math.max(0,(ts-frameLast)/1000||.016);
   const dt=Math.min(.045,elapsed);
@@ -4076,10 +4085,12 @@ function animate(ts){
     if(round&&!gameSelection){
       const onBoard=round.mode==='board';
       if(onBoard)updateAdaptiveBoardDetail(elapsed);
-      const shouldDraw=!onBoard||shouldPaintBoardFrame(ts,
-       boardSession?.camera?.lowDetail,boardSession?.players.length>=8);
+      const shouldDraw=onBoard?shouldPaintBoardFrame(ts,
+       boardSession?.camera?.lowDetail,boardSession?.players.length>=8):
+       shouldPaintNormalFrame(ts);
       if(shouldDraw){drawGame(graphicsClock);renderHostVideoFrames();}
-      if(!onBoard)lastBoardPaintAt=0;
+      if(onBoard)lastNormalPaintAt=0;
+      else lastBoardPaintAt=0;
     }
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
