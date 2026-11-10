@@ -96,25 +96,9 @@ function updateAdaptiveBoardDetail(elapsed){
   c.lowDetail=false;c.autoDetailEngaged=false;fastBoardSeconds=0;refreshBoardTools();
  }
 }
-// Drawing the 302-node BOARD map at 120 Hz needlessly burns GPU/CPU on iPad.
-// Physics, joystick input, minigame timing and network updates stay on every RAF.
-let lastBoardPaintAt=0;
-function shouldPaintBoardFrame(ts,lowDetail,dense){
- const budget=1000/(lowDetail||dense?30:60);
- if(!lastBoardPaintAt||ts<lastBoardPaintAt||ts-lastBoardPaintAt>=budget-0.5){
-  lastBoardPaintAt=ts;return true;
- }
- return false;
-}
-// Other 3D/SVG minigames also need a 60 Hz drawing ceiling on ProMotion
-// devices. Input, combat and physics continue at the device's RAF cadence.
-let lastNormalPaintAt=0;
-function shouldPaintNormalFrame(ts){
- if(!lastNormalPaintAt||ts<lastNormalPaintAt||ts-lastNormalPaintAt>=1000/60-0.5){
-  lastNormalPaintAt=ts;return true;
- }
- return false;
-}
+// Render on every browser animation frame. There is no application-side 30/60
+// FPS cap: display refresh rate and the browser scheduler set the cadence.
+// Simulation timing, input polling and gameplay remain independent.
 function animate(ts){
   const elapsed=Math.max(0,(ts-frameLast)/1000||.016);
   const dt=Math.min(.045,elapsed);
@@ -134,12 +118,8 @@ function animate(ts){
     if(round&&!gameSelection){
       const onBoard=round.mode==='board';
       if(onBoard)updateAdaptiveBoardDetail(elapsed);
-      const shouldDraw=onBoard?shouldPaintBoardFrame(ts,
-       boardSession?.camera?.lowDetail,boardSession?.players.length>=8):
-       shouldPaintNormalFrame(ts);
-      if(shouldDraw){drawGame(graphicsClock);renderHostVideoFrames();}
-      if(onBoard)lastNormalPaintAt=0;
-      else lastBoardPaintAt=0;
+      drawGame(graphicsClock);
+      renderHostVideoFrames();
     }
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
@@ -247,20 +227,11 @@ $('webAppHelpBtn').addEventListener('click',()=>{
  help.classList.toggle('hidden',!opened);
  $('webAppHelpBtn').setAttribute('aria-expanded',String(opened));
 });
-$('boardOverviewBtn').addEventListener('click',()=>{
- if(round?.mode!=='board'||!boardSession||boardSession.phase==='intro_zoom'||
-   (boardSession.phase!=='overview'&&!hostCanControlBoardZoom()))return;
- if(boardSession.phase!=='overview')pauseGame();
- window.BoardArt.overview(boardSession);refreshBoardTools();
+$('boardNodeDebugBtn').addEventListener('click',()=>{
+ if(!boardSession||round?.mode!=='board')return;
+ window.BoardArt.toggleDebug(boardSession);
+ refreshBoardTools();
 });
-$('boardStartDiceBtn').addEventListener('click',()=>{if(boardSession&&window.BoardParty.startOrder(boardSession))refreshBoardTools();});
-$('boardFollowBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom()){window.BoardArt.follow(boardSession);if(round.paused)resumeGame();refreshBoardTools();}});
-$('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;
- boardSession.camera.manualDetail=true;boardSession.camera.autoDetailEngaged=false;
- refreshBoardTools();}});
-$('boardZoomInBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,1.25);});
-$('boardZoomOutBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,.8);});
-$('boardNodeDebugBtn').addEventListener('click',()=>{if(boardSession&&boardSession.players.every(p=>p.isBot)){window.BoardArt.toggleDebug(boardSession);refreshBoardTools();}});
 $('resumeBtn').addEventListener('click',resumeGame);
 document.addEventListener('keydown',e=>{
   if(currentView==='game'&&(e.code==='Escape'||e.code==='KeyP')){
