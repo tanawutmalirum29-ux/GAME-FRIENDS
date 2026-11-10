@@ -7,7 +7,7 @@ const TAU=Math.PI*2, STEP=1/60;
 const C=Object.freeze({
  small:Object.freeze({w:960,h:540,halfWidth:45,duration:40}),
  large:Object.freeze({w:1280,h:720,halfWidth:82,duration:70}),
- radius:14,hullHalfLength:24,hullHalfWidth:18,maxSpeed:306,thrust:426,forwardDrag:.16,lateralGrip:.82,
+ radius:14,hullHalfLength:24,hullHalfWidth:18,maxSpeed:268,thrust:380,forwardDrag:.33,lateralGrip:2.1,
  turnSpeed:3.65,turnAcceleration:12.5,restitution:.62,impactInertia:900,impactFriction:.08,
  fallDelay:.8,spawnProtection:.6
 });
@@ -101,7 +101,7 @@ function initialSpawns(s,ps){
   p.ice={state:'racing',vx:0,vy:0,heading:Math.atan2(at.ty,at.tx),
    angularVelocity:0,driftAngle:0,lastCheckpoint:0,nextCheckpoint:1,
    invulnerable:0,respawnLeft:0,fallLeft:0,botOffset:(rand(s)-.5)*s.halfWidth*.12,
-   botSpeed:(.35+rand(s)*.08)*C.maxSpeed,botReaction:.035+rand(s)*.035,
+   botSpeed:(.92+rand(s)*.06)*C.maxSpeed,botReaction:.016+rand(s)*.012,
    botClock:0,botInput:{x:0,y:0},botSkill:.75+rand(s)*.5,
    fallingVelocity:{x:0,y:0}};
  }
@@ -128,18 +128,21 @@ function setup(round,players){
 function botVector(s,p){
  const ice=p.ice,near=nearest(s,p.x,p.y);
  const speed=Math.hypot(ice.vx,ice.vy);
- const forward=sample(s,near.progress+clamp(95+speed*.35,95,215));
+ const forward=sample(s,near.progress+clamp(78+speed*.35,78,215));
  const next=sample(s,near.progress+clamp(115+speed*.6,125,240));
  const turn=Math.max(Math.acos(clamp(forward.tx*next.tx+forward.ty*next.ty,-1,1)),
   Math.acos(clamp(near.tx*forward.tx+near.ty*forward.ty,-1,1)));
  const edge=near.dist/s.halfWidth;
- const targetSpeed=clamp(ice.botSpeed*(1-turn*1.4)*(1-edge*.4),48,ice.botSpeed);
+ // Bots race close to the human speed cap rather than crawling at 35% of it.
+ // Coast only when exceeding a corner's safe speed; otherwise full throttle.
+ const targetSpeed=clamp(ice.botSpeed*(1-turn*.38)*(1-edge*.16),
+  C.maxSpeed*.25,ice.botSpeed);
  const tx=forward.x-forward.ty*ice.botOffset,ty=forward.y+forward.tx*ice.botOffset;
  const lead=.30+Math.min(.30,speed/500);
  let dx=tx-(p.x+ice.vx*lead),dy=ty-(p.y+ice.vy*lead);
  if(Math.hypot(dx,dy)<1){dx=forward.tx;dy=forward.ty;}
  const aim=Math.atan2(dy,dx),velocityDot=ice.vx*Math.cos(aim)+ice.vy*Math.sin(aim);
- const d=Math.hypot(dx,dy),throttle=speed>targetSpeed?0:speed>targetSpeed*.88?.25:1;
+ const d=Math.hypot(dx,dy),throttle=speed>targetSpeed?0:1;
  // The AI uses exactly the same acceleration, angular inertia, drag and
  // fall physics as a human; stopping input to coast is not a teleport brake.
  return{x:Math.cos(aim)*throttle*(d>2?1:0),y:Math.sin(aim)*throttle*(d>2?1:0),
