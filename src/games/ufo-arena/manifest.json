@@ -1,0 +1,25 @@
+{
+  "id": "ufo_arena",
+  "name": "UFO ARENA",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {
+    "min": 1,
+    "max": 12
+  },
+  "modes": [
+    "normal",
+    "board"
+  ],
+  "controls": [
+    "joystick"
+  ],
+  "cover": "cover.svg",
+  "entry": "./game.js",
+  "controller": {
+    "help": "ขับ UFO ชนและผลักคู่แข่งให้โดนหนาม • ขอบสีและแกนกลางเด้งแรง • หนามเท่านั้นที่ทำให้เสียหัวใจ",
+    "labels": {},
+    "status": "UFO ARENA • รอด {survivors} คน"
+  },
+  "legacyScripts": []
+}
