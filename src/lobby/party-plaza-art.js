@@ -21,7 +21,10 @@ function sceneUrl(){
    new DecompressionStream('gzip'))).text();
   if(!svg.includes('<svg')||!svg.includes('viewBox="0 0 960 540"'))
    throw Error('Party Plaza original SVG invalid');
-  url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
+  // A self-contained data URL survives WebKit's rapid room-to-game
+  // transition without asynchronous blob access-control errors on reload.
+  // The decoded SVG paths remain byte-for-byte unchanged (no rasterization).
+  url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
   return url;
  })().catch(e=>{pending=null;throw e;});
  return pending;
