@@ -56,6 +56,28 @@ async function geometry(page){
     await page.locator('#roster .roster-item:not(.roster-empty) button[aria-label^="เอา"]').last().click();
    const baseline=await geometry(page);
    assert.equal(baseline.loaded,true);assert.equal(baseline.bots,0);assert.equal(baseline.slots,12);
+   // Exercise real host-authoritative lobby walking, Arcade wall collision,
+   // and zone targeting: the old static roster never covered these mechanics.
+   const walking=await page.evaluate(()=>{
+    const api=window.PartyPlaza;
+    const player={id:'walk-qa',name:'Walk QA',color:'#ef507b',isBot:false,
+     conn:{open:true},input:{axisX:1,axisY:0,action:false,alt:false}};
+    api.sync([player]);
+    const x0=player.plazaX;
+    api.tick(.1,[player]);
+    const x1=player.plazaX;
+    player.plazaX=400;player.plazaY=154;
+    player.input.axisX=0;player.input.axisY=-1;
+    api.tick(.1,[player]);
+    const yWall=player.plazaY;
+    player.plazaX=480;player.plazaY=457;
+    const zone=api.zoneAt(player)?.id;
+    api.sync([]);
+    return {x0,x1,yWall,zone};
+   });
+   assert.ok(walking.x1>walking.x0+5,'connected phone joystick moves the lobby avatar');
+   assert.ok(walking.yWall>=153,'avatar cannot walk through the real Arcade wall');
+   assert.equal(walking.zone,'ready_area','READY area interaction comes from JSON zone geometry');
    const stable=async label=>{
     const now=await geometry(page);
     assert.equal(now.slots,12,label+' 12 reserved slots');
