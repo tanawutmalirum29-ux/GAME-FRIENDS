@@ -59,6 +59,7 @@ function getField(s,p){
  let field=s.botFields.get(x0);
  if(!field||s.clock-field.at>=MAX_FIELD_AGE){
   field=buildField(s,x0);s.botFields.set(x0,field);
+  s.botFieldsBuilt=(s.botFieldsBuilt||0)+1; // diagnostic: actual shared Dijkstra computations
  }
  if(s.botFields.size>12){
   for(const [key,v] of s.botFields)if(s.clock-v.at>1)s.botFields.delete(key);
