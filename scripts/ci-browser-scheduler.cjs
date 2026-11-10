@@ -25,6 +25,10 @@ function validateManifest(m,options={}){
   assert(!seen.has(t.file),'duplicate test '+t.file);
   seen.add(t.file);
   assert(t.browsers&&typeof t.browsers==='object'&&!Array.isArray(t.browsers),'missing browsers '+t.file);
+  assert(Array.isArray(t.areas)&&t.areas.length>0&&
+    t.areas.every(area=>typeof area==='string'&&/^[a-z0-9:-]+$/.test(area)),
+    'missing/invalid impact areas for '+t.file);
+  assert(new Set(t.areas).size===t.areas.length,'duplicate impact area '+t.file);
   const names=Object.keys(t.browsers);
   assert(names.length>0,'no supported browser for '+t.file);
   assert(names.every(v=>['chromium','webkit'].includes(v)),'unsupported browser in '+t.file);
@@ -52,9 +56,16 @@ function expandTasks(m){
   id:t.file+'@'+browser,file:t.file,browser,seconds
  })));
 }
-function createPlan(m){
- const tasks=expandTasks(m);
- assert(tasks.length>0,'no tasks to shard');
+function selectManifest(m,impact={full:true}){
+ if(impact.full===true)return m;
+ assert(impact&&Array.isArray(impact.areas)&&
+    ['targeted','docs'].includes(impact.mode),'invalid QA impact plan');
+ return {...m,tests:m.tests.filter(t=>t.areas.some(area=>impact.areas.includes(area))||
+   impact.areas.includes('test:'+t.file))};
+}
+function createPlan(m,impact={full:true}){
+ const tasks=expandTasks(selectManifest(m,impact));
+ if(!tasks.length)return []; // Docs-only PR still produces a successful stable gate.
  const total=tasks.reduce((s,t)=>s+t.seconds,0);
  const count=Math.min(m.maxShards,tasks.length,
   Math.max(m.minShards,Math.ceil(total/m.targetSecondsPerShard)));
@@ -71,11 +82,14 @@ function createPlan(m){
  assert(bins.every(b=>b.tasks.length),'empty shard found');
  return bins;
 }
-function matrix(m){
- return {include:createPlan(m).map(b=>({shard:b.shard}))};
+function matrix(m,impact={full:true}){
+ const selected=createPlan(m,impact);
+ return {include:selected.length?
+   selected.map(b=>({shard:b.shard,skip:false})):
+   [{shard:'no-browser-impact',skip:true}]};
 }
-function runShard(m,shard){
- const bins=createPlan(m),bin=bins.find(x=>x.shard===shard);
+function runShard(m,shard,impact={full:true}){
+ const bins=createPlan(m,impact),bin=bins.find(x=>x.shard===shard);
  assert(bin,'unknown shard '+shard);
  const base=path.join('/tmp/game-friends-board','ci-metrics');
  fs.mkdirSync(base,{recursive:true});
@@ -109,16 +123,17 @@ function runShard(m,shard){
 }
 function main(args){
  const m=validateManifest(readManifest());
+ const impact=process.env.QA_IMPACT_JSON ? JSON.parse(process.env.QA_IMPACT_JSON) : {full:true};
  if(args[0]==='--matrix'&&args.length===1){
-  console.log('matrix='+JSON.stringify(matrix(m)));
+  console.log('matrix='+JSON.stringify(matrix(m,impact)));
  }else if(args[0]==='--plan'&&args.length===1){
-  const plan=createPlan(m);
-  console.log('Dynamic browser QA: '+expandTasks(m).length+' checks / '+plan.length+
+  const plan=createPlan(m,impact);
+  console.log('Dynamic browser QA: '+expandTasks(selectManifest(m,impact)).length+' checks / '+plan.length+
    ' shards (target '+m.targetSecondsPerShard+'s, cap '+m.maxShards+').');
   for(const bin of plan)console.log(bin.shard+' '+bin.seconds+'s: '+
    bin.tasks.map(t=>t.id).join(', '));
  }else if(args[0]==='--run'&&args.length===2){
-  runShard(m,args[1]);
+  runShard(m,args[1],impact);
  }else{
   throw Error('Usage: node scripts/ci-browser-scheduler.cjs --matrix | --plan | --run shard-01');
  }
@@ -126,4 +141,4 @@ function main(args){
 if(require.main===module){
  try{main(process.argv.slice(2));}catch(e){console.error(e.stack||String(e));process.exitCode=1;}
 }
-module.exports={readManifest,validateManifest,expandTasks,createPlan,matrix};
+module.exports={readManifest,validateManifest,expandTasks,selectManifest,createPlan,matrix};

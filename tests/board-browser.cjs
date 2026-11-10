@@ -179,14 +179,52 @@ async function main(){
    'Show ID must be accessible even when humans are playing');
   await host.locator('#boardNodeDebugBtn').click();
   assert.equal(await host.evaluate(()=>__boardTest.board.camera.debugNodes),true);
-  for(let i=0;i<7;i++)await host.evaluate(()=>BoardArt.zoom(__boardTest.board,1.25));
+  // Consume any viewport-resize canvas synchronization before setting a manual
+  // zoom. At the board's fit-to-all view (roughly 0.09x), both axes are
+  // clamped by map bounds and dragging correctly cannot move the camera.
   await host.evaluate(()=>__boardTest.drawGame(0));
+  await host.evaluate(()=>{
+    const s=__boardTest.board;
+    BoardArt.zoom(s,.4/s.camera.zoom);
+    __boardTest.drawGame(0);
+  });
+  assert.ok(await host.evaluate(()=>__boardTest.board.camera.zoom>=.39),
+    'pan regression must start zoomed in, not at the clamped full-map overview');
   const beforePan=await host.evaluate(()=>({...__boardTest.board.camera}));
   const box=await host.locator('#arena').boundingBox(),viewHeight=await host.evaluate(()=>__boardTest.board.camera.viewHeight),scale=Math.min(box.width/960,box.height/viewHeight);
   const arena={x:box.x+(box.width-960*scale)/2,y:box.y+(box.height-viewHeight*scale)/2,width:960*scale,height:viewHeight*scale};
-  await host.mouse.move(arena.x+arena.width*.50,arena.y+arena.height*.75);await host.mouse.down();
-  await host.mouse.move(arena.x+arena.width*.60,arena.y+arena.height*.77,{steps:5});await host.mouse.up();
-  const afterPan=await host.evaluate(()=>({...__boardTest.board.camera}));
+  // Use an actual hit-testable map point. A toolbar can cover part of the canvas.
+  const hit=await host.evaluate(arena=>{
+    const canvas=document.getElementById('arena');
+    for(const [rx,ry] of [[.5,.75],[.4,.55],[.62,.55],[.5,.48],[.3,.75]]){
+      const x=arena.x+arena.width*rx,y=arena.y+arena.height*ry;
+      if(document.elementFromPoint(x,y)===canvas)return [rx,ry];
+    }
+    return null;
+  },arena);
+  assert.ok(hit,'BOARD paused map exposes a real canvas pointer target');
+  async function dragMap(dx,dy){
+    await host.mouse.move(arena.x+arena.width*hit[0],arena.y+arena.height*hit[1]);
+    await host.mouse.down();
+    await host.mouse.move(arena.x+arena.width*(hit[0]+dx),arena.y+arena.height*(hit[1]+dy),{steps:5});
+    await host.mouse.up();
+  }
+  await dragMap(.10,.02);
+  let afterPan=await host.evaluate(()=>({...__boardTest.board.camera}));
+  if(afterPan.x===beforePan.x&&afterPan.y===beforePan.y){
+    // A camera pinned to a map edge can clamp a drag in one direction.
+    await dragMap(-.10,-.08);
+    afterPan=await host.evaluate(()=>({...__boardTest.board.camera}));
+  }
+  if(afterPan.x===beforePan.x&&afterPan.y===beforePan.y){
+    const diagnostic=await host.evaluate(arena=>({
+      phase:__boardTest.board.phase,paused:__boardTest.round.paused,
+      canPan:BoardArt.canPan(__boardTest.board),camera:__boardTest.board.camera,
+      bounds:__boardTest.board.map.bounds,
+      hitTarget:document.elementFromPoint(arena.x+arena.width*.5,arena.y+arena.height*.75)?.id||'none'
+    }),arena);
+    console.error('PAUSED BOARD DRAG DIAGNOSTIC: '+JSON.stringify(diagnostic));
+  }
   assert.ok(afterPan.x!==beforePan.x||afterPan.y!==beforePan.y,'real canvas drag pans while paused');
   // The center of this archipelago is open sea. Pan onto a known island for tap inspection.
   await host.evaluate(()=>{const s=__boardTest.board,c=s.camera,p=s.map.nodes.n76.position;BoardArt.pan(s,(c.x-p.x)*c.zoom,(c.y-p.y)*c.zoom);__boardTest.drawGame(0);});

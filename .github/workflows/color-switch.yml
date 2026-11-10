@@ -9,42 +9,61 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect relevant PR changes (full QA on main)
+        id: impact
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-impact.cjs --gha >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: Check JavaScript syntax
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: |
           for source in app.js src/games/color-switch/color-switch-mayan.js src/games/color-switch/color-switch.js src/games/ghost-attack/ghost-attack.js src/games/chickens/chickens.js src/games/fruit-memory/fruit-memory.js src/games/shockwave/shockwave.js; do
             node --check "$source"
           done
       - name: BOARD PARTY geometry, camera and navigation regression
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: |
           node scripts/build-board-assets.cjs
           for source in src/board-party/runtime/board-*.js; do node --check "$source"; done
           node tests/board-party.cjs
           node tests/board-art.cjs
       - name: PIZZA TIME menu fairness and movement regression
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: |
           node --check src/games/pizza-time/pizza-time.js
           node tests/pizza-time.test.cjs
       - name: KNIGHT MATCH physics, balloon and HUD regressions
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: |
           node --check src/games/knight-match/knight-match.js
           node --check tests/knight-match.cjs
           node tests/knight-match.cjs
       - name: Test COLOR SWITCH core rules and stress
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: node tests/color-switch.test.js
       - name: Mayan skull theme and 15 percent bot nerf
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: node tests/color-switch-mayan.test.js
       - name: Shared character punches and 0.8-second colored stun
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: node tests/combat-motion.cjs
       - name: Fruit Memory punch integration
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: node tests/fruit-memory.cjs
       - name: Chickens punch and drop integration
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: node tests/chickens.cjs
       - name: Full multiplayer smoke integration
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: node tests/smoke.cjs
       - name: Shared art, Shockwave, avatar, auto-update and vector regressions
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: |
           node tests/arena-art.cjs
           node tests/shockwave.cjs
@@ -52,6 +71,7 @@ jobs:
           node tests/auto-update.cjs
           node tests/svg-only-policy.cjs
       - name: Ensure fifth game is discovered without editing HTML
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:color-switch') }}
         run: |
           node tests/game-platform.cjs
           node -e "const m=require('./src/games/color-switch/manifest.json'); if(m.id!=='color_switch'||!m.modes.includes('normal')||!m.modes.includes('board'))process.exit(1)"
