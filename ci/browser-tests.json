@@ -122,6 +122,13 @@
         "chromium": 22,
         "webkit": 35
       }
+    },
+    {
+      "file": "tests/dino-panic-browser.cjs",
+      "browsers": {
+        "chromium": 15,
+        "webkit": 24
+      }
     }
   ]
 }
