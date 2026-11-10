@@ -1,0 +1,25 @@
+{
+  "id": "scoop_rush",
+  "name": "SCOOP RUSH",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {
+    "min": 1,
+    "max": 12
+  },
+  "modes": [
+    "normal",
+    "board"
+  ],
+  "controls": [
+    "joystick"
+  ],
+  "cover": "cover.svg",
+  "entry": "./game.js",
+  "controller": {
+    "help": "ขี่หมีขั้วโลกผลักไอศกรีมสีของคุณให้ชนกันเป็นก้อนเดียวก่อนใคร • ก้อนใหญ่ผลักยากขึ้น • ผลักไอศกรีมคนอื่นเพื่อขัดขวางได้",
+    "labels": {},
+    "status": "SCOOP RUSH • รวมไอศกรีมสีของคุณให้เป็นก้อนเดียว"
+  },
+  "legacyScripts": []
+}

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" width="960" height="540">
+<defs>
+<radialGradient id="g" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#a6ee47"/><stop offset="1" stop-color="#5cb82a"/></radialGradient>
+<radialGradient id="d" cx="50%" cy="40%" r="65%"><stop offset="0" stop-color="#c98549"/><stop offset="1" stop-color="#8a5028"/></radialGradient>
+<radialGradient id="h" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#120804"/><stop offset="1" stop-color="#4a2a14"/></radialGradient>
+<radialGradient id="t" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#8bd852"/><stop offset="1" stop-color="#2c8428"/></radialGradient>
+<linearGradient id="y" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd447"/><stop offset="1" stop-color="#e8940f"/></linearGradient>
+</defs>
+<rect width="960" height="540" fill="url(#g)"/>
+<g opacity=".55" fill="#c9f56a"><circle cx="90" cy="90" r="40"/><circle cx="880" cy="470" r="50"/><circle cx="700" cy="60" r="30"/></g>
+<g><circle cx="90" cy="440" r="72" fill="#1d5a1c" opacity=".35" transform="translate(6 8)"/><circle cx="90" cy="440" r="70" fill="url(#t)"/><circle cx="76" cy="425" r="40" fill="#79c944" opacity=".7"/>
+<circle cx="880" cy="110" r="78" fill="#1d5a1c" opacity=".35" transform="translate(6 8)"/><circle cx="880" cy="110" r="76" fill="url(#t)"/><circle cx="864" cy="94" r="44" fill="#79c944" opacity=".7"/></g>
+<polygon points="480,16 640,50 760,150 790,270 760,390 640,490 480,524 320,490 200,390 170,270 200,150 320,50" fill="#5b3217" opacity=".4" transform="translate(5 8)"/>
+<polygon points="480,16 640,50 760,150 790,270 760,390 640,490 480,524 320,490 200,390 170,270 200,150 320,50" fill="none" stroke="#7a4722" stroke-width="12" stroke-linejoin="round"/>
+<circle cx="480" cy="270" r="238" fill="url(#d)"/>
+<g stroke="#6e3f1e" stroke-width="2" fill="none" opacity=".5"><path d="M300 150q40 20 70 0t60 10"/><path d="M560 380q40-20 80 0"/><path d="M360 400q30 10 60-5"/></g>
+<g><ellipse cx="320" cy="250" rx="34" ry="26" fill="url(#h)" stroke="#7a4a26" stroke-width="5"/><ellipse cx="640" cy="310" rx="34" ry="26" fill="url(#h)" stroke="#7a4a26" stroke-width="5"/><ellipse cx="480" cy="410" rx="34" ry="26" fill="url(#h)" stroke="#7a4a26" stroke-width="5"/></g>
+<g><ellipse cx="480" cy="215" rx="38" ry="28" fill="url(#h)" stroke="#7a4a26" stroke-width="5"/>
+<circle cx="480" cy="196" r="38" fill="#30405e"/><ellipse cx="480" cy="208" rx="26" ry="22" fill="#4a5b7e"/>
+<circle cx="468" cy="200" r="5" fill="#fff"/><circle cx="492" cy="200" r="5" fill="#fff"/><circle cx="469" cy="201" r="2.6" fill="#111"/><circle cx="493" cy="201" r="2.6" fill="#111"/>
+<ellipse cx="480" cy="214" rx="8" ry="6" fill="#ff8aa0"/>
+<path d="M444 186a36 32 0 0 1 72 0z" fill="url(#y)" stroke="#a86206" stroke-width="3"/><rect x="470" y="160" width="20" height="14" rx="5" fill="#fff6b8" stroke="#a86206" stroke-width="2"/></g>
+<g><circle cx="320" cy="238" r="30" fill="#30405e"/><ellipse cx="320" cy="248" rx="21" ry="18" fill="#4a5b7e"/><circle cx="311" cy="238" r="4.5" fill="#fff"/><circle cx="329" cy="238" r="4.5" fill="#fff"/><circle cx="312" cy="239" r="2.2" fill="#111"/><circle cx="330" cy="239" r="2.2" fill="#111"/><ellipse cx="320" cy="250" rx="6" ry="4.5" fill="#ff8aa0"/></g>
+<g transform="translate(610 330) rotate(-35)"><rect x="-6" y="-8" width="14" height="92" rx="6" fill="#a86a38" stroke="#5b3217" stroke-width="3"/><rect x="-34" y="-40" width="72" height="40" rx="9" fill="#9aa3ad" stroke="#4a525a" stroke-width="4"/><rect x="-34" y="-40" width="72" height="12" rx="6" fill="#d5dbe1"/></g>
+<g font-family="'Arial Black',Impact,sans-serif" text-anchor="middle"><text x="480" y="102" font-size="72" fill="#4a2208" stroke="#4a2208" stroke-width="16" stroke-linejoin="round">MOLE</text><text x="480" y="102" font-size="72" fill="#ffd447">MOLE</text>
+<text x="480" y="498" font-size="72" fill="#4a2208" stroke="#4a2208" stroke-width="16" stroke-linejoin="round">MAYHEM</text><text x="480" y="498" font-size="72" fill="#ffd447">MAYHEM</text></g>
+<g font-size="26" font-weight="800" text-anchor="middle" fill="#fff" stroke="#3b1c07" stroke-width="5" paint-order="stroke"><text x="130" y="300" transform="rotate(-8 130 300)">ตีตุ่นป่วนสวน</text></g>
+</svg>
