@@ -25,7 +25,7 @@ function plugin(target,id,revision){
  const dir=path.join(target,'src/games/ci-'+id);
  fs.mkdirSync(dir,{recursive:true});
  fs.writeFileSync(path.join(dir,'manifest.json'),JSON.stringify({
-  id:'ci_'+id,name:'CI '+id.toUpperCase(),version:revision==='v1'?'1.0.0':'2.0.0',
+  id:'ci_'+id,name:'CI '+id.toUpperCase(),
   apiVersion:1,enabled:true,players:{min:1,max:12},
   modes:['normal','board'],controls:['joystick'],entry:'./game.js',legacyScripts:[]
  })+'\n');
@@ -33,21 +33,22 @@ function plugin(target,id,revision){
   'export default {version:'+JSON.stringify(revision)+
   ',setup(){},update(){},draw(){},hud(){return {survivors:1}},getResult(){return []}};\n');
 }
-function build(target,version){
+function build(target,deploy){
  const result=spawnSync(process.execPath,[path.join(root,'scripts/build-static.cjs')],{
-  cwd:root,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:version},
+  cwd:root,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:deploy},
   encoding:'utf8',timeout:120000
  });
  assert.equal(result.status,0,
   'production build must succeed: '+result.stdout+'\n'+result.stderr);
  const catalog=JSON.parse(fs.readFileSync(path.join(target,'game-catalog.json'),'utf8'));
  const html=fs.readFileSync(path.join(target,'index.html'),'utf8');
- assert.ok(html.includes('src="./src/platform/main-loader.js?v='+version+'"'));
+ assert.ok(html.includes('src="./src/platform/main-loader.js"'));
+ assert.ok(!html.includes('?v='),'No loader URLs may carry release suffixes');
  assert.ok(!html.includes('src="./app.js?'),'production app must be lazy');
  assert.ok(fs.existsSync(path.join(target,'app-controller.js')),
   'build must emit controller-only app bundle');
- assert.ok(html.includes('src="./src/platform/board-items-brief.js?v='+version+'"'),
-  'phone BOARD metadata must be version pinned');
+ assert.ok(html.includes('src="./src/platform/board-items-brief.js"'),
+  'Controller BOARD metadata has a stable URL');
  assert.ok(!html.includes('src="./character-system.js?'),'host physics must be lazy');
  assert.ok(!html.includes('src="./src/board-party/runtime/board-party.js?'),'BOARD core must be lazy');
  assert.ok(!html.includes('cdn.jsdelivr.net/npm/peerjs@'),'peer library must be on demand');
@@ -66,10 +67,10 @@ const server=http.createServer((req,res)=>{
  let pathname;
  try{pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);}
  catch(_){res.writeHead(400).end();return;}
- // Existing clients keep their shell. The catalog/version and new content
+ // Existing clients keep their shell. The catalog and new content
  // assets switch atomically to the newly deployed release.
  const release=(serving===second&&
-  (pathname==='/game-catalog.json'||pathname==='/version.json'||
+  (pathname==='/game-catalog.json'||pathname==='/deployment.json'||
    pathname.startsWith('/game-assets/')))?second:first;
  const file=path.resolve(release,'.'+pathname.replace(/\/$/,'/index.html'));
  if(!file.startsWith(release+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){
@@ -165,7 +166,7 @@ async function run(){
    await window.GameAutoUpdate.check();
    return {updated:engine.version,added:added.version,
     pinned:window.__rehearsalPinnedEngine.version,
-    pending:window.GameAutoUpdate.getPendingVersion(),
+    pending:window.GameAutoUpdate.getPendingDeployment(),
     boardVisible:!document.querySelector('#game').classList.contains('hidden'),
     boardCoreReady:window.BoardRuntime.ready()};
   });

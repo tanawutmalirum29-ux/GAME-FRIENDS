@@ -6,7 +6,6 @@ const crypto=require('node:crypto');
 const root=path.resolve(process.env.GAME_BUILD_ROOT||path.join(__dirname,'..'));
 const mapsRoot=path.join(root,'src','board-party','maps');
 const slugPattern=/^[a-z][a-z0-9-]*$/;
-const versionPattern=/^\d+\.\d+\.\d+$/;
 function assert(condition,message){if(!condition)throw Error(message);}
 function list(dir,prefix=''){
  let result=[];
@@ -93,8 +92,8 @@ function build({write=false,coreHash}={}){
   assert(info&&info.id===slug&&!seen.has(info.id),'Invalid/duplicate board map ID: '+slug);
   seen.add(info.id);
   assert(typeof info.name==='string'&&info.name.trim()&&info.name.length<=80,'Invalid board map name: '+slug);
-  assert(versionPattern.test(info.version)&&info.apiVersion===1&&typeof info.enabled==='boolean',
-   'Invalid board map version/API: '+slug);
+  assert(info.apiVersion===1&&typeof info.enabled==='boolean',
+   'Invalid board map API: '+slug);
   assert(info.players&&Number.isInteger(info.players.min)&&Number.isInteger(info.players.max)&&
    info.players.min===1&&info.players.max===12,'BOARD map must cover 1–12 players: '+slug);
   assert(['legacy','module'].includes(info.kind),'Invalid board map kind: '+slug);
@@ -126,7 +125,7 @@ function build({write=false,coreHash}={}){
     fs.copyFileSync(path.join(folder,relative),dest);
    }
   }
-  maps.push({id:info.id,name:info.name,version:info.version,apiVersion:1,
+  maps.push({id:info.id,name:info.name,apiVersion:1,
    enabled:info.enabled,kind:info.kind,players:info.players,hash:fingerprint,
    entryUrl:entry?'/'+prefix+entry:null});
  }

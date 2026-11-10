@@ -15,7 +15,7 @@ try{
  const fixture=path.join(basedir,'future-map');
  fs.mkdirSync(fixture,{recursive:true});
  fs.writeFileSync(path.join(fixture,'manifest.json'),JSON.stringify({
-  id:'future-map',name:'FUTURE MAP',version:'1.0.0',apiVersion:1,enabled:true,
+  id:'future-map',name:'FUTURE MAP',apiVersion:1,enabled:true,
   kind:'module',players:{min:1,max:12},entry:'./index.js',
   graphs:{small:'./small.json',large:'./large.json'}
  }));

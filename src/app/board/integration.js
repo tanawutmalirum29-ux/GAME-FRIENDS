@@ -14,7 +14,7 @@
    for(const [i,id] of ids.entries())for(const next of s.map.nodes[id].nextNodes)
      if(byId.has(next))links.push([i,byId.get(next)]);
    boardMiniMapCache={session:s.id,
-     packet:{t:'board-minimap-map',session:s.id,version:s.map.version,
+     packet:{t:'board-minimap-map',session:s.id,mapId:s.map.id,
        width:s.map.width,height:s.map.height,nodes,links}};
    return boardMiniMapCache;
  }
@@ -148,7 +148,7 @@ function beginBoard(){
   const platform=window.GamePlatform;
   // Production no longer downloads legacy minigame engines at initial page load.
   // Wait for the versioned registry rather than mistaking them for missing games.
-  if(window.GAME_CORE_VERSION&&platform&&!platform.revision){
+  if(window.GAME_CORE_HASH&&platform&&!platform.revision){
     if(boardCatalogPending)return;
     boardCatalogPending=true;
     void platform.refresh().then(()=>{
@@ -288,7 +288,7 @@ function broadcastBoardState(){
       conn.boardItemMetaSession=boardSession.id;
     }
     const p=boardSession.players.find(p=>p.id===conn.playerId);if(!p)continue;
-    send(conn,{t:'board-state',sessionId:boardSession.id,mapVersion:boardSession.map.version,phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
+    send(conn,{t:'board-state',sessionId:boardSession.id,mapId:boardSession.map.id,phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
       round:boardSession.roundNumber,hp:p.hp,usedRound:p.usedRound||0,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:window.BoardParty.isProtected(boardSession,p)?1:0,
       canZoom:round.phase==='playing'&&!round.paused&&window.BoardParty.current(boardSession)?.id===p.id&&
         window.BoardArt.canPan(boardSession),

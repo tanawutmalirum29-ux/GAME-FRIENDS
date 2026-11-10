@@ -5,7 +5,7 @@ because Host, multiplayer events, dice, movement, effects and board UI
 currently share one lexical state contract. Its source is now maintained
 under `src/board-party/` and ordered by `src/board-party/modules.json`.
 The assembler regenerates **byte-for-byte equivalent** `src/board-party/runtime/board-party.js` from
-the original 602-line source, with no changes to game rules, V10 map,
+the original 602-line source, with no changes to game rules, canonical map,
 turn movement, item handling or renderer integration.
 
 Source ownership:
@@ -31,8 +31,8 @@ This is **source-level modularization**, not yet independent ES modules
 or per-feature network chunks. The existing `BoardRuntime.ensure()`
 still downloads the BOARD classic-script set lazily. Converting each
 subsystem into independently loaded runtime plug-ins needs separate
-interfaces, version-aware state ownership and additional multiplayer
+interfaces, core-compatible state ownership and additional multiplayer
 regression tests; never claim that this source split alone achieves that.
 
-The existing V10 map is loaded through its adapter; the legacy source
+The existing canonical map is loaded through its adapter; the authored source
 and every gameplay rule must continue to pass the full BOARD QA matrix.

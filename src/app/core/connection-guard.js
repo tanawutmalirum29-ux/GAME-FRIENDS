@@ -33,10 +33,9 @@ function createControllerIngressGuard(clock=()=>Date.now()){
   if(!msg||typeof msg!=='object'||Array.isArray(msg)||typeof msg.t!=='string'||!types.has(msg.t))return false;
   if(!bounded(msg))return false;
   switch(msg.t){
-   case 'join':return typeof msg.name==='string'&&msg.name.length<=256&&
+   case 'join':return !Object.hasOwn(msg,'protocolVersion')&&typeof msg.name==='string'&&msg.name.length<=256&&
     (msg.clientToken===undefined||(typeof msg.clientToken==='string'&&msg.clientToken.length<=100))&&
-    (msg.protocolVersion===undefined||msg.protocolVersion===1)&&
-    (msg.coreHash===undefined||(typeof msg.coreHash==='string'&&/^[a-f0-9]{20}$/.test(msg.coreHash)));
+     (msg.coreHash===undefined||(typeof msg.coreHash==='string'&&/^[a-f0-9]{20}$/.test(msg.coreHash)));
    case 'input':{
     const keys=msg.keys;
     if(!keys||typeof keys!=='object'||Array.isArray(keys))return false;
@@ -50,8 +49,8 @@ function createControllerIngressGuard(clock=()=>Date.now()){
     return (msg.actionId===undefined||(Number.isSafeInteger(msg.actionId)&&msg.actionId>=0))&&
      (msg.clientAt===undefined||(Number.isFinite(msg.clientAt)&&msg.clientAt>=0&&msg.clientAt<1e10))&&
      (msg.turnId===undefined||msg.turnId===null||typeof msg.turnId==='string'||Number.isSafeInteger(msg.turnId))&&
-     (msg.mapVersion===undefined||msg.mapVersion===null||
-      (typeof msg.mapVersion==='string'&&msg.mapVersion.length<=80));
+     (msg.mapId===undefined||msg.mapId===null||
+      (typeof msg.mapId==='string'&&msg.mapId.length<=80));
    }
    case 'board-camera-gesture':return ['pan','pinch'].includes(msg.kind)&&
     (msg.kind==='pan'?Number.isFinite(msg.dx)&&Number.isFinite(msg.dy):
@@ -94,14 +93,14 @@ function createFastAxisIngressGuard(clock=()=>Date.now()){
    lastTime=now;tokens=Math.min(60,tokens+elapsed*40/1000);
    if(tokens<1)return false;tokens--;
    if(!msg||typeof msg!=='object'||Array.isArray(msg)||
-      Object.keys(msg).some(k=>!['t','seq','x','y','turnId','mapVersion'].includes(k))||
+      Object.keys(msg).some(k=>!['t','seq','x','y','turnId','mapId'].includes(k))||
       msg.t!=='axis'||!Number.isSafeInteger(msg.seq)||msg.seq<0||
       msg.seq<=lastSeq||!Number.isFinite(msg.x)||!Number.isFinite(msg.y)||
       Math.abs(msg.x)>1.01||Math.abs(msg.y)>1.01||
       (msg.turnId!==null&&msg.turnId!==undefined&&
         !(typeof msg.turnId==='string'&&msg.turnId.length<=128))||
-      (msg.mapVersion!==null&&msg.mapVersion!==undefined&&
-        !(typeof msg.mapVersion==='string'&&msg.mapVersion.length<=80)))return false;
+      (msg.mapId!==null&&msg.mapId!==undefined&&
+        !(typeof msg.mapId==='string'&&msg.mapId.length<=80)))return false;
    lastSeq=msg.seq;return true;
   },
   dispose(){closed=true;tokens=0;}

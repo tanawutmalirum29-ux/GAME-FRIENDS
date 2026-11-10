@@ -15,8 +15,8 @@ function getCommit(){
   }catch(_){}
   throw Error('Unable to identify build: AWS_COMMIT_ID is required');
 }
-// Restore and integrity-check the committed v7 source bundle first.
-require('./build-board-v7.cjs');
+// Restore and integrity-check canonical BOARD scenery and design assets.
+require('./build-board-assets.cjs');
 // Derive controller-only BOARD metadata from the authoritative game rules.
 if(fs.existsSync(path.join(root,'src/board-party/runtime/board-items.js')))
  require('./build-board-item-brief.cjs').build({write:true});
@@ -37,15 +37,15 @@ require('./build-board-system-catalog.cjs').build({write:true,coreHash:gameCatal
 // Discover BOARD maps at build time. Do not eagerly fetch map engines.
 if(fs.existsSync(path.join(root,'src','board-party','maps')))
  require('./build-board-map-catalog.cjs').build({write:true,coreHash:gameCatalog?.coreHash});
-fs.writeFileSync(path.join(root,'version.json'),JSON.stringify({version:id})+'\n');
-fs.writeFileSync(path.join(root,'build-version.js'),
-  'window.GAME_BUILD_VERSION='+JSON.stringify(id)+';\n'+
+fs.writeFileSync(path.join(root,'deployment.json'),JSON.stringify({deployId:id})+'\n');
+fs.writeFileSync(path.join(root,'runtime-config.js'),
+  'window.GAME_DEPLOY_ID='+JSON.stringify(id)+';\n'+
   (turnUrl?'window.GF_TURN_CREDENTIALS_ENDPOINT='+JSON.stringify(turnUrl)+';\n':'')+
-  (gameCatalog?'window.GAME_CORE_VERSION='+JSON.stringify(gameCatalog.coreHash)+';\n'+
+  (gameCatalog?'window.GAME_CORE_HASH='+JSON.stringify(gameCatalog.coreHash)+';\n'+
    'window.GAME_GAME_HASHES='+JSON.stringify(Object.fromEntries(gameCatalog.games.map(g=>[g.id,g.hash])))+';\n':''));
 const indexPath=path.join(root,'index.html');
 let html=fs.readFileSync(indexPath,'utf8');
-// Version every local file referenced by HTML automatically. No game names,
+// Validate every local file referenced by HTML without rewriting its URL. No game names,
 // artwork, or new app entrypoints belong in a hand-maintained asset allowlist.
 const deployAsset=/\.(?:js|css|svg|png|webp|jpe?g|ico|woff2?|webmanifest)$/i;
 html=html.replace(/\b(src|href)="(\.\/[^"?]+)(?:\?v=[^"]*)?"/g,
@@ -58,7 +58,7 @@ html=html.replace(/\b(src|href)="(\.\/[^"?]+)(?:\?v=[^"]*)?"/g,
   if(!filename.startsWith(root+path.sep)||!fs.existsSync(filename)||
      !fs.statSync(filename).isFile())
    throw Error('Missing build asset: '+asset);
-  return attr+'="'+url+'?v='+encodeURIComponent(id)+'"';
+  return attr+'="'+url+'"';
  });
 if(gameCatalog){
  const lazy=require('./lazy-game-scripts.cjs');

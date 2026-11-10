@@ -496,7 +496,7 @@ test('152-step winter map preserves requested tiles plus n42 star and 11 linked 
   const map=M.create(seed);
   assert.equal(map.length,152);assert.equal(map.finishId,'n152');
   assert.ok(map.islands.length>=7&&map.width>5000&&map.height>3000);
-  assert.equal(map.version,'winter-expedition-152-v6');
+  assert.equal(map.id,'winter-expedition');
   assert.deepEqual(plain(M.SWORD_TILES),swords);
   assert.deepEqual(plain(M.SWORD_PAIRS.map(p=>p.nodeIds)),pairs);
   assert.equal(Object.keys(map.territories).length,11);
@@ -526,9 +526,9 @@ test('152-step winter map preserves requested tiles plus n42 star and 11 linked 
    'no forgotten sword tiles or metadata');
   assert.equal(map.luckyTileIds.length,19);
   assert.equal(M.validate(map),true);
-  assert.throws(()=>M.assertCompatible({...map,version:'winter-expedition-152-v3'}),/Incompatible BOARD PARTY map/,
+  assert.throws(()=>M.assertCompatible({...map,id:'nonexistent-map'}),/Incompatible BOARD PARTY map/,
    'old room maps are rejected because their territories no longer match');
-  assert.throws(()=>M.assertCompatible({...map,version:'winter-expedition-152-v5'}),/Incompatible BOARD PARTY map/,
+  assert.throws(()=>M.assertCompatible({...map,id:'unknown-board'}),/Incompatible BOARD PARTY map/,
    'v5 map rooms cannot carry outdated shield/sword tile roles');
  }
 });

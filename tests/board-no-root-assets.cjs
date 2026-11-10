@@ -6,8 +6,8 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const runtime='src/board-party/runtime/';
 const scripts=[
- 'board-map.js','board-v7-design.js','board-v7-art.js',
- 'board-branch-naming.js','board-v7-adapter.js','board-dice.js',
+ 'board-map.js','board-design.js','board-scenery.js',
+ 'board-branch-naming.js','board-layout.js','board-dice.js',
  'board-dice-renderer.js','board-items.js','board-bots.js',
  'board-minigame.js','board-party.js','board-art.js'
 ];
@@ -24,10 +24,10 @@ for(const name of [...scripts,camera]){
   'HTML must reference canonical BOARD runtime: '+name);
 }
 assert.ok(!fs.existsSync(path.join(root,'board-v7-source')),
- 'Old root V7 archive must not be recreated');
-const v7=path.join(root,'src/board-party/legacy/v7-source');
-assert.ok(fs.statSync(v7).isDirectory(),'V7 archive must live inside BOARD');
-assert.equal(fs.readdirSync(v7).filter(n=>/\.deflate\.b64\.part\d+$/.test(n)).length,7);
+ 'Old root BOARD source archive must not be recreated');
+const sourceDirectory=path.join(root,'src/board-party/source');
+assert.ok(fs.statSync(sourceDirectory).isDirectory(),'BOARD source archive must live inside BOARD');
+assert.equal(fs.readdirSync(sourceDirectory).filter(n=>/\.deflate\.b64\.part\d+$/.test(n)).length,7);
 for(const file of scripts){
  assert.ok(loader.includes('"'+runtime+file+'"'),
   'Lazy loader must use the moved BOARD entry: '+file);

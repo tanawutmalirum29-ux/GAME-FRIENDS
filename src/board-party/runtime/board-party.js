@@ -222,7 +222,7 @@ const JUNCTION_SWITCH_RADIUS=130,JUNCTION_TURN_LANE=86;
 const bound=(x,a,b)=>Math.max(a,Math.min(b,x));
 function step(s,to){
  const m=s.move,p=current(s);
- if(!m||m.to||!s.map.nodes[p.currentNodeId].nextNodes.includes(to)||(s.map.version!==M().MAP_VERSION&&m.visited.includes(to)))return false;
+ if(!m||m.to||!s.map.nodes[p.currentNodeId].nextNodes.includes(to)||(s.map.id!==M().MAP_ID&&m.visited.includes(to)))return false;
  const pos=I().position(s,p),a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position;
  m.from=p.currentNodeId;m.to=to;m.intent=null;m.intentTime=0;
  if(m.kind==='walk'){
@@ -444,7 +444,7 @@ function action(s,id,button){
 }
 function input(s,id,packet){
  M().assertCompatible(s.map);
- if(packet.mapVersion&&packet.mapVersion!==s.map.version)return false;
+ if(packet.mapId&&packet.mapId!==s.map.id)return false;
  // Turn tokens change at every control boundary, including returning from a game.
  if(packet.turnId!==s.turnId||!Number.isSafeInteger(packet.actionId)||packet.actionId<0||packet.actionId<=(s.lastActions[id]??-1))return false;
  const p=s.players.find(p=>p.id===id);if(!p||s.phase==='finished'||s.phase==='minigame')return false;
@@ -575,7 +575,7 @@ function update(s,dt){
   plugin.onUpdate({session:s,dt,api});
  window.BoardBots?.update(s,dt,api);
 }
-function snapshot(s){M().assertCompatible(s.map);return JSON.parse(JSON.stringify({mapVersion:s.map.version,map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}
+function snapshot(s){M().assertCompatible(s.map);return JSON.parse(JSON.stringify({mapId:s.map.id,map:s.map,players:s.players,order:s.order,roundNumber:s.roundNumber,turnIndex:s.turnIndex}));}
 function controls(s,id){
  const p=s.players.find(p=>p.id===id),mine=current(s)?.id===id;
  if(s.phase==='overview')return{a:'เริ่มทอยลำดับ',b:'',help:'ลากและซูมสำรวจแผนที่ • กด A เมื่อพร้อม'};

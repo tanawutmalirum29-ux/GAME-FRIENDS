@@ -1,4 +1,4 @@
-# BOARD PARTY V8 — 17-island route renovation
+# BOARD PARTY canonical — 17-island route renovation
 
 ## Intent
 
@@ -9,10 +9,10 @@ Use only graph-authoritative map coordinates to paint the roads and sword courts
 ## Baseline audit
 
 - 359 nodes, 398 directed edges, 17 islands.
-- Original v7 diagram: 11 path crossings, 10 singleton sword territories.
+- Original canonical diagram: 11 path crossings, 10 singleton sword territories.
 - Especially tight island node distances: Santa's Workshop 74, Reindeer Meadow 88,
   Peppermint Harbor 52, Gingerbread Isle 86, Glacier Spire 55 world units.
-- v6 sword pairs were connected; v7 separately introduced invalid one-tile swords,
+- canonical sword pairs were connected; canonical separately introduced invalid one-tile swords,
   including several in very narrow water routes.
 
 ## Island-by-island structure
@@ -40,8 +40,8 @@ Use only graph-authoritative map coordinates to paint the roads and sword courts
 ## Geometry and gameplay invariants
 
 - All original n0 → n152 canonical main-route edges and start/finish endpoints remain intact.
-- Original map-authoritative coordinates of v6 paths are preserved.
-- Deterministically spread and reassign v7 route coordinates without changing node IDs or node count.
+- Original map-authoritative coordinates of canonical paths are preserved.
+- Deterministically spread and reassign canonical route coordinates without changing node IDs or node count.
 - Keep all 359 nodes reachable from n0 and with a directed path to n152; no accidental
   terminal branches, missing reverse adjacency, or disconnected water links.
 - Retain 398 directed edges and 17 recognizable island silhouettes. Remove accidental
@@ -56,13 +56,13 @@ Use only graph-authoritative map coordinates to paint the roads and sword courts
 
 ## Reproducible verification
 
-Run from the project root after restoring the v7 design sources:
+Run from the project root after restoring the canonical design sources:
 
 ```bash
-node scripts/build-board-v7.cjs
+node scripts/build-board-canonical.cjs
 node tests/board-layout-audit.cjs
-node tests/board-v8-layout.cjs
-node tests/board-v7.cjs
+node tests/board-canonical-layout.cjs
+node tests/board-canonical.cjs
 node tests/board-party.cjs
 node tests/board-art.cjs
 node tests/board-layout.cjs
@@ -76,6 +76,6 @@ game and real-browser regression suites.
 
 ## Compatibility
 
-BOARD PARTY V8 is a new authored map version (`winter-expedition-152-v8`).
-Existing V7 snapshots must not silently load on a changed topology; start a new
+BOARD PARTY canonical is a new authored map version (`winter-expedition-152-canonical`).
+Existing canonical snapshots must not silently load on a changed topology; start a new
 room/round for the renovated map. NORMAL PARTY and its minigame engines are unchanged.

@@ -3,8 +3,8 @@
 (()=>{
 'use strict';
 const DEFAULT='winter-expedition';
-const files=["src/board-party/runtime/board-map.js","src/board-party/runtime/board-v7-design.js","src/board-party/runtime/board-v7-art.js",
- "src/board-party/runtime/board-branch-naming.js","src/board-party/runtime/board-v7-adapter.js","src/board-party/runtime/board-dice.js","src/board-party/runtime/board-dice-renderer.js",
+const files=["src/board-party/runtime/board-map.js","src/board-party/runtime/board-design.js","src/board-party/runtime/board-scenery.js",
+ "src/board-party/runtime/board-branch-naming.js","src/board-party/runtime/board-layout.js","src/board-party/runtime/board-dice.js","src/board-party/runtime/board-dice-renderer.js",
  "src/board-party/runtime/board-items.js","src/board-party/runtime/board-bots.js","src/board-party/runtime/board-minigame.js","src/board-party/runtime/board-party.js","src/board-party/runtime/board-art.js"];
 const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt'];
 const loaded=new Set(),modules=new Map();
@@ -27,8 +27,6 @@ function inject(file){
   const tag=document.createElement('script');
   tag.async=false;
   const url=new URL('./'+file,document.baseURI);
-  const build=String(window.GAME_BUILD_VERSION||'');
-  if(build)url.searchParams.set('v',build);
   tag.src=url.href;
   tag.onload=()=>{loaded.add(file);resolve();};
   tag.onerror=()=>{tag.remove();reject(Error('BOARD PARTY asset unavailable: '+file));};
@@ -42,7 +40,7 @@ function inspect(data){
  return data.maps.map(m=>{
   if(!m||! /^[a-z][a-z0-9-]*$/.test(m.id)||seen.has(m.id)||
     typeof m.name!=='string'||typeof m.enabled!=='boolean'||
-    !/^\d+\.\d+\.\d+$/.test(m.version)||m.apiVersion!==1||
+    m.apiVersion!==1||
     !/^[a-f0-9]{24}$/.test(m.hash)||!['legacy','module'].includes(m.kind)||
     m.players?.min!==1||m.players?.max!==12)throw Error('Invalid BOARD map descriptor');
   seen.add(m.id);
@@ -78,7 +76,7 @@ async function refreshMaps(){
   if(!res.ok)throw Error('BOARD map catalog unavailable: '+res.status);
   const data=await res.json();
   // A different Core must wait for an explicit safe reload, not an active room.
-  if(window.GAME_CORE_VERSION&&data.coreHash!==window.GAME_CORE_VERSION)return false;
+  if(window.GAME_CORE_HASH&&data.coreHash!==window.GAME_CORE_HASH)return false;
   const next=inspect(data);
   if(!next.some(m=>m.id===DEFAULT&&m.enabled))throw Error('Default BOARD map unavailable');
   if(JSON.stringify(next)===JSON.stringify(catalog)){render();return false;}
@@ -89,14 +87,14 @@ async function refreshMaps(){
 function checkPlugin(plugin){
  if(!plugin||!legacy||!plugin.map||!plugin.art)throw Error('Invalid BOARD map module');
  const {map,art}=plugin;
- if(typeof map.MAP_VERSION!=='string')throw Error('BOARD map version missing');
+ if(typeof map.MAP_ID!=='string')throw Error('BOARD map identity missing');
  for(const [name,fn] of Object.entries(legacy.map))
   if(typeof fn==='function'&&typeof map[name]!=='function')throw Error('BOARD map missing '+name);
  for(const [name,fn] of Object.entries(legacy.art))
   if(typeof fn==='function'&&typeof art[name]!=='function')throw Error('BOARD art missing '+name);
  for(const count of [1,6,7,12]){
   const m=map.create(0,{players:count});
-  if(!m||m.version!==map.MAP_VERSION||m.startId!=='n0'||
+  if(!m||m.id!==map.MAP_ID||m.startId!=='n0'||
      !m.nodes?.n0||!m.nodes?.[m.finishId]||
      !Number.isFinite(m.width)||!Number.isFinite(m.height))
    throw Error('Invalid BOARD graph for '+count+' players');
@@ -175,7 +173,7 @@ if(typeof document!=='undefined'&&typeof document.getElementById==='function'){
 /* System plug-ins reuse the BOARD route and content-addressed deployment.
  * Discovery is metadata-only; all code changes activate at a NEW board session. */
 const systemCache=new Map(),activeSystems=new Map(),systemRejected=new Map();
-let systemCatalog=[],systemRevision=0,systemPrepared=!window.GAME_CORE_VERSION;
+let systemCatalog=[],systemRevision=0,systemPrepared=!window.GAME_CORE_HASH;
 let systemRefreshing=null;
 const categories=['items','spaces','events'];
 function inspectSystems(value){
@@ -187,7 +185,7 @@ function inspectSystems(value){
      !/^[a-z][a-z0-9-]*$/.test(item.id)||
      typeof item.name!=='string'||!item.name||
      typeof item.enabled!=='boolean'||item.apiVersion!==1||
-     !/^\d+\.\d+\.\d+$/.test(item.version)||
+     
      !/^[a-f0-9]{24}$/.test(item.hash))
    throw Error('Invalid BOARD system descriptor');
   const key=item.category+':'+item.id;
@@ -213,7 +211,7 @@ async function refreshSystems(){
    throw Error('BOARD systems unavailable: '+response.status);
   }
   const data=await response.json();
-  if(window.GAME_CORE_VERSION&&data.coreHash!==window.GAME_CORE_VERSION)return false;
+  if(window.GAME_CORE_HASH&&data.coreHash!==window.GAME_CORE_HASH)return false;
   const next=inspectSystems(data);
   if(JSON.stringify(next)===JSON.stringify(systemCatalog))return false;
   systemCatalog=next;systemRevision++;systemPrepared=false;

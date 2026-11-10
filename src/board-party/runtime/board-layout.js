@@ -3,9 +3,9 @@
  * types until the owner reviews them. Do not import offline art into logic. */
 (()=>{
 'use strict';
-const Base=window.BoardMap,D=window.BOARD_PARTY_V7_DESIGN;
+const Base=window.BoardMap,D=window.BOARD_DESIGN;
 if(!Base||!D)throw Error('BOARD v7: load board-map and design before adapter');
-const VERSION='winter-expedition-152-v10',copy=x=>JSON.parse(JSON.stringify(x));
+const BOARD_ID='winter-expedition',copy=x=>JSON.parse(JSON.stringify(x));
 const BASE_NODES=213,EXTRA_NODES=146,ISLANDS=17,BRIDGES=20;
 const original=Base.create(0),oldIds=new Set(Object.keys(original.nodes));
 if(oldIds.size!==BASE_NODES||D.newNodes.length!==EXTRA_NODES||
@@ -340,14 +340,14 @@ function reduceGraphDesign(){
  D.graphMigration=Object.freeze(report);
  return report;
 }
-const V9_GRAPH=reduceGraphDesign();
+const REDUCED_GRAPH=reduceGraphDesign();
 
 /* V10: a one-way tour through each landmark. Every existing connector keeps
  * its internal ID. Only real directed links change, and all art/bridge
  * metadata is rebuilt from the exact playable graph. Saved V9 games are
- * intentionally rejected by MAP_VERSION; stale mid-edge positions cannot
+ * intentionally rejected by MAP_ID; stale mid-edge positions cannot
  * silently resume on another route. */
-function rebalanceV10(){
+function rebalanceGraph(){
  const lookup=new Map(D.newNodes.map(n=>[n.id,n]));
  const replace=(from,oldTo,newTo)=>{
   const node=lookup.get(from);
@@ -510,18 +510,18 @@ function rebalanceV10(){
   return true;
  };
  if(actual.size!==318)throw Error('V10 expected 318 traversable edges, found '+actual.size);
- const report=Object.freeze({...V9_GRAPH,nodes:302,edges:actual.size,
-  sourceVersion:'v9',topologyVersion:'v10'});
+ const report=Object.freeze({...REDUCED_GRAPH,nodes:302,edges:actual.size,
+  source:'canonical'});
  D.graphMigration=report;
  return report;
 }
-const V10_GRAPH=rebalanceV10();
+const GRAPH_REPORT=rebalanceGraph();
 
 function applySwordCourts(m){
  for(const [name,a,b] of SWORD_COURTS){
   if(!m.nodes[a]?.nextNodes.includes(b))
    throw Error('Sword pair must be directly connected '+a+'>'+b);
-  const territoryId='v8-court-'+name;
+  const territoryId='court-'+name;
   for(const id of [a,b]){
    const n=m.nodes[id];
    if(n.type!=='sword'||n.islandId!==m.nodes[a].islandId)
@@ -538,7 +538,7 @@ function applySwordCourts(m){
 }
 
 function create(seed=Date.now()){
- const m=Base.create(seed);m.version=VERSION;
+ const m=Base.create(seed);m.id=BOARD_ID;
  const originals=new Map(m.islands.map(i=>[i.id,i]));
  m.islands=D.islands.map(i=>{
   const old=originals.get(i.id);
@@ -611,7 +611,7 @@ function create(seed=Date.now()){
  return m;
 }
 function assertCompatible(map){
- if(map?.version!==VERSION)throw Error('Incompatible BOARD PARTY map '+(map?.version||'missing')+'; start a new game ('+VERSION+')');
+ if(map?.id!==BOARD_ID)throw Error('Incompatible BOARD PARTY map '+(map?.id||'missing')+'; start a new game ('+BOARD_ID+')');
  return true;
 }
 function validate(m){
@@ -630,7 +630,7 @@ function validate(m){
    seenIds.add(entry.internalId);
   }
  }
- if(all.length!==V9_GRAPH.nodes||idSet.size!==all.length||
+ if(all.length!==REDUCED_GRAPH.nodes||idSet.size!==all.length||
  m.islands.length!==ISLANDS||m.startId!=='n0'||m.finishId!=='n152'||
  m.nodes.n0.type!=='start'||m.nodes.n152.type!=='finish'||
  m.nodes.n152.nextNodes.length||m.length!==Base.MAIN_LENGTH)
@@ -670,7 +670,7 @@ function validate(m){
    const [a,b]=territory.nodeIds;
    if(!m.nodes[a]?.nextNodes.includes(b))
     throw Error('Swords must form an adjacent pair '+id);
-   if(n.territoryId.startsWith('v8-court-')&&
+   if(n.territoryId.startsWith('court-')&&
       (m.nodes[a].islandId!==m.nodes[b].islandId||!m.nodes[a].islandId))
     throw Error('v8 sword court must be placed fully on one island '+id);
   }
@@ -685,5 +685,5 @@ function validate(m){
  return true;
 }
 validate(create(0));
-window.BoardMap=Object.freeze({...Base,MAP_VERSION:VERSION,create,assertCompatible,validate,GRAPH_MIGRATION:V10_GRAPH});
+window.BoardMap=Object.freeze({...Base,MAP_ID:BOARD_ID,create,assertCompatible,validate,GRAPH_MIGRATION:GRAPH_REPORT});
 })();

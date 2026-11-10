@@ -5,7 +5,7 @@ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'board-systems-'));
 try{
  const folder=path.join(temp,'src/board-party/plugins/items/bonus');
  fs.mkdirSync(folder,{recursive:true});
- const m={id:'bonus',category:'items',name:'Bonus',version:'1.0.0',apiVersion:1,
+ const m={id:'bonus',category:'items',name:'Bonus',apiVersion:1,
  enabled:true,entry:'./index.js'};
  fs.writeFileSync(path.join(folder,'manifest.json'),JSON.stringify(m));
  fs.writeFileSync(path.join(folder,'index.js'),"export default {id:'bonus',category:'items',begin(){return false}};\n");
@@ -23,5 +23,5 @@ try{
  assert.throws(build,/missing\/unsafe entry/);
  m.entry='./index.js';m.id='potion';fs.writeFileSync(path.join(folder,'manifest.json'),JSON.stringify(m));
  assert.throws(build,/invalid manifest/);
- console.log('BOARD SYSTEM DISCOVERY PASS: folder only, versioned assets, validation and unsafe path rejection');
+ console.log('BOARD SYSTEM DISCOVERY PASS: folder only, content-addressed assets, validation and unsafe path rejection');
 }finally{fs.rmSync(temp,{recursive:true,force:true});}

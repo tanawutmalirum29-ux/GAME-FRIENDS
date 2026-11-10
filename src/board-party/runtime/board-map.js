@@ -22,7 +22,7 @@ const MAIN_LENGTH=152,
 function neighbors(map,id){const n=map.nodes[id];return [...n.nextNodes,...n.previousNodes];}
 function adjacentType(map,id,type){return neighbors(map,id).some(k=>map.nodes[k]?.type===type);}
 const FIXED_MAP={
-  "version": "winter-expedition-152-v6",
+  "id": "winter-expedition",
   "nodes": {
     "n0": {"id":"n0","position":{"x":650,"y":4750},"type":"start","nextNodes":["n1"],"previousNodes":[],"islandId":"village","progress":0,"effects":{},"remainingSteps":140,"longestRemainingSteps":174},
     "n1": {"id":"n1","position":{"x":800,"y":4800},"type":"movement","nextNodes":["n2"],"previousNodes":["n0"],"islandId":"village","progress":1,"effects":{},"remainingSteps":139,"longestRemainingSteps":173},
@@ -352,7 +352,7 @@ const FIXED_MAP={
   "bounds": {"minX":0,"minY":0,"maxX":7350,"maxY":5800}
 };
 function assertCompatible(map){
- if(map?.version!==FIXED_MAP.version)throw Error('Incompatible BOARD PARTY map '+(map?.version||'unversioned')+'; start a new game ('+FIXED_MAP.version+')');
+ if(map?.id!==FIXED_MAP.id)throw Error('Incompatible BOARD PARTY map '+(map?.id||'unversioned')+'; start a new game ('+FIXED_MAP.id+')');
  return true;
 }
 function create(seed=Date.now()){
@@ -469,5 +469,5 @@ function choose(map,id,x,y,allowed=null){
 }
 // Fail at script load, then clone the validated literal once per game.
 validate(FIXED_MAP);
-window.BoardMap=Object.freeze({create,validate,assertCompatible,choose,neighbors,random,MAIN_LENGTH,SWORD_PAIRS,SWORD_TILES,TERRITORY_ID,MAP_VERSION:FIXED_MAP.version});
+window.BoardMap=Object.freeze({create,validate,assertCompatible,choose,neighbors,random,MAIN_LENGTH,SWORD_PAIRS,SWORD_TILES,TERRITORY_ID,MAP_ID:FIXED_MAP.id});
 })();

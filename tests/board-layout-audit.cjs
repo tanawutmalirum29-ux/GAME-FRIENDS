@@ -1,11 +1,11 @@
 'use strict';
-require('../scripts/build-board-v7.cjs');
+require('../scripts/build-board-assets.cjs');
 const verbose=process.argv.includes('--verbose')||process.env.BOARD_LAYOUT_DEBUG==='1';
 const detail=(...parts)=>{if(verbose)console.log(...parts);};
 const fs=require('fs'),vm=require('vm'),ctx=vm.createContext({window:{},Math,Date,console});
-for(const file of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-v7-adapter.js'])
+for(const file of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-design.js','src/board-party/runtime/board-layout.js'])
  vm.runInContext(fs.readFileSync(file,'utf8'),ctx,{filename:file});
-const M=ctx.window.BoardMap,D=ctx.window.BOARD_PARTY_V7_DESIGN,m=M.create(0);
+const M=ctx.window.BoardMap,D=ctx.window.BOARD_DESIGN,m=M.create(0);
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const edges=Object.values(m.nodes).flatMap(n=>n.nextNodes.map(k=>[n,m.nodes[k]]));
 const lineHit=(a,b,c,d)=>{
@@ -21,7 +21,7 @@ for(let i=0;i<edges.length;i++)for(let j=i+1;j<edges.length;j++){
   cuts.push([a.id+'>'+b.id,c.id+'>'+d.id,a.islandId,b.islandId,c.islandId,d.islandId]);
 }
 detail('DESIGN_KEYS '+JSON.stringify(Object.keys(D)));
-detail('MAP_VERSION '+m.version+' NODES '+Object.keys(m.nodes).length+' EDGES '+edges.length+' ISLANDS '+m.islands.length);
+detail('MAP_ID '+m.id+' NODES '+Object.keys(m.nodes).length+' EDGES '+edges.length+' ISLANDS '+m.islands.length);
 detail('SWORD_SINGLES '+JSON.stringify(Object.values(m.territories).filter(x=>x.nodeIds.length!==2).map(x=>({id:x.id,nodes:x.nodeIds}))));
 detail('CROSSINGS '+cuts.length+' FIRST '+JSON.stringify(cuts.slice(0,40)));
 const result=[];
@@ -51,7 +51,7 @@ detail('SWORD_TYPES '+JSON.stringify(Object.values(m.nodes).filter(n=>n.type==='
 detail('DESIGN_POS_SAMPLE '+JSON.stringify(Object.entries(D.allNodePositions).slice(0,5)));
 
 detail('DESIGN_SHAPES '+JSON.stringify({
- version:D.version,
+ identity:D.id||'winter-expedition',
  map:D.map,
  roadsLength:D.roads?.length,roads:D.roads?.slice?.(0,4),
  overpasses:D.overpasses?.slice?.(0,3),
@@ -77,7 +77,7 @@ detail('DESIGN_DECOR_ZONES '+JSON.stringify(Object.entries(D.decorZones||{}).sli
 detail('CROSSING_GEOMETRY '+JSON.stringify(cuts.map(c=>{const [u,v]=c;return [u,v,...[...u.split('>'),...v.split('>')].map(id=>[id,m.nodes[id].position.x,m.nodes[id].position.y])]})));
 detail('BERG_OUTLINE '+JSON.stringify(D.islands.find(i=>i.id==='berg').outline));
 
-console.log('BOARD LAYOUT AUDIT: '+m.version+', '+Object.keys(m.nodes).length+
+console.log('BOARD LAYOUT AUDIT: '+m.id+', '+Object.keys(m.nodes).length+
  ' nodes, '+edges.length+' routes, '+m.islands.length+' islands, '+cuts.length+
  ' geometric crossings, '+Object.keys(m.territories).length+' sword pairs'+
  (verbose?' (verbose details above)':' (use --verbose for JSON)'));

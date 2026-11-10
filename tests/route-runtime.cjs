@@ -22,7 +22,7 @@ const BOARD={
  'src/board-party/runtime/board-art.js':'BoardArt'
 };
 function fixture(file,mapping,failFile){
- const window={GAME_BUILD_VERSION:'route-test'},calls=[];
+ const window={GAME_DEPLOY_ID:'route-test'},calls=[];
  let failurePending=!!failFile;
  const document={
   baseURI:'https://example.org/subdir/index.html',
@@ -58,27 +58,27 @@ async function host(){
  assert.equal(calls.filter(x=>x.filename==='arena-scale.js').length,1);
  assert.equal(calls.filter(x=>x.filename==='arena-art.js').length,1);
  assert.equal(calls.filter(x=>x.filename==='combat-motion.js').length,2);
- assert.ok(calls.every(x=>new URL(x.src).searchParams.get('v')==='route-test'));
+ assert.ok(calls.every(x=>!new URL(x.src).search),'Canonical script URLs must not include build IDs');
  const before=calls.length;
  await api.ensure();
  assert.equal(calls.length,before,'host reloads do not refetch loaded assets');
 }
 async function board(){
- const {window,calls}=fixture('src/platform/board-runtime.js',BOARD,'src/board-party/runtime/board-v7-art.js');
+ const {window,calls}=fixture('src/platform/board-runtime.js',BOARD,'src/board-party/runtime/board-scenery.js');
  const api=window.BoardRuntime;
- await assert.rejects(api.ensure(),/BOARD PARTY asset unavailable: src\/board-party\/runtime\/board-v7-art\.js/);
+ await assert.rejects(api.ensure(),/BOARD PARTY asset unavailable: src\/board-party\/runtime\/board-scenery\.js/);
  const first=calls.map(x=>x.filename);
- assert.deepEqual(first,['src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-v7-art.js']);
+ assert.deepEqual(first,['src/board-party/runtime/board-map.js','src/board-party/runtime/board-design.js','src/board-party/runtime/board-scenery.js']);
  const p1=api.ensure(),p2=api.ensure();
  await Promise.all([p1,p2]);
  assert.equal(api.ready(),true);
  assert.equal(calls.filter(x=>x.filename==='src/board-party/runtime/board-map.js').length,1);
- assert.equal(calls.filter(x=>x.filename==='src/board-party/runtime/board-v7-design.js').length,1);
- assert.equal(calls.filter(x=>x.filename==='src/board-party/runtime/board-v7-art.js').length,2);
+ assert.equal(calls.filter(x=>x.filename==='src/board-party/runtime/board-design.js').length,1);
+ assert.equal(calls.filter(x=>x.filename==='src/board-party/runtime/board-scenery.js').length,2);
  assert.equal(calls.length,13,'12-board-file bundle plus one retried broken asset');
  const before=calls.length;await api.ensure();
  assert.equal(calls.length,before);
 }
 Promise.resolve().then(host).then(board).then(()=>
- console.log('ROUTE RUNTIME PASS: host-only assets, version pins, deduped retries, BOARD partial recovery')
+ console.log('ROUTE RUNTIME PASS: host-only assets, stable asset URLs, deduped retries, BOARD partial recovery')
 ).catch(error=>{console.error(error);process.exitCode=1;});

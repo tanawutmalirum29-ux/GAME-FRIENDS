@@ -8,7 +8,7 @@
 
 ## แผนที่ Fixed Expedition — 9 เกาะ
 
-`winter-expedition-152-v3` มีเส้นหลัก **152 ช่วง / 153 Node** จาก START ถึง FINISH และ **212 Node** เมื่อรวมทางแยก เส้นทางสั้นที่สุด 140 ช่วง ยาวที่สุด 174 ช่วง จึงไม่มีทางลัดข้ามเกือบทั้งด่าน ความยาวนี้มากกว่า 120 จุดหลักตามโจทย์ฉบับเพิ่มเติม
+`winter-expedition` มีเส้นหลัก **152 ช่วง / 153 Node** จาก START ถึง FINISH และ **212 Node** เมื่อรวมทางแยก เส้นทางสั้นที่สุด 140 ช่วง ยาวที่สุด 174 ช่วง จึงไม่มีทางลัดข้ามเกือบทั้งด่าน ความยาวนี้มากกว่า 120 จุดหลักตามโจทย์ฉบับเพิ่มเติม
 
 | เกาะ | ช่องบนเกาะ | ภูมิประเทศและฉาก |
 | --- | ---: | --- |
@@ -34,7 +34,7 @@
 
 ### Map Version และสถานะเก่า
 
-ID จาก `winter-fixed-120-v2` และแผนที่ 72 ช่วงเดิม **ไม่ใช่ตำแหน่งเดียวกับ v3** ห้ามย้ายสถานะเก่าด้วยเลข Node อย่างเดียว โค้ดตรวจ version ก่อน update/input/startTurn/snapshot และเมื่อกลับจากมินิเกม หากไม่ตรงให้เริ่มแมตช์ใหม่ แพ็กเก็ต Host/จอยและ snapshot มี `mapVersion` กำกับ
+ID จาก `older-map` และแผนที่เก่าที่เลิกใช้ **ไม่ใช่ตำแหน่งเดียวกับ v3** ห้ามย้ายสถานะเก่าด้วยเลข Node อย่างเดียว โค้ดตรวจ map ID ก่อน update/input/startTurn/snapshot และเมื่อกลับจากมินิเกม หากไม่ตรงให้เริ่มแมตช์ใหม่ แพ็กเก็ต Host/จอยและ snapshot มี `mapVersion` กำกับ
 
 Reconnect ใช้ session เดิมบน Host รวมตำแหน่งโลกและเส้นทางที่กำลังเดิน ไม่ได้สร้างแผนที่ใหม่เมื่อมือถือกลับมา ระบบเดิมไม่ได้บันทึกแมตช์เต็มเพื่อโหลดต่อหลังรีเฟรช Host; การรีเฟรชและเริ่มใหม่จะได้ผัง v3 เดิมทุกครั้ง ไม่มีการแปลงตำแหน่งเก่าเงียบ ๆ
 
@@ -177,7 +177,7 @@ BOARD_BROWSER=webkit node tests/board-startup.cjs
 
 `board-startup.cjs` ทดสอบปุ่มเริ่มจริงกับ animation loop บน Chromium/WebKit ที่ 2 และ 12 คน รวมเฟรมแรกที่ล่าช้า, clip ค้างจากจอเดิม, ขนาด cache ที่จำกัด, Canvas พื้นหลังสร้างไม่ได้ และพัก/เล่นต่อ/ภาพรวม/ติดตาม ส่วน `board-art.cjs` ตรวจงบพิกเซล การใช้ cache ซ้ำและการปล่อยหน่วยความจำ โดยรันใน CI ได้โดยไม่ใช้ browser
 
-เพิ่ม core simulations ใน GitHub Actions และเพิ่ม asset ทั้ง 7 ไฟล์ใน static build versioning แล้ว ทุก minigame engine ใช้โค้ดเดิม ไม่มีการแก้กติกาเกมปกติ
+เพิ่ม core simulations ใน GitHub Actions และเพิ่ม asset ทั้ง 7 ไฟล์ใน static build แล้ว ทุก minigame engine ใช้โค้ดเดิม ไม่มีการแก้กติกาเกมปกติ
 
 ## ระบบสำรวจแมพและ Debug บนจอ Host
 
@@ -192,10 +192,10 @@ BOARD_BROWSER=webkit node tests/board-startup.cjs
 - ลักกี้สตาร์และช่องฟื้นฟูห้ามติดกันกับชนิดเดียวกันโดยตรงแม้ผ่านจุดเชื่อมต่อทางแยก (ตรวจจาก Graph)
 - ช่องถ้วยรางวัลที่ไม่มีระบบใช้งานจริงถูกเปลี่ยนเป็นช่อง Movement ปกติ ช่อง Healing ฟื้น +20 HP และ Potion ฟื้น +50 HP
 
-## BOARD PARTY V9 — hierarchical path IDs and directional graph arrows
+## BOARD PARTY canonical — hierarchical path IDs and directional graph arrows
 
 For the current 310-node / 331-edge board, authoritative edges, deletion audit,
 relocated linked sword courts, deterministic branch names and the full
 old/internal/display ID export, see [BOARD_BRANCH_GRAPH_RULES.md](BOARD_BRANCH_GRAPH_RULES.md).
 The live movement graph and display-only arrow directions are deliberately
-separate; no new routes are introduced by V9.
+separate; no new routes are introduced by canonical.

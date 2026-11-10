@@ -838,10 +838,9 @@ function createControllerIngressGuard(clock=()=>Date.now()){
   if(!msg||typeof msg!=='object'||Array.isArray(msg)||typeof msg.t!=='string'||!types.has(msg.t))return false;
   if(!bounded(msg))return false;
   switch(msg.t){
-   case 'join':return typeof msg.name==='string'&&msg.name.length<=256&&
+   case 'join':return !Object.hasOwn(msg,'protocolVersion')&&typeof msg.name==='string'&&msg.name.length<=256&&
     (msg.clientToken===undefined||(typeof msg.clientToken==='string'&&msg.clientToken.length<=100))&&
-    (msg.protocolVersion===undefined||msg.protocolVersion===1)&&
-    (msg.coreHash===undefined||(typeof msg.coreHash==='string'&&/^[a-f0-9]{20}$/.test(msg.coreHash)));
+     (msg.coreHash===undefined||(typeof msg.coreHash==='string'&&/^[a-f0-9]{20}$/.test(msg.coreHash)));
    case 'input':{
     const keys=msg.keys;
     if(!keys||typeof keys!=='object'||Array.isArray(keys))return false;
@@ -855,8 +854,8 @@ function createControllerIngressGuard(clock=()=>Date.now()){
     return (msg.actionId===undefined||(Number.isSafeInteger(msg.actionId)&&msg.actionId>=0))&&
      (msg.clientAt===undefined||(Number.isFinite(msg.clientAt)&&msg.clientAt>=0&&msg.clientAt<1e10))&&
      (msg.turnId===undefined||msg.turnId===null||typeof msg.turnId==='string'||Number.isSafeInteger(msg.turnId))&&
-     (msg.mapVersion===undefined||msg.mapVersion===null||
-      (typeof msg.mapVersion==='string'&&msg.mapVersion.length<=80));
+     (msg.mapId===undefined||msg.mapId===null||
+      (typeof msg.mapId==='string'&&msg.mapId.length<=80));
    }
    case 'board-camera-gesture':return ['pan','pinch'].includes(msg.kind)&&
     (msg.kind==='pan'?Number.isFinite(msg.dx)&&Number.isFinite(msg.dy):
@@ -899,32 +898,31 @@ function createFastAxisIngressGuard(clock=()=>Date.now()){
    lastTime=now;tokens=Math.min(60,tokens+elapsed*40/1000);
    if(tokens<1)return false;tokens--;
    if(!msg||typeof msg!=='object'||Array.isArray(msg)||
-      Object.keys(msg).some(k=>!['t','seq','x','y','turnId','mapVersion'].includes(k))||
+      Object.keys(msg).some(k=>!['t','seq','x','y','turnId','mapId'].includes(k))||
       msg.t!=='axis'||!Number.isSafeInteger(msg.seq)||msg.seq<0||
       msg.seq<=lastSeq||!Number.isFinite(msg.x)||!Number.isFinite(msg.y)||
       Math.abs(msg.x)>1.01||Math.abs(msg.y)>1.01||
       (msg.turnId!==null&&msg.turnId!==undefined&&
         !(typeof msg.turnId==='string'&&msg.turnId.length<=128))||
-      (msg.mapVersion!==null&&msg.mapVersion!==undefined&&
-        !(typeof msg.mapVersion==='string'&&msg.mapVersion.length<=80)))return false;
+      (msg.mapId!==null&&msg.mapId!==undefined&&
+        !(typeof msg.mapId==='string'&&msg.mapId.length<=80)))return false;
    lastSeq=msg.seq;return true;
   },
   dispose(){closed=true;tokens=0;}
  };
 }
-/* Host-authoritative transport contract; versioned Core and plugin UX. */
-const GF_TRANSPORT_PROTOCOL=1;
-function gfVersionHello(){
- const core=String(window.GAME_CORE_VERSION||'');
- return /^[a-f0-9]{20}$/.test(core)?{protocolVersion:GF_TRANSPORT_PROTOCOL,coreHash:core}:{};
+/* Match the actual running core without assigning numbered game releases. */
+function gfConnectionHello(){
+ const core=String(window.GAME_CORE_HASH||'');
+ return /^[a-f0-9]{20}$/.test(core)?{coreHash:core}:{};
 }
-function gfVersionsCompatible(packet){
- const expected=gfVersionHello();
- // Local source HTML has no versioned build manifest; do not break offline
- // regression harnesses. Real AWS builds always carry a SHA fingerprint.
+function gfConnectionCompatible(packet){
+ // Reject obsolete numeric release tokens even when a Core hash matches.
+ if(packet&&Object.hasOwn(packet,'protocolVersion'))return false;
+ const expected=gfConnectionHello();
+ // Development fixtures have no generated core fingerprint.
  if(!expected.coreHash)return true;
- return !!packet&&packet.protocolVersion===GF_TRANSPORT_PROTOCOL&&
-  packet.coreHash===expected.coreHash;
+ return !!packet&&packet.coreHash===expected.coreHash;
 }
 /* Host-only PeerJS signaling recovery. DataConnections/Board session are
  * intentionally untouched: disconnect() keeps live WebRTC channels alive. */
@@ -1667,13 +1665,13 @@ function acceptFastAxisConnection(conn){
   player.lastInputAt=Date.now();
   if(round.mode==='board'&&boardSession){
    const board=boardSession;
-   if(packet.turnId!==board.turnId||packet.mapVersion!==board.map.version||
+   if(packet.turnId!==board.turnId||packet.mapId!==board.map.id||
       window.BoardParty.current(board)?.id!==player.id||
       primary.boardCameraGestureToken===board.turnId)return;
    const previous=board.inputs[player.id];
    const held=previous?.turnId===board.turnId?previous:{};
    window.BoardParty.input(board,player.id,{
-    turnId:board.turnId,mapVersion:board.map.version,
+    turnId:board.turnId,mapId:board.map.id,
     actionId:(board.lastActions[player.id]??-1)+1,
     keys:{axisX:x,axisY:y,action:held.a===true,alt:held.b===true,cancel:held.c===true}
    });
@@ -1753,8 +1751,8 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     conn.on('data',msg=>{
       if(!ingress.accept(msg))return;
       if(msg.t==='join'&&!conn.playerId){
-        if(!gfVersionsCompatible(msg)){
-          send(conn,{t:'reject',reason:'เวอร์ชันจอยไม่ตรงกับโฮสต์ • ออกจากห้องแล้วอัปเดตแอป',...gfVersionHello()});
+        if(!gfConnectionCompatible(msg)){
+          send(conn,{t:'reject',reason:'ชุดโค้ดจอยไม่ตรงกับโฮสต์ • ออกจากห้องแล้วอัปเดตแอป',...gfConnectionHello()});
           return;
         }
         const token=typeof msg.clientToken==='string'&&msg.clientToken.length>=12&&msg.clientToken.length<=100?msg.clientToken:null;
@@ -1776,8 +1774,8 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         conn.boardMiniMapSession=null;conn.fastAxisToken=fastAxisSessionToken();
         conn.fastAxisConn=null;conn.fastAxisLastAt=0;p.lastInputAt=Date.now();
         send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active,axisToken:conn.fastAxisToken,
-          ...gfVersionHello(),pluginHash:round?.pluginHash||null,
-          boardMapVersion:boardSession?.map.version||null});
+          ...gfConnectionHello(),pluginHash:round?.pluginHash||null,
+          boardMapId:boardSession?.map.id||null});
         broadcastRoster();
         if(['results','summary'].includes(round?.phase))renderResultVotes(true);
       }else if(msg.t==='leave'&&conn.playerId){
@@ -1802,7 +1800,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
       }else if(msg.t==='board-camera-mode'&&conn.playerId){
         const s=boardSession;
         const valid=round?.mode==='board'&&round.phase==='playing'&&!round.paused&&s&&
-          msg.turnId===s.turnId&&msg.mapVersion===s.map.version&&
+          msg.turnId===s.turnId&&msg.mapId===s.map.id&&
           window.BoardParty.current(s)?.id===conn.playerId&&
           (s.phase==='ready'||(['move_ready','branch','moving'].includes(s.phase)&&s.move?.kind==='walk'))&&
           window.BoardArt?.canPan?.(s)&&
@@ -1818,7 +1816,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
       }else if(msg.t==='board-camera-gesture'&&conn.playerId){
         const s=boardSession;
         if(round?.mode!=='board'||round.phase!=='playing'||round.paused||!s||
-          msg.turnId!==s.turnId||msg.mapVersion!==s.map.version||
+          msg.turnId!==s.turnId||msg.mapId!==s.map.id||
           conn.boardCameraGestureToken!==s.turnId||
           !(s.phase==='ready'||(['move_ready','branch','moving'].includes(s.phase)&&s.move?.kind==='walk'))||
           window.BoardParty.current(s)?.id!==conn.playerId||
@@ -2080,7 +2078,7 @@ function updatePhoneGamePicker(phase,choice){
   const inspected=!!boardCameraController?.enabled();
   send(fast,{t:'axis',seq:++controllerFastAxisSeq,
    x:inspected?0:controllerKeys.axisX,y:inspected?0:controllerKeys.axisY,
-   turnId:controllerBoard?.turnId??null,mapVersion:controllerBoard?.mapVersion??null});
+   turnId:controllerBoard?.turnId??null,mapId:controllerBoard?.mapId??null});
   return true;
  }
  let controllerMediaCall=null;
@@ -2435,7 +2433,7 @@ function joinRoom(recovery=false){
     if(controllerPeer!==peer)return;
     const conn=peer.connect('gf-party-'+code,{reliable:true,serialization:'json'});
     controllerConn=conn;
-    conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken,...gfVersionHello()});controllerState('กำลังรอห้องรับผู้เล่น...');});
+    conn.on('open',()=>{send(conn,{t:'join',name,clientToken:stablePhoneToken,...gfConnectionHello()});controllerState('กำลังรอห้องรับผู้เล่น...');});
     peer.on('call',call=>{
       if(controllerPeer!==peer||call.peer!=='gf-party-'+code||!controllerPreviewEnabled){
         try{call.close();}catch(_){}
@@ -2460,7 +2458,7 @@ function joinRoom(recovery=false){
         safePeerDestroy();return;
       }
       if(data.t==='welcome'){
-        if(!gfVersionsCompatible(data)){
+        if(!gfConnectionCompatible(data)){
           controllerState('โฮสต์ใช้โปรโตคอลหรือ Core คนละเวอร์ชัน • อัปเดตแอปแล้วเข้าห้องอีกครั้ง',true);
           $('joinBtn').disabled=false;safePeerDestroy();return;
         }
@@ -2788,7 +2786,7 @@ function showControllerMode(mode){
     'กด A เพื่อโหวตเริ่มเกม • ครบทุกคนแล้วเกมเริ่มอัตโนมัติ':
     playing?(ui.help||'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่'):
     'ลากนิ้วบนพื้นที่ว่างเพื่อเคลื่อนที่';
-  // Native plug-ins describe their own controls through the versioned catalog.
+  // Native plug-ins describe their own controls through the game catalog.
   // The phone never downloads gameplay, physics, or host-only engine modules.
   if(playing&&plugin&&!plugin.global){
     const actions=plugin.controls||[];
@@ -2895,7 +2893,7 @@ function sendInputs(){
    keys.axisX=0;keys.axisY=0;keys.left=false;keys.right=false;keys.jump=false;keys.down=false;
    if(controllerBoard?.boardPhase==='ready'){keys.action=false;keys.alt=false;keys.cancel=false;}
  }
- send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion,actionId:++controllerActionId,clientAt:Math.floor(controllerNow())});
+ send(controllerConn,{t:'input',keys,turnId:controllerBoard?.turnId,mapId:controllerBoard?.mapId,actionId:++controllerActionId,clientAt:Math.floor(controllerNow())});
   sendControllerFastAxis();
 }
 function isPortraitScreen(){
@@ -3144,7 +3142,7 @@ window.addEventListener('blur',()=>{
    for(const [i,id] of ids.entries())for(const next of s.map.nodes[id].nextNodes)
      if(byId.has(next))links.push([i,byId.get(next)]);
    boardMiniMapCache={session:s.id,
-     packet:{t:'board-minimap-map',session:s.id,version:s.map.version,
+     packet:{t:'board-minimap-map',session:s.id,mapId:s.map.id,
        width:s.map.width,height:s.map.height,nodes,links}};
    return boardMiniMapCache;
  }
@@ -3278,7 +3276,7 @@ function beginBoard(){
   const platform=window.GamePlatform;
   // Production no longer downloads legacy minigame engines at initial page load.
   // Wait for the versioned registry rather than mistaking them for missing games.
-  if(window.GAME_CORE_VERSION&&platform&&!platform.revision){
+  if(window.GAME_CORE_HASH&&platform&&!platform.revision){
     if(boardCatalogPending)return;
     boardCatalogPending=true;
     void platform.refresh().then(()=>{
@@ -3418,7 +3416,7 @@ function broadcastBoardState(){
       conn.boardItemMetaSession=boardSession.id;
     }
     const p=boardSession.players.find(p=>p.id===conn.playerId);if(!p)continue;
-    send(conn,{t:'board-state',sessionId:boardSession.id,mapVersion:boardSession.map.version,phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
+    send(conn,{t:'board-state',sessionId:boardSession.id,mapId:boardSession.map.id,phase:networkPhase(),turnId:boardSession.turnId,boardPhase:boardSession.phase,
       round:boardSession.roundNumber,hp:p.hp,usedRound:p.usedRound||0,stepsRemaining:window.BoardParty.remainingSteps(boardSession,p.id),shieldTurns:window.BoardParty.isProtected(boardSession,p)?1:0,
       canZoom:round.phase==='playing'&&!round.paused&&window.BoardParty.current(boardSession)?.id===p.id&&
         window.BoardArt.canPan(boardSession),
@@ -4210,7 +4208,7 @@ function beginGameSelection(mode){
   gameSelection={mode,elapsed:0,spinDuration:1.45,holdDuration:1.18,
     initial,final,winningIndex,winner,track,ready:true,error:null};
   const platform=window.GamePlatform,selection=gameSelection;
-  if(platform&&(!!window.GAME_CORE_VERSION||platform.descriptor(mode))&&
+  if(platform&&(!!window.GAME_CORE_HASH||platform.descriptor(mode))&&
      (!platform.revision||!platform.ready(mode))){
     selection.ready=false;
     void (async()=>{
@@ -4414,7 +4412,7 @@ $('videoStartBtn').addEventListener('click',()=>{
   const packet=pendingCameraGesture;pendingCameraGesture=null;
   if(!packet||!controllerReady||!controllerConn?.open||!boardCameraController?.enabled())return;
   send(controllerConn,{t:'board-camera-gesture',...packet,
-    turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
+    turnId:controllerBoard?.turnId,mapId:controllerBoard?.mapId});
  };
  const queueCameraGesture=gesture=>{
   if(pendingCameraGesture&&pendingCameraGesture.kind===gesture.kind){
@@ -4486,7 +4484,7 @@ boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
      if(controllerBoard?.boardPhase==='ready')renderPhoneBoard();
     if(notify&&controllerConn?.open)
       send(controllerConn,{t:'board-camera-mode',enabled,
-        turnId:controllerBoard?.turnId,mapVersion:controllerBoard?.mapVersion});
+        turnId:controllerBoard?.turnId,mapId:controllerBoard?.mapId});
   },
   onGesture:gesture=>{
     if(!controllerReady||!controllerConn?.open)return;

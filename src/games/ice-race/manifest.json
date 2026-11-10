@@ -1,7 +1,6 @@
 {
   "id": "ice_race",
   "name": "ICE RACE",
-  "version": "1.0.1",
   "apiVersion": 1,
   "enabled": true,
   "players": {
