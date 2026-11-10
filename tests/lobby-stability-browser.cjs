@@ -48,8 +48,22 @@ async function geometry(page){
    await page.locator('#offlineBtn').click();
    assert.equal(await page.locator('#plazaCanvas').isVisible(),true,'scene visible');
    await page.locator('#plazaRoomToggle').click();
+   assert.equal(await page.locator('#plazaRoomToggle').getAttribute('aria-expanded'),'true');
    await page.locator('#plazaRosterToggle').click();
-   assert.equal(await page.locator('#roster').isVisible(),true);
+   assert.equal(await page.locator('#roster').isVisible(),true,
+    JSON.stringify(await page.evaluate(()=>{
+     const h=document.getElementById('hostLobby'),r=document.getElementById('plazaRosterPanel'),
+      roster=document.getElementById('roster'),btn=document.getElementById('plazaRosterToggle');
+     const dump=x=>({style:getComputedStyle(x).display,visibility:getComputedStyle(x).visibility,
+      rect:[x.getBoundingClientRect().width,x.getBoundingClientRect().height],
+      classes:x.className,inline:x.getAttribute('style')});
+     return {hostClasses:h.className,button:btn.getAttribute('aria-expanded'),
+      panel:dump(r),roster:dump(roster)};
+    })));
+   assert.equal(await page.locator('#plazaRoomPanel').isVisible(),false,
+    'opening roster closes the QR popup instead of layering both');
+   assert.equal(await page.locator('#plazaRoomToggle').getAttribute('aria-expanded'),'false');
+   assert.equal(await page.locator('#plazaRosterToggle').getAttribute('aria-expanded'),'true');
    assert.equal(await page.locator('#plazaCanvas').evaluate(e=>[e.width,e.height].every(n=>n>=540)),true,'DPR-backed canvas');
    // Remove offline demo bots via their original, preserved DOM actions.
    while(await page.locator('#roster .roster-item:not(.roster-empty)').count())
@@ -105,6 +119,11 @@ async function geometry(page){
     await page.locator('#plazaSettingsToggle').click();
     await stable('mode '+mode);
    }
+   // Only one Plaza popup stays open. Restore the roster after the mode
+   // settings loop before clicking per-player remove buttons.
+   await page.locator('#plazaRosterToggle').click();
+   assert.equal(await page.locator('#roster').isVisible(),true,
+    'bot removal actions must be visible inside the restored roster popup');
    while(await page.locator('#roster .roster-item:not(.roster-empty)').count()){
     await page.locator('#roster .roster-item:not(.roster-empty) button[aria-label^="เอา"]').last().click();
     await stable('remove bot');

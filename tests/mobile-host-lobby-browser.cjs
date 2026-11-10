@@ -1,5 +1,5 @@
-/* Party Plaza small-screen regression: full scene plus QR, roster and settings
- * as independently toggled overlays in Chromium and WebKit. */
+/* Party Plaza small-screen regression: full scene plus exclusive QR, roster
+ * and settings popovers, with safe-area placement in Chromium and WebKit. */
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http');
@@ -51,8 +51,34 @@ async function run(){
    assert.ok((await page.locator('#qrBox').boundingBox()).width>=65,'QR legible');
    await page.locator('#plazaRosterToggle').click();
    assert.equal(await page.locator('#roster').isVisible(),true);
+   assert.equal(await page.locator('#plazaRoomPanel').isVisible(),false,
+    'QR must close when roster opens');
    await page.locator('#plazaSettingsToggle').click();
    assert.equal(await page.locator('#addLocalBtn').isVisible(),true);
+   assert.equal(await page.locator('#plazaRosterPanel').isVisible(),false,
+    'roster must close when Settings opens');
+   assert.equal(await page.locator('#plazaRoomToggle').getAttribute('aria-expanded'),'false');
+   assert.equal(await page.locator('#plazaSettingsToggle').getAttribute('aria-expanded'),'true');
+   // iPad safe-area and compact phone layouts: the Settings popover starts
+   // BELOW the actual visible header, and all three game choices form rows.
+   const popup=await page.evaluate(()=>{
+    const host=document.getElementById('hostLobby'),
+     panel=host.querySelector('.lobby-controls'),
+     bar=host.querySelector('.lobby-bar'),
+     choices=Array.from(host.querySelectorAll('#sessionMode .seg-option'));
+    return {
+     headerBottom:(parseFloat(getComputedStyle(bar).top)||0)+bar.offsetHeight,
+     panelTop:parseFloat(getComputedStyle(panel).top)||0,
+     optionTops:choices.map(choice=>choice.offsetTop),
+     optionHeights:choices.map(choice=>choice.offsetHeight)
+    };
+   });
+   assert.ok(popup.panelTop>=popup.headerBottom+2,
+    'Settings must start below safe-area header: '+JSON.stringify(popup));
+   assert.ok(popup.optionHeights.every(h=>h>=36),
+    'Settings game choices must remain readable: '+JSON.stringify(popup));
+   assert.ok(popup.optionTops[0]<popup.optionTops[1]&&popup.optionTops[1]<popup.optionTops[2],
+    'game mode buttons must be three stacked rows: '+JSON.stringify(popup));
    await page.locator('#addLocalBtn').click();
    assert.equal(await page.locator('#roster .roster-item:not(.roster-empty)').count(),3);
    // Hiding panels restores full map, not a new layout or smaller canvas.
