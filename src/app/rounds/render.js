@@ -1,4 +1,9 @@
+let boardLeaderboardCleared=false;
 function renderLeaderboard(){
+  // BOARD uses its own canvas HUD; clearing the empty HTML HUD 4-5 times per
+  // second creates useless layout/style work and intermittent iPad jank.
+  if(round?.mode==='board'&&boardLeaderboardCleared)return;
+  boardLeaderboardCleared=round?.mode==='board';
   const root=$('leaderboard');root.replaceChildren();
   const active=round?players.filter(p=>p.active):[];
   const count=Math.max(1,active.length);
@@ -91,6 +96,16 @@ function updateAdaptiveBoardDetail(elapsed){
   c.lowDetail=false;c.autoDetailEngaged=false;fastBoardSeconds=0;refreshBoardTools();
  }
 }
+// Drawing the 302-node BOARD map at 120 Hz needlessly burns GPU/CPU on iPad.
+// Physics, joystick input, minigame timing and network updates stay on every RAF.
+let lastBoardPaintAt=0;
+function shouldPaintBoardFrame(ts,lowDetail,dense){
+ const budget=1000/(lowDetail||dense?30:45);
+ if(!lastBoardPaintAt||ts<lastBoardPaintAt||ts-lastBoardPaintAt>=budget){
+  lastBoardPaintAt=ts;return true;
+ }
+ return false;
+}
 function animate(ts){
   const elapsed=Math.max(0,(ts-frameLast)/1000||.016);
   const dt=Math.min(.045,elapsed);
@@ -104,8 +119,17 @@ function animate(ts){
    }else if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
     if(possessedBotId)applyBotPadKeys();
-    updateRound(round.mode==='board'?boardDt:dt);drawGame(graphicsClock);
-    renderHostVideoFrames();
+    updateRound(round.mode==='board'?boardDt:dt);
+    // BOARD may switch to the roulette during updateRound. No engine has been
+    // loaded yet: painting its placeholder here could throw and close the room.
+    if(round&&!gameSelection){
+      const onBoard=round.mode==='board';
+      if(onBoard)updateAdaptiveBoardDetail(elapsed);
+      const shouldDraw=!onBoard||shouldPaintBoardFrame(ts,
+       boardSession?.camera?.lowDetail,boardSession?.players.length>=8);
+      if(shouldDraw){drawGame(graphicsClock);renderHostVideoFrames();}
+      if(!onBoard)lastBoardPaintAt=0;
+    }
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
       if(round.autoNextRemaining===0)advanceParty();
@@ -114,7 +138,7 @@ function animate(ts){
     botTestClock+=dt;
     if(botTestClock>.2){botTestClock=0;renderBotTestPad();}
     hudClock+=dt;
-    if(hudClock>.22){
+    if(hudClock>.38){
       renderLeaderboard();hudClock=0;
     }
     inventoryClock+=dt;
