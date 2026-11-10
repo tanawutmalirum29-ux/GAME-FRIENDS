@@ -144,19 +144,34 @@ function botPlan(s,p,ps){
   .sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
  // Choose from a richer range; varied preferences stop every bot circling
  // the same central lane. The same explicit seed still reproduces QA runs.
- const candidates=[-1.7,-1.3,-.95,-.65,-.34,0,.34,.65,.95,1.3,1.7];
+ const candidates=[-2.3,-1.9,-1.55,-1.2,-.9,-.6,-.3,0,.3,.6,.9,1.2,1.55,1.9,2.3];
  let best=-Infinity,bestHeading=w.heading;
  for(const turn of candidates){
   const aim=w.heading+turn+style.turnBias,trial={heading:w.heading,moveHeading:w.moveHeading,angular:w.angular};
   const pos={x:p.x,y:p.y,dir:p.dir,face:p.face};
   let score=-Math.abs(turn)*(.3+.25*style.caution),collision=false;
-  for(let k=0;k<11;k++){
+  for(let k=0;k<21;k++){
    const previous={x:pos.x,y:pos.y};
-   move(trial,pos,.13,aim);
-   if(!inside(s,pos.x,pos.y,CONFIG.radius+6)){collision=true;break;}
+   move(trial,pos,.115,aim); // 2.4s predictive steering horizon
+   if(!inside(s,pos.x,pos.y,CONFIG.radius+15)){collision=true;break;}
    if(strikesTrail(s,p,previous,pos)){collision=true;break;}
    const dx=(pos.x-s.w/2)/s.rx,dy=(pos.y-s.h/2)/s.ry;
-   score+=.025*(1-Math.hypot(dx,dy));
+   score+=.035*(1-Math.hypot(dx,dy));
+   // Do not wait for actual contact: maintain clearance from nearby trails.
+   for(const line of nearby(s,previous,pos,CONFIG.radius+CONFIG.trailRadius+24)){
+    if(line.owner===p&&w.distance-line.b.d<CONFIG.selfGap+12)continue;
+    const d=Math.sqrt(distPointSegment2(pos,line.a,line.b));
+    if(d<CONFIG.radius+CONFIG.trailRadius+21)
+     score-=2.4*(CONFIG.radius+CONFIG.trailRadius+21-d)/21*style.caution;
+   }
+   for(const other of ps){
+    if(other===p||!other.ws?.alive||!other.active)continue;
+    const ahead=Math.min(1.2,(k+1)*.115);
+    const ox=other.x+Math.cos(other.ws.moveHeading)*CONFIG.speed*ahead;
+    const oy=other.y+Math.sin(other.ws.moveHeading)*CONFIG.speed*ahead;
+    const d=Math.hypot(pos.x-ox,pos.y-oy);
+    if(d<CONFIG.radius*3)score-=(CONFIG.radius*3-d)*.5*style.caution;
+   }
   }
   if(collision)score-=400;
   else{
@@ -169,6 +184,16 @@ function botPlan(s,p,ps){
     if(other===p||!other.ws?.alive||!other.active)continue;
     const d=Math.hypot(pos.x-other.x,pos.y-other.y);
     if(d<85)score-=((85-d)/85)*1.3*style.caution;
+   }
+   // Prefer tactically cutting across an opponent's projected line AFTER
+   // our own path is verified safe; this lays a trap without head-on suicide.
+   for(const other of ps){
+    if(other===p||!other.ws?.alive||!other.active)continue;
+    const tx=other.x+Math.cos(other.ws.moveHeading)*CONFIG.speed*.9;
+    const ty=other.y+Math.sin(other.ws.moveHeading)*CONFIG.speed*.9;
+    const d=Math.hypot(pos.x-tx,pos.y-ty);
+    if(d>CONFIG.radius*3&&d<140)
+     score+=(140-d)/140*1.7;
    }
    if(star&&w.trailCap<s.settings.trailMax){
     const start=Math.hypot(p.x-star.x,p.y-star.y);
@@ -214,7 +239,7 @@ function setup(round,ps){
    eliminatedAt:null,fade:0,botPlan:q.heading,botClock:0,
    botStyle:{orbit:.34+random(s)*.37,caution:.75+random(s)*.65,
     starDrive:.55+random(s)*1.1,turnBias:(random(s)-.5)*.18,
-    reaction:.13+random(s)*.12}};
+    reaction:.08+random(s)*.06}};
  }
  return s;
 }

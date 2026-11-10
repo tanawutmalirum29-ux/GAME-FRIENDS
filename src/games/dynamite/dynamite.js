@@ -8,7 +8,7 @@ const STEP=1/60,TAU=Math.PI*2,EPS=1e-8;
 const C=Object.freeze({
  radius:15,maxSpeed:170,response:11,brake:14,knockDecay:3.2,
  fuseSmall:10,fuseLarge:12,         // seconds, 1–6 players / 7–12 players
- passLock:.75,armGrace:.5,          // return-pass lock, fresh-holder grace
+ passLock:1.3,armGrace:.5,          // return-pass lock, fresh-holder grace
  intermission:1.6,finishDelay:.9,soloSeconds:45,
  stun:1.2,stunGrace:.35,stunClosing:30,
  tram:{length:78,width:40,slide:150,gaugeClear:64},
@@ -172,7 +172,7 @@ function spawnPositions(s,n){
 function makeBot(s){
  const skill=.74+rng(s)*.2;
  return {skill,interval:.09+rng(s)*.07,at:rng(s)*.2,ax:0,ay:0,dx:0,dy:0,target:null,
-  homeX:0,homeY:0,ignore:Object.create(null),lastX:0,lastY:0,stuckT:0,unstick:0,unstickX:0,unstickY:0,
+  homeX:0,homeY:0,ignore:Object.create(null),lastX:0,lastY:0,stuckT:0,unstick:0,unstickX:0,escapeUntil:0,escapeFrom:null,
   speedBias:.92+rng(s)*.16};
 }
 function setup(round,ps){
@@ -337,6 +337,24 @@ function botDecide(s,p,ps){
 }
 function botInput(s,p,ps,dt){
  const b=p.dyn.bot;
+ // After a pass, sprint away from the new holder. This outranks normal
+ // target/rail positioning and prevents two-bot pass ping-pong.
+ if(b.escapeUntil>s.clock&&s.bomb?.holderId!==p.id){
+  const target=ps.find(q=>q.id===s.bomb?.holderId)||ps.find(q=>q.id===b.escapeFrom);
+  if(target){
+   const bounds=s.world.bounds,R=C.radius+25;
+   const dx=p.x-target.x,dy=p.y-target.y,m=hyp(dx,dy)||1;
+   let vx=dx/m,vy=dy/m;
+   const left=p.x<bounds.x+R,right=p.x>bounds.x+bounds.w-R;
+   const top=p.y<bounds.y+R,bottom=p.y>bounds.y+bounds.h-R;
+   if((left&&vx<0)||(right&&vx>0)){vx=0;vy=dy>=0?1:-1;}
+   if((top&&vy<0)||(bottom&&vy>0)){vy=0;vx=dx>=0?1:-1;}
+   b.dx=vx;b.dy=vy;b.at=0;
+   b.ax+=(vx-b.ax)*(1-Math.exp(-28*dt));
+   b.ay+=(vy-b.ay)*(1-Math.exp(-28*dt));
+   return{x:b.ax,y:b.ay};
+  }
+ }
  b.at-=dt;
  if(b.at<=0){botDecide(s,p,ps);b.at=b.interval*(.85+rng(s)*.3);}
  const a=1-Math.exp(-13*dt);
@@ -472,6 +490,13 @@ function tryPass(s,live){
  if(!pick)return;
  s.locks[H.id]=s.clock+C.passLock;
  bomb.holderId=pick.id;
+ if(H.dyn.bot){
+  H.dyn.bot.escapeUntil=s.clock+2.1;
+  H.dyn.bot.escapeFrom=pick.id;
+  H.dyn.bot.target=null;
+  H.dyn.bot.at=0;
+ }
+ if(pick.dyn.bot){pick.dyn.bot.escapeUntil=0;pick.dyn.bot.at=0;}
  pick.dyn.receivedFx=.35;
  const mx=(H.x+pick.x)/2,my=(H.y+pick.y)/2;
  fx(s,{k:'pass',x:H.x,y:H.y,x2:pick.x,y2:pick.y,life:.28,max:.28});

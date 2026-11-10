@@ -3,7 +3,7 @@
 'use strict';
 const STEP=1/60, TAU=Math.PI*2;
 const C=Object.freeze({duration:60,capacity:5,productValue:1,bombPenalty:5,stun:1,immunity:1.3,
-  speed:180,conveyorSpeed:65,cartDistance:34,cartRadius:17,playerRadius:15,spawnInterval:1.26});
+  speed:126,conveyorSpeed:65,cartDistance:34,cartRadius:17,playerRadius:15,spawnInterval:1.26});
 const ITEMS=['banana','watermelon','soda','juice','chips','milk','greens','can','apple'];
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const length=(x,y)=>Math.hypot(x,y);

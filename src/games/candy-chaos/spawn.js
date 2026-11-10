@@ -14,7 +14,7 @@ function addCandy(s,x,y,born){
 }
 function addBomb(s,x,y,targetId){
  const b=s.pool.bomb.pop()||{};
- b.id=++s.uid;b.x=x;b.y=y;b.state='warn';b.t=0;b.hold=0;b.life=0;b.age=0;b.target=targetId;
+ b.id=++s.uid;b.x=x;b.y=y;b.state='live';b.t=0;b.hold=0;b.life=C.bombLife;b.age=0;b.target=targetId;
  s.bombs.push(b);return b;
 }
 export function removeBomb(s,i){s.pool.bomb.push(s.bombs[i]);s.bombs.splice(i,1);}

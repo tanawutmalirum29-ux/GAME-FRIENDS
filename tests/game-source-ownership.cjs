@@ -38,21 +38,28 @@ for(const slug of fs.readdirSync(gamesRoot).filter(x=>
     'Legacy dependencies must reference maintained shared game assets: '+slug);
   imported++;
  }else{
-  // Native ES module plugins may use a tiny game.js entry that re-exports
-  // their substantial gameplay engine from a second file in the same folder.
+  // A native module may import its engine as default OR load an engine and
+  // art side-effect locally and export the initialized window engine.
   if(code.length>200&&/export\s+default/.test(code)){
    assert.ok(true);
   }else{
-   const wrapper=code.match(/^\s*import\s+(\w+)\s+from\s+['"]\.\/([a-z0-9-]+\.js)['"];?\s*export\s+default\s+(\w+)\s*;?\s*$/);
-   assert.ok(wrapper&&wrapper[1]===wrapper[3],
-    'Native entry must export its same-folder engine: '+slug);
-   const enginePath=path.join(gamesRoot,slug,wrapper[2]);
-   assert.ok(fs.existsSync(enginePath),'Native game engine missing: '+slug);
-   const engine=fs.readFileSync(enginePath,'utf8');
-   assert.ok(engine.length>200&&/export\s+default/.test(engine),
-    'Native engine must be substantial and export a real API: '+slug);
-   assert.ok(!fs.existsSync(path.join(root,wrapper[2])),
-    'Native gameplay source must not be duplicated at Root: '+slug);
+   const dependencies=[...code.matchAll(/import\s+(?:(?:\w+)\s+from\s+)?['"]\.\/([^'"]+\.js)['"]/g)].map(m=>m[1]);
+   assert.ok(dependencies.length>0&&/export\s+default\s+engine\s*;?/.test(code),
+    'Native entry must export a same-folder engine: '+slug);
+   assert.ok(/import\s+engine\s+from\s+['"]\.\//.test(code)||
+    /const\s+engine\s*=\s*window\.[A-Za-z][\w]*/.test(code),
+    'Native entry must resolve a local engine: '+slug);
+   let substantial=false;
+   for(const local of dependencies){
+    const file=path.join(gamesRoot,slug,local);
+    assert.ok(fs.existsSync(file),'Native game dependency missing: '+file);
+    const source=fs.readFileSync(file,'utf8');
+    assert.ok(source.length>200,'Imported dependency must not be a stub: '+file);
+    if(source.length>2000)substantial=true;
+    assert.ok(!fs.existsSync(path.join(root,local)),
+     'Native source must not be duplicated at Root: '+local);
+   }
+   assert.ok(substantial,'Native game must import substantial local engine: '+slug);
   }
  }
 }
