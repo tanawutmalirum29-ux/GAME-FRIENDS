@@ -120,11 +120,16 @@ assert.ok(G.rollSpeed(12)/G.rollSpeed(44)>1,'size affects travel speed');
  assert.ok(b.r>C.baseRadius,'actual movement grows the snowball');
  assert.equal(p.snow.phase,'COLLECTING');
  const before=b.r;p.input.axisX=0;
- tick(g,100); // slight inertia travel cannot grant unbounded growth while idle.
- assert.equal(b.r,before,'releasing the stick stops snow accumulation');
- assert.ok(b.r<=C.maxRadius);
- // The owner must not overlap their snowball.
- assert.ok(Math.hypot(b.x-p.x,b.y-p.y)>=C.playerRadius+b.r-1e-6);
+ tick(g,1);
+ assert.equal(p.snow.phase,'WINDUP','releasing joystick fires a held snowball');
+ assert.equal(b.state,'WINDUP','joystick release respects normal throw windup');
+ tick(g,12);
+ assert.equal(b.state,'ROLLING','joystick-release shot must launch');
+ assert.equal(p.snow.shotsFired,1,'only one throw per joystick release');
+ assert.equal(b.r,before,'release stops further snow accumulation');
+ assert.equal(p.snow.ballId,null,'shot leaves the holder');
+ tick(g,10);
+ assert.equal(p.snow.shotsFired,1,'remaining idle must not repeatedly shoot');
 }
 {
  const g=match(1),p=g.ps[0];p.input.axisX=1;
@@ -381,6 +386,26 @@ assert.equal(left.snow.ballId,null);assert.equal(right.snow.ballId,null);
  assert.ok(Math.abs(a.ps[0].x-b.ps[0].x)<1e-7);
  assert.ok(Math.abs(a.ps[0].y-b.ps[0].y)<1e-7);
  assert.ok(Math.abs(a.s.clock-b.s.clock)<1e-7);
+}
+{
+ // Flattened victims render below the actual ball rather than on top of it.
+ const g=match(2),victim=g.ps[0],attacker=g.ps[1],ball=G.makeBall(g.s,attacker);
+ victim.snow.flat=.6;
+ const order=[],original=ctx.window.PartyPlayerAvatar.draw;
+ ctx.window.PartyPlayerAvatar.draw=(_g,p)=>order.push('person:'+p.id);
+ const gradient={addColorStop(){}};
+ const context=new Proxy({}, {get(_,key){
+  if(key==='createRadialGradient')return (...args)=>{
+   if(args[5]===ball.r&&args[2]===ball.r*.06)order.push('ball');
+   return gradient;
+  };
+  if(key==='createLinearGradient')return ()=>gradient;
+  return ()=>{};
+ },set(){return true;}});
+ G.draw(context,0,g.round,g.ps);
+ ctx.window.PartyPlayerAvatar.draw=original;
+ assert.ok(order.indexOf('person:'+victim.id)>=0&&order.includes('ball'),'snowball and victim rendered');
+ assert.ok(order.indexOf('person:'+victim.id)<order.indexOf('ball'),'flattened victim belongs behind snowball');
 }
 {
  // Draw is isolated from physics; canvas state is restored after every frame.
