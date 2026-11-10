@@ -9,7 +9,7 @@ const packets=[];
 const player={id:'p1',color:'#f02a55',worldPosition:{x:1000,y:700}};
 const rival={id:'p2',color:'#2cf0b3',worldPosition:{x:1200,y:740}};
 const session={id:'board-test-123',turnId:'b:1',map:{
- version:'winter-expedition-152-v10',width:3000,height:2000,
+ id:'winter-expedition',width:3000,height:2000,
  nodes:{a:{position:{x:900,y:680},nextNodes:['b']},
   b:{position:{x:1050,y:720},nextNodes:['c']},
   c:{position:{x:1300,y:780},nextNodes:[]}}
@@ -41,6 +41,7 @@ scope.receivePhoneMiniMapMap=vm.runInContext('receivePhoneMiniMapMap',scope);
 scope.receivePhoneMiniMapPositions=vm.runInContext('receivePhoneMiniMapPositions',scope);
 scope.sendBoardMiniMap(conn);
 assert.deepEqual(packets.map(p=>p.t),['board-minimap-map','board-minimap-positions']);
+assert.equal(packets[0].mapId,'winter-expedition','minimap topology uses canonical map ID');
 scope.sendBoardMiniMap(conn);
 assert.equal(packets.filter(p=>p.t==='board-minimap-map').length,1,
  'static topology should not be transmitted on every position tick');
