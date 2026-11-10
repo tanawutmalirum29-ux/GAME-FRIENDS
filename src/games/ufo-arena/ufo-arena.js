@@ -175,9 +175,11 @@ function trySpawnPattern(s){
   }else if(picked.has(z.id)){
    const newSpike=z.state!=='active';
    z.state='active';z.ext=1;z.timer=Math.max(0,ends-s.clock);
+   // A retained spike begins a fresh hazard wave as well: don't leave
+   // previously hit players permanently immune to a still-visible spike.
+   z.hit=Object.create(null);
    if(newSpike){
     z.act=(z.act||0)+1;
-    z.hit=Object.create(null);
     const e=s.geo.edges[z.edge],m=(z.s0+z.s1)/2;
     fx(s,{k:'ring',x:e.a.x+e.d.x*m+e.n.x*10*s.geo.u,
      y:e.a.y+e.d.y*m+e.n.y*10*s.geo.u,life:.25,max:.25,
