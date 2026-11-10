@@ -54,9 +54,9 @@ assert.ok(!html.includes('เล่นเกมต่อเนื่อง</labe
 assert.match(html,/<input id="autoNext"[^>]*hidden/,'underlying auto-next preference still works');
 assert.match(css,/#hostLobby \.lobby-controls>\.lobby-room-actions/,'buttons positioned on right');
 assert.match(source,/msg\.t==='lobby-ready'/,'host listens for controller-ready packets');
-assert.doesNotMatch(source,/send\\(controllerConn,\\{t:'lobby-ready'\\}\\)/,
+assert.doesNotMatch(source,/send\(controllerConn,\{t:'lobby-ready'\}\)/,
  'controller A must not cast ready outside Party Plaza READY zone');
-assert.match(source,/window\\.PartyPlaza\\?\\.configure\\(/,
+assert.match(source,/window\.PartyPlaza\?\.configure\(/,
  'lobby zones must be wired into the existing host controller');
 assert.match(source,/case 'ready_area':/,
  'READY interaction triggers the existing vote path');
