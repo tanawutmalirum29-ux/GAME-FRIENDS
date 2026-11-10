@@ -4,6 +4,10 @@ on:
     branches: [main, fix/chickens-finite-flock-lobby-20261105, feat/chickens-game2-20261105, feat/stick-squad-party, feat/party-minigames-topdown, feat/landscape-analog-ab-minigame-picker, feat/portrait-virtual-landscape-pad, feat/saved-controller-name-switch-room, fix/dismiss-joystick-hint-on-first-touch, feat/phone-game-preview-compact-hud-confirm-exit, feat/player-picked-shuffled-party-queue, feat/large-live-webrtc-video-controller-only, fix/single-viewport-no-scroll-all-screens, fix/controller-fill-landscape-viewport, fix/compact-host-roster-stacked-qr-link, fix/controller-quality-cycle-unified-preview, feat/resolution-only-video-quality-auto, fix/persist-fullscreen-across-exits, feat/ghost-attack-first-game, fix/ghost-controller-hud-top-preview-offset, fix/host-game-hud-above-field, feat/ghost-loot-pickup-feedback-and-top-roster]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Weekly full coverage catches cross-feature interaction and registry drift.
+    - cron: '0 19 * * 0'
 permissions:
   contents: read
 # Cancel superseded PR runs; never cancel a main deployment/verification run.
@@ -12,20 +16,27 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   validate:
+    needs: [browser-plan]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Verify fresh checkout restores BOARD sources without redundant rebuilds
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') }}
         run: node tests/board-build-fresh.cjs
       - name: Verify static production deployment integrity in an isolated tree
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'platform') || contains(fromJSON(needs.browser-plan.outputs.areas), 'deployment') || contains(fromJSON(needs.browser-plan.outputs.areas), 'loading') || contains(fromJSON(needs.browser-plan.outputs.areas), 'game') || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') || contains(fromJSON(needs.browser-plan.outputs.areas), 'controller') }}
         run: node tests/static-build-integrity.cjs
       - name: Restore BOARD layout source assets
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') }}
         run: node scripts/build-board-assets.cjs
       - name: Verify authored base and deployed BOARD canonical runtime mapping
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') }}
         run: node tests/board-runtime-layers.cjs
       - name: Audit BOARD PARTY island density, crossings and swords
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') }}
         run: node tests/board-layout-audit.cjs
       - name: Verify BOARD PARTY source ownership and byte-for-byte engine bundle
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') }}
         run: |
           node scripts/build-board-party.cjs --check
           node tests/board-source-modules.cjs
@@ -33,84 +44,110 @@ jobs:
       - name: Enforce Host and Controller app bundle integrity
         run: node scripts/build-app.cjs --check
       - name: Verify canonical controller BOARD metadata and split runtime
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') || contains(fromJSON(needs.browser-plan.outputs.areas), 'controller') }}
         run: |
           node scripts/build-board-item-brief.cjs --check
           node tests/controller-bundle.cjs
       - name: Automatically check syntax of all present and future JavaScript files
         run: node scripts/check-javascript.cjs
       - name: Validate discovered game plug-ins and immutable catalog
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game') || contains(fromJSON(needs.browser-plan.outputs.areas), 'platform') }}
         run: |
           node scripts/build-game-catalog.cjs --check
           node tests/game-platform.cjs
       - name: Test BLOCK BREAKERS two-layer timing and MOLE MAYHEM solid holes
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:block-breakers') || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:mole-mayhem') }}
         run: node tests/minigame-balance.cjs
       - name: Validate BOARD map folder discovery and directed graph safety
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') }}
         run: |
           node scripts/build-board-map-catalog.cjs --check
           node tests/board-map-discovery.cjs
           node tests/board-map-runtime.cjs
       - name: Validate folder-discovered BOARD items, spaces and events
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') }}
         run: |
           node scripts/build-board-system-catalog.cjs --check
           node tests/board-system-discovery.cjs
           node tests/board-system-runtime.cjs
           node tests/board-controller-item-meta.cjs
       - name: Enforce per-game source ownership and no root gameplay copies
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game') || contains(fromJSON(needs.browser-plan.outputs.areas), 'platform') }}
         run: node tests/game-source-ownership.cjs
       - name: Enforce game-owned live roster and dynamic ID fallback
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game') || contains(fromJSON(needs.browser-plan.outputs.areas), 'platform') }}
         run: node tests/plugin-roster-ownership.cjs
       - name: Verify Unicode player names, ingress budget and host signaling recovery
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'network') || contains(fromJSON(needs.browser-plan.outputs.areas), 'controller') }}
         run: |
           node tests/player-name.cjs
           node tests/controller-ingress.cjs
           node tests/connection-compat.cjs
           node tests/host-reconnect.cjs
       - name: BOARD render budget, layout cache and roulette transition regressions
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') || contains(fromJSON(needs.browser-plan.outputs.areas), 'controller') }}
         run: node tests/host-render-budget.cjs
       - name: Controller video, TURN, mini-map and fast transport regressions
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'controller') || contains(fromJSON(needs.browser-plan.outputs.areas), 'network') }}
         run: |
           node tests/controller-perf-regression.cjs
           node tests/controller-minimap.cjs
           node tests/landscape-orientation.cjs
           node tests/turn-credentials.cjs
       - name: Verify immutable cache and offline catalog behavior
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'loading') || contains(fromJSON(needs.browser-plan.outputs.areas), 'deployment') }}
         run: node tests/cache-worker.cjs
       - name: Lazy online dependency bootstrap and retries
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'loading') || contains(fromJSON(needs.browser-plan.outputs.areas), 'platform') }}
         run: node tests/runtime-deps.cjs
       - name: Controller/host asset isolation and recoverable BOARD partial load
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') || contains(fromJSON(needs.browser-plan.outputs.areas), 'loading') || contains(fromJSON(needs.browser-plan.outputs.areas), 'platform') }}
         run: node tests/route-runtime.cjs
       - name: Protect the complete parallel Chromium/WebKit browser QA matrix
         run: node tests/ci-browser-workflow.cjs
       - name: Global map scale and character proportions for all 1–12-player modes
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'scale') }}
         run: node tests/map-scale-regression.cjs
       - name: LAWN MOWER 1–12 player race and sun distribution checks
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:lawn-mower') }}
         run: node tests/lawn-mower.cjs
       - name: UFO ARENA and DANGERFIELD winding minefield regression
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:ufo-arena') || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:dangerfield') }}
         run: |
           node tests/ufo-arena.cjs
           node tests/dangerfield.cjs
       - name: ICE RACE traction, acceleration, full-speed bots and checkpoint regression
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:ice-race') }}
         run: node tests/ice-race.cjs
       - name: Original covers, scene geometry, exact lance tips and 1–12-player rounds
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'art') || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:gladiators') || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:knight-match') }}
         run: node tests/party-arenas.cjs
       - name: SHOPPING TIME conveyor physics, checkout, bombs and bot regressions
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:shopping-time') }}
         run: node tests/shopping-time.cjs
       - name: PIZZA TIME garden kitchen, serving and 1–12-player bot rounds
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:pizza-time') }}
         run: |
           node tests/pizza-time.test.cjs
           node tests/pizza-kitchen.cjs
           node tests/svg-only-policy.cjs
       - name: BOULDER BASH fixed-step physics and multiplayer survival
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:boulder-bash') }}
         run: node tests/boulder-bash.cjs
       - name: COLOR CLAIM 60 Hz territory, sweep, freeze and board integration
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:color-claim') }}
         run: node tests/color-claim.cjs
       - name: WITCHING SNAKE 60 Hz broom survival and integration checks
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:witching-snake') }}
         run: node tests/witching-snake.test.cjs
       - name: SNOW BRAWL fixed-step physics, momentum and rolling-speed checks
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:snow-brawl') }}
         run: node tests/snow-brawl.cjs
       - name: KNIGHT MATCH balloon lifecycle and 1–12 player regressions
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:knight-match') }}
         run: node tests/knight-match.cjs
       - name: BOARD PARTY rules and simulations
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') }}
         run: |
           for source in src/board-party/runtime/board-*.js; do node --check "$source"; done
           node tests/board-map-geometry.cjs
@@ -126,34 +163,48 @@ jobs:
           node tests/board-fixed.cjs
           node tests/board-expedition.cjs
       - name: "Central character combat: 0.8-second stun and attacker-colored VFX"
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'physics') }}
         run: node tests/combat-motion.cjs
       - name: iPadOS Home Screen and native fullscreen status-bar regression
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'controller') || contains(fromJSON(needs.browser-plan.outputs.areas), 'orientation') }}
         run: node tests/ipad-statusbar.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
       - name: GHOST ATTACK courtyards, wall collisions, reachable lanes and 1–12 bots
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:ghost-attack') }}
         run: node tests/ghost-courtyards.cjs
       - name: BOARD PARTY phone double-tap camera gestures
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'board') || contains(fromJSON(needs.browser-plan.outputs.areas), 'controller') }}
         run: node tests/board-camera-controller.cjs
       - name: Lobby controller-A readiness and layout
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'lobby') || contains(fromJSON(needs.browser-plan.outputs.areas), 'controller') }}
         run: node tests/lobby-start.cjs
       - name: COLOR SWITCH rules and 12-player stress
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:color-switch') }}
         run: node tests/color-switch.test.js
       - name: Mayan skull theme and 15 percent bot nerf
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:color-switch') }}
         run: node tests/color-switch-mayan.test.js
       - name: Shared overhead avatar checks
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'avatar') || contains(fromJSON(needs.browser-plan.outputs.areas), 'art') }}
         run: node tests/avatar-topdown.cjs
       - name: Scenery cache and physics isolation
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'art') }}
         run: node tests/arena-art.cjs
       - name: Shockwave survival rules
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:shockwave') }}
         run: node tests/shockwave.cjs
       - name: Chicken physics and rendering
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:chickens') }}
         run: node tests/chickens.cjs
       - name: Farm and ice maps, full-flock storage and 36 complete bot rounds
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:chickens') || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:ice-race') }}
         run: node tests/farm-ice.cjs
       - name: Fruit memory rules
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:fruit-memory') }}
         run: node tests/fruit-memory.cjs
       - name: Auto-update and build tests
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'loading') }}
         run: node tests/auto-update.cjs
       - name: HTML-to-JavaScript references
         run: |
@@ -175,13 +226,27 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
+      impact: ${{ steps.impact.outputs.impact }}
+      areas: ${{ steps.impact.outputs.areas }}
+      full: ${{ steps.impact.outputs.full }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Calculate fail-closed PR change impact
+        id: impact
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-impact.cjs --gha >> "$GITHUB_OUTPUT"
       - name: Validate registry and calculate weighted browser shards
         id: plan
+        env:
+          QA_IMPACT_JSON: ${{ steps.impact.outputs.impact }}
         run: |
           node tests/ci-browser-workflow.cjs
           node tests/ci-browser-scheduler.cjs
+          node tests/ci-impact.cjs
           node scripts/ci-browser-scheduler.cjs --plan
           node scripts/ci-browser-scheduler.cjs --matrix >> "$GITHUB_OUTPUT"
 
@@ -190,31 +255,39 @@ jobs:
     needs: [browser-plan]
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      QA_IMPACT_JSON: ${{ needs.browser-plan.outputs.impact }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.browser-plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+        if: matrix.skip != true
       - name: Restore BOARD layout source assets
+        if: matrix.skip != true
         run: node scripts/build-board-assets.cjs
       - uses: actions/setup-node@v4
+        if: matrix.skip != true
         with:
           node-version: '22'
       - name: Cache Playwright browser binaries
+        if: matrix.skip != true
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ runner.arch }}-v1.62.1
       - name: Install pinned browser test tools
+        if: matrix.skip != true
         run: |
           npm install --prefix /tmp/board-browser --no-audit --no-fund playwright@1.62.1
           /tmp/board-browser/node_modules/.bin/playwright install --with-deps chromium webkit
       - name: Run complete dynamically assigned browser shard
+        if: matrix.skip != true
         env:
           NODE_PATH: /tmp/board-browser/node_modules
         run: node scripts/ci-browser-scheduler.cjs --run "${{ matrix.shard }}"
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ always() && !matrix.skip }}
         with:
           name: browser-qa-${{ matrix.shard }}
           path: /tmp/game-friends-board
