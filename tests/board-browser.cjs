@@ -6,7 +6,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
 const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'..'),out=process.env.BOARD_SCREENSHOTS||'/tmp/game-friends-board';
-const injection=`window.__boardTest={get board(){return boardSession},get round(){return round},get players(){return players},beginBoard,updateBoard,updateRound,drawGame,refreshBoardTools,addLocal,returnToLobby,layoutFinalResults,beginGameSelection,updateGameSelection,pulse:sendInputs,
+const injection=`window.__boardTest={get board(){return boardSession},get round(){return round},get players(){return players},beginBoard,updateBoard,updateRound,drawGame,refreshBoardTools,hostCanControlBoardZoom,pauseGame,resumeGame,addLocal,returnToLobby,layoutFinalResults,beginGameSelection,updateGameSelection,pulse:sendInputs,
  phone(info){controllerReady=true;controllerPlayerActive=true;controllerId='p1';controllerSessionMode='board';
  controllerConn={open:true,send:msg=>window.__boardPackets.push(msg)};window.__boardPackets=[];
  $('controllerName').textContent='Snow explorer';$('controllerAvatar').style.background='#ff628c';
@@ -37,7 +37,11 @@ async function toolbarInside(page){
    assert.ok(backdrop.height<1,'board host toolbar must not cover Canvas header');
 
    const toolBounds=await page.evaluate(()=>{const a=document.getElementById('arena').getBoundingClientRect(),b=document.getElementById('boardTools').getBoundingClientRect(),height=__boardTest.board.camera.viewHeight||540,scale=Math.min(a.width/960,a.height/height),x=a.left+(a.width-960*scale)/2,y=a.top+(a.height-height*scale)/2;return{left:(b.left-x)/scale,right:(b.right-x)/scale,top:(b.top-y)/scale,bottom:(b.bottom-y)/scale};});
-   assert.ok(toolBounds.left>=580&&toolBounds.right<=915&&toolBounds.top>=94&&toolBounds.bottom<=185,'board tools float in map area below player cards');
+   assert.ok(toolBounds.left>=865&&toolBounds.right<=958&&toolBounds.top>=160&&toolBounds.bottom<=208,
+    'Show ID sits beneath Exit beside Pause, without obscuring the BOARD HUD');
+   assert.equal(await page.locator('#boardTools button').count(),1,'only Show ID remains in the BOARD toolbar');
+   for(const id of ['boardOverviewBtn','boardStartDiceBtn','boardFollowBtn','boardZoomInBtn','boardZoomOutBtn','boardEffectsBtn'])
+    assert.equal(await page.locator('#'+id).count(),0,'retired BOARD control must not exist: '+id);
 }
 async function main(){
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+server.address().port;
@@ -121,7 +125,7 @@ async function main(){
    await toolbarInside(host);
   }
   await host.screenshot({path:path.join(out,'overview-12.png')});
-  assert.equal(await host.locator('#boardStartDiceBtn').isVisible(),false);
+  assert.equal(await host.locator('#boardTools button').count(),1);
    await host.evaluate(()=>{for(let i=0;i<70;i++)__boardTest.updateBoard(.05);__boardTest.drawGame(__boardTest.board.time);});
    assert.equal(await host.evaluate(()=>__boardTest.board.phase),'order','2s panorama + 1.5s fly-in begins automatically');
   await host.screenshot({path:path.join(out,'order-12.png')});
@@ -133,7 +137,7 @@ async function main(){
   });}
   // During dice ordering there is no current turn: spectators may not
   // invoke a zoom-changing Overview/Follow camera action.
-  assert.equal(await host.locator('#boardOverviewBtn').isDisabled(),true,
+  assert.equal(await host.evaluate(()=>__boardTest.hostCanControlBoardZoom()),false,
     'no host owner may zoom or force overview before the turn is assigned');
   await host.evaluate(()=>{
    const a=__boardTest,s=a.board;
@@ -141,11 +145,11 @@ async function main(){
    BoardParty.startTurn(s);BoardParty.beginMove(s,s.players[0],2);
    a.updateBoard(.05);a.drawGame(s.time);
   });
-  await host.locator('#boardOverviewBtn').click();
+  await host.evaluate(()=>{__boardTest.pauseGame();BoardArt.overview(__boardTest.board);});
   assert.equal(await host.evaluate(()=>__boardTest.round.paused),true);
   assert.equal((await drawnTexts()).includes('ทอยลูกเต๋าเพื่อจัดลำดับ'),false,
     'overview hides any dice-order overlay while inspecting the map');
-  await host.locator('#boardFollowBtn').click();
+  await host.evaluate(()=>{BoardArt.follow(__boardTest.board);__boardTest.resumeGame();});
   assert.equal(await host.evaluate(()=>__boardTest.round.paused),false,
     'local turn owner can follow/resume after inspecting overview');
   assert.equal(await host.evaluate(()=>__boardTest.board.phase),'move_ready');
@@ -170,16 +174,12 @@ async function main(){
   await host.locator('#pauseBtn').click();
   assert.equal(await host.evaluate(()=>__boardTest.round.paused),true);
   let pausedPlayers=await host.evaluate(()=>JSON.stringify(__boardTest.board.players));
-  await host.locator('#boardOverviewBtn').click();
-  assert.equal(await host.locator('#boardNodeDebugBtn').isVisible(),false,'human sessions hide development ID');
-   await host.evaluate(()=>{
-    const a=__boardTest;a.board.players.forEach(p=>p.isBot=true);
-    a.players.forEach(p=>p.isBot=true);a.refreshBoardTools();
-   });
-   assert.equal(await host.locator('#boardNodeDebugBtn').isVisible(),true,'bot-only sessions expose ID');
-   pausedPlayers=await host.evaluate(()=>JSON.stringify(__boardTest.board.players));
-   await host.locator('#boardNodeDebugBtn').click();
-  for(let i=0;i<7;i++)await host.locator('#boardZoomInBtn').click();
+  await host.evaluate(()=>BoardArt.overview(__boardTest.board));
+  assert.equal(await host.locator('#boardNodeDebugBtn').isVisible(),true,
+   'Show ID must be accessible even when humans are playing');
+  await host.locator('#boardNodeDebugBtn').click();
+  assert.equal(await host.evaluate(()=>__boardTest.board.camera.debugNodes),true);
+  for(let i=0;i<7;i++)await host.evaluate(()=>BoardArt.zoom(__boardTest.board,1.25));
   await host.evaluate(()=>__boardTest.drawGame(0));
   const beforePan=await host.evaluate(()=>({...__boardTest.board.camera}));
   const box=await host.locator('#arena').boundingBox(),viewHeight=await host.evaluate(()=>__boardTest.board.camera.viewHeight),scale=Math.min(box.width/960,box.height/viewHeight);
@@ -200,20 +200,23 @@ async function main(){
   await host.evaluate(()=>__boardTest.drawGame(0));
   await host.screenshot({path:path.join(out,'pause-debug.png')});
   assert.equal(await host.evaluate(()=>JSON.stringify(__boardTest.board.players)),pausedPlayers,'camera tools cannot alter players');
-  await host.locator('#boardOverviewBtn').click();await host.locator('#boardNodeDebugBtn').click();
+  await host.evaluate(()=>BoardArt.overview(__boardTest.board));
+  await host.locator('#boardNodeDebugBtn').click();
   await host.locator('#pauseBtn').click();assert.equal(await host.evaluate(()=>__boardTest.round.paused),false);
   await host.setViewportSize({width:1440,height:900});
-  await host.locator('#boardOverviewBtn').click();assert.equal(await host.evaluate(()=>__boardTest.round.paused),true,'overview freezes an active game');await host.evaluate(()=>__boardTest.drawGame(0));
-  await host.locator('#boardEffectsBtn').click();assert.equal(await host.evaluate(()=>__boardTest.board.camera.lowDetail),true);
-  await host.evaluate(()=>__boardTest.drawGame(0));await host.screenshot({path:path.join(out,'overview-low-detail.png')});
-  await host.locator('#boardEffectsBtn').click();assert.equal(await host.evaluate(()=>__boardTest.board.camera.lowDetail),false);
-  await host.evaluate(()=>__boardTest.drawGame(0));
+  await host.locator('#pauseBtn').click();
+  await host.evaluate(()=>{BoardArt.overview(__boardTest.board);__boardTest.drawGame(0);});
+  assert.equal(await host.evaluate(()=>__boardTest.round.paused),true,'pause freezes an active game');
+  await host.evaluate(()=>{__boardTest.board.camera.lowDetail=true;__boardTest.drawGame(0);});
+  await host.screenshot({path:path.join(out,'overview-low-detail.png')});
+  await host.evaluate(()=>{__boardTest.board.camera.lowDetail=false;__boardTest.drawGame(0);});
   await host.screenshot({path:path.join(out,'board-overview.jpg'),type:'jpeg',quality:88,scale:'css'});
   const timings=await host.evaluate(()=>{
    const samples=[];for(let i=0;i<90;i++){const start=performance.now();__boardTest.drawGame(i/60);samples.push(performance.now()-start);}
    samples.sort((a,b)=>a-b);return{medianMs:samples[45],p95Ms:samples[85],sampleCount:samples.length};
   });
-  await host.locator('#boardFollowBtn').click();assert.equal(await host.evaluate(()=>__boardTest.round.paused),false,'follow resumes paused overview');
+  await host.evaluate(()=>{BoardArt.follow(__boardTest.board);__boardTest.resumeGame();});
+  assert.equal(await host.evaluate(()=>__boardTest.round.paused),false,'host can resume paused overview');
   assert.ok(Number.isFinite(timings.p95Ms));console.log('Headless Chromium synchronous host draw timing (not device FPS): '+JSON.stringify(timings));
   await host.evaluate(()=>{const s=__boardTest.board;s.players.forEach(p=>p.isBot=false);s.order=s.players.map(p=>p.id);s.players.forEach((p,i)=>p.currentNodeId='n'+(i+1));s.players[0].currentNodeId='n3';BoardParty.startTurn(s);for(let i=0;i<80;i++){BoardParty.update(s,.01);__boardTest.drawGame(s.time);}});
   await host.screenshot({path:path.join(out,'board-12.png')});
