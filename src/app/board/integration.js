@@ -252,6 +252,8 @@ function hostCanControlBoardZoom(){
 function refreshBoardTools(){
  const active=round?.mode==='board'&&!!boardSession;
  $('boardTools').classList.toggle('hidden',!active);
+ // Exit must be available during normal BOARD play, not only while paused.
+ $('boardExitBtn').classList.toggle('hidden',!active);
  if(active){
   const c=boardSession.camera;
   const botsOnly=boardSession.players.every(p=>p.isBot);
@@ -280,7 +282,7 @@ function showBoard(){
   resetInputs();boardStateToken=null;
   $('gameRoulette').classList.add('hidden');$('results').classList.add('hidden');
   $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.remove('hidden');
-  $('boardExitBtn').classList.add('hidden');
+  $('boardExitBtn').classList.remove('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');$('gameBanner').textContent='';
   document.body.classList.add('board-playing');
   setView('game');
