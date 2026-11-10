@@ -1,0 +1,713 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1450" viewBox="0 0 1280 1450" role="img" aria-label="GAME FRIENDS — all 16 punch frames with timing and pose notes" >
+<title>GAME FRIENDS — all 16 punch frames with timing and pose notes</title>
+<rect width="1280" height="1450" fill="#101f26"/><text x="40" y="43" font-size="13" fill="#a1c4c2" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="2">GAME FRIENDS  /  ANIMATION STUDY 02</text><text x="40" y="96" font-size="40" fill="#eff6ed" font-weight="700" font-family="Arial, Tahoma, sans-serif" >A punch, from the shoulder.</text><text x="40" y="132" font-size="17" fill="#a1b6bc" font-weight="400" font-family="Arial, Tahoma, sans-serif" >16 authored poses · overhead camera · 480 ms · first contact at 180 ms</text><text x="1228" y="44" font-size="12" fill="#c5ef87" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="end" letter-spacing="1.4">SVG / ART ONLY</text><rect x="40" y="164" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="56" y="180" width="29" height="25" rx="6" fill="#68d8d5"/><text x="70.5" y="197" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">01</text><text x="95" y="197" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">IDLE</text><text x="312" y="197" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">0–25 ms</text><path d="M184 222v7 M180 226l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="184" cy="323" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(120 259) scale(2)"><defs>
+  <radialGradient id="sheet-01-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-01-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-01-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-01-torso" data-part="torso"><ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-01-body)" stroke="#1c7177" stroke-width="1.1"/></g><g id="sheet-01-guard-arm" data-part="guard-arm">
+  <path d="M17 36 Q13 35 13 37" fill="none" stroke="#279ca5" stroke-width="10"/>
+  <ellipse cx="13" cy="37" rx="6" ry="7" fill="url(#sheet-01-body)" stroke="#1c7177" stroke-width="1"/>
+  <path d="M11 33 Q13 32 15 34" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+</g><g id="sheet-01-strike-arm" data-part="strike-arm">
+  <path d="M47 36 Q51 35 51 37" fill="none" stroke="#279ca5" stroke-width="10"/>
+  <ellipse cx="51" cy="37" rx="6" ry="7" fill="url(#sheet-01-body)" stroke="#1c7177" stroke-width="1"/>
+  <path d="M49 33 Q51 32 53 34" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+</g><g id="sheet-01-head-layer" data-part="head" transform="translate(0 0)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-01-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="58" y="398" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ท่าเดิม</text><text x="58" y="419" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >เริ่มจากท่าพักเดิมของเกม</text><rect x="344" y="164" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="360" y="180" width="29" height="25" rx="6" fill="#68d8d5"/><text x="374.5" y="197" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">02</text><text x="399" y="197" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">GATHER</text><text x="616" y="197" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">25–55 ms</text><path d="M488 222v7 M484 226l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="488" cy="323" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(424 259) scale(2)"><defs>
+  <radialGradient id="sheet-02-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-02-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-02-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-02-torso" data-part="torso" transform="translate(0 0.3) rotate(4 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-02-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-02-guard-arm" data-part="guard-arm">
+  <path d="M16.967 35.251 L17.786 50.229 L10 34" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M16.967 35.251 L17.786 50.229" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M17.786 50.229 L10 34" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="17.786" cy="50.229" r="3.1" fill="#279ca5"/>
+  <path d="M16.786 49.229 L9 33" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-02-guard-fist" data-part="guard-fist" transform="translate(8.14 30.123) rotate(-25.631)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-02-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-02-strike-arm" data-part="strike-arm">
+  <path d="M46.894 37.344 L44.884 22.479 L54 38" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M46.894 37.344 L44.884 22.479" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M44.884 22.479 L54 38" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="44.884" cy="22.479" r="3.1" fill="#279ca5"/>
+  <path d="M43.884 21.479 L53 37" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-02-strike-fist" data-part="strike-fist" transform="translate(56.178 41.708) rotate(149.572)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-02-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-02-head-layer" data-part="head" transform="translate(0 0.165) rotate(0 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-02-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="362" y="398" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >รวบการ์ด</text><text x="362" y="419" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >ยกมือจากข้างตัว เริ่มเก็บศอก</text><rect x="648" y="164" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="664" y="180" width="29" height="25" rx="6" fill="#68d8d5"/><text x="678.5" y="197" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">03</text><text x="703" y="197" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">COIL</text><text x="920" y="197" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">55–85 ms</text><path d="M792 222v7 M788 226l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="792" cy="323" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(728 259) scale(2)"><defs>
+  <radialGradient id="sheet-03-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-03-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-03-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-03-torso" data-part="torso" transform="translate(-1 1) rotate(11 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-03-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-03-guard-arm" data-part="guard-arm">
+  <path d="M16.085 34.119 L10.106 47.876 L8 30" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M16.085 34.119 L10.106 47.876" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M10.106 47.876 L8 30" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="10.106" cy="47.876" r="3.1" fill="#279ca5"/>
+  <path d="M9.106 46.876 L7 29" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-03-guard-fist" data-part="guard-fist" transform="translate(7.497 25.73) rotate(-6.719)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-03-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-03-strike-arm" data-part="strike-arm">
+  <path d="M45.534 39.844 L52.199 26.406 L56 44" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M45.534 39.844 L52.199 26.406" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M52.199 26.406 L56 44" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="52.199" cy="26.406" r="3.1" fill="#279ca5"/>
+  <path d="M51.199 25.406 L55 43" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-03-strike-fist" data-part="strike-fist" transform="translate(56.908 48.203) rotate(167.809)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-03-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-03-head-layer" data-part="head" transform="translate(-0.55 0.55) rotate(-1 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-03-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="666" y="398" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >บิดเตรียม</text><text x="666" y="419" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >ลำตัวหมุนสวนทางก่อนออกหมัด</text><rect x="952" y="164" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="968" y="180" width="29" height="25" rx="6" fill="#68d8d5"/><text x="982.5" y="197" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">04</text><text x="1007" y="197" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">LOAD</text><text x="1224" y="197" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">85–115 ms</text><path d="M1096 222v7 M1092 226l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="1096" cy="323" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(1032 259) scale(2)"><defs>
+  <radialGradient id="sheet-04-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-04-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-04-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-04-torso" data-part="torso" transform="translate(-1 2) rotate(18 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-04-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-04-guard-arm" data-part="guard-arm">
+  <path d="M16.425 33.316 L5.86 43.964 L7 26" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M16.425 33.316 L5.86 43.964" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M5.86 43.964 L7 26" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="5.86" cy="43.964" r="3.1" fill="#279ca5"/>
+  <path d="M4.86 42.964 L6 25" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-04-guard-fist" data-part="guard-fist" transform="translate(7.272 21.709) rotate(3.631)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-04-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-04-strike-arm" data-part="strike-arm">
+  <path d="M44.957 42.586 L55.593 32.01 L55 50" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M44.957 42.586 L55.593 32.01" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M55.593 32.01 L55 50" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="55.593" cy="32.01" r="3.1" fill="#279ca5"/>
+  <path d="M54.593 31.01 L54 49" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-04-strike-fist" data-part="strike-fist" transform="translate(54.858 54.298) rotate(181.889)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-04-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-04-head-layer" data-part="head" transform="translate(-0.55 1.1) rotate(-2 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-04-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="970" y="398" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ถ่ายน้ำหนัก</text><text x="970" y="419" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >ไหล่ขวาถอย มือซ้ายคุมแนวหน้า</text><rect x="40" y="450" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="56" y="466" width="29" height="25" rx="6" fill="#68d8d5"/><text x="70.5" y="483" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">05</text><text x="95" y="483" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">CHAMBER</text><text x="312" y="483" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">115–140 ms</text><path d="M184 508v7 M180 512l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="184" cy="609" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(120 545) scale(2)"><defs>
+  <radialGradient id="sheet-05-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-05-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-05-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-05-torso" data-part="torso" transform="translate(-1 2) rotate(22 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-05-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-05-guard-arm" data-part="guard-arm">
+  <path d="M16.718 32.308 L5.193 41.909 L7 24" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M16.718 32.308 L5.193 41.909" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M5.193 41.909 L7 24" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="5.193" cy="41.909" r="3.1" fill="#279ca5"/>
+  <path d="M4.193 40.909 L6 23" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-05-guard-fist" data-part="guard-fist" transform="translate(7.432 19.722) rotate(5.762)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-05-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-05-strike-arm" data-part="strike-arm">
+  <path d="M44.533 43.546 L57.035 35.258 L54 53" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M44.533 43.546 L57.035 35.258" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M57.035 35.258 L54 53" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="57.035" cy="35.258" r="3.1" fill="#279ca5"/>
+  <path d="M56.035 34.258 L53 52" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-05-strike-fist" data-part="strike-fist" transform="translate(53.275 57.238) rotate(189.708)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-05-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-05-head-layer" data-part="head" transform="translate(-0.55 1.1) rotate(-2 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-05-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="58" y="684" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ง้างสุด</text><text x="58" y="705" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >มือขวาอยู่หลังไหล่ เก็บแรงไว้</text><rect x="344" y="450" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="360" y="466" width="29" height="25" rx="6" fill="#68d8d5"/><text x="374.5" y="483" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">06</text><text x="399" y="483" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">DRIVE</text><text x="616" y="483" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">140–160 ms</text><path d="M488 508v7 M484 512l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="488" cy="609" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(424 545) scale(2)"><defs>
+  <radialGradient id="sheet-06-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-06-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-06-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-06-torso" data-part="torso" transform="translate(0 0) rotate(6 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-06-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-06-guard-arm" data-part="guard-arm">
+  <path d="M16.978 34.427 L3.315 40.619 L7 23" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M16.978 34.427 L3.315 40.619" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M3.315 40.619 L7 23" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="3.315" cy="40.619" r="3.1" fill="#279ca5"/>
+  <path d="M2.315 39.619 L6 22" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-06-guard-fist" data-part="guard-fist" transform="translate(7.88 18.791) rotate(11.812)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-06-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-06-strike-arm" data-part="strike-arm">
+  <path d="M46.813 37.562 L60.192 44.346 L65 27" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M46.813 37.562 L60.192 44.346" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M60.192 44.346 L65 27" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="60.192" cy="44.346" r="3.1" fill="#279ca5"/>
+  <path d="M59.192 43.346 L64 26" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-06-strike-fist" data-part="strike-fist" transform="translate(66.149 22.856) rotate(15.493)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-06-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-06-head-layer" data-part="head" transform="translate(0 0) rotate(0 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-06-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="362" y="684" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ส่งไหล่</text><text x="362" y="705" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >คลายลำตัว ส่งต้นแขนออกก่อน</text><rect x="648" y="450" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="664" y="466" width="29" height="25" rx="6" fill="#68d8d5"/><text x="678.5" y="483" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">07</text><text x="703" y="483" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">RELEASE</text><text x="920" y="483" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">160–180 ms</text><path d="M792 508v7 M788 512l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="792" cy="609" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(728 545) scale(2)"><defs>
+  <radialGradient id="sheet-07-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-07-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-07-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-07-torso" data-part="torso" transform="translate(0 -1) rotate(-8 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-07-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-07-guard-arm" data-part="guard-arm">
+  <path d="M17.285 37.078 L2.608 40.173 L8 23" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M17.285 37.078 L2.608 40.173" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M2.608 40.173 L8 23" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="2.608" cy="40.173" r="3.1" fill="#279ca5"/>
+  <path d="M1.608 39.173 L7 22" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-07-guard-fist" data-part="guard-fist" transform="translate(9.288 18.897) rotate(17.431)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-07-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-07-strike-arm" data-part="strike-arm">
+  <path d="M46.993 32.903 L61.475 28.992 L62 11" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M46.993 32.903 L61.475 28.992" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M61.475 28.992 L62 11" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="61.475" cy="28.992" r="3.1" fill="#279ca5"/>
+  <path d="M60.475 27.992 L61 10" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-07-strike-fist" data-part="strike-fist" transform="translate(62.126 6.702) rotate(1.673)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-07-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-07-head-layer" data-part="head" transform="translate(0 -0.55) rotate(2 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-07-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="666" y="684" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ปล่อยหมัด</text><text x="666" y="705" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >ศอกเปิดตามไหล่ ข้อมือวิ่งด้านข้างหัว</text><rect x="952" y="450" width="288" height="270" rx="14" fill="#1a2e36" stroke="#c5ef87" stroke-width="2"/><rect x="968" y="466" width="29" height="25" rx="6" fill="#c5ef87"/><text x="982.5" y="483" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">08</text><text x="1007" y="483" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">CONTACT</text><text x="1224" y="483" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">180–210 ms</text><path d="M1096 508v7 M1092 512l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="1096" cy="609" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(1032 545) scale(2)"><defs>
+  <radialGradient id="sheet-08-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-08-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-08-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-08-torso" data-part="torso" transform="translate(0 -2) rotate(-18 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-08-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-08-guard-arm" data-part="guard-arm">
+  <path d="M18.043 38.586 L3.305 41.377 L8 24" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M18.043 38.586 L3.305 41.377" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M3.305 41.377 L8 24" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="3.305" cy="41.377" r="3.1" fill="#279ca5"/>
+  <path d="M2.305 40.377 L7 23" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-08-guard-fist" data-part="guard-fist" transform="translate(9.122 19.849) rotate(15.119)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-08-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-08-strike-arm" data-part="strike-arm">
+  <path d="M46.575 29.316 L54.979 16.891 L53 -1" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M46.575 29.316 L54.979 16.891" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M54.979 16.891 L53 -1" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="54.979" cy="16.891" r="3.1" fill="#279ca5"/>
+  <path d="M53.979 15.891 L52 -2" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-08-strike-fist" data-part="strike-fist" transform="translate(52.527 -5.274) rotate(-6.311)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-08-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-08-head-layer" data-part="head" transform="translate(0 -1.1) rotate(3 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-08-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="970" y="684" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >กระแทก</text><text x="970" y="705" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >หมัดปิด นิ้วและข้อมือเรียงกับท่อนแขน</text><rect x="40" y="736" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="56" y="752" width="29" height="25" rx="6" fill="#c5ef87"/><text x="70.5" y="769" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">09</text><text x="95" y="769" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">FOLLOW</text><text x="312" y="769" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">210–245 ms</text><path d="M184 794v7 M180 798l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="184" cy="895" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(120 831) scale(2)"><defs>
+  <radialGradient id="sheet-09-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-09-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-09-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-09-torso" data-part="torso" transform="translate(0 -2) rotate(-20 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-09-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-09-guard-arm" data-part="guard-arm">
+  <path d="M18.247 39.07 L3.635 42.463 L8 25" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M18.247 39.07 L3.635 42.463" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M3.635 42.463 L8 25" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="3.635" cy="42.463" r="3.1" fill="#279ca5"/>
+  <path d="M2.635 41.463 L7 24" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-09-guard-fist" data-part="guard-fist" transform="translate(9.043 20.828) rotate(14.033)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-09-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-09-strike-arm" data-part="strike-arm">
+  <path d="M46.437 28.809 L53.855 15.772 L51 -2" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M46.437 28.809 L53.855 15.772" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M53.855 15.772 L51 -2" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="53.855" cy="15.772" r="3.1" fill="#279ca5"/>
+  <path d="M52.855 14.772 L50 -3" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-09-strike-fist" data-part="strike-fist" transform="translate(50.318 -6.246) rotate(-9.128)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-09-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-09-head-layer" data-part="head" transform="translate(0 -1.1) rotate(3 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-09-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="58" y="970" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ส่งแรงต่อ</text><text x="58" y="991" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >ไหล่หมุนตาม ศีรษะยังจับเป้า</text><rect x="344" y="736" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="360" y="752" width="29" height="25" rx="6" fill="#c5ef87"/><text x="374.5" y="769" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">10</text><text x="399" y="769" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">BRAKE</text><text x="616" y="769" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">245–280 ms</text><path d="M488 794v7 M484 798l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="488" cy="895" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(424 831) scale(2)"><defs>
+  <radialGradient id="sheet-10-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-10-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-10-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-10-torso" data-part="torso" transform="translate(0 -1) rotate(-16 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-10-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-10-guard-arm" data-part="guard-arm">
+  <path d="M17.857 39.096 L3.214 42.352 L8 25" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M17.857 39.096 L3.214 42.352" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M3.214 42.352 L8 25" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="3.214" cy="42.352" r="3.1" fill="#279ca5"/>
+  <path d="M2.214 41.352 L7 24" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-10-guard-fist" data-part="guard-fist" transform="translate(9.143 20.855) rotate(15.418)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-10-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-10-strike-arm" data-part="strike-arm">
+  <path d="M46.695 30.827 L57.936 20.896 L56 3" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M46.695 30.827 L57.936 20.896" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M57.936 20.896 L56 3" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="57.936" cy="20.896" r="3.1" fill="#279ca5"/>
+  <path d="M56.936 19.896 L55 2" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-10-strike-fist" data-part="strike-fist" transform="translate(55.537 -1.275) rotate(-6.175)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-10-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-10-head-layer" data-part="head" transform="translate(0 -0.55) rotate(2 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-10-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="362" y="970" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ชะลอ</text><text x="362" y="991" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >เริ่มงอศอก ไม่ค้างแขนเป็นแท่ง</text><rect x="648" y="736" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="664" y="752" width="29" height="25" rx="6" fill="#d8b896"/><text x="678.5" y="769" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">11</text><text x="703" y="769" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">RETRACT</text><text x="920" y="769" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">280–315 ms</text><path d="M792 794v7 M788 798l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="792" cy="895" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(728 831) scale(2)"><defs>
+  <radialGradient id="sheet-11-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-11-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-11-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-11-torso" data-part="torso" transform="translate(0 0) rotate(-10 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-11-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-11-guard-arm" data-part="guard-arm">
+  <path d="M17.402 38.59 L3.174 43.341 L8 26" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M17.402 38.59 L3.174 43.341" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M3.174 43.341 L8 26" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="3.174" cy="43.341" r="3.1" fill="#279ca5"/>
+  <path d="M2.174 42.341 L7 25" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-11-guard-fist" data-part="guard-fist" transform="translate(9.153 21.857) rotate(15.552)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-11-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-11-strike-arm" data-part="strike-arm">
+  <path d="M46.946 33.38 L61.723 35.955 L63 18" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M46.946 33.38 L61.723 35.955" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M61.723 35.955 L63 18" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="61.723" cy="35.955" r="3.1" fill="#279ca5"/>
+  <path d="M60.723 34.955 L62 17" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-11-strike-fist" data-part="strike-fist" transform="translate(63.305 13.711) rotate(4.068)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-11-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-11-head-layer" data-part="head" transform="translate(0 0) rotate(1 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-11-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="666" y="970" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ดึงกลับ</text><text x="666" y="991" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >ดึงข้อมือกลับก่อนคลายไหล่</text><rect x="952" y="736" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="968" y="752" width="29" height="25" rx="6" fill="#d8b896"/><text x="982.5" y="769" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">12</text><text x="1007" y="769" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">FOLD</text><text x="1224" y="769" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">315–350 ms</text><path d="M1096 794v7 M1092 798l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="1096" cy="895" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(1032 831) scale(2)"><defs>
+  <radialGradient id="sheet-12-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-12-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-12-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-12-torso" data-part="torso" transform="translate(0 0.5) rotate(-4 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-12-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-12-guard-arm" data-part="guard-arm">
+  <path d="M17.106 37.544 L4.316 45.38 L9 28" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M17.106 37.544 L4.316 45.38" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M4.316 45.38 L9 28" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="4.316" cy="45.38" r="3.1" fill="#279ca5"/>
+  <path d="M3.316 44.38 L8 27" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-12-guard-fist" data-part="guard-fist" transform="translate(10.119 23.848) rotate(15.084)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-12-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-12-strike-arm" data-part="strike-arm">
+  <path d="M47.033 35.451 L56.454 47.124 L62 30" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M47.033 35.451 L56.454 47.124" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M56.454 47.124 L62 30" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="56.454" cy="47.124" r="3.1" fill="#279ca5"/>
+  <path d="M55.454 46.124 L61 29" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-12-strike-fist" data-part="strike-fist" transform="translate(63.325 25.909) rotate(17.947)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-12-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-12-head-layer" data-part="head" transform="translate(0 0.275) rotate(0 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-12-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="970" y="970" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >พับศอก</text><text x="970" y="991" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >ท่อนแขนพับกลับข้างศีรษะ</text><rect x="40" y="1022" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="56" y="1038" width="29" height="25" rx="6" fill="#d8b896"/><text x="70.5" y="1055" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">13</text><text x="95" y="1055" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">UNWIND</text><text x="312" y="1055" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">350–390 ms</text><path d="M184 1080v7 M180 1084l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="184" cy="1181" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(120 1117) scale(2)"><defs>
+  <radialGradient id="sheet-13-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-13-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-13-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-13-torso" data-part="torso" transform="translate(0 1) rotate(3 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-13-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-13-guard-arm" data-part="guard-arm">
+  <path d="M16.968 36.214 L9.088 48.977 L10 31" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M16.968 36.214 L9.088 48.977" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M9.088 48.977 L10 31" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="9.088" cy="48.977" r="3.1" fill="#279ca5"/>
+  <path d="M8.088 47.977 L9 30" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-13-guard-fist" data-part="guard-fist" transform="translate(10.218 26.706) rotate(2.904)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-13-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-13-strike-arm" data-part="strike-arm">
+  <path d="M46.927 37.784 L49.68 23.038 L58 39" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M46.927 37.784 L49.68 23.038" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M49.68 23.038 L58 39" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="49.68" cy="23.038" r="3.1" fill="#279ca5"/>
+  <path d="M48.68 22.038 L57 38" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-13-strike-fist" data-part="strike-fist" transform="translate(59.988 42.813) rotate(152.468)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-13-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-13-head-layer" data-part="head" transform="translate(0 0.55) rotate(-1 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-13-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="58" y="1256" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >คืนลำตัว</text><text x="58" y="1277" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >ไหล่หมุนคืน มือซ้ายค่อยลด</text><rect x="344" y="1022" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="360" y="1038" width="29" height="25" rx="6" fill="#d8b896"/><text x="374.5" y="1055" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">14</text><text x="399" y="1055" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">SETTLE</text><text x="616" y="1055" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">390–430 ms</text><path d="M488 1080v7 M484 1084l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="488" cy="1181" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(424 1117) scale(2)"><defs>
+  <radialGradient id="sheet-14-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-14-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-14-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-14-torso" data-part="torso" transform="translate(0 0.5) rotate(2 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-14-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-14-guard-arm" data-part="guard-arm">
+  <path d="M16.974 35.976 L16.985 50.976 L11 34" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M16.974 35.976 L16.985 50.976" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M16.985 50.976 L11 34" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="16.985" cy="50.976" r="3.1" fill="#279ca5"/>
+  <path d="M15.985 49.976 L10 33" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-14-guard-fist" data-part="guard-fist" transform="translate(9.57 29.945) rotate(-19.42)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-14-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-14-strike-arm" data-part="strike-arm">
+  <path d="M46.956 37.023 L56.086 25.121 L54 43" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M46.956 37.023 L56.086 25.121" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M56.086 25.121 L54 43" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="56.086" cy="25.121" r="3.1" fill="#279ca5"/>
+  <path d="M55.086 24.121 L53 42" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-14-strike-fist" data-part="strike-fist" transform="translate(53.502 47.271) rotate(186.654)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-14-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-14-head-layer" data-part="head" transform="translate(0 0.275) rotate(0 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-14-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="362" y="1256" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ผ่อนแรง</text><text x="362" y="1277" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >ลำตัวกลับศูนย์ ลดมือขวา</text><rect x="648" y="1022" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="664" y="1038" width="29" height="25" rx="6" fill="#d8b896"/><text x="678.5" y="1055" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">15</text><text x="703" y="1055" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">LOWER</text><text x="920" y="1055" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">430–455 ms</text><path d="M792 1080v7 M788 1084l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="792" cy="1181" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(728 1117) scale(2)"><defs>
+  <radialGradient id="sheet-15-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-15-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-15-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-15-torso" data-part="torso" transform="translate(0 0) rotate(0 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-15-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="sheet-15-guard-arm" data-part="guard-arm">
+  <path d="M17 36 L24.4 22.952 L12 36" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M17 36 L24.4 22.952" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M24.4 22.952 L12 36" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="24.4" cy="22.952" r="3.1" fill="#279ca5"/>
+  <path d="M23.4 21.952 L11 35" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-15-guard-fist" data-part="guard-fist" transform="translate(9.038 39.117) rotate(223.542)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-15-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-15-strike-arm" data-part="strike-arm">
+  <path d="M47 36 L52.397 22.004 L52 40" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M47 36 L52.397 22.004" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M52.397 22.004 L52 40" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="52.397" cy="22.004" r="3.1" fill="#279ca5"/>
+  <path d="M51.397 21.004 L51 39" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="sheet-15-strike-fist" data-part="strike-fist" transform="translate(51.905 44.299) rotate(181.262)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#sheet-15-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="sheet-15-head-layer" data-part="head" transform="translate(0 0) rotate(0 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-15-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="666" y="1256" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ลดการ์ด</text><text x="666" y="1277" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >มือกลับลงข้างตัวก่อนจบท่า</text><rect x="952" y="1022" width="288" height="270" rx="14" fill="#1a2e36" stroke="#2c4349" stroke-width="1"/><rect x="968" y="1038" width="29" height="25" rx="6" fill="#d8b896"/><text x="982.5" y="1055" font-size="12" fill="#10242b" font-weight="700" font-family="Arial, Tahoma, sans-serif" text-anchor="middle">16</text><text x="1007" y="1055" font-size="12" fill="#e3eeea" font-weight="700" font-family="Arial, Tahoma, sans-serif" letter-spacing="1">IDLE</text><text x="1224" y="1055" font-size="11" fill="#9bb3b9" font-weight="400" font-family="Arial, Tahoma, sans-serif" text-anchor="end">455–480 ms</text><path d="M1096 1080v7 M1092 1084l4-4 4 4" fill="none" stroke="#47616a" stroke-width="1.2"/><ellipse cx="1096" cy="1181" rx="43" ry="35" fill="#0a171d" opacity=".5"/><g transform="translate(1032 1117) scale(2)"><defs>
+  <radialGradient id="sheet-16-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="sheet-16-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="sheet-16-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="sheet-16-torso" data-part="torso"><ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#sheet-16-body)" stroke="#1c7177" stroke-width="1.1"/></g><g id="sheet-16-guard-arm" data-part="guard-arm">
+  <path d="M17 36 Q13 35 13 37" fill="none" stroke="#279ca5" stroke-width="10"/>
+  <ellipse cx="13" cy="37" rx="6" ry="7" fill="url(#sheet-16-body)" stroke="#1c7177" stroke-width="1"/>
+  <path d="M11 33 Q13 32 15 34" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+</g><g id="sheet-16-strike-arm" data-part="strike-arm">
+  <path d="M47 36 Q51 35 51 37" fill="none" stroke="#279ca5" stroke-width="10"/>
+  <ellipse cx="51" cy="37" rx="6" ry="7" fill="url(#sheet-16-body)" stroke="#1c7177" stroke-width="1"/>
+  <path d="M49 33 Q51 32 53 34" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+</g><g id="sheet-16-head-layer" data-part="head" transform="translate(0 0)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#sheet-16-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g></g><text x="970" y="1256" font-size="16" fill="#e8f0e7" font-weight="700" font-family="Arial, Tahoma, sans-serif" >พัก</text><text x="970" y="1277" font-size="11" fill="#9cb4bb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >กลับรูปทรง idle เดิมทุกชิ้น</text><text x="40" y="1346" font-size="14" fill="#68d8d5" font-weight="700" font-family="Arial, Tahoma, sans-serif" >WINDUP  0–180 ms</text><text x="420" y="1346" font-size="14" fill="#c5ef87" font-weight="700" font-family="Arial, Tahoma, sans-serif" >ACTIVE  180–280 ms</text><text x="820" y="1346" font-size="14" fill="#d8b896" font-weight="700" font-family="Arial, Tahoma, sans-serif" >RECOVERY  280–480 ms</text><text x="40" y="1383" font-size="16" fill="#cededb" font-weight="400" font-family="Arial, Tahoma, sans-serif" >ท่าพักเดิม → ง้างและบิดตัว → ส่งไหล่ → ปล่อยหมัด → พับศอกกลับ → ท่าพักเดิม</text><text x="40" y="1416" font-size="12" fill="#8da8af" font-weight="400" font-family="Arial, Tahoma, sans-serif" >DESIGN HANDOFF · timing follows existing combat · no QA / tests performed · integration pending</text></svg>

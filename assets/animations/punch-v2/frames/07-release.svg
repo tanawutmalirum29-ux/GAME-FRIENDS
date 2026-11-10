@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="112" viewBox="-16 -32 96 112" role="img" aria-label="GAME FRIENDS punch — frame 07: release, 160–180 ms" data-view="top-down" data-costume="standard" data-pose="punch-release" data-frame="07" data-anchor="32 32" data-player-color="#36d9e5">
+<title>GAME FRIENDS punch — frame 07: release, 160–180 ms</title>
+<desc>Hand-authored overhead punch. Anchor 32,32; forward is negative Y. Transparent padding is not a hitbox. Arm, elbow, wrist and closed fist are separate geometry.</desc>
+<defs>
+  <radialGradient id="gf-punch-07-head" gradientUnits="userSpaceOnUse" cx="25" cy="23" r="35">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".48" stop-color="#36d9e5"/>
+    <stop offset=".82" stop-color="#32cad5"/><stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+  <radialGradient id="gf-punch-07-body" gradientUnits="userSpaceOnUse" cx="26" cy="35" r="32">
+    <stop offset="0" stop-color="#36d9e5"/><stop offset=".6" stop-color="#2db6c0"/>
+    <stop offset="1" stop-color="#1c7177"/>
+  </radialGradient>
+  <radialGradient id="gf-punch-07-hand" cx=".3" cy=".22" r=".9">
+    <stop offset="0" stop-color="#52dee9"/><stop offset=".5" stop-color="#36d9e5"/>
+    <stop offset="1" stop-color="#2698a0"/>
+  </radialGradient>
+</defs><g stroke-linecap="round" stroke-linejoin="round"><g id="gf-punch-07-torso" data-part="torso" transform="translate(0 -1) rotate(-8 32 35)">
+  <ellipse cx="32" cy="35" rx="19" ry="20" fill="url(#gf-punch-07-body)" stroke="#1c7177" stroke-width="1.1"/>
+  <path d="M20 49 Q31 55 42 49" fill="none" stroke="#4edee8" stroke-width="1.15"/>
+</g><g id="gf-punch-07-guard-arm" data-part="guard-arm">
+  <path d="M17.285 37.078 L2.608 40.173 L8 23" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M17.285 37.078 L2.608 40.173" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M2.608 40.173 L8 23" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="2.608" cy="40.173" r="3.1" fill="#279ca5"/>
+  <path d="M1.608 39.173 L7 22" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="gf-punch-07-guard-fist" data-part="guard-fist" transform="translate(9.288 18.897) rotate(17.431)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#gf-punch-07-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="gf-punch-07-strike-arm" data-part="strike-arm">
+  <path d="M46.993 32.903 L61.475 28.992 L62 11" fill="none" stroke="#1c7177" stroke-width="10.8"/>
+  <path d="M46.993 32.903 L61.475 28.992" fill="none" stroke="#279ca5" stroke-width="8.4"/>
+  <path d="M61.475 28.992 L62 11" fill="none" stroke="#36d9e5" stroke-width="8.2"/>
+  <circle cx="61.475" cy="28.992" r="3.1" fill="#279ca5"/>
+  <path d="M60.475 27.992 L61 10" fill="none" stroke="#4edee8" stroke-width="1.2"/>
+  <g id="gf-punch-07-strike-fist" data-part="strike-fist" transform="translate(62.126 6.702) rotate(1.673)">
+    <path d="M-3.3 2.2 L-3.1 7 L3.1 7 L3.5 2.2 Z" fill="#279ca5" stroke="#1c7177" stroke-width=".8"/>
+    <path d="M-5.1 2.5 L-5.5-2.8 Q-5.5-5.7-3.2-5.9 Q-2-7.1-.6-6.3 Q.9-7.2 2.3-6.2 Q4.2-6.4 5-4.7 L5.9-.6 Q6.2 3.4 3.3 5.3 L-.8 5.8 Q-4.8 5.5-5.1 2.5Z" fill="url(#gf-punch-07-hand)" stroke="#1c7177" stroke-width="1.1"/>
+    <path d="M-5.1-.4 Q-7 .1-6.1 2.8 Q-5.1 4.5-3.3 3.5 L-.9 1.7 Q.2.4-1.1-.3 Q-2.1-.8-3.1.4" fill="#36d9e5" stroke="#1c7177" stroke-width=".85"/>
+    <path d="M-2.8-4.9 L-2.4-3.2 M-.3-5.2 L.1-3.5 M2.2-5 L2.6-3.3" fill="none" stroke="#279ca5" stroke-width=".7"/>
+    <path d="M-2.7-4.6 Q.5-5.5 3.2-3.6" fill="none" stroke="#4edee8" stroke-width="1.1"/>
+  </g>
+</g><g id="gf-punch-07-head-layer" data-part="head" transform="translate(0 -0.55) rotate(2 32 30)">
+  <ellipse cx="32" cy="30" rx="22" ry="23" fill="url(#gf-punch-07-head)" stroke="#1c7177" stroke-width="1.2"/>
+  <path d="M15 20 Q19 11 28 10.5 L28 14 Q21 15.5 18 20 Q16 22 15 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M49 20 Q45 11 36 10.5 L36 14 Q43 15.5 46 20 Q48 22 49 20 Z" fill="#fff" stroke="#281a22" stroke-width="1.25"/>
+  <path d="M17 30 Q17 42 28 46" fill="none" stroke="#4edee8" stroke-width="1.4"/>
+</g></g>
+</svg>

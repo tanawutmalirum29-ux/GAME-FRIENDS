@@ -1,0 +1,905 @@
+{
+  "schemaVersion": 1,
+  "name": "GAME FRIENDS overhead right-hand punch",
+  "status": "art-only-unintegrated-untested",
+  "sourceBaseCommit": "e1c536069ee856b0e7f7d5d1abc75818160c76c4",
+  "canonicalAvatar": "player-avatar.js",
+  "view": "top-down",
+  "costume": "standard",
+  "facing": [
+    0,
+    -1
+  ],
+  "viewBox": [
+    -16,
+    -32,
+    96,
+    112
+  ],
+  "anchor": [
+    32,
+    32
+  ],
+  "sourceAvatarBox": [
+    0,
+    0,
+    64,
+    64
+  ],
+  "defaultColor": "#36d9e5",
+  "palette": {
+    "body": "#36d9e5",
+    "dark": "#1c7177",
+    "rim": "#279ca5",
+    "high": "#52dee9",
+    "soft": "#32cad5",
+    "headend": "#2698a0",
+    "torsomid": "#2db6c0",
+    "glint": "#4edee8"
+  },
+  "worldUnitsPerSvgUnit": 0.8125,
+  "paddedCanvasDrawRect": [
+    -39,
+    -52,
+    78,
+    91
+  ],
+  "durationsMs": {
+    "windup": 180,
+    "active": 100,
+    "recovery": 200,
+    "total": 480,
+    "cooldown": 1050,
+    "normalStun": 800
+  },
+  "firstContactFrame": 8,
+  "hitTimingSource": "PartyCombatMotion.stepAttack; art must not apply damage",
+  "preview": {
+    "file": "preview.svg",
+    "transparentLoop": "punch-loop.svg",
+    "loopMs": 1600,
+    "idlePauseMs": 1120
+  },
+  "drawingOrder": [
+    "torso",
+    "guard-arm",
+    "strike-arm",
+    "head"
+  ],
+  "frames": [
+    {
+      "index": 1,
+      "file": "frames/01-idle.svg",
+      "startMs": 0,
+      "endMs": 25,
+      "durationMs": 25,
+      "phase": "windup",
+      "pose": "idle",
+      "labelTh": "ท่าเดิม",
+      "intentTh": "เริ่มจากท่าพักเดิมของเกม",
+      "torsoRotationDeg": 0,
+      "torsoTranslation": [
+        0,
+        0
+      ],
+      "headRotationDeg": 0,
+      "joints": null
+    },
+    {
+      "index": 2,
+      "file": "frames/02-gather.svg",
+      "startMs": 25,
+      "endMs": 55,
+      "durationMs": 30,
+      "phase": "windup",
+      "pose": "gather",
+      "labelTh": "รวบการ์ด",
+      "intentTh": "ยกมือจากข้างตัว เริ่มเก็บศอก",
+      "torsoRotationDeg": 4,
+      "torsoTranslation": [
+        0,
+        0.3
+      ],
+      "headRotationDeg": 0,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            46.89370428015324,
+            37.343911156421704
+          ],
+          "elbow": [
+            44.88387200899161,
+            22.47916849999481
+          ],
+          "wrist": [
+            54,
+            38
+          ],
+          "fist": [
+            56.177741686740895,
+            41.70775419166791
+          ],
+          "fistAngleDeg": 149.5722426884949
+        },
+        "guard": {
+          "shoulder": [
+            16.96678277235851,
+            35.25121694409794
+          ],
+          "elbow": [
+            17.78623856197525,
+            50.22881662525058
+          ],
+          "wrist": [
+            10,
+            34
+          ],
+          "fist": [
+            8.139954121305912,
+            30.123116028412362
+          ],
+          "fistAngleDeg": -25.630694018518952
+        }
+      }
+    },
+    {
+      "index": 3,
+      "file": "frames/03-coil.svg",
+      "startMs": 55,
+      "endMs": 85,
+      "durationMs": 30,
+      "phase": "windup",
+      "pose": "coil",
+      "labelTh": "บิดเตรียม",
+      "intentTh": "ลำตัวหมุนสวนทางก่อนออกหมัด",
+      "torsoRotationDeg": 11,
+      "torsoTranslation": [
+        -1,
+        1
+      ],
+      "headRotationDeg": -1,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            45.53359875633842,
+            39.84376211409584
+          ],
+          "elbow": [
+            52.19880426926492,
+            26.4059410306592
+          ],
+          "wrist": [
+            56,
+            44
+          ],
+          "fist": [
+            56.90806342456449,
+            48.203025198231416
+          ],
+          "fistAngleDeg": 167.80863194664747
+        },
+        "guard": {
+          "shoulder": [
+            16.084783252908494,
+            34.11949225279949
+          ],
+          "elbow": [
+            10.105845869585547,
+            47.87639262193437
+          ],
+          "wrist": [
+            8,
+            30
+          ],
+          "fist": [
+            7.4969368200434525,
+            25.729528429204567
+          ],
+          "fistAngleDeg": -6.718501464027881
+        }
+      }
+    },
+    {
+      "index": 4,
+      "file": "frames/04-load.svg",
+      "startMs": 85,
+      "endMs": 115,
+      "durationMs": 30,
+      "phase": "windup",
+      "pose": "load",
+      "labelTh": "ถ่ายน้ำหนัก",
+      "intentTh": "ไหล่ขวาถอย มือซ้ายคุมแนวหน้า",
+      "torsoRotationDeg": 18,
+      "torsoTranslation": [
+        -1,
+        2
+      ],
+      "headRotationDeg": -2,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            44.956830750052355,
+            42.58631143191936
+          ],
+          "elbow": [
+            55.593422322842905,
+            32.009784605326374
+          ],
+          "wrist": [
+            55,
+            50
+          ],
+          "fist": [
+            54.8582380006542,
+            54.297662566505366
+          ],
+          "fistAngleDeg": 181.8892642607109
+        },
+        "guard": {
+          "shoulder": [
+            16.42513526119775,
+            33.315801600670945
+          ],
+          "elbow": [
+            5.860167358142471,
+            43.96387434682608
+          ],
+          "wrist": [
+            7,
+            26
+          ],
+          "fist": [
+            7.272293353332632,
+            21.708630017147104
+          ],
+          "fistAngleDeg": 3.630629177718575
+        }
+      }
+    },
+    {
+      "index": 5,
+      "file": "frames/05-chamber.svg",
+      "startMs": 115,
+      "endMs": 140,
+      "durationMs": 25,
+      "phase": "windup",
+      "pose": "chamber",
+      "labelTh": "ง้างสุด",
+      "intentTh": "มือขวาอยู่หลังไหล่ เก็บแรงไว้",
+      "torsoRotationDeg": 22,
+      "torsoTranslation": [
+        -1,
+        2
+      ],
+      "headRotationDeg": -2,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            44.533151225085895,
+            43.546282755805464
+          ],
+          "elbow": [
+            57.03515229071041,
+            35.25773829039275
+          ],
+          "wrist": [
+            54,
+            53
+          ],
+          "fist": [
+            53.27493584166363,
+            57.23842918618395
+          ],
+          "fistAngleDeg": 189.70756773682547
+        },
+        "guard": {
+          "shoulder": [
+            16.717635588082278,
+            32.308084953328105
+          ],
+          "elbow": [
+            5.192816185562128,
+            41.90905041203564
+          ],
+          "wrist": [
+            7,
+            24
+          ],
+          "fist": [
+            7.431716133449047,
+            19.72172684601371
+          ],
+          "fistAngleDeg": 5.762152931373009
+        }
+      }
+    },
+    {
+      "index": 6,
+      "file": "frames/06-drive.svg",
+      "startMs": 140,
+      "endMs": 160,
+      "durationMs": 20,
+      "phase": "windup",
+      "pose": "drive",
+      "labelTh": "ส่งไหล่",
+      "intentTh": "คลายลำตัว ส่งต้นแขนออกก่อน",
+      "torsoRotationDeg": 6,
+      "torsoTranslation": [
+        0,
+        0
+      ],
+      "headRotationDeg": 0,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            46.81329996725644,
+            37.56244884438308
+          ],
+          "elbow": [
+            60.191804900083945,
+            44.34592920201
+          ],
+          "wrist": [
+            65,
+            27
+          ],
+          "fist": [
+            66.14862438497994,
+            22.8562502461865
+          ],
+          "fistAngleDeg": 15.493077624914918
+        },
+        "guard": {
+          "shoulder": [
+            16.977643106208248,
+            34.42659494635347
+          ],
+          "elbow": [
+            3.315434597473006,
+            40.618852908021594
+          ],
+          "wrist": [
+            7,
+            23
+          ],
+          "fist": [
+            7.880201735048115,
+            18.79105180530595
+          ],
+          "fistAngleDeg": 11.811825392587778
+        }
+      }
+    },
+    {
+      "index": 7,
+      "file": "frames/07-release.svg",
+      "startMs": 160,
+      "endMs": 180,
+      "durationMs": 20,
+      "phase": "windup",
+      "pose": "release",
+      "labelTh": "ปล่อยหมัด",
+      "intentTh": "ศอกเปิดตามไหล่ ข้อมือวิ่งด้านข้างหัว",
+      "torsoRotationDeg": -8,
+      "torsoTranslation": [
+        0,
+        -1
+      ],
+      "headRotationDeg": 2,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            46.993194132083616,
+            32.902671554340586
+          ],
+          "elbow": [
+            61.474534451182,
+            28.99232853071012
+          ],
+          "wrist": [
+            62,
+            11
+          ],
+          "fist": [
+            62.12552788110652,
+            6.701832628774804
+          ],
+          "fistAngleDeg": 1.6728464488002572
+        },
+        "guard": {
+          "shoulder": [
+            17.28515206983651,
+            37.07786458314255
+          ],
+          "elbow": [
+            2.6080457083840223,
+            40.17343381263992
+          ],
+          "wrist": [
+            8,
+            23
+          ],
+          "fist": [
+            9.288077969663817,
+            18.897457478091575
+          ],
+          "fistAngleDeg": 17.430758226850813
+        }
+      }
+    },
+    {
+      "index": 8,
+      "file": "frames/08-contact.svg",
+      "startMs": 180,
+      "endMs": 210,
+      "durationMs": 30,
+      "phase": "active",
+      "pose": "contact",
+      "labelTh": "กระแทก",
+      "intentTh": "หมัดปิด นิ้วและข้อมือเรียงกับท่อนแขน",
+      "torsoRotationDeg": -18,
+      "torsoTranslation": [
+        0,
+        -2
+      ],
+      "headRotationDeg": 3,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            46.574864738802255,
+            29.315801600670945
+          ],
+          "elbow": [
+            54.978581422346956,
+            16.890925508624292
+          ],
+          "wrist": [
+            53,
+            -1
+          ],
+          "fist": [
+            52.52733888243934,
+            -5.273943315949137
+          ],
+          "fistAngleDeg": -6.31077254731872
+        },
+        "guard": {
+          "shoulder": [
+            18.043169249947642,
+            38.58631143191936
+          ],
+          "elbow": [
+            3.305038222111179,
+            41.376919574658885
+          ],
+          "wrist": [
+            8,
+            24
+          ],
+          "fist": [
+            9.121574202495662,
+            19.848846990498156
+          ],
+          "fistAngleDeg": 15.119388905069172
+        }
+      }
+    },
+    {
+      "index": 9,
+      "file": "frames/09-follow.svg",
+      "startMs": 210,
+      "endMs": 245,
+      "durationMs": 35,
+      "phase": "active",
+      "pose": "follow",
+      "labelTh": "ส่งแรงต่อ",
+      "intentTh": "ไหล่หมุนตาม ศีรษะยังจับเป้า",
+      "torsoRotationDeg": -20,
+      "torsoTranslation": [
+        0,
+        -2
+      ],
+      "headRotationDeg": 3,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            46.43740945511429,
+            28.809390470900876
+          ],
+          "elbow": [
+            53.85549732672999,
+            15.772060516919186
+          ],
+          "wrist": [
+            51,
+            -2
+          ],
+          "fist": [
+            50.31785341639228,
+            -6.245547790152917
+          ],
+          "fistAngleDeg": -9.127892678587585
+        },
+        "guard": {
+          "shoulder": [
+            18.246630831537043,
+            39.06999477067094
+          ],
+          "elbow": [
+            3.6353769419643616,
+            42.462819519231815
+          ],
+          "wrist": [
+            8,
+            25
+          ],
+          "fist": [
+            9.042659952752958,
+            20.82832644818351
+          ],
+          "fistAngleDeg": 14.032902737936226
+        }
+      }
+    },
+    {
+      "index": 10,
+      "file": "frames/10-brake.svg",
+      "startMs": 245,
+      "endMs": 280,
+      "durationMs": 35,
+      "phase": "active",
+      "pose": "brake",
+      "labelTh": "ชะลอ",
+      "intentTh": "เริ่มงอศอก ไม่ค้างแขนเป็นแท่ง",
+      "torsoRotationDeg": -16,
+      "torsoTranslation": [
+        0,
+        -1
+      ],
+      "headRotationDeg": 2,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            46.69456279489178,
+            30.82670135868333
+          ],
+          "elbow": [
+            57.93612118362829,
+            20.89557025529798
+          ],
+          "wrist": [
+            56,
+            3
+          ],
+          "fist": [
+            55.5374821616888,
+            -1.2750528943211838
+          ],
+          "fistAngleDeg": -6.174811130467134
+        },
+        "guard": {
+          "shoulder": [
+            17.856711916742217,
+            39.09582203319331
+          ],
+          "elbow": [
+            3.214441592401494,
+            42.35218806743009
+          ],
+          "wrist": [
+            8,
+            25
+          ],
+          "fist": [
+            9.143216730704088,
+            20.85475507278059
+          ],
+          "fistAngleDeg": 15.418319289305174
+        }
+      }
+    },
+    {
+      "index": 11,
+      "file": "frames/11-retract.svg",
+      "startMs": 280,
+      "endMs": 315,
+      "durationMs": 35,
+      "phase": "recovery",
+      "pose": "retract",
+      "labelTh": "ดึงกลับ",
+      "intentTh": "ดึงข้อมือกลับก่อนคลายไหล่",
+      "torsoRotationDeg": -10,
+      "torsoTranslation": [
+        0,
+        0
+      ],
+      "headRotationDeg": 1,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            46.94576447285006,
+            33.38008508800825
+          ],
+          "elbow": [
+            61.7231655136129,
+            35.95465660196186
+          ],
+          "wrist": [
+            63,
+            18
+          ],
+          "fist": [
+            63.30502157174803,
+            13.710832033975779
+          ],
+          "fistAngleDeg": 4.067706597283916
+        },
+        "guard": {
+          "shoulder": [
+            17.40153188248381,
+            38.58953041801616
+          ],
+          "elbow": [
+            3.1739602500538027,
+            43.34097287731976
+          ],
+          "wrist": [
+            8,
+            26
+          ],
+          "fist": [
+            9.152887273598257,
+            21.857434257084726
+          ],
+          "fistAngleDeg": 15.552029158901973
+        }
+      }
+    },
+    {
+      "index": 12,
+      "file": "frames/12-fold.svg",
+      "startMs": 315,
+      "endMs": 350,
+      "durationMs": 35,
+      "phase": "recovery",
+      "pose": "fold",
+      "labelTh": "พับศอก",
+      "intentTh": "ท่อนแขนพับกลับข้างศีรษะ",
+      "torsoRotationDeg": -4,
+      "torsoTranslation": [
+        0,
+        0.5
+      ],
+      "headRotationDeg": 0,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            47.033217227641494,
+            35.45121694409794
+          ],
+          "elbow": [
+            56.453538859310136,
+            47.124157462918205
+          ],
+          "wrist": [
+            62,
+            30
+          ],
+          "fist": [
+            63.3249879391648,
+            25.909229050525095
+          ],
+          "fistAngleDeg": 17.946977013324855
+        },
+        "guard": {
+          "shoulder": [
+            17.10629571984676,
+            37.54391115642171
+          ],
+          "elbow": [
+            4.315720658116867,
+            45.37980227296062
+          ],
+          "wrist": [
+            9,
+            28
+          ],
+          "fist": [
+            10.119022287227637,
+            23.848158345903855
+          ],
+          "fistAngleDeg": 15.084169330481245
+        }
+      }
+    },
+    {
+      "index": 13,
+      "file": "frames/13-unwind.svg",
+      "startMs": 350,
+      "endMs": 390,
+      "durationMs": 40,
+      "phase": "recovery",
+      "pose": "unwind",
+      "labelTh": "คืนลำตัว",
+      "intentTh": "ไหล่หมุนคืน มือซ้ายค่อยลด",
+      "torsoRotationDeg": 3,
+      "torsoTranslation": [
+        0,
+        1
+      ],
+      "headRotationDeg": -1,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            46.92710706507567,
+            37.78366887839873
+          ],
+          "elbow": [
+            49.67971625701753,
+            23.038393613540592
+          ],
+          "wrist": [
+            58,
+            39
+          ],
+          "fist": [
+            59.98762333860137,
+            42.81305041454308
+          ],
+          "fistAngleDeg": 152.46838482008906
+        },
+        "guard": {
+          "shoulder": [
+            16.968221022438446,
+            36.21359019111041
+          ],
+          "elbow": [
+            9.087964021016164,
+            48.97687932798791
+          ],
+          "wrist": [
+            10,
+            31
+          ],
+          "fist": [
+            10.217875261646139,
+            26.705523271647333
+          ],
+          "fistAngleDeg": 2.9043443189623446
+        }
+      }
+    },
+    {
+      "index": 14,
+      "file": "frames/14-settle.svg",
+      "startMs": 390,
+      "endMs": 430,
+      "durationMs": 40,
+      "phase": "recovery",
+      "pose": "settle",
+      "labelTh": "ผ่อนแรง",
+      "intentTh": "ลำตัวกลับศูนย์ ลดมือขวา",
+      "torsoRotationDeg": 2,
+      "torsoTranslation": [
+        0,
+        0.5
+      ],
+      "headRotationDeg": 0,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            46.955962908583935,
+            37.022883277556616
+          ],
+          "elbow": [
+            56.08563046956067,
+            25.121237583533922
+          ],
+          "wrist": [
+            54,
+            43
+          ],
+          "fist": [
+            53.50176605449384,
+            47.27103768837801
+          ],
+          "fistAngleDeg": 186.65371321305068
+        },
+        "guard": {
+          "shoulder": [
+            16.974238098011064,
+            35.97589837648158
+          ],
+          "elbow": [
+            16.98489790314728,
+            50.97589458876625
+          ],
+          "wrist": [
+            11,
+            34
+          ],
+          "fist": [
+            9.570274389803705,
+            29.94464740379473
+          ],
+          "fistAngleDeg": -19.42024115549664
+        }
+      }
+    },
+    {
+      "index": 15,
+      "file": "frames/15-lower.svg",
+      "startMs": 430,
+      "endMs": 455,
+      "durationMs": 25,
+      "phase": "recovery",
+      "pose": "lower",
+      "labelTh": "ลดการ์ด",
+      "intentTh": "มือกลับลงข้างตัวก่อนจบท่า",
+      "torsoRotationDeg": 0,
+      "torsoTranslation": [
+        0,
+        0
+      ],
+      "headRotationDeg": 0,
+      "joints": {
+        "strike": {
+          "shoulder": [
+            47.0,
+            36.0
+          ],
+          "elbow": [
+            52.39650586712944,
+            22.0043676660882
+          ],
+          "wrist": [
+            52,
+            40
+          ],
+          "fist": [
+            51.90527915396352,
+            44.298956613101154
+          ],
+          "fistAngleDeg": 181.26221946774865
+        },
+        "guard": {
+          "shoulder": [
+            17.0,
+            36.0
+          ],
+          "elbow": [
+            24.4,
+            22.952394855759927
+          ],
+          "wrist": [
+            12,
+            36
+          ],
+          "fist": [
+            9.037777777777778,
+            39.11692789556846
+          ],
+          "fistAngleDeg": 223.54221902815587
+        }
+      }
+    },
+    {
+      "index": 16,
+      "file": "frames/16-idle.svg",
+      "startMs": 455,
+      "endMs": 480,
+      "durationMs": 25,
+      "phase": "recovery",
+      "pose": "idle",
+      "labelTh": "พัก",
+      "intentTh": "กลับรูปทรง idle เดิมทุกชิ้น",
+      "torsoRotationDeg": 0,
+      "torsoTranslation": [
+        0,
+        0
+      ],
+      "headRotationDeg": 0,
+      "joints": null
+    }
+  ]
+}
