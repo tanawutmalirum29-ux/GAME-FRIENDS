@@ -4,10 +4,10 @@
    committed, smoothed heading, so it cannot flicker left/right every frame. Mistakes come from short
    look-ahead, replan delay, turning lag and crowding — never from a hidden speed cut. */
 import {C,clamp,hash01,Heap,NB} from './config.js';
-const CELL=10;
+const CELL=16; // 2.56x fewer navigation cells than the old 10-unit grid
 export function makeBot(idx,rng){
- return{idx,key:(idx+1)*7919,look:300+rng()*170,replan:.14+rng()*.14,turn:7+rng()*6,noise:.06+rng()*.1,
-  next:0,dx:1,dy:0,tx:null,ty:null,pxs:0,pys:0,pt:0,unstick:0,side:0,sideUntil:0};
+ return{idx,key:(idx+1)*7919,look:250+rng()*100,replan:.34+rng()*.18,turn:7+rng()*6,noise:.06+rng()*.1,
+  next:idx*.031+rng()*.09,dx:1,dy:0,tx:null,ty:null,pxs:0,pys:0,pt:0,unstick:0,side:0,sideUntil:0};
 }
 function plan(s,p,bot){
  const tr=s.track,R=C.R+4,x0=Math.floor((p.x-60)/CELL)*CELL,x1=p.x+bot.look,top=tr.top,
@@ -51,7 +51,7 @@ function plan(s,p,bot){
   if(best<0)return null;c=best;}
  // follow the descent ~110 units ahead, then take the furthest cell that still has a straight, clear line
  const chain=[c];let len=0;
- for(let g=0;g<30&&len<110;g++){const cur=chain[chain.length-1],i=cur%nc,j=(cur/nc)|0;let bk=-1,bv=D[cur];
+ for(let g=0;g<20&&len<105;g++){const cur=chain[chain.length-1],i=cur%nc,j=(cur/nc)|0;let bk=-1,bv=D[cur];
   for(const[dx,dy]of NB){const ni=i+dx,nj=j+dy;if(ni<0||nj<0||ni>=nc||nj>=nr)continue;const v=nj*nc+ni;
    if(!(D[v]<bv))continue;if(dx&&dy&&!(isFinite(D[j*nc+ni])&&isFinite(D[nj*nc+i])))continue;bk=v;bv=D[v];}
   if(bk<0)break;chain.push(bk);len+=CELL*1.2;}
