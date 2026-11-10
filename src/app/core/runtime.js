@@ -349,6 +349,9 @@ function syncArenaResolution(){
  // memory well above the smaller mini-games. Other games retain 3x quality.
  const denseBoard=round?.mode==='board'&&boardSession?.players.length>=8;
  const modeKey=denseBoard?'board-dense':round?.mode==='board'?'board':'normal';
+ // A forced layout read on EVERY animation frame is expensive on mobile Safari.
+ // setView, resize, orientation, fullscreen and DPR changes invalidate the cache.
+ if(!arenaResolutionDirty&&arenaLastDpr===dpr&&arenaLastModeKey===modeKey)return;
  const box=canvas.getBoundingClientRect?.();
  const layoutBox=arenaLayoutRect(box||{left:0,top:0,width:960,height:540});
  const boxKey=layoutBox.width+'x'+layoutBox.height+':'+arenaIsRotated();
