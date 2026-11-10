@@ -6202,3 +6202,150 @@ body.controller-playing #controller .phone-game-choices{
 #hostLobby.plaza-loaded .lobby-qr-panel .qr-share-stack .qr-box img{
  width:100%!important;height:100%!important;
 }
+
+
+/* PARTY PLAZA FIX (iPad/Safari): one contained popover below the safe-area
+   header. Existing legacy lobby footer/grid rules must not size these panels.
+   This is presentation-only: world canvas, game physics and DPR are untouched. */
+#hostLobby.plaza-loaded .lobby-bar{
+ box-sizing:border-box!important;
+ gap:clamp(3px,.55vw,8px)!important;
+ flex-wrap:nowrap!important;
+ max-width:calc(100% - 16px)!important;
+}
+#hostLobby.plaza-loaded .lobby-bar-brand{min-width:0!important;flex:1 1 auto!important;overflow:hidden!important}
+#hostLobby.plaza-loaded .lobby-bar-brand strong{
+ display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#hostLobby.plaza-loaded .plaza-header-tools{flex:0 0 auto!important}
+#hostLobby.plaza-loaded .plaza-header-tools button{
+ white-space:nowrap;flex-shrink:0;
+}
+#hostLobby.plaza-loaded .plaza-header-tools button[aria-expanded="true"]{
+ border-color:#a4f7e4!important;background:#294c62!important;
+ box-shadow:inset 0 0 0 1px #66bdc8;
+}
+#hostLobby.plaza-loaded .lobby-code-badge{min-width:0!important;flex:0 1 auto;white-space:nowrap!important}
+#hostLobby.plaza-loaded .lobby-close-btn{flex-shrink:0}
+/* top:52px was measured from the viewport, NOT from the iPad safe-area
+   header, so every popover began underneath and behind its buttons. */
+#hostLobby.plaza-loaded .lobby-qr-panel,
+#hostLobby.plaza-loaded .lobby-player-panel,
+#hostLobby.plaza-loaded .lobby-controls{
+ top:calc(max(4px, env(safe-area-inset-top)) + 55px)!important;
+ max-height:calc(100% - max(4px, env(safe-area-inset-top)) - 68px)!important;
+ box-sizing:border-box!important;
+ overscroll-behavior:contain;
+}
+#hostLobby.plaza-loaded .lobby-player-panel{
+ z-index:8!important;
+ width:min(420px,calc(100% - 18px))!important;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel{
+ z-index:8!important;
+}
+/* Retire the old fixed-height two-column session footer INSIDE the popup.
+   It was forcing 100%-height controls, overflowing out of the popup and
+   underneath the header, and visually stacking buttons on unrelated UI. */
+#hostLobby.plaza-loaded .lobby-controls{
+ z-index:9!important;
+ width:min(356px,calc(100% - 18px))!important;
+ right:9px!important;
+ bottom:auto!important;
+ display:none!important;
+ height:auto!important;
+ min-height:0!important;
+ max-width:calc(100% - 18px)!important;
+ overflow-x:hidden!important;
+ overflow-y:auto!important;
+ padding:12px!important;
+ grid-template-columns:minmax(0,1fr)!important;
+ grid-template-rows:auto auto!important;
+ align-content:start!important;
+ align-items:start!important;
+ justify-items:stretch!important;
+ gap:10px!important;
+}
+#hostLobby.plaza-loaded.plaza-show-controls .lobby-controls{display:grid!important}
+#hostLobby.plaza-loaded .lobby-controls>.lobby-session-control{
+ display:block!important;
+ grid-column:1!important;grid-row:1!important;
+ height:auto!important;min-height:0!important;max-height:none!important;
+ width:100%!important;
+ align-self:start!important;
+}
+#hostLobby.plaza-loaded #sessionMode{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr)!important;
+ grid-template-rows:repeat(3,minmax(39px,auto))!important;
+ width:100%!important;height:auto!important;
+ min-height:0!important;max-height:none!important;
+ align-content:start!important;
+ overflow:visible!important;
+ gap:6px!important;
+}
+#hostLobby.plaza-loaded #sessionMode .seg-option,
+#hostLobby.plaza-loaded #sessionMode .seg-option:nth-child(n){
+ grid-column:1!important;grid-row:auto!important;
+ height:auto!important;min-height:39px!important;
+ width:100%!important;
+ max-height:none!important;
+ padding:7px 10px!important;
+ white-space:normal!important;line-height:1.2!important;
+ font-size:clamp(11px,1.15vw,14px)!important;
+ text-overflow:clip!important;
+}
+#hostLobby.plaza-loaded .lobby-controls>.lobby-room-actions{
+ display:grid!important;grid-column:1!important;grid-row:2!important;
+ grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)!important;
+ grid-template-rows:auto!important;
+ box-sizing:border-box!important;
+ width:100%!important;height:auto!important;min-height:0!important;
+ align-self:start!important;align-items:center!important;
+ gap:7px!important;
+}
+#hostLobby.plaza-loaded .lobby-controls>.lobby-room-actions>.btn{
+ height:auto!important;min-height:41px!important;
+ font-size:clamp(10px,1vw,12px)!important;
+ padding:7px 5px!important;
+ text-overflow:ellipsis!important;overflow:hidden!important;
+}
+#hostLobby.plaza-loaded .lobby-player-panel .lobby-section-title{
+ display:flex!important;align-items:center!important;
+ flex:0 0 auto!important;height:auto!important;min-height:30px!important;
+ gap:8px!important;padding:3px 1px 8px!important;
+ overflow:visible!important;
+}
+#hostLobby.plaza-loaded .lobby-player-panel .lobby-section-title h2{
+ flex:1 1 auto;min-width:0!important;
+ font-size:13px!important;max-width:none!important;
+}
+#hostLobby.plaza-loaded .lobby-player-panel .lobby-section-title #rosterCount{
+ flex:0 0 auto;width:auto!important;min-width:0!important;
+ justify-content:center!important;
+}
+#hostLobby.plaza-loaded .lobby-player-panel #cycleAllBotsBtn{
+ flex:0 0 auto;max-width:36%!important;width:auto!important;
+ padding:5px!important;white-space:normal!important;
+ height:auto!important;min-height:28px!important;
+}
+#hostLobby.plaza-loaded .lobby-player-panel #cycleAllBotsBtn.hidden{
+ display:none!important;
+}
+#hostLobby.plaza-loaded .lobby-roster{
+ height:auto!important;min-height:0!important;
+ max-height:min(58dvh,390px)!important;
+ overflow-y:auto!important;grid-auto-rows:minmax(64px,auto);
+ align-content:start!important;
+}
+/* Narrow / virtually rotated host: preserve tap targets and keep labels
+   inside their popover rather than pushing the top header around. */
+@media(max-width:800px){
+ #hostLobby.plaza-loaded .lobby-bar-brand{display:none!important}
+ #hostLobby.plaza-loaded .plaza-header-tools button{
+  font-size:clamp(9px,1.4vw,12px)!important;
+  min-height:30px!important;padding:4px 6px!important;
+ }
+ #hostLobby.plaza-loaded .lobby-code-badge{font-size:10px!important}
+ #hostLobby.plaza-loaded .lobby-controls{width:min(356px,calc(100% - 18px))!important}
+}
