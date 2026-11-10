@@ -216,7 +216,8 @@ const server=http.createServer((req,res)=>{
   }));
   assert.equal(board.round,'board');
   assert.equal(board.board,true);
-  assert.equal(board.total,15);
+  assert.equal(board.total,catalog.games.filter(g=>g.modes.includes('board')).length,
+   'BOARD sees all dynamically discovered minigames');
   // Exercise a real BOARD -> randomly chosen minigame transition. A metadata
   // placeholder is not sufficient: its engine and game-owned dependencies
   // must actually download, activate and enter countdown.

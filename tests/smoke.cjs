@@ -203,7 +203,10 @@ assert.doesNotMatch(source,/window\.PartyMiniGames|function spawnStar|function d
 const legacyManifests=fs.readdirSync('src/games',{withFileTypes:true})
  .filter(entry=>entry.isDirectory())
  .map(entry=>JSON.parse(fs.readFileSync('src/games/'+entry.name+'/manifest.json','utf8')))
- .filter(game=>typeof game.global==='string'&&game.global.length>0);
+ .filter(game=>typeof game.global==='string'&&game.global.length>0)
+ // Only legacy-built games have static metadata in app.js. New plug-ins are
+ // discovered from manifests at build time without editing the host entrypoint.
+ .filter(game=>source.includes('  "'+game.id+'": {'));
 const legacyModeNames=Object.fromEntries(legacyManifests.map(game=>[game.id,game.name]));
 assert.equal(legacyManifests.length,15,'all original games retain their own manifest');
 assert.match(source,/const LEGACY_GAME_DATA=Object\.freeze\(\{/);

@@ -116,7 +116,7 @@ function overlaps(ob,x,y,pad){
  return ob.type==='radar'?Math.hypot(x-ob.x,y-ob.y)<ob.r+pad:(Math.abs(x-ob.x)<ob.hw+pad&&Math.abs(y-ob.y)<ob.hh+pad);
 }
 function carvePath(L,rng,open,from,to,jit,pen){
- const {cols,rows}=L,n=cols*rows,dist=new Float32Array(n).fill(Infinity),prev=new Int32Array(n).fill(-1),done=new Uint8Array(n);
+ const {cols,rows}=L,n=cols*rows,dist=new Float64Array(n).fill(Infinity),prev=new Int32Array(n).fill(-1),done=new Uint8Array(n);
  dist[from]=0;
  for(;;){
   let u=-1,b=Infinity;for(let k=0;k<n;k++)if(!done[k]&&dist[k]<b){b=dist[k];u=k;}
@@ -217,7 +217,7 @@ function analyse(s,cand){
  const nav=s.nav,base=staticBlocked(s,cand.obstacles),blocked=base.slice();
  for(const m of cand.mines)stampCircle(nav,blocked,m.x,m.y,C.navR);
  const seeds=goalSeeds(s,base);if(!seeds.length)return null;
- const D=new Float32Array(nav.n);dijkstra(nav,blocked,null,seeds,D);
+ const D=new Float64Array(nav.n);dijkstra(nav,blocked,null,seeds,D);
  let start=0;
  for(const sl of s.slots){const v=D[cellOf(nav,sl.x,sl.y)];if(!isFinite(v))return null;start=Math.max(start,v);}
  if(start<=0)return null;
@@ -229,7 +229,7 @@ function analyse(s,cand){
  if(path.length>16){
   const blocked2=blocked.slice();
   for(let k=Math.floor(path.length*.25);k<Math.floor(path.length*.75);k++)stampCircle(nav,blocked2,cellX(nav,path[k]),cellY(nav,path[k]),34);
-  const D2=new Float32Array(nav.n);dijkstra(nav,blocked2,null,goalSeeds(s,blocked2),D2);
+  const D2=new Float64Array(nav.n);dijkstra(nav,blocked2,null,goalSeeds(s,blocked2),D2);
   alternate=isFinite(D2[cellOf(nav,mid.x,mid.y)]);
  }
  return{base,blocked,D,start,seeds,alternate};
@@ -246,7 +246,7 @@ function buildWorld(s){
  s.attempts=attempts;s.mines=cand.mines;s.obstacles=cand.obstacles;
  s.navBase=info.base;s.D0=info.D;s.startDist=info.start;s.goalSeeds=info.seeds;
  // Live snapshot: mines that exploded stop blocking, recomputed once per explosion tick.
- s.blockedLive=info.blocked.slice();s.dLive=Float32Array.from(info.D);
+ s.blockedLive=info.blocked.slice();s.dLive=Float64Array.from(info.D);
  const cs=64,gx=Math.ceil(s.w/cs),gy=Math.ceil(s.h/cs),cells=Array.from({length:gx*gy},()=>[]);
  for(const m of s.mines)cells[clamp(Math.floor(m.y/cs),0,gy-1)*gx+clamp(Math.floor(m.x/cs),0,gx-1)].push(m);
  s.mineGrid={cs,gx,gy,cells};
@@ -340,7 +340,7 @@ function initialSlots(s,n){
 function setupPlayer(s,p,slot,idx){
  p.active=true;p.x=slot.x;p.y=slot.y;p.vx=0;p.vy=0;p.dir={x:1,y:0};p.face=1;p.score=0;
  const nav=s.nav,bot=p.isBot?{idx,key:(idx+1)*7919,known:new Uint8Array(s.mines.length),visited:new Uint8Array(nav.n),
-  D:new Float32Array(nav.n),cost:new Float32Array(nav.n),dirty:true,planned:false,nextPlan:0,perceiveIn:0,events:0,
+  D:new Float64Array(nav.n),cost:new Float64Array(nav.n),dirty:true,planned:false,nextPlan:0,perceiveIn:0,events:0,
   memory:.78+hash01(idx,11)*.18,riskMul:[1.5,1.25,1.08][idx%3],speedMul:.88+hash01(idx,5)*.08,caution:.7+hash01(idx,3)*.15,
   ax:1,ay:0,bestD:Infinity,lastGain:0,side:0,sideSign:1}:null;
  p.df={state:'run',respawnLeft:0,invuln:0,px:p.x,py:p.y,homeY:slot.y,best:0,bestRem:s.startDist,bestAt:0,finishedAt:null,deaths:0,bot};
@@ -508,7 +508,8 @@ function step(dt,round,ps){
 }
 function setup(round,players){
  window.PartyCharacters?.activate?.(players);
- const ps=active(players);
+ // The host keeps lobby players inactive until a game sets them up.
+ const ps=players;
  if(ps.length<1||ps.length>12)throw Error('DANGERFIELD supports 1–12 players');
  const sizeClass=ps.length<=6?'small':'large',cfg=C[sizeClass];
  const seed=(Number(round.dangerSeed)||(Date.now()^0x5d17f1e3))>>>0||1;

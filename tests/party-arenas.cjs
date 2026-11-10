@@ -33,7 +33,7 @@ const html=fs.readFileSync('index.html','utf8');
 const modes=fs.readdirSync('src/games',{withFileTypes:true})
  .filter(entry=>entry.isDirectory())
  .map(entry=>JSON.parse(fs.readFileSync('src/games/'+entry.name+'/manifest.json','utf8')))
- .filter(meta=>Boolean(meta.global)).map(meta=>meta.id);
+ .filter(meta=>Boolean(meta.global)&&covers.ids.includes(meta.id)).map(meta=>meta.id);
 assert.equal(covers.ids.length,15);
 assert.ok(covers.ids.includes('gladiators'));
 assert.deepEqual([...covers.ids].sort(),[...new Set(modes)].sort());

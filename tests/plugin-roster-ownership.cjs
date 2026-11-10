@@ -3,6 +3,7 @@
 // This tests the real extracted Core renderer with a tiny DOM harness.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.resolve(__dirname,'..'),games=path.join(root,'src/games');
+const legacyData=fs.readFileSync(path.join(root,'src/app/core/legacy-game-defaults.js'),'utf8');
 const source=fs.readFileSync(path.join(root,'src/app/rounds/render.js'),'utf8');
 const section=source.slice(0,source.indexOf('\n// All minigame clocks'));
 assert.match(section,/engine\.renderRoster\(root,active,round\)/,'Core must call the pinned engine hook');
@@ -12,7 +13,7 @@ for(const folder of fs.readdirSync(games)){
  const manifestPath=path.join(games,folder,'manifest.json');
  if(!fs.existsSync(manifestPath))continue;
  const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
- if(!manifest.global)continue; // Native plugins may use getRoster without special HTML.
+ if(!manifest.global||!legacyData.includes('  "'+manifest.id+'": {'))continue; // Native plugins need not follow original renderer signature.
  const body=fs.readFileSync(path.join(games,folder,folder+'.js'),'utf8');
  assert.match(body,/function renderRoster\(root,active,round\)/,
   'Legacy game must own its custom roster: '+manifest.id);

@@ -42,7 +42,7 @@ for(const slug of fs.readdirSync(gamesRoot).filter(x=>
    'Native plug-in must supply a real ES module entry: '+slug);
  }
 }
-assert.equal(imported,15,'Expected all 15 existing minigames to own their imports');
+assert.ok(imported>=15,'All original game imports remain owned by their plug-ins as new minigames are added');
 
 // Each legacy game owns its controller-state packet; generic Host dispatch may
 // not accumulate per-mode branches as new plug-ins are added.
