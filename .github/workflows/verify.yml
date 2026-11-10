@@ -63,6 +63,8 @@ jobs:
           node tests/controller-ingress.cjs
           node tests/connection-compat.cjs
           node tests/host-reconnect.cjs
+      - name: BOARD render budget, layout cache and roulette transition regressions
+        run: node tests/host-render-budget.cjs
       - name: Controller video, TURN, mini-map and fast transport regressions
         run: |
           node tests/controller-perf-regression.cjs

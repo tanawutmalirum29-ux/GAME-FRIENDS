@@ -591,6 +591,9 @@ function syncArenaResolution(){
  // memory well above the smaller mini-games. Other games retain 3x quality.
  const denseBoard=round?.mode==='board'&&boardSession?.players.length>=8;
  const modeKey=denseBoard?'board-dense':round?.mode==='board'?'board':'normal';
+ // A forced layout read on EVERY animation frame is expensive on mobile Safari.
+ // setView, resize, orientation, fullscreen and DPR changes invalidate the cache.
+ if(!arenaResolutionDirty&&arenaLastDpr===dpr&&arenaLastModeKey===modeKey)return;
  const box=canvas.getBoundingClientRect?.();
  const layoutBox=arenaLayoutRect(box||{left:0,top:0,width:960,height:540});
  const boxKey=layoutBox.width+'x'+layoutBox.height+':'+arenaIsRotated();
@@ -3166,28 +3169,52 @@ window.addEventListener('blur',()=>{
        width:s.map.width,height:s.map.height,nodes,links}};
    return boardMiniMapCache;
  }
- function sendBoardMiniMap(conn){
+ // BOARD positions are identical for all connected controllers. Build the
+ // immutable packet once per simulation tick instead of once per remote peer.
+ let boardPositionCache=null,boardLastPositionKey='',boardLastPositionAt=0;
+ function boardMiniMapPositions(s){
+   if(boardPositionCache?.session===s.id&&boardPositionCache.time===s.time&&
+      boardPositionCache.turnId===s.turnId)return boardPositionCache.packet;
+   const active=window.BoardParty.current(s);
+   const packet={t:'board-minimap-positions',session:s.id,turnId:s.turnId,
+     activeId:active?.id||null,
+     players:s.players.map(p=>{
+       const v=window.BoardItems.position(s,p);
+       return [p.id,Math.round(v.x),Math.round(v.y),p.color];
+     })};
+   boardPositionCache={session:s.id,time:s.time,turnId:s.turnId,packet};
+   return packet;
+ }
+ function sendBoardMiniMap(conn,positions=null){
    const s=boardSession;
    if(!s||round?.mode!=='board'||!conn?.open||!conn.playerId||
       conn.previewEnabled!==true||conn.boardMinimapCapable!==true)return;
+   // Never queue stale minimap frames ahead of actual controller state.
+   if((conn.dataChannel?.bufferedAmount||0)>32768)return;
    const cache=boardMiniMapTopology();
    if(conn.boardMiniMapSession!==cache.session){
      send(conn,cache.packet);
      conn.boardMiniMapSession=cache.session;
    }
-   const active=window.BoardParty.current(s);
-   send(conn,{t:'board-minimap-positions',session:s.id,turnId:s.turnId,
-     activeId:active?.id||null,
-     players:s.players.map(p=>{
-       const v=window.BoardItems.position(s,p);
-       return [p.id,Math.round(v.x),Math.round(v.y),p.color];
-     })});
+   send(conn,positions||boardMiniMapPositions(s));
  }
  function broadcastBoardMiniMap(dt){
    boardMiniMapClock+=Math.min(.1,Math.max(0,Number(dt)||0));
    if(boardMiniMapClock<1/12)return;
    boardMiniMapClock=0;
-   for(const conn of hostConnections)sendBoardMiniMap(conn);
+   const s=boardSession;
+   if(!s||round?.mode!=='board')return;
+   const observers=[...hostConnections].filter(conn=>
+     conn.open&&conn.playerId&&conn.previewEnabled===true&&
+     conn.boardMinimapCapable===true);
+   if(!observers.length)return;
+   const packet=boardMiniMapPositions(s);
+   const key=JSON.stringify([packet.session,packet.turnId,packet.activeId,packet.players]);
+   // A turn-based BOARD is often completely still for seconds. Keep a 1 Hz
+   // heartbeat, but preserve ~12 Hz whenever a player actually moves.
+   if(key===boardLastPositionKey&&s.time-boardLastPositionAt<1)return;
+   boardLastPositionKey=key;boardLastPositionAt=s.time;
+   for(const conn of observers)sendBoardMiniMap(conn,packet);
  }
  let phoneMiniMap=null,phoneMiniMapPositions=null;
  function showPhoneMiniMap(){
@@ -3922,7 +3949,12 @@ function endRound(){
  endPluginRound();
 }
 
+var boardLeaderboardCleared=false;
 function renderLeaderboard(){
+  // BOARD uses its own canvas HUD; clearing the empty HTML HUD 4-5 times per
+  // second creates useless layout/style work and intermittent iPad jank.
+  if(round?.mode==='board'&&boardLeaderboardCleared)return;
+  boardLeaderboardCleared=round?.mode==='board';
   const root=$('leaderboard');root.replaceChildren();
   const active=round?players.filter(p=>p.active):[];
   const count=Math.max(1,active.length);
@@ -4015,6 +4047,25 @@ function updateAdaptiveBoardDetail(elapsed){
   c.lowDetail=false;c.autoDetailEngaged=false;fastBoardSeconds=0;refreshBoardTools();
  }
 }
+// Drawing the 302-node BOARD map at 120 Hz needlessly burns GPU/CPU on iPad.
+// Physics, joystick input, minigame timing and network updates stay on every RAF.
+let lastBoardPaintAt=0;
+function shouldPaintBoardFrame(ts,lowDetail,dense){
+ const budget=1000/(lowDetail||dense?30:60);
+ if(!lastBoardPaintAt||ts<lastBoardPaintAt||ts-lastBoardPaintAt>=budget-0.5){
+  lastBoardPaintAt=ts;return true;
+ }
+ return false;
+}
+// Other 3D/SVG minigames also need a 60 Hz drawing ceiling on ProMotion
+// devices. Input, combat and physics continue at the device's RAF cadence.
+let lastNormalPaintAt=0;
+function shouldPaintNormalFrame(ts){
+ if(!lastNormalPaintAt||ts<lastNormalPaintAt||ts-lastNormalPaintAt>=1000/60-0.5){
+  lastNormalPaintAt=ts;return true;
+ }
+ return false;
+}
 function animate(ts){
   const elapsed=Math.max(0,(ts-frameLast)/1000||.016);
   const dt=Math.min(.045,elapsed);
@@ -4028,8 +4079,19 @@ function animate(ts){
    }else if(currentView==='game'&&round){
     if(!round.paused)graphicsClock+=dt;
     if(possessedBotId)applyBotPadKeys();
-    updateRound(round.mode==='board'?boardDt:dt);drawGame(graphicsClock);
-    renderHostVideoFrames();
+    updateRound(round.mode==='board'?boardDt:dt);
+    // BOARD may switch to the roulette during updateRound. No engine has been
+    // loaded yet: painting its placeholder here could throw and close the room.
+    if(round&&!gameSelection){
+      const onBoard=round.mode==='board';
+      if(onBoard)updateAdaptiveBoardDetail(elapsed);
+      const shouldDraw=onBoard?shouldPaintBoardFrame(ts,
+       boardSession?.camera?.lowDetail,boardSession?.players.length>=8):
+       shouldPaintNormalFrame(ts);
+      if(shouldDraw){drawGame(graphicsClock);renderHostVideoFrames();}
+      if(onBoard)lastNormalPaintAt=0;
+      else lastBoardPaintAt=0;
+    }
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
       if(round.autoNextRemaining===0)advanceParty();
@@ -4038,7 +4100,7 @@ function animate(ts){
     botTestClock+=dt;
     if(botTestClock>.2){botTestClock=0;renderBotTestPad();}
     hudClock+=dt;
-    if(hudClock>.22){
+    if(hudClock>.38){
       renderLeaderboard();hudClock=0;
     }
     inventoryClock+=dt;
