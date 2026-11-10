@@ -6333,7 +6333,10 @@ body.controller-playing #controller .phone-game-choices{
  display:none!important;
 }
 #hostLobby.plaza-loaded .lobby-roster{
- height:auto!important;min-height:0!important;
+ /* Legacy flex-basis:0 gave a zero-pixel roster in Chromium/WebKit when the
+    new floating panel has intrinsic height. Keep the 12-slot list scrollable. */
+ flex:0 1 auto!important;
+ height:auto!important;min-height:clamp(160px,28dvh,260px)!important;
  max-height:min(58dvh,390px)!important;
  overflow-y:auto!important;grid-auto-rows:minmax(64px,auto);
  align-content:start!important;
