@@ -125,16 +125,28 @@ async function start(){
     }
     return {count:app.players.length,width:scene.w||scene.bounds.w,
       height:scene.h||scene.bounds.h,images:images.length,broken:broken.length,
+      icePoints:mode==='ice_race'?scene.path.length:null,
+      iceTrackLength:mode==='ice_race'?scene.trackLength:null,
       changed,visible,colors:colors.size,canvasW:canvas.width,
       canvasH:canvas.height};
    },{mode,key,n});
    assert.equal(result.count,n,title+' roster');
-   assert.equal(result.width,n<=6?960:1280,title+' '+n+' world width');
-   assert.equal(result.height,n<=6?540:720,title+' '+n+' world height');
+   const raceSize=mode==='ice_race'?(n<=4?[960,540]:n<=8?[1200,675]:[1440,810]):null;
+   assert.equal(result.width,raceSize?raceSize[0]:(n<=6?960:1280),title+' '+n+' world width');
+   assert.equal(result.height,raceSize?raceSize[1]:(n<=6?540:720),title+' '+n+' world height');
    assert.equal(result.broken,0,title+' '+n+' invalid SVG images');
    assert.ok(result.images>0,title+' '+n+' did not load SVG images');
    assert.ok(result.visible>100,title+' '+n+' blank canvas');
-   assert.ok(result.changed>300,title+' '+n+' appears to render only its old fallback');
+   if(mode==='ice_race'){
+    // The new ICE RACE owns its Canvas terrain renderer and intentionally
+    // does not use the obsolete ReferenceArenaArt.iceSceneSVG fallback.
+    // Verify real authored road geometry and sufficient canvas complexity.
+    assert.ok(result.icePoints>80,title+' '+n+' detailed track geometry absent');
+    assert.ok(result.iceTrackLength>700,title+' '+n+' short/incomplete course');
+    assert.ok(result.colors>8,title+' '+n+' terrain artwork appears blank');
+   }else{
+    assert.ok(result.changed>300,title+' '+n+' appears to render only its old fallback');
+   }
    assert.equal(errors.length,0,title+' '+n+' browser exception: '+errors.join('; '));
    if(n===6||n===12){
     await page.locator('#arena').screenshot({
