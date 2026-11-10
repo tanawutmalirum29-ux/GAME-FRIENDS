@@ -42,6 +42,8 @@ function onChoice(event){
  delayedChoice=event.currentTarget;
  const button=delayedChoice;
  button.disabled=true;
+ const status=document.getElementById('netStatus');
+ if(status)status.textContent='กำลังเตรียมหน้าจอเล่นเกม...';
  // Preserve the user's fullscreen gesture before asynchronous script loading.
  try{
   if(!navigator.standalone&&!document.fullscreenElement&&
