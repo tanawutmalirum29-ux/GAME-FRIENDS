@@ -1,0 +1,26 @@
+{
+  "id": "block_breakers",
+  "name": "BLOCK BREAKERS",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {
+    "min": 1,
+    "max": 12
+  },
+  "modes": [
+    "normal",
+    "board"
+  ],
+  "controls": [
+    "joystick"
+  ],
+  "cover": "cover.svg",
+  "entry": "./game.js",
+  "global": "BlockBreakers",
+  "legacyScripts": [],
+  "controller": {
+    "help": "วิ่งหนีกระเบื้องที่เริ่มร้าว • เบียดและชนคู่แข่งให้ตกหลุม • A/B ไม่ใช้",
+    "labels": {},
+    "status": "BLOCK BREAKERS • รอด {survivors} คน"
+  }
+}
