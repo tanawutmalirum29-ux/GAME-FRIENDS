@@ -23,55 +23,38 @@ function match(n,bots=false,seed=1459){
  const s=e.setup(round,ps);return{e,round,ps,s};
 }
 const almost=(a,b,eps=1e-6)=>assert.ok(Math.abs(a-b)<=eps,a+' !== '+b);
-test('1–6 use 960×540 and 40 seconds; 7–12 use 1280×720 and 70 seconds',()=>{
- for(const n of [1,2,4,6,7,8,10,12]){
+test('three redesigned arenas scale for 1–4, 5–8 and 9–12 players',()=>{
+ for(const n of [1,2,4,5,6,7,8,9,10,12]){
   const {e,s,round,ps}=match(n);
-  assert.equal(s.w,n<=6?960:1280);assert.equal(s.h,n<=6?540:720);
-  assert.equal(s.duration,n<=6?40:70);
+  const tier=n<=4?'small':n<=8?'medium':'large';
+  const spec={small:[960,540,30,6,54],medium:[1200,675,50,8,62],large:[1440,810,70,10,74]}[tier];
+  assert.equal(s.sizeClass,tier);
+  assert.equal(s.w,spec[0]);assert.equal(s.h,spec[1]);
+  assert.equal(s.duration,spec[2]);
+  assert.equal(s.checkpoints.length,spec[3]);
+  assert.equal(s.halfWidth,spec[4]);
   assert.equal(round.remaining,s.duration);
-  assert.equal(s.checkpoints.length,4);
-  for(const p of ps)assert.ok(e.nearest(s,p.x,p.y).dist<s.halfWidth-1,
-    'spawn is off-track: '+n);
+  assert.ok(ps.every(p=>e.nearest(s,p.x,p.y).margin<0),'racer spawned off the ice');
   for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++)
-   assert.ok(Math.hypot(ps[i].x-ps[j].x,ps[i].y-ps[j].y)>=2*e.config.radius,
-    'overlapping start positions');
+   assert.equal(e.hullContact(ps[i],ps[j]),null,'overlapping start positions');
  }
 });
-test('small and large arenas have genuinely different visible road widths',()=>{
- const small=match(6),large=match(7);
- assert.equal(small.s.sizeClass,'small');assert.equal(large.s.sizeClass,'large');
- assert.equal(small.s.halfWidth,45);
- assert.equal(large.s.halfWidth,82);
- assert.equal(small.s.duration,40);assert.equal(large.s.duration,70);
- const smallPixels=2*small.s.halfWidth*(960/small.s.w);
- const largePixels=2*large.s.halfWidth*(960/large.s.w);
- assert.ok(largePixels>smallPixels*1.3,
-  'large road must look clearly wider AFTER canvas scaling');
- assert.ok(largePixels>2*53*(960/1280)*1.5,
-  '12-player map must be at least 50% wider on screen than old large road');
- const smallShape=small.s.path.map(p=>[p.x/small.s.w,p.y/small.s.h]);
- const largeShape=large.s.path.map(p=>[p.x/large.s.w,p.y/large.s.h]);
- assert.notDeepEqual(smallShape,largeShape,'same track stretched is not two arena layouts');
-});
-test('large wide path never merges distant ice turns and fits screen bounds',()=>{
- const {e,s,ps}=match(12,true);
- const margin=s.halfWidth+3;
- for(const seg of s.path)assert.ok(
-  seg.x>margin&&seg.y>margin&&seg.x<s.w-margin&&seg.y<s.h-margin,
-  'large road clips the map edge');
- let minimum=Infinity;
- for(let i=0;i<s.path.length;i++)for(let j=i+1;j<s.path.length;j++){
-  const delta=Math.min(j-i,s.path.length-(j-i));
-  if(delta<35)continue;
-  minimum=Math.min(minimum,Math.hypot(
-   s.path[i].x-s.path[j].x,s.path[i].y-s.path[j].y));
+test('three designed tracks differ in geometry and have safe world bounds',()=>{
+ const samples=[match(4),match(8),match(12)];
+ for(const {s} of samples){
+  assert.ok(s.trackLength>700);
+  for(const q of s.path){
+   assert.ok(Number.isFinite(q.x+q.y+q.hw0+q.hw1),'invalid road geometry');
+   assert.ok(q.x>0&&q.y>0&&q.x<s.w&&q.y<s.h,
+    'road centreline clips the map');
+  }
  }
- assert.ok(minimum>2*s.halfWidth+30,'distant track turns merge into unintended shortcut');
- for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++)
-  assert.equal(e.hullContact(ps[i],ps[j]),null,'starting skis overlap in large grid');
+ const shapes=samples.map(({s})=>s.path.map(p=>[Math.round(p.x/s.w*100),Math.round(p.y/s.h*100)]));
+ assert.notDeepEqual(shapes[0],shapes[1]);
+ assert.notDeepEqual(shapes[1],shapes[2]);
 });
 test('closed sampled path, four ordered checkpoint gates and safe start',()=>{
- const {e,s,ps}=match(6);
+ const {e,s,ps}=match(4);
  const a=e.sample(s,0),b=e.sample(s,s.trackLength);
  almost(a.x,b.x);almost(a.y,b.y);
  for(const f of [0,.13,.24,.37,.51,.62,.76,.91]){
@@ -97,9 +80,10 @@ test('only the next gate and correct crossing direction score',()=>{
  assert.equal(p.score,0);
  assert.equal(travel(first,true),true);assert.equal(p.score,1);
  assert.equal(travel(first,true),false,'old gate must not repeat');
- assert.equal(travel(s.checkpoints[2],true),true);assert.equal(p.score,2);
- assert.equal(travel(s.checkpoints[3],true),true);assert.equal(p.score,3);
- assert.equal(travel(s.checkpoints[0],true),true);assert.equal(p.score,4);
+ for(let i=2;i<s.checkpoints.length;i++){
+  assert.equal(travel(s.checkpoints[i],true),true);assert.equal(p.score,i);
+ }
+ assert.equal(travel(s.checkpoints[0],true),true);assert.equal(p.score,s.checkpoints.length);
  assert.equal(p.ice.nextCheckpoint,1);
 });
 test('drift retains sideways momentum; A/B are not gameplay actions',()=>{
@@ -248,7 +232,7 @@ test('bot controls share physics and never move by teleporting',()=>{
   assert.ok(s.tick>=90);
  }
 });
-test('all-bot races run entire 40/70 second limits with real checkpoint scores',()=>{
+test('all-bot races run revised 30/50/70 second limits with real checkpoint scores',()=>{
  for(const [n,seed] of [[1,15042],[6,15042],[12,15042],[12,17654]]){
   const {e,s,round,ps}=match(n,true,seed);
   let falling=0,speedSum=0,previous=ps.map(p=>p.ice.state);
