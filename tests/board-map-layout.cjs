@@ -1,7 +1,7 @@
 'use strict';
 // A standalone test from a fresh checkout restores only missing/stale outputs.
 require('../scripts/build-board-assets.cjs');
-/* BOARD v8 layout contract: readable 17-island routes, linked two-tile sword
+/* BOARD canonical layout contract: readable 17-island routes, linked two-tile sword
  * courts, real directed connectivity and renderer/playable-coordinate parity. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const context=vm.createContext({window:{},Math,Date,console});
@@ -99,5 +99,5 @@ for(const seed of [0,1,9,73129]){
  assert.equal(JSON.stringify(Object.fromEntries(Object.values(other.nodes).map(n=>[n.id,n.position]))),expected,
   'map coordinates deterministic and stable for all zooms/play sessions');
 }
-console.log('BOARD v10 PASS: '+nodes.length+' nodes; '+m.islands.length+' islands; '+edges.length+
+console.log('BOARD canonical PASS: '+nodes.length+' nodes; '+m.islands.length+' islands; '+edges.length+
  ' directed routes; '+territories.length+' two-tile sword courts; '+crossings.length+' marked crossings; full reachability and art parity');

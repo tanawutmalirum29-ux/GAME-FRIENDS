@@ -38,7 +38,7 @@ while(todo.length){const id=todo.pop();if(seen.has(id))continue;seen.add(id);tod
 assert.equal(seen.size,302,'all nodes lead to the existing finish');
 for(const route of D.bridges)for(let i=1;i<route.nodeIds.length;i++){
  const from=route.nodeIds[i-1],to=route.nodeIds[i],key=from+'>'+to;
- assert.ok(map.nodes[from].nextNodes.includes(to),'v7 bridge is traversable');
+ assert.ok(map.nodes[from].nextNodes.includes(to),'canonical bridge is traversable');
  assert.ok(map.bridges.some(([a,b])=>a===from&&b===to),'bridge surface exists');
  assert.equal(map.bridgeStyles[key],route.style);
 }
@@ -46,7 +46,7 @@ const allNodeTypes=new Map(Object.entries(map.nodes).map(([id,n])=>[id,n.type]))
 assert.equal(allNodeTypes.get('n42'),'lucky');
 assert.equal(allNodeTypes.get('n43'),'sword');
 assert.equal(allNodeTypes.get('n44'),'sword');
-// Verify the actual v7 scene renderer can draw its 17 island layers on a
+// Verify the actual canonical scene renderer can draw its 17 island layers on a
 // canvas-like host without affecting the map graph or the game simulation.
 let saves=0,restores=0;
 const gradient={addColorStop(){}},g=new Proxy({},{
@@ -63,7 +63,7 @@ const originalGraph=JSON.stringify(map);
 const painted=A.render(g,D,{layers:{nodes:0,labels:0}});
 assert.equal(saves,restores,'board art must restore Canvas state');
 assert.ok(painted.islands>=17,'all authored islands rendered');
-assert.ok(painted.bridges>=15,'v7 bridges have visual representation');
+assert.ok(painted.bridges>=15,'canonical bridges have visual representation');
 assert.equal(JSON.stringify(map),originalGraph,'art must not mutate gameplay world');
 assert.equal(typeof A.createEffects,'function');
 const effects=A.createEffects(D,1);
@@ -71,4 +71,4 @@ assert.equal(typeof effects.draw,'function');
 effects.draw(g,{x:0,y:0,w:7350,h:5800,zoom:.2},10);
 assert.equal(saves,restores,'FX layer must restore Canvas state');
 assert.equal(M.validate(map),true);
-console.log('BOARD v7 PASS: 302 nodes, 17 islands, 15 new bridges, v6 main and tile types preserved, loops and Phase 5 renderer');
+console.log('BOARD canonical PASS: 302 nodes, 17 islands, 15 new bridges, canonical main and tile types preserved, loops and Phase 5 renderer');

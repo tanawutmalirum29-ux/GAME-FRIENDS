@@ -10,7 +10,7 @@ const core='f'.repeat(20);
 const descriptor=(id,h,kind)=>({id,name:id.toUpperCase(),apiVersion:1,
  enabled:true,kind,players:{min:1,max:12},hash:hash(h),
  entryUrl:kind==='legacy'?null:'/board-map-assets/'+id+'/'+hash(h)+'/index.js'});
-const legacyMap={MAP_ID:'winter-v10',create(){return{};},
+const legacyMap={MAP_ID:'winter-expedition',create(){return{};},
  validate(){return true;},assertCompatible(){return true;},
  choose(){return null;},neighbors(){return [];}};
 const legacyArt={draw(){}};
@@ -41,7 +41,7 @@ const document={readyState:'complete',baseURI:'https://example.test/index.html',
    append(opt){options.push(opt);if(!this.value)this.value=opt.value;}
   }:{value:'',textContent:''};
  }};
-const window={GAME_CORE_VERSION:core,BoardMap:legacyMap,BoardArt:legacyArt,
+const window={GAME_CORE_HASH:core,BoardMap:legacyMap,BoardArt:legacyArt,
  BoardDice:{},BoardItems:{},BoardBots:{},BoardMinigame:{},BoardParty:{}};
 let catalog={schema:1,coreHash:core,maps:[
  descriptor('winter-expedition','a','legacy'),
@@ -64,7 +64,7 @@ const runtime=window.BoardRuntime;
 (async()=>{
  assert.equal(runtime.ready(),false,'BOARD needs a validated systems catalog before startup');
  await runtime.ensure();
- assert.equal(runtime.ready(),true,'Existing V10 map remains ready and untouched');
+ assert.equal(runtime.ready(),true,'Existing canonical map remains ready and untouched');
  await runtime.refreshMaps();
  assert.equal(runtime.maps().length,2);
  assert.equal(window.BoardMap,legacyMap,'Catalog refresh must not swap a live map');
@@ -86,7 +86,7 @@ const runtime=window.BoardRuntime;
  assert.notEqual(window.BoardMap,running);
  selector.value='winter-expedition';
  await runtime.ensure();
- assert.equal(window.BoardMap,legacyMap,'Switching back restores V10 map');
+ assert.equal(window.BoardMap,legacyMap,'Switching back restores canonical map');
  assert.equal(window.BoardArt,legacyArt);
  selector.value='coast';
  catalog={...catalog,maps:[catalog.maps[0],descriptor('coast','d','module')]};
