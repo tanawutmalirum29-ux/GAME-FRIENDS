@@ -1,13 +1,13 @@
 'use strict';
 // A standalone test from a fresh checkout restores only missing/stale outputs.
-require('../scripts/build-board-v7.cjs');
+require('../scripts/build-board-assets.cjs');
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const ctx=vm.createContext({window:{},console,Math,Date});
-for(const file of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-v7-art.js','src/board-party/runtime/board-branch-naming.js','src/board-party/runtime/board-v7-adapter.js']){
+for(const file of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-design.js','src/board-party/runtime/board-scenery.js','src/board-party/runtime/board-branch-naming.js','src/board-party/runtime/board-layout.js']){
  vm.runInContext(fs.readFileSync(file,'utf8'),ctx,{filename:file});
 }
-const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D,BOARD_PARTY_V7_ART:A}=ctx.window;
-assert.equal(M.MAP_VERSION,'winter-expedition-152-v10');
+const {BoardMap:M,BOARD_DESIGN:D,BOARD_SCENERY:A}=ctx.window;
+assert.equal(M.MAP_ID,'winter-expedition');
 assert.equal(D.islands.length,17);
 assert.equal(D.newNodes.length,89);
 assert.equal(D.bridges.length,15);
@@ -15,7 +15,7 @@ assert.equal(Object.keys(D.allNodePositions).length,302);
 const expected=JSON.stringify(Object.entries(M.create(0).nodes).map(([id,n])=>[id,n.type]).sort());
 for(const seed of [0,1,25,9987]){
  const map=M.create(seed),ids=Object.keys(map.nodes);
- assert.equal(map.version,M.MAP_VERSION);
+ assert.equal(map.id,M.MAP_ID);
  assert.equal(ids.length,302);
  assert.equal(map.islands.length,17);
  assert.equal(map.bridgeRoutes.length,30);

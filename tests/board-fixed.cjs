@@ -5,7 +5,7 @@ vm.runInContext(source,ctx,{filename:'src/board-party/runtime/board-map.js'});
 const M=ctx.window.BoardMap,plain=x=>JSON.parse(JSON.stringify(x));
 const normalize=map=>{const copy=plain(map);delete copy.seed;return JSON.stringify(copy);};
 const map=M.create(0),expected=normalize(map),nodes=Object.values(map.nodes);
-assert.equal(M.MAIN_LENGTH,152);assert.equal(M.MAP_VERSION,'winter-expedition-152-v6');
+assert.equal(M.MAIN_LENGTH,152);assert.equal(M.MAP_ID,'winter-expedition');
 for(let seed=1;seed<=1000;seed++)assert.equal(normalize(M.create(seed)),expected,'Full definition, including scenery, must ignore seed '+seed);
 const fresh=vm.createContext({window:{},console});vm.runInContext(source,fresh);
 assert.equal(normalize(fresh.window.BoardMap.create(9987)),expected,'reload recreates identical geometry and tile effects');
@@ -63,11 +63,8 @@ assert.equal(M.choose(map,'b72_5',0,-270),'n74',
  'upward joystick still selects the original route');
 // Mutations must be diagnosed rather than silently accepted as old IDs on new geography.
 function invalid(edit,re){const bad=plain(map);edit(bad);assert.throws(()=>M.validate(bad),re);}
-invalid(m=>m.version='winter-fixed-120-v2',/Incompatible/);
-invalid(m=>m.version='winter-expedition-152-v3',/Incompatible/);
-invalid(m=>m.version='winter-expedition-152-v4',/Incompatible/);
-invalid(m=>m.version='winter-expedition-152-v5',/Incompatible/);
-invalid(m=>delete m.version,/Incompatible/);
+invalid(m=>m.id='unknown-map',/Incompatible/);
+invalid(m=>delete m.id,/Incompatible/);
 invalid(m=>m.nodes.n1.id='n0',/ID/);
 invalid(m=>m.nodes.n1.position.x=NaN,/position/);
 invalid(m=>m.nodes.n1.nextNodes=[],/Dead end/);

@@ -1,13 +1,13 @@
 'use strict';
 // A standalone test from a fresh checkout restores only missing/stale outputs.
-require('../scripts/build-board-v7.cjs');
+require('../scripts/build-board-assets.cjs');
 /* BOARD v8 layout contract: readable 17-island routes, linked two-tile sword
  * courts, real directed connectivity and renderer/playable-coordinate parity. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const context=vm.createContext({window:{},Math,Date,console});
-for(const file of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-branch-naming.js','src/board-party/runtime/board-v7-adapter.js'])
+for(const file of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-design.js','src/board-party/runtime/board-branch-naming.js','src/board-party/runtime/board-layout.js'])
  vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
-const {BoardMap:M,BOARD_PARTY_V7_DESIGN:D}=context.window;
+const {BoardMap:M,BOARD_DESIGN:D}=context.window;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 function crossing(a,b,c,d){
  const cr=(p,q,r)=>(q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x);
@@ -22,7 +22,7 @@ function inside(p,poly){
  return yes;
 }
 const m=M.create(73129),nodes=Object.values(m.nodes),edges=nodes.flatMap(n=>n.nextNodes.map(id=>[n,m.nodes[id]]));
-assert.equal(m.version,'winter-expedition-152-v10');
+assert.equal(m.id,'winter-expedition');
 assert.equal(nodes.length,302);assert.equal(m.islands.length,17);
 assert.equal(M.validate(m),true);
 assert.equal(edges.length,318,'preserve authored board choices while rerouting them');
@@ -41,7 +41,7 @@ for(const t of territories){
  const [a,b]=t.nodeIds.map(get);
  assert.ok(a&&b&&a.nextNodes.includes(b.id),'two sword tiles must be directly linked: '+t.id);
  assert.ok(dist(a.position,b.position)>=88,'two tiles must have distinct readable positions: '+t.id);
- if(t.id.startsWith('v8-court-'))assert.ok(a.islandId&&a.islandId===b.islandId,'new sword plaza stays entirely on one island');
+ if(t.id.startsWith('court-'))assert.ok(a.islandId&&a.islandId===b.islandId,'new sword plaza stays entirely on one island');
  for(const n of [a,b]){
   assert.equal(n.type,'sword');assert.equal(n.territoryId,t.id);
   assert.equal(n.ownerId,t.ownerId);
@@ -49,7 +49,7 @@ for(const t of territories){
  }
 }
 assert.equal(used.size,sword.length,'no dangling sword tiles');
-assert.equal(territories.filter(t=>t.id.startsWith('v8-court-')).length,4);
+assert.equal(territories.filter(t=>t.id.startsWith('court-')).length,4);
 const basic=new Set(['village','grove','frost','lake','crown','bells','aurora','comet','star']);
 const expanded=['workshop','meadow','harbor','ginger','berg'];
 for(const isl of m.islands){
@@ -95,7 +95,7 @@ assert.equal(D.overpasses.length,4,'two original crossings and two raised Worksh
 const expected=JSON.stringify(Object.fromEntries(nodes.map(n=>[n.id,n.position])));
 for(const seed of [0,1,9,73129]){
  const other=M.create(seed);
- assert.equal(other.version,M.MAP_VERSION);
+ assert.equal(other.id,M.MAP_ID);
  assert.equal(JSON.stringify(Object.fromEntries(Object.values(other.nodes).map(n=>[n.id,n.position]))),expected,
   'map coordinates deterministic and stable for all zooms/play sessions');
 }
