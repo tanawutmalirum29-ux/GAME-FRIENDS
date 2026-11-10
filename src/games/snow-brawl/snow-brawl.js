@@ -263,7 +263,17 @@ function playerStep(s,p,dt){
  p.kvx*=Math.exp(-C.impactFriction*dt);
  p.kvy*=Math.exp(-C.impactFriction*dt);
  const oldX=p.x,oldY=p.y;
- p.x+=(p.vx+p.kvx)*dt;p.y+=(p.vy+p.kvy)*dt;
+ // Normal walking stops at the rim. Only external impulse from another
+ // player or their snowball may propel someone over the edge.
+ let mx=p.x+p.vx*dt,my=p.y+p.vy*dt;
+ const maxR=Math.max(0,s.radius-C.playerRadius*.75-1),md=mag(mx,my);
+ if(md>maxR){
+  const nx=mx/md,ny=my/md;
+  mx=nx*maxR;my=ny*maxR;
+  const outward=p.vx*nx+p.vy*ny;
+  if(outward>0){p.vx-=nx*outward;p.vy-=ny*outward;}
+ }
+ p.x=mx+p.kvx*dt;p.y=my+p.kvy*dt;
  const moved=mag(p.x-oldX,p.y-oldY);
  let owned=ballFor(s,p);
  if(b.phase==='COLLECTING'&&b.flat<=0&&mag(input.x,input.y)>.15){
@@ -437,7 +447,7 @@ function step(dt,round,ps){
   s.suddenDeath=true;s.suddenDeathAt=s.clock;
  }
  if(s.suddenDeath)
-  s.radius=Math.max(0,s.baseRadius-(s.clock-s.suddenDeathAt)*C.shrinkSpeed);
+  s.radius=Math.max(C.playerRadius*.75+1,s.baseRadius-(s.clock-s.suddenDeathAt)*C.shrinkSpeed);
  // Snapshot player positions for continuous swept ball/player collision.
  for(const p of alive(ps)){p.snow.oldX=p.x;p.snow.oldY=p.y;}
  for(const p of alive(ps))playerStep(s,p,dt);
@@ -450,7 +460,8 @@ function step(dt,round,ps){
  }
  resolveBodies(s,ps);
  solveBallCollisions(s,ps);
- // No invisible wall: the player's outer hitbox crossing the ice edge is fatal.
+ // Players cannot walk out by themselves. Only other players' snowballs,
+ // body-push corrections or knockback may carry them over the protected rim.
  for(const p of alive(ps))if(!inside(s,p.x,p.y,C.playerRadius*.75))eliminate(s,p);
  for(const b of s.balls){
   if(b.state==='DESTROYED')continue;

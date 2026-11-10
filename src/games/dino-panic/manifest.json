@@ -1,0 +1,25 @@
+{
+  "id": "dino_panic",
+  "name": "DINO PANIC",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {
+    "min": 1,
+    "max": 12
+  },
+  "modes": [
+    "normal",
+    "board"
+  ],
+  "controls": [
+    "joystick"
+  ],
+  "cover": "cover.svg",
+  "entry": "./game.js",
+  "controller": {
+    "help": "วิ่งหนีไดโนเสาร์ยักษ์จากซ้ายไปขวา • ไดโนเสาร์เร็วเท่าคุณ อย่าชนลังหรือเสียเวลา • ถึงเส้นชัยก่อนถูกเหยียบ • A/B ไม่ใช้",
+    "labels": {},
+    "status": "DINO PANIC • รอด {survivors} คน"
+  },
+  "legacyScripts": []
+}

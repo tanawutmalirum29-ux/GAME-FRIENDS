@@ -353,12 +353,15 @@ assert.equal(left.snow.ballId,null);assert.equal(right.snow.ballId,null);
 {
  // Simultaneous falls tie, surviving players win, and solo lasts sixty seconds.
  const g=match(4),[a,b,c,d]=g.ps;
- a.x=g.s.radius+30;b.x=-g.s.radius-30;
+ // Recreate genuine *external* knockback; simply walking into the rim
+ // must not kill a player. Simultaneous knockback ring-outs still tie.
+ a.x=g.s.radius-20;b.x=-g.s.radius+20;
+ a.kvx=3000;b.kvx=-3000;
  tick(g);
  assert.equal(a.snow.alive,false);
  assert.equal(b.snow.alive,false);
  assert.equal(a.snow.eliminatedTick,b.snow.eliminatedTick);
- c.x=g.s.radius+50;tick(g);
+ c.x=g.s.radius-20;c.kvx=3000;tick(g);
  assert.equal(g.s.finished,true);
  assert.deepEqual([...g.s.winnerIds],[d.id]);
  const ranks=Object.fromEntries(g.s.ranking.map(q=>[q.id,q.rank]));
@@ -440,5 +443,18 @@ assert.equal(left.snow.ballId,null);assert.equal(right.snow.ballId,null);
  g.s.clock=C.suddenDeathTime+.1;
  G.step(1/60,g.round,g.ps);
  assert.equal(g.s.suddenDeath,true,'mixed rounds still enter sudden death at 90s');
+}
+// A runner's own movement cannot take them off the island. An external
+// body/snowball knockback still can: existing impact tests cover that force.
+{
+ const g=match(1),p=g.ps[0];
+ p.input.axisY=-1; // solo spawn is at the northern rim
+ for(let t=0;t<180;t++){
+  if(g.s.finished)break;
+  G.update(1/60,g.round,g.ps);
+  assert.equal(p.snow.alive,true,'walking off the island must not eliminate yourself');
+  assert.ok(Math.hypot(p.x,p.y)+C.playerRadius*.75<=g.s.radius+1e-6,
+   'motor movement must stop at island edge');
+ }
 }
 console.log('SNOW BRAWL PASS: 1–12 spawns, 0.15s windup, slow turns/front-locked ball, holder recoil, constant rolling speed <= 1.5x, chain impulses and bots');

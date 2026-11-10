@@ -6,13 +6,13 @@ import * as Art from './ufo-art.js';
 const STEP=1/120,TAU=Math.PI*2,EPS=1e-9;
 const C=Object.freeze({
  radius:17,acc:330,fric:1.65,brake:1.95,maxSpeed:780,mass:1,
- ufoRest:.82,
+ ufoRest:.82,impactMultiplier:3,
  wallRest:.42,
  cornerRest:1.3,cornerBase:300,cornerGain:1.0,        // strong bumper: out = max(|vn|*rest, base + min(|vn|,260)*gain)
  bumperRest:1.15,bumperBase:230,bumperGain:.8,bumperRadius:42,
  hp:5,invuln:.8,
  spike:{len:27,warn:.6,actMin:1.2,actMax:1.8,restMin:.8,restMax:1.4,extend:.09,retract:.2,knock:190,
-  slot:84,maxLiveFrac:.36,maxLiveEdges:5},
+  slot:84,maxLiveFrac:.5,maxLiveEdges:8},
  firstSpike:1.5,finishDelay:1.1,seconds:{small:60,large:80},
  hudCap:5
 });
@@ -118,7 +118,7 @@ function setup(round,ps){
   p.active=true;p.score=0;p.x=q.x;p.y=q.y;p.vx=p.vy=0;
   const m=hyp(geo.cx-q.x,geo.cy-q.y)||1;p.dir={x:(geo.cx-q.x)/m,y:(geo.cy-q.y)/m};p.face=p.dir.x<0?-1:1;
   p.ufo={alive:true,hp:C.hp,mass:C.mass,invulnUntil:-9,flash:0,eliminatedTick:null,eliminatedAt:null,
-   phase:rng(s)*TAU,tx:0,ty:0,thrust:0,fxCool:0,bot:p.isBot?makeBot(s):null};
+   phase:rng(s)*TAU,tx:0,ty:0,thrust:0,fxCool:0,impactT:0,bot:p.isBot?makeBot(s):null};
   if(p.ufo.bot){p.ufo.bot.lastX=q.x;p.ufo.bot.lastY=q.y;}
  });
  round.remaining=s.total;
@@ -133,30 +133,27 @@ function activatePattern(s,list){
 function liveZones(s){return s.zones.filter(z=>z.state==='warn'||z.state==='active');}
 function trySpawnPattern(s){
  const geo=s.geo,live=liveZones(s);
- const liveLen=live.reduce((a,z)=>a+z.s1-z.s0,0),liveEdges=new Set(live.map(z=>z.edge));
- const kinds=['rot','rot','rot','mirV','mirV','mirH','mirH','quad','quad','single'];
- for(let tries=0;tries<12;tries++){
-  const kind=kinds[Math.floor(rng(s)*kinds.length)];
-  const e=Math.floor(rng(s)*8),z0=geo.byEdge[e][Math.floor(rng(s)*geo.byEdge[e].length)];
-  let set=[z0];
-  if(kind==='rot')set.push(image(geo,z0,'rot'));
-  else if(kind==='mirV')set.push(image(geo,z0,'mirV'));
-  else if(kind==='mirH')set.push(image(geo,z0,'mirH'));
-  else if(kind==='quad')set.push(image(geo,z0,'rot'),image(geo,z0,'mirV'),image(geo,z0,'mirH'));
-  // 'single' still gets its point-symmetric partner so the pattern stays fair
-  else set.push(image(geo,z0,'rot'));
-  set=[...new Set(set)];
-  if(!set.every(z=>z.state==='idle'))continue;
-  const newLen=set.reduce((a,z)=>a+z.s1-z.s0,0),edges=new Set([...liveEdges,...set.map(z=>z.edge)]);
-  if(edges.size>C.spike.maxLiveEdges)continue;
-  if((liveLen+newLen)/geo.perim>C.spike.maxLiveFrac)continue;
-  const sig=set.map(z=>z.id).sort((a,b)=>a-b).join('-');
-  if(s.recent.includes(sig))continue;
-  activatePattern(s,set);
-  s.recent.push(sig);if(s.recent.length>5)s.recent.shift();
-  return true;
+ // One batch per cycle: exactly half of every hole (12 of 24 on small maps).
+ // Keep 180-degree pairs for fairness and never spawn on an already-active hole.
+ if(live.length)return false;
+ if(s.zones.some(z=>z.state==='rest'))return false;
+ const target=Math.round(geo.zones.length*C.spike.maxLiveFrac);
+ const chosen=[],used=new Set();
+ const available=geo.zones.filter(z=>z.state==='idle');
+ for(let attempt=0;attempt<available.length*3&&chosen.length<target;attempt++){
+  const z=available[Math.floor(rng(s)*available.length)];
+  if(used.has(z.id))continue;
+  const partner=image(geo,z,'rot');
+  if(!partner||partner.state!=='idle'||used.has(partner.id))continue;
+  if(target-chosen.length<2)break;
+  chosen.push(z,partner);used.add(z.id);used.add(partner.id);
  }
- return false;
+ if(chosen.length<target){
+  for(const z of available)if(chosen.length<target&&!used.has(z.id)){chosen.push(z);used.add(z.id);}
+ }
+ if(chosen.length!==target)return false;
+ activatePattern(s,chosen);
+ return true;
 }
 function updateZones(s,dt){
  for(const z of s.zones){
@@ -289,11 +286,12 @@ function botInput(s,p,live,dt){
 /* ------------------------------ physics ------------------------------ */
 function integrate(s,p,live,dt){
  const d=p.ufo,u=s.geo.u,inp=p.isBot?botInput(s,p,live,dt):humanInput(p);
+ d.impactT=Math.max(0,d.impactT-dt);
  let ix=finite(inp.x),iy=finite(inp.y);const m0=hyp(ix,iy);if(m0>1){ix/=m0;iy/=m0;}
  const mag=hyp(ix,iy);
  p.vx+=ix*C.acc*u*dt;p.vy+=iy*C.acc*u*dt;
  const f=Math.exp(-(mag>.05?C.fric:C.brake)*dt);p.vx*=f;p.vy*=f;
- const sp=hyp(p.vx,p.vy),cap=C.maxSpeed*u;if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
+ const sp=hyp(p.vx,p.vy),cap=C.maxSpeed*u*(d.impactT>0?C.impactMultiplier:1);if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
  p.x+=p.vx*dt;p.y+=p.vy*dt;
  d.tx=ix;d.ty=iy;d.thrust=mag;
  if(mag>.1){p.dir={x:ix/mag,y:iy/mag};p.face=p.dir.x<0?-1:1;}
@@ -306,8 +304,9 @@ function integrate(s,p,live,dt){
 function bounceOff(p,nx,ny,rest,base,gain,u){
  const vn=p.vx*nx+p.vy*ny;if(vn>=0)return 0;
  const inN=-vn;
- const out=Math.max(inN*rest,base?base*u+Math.min(inN,260*u)*gain:0);
+ const out=Math.max(inN*rest,base?base*u+Math.min(inN,260*u)*gain:0)*C.impactMultiplier;
  p.vx+=nx*(out-vn);p.vy+=ny*(out-vn);
+ p.ufo.impactT=.5; // keep collision velocity instead of clamping it next frame
  return inN;
 }
 function envCollide(s,p){
@@ -347,8 +346,9 @@ function pairCollide(s,live){
   a.x-=nx*corr/ma;a.y-=ny*corr/ma;b.x+=nx*corr/mb;b.y+=ny*corr/mb;
   const rel=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
   if(rel<0){
-   const j2=-(1+C.ufoRest)*rel/im;
+   const j2=-(1+C.ufoRest)*rel/im*C.impactMultiplier;
    a.vx-=j2*nx/ma;a.vy-=j2*ny/ma;b.vx+=j2*nx/mb;b.vy+=j2*ny/mb;
+   a.ufo.impactT=b.ufo.impactT=.5;
    if(-rel>90*u&&a.ufo.fxCool<=0&&b.ufo.fxCool<=0){
     a.ufo.fxCool=b.ufo.fxCool=.12;
     impactFx(s,(a.x+b.x)/2,(a.y+b.y)/2,'#fff4c2',clamp(-rel/(260*u),.2,1));

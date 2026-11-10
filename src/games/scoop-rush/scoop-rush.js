@@ -62,9 +62,18 @@ function mergeBurst(s,sc,c,pct){
 }
 
 /* ------------------------------ setup ------------------------------ */
+// Game colours come from the player's actual lobby palette, not seat order.
+function flavorOf(p,index){
+ const color=String(p.color||'').trim();
+ if(/^#[0-9a-f]{6}$/i.test(color))return color;
+ if(/^#[0-9a-f]{3}$/i.test(color))return '#'+[1,2,3].map(i=>color[i]+color[i]).join('');
+ const rgb=/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,[^)]*)?\)$/i.exec(color);
+ if(rgb)return '#'+[rgb[1],rgb[2],rgb[3]].map(v=>Math.max(0,Math.min(255,Number(v))).toString(16).padStart(2,'0')).join('');
+ return Art.FLAVORS[index%Art.FLAVORS.length];
+}
 function makeBot(s){
  return {skill:.78+rng(s)*.2,interval:.08+rng(s)*.07,at:rng(s)*.15,dx:0,dy:0,ax:0,ay:0,
-  speedBias:.9+rng(s)*.1,aggro:.05+rng(s)*.2,nextAggro:2+rng(s)*4,mode:'merge',until:0,dm:0,dp:0,
+  speedBias:.96+rng(s)*.04,aggro:.015+rng(s)*.035,nextAggro:2+rng(s)*4,mode:'merge',until:0,dm:0,dp:0,
   plan:null,ignore:Object.create(null),lastX:0,lastY:0,idle:0,unstickUntil:0,ux:0,uy:0,wanting:false};
 }
 function newScoop(s,owner,x,y){
@@ -93,7 +102,7 @@ function setup(round,ps){
   const cell=cells[i%cells.length];
   p.active=true;p.x=cell.x;p.y=cell.y;p.vx=p.vy=0;
   const dx=mx-p.x,dy=my-p.y,m=hyp(dx,dy)||1;p.dir={x:dx/m,y:dy/m};p.face=p.dir.x<0?-1:1;
-  p.sr={flavor:Art.FLAVORS[i%Art.FLAVORS.length],cvx:0,cvy:0,kx:0,ky:0,loadMass:0,loadSmooth:1,push:Object.create(null),
+  p.sr={flavor:flavorOf(p,i),cvx:0,cvy:0,kx:0,ky:0,loadMass:0,loadSmooth:1,push:Object.create(null),
    moving:false,bot:p.isBot?makeBot(s):null};
   if(p.sr.bot){p.sr.bot.lastX=p.x;p.sr.bot.lastY=p.y;}
  });
@@ -201,7 +210,7 @@ function planPush(s,p,m,ax,ay,gap){
   if(sc===m&&near&&!coast)continue;
   const d=hyp(p.x-sc.x,p.y-sc.y)-(sc.r+R),range=26;
   if(d<range){
-   const w=Math.pow(1-Math.max(d,0)/range,2)*(sc.owner===p.id?1.7:1.2),k=hyp(p.x-sc.x,p.y-sc.y)||1;
+   const w=Math.pow(1-Math.max(d,0)/range,2)*(sc.owner===p.id?.85:.65),k=hyp(p.x-sc.x,p.y-sc.y)||1;
    dx+=(p.x-sc.x)/k*w;dy+=(p.y-sc.y)/k*w;
   }
  }
@@ -232,6 +241,20 @@ function botDecide(s,p){
    return;
   }
   b.mode='merge';b.plan=null;
+ }
+ // Maintain the same scoop pair while approaching it, instead of choosing
+ // a different target every 0.1s and spinning in place between the two.
+ if(b.plan&&now<b.plan.until){
+  const m=s.scoops.find(q=>q.id===b.plan.mover&&q.owner===p.id);
+  const t=s.scoops.find(q=>q.id===b.plan.target&&q.owner===p.id);
+  if(m&&t&&!m.dead&&!t.dead){
+   const gap=hyp(t.x-m.x,t.y-m.y)-(m.r+t.r);
+   if(gap>-.5){
+    planPush(s,p,m,t.x+t.vx*.25-m.vx*.25,t.y+t.vy*.25-m.vy*.25,gap);
+    return;
+   }
+  }
+  b.plan=null;
  }
  if(now>=b.nextAggro){
   b.nextAggro=now+2.5+rng(s)*4;
@@ -265,8 +288,8 @@ function botDecide(s,p){
   if(!best||cost<best.cost)best={cost,m,t,key,gap};
  }
  if(!best){b.wanting=false;b.dx=0;b.dy=0;return;}
- b.plan={key:best.key};
  const {m,t}=best;
+ b.plan={key:best.key,mover:m.id,target:t.id,until:now+1.65};
  planPush(s,p,m,t.x+t.vx*.4-m.vx*.4,t.y+t.vy*.4-m.vy*.4,best.gap);
 }
 function botInput(s,p,dt){
