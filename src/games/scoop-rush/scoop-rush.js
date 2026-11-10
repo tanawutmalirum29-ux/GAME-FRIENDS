@@ -1,7 +1,7 @@
 /* SCOOP RUSH — ice-rink merge race, 120 Hz fixed step, native ES module.
-   Every player owns 4 equal scoops (mass 1 each). Same-owner scoops that touch merge
-   (mass and momentum conserved); other-owner scoops collide and shove. First player with
-   a single scoop of mass 4 wins; on time-out the biggest-scoop percentage decides.
+   Every player owns 5 equal, widely scattered scoops (mass 1 each). Same-owner
+   scoops that touch merge (mass and momentum conserved); other-owner scoops collide.
+   First player with a single scoop of mass 5 wins; on time-out the biggest-scoop percentage decides.
    All coordinates are WORLD units; the Host canvas is a 960x540 design viewport. */
 import Art from './scoop-art.js';
 
@@ -9,7 +9,7 @@ const STEP=1/120,TAU=Math.PI*2,EPS=1e-8;
 // All balance numbers live here so they can be tuned without touching the logic.
 const C=Object.freeze({
  radius:15,maxSpeed:165,response:10,brake:13,knockDecay:4.2,knockShare:.3,
- scoops:4,baseR:11,playerMass:4.5,pushLoad:.16,
+ scoops:5,baseR:22,playerMass:4.5,pushLoad:.16,
  drag:1.05,coulomb:9,maxScoopSpeed:430,
  eScoop:.55,eWall:.5,ePlayer:.22,wallTangent:.94,mergeGap:.5,iterations:6,
  secondsSmall:50,secondsLarge:70,finishDelay:.55,timeoutDelay:.35
@@ -82,13 +82,12 @@ function setup(round,ps){
   shake:0,layers:null,merges:0};
  round.scoopRush=s;
  s.layers=Art.preload(world);
- // Fair start: one grid cell per player, identical 4-scoop pattern for everyone.
+ // Fair start: evenly separated bear positions; 5 ice-cream balls per owner
+ // distributed over the whole rink instead of one cluster beside each bear.
  const [cols,rows]=GRID[n],cw=b.w/cols,ch=b.h/rows;
  const cells=[];
  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)cells.push({x:b.x+cw*(c+.5),y:b.y+ch*(r+.5)});
  for(let i=cells.length-1;i>0;i--){const j=Math.floor(rng(s)*(i+1));[cells[i],cells[j]]=[cells[j],cells[i]];}
- const a=clamp(Math.min(cw,ch)*.22,26,46);
- const OFF=[[-a,-a],[a,-a],[-a,a],[a,a]];
  const mx=b.x+b.w/2,my=b.y+b.h/2;
  ps.forEach((p,i)=>{
   const cell=cells[i%cells.length];
@@ -97,8 +96,34 @@ function setup(round,ps){
   p.sr={flavor:Art.FLAVORS[i%Art.FLAVORS.length],cvx:0,cvy:0,kx:0,ky:0,loadMass:0,loadSmooth:1,push:Object.create(null),
    moving:false,bot:p.isBot?makeBot(s):null};
   if(p.sr.bot){p.sr.bot.lastX=p.x;p.sr.bot.lastY=p.y;}
-  for(let k=0;k<C.scoops;k++)s.scoops.push(newScoop(s,p.id,cell.x+OFF[k][0],cell.y+OFF[k][1]));
  });
+ // Seeded lattice creates broad distribution without overlaps or wall clipping.
+ const spacing=65,nx=Math.max(1,Math.floor((b.w-2*C.baseR-20)/spacing)),
+  ny=Math.max(1,Math.floor((b.h-2*C.baseR-20)/spacing)),spots=[];
+ for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){
+  const px=b.x+(x+.5)*b.w/nx+(rng(s)-.5)*7;
+  const py=b.y+(y+.5)*b.h/ny+(rng(s)-.5)*7;
+  const fit=fitBody(b,px,py,C.baseR+3);
+  if(fit.hit||ps.some(p=>hyp(p.x-fit.x,p.y-fit.y)<C.baseR+C.radius+12))continue;
+  spots.push({x:fit.x,y:fit.y});
+ }
+ for(let i=spots.length-1;i>0;i--){const j=Math.floor(rng(s)*(i+1));[spots[i],spots[j]]=[spots[j],spots[i]];}
+ const mine=Object.create(null);
+ for(const p of ps)mine[p.id]=[];
+ for(let k=0;k<C.scoops;k++)for(const p of ps){
+  let chosen=-1,best=-Infinity;
+  for(let i=0;i<spots.length;i++){
+   const pt=spots[i];
+   if(s.scoops.some(sc=>hyp(sc.x-pt.x,sc.y-pt.y)<C.baseR*2+9))continue;
+   const existing=mine[p.id];
+   const spread=existing.length?Math.min(...existing.map(sc=>hyp(sc.x-pt.x,sc.y-pt.y))):0;
+   const quality=spread+rng(s)*30;
+   if(quality>best){best=quality;chosen=i;}
+  }
+  if(chosen<0)throw Error('SCOOP RUSH: not enough safe starting positions');
+  const pt=spots.splice(chosen,1)[0],sc=newScoop(s,p.id,pt.x,pt.y);
+  s.scoops.push(sc);mine[p.id].push(sc);
+ }
  s.stats=calcStats(s,ps);
  for(const p of ps)p.score=s.stats[p.id].pct;
  round.remaining=s.total;
