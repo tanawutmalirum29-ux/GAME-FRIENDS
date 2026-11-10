@@ -10,8 +10,19 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect relevant PR changes (full QA on main)
+        id: impact
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-impact.cjs --gha >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
+        if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:fruit-memory') || contains(fromJSON(steps.impact.outputs.areas), 'game:shockwave') || contains(fromJSON(steps.impact.outputs.areas), 'game:chickens') || contains(fromJSON(steps.impact.outputs.areas), 'game:ice-race') }}
         with:
           node-version: '22'
+      - if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:fruit-memory') || contains(fromJSON(steps.impact.outputs.areas), 'game:shockwave') || contains(fromJSON(steps.impact.outputs.areas), 'game:chickens') || contains(fromJSON(steps.impact.outputs.areas), 'game:ice-race') }}
       - run: node --test tests/central-hud.test.cjs
+      - if: ${{ steps.impact.outputs.full == 'true' || contains(fromJSON(steps.impact.outputs.areas), 'game:fruit-memory') || contains(fromJSON(steps.impact.outputs.areas), 'game:shockwave') || contains(fromJSON(steps.impact.outputs.areas), 'game:chickens') || contains(fromJSON(steps.impact.outputs.areas), 'game:ice-race') }}
       - run: node --test tests/farm-ice-fullwidth.test.cjs
