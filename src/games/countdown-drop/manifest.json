@@ -1,0 +1,28 @@
+{
+  "id": "countdown_drop",
+  "name": "COUNTDOWN DROP",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {
+    "min": 1,
+    "max": 12
+  },
+  "modes": [
+    "normal",
+    "board"
+  ],
+  "controls": [
+    "joystick",
+    "A"
+  ],
+  "cover": "cover.svg",
+  "entry": "./game.js",
+  "controller": {
+    "help": "วิ่งหนีช่องที่เลขใกล้ 0 • กด A ต่อยให้คู่แข่งสตัน 1.4 วินาที • ตกหลุมคือตกรอบ • B ไม่ใช้",
+    "labels": {
+      "A": "ต่อย"
+    },
+    "status": "COUNTDOWN DROP • รอด {survivors} คน"
+  },
+  "legacyScripts": []
+}

@@ -1,0 +1,31 @@
+{
+  "id": "cannon_chaos",
+  "name": "CANNON CHAOS",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {
+    "min": 1,
+    "max": 12
+  },
+  "modes": [
+    "normal",
+    "board"
+  ],
+  "controls": [
+    "A",
+    "B",
+    "C"
+  ],
+  "cover": "cover.svg",
+  "entry": "./game.js",
+  "legacyScripts": [],
+  "controller": {
+    "help": "ปืนใหญ่หมุนเอง • กด A/B/C เพื่อยิงตามจังหวะ • Reload 1.5 วินาที • โดนยิงเสีย 1 หัวใจและ Reload ใหม่ทั้งหมด",
+    "labels": {
+      "A": "ยิง",
+      "B": "ยิง",
+      "C": "ยิง"
+    },
+    "status": "CANNON CHAOS • รอด {survivors} คน"
+  }
+}

@@ -1,78 +1,171 @@
 /* ICE RACE — host-authoritative drifting sleds on a closed floating ice road.
-   The same sampled centreline drives rendering, fall detection, bot guidance
-   and strictly ordered, direction-sensitive checkpoints. */
+   Three hand-designed courses (small 1–4, medium 5–8, large 9–12 racers).
+   One sampled centreline with a per-point road half-width drives rendering,
+   fall detection, spawns, bot guidance and strictly ordered, direction-sensitive
+   checkpoints, so the visible ice and the physical support can never disagree. */
 (() => {
 'use strict';
 const TAU=Math.PI*2, STEP=1/60;
+// Course specs. A course is a closed polyline of waypoints [x, y, cornerRadius, widthFactor];
+// every corner is rounded with a true circular arc (radius 0 = pass straight through)
+// and the width factor scales halfWidth at that waypoint, blended smoothly along the road.
+// Design rules for every course:
+//  * unrelated stretches of road stay >= hwA+hwB+~28 apart (no accidental bridges)
+//  * waypoint 0 sits on a long straight: that straight is the start grid
+//  * every bend radius stays comfortably above the road half-width
+const TRACKS=Object.freeze({
+ // 1–4 racers: compact counter-clockwise circuit. Long start straight, a deep
+ // hairpin dive off the top road, and a left/right/left S-chicane on the west bank.
+ small:Object.freeze({key:'small',name:'Frozen Lagoon',w:960,h:540,halfWidth:54,duration:30,
+  gates:6,cols:2,laneGap:.82,rowSpacing:76,theme:{sea0:'#0a66e0',sea1:'#087afa',sea2:'#0647c7'},
+  waypoints:[
+   [480,462,0,1],[870,462,78,1],[870,92,78,.96],[640,92,84,1],[640,312,82,1.1],
+   [470,312,82,1.1],[470,92,84,1],[130,92,78,1],[130,252,100,.9],[210,332,100,.86],
+   [210,462,72,.95]]}),
+ // 5–8 racers: clockwise grand circuit. Two tongues of road reach into the bay:
+ // a wide sweeping hairpin from the top road and a tighter one from the bottom road.
+ // Start grid sits on the long east bank.
+ medium:Object.freeze({key:'medium',name:'Aurora Bay',w:1200,h:675,halfWidth:62,duration:50,
+  gates:8,cols:2,laneGap:.8,rowSpacing:76,theme:{sea0:'#0a74d8',sea1:'#0791e6',sea2:'#0553b8'},
+  waypoints:[
+   [1115,485,0,1],[1115,580,86,1],[940,580,90,.96],[940,275,90,.92],[750,275,90,.92],
+   [750,580,90,1],[430,580,0,1.22],[110,580,90,1.1],[110,430,100,.92],[170,310,100,.88],
+   [110,190,100,.92],[110,95,86,1],[330,95,90,1],[330,390,100,1.08],[560,390,100,1.1],
+   [560,95,90,1],[820,95,0,1.22],[1115,95,86,1]]}),
+ // 9–12 racers: a long double serpentine in four lanes of road with five U-turns,
+ // a wide start plaza on the north road, a broad south plaza and tighter hairpins.
+ large:Object.freeze({key:'large',name:'Glacier Run',w:1440,h:810,halfWidth:74,duration:70,
+  gates:10,cols:3,laneGap:.6,rowSpacing:78,theme:{sea0:'#0b5fcf',sea1:'#0a74e8',sea2:'#053fae'},
+  waypoints:[
+   [560,95,0,1.16],[900,95,0,1.2],[1330,95,90,1],[1330,305,96,1],[640,305,100,.95],[640,510,100,.95],
+   [1190,510,96,1],[1190,715,96,1],[530,715,0,1.2],[110,715,90,1],[110,510,90,1],
+   [420,510,96,.95],[420,305,96,.95],[110,305,90,1],[110,95,90,1.08]]})
+});
 const C=Object.freeze({
- small:Object.freeze({w:960,h:540,halfWidth:45,duration:40}),
- large:Object.freeze({w:1280,h:720,halfWidth:82,duration:70}),
+ small:TRACKS.small,medium:TRACKS.medium,large:TRACKS.large,
  radius:14,hullHalfLength:24,hullHalfWidth:18,maxSpeed:268,thrust:380,forwardDrag:.33,lateralGrip:2.1,
  turnSpeed:3.65,turnAcceleration:12.5,restitution:.62,impactInertia:900,impactFriction:.08,
  fallDelay:.8,spawnProtection:.6
 });
-// Two intentionally different racecourses, not the same centreline stretched.
-// Wider lanes must not bridge neighbouring turns on the crowded course.
-// Keep the small course's centre connector above the two return bends at
-// y=.44/.46. These anchors define both the visible ice and its physical support.
-const SMALL_ANCHORS=Object.freeze([
- [.53,.79],[.71,.79],[.81,.70],[.76,.59],[.65,.55],[.65,.46],
- [.80,.42],[.83,.25],[.74,.17],[.65,.19],[.63,.22],[.51,.22],
- [.48,.17],[.35,.17],[.30,.27],[.32,.42],[.46,.44],[.46,.53],
- [.35,.62],[.24,.69],[.29,.79],[.43,.79]
-]);
-const LARGE_ANCHORS=Object.freeze([
- [.51,.79],[.67,.79],[.81,.73],[.84,.59],[.79,.46],[.83,.35],
- [.77,.23],[.64,.19],[.51,.23],[.42,.30],[.33,.20],[.21,.27],
- [.16,.40],[.19,.55],[.15,.67],[.30,.79]
-]);
+const sizeClassFor=n=>n<=4?'small':n<=8?'medium':'large';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const angleDiff=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
 const active=ps=>ps.filter(p=>p.active);
 const racing=p=>p.active&&p.ice?.state==='racing';
 function rand(s){let x=s.seed|0;x^=x<<13;x^=x>>>17;x^=x<<5;s.seed=x||1640531527;return(s.seed>>>0)/4294967296;}
-function catmull(a,b,c,d,t){
- return .5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t);
+function rng(seed){let x=(seed|0)||1640531527;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;x|=0;return(x>>>0)/4294967296;};}
+// Turn a waypoint polyline into a dense closed centreline of straights and circular arcs.
+function roundedLoop(wp,baseHalfWidth){
+ const n=wp.length,pts=[],keys=[];
+ // Pass 1: ideal tangent length of every fillet; pass 2: shrink neighbours that would
+ // overlap on a shared edge (proportionally, never more than 98% of the edge together).
+ const want=wp.map((P,i)=>{
+  const A=wp[(i+n-1)%n],B=wp[(i+1)%n],r=P[2]||0;
+  const ux=A[0]-P[0],uy=A[1]-P[1],vx=B[0]-P[0],vy=B[1]-P[1];
+  const ang=Math.acos(clamp((ux*vx+uy*vy)/(Math.hypot(ux,uy)*Math.hypot(vx,vy)),-1,1));
+  return r>0&&ang<Math.PI-1e-3?r/Math.tan(ang/2):0;
+ });
+ const use=want.slice();
+ for(let i=0;i<n;i++){
+  const j=(i+1)%n,L=Math.hypot(wp[j][0]-wp[i][0],wp[j][1]-wp[i][1]),sum=want[i]+want[j];
+  if(sum>L*.98){const f=L*.98/sum;use[i]=Math.min(use[i],want[i]*f);use[j]=Math.min(use[j],want[j]*f);}
+ }
+ for(let i=0;i<n;i++){
+  const P=wp[i],A=wp[(i+n-1)%n],B=wp[(i+1)%n],wf=P[3]??1;
+  let ux=A[0]-P[0],uy=A[1]-P[1],vx=B[0]-P[0],vy=B[1]-P[1];
+  const lu=Math.hypot(ux,uy),lv=Math.hypot(vx,vy);ux/=lu;uy/=lu;vx/=lv;vy/=lv;
+  const ang=Math.acos(clamp(ux*vx+uy*vy,-1,1)),t=use[i];
+  if(!(want[i]>0)||t<1e-3){keys.push({i:pts.length,wf});pts.push({x:P[0],y:P[1]});continue;}
+  const rr=t*Math.tan(ang/2);
+  const bx=ux+vx,by=uy+vy,bl=Math.hypot(bx,by),cd=rr/Math.sin(ang/2);
+  const cx=P[0]+bx/bl*cd,cy=P[1]+by/bl*cd;
+  const t1={x:P[0]+ux*t,y:P[1]+uy*t},t2={x:P[0]+vx*t,y:P[1]+vy*t};
+  const a1=Math.atan2(t1.y-cy,t1.x-cx);
+  let delta=Math.atan2(t2.y-cy,t2.x-cx)-a1;
+  while(delta>Math.PI)delta-=TAU;while(delta<-Math.PI)delta+=TAU;
+  const steps=Math.max(3,Math.ceil(Math.abs(delta)*rr/9));
+  for(let k=0;k<=steps;k++){
+   if(k===Math.round(steps/2))keys.push({i:pts.length,wf});
+   const a=a1+delta*k/steps;pts.push({x:cx+Math.cos(a)*rr,y:cy+Math.sin(a)*rr});
+  }
+ }
+ // Long straights get intermediate points so width blends and sampling stay smooth.
+ const dense=[],map=new Map();
+ for(let i=0;i<pts.length;i++){
+  const p=pts[i],q=pts[(i+1)%pts.length];
+  map.set(i,dense.length);dense.push({x:p.x,y:p.y});
+  const d=Math.hypot(q.x-p.x,q.y-p.y),extra=Math.floor(d/40);
+  for(let k=1;k<=extra;k++)dense.push({x:p.x+(q.x-p.x)*k/(extra+1),y:p.y+(q.y-p.y)*k/(extra+1)});
+ }
+ const cum=[0];
+ for(let i=1;i<=dense.length;i++){
+  const a=dense[i-1],b=dense[i%dense.length];cum.push(cum[i-1]+Math.hypot(b.x-a.x,b.y-a.y));
+ }
+ const total=cum[dense.length];
+ const kd=keys.map(k=>({d:cum[map.get(k.i)],wf:k.wf}));
+ for(let i=0;i<dense.length;i++){
+  const d=cum[i];let lo=kd[kd.length-1],hi=kd[0],ld=lo.d-total,hd=hi.d;
+  for(let j=0;j<kd.length;j++){
+   if(kd[j].d<=d){lo=kd[j];ld=lo.d;hi=kd[(j+1)%kd.length];hd=j+1<kd.length?hi.d:hi.d+total;}
+  }
+  const f=hd>ld?clamp((d-ld)/(hd-ld),0,1):0,e=f*f*(3-2*f);
+  dense[i].hw=baseHalfWidth*(lo.wf+(hi.wf-lo.wf)*e);
+ }
+ return dense;
 }
 function makeTrack(s){
- const anchors=s.sizeClass==='large'?LARGE_ANCHORS:SMALL_ANCHORS;
- const src=anchors.map(([x,y])=>({x:x*s.w,y:y*s.h})),n=src.length,points=[];
- for(let i=0;i<n;i++)for(let k=0;k<10;k++){
-  const t=k/10,at=j=>src[(j+n)%n];
-  points.push({x:catmull(at(i-1).x,at(i).x,at(i+1).x,at(i+2).x,t),
-   y:catmull(at(i-1).y,at(i).y,at(i+1).y,at(i+2).y,t)});
- }
- let length=0;
+ const spec=s.spec||C[s.sizeClass],points=roundedLoop(spec.waypoints,spec.halfWidth);
+ let length=0;const m=points.length;
  const segments=points.map((p,i)=>{
-  const q=points[(i+1)%points.length],dx=q.x-p.x,dy=q.y-p.y,size=Math.hypot(dx,dy);
-  const seg={x:p.x,y:p.y,tx:dx/size,ty:dy/size,dist:size,start:length};
+  const q=points[(i+1)%m],dx=q.x-p.x,dy=q.y-p.y,size=Math.hypot(dx,dy)||1e-6;
+  const seg={x:p.x,y:p.y,tx:dx/size,ty:dy/size,dist:size,start:length,hw0:p.hw,hw1:q.hw,k:0};
   length+=size;return seg;
  });
- s.path=segments;s.trackLength=length;
- s.checkpoints=Array.from({length:4},(_,id)=>{
-  // On the small course, the first quarter lands on the inside of a tight
-  // bend. Move its gate onto the following straight, so racers actually
-  // cross the gate in its forward direction rather than cutting past it.
-  const gateOffset=s.sizeClass==='small'&&id===1?45:0;
-  const at=sample(s,length*id/4+gateOffset);
-  return {id,x:at.x,y:at.y,tx:at.tx,ty:at.ty,progress:at.progress};
+ // Signed curvature (rad/unit, >0 = turning toward the road's right-hand side).
+ const raw=segments.map((g,i)=>{
+  const h=segments[(i+1)%m];
+  return Math.atan2(g.tx*h.ty-g.ty*h.tx,g.tx*h.tx+g.ty*h.ty)/((g.dist+h.dist)/2);
  });
+ for(let i=0;i<m;i++){let sum=0;for(let o=-2;o<=2;o++)sum+=raw[(i+o+m)%m];segments[i].k=sum/5;}
+ s.path=segments;s.trackLength=length;
+ s.starts=segments.map(g=>g.start);
+ s.maxHalfWidth=Math.max(...points.map(p=>p.hw));
+ placeGates(s,spec.gates);
+}
+// Gates are spread evenly but slid to the calmest nearby stretch of road, so
+// each one is crossed head-on instead of being clipped on the inside of a bend.
+function placeGates(s,count){
+ const total=s.trackLength,spacing=total/count,gates=[];
+ const calm=d=>{let sum=0;for(let o=-70;o<=70;o+=10)sum+=Math.abs(sample(s,d+o).k);return sum;};
+ for(let id=0;id<count;id++){
+  let best=0;
+  if(id>0){let bestCost=Infinity;
+   for(let off=-spacing*.28;off<=spacing*.28;off+=6){
+    const cost=calm(spacing*id+off)+Math.abs(off)*.0004;
+    if(cost<bestCost){bestCost=cost;best=off;}
+   }}
+  const at=sample(s,spacing*id+best);
+  gates.push({id,x:at.x,y:at.y,tx:at.tx,ty:at.ty,hw:at.hw,progress:at.progress});
+ }
+ s.checkpoints=gates;
 }
 function sample(s,d){
- const total=s.trackLength,progress=((d%total)+total)%total;
- // A small sampled spline keeps distance parameterization stable across framerates.
- const seg=s.path.find(v=>progress<v.start+v.dist)||s.path.at(-1);
- const f=clamp((progress-seg.start)/seg.dist,0,1);
+ const total=s.trackLength,progress=((d%total)+total)%total,st=s.starts;
+ let lo=0,hi=st.length-1;
+ while(lo<hi){const mid=(lo+hi+1)>>1;if(st[mid]<=progress)lo=mid;else hi=mid-1;}
+ const seg=s.path[lo],f=clamp((progress-seg.start)/seg.dist,0,1);
  return {x:seg.x+seg.tx*seg.dist*f,y:seg.y+seg.ty*seg.dist*f,
-  tx:seg.tx,ty:seg.ty,progress};
+  tx:seg.tx,ty:seg.ty,progress,hw:seg.hw0+(seg.hw1-seg.hw0)*f,k:seg.k};
 }
+// Closest point of the road sweep: the segment with the smallest (distance - halfWidth).
+// margin <= 0 means the point is on the ice. `dist`/`hw` are those of that foot point.
 function nearest(s,x,y){
  let best=null,min=Infinity;
  for(const seg of s.path){
   const d=(x-seg.x)*seg.tx+(y-seg.y)*seg.ty;
   const u=clamp(d,0,seg.dist),px=seg.x+seg.tx*u,py=seg.y+seg.ty*u;
-  const dist=Math.hypot(x-px,y-py);
-  if(dist<min){min=dist;best={dist,x:px,y:py,tx:seg.tx,ty:seg.ty,
+  const dist=Math.hypot(x-px,y-py),hw=seg.hw0+(seg.hw1-seg.hw0)*(u/seg.dist),margin=dist-hw;
+  if(margin<min){min=margin;best={dist,hw,margin,x:px,y:py,tx:seg.tx,ty:seg.ty,
     progress:seg.start+u};}
  }
  return best;
@@ -88,19 +181,19 @@ function inputVector(input){
  return {x:size>1?x/size:x,y:size>1?y/size:y};
 }
 function initialSpawns(s,ps){
+ const spec=s.spec,cols=spec.cols;
  for(let i=0;i<ps.length;i++){
-  const p=ps[i],lane=i%2?1:-1,row=Math.floor(i/2);
-  const at=sample(s,s.trackLength-44-row*90);
-  // Keep an intentional but collision-free two-column starting grid in both
-  // arenas; more participants get more side-to-side passing room later.
-  const laneDistance=s.halfWidth*(s.sizeClass==='large'?.27:.50);
-  p.x=at.x-at.ty*lane*laneDistance;
-  p.y=at.y+at.tx*lane*laneDistance;
+  const p=ps[i],col=i%cols,row=Math.floor(i/cols),lane=col-(cols-1)/2;
+  // Staggered grid on the start straight; spacing scales with the road width.
+  const at=sample(s,s.trackLength-46-row*spec.rowSpacing-(col%2)*22);
+  const laneDistance=at.hw*spec.laneGap*lane;
+  p.x=at.x-at.ty*laneDistance;
+  p.y=at.y+at.tx*laneDistance;
   p.vx=0;p.vy=0;p.score=0;p.active=true;
   p.dir={x:at.tx,y:at.ty};p.face=at.tx<0?-1:1;
   p.ice={state:'racing',vx:0,vy:0,heading:Math.atan2(at.ty,at.tx),
    angularVelocity:0,driftAngle:0,lastCheckpoint:0,nextCheckpoint:1,
-   invulnerable:0,respawnLeft:0,fallLeft:0,botOffset:(rand(s)-.5)*s.halfWidth*.12,
+   invulnerable:0,respawnLeft:0,fallLeft:0,botOffset:(rand(s)-.5)*.7,
    botSpeed:(.92+rand(s)*.06)*C.maxSpeed,botReaction:.016+rand(s)*.012,
    botClock:0,botInput:{x:0,y:0},botSkill:.75+rand(s)*.5,
    fallingVelocity:{x:0,y:0}};
@@ -116,10 +209,10 @@ function setup(round,players){
  window.PartyCharacters?.activate?.(players);
  const ps=active(players);
  if(ps.length<1||ps.length>12)throw Error('ICE RACE supports 1–12 players');
- const sizeClass=ps.length<=6?'small':'large',cfg=C[sizeClass];
+ const sizeClass=sizeClassFor(ps.length),cfg=C[sizeClass];
  const seed=(Number(round.iceSeed)||(Date.now()^0x47a2b91e))>>>0||1;
- const s={sizeClass,w:cfg.w,h:cfg.h,halfWidth:cfg.halfWidth,duration:cfg.duration,
-  remaining:cfg.duration,elapsed:0,tick:0,accumulator:0,finished:false,
+ const s={sizeClass,spec:cfg,trackName:cfg.name,w:cfg.w,h:cfg.h,halfWidth:cfg.halfWidth,
+  duration:cfg.duration,remaining:cfg.duration,elapsed:0,tick:0,accumulator:0,finished:false,
   seed,roster:ps,path:[],checkpoints:[],effects:[],ranking:[],winnerIds:[]};
  makeTrack(s);scenery(s);initialSpawns(s,ps);
  round.iceRace=s;round.remaining=s.duration;
@@ -132,12 +225,23 @@ function botVector(s,p){
  const next=sample(s,near.progress+clamp(115+speed*.6,125,240));
  const turn=Math.max(Math.acos(clamp(forward.tx*next.tx+forward.ty*next.ty,-1,1)),
   Math.acos(clamp(near.tx*forward.tx+near.ty*forward.ty,-1,1)));
- const edge=near.dist/s.halfWidth;
+ const edge=near.dist/near.hw;
+ // Light traffic awareness: drift sideways around a sled that is just ahead,
+ // so a full grid of bots spreads out and fights for lines instead of stacking.
+ let avoid=0;
+ for(const q of s.roster){
+  if(q===p||!racing(q))continue;
+  const rx=q.x-p.x,ry=q.y-p.y;
+  const ahead=rx*near.tx+ry*near.ty,side=rx*(-near.ty)+ry*near.tx;
+  if(ahead>0&&ahead<125&&Math.abs(side)<44)
+   avoid+=(side>0?-1:1)*(1-ahead/125)*(1-Math.abs(side)/60);
+ }
+ const lane=clamp(ice.botOffset*forward.hw+avoid*38,-forward.hw*.6,forward.hw*.6);
  // Bots race close to the human speed cap rather than crawling at 35% of it.
  // Coast only when exceeding a corner's safe speed; otherwise full throttle.
- const targetSpeed=clamp(ice.botSpeed*(1-turn*.38)*(1-edge*.16),
+ const targetSpeed=clamp(ice.botSpeed*(1-turn*.38)*(1-edge*edge*.2),
   C.maxSpeed*.25,ice.botSpeed);
- const tx=forward.x-forward.ty*ice.botOffset,ty=forward.y+forward.tx*ice.botOffset;
+ const tx=forward.x-forward.ty*lane,ty=forward.y+forward.tx*lane;
  const lead=.30+Math.min(.30,speed/500);
  let dx=tx-(p.x+ice.vx*lead),dy=ty-(p.y+ice.vy*lead);
  if(Math.hypot(dx,dy)<1){dx=forward.tx;dy=forward.ty;}
@@ -183,7 +287,7 @@ function respawn(s,p){
  let at=null;
  for(let i=0;i<12;i++){
   const progress=cp.progress+24+(i>>1)*31,point=sample(s,progress);
-  const lane=(i%2?1:-1)*s.halfWidth*.34;
+  const lane=(i%2?1:-1)*point.hw*.34;
   const x=point.x-point.ty*lane,y=point.y+point.tx*lane;
   if(peers.every(q=>Math.hypot(q.x-x,q.y-y)>C.radius*2.3)){
    at={x,y,tx:point.tx,ty:point.ty};break;
@@ -304,7 +408,7 @@ function checkpoint(s,p,before){
  if(from>0||to<0||from===to)return false;
  const t=-from/(to-from),x=before.x+(p.x-before.x)*t,y=before.y+(p.y-before.y)*t;
  const across=Math.abs((x-cp.x)*(-ny)+(y-cp.y)*nx);
- if(across>s.halfWidth-C.radius*.15)return false;
+ if(across>cp.hw-C.radius*.15)return false;
  // The current target advances exactly once; reverse crossings, wrong
  // checkpoints and spawn on a marker cannot add points.
  p.score+=1;w.lastCheckpoint=w.nextCheckpoint;
@@ -352,7 +456,8 @@ function step(dt,round,ps){
  // stick to an invisible side rail after being shunted by another player.
  for(const p of active(ps)){
   const w=p.ice;if(w?.state!=='racing')continue;
-  if(nearest(s,p.x,p.y).dist>s.halfWidth-C.radius*.12){fall(s,p);continue;}
+  const near=nearest(s,p.x,p.y);
+  if(near.dist>near.hw-C.radius*.12){fall(s,p);continue;}
   const prev=previous.get(p.id);
   if(prev)checkpoint(s,p,prev);
  }
@@ -379,19 +484,44 @@ function hud(ps,round){
   scores:active(ps).map(p=>({id:p.id,score:p.score||0})),
   winnerIds:s?.winnerIds||[]};
 }
-function path(g,s){
- g.beginPath();for(let i=0;i<s.path.length;i++){
-  const p=s.path[i];if(!i)g.moveTo(p.x,p.y);else g.lineTo(p.x,p.y);
- }g.closePath();
-}
 function disc(g,x,y,r,color){
  g.fillStyle=color;g.beginPath();g.arc(x,y,r,0,TAU);g.fill();
 }
-function iceWorld(g,s,t){
- if(window.ReferenceArenaArt?.ice(g,s))return;
+// One stroke per centreline segment with its own width: the union of round-capped
+// strokes is exactly the swept road that nearest() tests, so ice and physics agree.
+function strokeRoad(g,s,extra,color,dx,dy){
+ g.save();g.translate(dx||0,dy||0);g.strokeStyle=color;g.lineCap='round';g.lineJoin='round';
+ for(const seg of s.path){
+  g.lineWidth=seg.hw0+seg.hw1+extra*2;
+  g.beginPath();g.moveTo(seg.x,seg.y);
+  g.lineTo(seg.x+seg.tx*seg.dist,seg.y+seg.ty*seg.dist);g.stroke();
+ }
+ g.restore();
+}
+function berg(g,x,y,r,R){
+ const n=7,pts=[];
+ for(let i=0;i<n;i++){const a=i*TAU/n+R()*.5,k=r*(.78+R()*.3);pts.push([Math.cos(a)*k,Math.sin(a)*k*.82]);}
+ g.save();g.translate(x,y);
+ g.fillStyle='rgba(150,232,255,.22)';g.beginPath();g.ellipse(0,r*.32,r*1.3,r*.62,0,0,TAU);g.fill();
+ g.fillStyle='#7cc6e6';g.beginPath();pts.forEach(([px,py],i)=>i?g.lineTo(px,py+r*.18):g.moveTo(px,py+r*.18));g.closePath();g.fill();
+ g.fillStyle='#e6faff';g.beginPath();pts.forEach(([px,py],i)=>i?g.lineTo(px*.9,py*.9-r*.14):g.moveTo(px*.9,py*.9-r*.14));g.closePath();g.fill();
+ g.fillStyle='rgba(255,255,255,.9)';g.beginPath();
+ g.moveTo(pts[0][0]*.5,pts[0][1]*.5-r*.2);g.lineTo(pts[1][0]*.55,pts[1][1]*.55-r*.2);g.lineTo(pts[2][0]*.4,pts[2][1]*.4-r*.1);g.closePath();g.fill();
+ g.restore();
+}
+// Everything that never changes during a race is painted once into an offscreen layer.
+function paintWorld(g,s){
+ const R=rng((s.seed^0x5bd1e995)|0),th=s.spec.theme;
  const bg=g.createLinearGradient(0,0,s.w,s.h);
- bg.addColorStop(0,'#0961dd');bg.addColorStop(.52,'#087afa');bg.addColorStop(1,'#0647c7');
+ bg.addColorStop(0,th.sea0);bg.addColorStop(.52,th.sea1);bg.addColorStop(1,th.sea2);
  g.fillStyle=bg;g.fillRect(0,0,s.w,s.h);
+ // gentle swell marks
+ g.strokeStyle='rgba(190,238,255,.10)';g.lineWidth=2;g.lineCap='round';
+ const swell=Math.round(s.w*s.h/6500);
+ for(let i=0;i<swell;i++){
+  const x=R()*s.w,y=R()*s.h,len=14+R()*26;
+  g.beginPath();g.moveTo(x,y);g.quadraticCurveTo(x+len/2,y-4,x+len,y);g.stroke();
+ }
  for(const f of s.floes){
   g.save();g.translate(f.x,f.y);g.rotate(f.rotation);
   g.fillStyle='rgba(59,207,255,.18)';g.beginPath();
@@ -400,29 +530,108 @@ function iceWorld(g,s,t){
    if(!i)g.moveTo(Math.cos(a)*r,Math.sin(a)*r);else g.lineTo(Math.cos(a)*r,Math.sin(a)*r);
   }g.closePath();g.fill();g.restore();
  }
- g.save();g.translate(0,16);path(g,s);
- g.lineCap='round';g.lineJoin='round';g.lineWidth=s.halfWidth*2+16;
- g.strokeStyle='rgba(0,20,86,.36)';g.stroke();g.restore();
- path(g,s);g.lineCap='round';g.lineJoin='round';g.lineWidth=s.halfWidth*2+14;
- g.strokeStyle='#038fc4';g.stroke();
- path(g,s);g.lineWidth=s.halfWidth*2+3;g.strokeStyle='#b6eafd';g.stroke();
- path(g,s);g.lineWidth=s.halfWidth*2-7;g.strokeStyle='#edfbff';g.stroke();
- path(g,s);g.lineWidth=s.halfWidth*2-14;g.strokeStyle='#e0f7fd';g.stroke();
- // Use short, direction-aligned grey arrows, not big overhead signs.
+ // icebergs only in open water, never close enough to read as road
+ const bergs=[],want=Math.round(s.w*s.h/42000);
+ for(let tries=0;tries<700&&bergs.length<want;tries++){
+  const r=13+R()*20,x=r+R()*(s.w-2*r),y=r+R()*(s.h-2*r);
+  if(nearest(s,x,y).margin<r+38)continue;
+  if(bergs.some(b=>Math.hypot(b.x-x,b.y-y)<b.r+r+22))continue;
+  bergs.push({x,y,r});
+ }
+ for(const b of bergs)berg(g,b.x,b.y,b.r,R);
+ // ice shelf: drop shadow, cliff wall, lit rim, then the drivable surface
+ strokeRoad(g,s,9,'#063a9c',0,24);
+ strokeRoad(g,s,8,'#146ea6',0,13);
+ strokeRoad(g,s,8,'#2aa0d4',0,7);
+ strokeRoad(g,s,7,'#5cc6ea',0,0);
+ strokeRoad(g,s,1.5,'#b6eafd',0,0);
+ strokeRoad(g,s,-3.5,'#edfbff',0,0);
+ strokeRoad(g,s,-8,'#e2f7fd',0,0);
+ // hairline cracks and frost glints, kept soft so sleds and gates stay readable
+ const cracks=Math.round(s.trackLength/34);
+ g.lineCap='round';g.lineJoin='round';
+ for(let i=0;i<cracks;i++){
+  const at=sample(s,R()*s.trackLength),off=(R()*2-1)*at.hw*.62;
+  let x=at.x-at.ty*off,y=at.y+at.tx*off,a=Math.atan2(at.ty,at.tx)+(R()-.5)*2.2;
+  g.strokeStyle='rgba(104,176,208,.5)';g.lineWidth=1.1;g.beginPath();g.moveTo(x,y);
+  const steps=2+(R()*2|0);
+  for(let k=0;k<steps;k++){a+=(R()-.5)*.9;x+=Math.cos(a)*(7+R()*9);y+=Math.sin(a)*(7+R()*9);g.lineTo(x,y);}
+  g.stroke();
+  if(R()<.35){g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(a+.9)*8,y+Math.sin(a+.9)*8);g.stroke();}
+ }
+ g.fillStyle='rgba(255,255,255,.95)';
+ for(let i=0;i<cracks;i++){
+  const at=sample(s,R()*s.trackLength),off=(R()*2-1)*at.hw*.7;
+  g.beginPath();g.ellipse(at.x-at.ty*off,at.y+at.tx*off,2.2+R()*2,1+R(),R()*3,0,TAU);g.fill();
+ }
+ // red/white kerbs on the outside edge of the tight bends mark the dangerous corners
+ for(const seg of s.path){
+  if(Math.abs(seg.k)<.0078)continue;
+  const side=seg.k>0?-1:1,nx=-seg.ty*side,ny=seg.tx*side,ex=seg.x+seg.tx*seg.dist,ey=seg.y+seg.ty*seg.dist;
+  const a0=seg.hw0-9,a1=seg.hw0+1.5,b0=seg.hw1-9,b1=seg.hw1+1.5;
+  g.fillStyle=(Math.floor(seg.start/15)&1)?'#ff6b5e':'#ffffff';
+  g.beginPath();g.moveTo(seg.x+nx*a0,seg.y+ny*a0);g.lineTo(seg.x+nx*a1,seg.y+ny*a1);
+  g.lineTo(ex+nx*b1,ey+ny*b1);g.lineTo(ex+nx*b0,ey+ny*b0);g.closePath();g.fill();
+ }
+ // short direction chevrons, spaced along the road
+ g.strokeStyle='rgba(55,110,148,.32)';g.lineWidth=4;
  for(let d=68;d<s.trackLength;d+=116){
   const p=sample(s,d),a=Math.atan2(p.ty,p.tx);
-  g.save();g.translate(p.x,p.y);g.rotate(a);g.strokeStyle='rgba(55,110,148,.32)';
-  g.lineWidth=4;g.lineCap='round';g.beginPath();
+  g.save();g.translate(p.x,p.y);g.rotate(a);g.beginPath();
   g.moveTo(-12,-9);g.lineTo(8,0);g.lineTo(-12,9);g.stroke();g.restore();
  }
+ // checkpoint gates (gate 0 is the chequered start/finish line)
  for(const cp of s.checkpoints){
   g.save();g.translate(cp.x,cp.y);g.rotate(Math.atan2(cp.ty,cp.tx));
-  g.strokeStyle=cp.id===0?'#91ecff':'#56bfe5';g.lineWidth=5;
-  g.beginPath();g.moveTo(0,-s.halfWidth+7);g.lineTo(0,s.halfWidth-7);g.stroke();
-  g.strokeStyle='rgba(255,255,255,.95)';g.lineWidth=2;
-  g.beginPath();g.moveTo(3,-s.halfWidth+9);g.lineTo(3,s.halfWidth-9);g.stroke();
+  const half=cp.hw-7;
+  if(cp.id===0){
+   const cell=7,rows=Math.max(2,Math.floor(half*2/cell)),y0=-rows*cell/2;
+   for(let r=0;r<rows;r++)for(let c=0;c<2;c++){
+    g.fillStyle=((r+c)&1)?'#20475d':'#ffffff';g.fillRect(c*cell-cell,y0+r*cell,cell,cell);
+   }
+  }else{
+   g.strokeStyle='#56bfe5';g.lineWidth=5;g.beginPath();g.moveTo(0,-half);g.lineTo(0,half);g.stroke();
+   g.strokeStyle='rgba(255,255,255,.95)';g.lineWidth=2;
+   g.beginPath();g.moveTo(3,-half+2);g.lineTo(3,half-2);g.stroke();
+  }
+  for(const e of [-1,1]){disc(g,0,e*half,6,'#1f8fbf');disc(g,0,e*half,3.4,cp.id===0?'#ffd75e':'#f4fcff');}
   g.restore();
  }
+}
+const worldCaches=new WeakMap(),snowFields=new WeakMap();
+function worldLayer(s){
+ if(worldCaches.has(s))return worldCaches.get(s);
+ let layer=null;
+ try{
+  if(typeof document!=='undefined'){
+   const c=document.createElement('canvas'),k=1.5;
+   c.width=Math.round(960*k);c.height=Math.round(540*k);
+   const cg=c.getContext('2d');
+   if(cg){cg.scale(c.width/s.w,c.height/s.h);paintWorld(cg,s);layer=c;}
+  }
+ }catch(e){layer=null;}
+ worldCaches.set(s,layer);return layer;
+}
+function snow(g,s,t){
+ let field=snowFields.get(s);
+ if(!field){
+  const R=rng((s.seed^0x1b873593)|0),n=Math.round(s.w*s.h/14000);
+  field=Array.from({length:n},()=>({x:R()*s.w,y:R()*s.h,r:1+R()*1.6,vy:9+R()*14,vx:(R()-.5)*8,ph:R()*TAU}));
+  snowFields.set(s,field);
+ }
+ g.fillStyle='rgba(255,255,255,.7)';g.beginPath();
+ for(const f of field){
+  const x=(((f.x+f.vx*t+Math.sin(t*.7+f.ph)*10)%s.w)+s.w)%s.w,y=(((f.y+f.vy*t)%s.h)+s.h)%s.h;
+  g.moveTo(x+f.r,y);g.arc(x,y,f.r,0,TAU);
+ }
+ g.fill();
+}
+function iceWorld(g,s,t){
+ // The ice is always painted from the shared course geometry (never an external
+ // backdrop), so the visible road cannot disagree with the physical one.
+ const layer=worldLayer(s);
+ if(layer)g.drawImage(layer,0,0,s.w,s.h);else paintWorld(g,s);
+ snow(g,s,Number(t)||0);
 }
 function sled(g,p,t){
  const w=p.ice;if(!w)return;
@@ -459,8 +668,8 @@ function sled(g,p,t){
 }
 function draw(g,t,round,ps){
  const s=round.iceRace;if(!s)return;
- // Canvas scale is identical for both arenas, so the large road must have a
- // meaningfully larger physical half-width to also look wider on screen.
+ // Each course has its own world size (same 16:9 frame); the scale below fits it to
+ // the host canvas, and every course keeps sled-to-road proportions on screen.
  g.save();g.scale(960/s.w,540/s.h);iceWorld(g,s,t);
  for(const p of active(ps))sled(g,p,t);
  for(const effect of s.effects){
@@ -488,7 +697,7 @@ function renderRoster(root,active,round){
       const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
       const score=document.createElement('small');score.className='leader-role';score.textContent=(p.score||0)+' คะแนน';
       const info=document.createElement('span');info.className='leader-item-slot';
-      info.textContent=p.ice?.state==='falling'?'ตกน้ำ':'CP '+((p.ice?.nextCheckpoint??1)+1)+'/4';
+      info.textContent=p.ice?.state==='falling'?'ตกน้ำ':'CP '+((p.ice?.nextCheckpoint??1)+1)+'/'+(round?.iceRace?.checkpoints?.length||4);
       box.append(color,name,score,info);root.append(box);
     });return;
    
@@ -499,5 +708,5 @@ function getControllerPacket(p,round){
   nextCheckpoint:p.ice?.nextCheckpoint??1,falling:p.ice?.state==='falling'};
 }
 window.IceRace=Object.freeze({getControllerPacket,renderRoster,getResult,resultTitle:"ผ่านเช็กพอยต์มากที่สุด!",countdownSeconds:3,setup,update,draw,hud,step,finish,checkpoint,
- nearest,sample,collide,hullContact,hullPoints,fall,respawn,makeTrack,botVector,config:C});
+ nearest,sample,collide,hullContact,hullPoints,fall,respawn,makeTrack,botVector,sizeClassFor,tracks:TRACKS,config:C});
 })();
