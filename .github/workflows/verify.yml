@@ -120,6 +120,9 @@ jobs:
         run: node tests/november-minigames.cjs
       - name: New DINO PANIC and COWBOY CROSSFIRE, UFO spikes and scoop colour smoke
         run: node tests/new-games-balance.cjs
+      - name: DINO PANIC pushable scenery and 12-bot lag regression
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:dino-panic') }}
+        run: node tests/dino-panic.cjs
       - name: UFO ARENA and DANGERFIELD winding minefield regression
         if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:ufo-arena') || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:dangerfield') }}
         run: |
