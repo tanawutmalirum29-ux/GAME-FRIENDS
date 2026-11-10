@@ -132,16 +132,35 @@ function boardRegistry(){return Object.fromEntries(modesFor('board').map(id=>{
  return [id,{minPlayers:d.players.min,maxPlayers:d.players.max,
   setup:unavailable,update:unavailable,draw:unavailable}];
 }));}
+// Prefetch minigame engines during the BOARD session, not on the initial PWA
+// route. A single in-flight download avoids starving low-bandwidth controllers.
+let boardWarmBusy=false,boardWarmTimer=null;
 function warmBoardGames(){
  const platform=window.GamePlatform;
- if(!platform?.revision||round?.mode!=='board'||navigator?.connection?.saveData)return;
- // Warm only two candidates per visit. Never download every game just to open
- // BOARD PARTY on a metered mobile connection.
+ if(!platform?.revision||round?.mode!=='board'||!boardSession||
+    document.hidden||navigator?.connection?.saveData||gameSelection||
+    boardWarmBusy||boardWarmTimer!==null)return;
+ const rejected=new Set(platform.getRejected?.().map(r=>r.id)||[]);
  const candidates=platform.games('board').filter(g=>
-  players.length>=g.players.min&&players.length<=g.players.max&&!platform.ready(g.id));
- for(const game of candidates.slice(0,2)){
-  void platform.ensure(game.id).catch(error=>console.warn('Board game unavailable: '+game.id,error));
- }
+  players.length>=g.players.min&&players.length<=g.players.max&&
+  !platform.ready(g.id)&&!rejected.has(g.id));
+ if(!candidates.length)return;
+ boardWarmBusy=true;
+ void platform.ensure(candidates[0].id)
+  .catch(error=>console.warn('Board game prewarm unavailable: '+candidates[0].id,error))
+  .finally(()=>{
+    boardWarmBusy=false;
+    if(round?.mode==='board'&&boardSession&&!document.hidden){
+      boardWarmTimer=setTimeout(()=>{boardWarmTimer=null;warmBoardGames();},12000);
+    }
+  });
+}
+function prewarmBoardCore(){
+ const core=window.BoardRuntime;
+ if(selectedSessionMode!=='board'||boardSession||round||!core||core.ready())return;
+ // The on-demand loader deduplicates script requests; clicking Start attaches
+ // its own completion callback to the SAME promise.
+ void core.ensure().catch(error=>console.warn('BOARD prewarm unavailable',error));
 }
 let boardCatalogPending=false,boardCorePending=null;
 function beginBoard(){
@@ -166,6 +185,7 @@ function beginBoard(){
   const core=window.BoardRuntime;
   if(core&&!core.ready()){
     if(boardCorePending)return boardCorePending;
+    showToast('กำลังเตรียม BOARD PARTY • เปิดเกมให้อัตโนมัติเมื่อพร้อม');
     const sessionMode=selectedSessionMode;
     boardCorePending=core.ensure().then(()=>{
       boardCorePending=null;
