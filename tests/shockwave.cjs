@@ -175,7 +175,7 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  assert.equal(s.tiles.length,25);
 }
 // The outer rim ignites before the inner ring and the center,
-// each threatened tile at a unique offset, all within 0.8 seconds.
+// each threatened tile at a unique offset, all within 0.5 seconds.
 for(let wave=1;wave<=14;wave++){
  const g=game(12,100+wave),s=g.state;
  s.wave=wave;
@@ -191,7 +191,7 @@ for(let wave=1;wave<=14;wave++){
   assert.ok(ring(plan[i].id)<=ring(plan[i-1].id),
    'outside tiles must explode before inner tiles');
  }
- assert.ok(plan.at(-1).at<.8,'all tile detonations occur within 0.8s');
+ assert.ok(plan.at(-1).at<=.42,'all tile ignitions occur within 0.42 seconds');
  assert.equal(plan[0].at,0,'the first tile explodes immediately');
 }
 {
