@@ -119,16 +119,16 @@
       <header class="lobby-bar">
         <div class="lobby-bar-brand"><strong>STICK SQUAD PARTY</strong></div>
         <div class="plaza-header-tools">
-          <button id="plazaRoomToggle" type="button">QR / ห้อง</button>
-          <button id="plazaRosterToggle" type="button">ผู้เล่น</button>
-          <button id="plazaSettingsToggle" type="button">ตั้งค่า</button>
+          <button id="plazaRoomToggle" type="button" aria-controls="plazaRoomPanel" aria-expanded="false">QR / ห้อง</button>
+          <button id="plazaRosterToggle" type="button" aria-controls="plazaRosterPanel" aria-expanded="false">ผู้เล่น</button>
+          <button id="plazaSettingsToggle" type="button" aria-controls="plazaSettingsPanel" aria-expanded="false">ตั้งค่า</button>
           <button id="plazaStartBtn" type="button">เริ่มเล่น</button>
         </div>
         <span id="hostRoomBadge" class="lobby-code-badge">กำลังสร้างห้อง...</span>
         <button id="closeRoomBtn" class="lobby-close-btn" type="button">ออกจากห้อง</button>
       </header>
       <div class="host-lobby-grid">
-        <section class="lobby-qr-panel">
+        <section id="plazaRoomPanel" class="lobby-qr-panel" aria-label="รายละเอียดห้องและ QR">
           <div id="roomPanel" class="room-panel hidden">
             <div class="room-top"><div><small>ROOM CODE</small><strong id="roomCode">------</strong></div><span class="live-pill">● LIVE</span></div>
             <div class="share-layout">
@@ -143,13 +143,13 @@
           </div>
           <p id="offlineRoomHint" class="lobby-offline-hint hidden">กำลังทดลองเล่นแบบออฟไลน์ บอทเริ่มที่ GHOST ATTACK • แตะชื่อเกมบนการ์ดเพื่อสลับเกม</p>
         </section>
-        <section class="lobby-player-panel">
+        <section id="plazaRosterPanel" class="lobby-player-panel" aria-label="รายชื่อผู้เล่น">
           <div class="lobby-section-title"><h2>รายชื่อผู้เล่นและเกมที่เลือก</h2><span id="rosterCount" class="count">0/12</span><button id="cycleAllBotsBtn" type="button" class="bulk-bot-switch hidden" title="เปลี่ยนเกมที่บอททุกตัวเลือกพร้อมกัน" disabled>เปลี่ยนเกมทุกบอท</button></div>
           <div id="roster" class="roster lobby-roster"><p class="empty">ยังไม่มีผู้เล่น • สแกน QR หรือเพิ่มบอท</p></div>
           <div id="hostQueue" class="host-queue hidden" aria-hidden="true"></div>
         </section>
       </div>
-      <div class="lobby-controls">
+      <div id="plazaSettingsPanel" class="lobby-controls" aria-label="รูปแบบการแข่งขันและตั้งค่าห้อง">
         <div class="lobby-control lobby-session-control"><span id="sessionModeLabel" class="gf-visually-hidden">รูปแบบการแข่งขัน</span>
           <div id="sessionMode" class="segmented-choice" role="group" aria-labelledby="sessionModeLabel">
             <button type="button" class="seg-option active" data-session-mode="queue" aria-pressed="true">NORMAL PARTY • เลือกเกม</button>
