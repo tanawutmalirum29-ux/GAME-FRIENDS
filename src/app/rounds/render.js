@@ -106,6 +106,7 @@ function animate(ts){
   const boardDt=Math.min(1,elapsed);
   frameLast=ts;
   try{
+   if(currentView==='hostLobby')window.PartyPlaza?.tick(dt,players);
    if(currentView==='game'&&gameSelection){
     // Board-to-minigame roulette also follows wall-clock time on slow devices.
     updateGameSelection(boardSession?boardDt:dt);

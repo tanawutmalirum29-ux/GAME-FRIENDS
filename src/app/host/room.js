@@ -195,6 +195,7 @@ function castLobbyReadyVote(conn){
   if(round||gameSelection||currentView!=='hostLobby'||!conn?.playerId)return false;
   const p=players.find(p=>p.id===conn.playerId&&p.conn===conn&&p.type==='remote');
   if(!p)return false;
+  if(typeof window!=='undefined'&&window.PartyPlaza&&!window.PartyPlaza.inZone(p,'ready_area'))return false;
   if(lobbyReadyVotes.has(p.id))lobbyReadyVotes.delete(p.id);
   else lobbyReadyVotes.add(p.id);
   renderRoster();
@@ -323,6 +324,7 @@ function renderRoster(){
     item.append(marker,name,waiting);
     el.append(item);
   }
+  window.PartyPlaza?.sync(players);
   if(onlineHost)saveHost();else saveOffline();
 }
 // Host-only modal: choose a specific game for all local bots without cycling.
@@ -877,6 +879,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         const p=players.find(p=>p.id===conn.playerId&&p.conn===conn);
         if(!p||p.choice===msg.mode)return;
         p.choice=msg.mode;lobbyReadyVotes.delete(p.id);renderRoster();broadcastRoster();
+        send(conn,{t:'plaza-picker',open:false});
       }else if(msg.t==='lobby-ready'&&conn.playerId){
         castLobbyReadyVote(conn);
       }else if(msg.t==='result-vote'&&conn.playerId){
@@ -1001,4 +1004,5 @@ function copyInvite(){
   else{$('roomUrl').select();document.execCommand('copy');done();}
 }
 let phoneSelectionOpen=false;
+let plazaPickerOpen=false;
 let myChosenMode=null;

@@ -252,7 +252,7 @@ window.addEventListener('gameplatform:catalog',syncGameCatalog);
 syncGameCatalog();
 function onPhoneGamePick(mode){
   if(!phoneSelectionOpen||!controllerReady||!modesFor('normal').includes(mode))return;
-  updatePhoneGamePicker('lobby',mode);
+  plazaPickerOpen=false;updatePhoneGamePicker('lobby',mode);
   send(controllerConn,{t:'pick',mode});
 }
 // These buttons control the HOST BOARD camera, not the tiny phone preview.

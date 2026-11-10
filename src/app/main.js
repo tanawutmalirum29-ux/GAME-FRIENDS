@@ -1,3 +1,40 @@
+// PARTY PLAZA overlays never resize/reflow the map. Existing room, roster and
+// session controls are retained; only their presentation changes.
+const plazaHost=$('hostLobby');
+const togglePlazaPanel=(name)=>{
+ const visible=plazaHost.classList.toggle('plaza-show-'+name);
+ const selector={room:'.lobby-qr-panel',roster:'.lobby-player-panel',controls:'.lobby-controls'}[name];
+ const panel=selector&&plazaHost.querySelector(selector);
+ if(panel)panel.style.setProperty('display',visible?(name==='controls'?'grid':'flex'):'none','important');
+};
+$('plazaRoomToggle')?.addEventListener('click',()=>togglePlazaPanel('room'));
+$('plazaRosterToggle')?.addEventListener('click',()=>togglePlazaPanel('roster'));
+$('plazaSettingsToggle')?.addEventListener('click',()=>togglePlazaPanel('controls'));
+$('plazaStartBtn')?.addEventListener('click',()=>{if(!$('startBtn').disabled)beginParty();});
+window.PartyPlaza?.configure({
+ interact(p,z){
+  if(!z)return;
+  switch(z.id){
+   case 'game_arcade':
+    if(selectedSessionMode==='board'){showToast('เลือกเกมเดี่ยวได้ใน NORMAL PARTY');return;}
+    if(p.conn?.open)send(p.conn,{t:'plaza-picker',open:true});
+    else if(p.isBot)openBulkBotPicker();
+    break;
+   case 'ready_area':
+    if(p.conn?.open)castLobbyReadyVote(p.conn);
+    else showToast('บอทพร้อมเล่นอยู่แล้ว • เจ้าของห้องกดเริ่มได้');
+    break;
+   case 'board_portal':
+    if(p.isBot)document.querySelector('[data-session-mode="board"]')?.click();
+    else showToast(p.name+' ขอเล่น BOARD PARTY • เจ้าของห้องเลือกโหมดที่แถบตั้งค่า');
+    break;
+   case 'room_corner': togglePlazaPanel('room');break;
+   case 'wardrobe':showToast('WARDROBE ยังไม่เปิดให้แต่งตัว');break;
+  }
+ },
+ cancel(p){if(p.conn?.open)send(p.conn,{t:'plaza-picker',open:false});}
+});
+
 const entryParams=new URLSearchParams(location.search);
 const joinCode=parseRoomCode(entryParams.get('join'));
 const launchedHost=entryParams.get('host')==='1';

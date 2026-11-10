@@ -2228,13 +2228,19 @@ phoneConn.fire('data',{t:'welcome',id:'p1',name:'Wut',color:'#ff628c',
 assert.equal(phone.elements.get('videoPreviewToggleBtn').textContent,'จอปิด','controller starts with screen off');
 assert.equal(phoneConn.sent.filter(m=>m.t==='preview-toggle').at(-1)?.enabled,false,
   'controller explicitly sends default OFF even before the first input packet');
-assert.equal(phone.elements.get('controllerPreviewOff').classList.contains('hidden'),true,
-  'the game selector remains visible in the lobby even while preview is off');
+assert.equal(phone.elements.get('controllerPreviewOff').classList.contains('hidden'),false,
+  'the phone joystick and screen-off placeholder are available until the player enters the Arcade');
 const unwantedVideo=phone.mediaCall('gf-party-ABCDE3');
 phone.instances[0].fire('call',unwantedVideo);
 assert.equal(unwantedVideo.closed,true,'disabled controller rejects incoming video without answering');
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
-assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),false);
+assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),true,
+  'game selector must not obstruct the joystick while walking through Party Plaza');
+phoneConn.fire('data',{t:'plaza-picker',open:true});
+assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),false,
+  'entering the Arcade must open the original game picker');
+assert.equal(phone.elements.get('controllerPreviewOff').classList.contains('hidden'),true,
+  'picker appears above screen-off preview only during interaction');
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'joining room must not reveal role or items before gameplay');
 assert.equal(phone.elements.get('buttonALabel').textContent,'');

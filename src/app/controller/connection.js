@@ -1,5 +1,5 @@
 function updatePhoneGamePicker(phase,choice){
-  phoneSelectionOpen=phase==='lobby'&&controllerReady&&controllerSessionMode!=='board';
+  phoneSelectionOpen=phase==='lobby'&&controllerReady&&controllerSessionMode!=='board'&&plazaPickerOpen;
   myChosenMode=Object.hasOwn(MODES,choice)?choice:null;
   $('phoneGamePicker').classList.toggle('hidden',!phoneSelectionOpen);
   // Picker and live game use the same permanent preview frame dimensions.
@@ -488,7 +488,7 @@ function joinRoom(recovery=false){
           controllerState('โฮสต์ใช้โปรโตคอลหรือ Core คนละเวอร์ชัน • อัปเดตแอปแล้วเข้าห้องอีกครั้ง',true);
           $('joinBtn').disabled=false;safePeerDestroy();return;
         }
-        controllerId=data.id;controllerReady=true;
+        controllerId=data.id;controllerReady=true;plazaPickerOpen=false;
         if(data.axisToken)startControllerFastAxis(peer,data.axisToken);
         reconnectTries=0;
         if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
@@ -538,6 +538,10 @@ function joinRoom(recovery=false){
         receiveBoardItemMeta(data);
       }else if(data.t==='board-state'){
         receiveBoardState(data);
+      }else if(data.t==='plaza-picker'){
+        plazaPickerOpen=data.open===true;
+        updatePhoneGamePicker('lobby',myChosenMode);
+        $('controllerState').textContent=plazaPickerOpen?'เลือกมินิเกม • กด B เพื่อปิด':'เดินใน PARTY PLAZA ด้วยจอย';
       }else if(data.t==='roster'){
         controllerSessionMode=data.sessionMode||'queue';
         const ready=data.lobbyReady||{};
@@ -554,8 +558,7 @@ function joinRoom(recovery=false){
         $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
           data.phase==='playing'?(self&&self.eliminated?'ตกรอบ • ดูเกมต่อ':self&&self.active?'กำลังเล่น • '+(MODES[data.mode]||'เกม'):'รอรอบถัดไป'):
           data.phase==='roulette'?'กำลังสุ่มเกมรอบถัดไป':data.phase==='countdown'?'เกมกำลังจะเริ่ม':data.phase==='summary'?'กำลังดูคะแนนรวม • กด B กลับล็อบบี้':data.phase==='results'?'จบรอบแล้ว • รอรอบใหม่':
-          (controllerLobbyVotes.selfReady?'พร้อมแล้ว • กด A อีกครั้งเพื่อยกเลิก':'กด A เพื่อโหวตเริ่มเกม')+
-          ' • '+controllerLobbyVotes.ready+'/'+controllerLobbyVotes.total+' พร้อม';
+          'เดินด้วยจอย • ไปที่ READY แล้วกด A • '+controllerLobbyVotes.ready+'/'+controllerLobbyVotes.total+' พร้อม';
       }else if(data.t==='result-votes'){
         if(controllerReady&&['results','summary'].includes(controllerGamePhase)){
           controllerResultVotes={
@@ -771,14 +774,13 @@ function showControllerMode(mode){
   const fruit=playing&&mode==='fruit_memory',shockwave=playing&&mode==='shockwave',colorSwitch=playing&&mode==='color_switch',knight=playing&&mode==='knight_match',boulder=playing&&mode==='boulder_bash',snow=playing&&mode==='snow_brawl';
   const lobbyVoting=controllerReady&&controllerGamePhase==='lobby'&&controllerLobbyVotes.total>0;
   const voting=controllerReady&&['results','summary'].includes(controllerGamePhase)&&controllerPlayerActive;
-  const aLabel=lobbyVoting?(controllerLobbyVotes.selfReady?'ยกเลิกพร้อม':'พร้อมเริ่ม')+
-    ' '+controllerLobbyVotes.ready+'/'+controllerLobbyVotes.total:
+  const aLabel=lobbyVoting?'A ใช้งานในโซน • '+controllerLobbyVotes.ready+'/'+controllerLobbyVotes.total:
     voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
     controllerResultVotes.nextLabel)+
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
     playing?(labels.A||''):'';
-  const bLabel=voting?controllerResultVotes.backLabel+' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
+  const bLabel=controllerGamePhase==='lobby'&&plazaPickerOpen?'ปิดรายการเกม':voting?controllerResultVotes.backLabel+' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
     ghost?($('controllerButtons').classList.contains('has-target')?
     'ยืนยันสโลว์':(labels.B||'ใช้ไอเทม')):(playing?(labels.B||''):'');
   $('controllerButtons').classList.remove('board-bomber-aim');
@@ -1109,8 +1111,9 @@ function bindControl(btn, target, id){
     if(target[key]===pressed)return;
     target[key]=pressed;btn.classList.toggle('pressed',pressed);
     if(id==='remote'){
-      if(pressed&&key==='action'&&controllerReady&&controllerGamePhase==='lobby')
-        send(controllerConn,{t:'lobby-ready'});
+      if(pressed&&key==='alt'&&controllerReady&&controllerGamePhase==='lobby'&&plazaPickerOpen){
+        plazaPickerOpen=false;updatePhoneGamePicker('lobby',myChosenMode);
+      }
       if(pressed&&controllerReady&&controllerPlayerActive&&['results','summary'].includes(controllerGamePhase)){
         const choice=key==='action'?'next':key==='alt'?'lobby':null;
         if(choice)send(controllerConn,{t:'result-vote',choice});

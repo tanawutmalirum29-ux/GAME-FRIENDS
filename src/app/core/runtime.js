@@ -493,6 +493,7 @@ function setView(view) {
   if(view==='game')markArenaResolutionDirty();
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
+  window.PartyPlaza?.setActive(view==='hostLobby');
   syncLandscapePresentation();
   if(view!=='game')hostFullscreenWasEntered=false;
   syncZoomPolicy();syncWebAppHelp();syncFullscreenRecovery();

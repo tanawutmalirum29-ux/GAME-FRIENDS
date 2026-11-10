@@ -6063,3 +6063,142 @@ body.controller-playing #controller .phone-game-choices{
   -webkit-overflow-scrolling:touch;
   touch-action:pan-y;
 }
+
+
+/* PARTY PLAZA / fullscreen host scene, UI overlays independent of world geometry. */
+#hostLobby.host-lobby.plaza-loaded:not(.hidden){
+  position:fixed!important;inset:0!important;
+  box-sizing:border-box;width:100dvw!important;height:100dvh!important;
+  min-height:0!important;max-width:none!important;max-height:none!important;
+  margin:0!important;padding:0!important;display:block!important;
+  overflow:hidden!important;background:#0c1030;
+}
+#hostLobby.plaza-loaded #plazaCanvas{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+  display:block;pointer-events:none;z-index:0;
+}
+#hostLobby.plaza-loaded .lobby-bar{
+  position:absolute;z-index:10;top:max(4px,env(safe-area-inset-top));left:8px;right:8px;
+  min-height:38px;padding:4px 8px;background:#121333d9;
+  border:1px solid #7176a7;border-radius:10px;display:flex;flex-direction:row;
+  align-items:center;gap:7px;pointer-events:auto;
+}
+#hostLobby.plaza-loaded .lobby-bar-brand strong{font-size:clamp(10px,1.2vw,17px)!important;letter-spacing:.2px}
+#hostLobby.plaza-loaded .lobby-code-badge{font-size:clamp(10px,1.1vw,15px)!important;letter-spacing:.2px}
+#hostLobby.plaza-loaded .plaza-header-tools{display:flex;align-items:center;gap:4px;margin-left:auto}
+#hostLobby.plaza-loaded .plaza-header-tools button{
+  background:#283256;color:#f3f8ff;border:1px solid #6c83af;border-radius:7px;
+  font-size:clamp(10px,1.2vw,14px);font-weight:800;padding:5px 8px;min-height:29px;
+}
+#hostLobby.plaza-loaded #plazaStartBtn{background:#2c9778;color:#fff;border-color:#90d7ae}
+#hostLobby.plaza-loaded .lobby-close-btn{font-size:11px!important;min-height:29px!important;padding:4px 8px!important}
+#hostLobby.plaza-loaded .host-lobby-grid{
+  position:absolute!important;inset:0!important;display:block!important;
+  min-height:0!important;max-height:none!important;overflow:visible!important;
+  pointer-events:none;z-index:7;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel,
+#hostLobby.plaza-loaded .lobby-player-panel{
+  position:absolute!important;display:none!important;pointer-events:auto;
+  top:52px!important;max-height:calc(100% - 105px)!important;
+  min-width:0!important;border:1px solid #7884af;
+  background:linear-gradient(135deg,#13162bf5,#24214beF)!important;
+  backdrop-filter:blur(6px);border-radius:12px!important;
+  padding:9px!important;overflow:auto!important;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel{
+  left:9px!important;width:clamp(175px,24vw,270px)!important;max-width:45vw!important;
+}
+#hostLobby.plaza-loaded .lobby-player-panel{
+  right:9px!important;width:clamp(235px,37vw,440px)!important;max-width:54vw!important;
+}
+#hostLobby.plaza-loaded.plaza-show-room .lobby-qr-panel{display:flex!important;}
+#hostLobby.plaza-loaded.plaza-show-roster .lobby-player-panel{display:flex!important;}
+#hostLobby.plaza-loaded .room-panel,#hostLobby.plaza-loaded .share-layout{
+  overflow:visible!important;max-height:none!important;min-height:0!important;
+}
+#hostLobby.plaza-loaded .qr-share-stack{width:min(100%,205px)!important;max-width:100%!important}
+#hostLobby.plaza-loaded .qr-share-stack .qr-box{width:100%!important;max-width:100%!important;aspect-ratio:1}
+#hostLobby.plaza-loaded .lobby-roster{min-height:260px!important;overflow-y:auto!important;max-height:unset!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}
+#hostLobby.plaza-loaded .lobby-controls{
+  display:none!important;position:absolute!important;z-index:9;top:51px!important;right:9px!important;
+  bottom:auto!important;width:min(50vw,495px)!important;max-height:calc(100% - 108px);
+  overflow:auto;background:#111832f2!important;border:1px solid #7484a9;border-radius:11px;
+  padding:10px!important;pointer-events:auto;
+  grid-template-columns:1fr!important;gap:7px!important;
+}
+#hostLobby.plaza-loaded.plaza-show-controls .lobby-controls{display:grid!important}
+#hostLobby.plaza-loaded .lobby-room-actions{grid-column:auto!important;grid-template-columns:1fr 1fr!important}
+#hostLobby.plaza-loaded .plaza-zone-hint{
+  position:absolute;z-index:4;left:8px;bottom:max(8px,env(safe-area-inset-bottom));
+  font-weight:800;font-size:clamp(11px,1.1vw,15px);color:#e4ecff;
+  background:#141a37ce;border:1px solid #526995;border-radius:10px;
+  padding:6px 10px;pointer-events:none;max-width:75%;
+}
+#hostLobby:not(.plaza-loaded) #plazaCanvas,#hostLobby:not(.plaza-loaded) .plaza-header-tools,
+#hostLobby:not(.plaza-loaded) .plaza-zone-hint{display:none}
+@media(max-width:660px){
+ #hostLobby.plaza-loaded .plaza-header-tools button{font-size:9px;padding:4px!important}
+ #hostLobby.plaza-loaded .lobby-bar-brand{display:none!important}
+ #hostLobby.plaza-loaded .lobby-close-btn{padding:3px!important}
+ #hostLobby.plaza-loaded .lobby-player-panel{width:55vw!important}
+ #hostLobby.plaza-loaded .lobby-controls{width:65vw!important}
+}
+
+/* When the physical device remains portrait, the existing HOST shell itself
+   rotates. Plaza dimensions are relative to that rotated shell, NOT 100dvw. */
+@media (orientation:portrait){
+ body.gf-virtual-landscape #hostLobby.host-lobby.plaza-loaded:not(.hidden){
+  width:100%!important;height:100%!important;max-height:100%!important;
+  min-height:0!important;padding:0!important;display:block!important;
+ }
+ body.gf-virtual-landscape #hostLobby.plaza-loaded .lobby-controls{
+  height:auto!important;min-height:0!important;max-height:calc(100% - 108px)!important;
+  grid-template-columns:1fr!important;grid-template-rows:auto!important;
+ }
+ body.gf-virtual-landscape #hostLobby.plaza-loaded .lobby-controls>.lobby-session-control,
+ body.gf-virtual-landscape #hostLobby.plaza-loaded .lobby-controls>.lobby-room-actions{
+  grid-column:auto!important;grid-row:auto!important;
+ }
+ body.gf-virtual-landscape #hostLobby.plaza-loaded .lobby-roster{
+  height:auto!important;min-height:260px!important;
+ }
+}
+
+
+/* Always reserve a scannable square for the QR in a floating Plaza room
+   panel. Previous percentage-based flex sizes could collapse to <65px when
+   the landscape host shell was virtually rotated on portrait devices. */
+#hostLobby.plaza-loaded .lobby-qr-panel{
+ width:clamp(205px,28vw,270px)!important;
+ min-width:205px!important;
+ max-width:min(65vw,270px)!important;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel .room-panel{
+ width:100%!important;
+ flex:0 0 auto!important;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel .share-layout{
+ width:100%!important;min-width:0!important;
+ flex:0 0 auto!important;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel .qr-share-stack{
+ display:flex!important;flex-direction:column!important;
+ width:180px!important;min-width:180px!important;
+ max-width:none!important;flex:0 0 auto!important;
+ align-self:center!important;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel .qr-share-stack .qr-box{
+ display:block!important;
+ width:172px!important;height:172px!important;
+ min-width:172px!important;min-height:172px!important;
+ max-width:none!important;max-height:none!important;
+ flex:0 0 172px!important;
+ aspect-ratio:1 / 1!important;
+ padding:7px!important;
+ box-sizing:border-box!important;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel .qr-share-stack .qr-box canvas,
+#hostLobby.plaza-loaded .lobby-qr-panel .qr-share-stack .qr-box img{
+ width:100%!important;height:100%!important;
+}
