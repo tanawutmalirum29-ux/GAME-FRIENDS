@@ -3,9 +3,9 @@ on:
   pull_request:
     paths:
       - 'src/board-party/runtime/board-map.js'
-      - 'src/board-party/runtime/board-v7-adapter.js'
-      - 'src/board-party/legacy/v7-source/**'
-      - 'scripts/build-board-v7.cjs'
+      - 'src/board-party/runtime/board-layout.js'
+      - 'src/board-party/source/**'
+      - 'scripts/build-board-assets.cjs'
       - 'tests/board-build-fresh.cjs'
       - 'tests/board-runtime-layers.cjs'
       - 'tests/static-build-integrity.cjs'
@@ -20,8 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Restore authored BOARD design
-        run: node scripts/build-board-v7.cjs
+        run: node scripts/build-board-assets.cjs
       - name: Print island density and route geometry
         run: node tests/board-layout-audit.cjs
-      - name: Enforce BOARD PARTY v8 node, bridge and sword geometry
-        run: node tests/board-v8-layout.cjs
+      - name: Enforce BOARD PARTY canonical node, bridge and sword geometry
+        run: node tests/board-map-layout.cjs
