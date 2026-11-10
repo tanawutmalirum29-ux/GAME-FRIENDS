@@ -1,0 +1,488 @@
+{
+  "schemaVersion": 1,
+  "sceneFile": "lobby-scene.svg",
+  "world": {
+    "width": 960,
+    "height": 540,
+    "coordinateSystem": "top-left origin, +x right, +y down, logical world px"
+  },
+  "physicalPlayerCollisionRadiusPxReference": 15,
+  "avatarWorldSpriteBoxPxReference": 52,
+  "interactionRadiusSemantics": "distance from player.x/y to zone center in world px; trigger only",
+  "walkableBounds": {
+    "type": "rect",
+    "x": 20,
+    "y": 42,
+    "width": 920,
+    "height": 480
+  },
+  "centralOpenArea": {
+    "type": "circle",
+    "cx": 480,
+    "cy": 330,
+    "r": 141
+  },
+  "zones": [
+    {
+      "id": "wardrobe",
+      "label": "WARDROBE",
+      "center": {
+        "x": 151,
+        "y": 190
+      },
+      "interactionRadiusPx": 49,
+      "priority": 60,
+      "trigger": "button_A"
+    },
+    {
+      "id": "game_arcade",
+      "label": "GAME ARCADE",
+      "center": {
+        "x": 480,
+        "y": 181
+      },
+      "interactionRadiusPx": 53,
+      "priority": 70,
+      "trigger": "button_A"
+    },
+    {
+      "id": "board_portal",
+      "label": "BOARD PARTY",
+      "center": {
+        "x": 809,
+        "y": 187
+      },
+      "interactionRadiusPx": 52,
+      "priority": 65,
+      "trigger": "button_A"
+    },
+    {
+      "id": "main_plaza",
+      "label": "MAIN PLAZA",
+      "center": {
+        "x": 480,
+        "y": 327
+      },
+      "interactionRadiusPx": 0,
+      "priority": 0,
+      "trigger": "none"
+    },
+    {
+      "id": "ready_area",
+      "label": "READY / START",
+      "center": {
+        "x": 480,
+        "y": 457
+      },
+      "interactionRadiusPx": 46,
+      "priority": 80,
+      "trigger": "button_A"
+    },
+    {
+      "id": "room_corner",
+      "label": "ROOM CORNER",
+      "center": {
+        "x": 816,
+        "y": 439
+      },
+      "interactionRadiusPx": 43,
+      "priority": 35,
+      "trigger": "button_A"
+    },
+    {
+      "id": "play_corner",
+      "label": "PLAY CORNER",
+      "center": {
+        "x": 144,
+        "y": 437
+      },
+      "interactionRadiusPx": 0,
+      "priority": 10,
+      "trigger": "none"
+    }
+  ],
+  "obstacles": [
+    {
+      "id": "wardrobe-building",
+      "type": "rect",
+      "x": 68,
+      "y": 52,
+      "width": 167,
+      "height": 100
+    },
+    {
+      "id": "arcade-building",
+      "type": "rect",
+      "x": 367,
+      "y": 38,
+      "width": 226,
+      "height": 100
+    },
+    {
+      "id": "board-portal",
+      "type": "rect",
+      "x": 742,
+      "y": 47,
+      "width": 143,
+      "height": 104
+    },
+    {
+      "id": "room-booth",
+      "type": "rect",
+      "x": 762,
+      "y": 372,
+      "width": 111,
+      "height": 41
+    },
+    {
+      "id": "play-prop-a",
+      "type": "circle",
+      "cx": 110,
+      "cy": 405,
+      "r": 13
+    },
+    {
+      "id": "play-prop-b",
+      "type": "circle",
+      "cx": 189,
+      "cy": 410,
+      "r": 13
+    },
+    {
+      "id": "neon-pool",
+      "type": "polygon",
+      "points": [
+        [
+          96,
+          300
+        ],
+        [
+          93.4,
+          308.8
+        ],
+        [
+          86,
+          316.3
+        ],
+        [
+          75,
+          321.2
+        ],
+        [
+          62,
+          323
+        ],
+        [
+          49,
+          321.2
+        ],
+        [
+          38,
+          316.3
+        ],
+        [
+          30.6,
+          308.8
+        ],
+        [
+          28,
+          300
+        ],
+        [
+          30.6,
+          291.2
+        ],
+        [
+          38,
+          283.7
+        ],
+        [
+          49,
+          278.8
+        ],
+        [
+          62,
+          277
+        ],
+        [
+          75,
+          278.8
+        ],
+        [
+          86,
+          283.7
+        ],
+        [
+          93.4,
+          291.2
+        ]
+      ]
+    },
+    {
+      "id": "lamp-01",
+      "type": "circle",
+      "cx": 318,
+      "cy": 214,
+      "r": 5
+    },
+    {
+      "id": "lamp-02",
+      "type": "circle",
+      "cx": 642,
+      "cy": 214,
+      "r": 5
+    },
+    {
+      "id": "lamp-03",
+      "type": "circle",
+      "cx": 314,
+      "cy": 330,
+      "r": 5
+    },
+    {
+      "id": "lamp-04",
+      "type": "circle",
+      "cx": 646,
+      "cy": 330,
+      "r": 5
+    },
+    {
+      "id": "lamp-05",
+      "type": "circle",
+      "cx": 398,
+      "cy": 502,
+      "r": 5
+    },
+    {
+      "id": "lamp-06",
+      "type": "circle",
+      "cx": 562,
+      "cy": 502,
+      "r": 5
+    },
+    {
+      "id": "light-tower-01",
+      "type": "circle",
+      "cx": 732,
+      "cy": 160,
+      "r": 8
+    },
+    {
+      "id": "light-tower-02",
+      "type": "circle",
+      "cx": 898,
+      "cy": 166,
+      "r": 8
+    },
+    {
+      "id": "light-tower-03",
+      "type": "circle",
+      "cx": 716,
+      "cy": 60,
+      "r": 8
+    },
+    {
+      "id": "edge-prop-01",
+      "type": "circle",
+      "cx": 30,
+      "cy": 28,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-02",
+      "type": "circle",
+      "cx": 300,
+      "cy": 24,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-03",
+      "type": "circle",
+      "cx": 336,
+      "cy": 34,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-04",
+      "type": "circle",
+      "cx": 640,
+      "cy": 26,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-05",
+      "type": "circle",
+      "cx": 690,
+      "cy": 36,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-06",
+      "type": "circle",
+      "cx": 930,
+      "cy": 34,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-07",
+      "type": "circle",
+      "cx": 934,
+      "cy": 150,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-08",
+      "type": "circle",
+      "cx": 938,
+      "cy": 300,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-09",
+      "type": "circle",
+      "cx": 936,
+      "cy": 372,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-10",
+      "type": "circle",
+      "cx": 934,
+      "cy": 486,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-11",
+      "type": "circle",
+      "cx": 26,
+      "cy": 110,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-12",
+      "type": "circle",
+      "cx": 24,
+      "cy": 232,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-13",
+      "type": "circle",
+      "cx": 26,
+      "cy": 498,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-14",
+      "type": "circle",
+      "cx": 214,
+      "cy": 522,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-15",
+      "type": "circle",
+      "cx": 334,
+      "cy": 524,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-16",
+      "type": "circle",
+      "cx": 630,
+      "cy": 524,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-17",
+      "type": "circle",
+      "cx": 760,
+      "cy": 522,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-18",
+      "type": "circle",
+      "cx": 880,
+      "cy": 520,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-19",
+      "type": "circle",
+      "cx": 922,
+      "cy": 236,
+      "r": 10
+    },
+    {
+      "id": "edge-prop-20",
+      "type": "circle",
+      "cx": 236,
+      "cy": 200,
+      "r": 10
+    }
+  ],
+  "spawnPoints": [
+    {
+      "slot": 1,
+      "x": 480,
+      "y": 242
+    },
+    {
+      "slot": 2,
+      "x": 522,
+      "y": 253
+    },
+    {
+      "slot": 3,
+      "x": 554,
+      "y": 284
+    },
+    {
+      "slot": 4,
+      "x": 565,
+      "y": 327
+    },
+    {
+      "slot": 5,
+      "x": 554,
+      "y": 370
+    },
+    {
+      "slot": 6,
+      "x": 522,
+      "y": 401
+    },
+    {
+      "slot": 7,
+      "x": 480,
+      "y": 412
+    },
+    {
+      "slot": 8,
+      "x": 438,
+      "y": 401
+    },
+    {
+      "slot": 9,
+      "x": 406,
+      "y": 370
+    },
+    {
+      "slot": 10,
+      "x": 395,
+      "y": 327
+    },
+    {
+      "slot": 11,
+      "x": 406,
+      "y": 284
+    },
+    {
+      "slot": 12,
+      "x": 437,
+      "y": 253
+    }
+  ],
+  "overlapPriority": "higher priority wins, then nearer center"
+}
