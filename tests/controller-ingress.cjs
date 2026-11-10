@@ -10,7 +10,8 @@ const create=()=>vm.runInContext('createControllerIngressGuard(clock)',ctx);
 const input={t:'input',keys:{axisX:0.9,axisY:-0.4,action:true,alt:false,cancel:false},actionId:1};
 const ingress=create();
 assert.equal(ingress.accept({t:'join',name:'Player',clientToken:'stable-1234567890'}),true);
-assert.equal(ingress.accept({t:'join',name:'Player',protocolVersion:1,coreHash:'f'.repeat(20)}),true);
+assert.equal(ingress.accept({t:'join',name:'Player',coreHash:'f'.repeat(20)}),true);
+assert.equal(ingress.accept({t:'join',name:'Player',protocolVersion:1,coreHash:'f'.repeat(20)}),false);
 assert.equal(ingress.accept({t:'join',name:'Player',protocolVersion:2,coreHash:'f'.repeat(20)}),false);
 assert.equal(ingress.accept({t:'join',name:'Player',protocolVersion:1,coreHash:'BAD'}),false);
 for(let i=0;i<180;i++)assert.equal(ingress.accept(input),true,'180 burst legal inputs');
@@ -45,7 +46,9 @@ const independent=create();assert.equal(independent.accept(input),true,'per-conn
 // The fast axis path is a separate, strictly monotonic 40Hz-budget guard.
 const createFast=()=>vm.runInContext('createFastAxisIngressGuard(clock)',ctx);
 const fast=createFast();
-assert.equal(fast.accept({t:'axis',seq:0,x:.7,y:-.4,turnId:'turn-1',mapVersion:'v10'}),true);
+assert.equal(fast.accept({t:'axis',seq:0,x:.7,y:-.4,turnId:'turn-1',mapVersion:'v10'}),false,
+ 'obsolete numbered board token must not be accepted on the fast axis channel');
+assert.equal(fast.accept({t:'axis',seq:0,x:.7,y:-.4,turnId:'turn-1',mapId:'winter-expedition'}),true);
 assert.equal(fast.accept({t:'axis',seq:0,x:1,y:1}),false,'unordered duplicate cannot replay movement');
 assert.equal(fast.accept({t:'axis',seq:1,x:2,y:0}),false,'out-of-range axis is rejected');
 assert.equal(fast.accept({t:'axis',seq:1,x:0,y:.2,action:true}),false,
