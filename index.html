@@ -62,6 +62,8 @@
   <script defer src="./arena-art.js"></script>
   <script defer src="./combat-motion.js"></script>
   <script defer src="./player-avatar.js"></script>
+  <script defer src="./src/lobby/party-plaza-art.js"></script>
+  <script defer src="./src/lobby/party-plaza.js"></script>
   <script defer src="./character-system.js"></script>
   <script defer src="./party-ui-art.js"></script>
   <script defer src="./party-arena-scenes.js"></script>
@@ -113,8 +115,15 @@
     </main>
 
     <main id="hostLobby" class="host-lobby hidden" aria-label="จอหลักห้องปาร์ตี้">
+      <canvas id="plazaCanvas" width="960" height="540" aria-label="แผนที่ล็อบบี้ PARTY PLAZA พร้อมตัวละครเดินเล่น"></canvas>
       <header class="lobby-bar">
         <div class="lobby-bar-brand"><strong>STICK SQUAD PARTY</strong></div>
+        <div class="plaza-header-tools">
+          <button id="plazaRoomToggle" type="button">QR / ห้อง</button>
+          <button id="plazaRosterToggle" type="button">ผู้เล่น</button>
+          <button id="plazaSettingsToggle" type="button">ตั้งค่า</button>
+          <button id="plazaStartBtn" type="button">เริ่มเล่น</button>
+        </div>
         <span id="hostRoomBadge" class="lobby-code-badge">กำลังสร้างห้อง...</span>
         <button id="closeRoomBtn" class="lobby-close-btn" type="button">ออกจากห้อง</button>
       </header>
@@ -154,6 +163,7 @@
           <button id="startBtn" class="btn btn-green" type="button" disabled>สุ่มและเริ่มเล่น ▶</button>
         </div>
       </div>
+      <div id="plazaZoneHint" class="plaza-zone-hint" aria-live="polite">เดินด้วยจอย • ไปที่จุดต่าง ๆ แล้วกด A</div>
     </main>
 
     <main id="game" class="game-page hidden" aria-label="จอเกมเต็มหน้าจอ">
