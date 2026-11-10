@@ -1,5 +1,11 @@
 # GAME-FRIENDS — Map Scale Rules (MAP-001–MAP-007)
 
+## ABSOLUTE IMAGE QUALITY RULE — performance is not a reason to reduce fidelity
+
+All 1–12-player minigames must use the same sharp Host rendering standard (960×540 logical Canvas with devicePixelRatio-backed pixels, correct world-to-screen transform), while their gameplay-specific world dimensions and tiers remain intentional. **Never decrease Canvas pixel resolution/DPR, SVG detail, original grid/tile/nav/path precision, or sprite quality to hide lag.** Measure and optimize repeated AI search, collision passes, draw work and GC instead. Guard original values in game-level tests. For DINO PANIC bot navigation = **10-unit** cells and map validation = **8-unit** cells.
+
+
+
 **Mandatory for every existing/new NORMAL PARTY minigame, BOARD PARTY adapter, and changes to an arena.** Source of truth for geometry is world-space physics, not Canvas pixels. Do not replace a game's authored tiers with an arbitrary 1280×720 arena.
 
 ## Vocabulary and canonical transforms
