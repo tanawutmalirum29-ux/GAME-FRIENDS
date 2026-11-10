@@ -1,7 +1,7 @@
 /* DINO PANIC — GAME-FRIENDS minigame (native ES module, folder-only discovery).
    Host-authoritative fixed-step simulation (1/60 s). Everything is in WORLD units:
    the corridor, obstacles, runners and the dinosaur share one coordinate system; only render.js maps it to the screen.
-   Rules: runners and dinosaur have the SAME max speed (150 u/s). The dinosaur never speeds up. Time lost
+   Rules: runners and dinosaur have the SAME reduced max speed (130 u/s). The dinosaur never speeds up. Time lost
    to obstacles / crowding / bad routes is the only way the dinosaur gains on a runner. */
 import {C,STEP,clamp,mkRng,tierFor} from './config.js';
 import {buildTrack,pushOut,dinoEdge} from './map.js';
@@ -52,7 +52,7 @@ function setup(round,players){
 function camFor(s){return clamp(s.front-190,-190,s.track.endX-960+40);}
 
 /* ───────── effects (cheap, capped, never placed in front of upcoming obstacles) ───────── */
-function fx(s,e){if(s.fx.length>=280)s.fx.splice(0,s.fx.length-260);s.fx.push(e);}
+function fx(s,e){if(s.fx.length>=130)s.fx.splice(0,s.fx.length-115);s.fx.push(e);}
 function burst(s,x,y,n,o){for(let i=0;i<n;i++){const a=Math.random()*6.283,v=(o.v||60)*(.4+Math.random());
  fx(s,{t:o.t,x,y,vx:Math.cos(a)*v+(o.bx||0),vy:Math.sin(a)*v,life:(o.life||.6)*(.6+Math.random()*.6),max:o.life||.6,size:o.size||5,color:o.color,rot:Math.random()*6.28,spin:(Math.random()-.5)*10});}}
 
@@ -85,6 +85,32 @@ function finish(s,round,reason){
  for(const r of s.ranking)r.p.score=Math.max(0,s.total-r.rank+1);
 }
 
+/* ───────── shoveable scenery ───────── */
+// Local bucket search avoids scanning the full corridor each frame.
+function obstacleNear(tr,x,y,r){
+ for(const o of tr.query(x-r-8,x+r+8)){
+  if(o.shape==='circle'){
+   if(Math.hypot(x-o.x,y-o.y)<r+o.r)return true;
+  }else{
+   const xx=clamp(x,o.x-o.hw,o.x+o.hw),yy=clamp(y,o.y-o.hh,o.y+o.hh);
+   if(Math.hypot(x-xx,y-yy)<r)return true;
+  }
+ }
+ return false;
+}
+function pushScenery(tr,p,dt){
+ if(!p.dino.pushing)return;
+ const R=C.R,vx=p.dino.ix,vy=p.dino.iy;
+ for(const o of tr.query(p.x-R-7,p.x+R+7)){
+  let dx,dy;
+  if(o.shape==='circle'){dx=p.x-o.x;dy=p.y-o.y;}
+  else{dx=p.x-clamp(p.x,o.x-o.hw,o.x+o.hw);dy=p.y-clamp(p.y,o.y-o.hh,o.y+o.hh);}
+  const d=Math.hypot(dx,dy),limit=R+(o.shape==='circle'?o.r:0)+1;
+  if(d>limit)continue;
+  if(d>1e-5&&dx*vx+dy*vy>=0)continue; // only when moving into it
+  tr.moveObstacle(o,vx*dt,vy*dt);
+ }
+}
 /* ───────── simulation step ───────── */
 function step(dt,round){
  const s=round.dinoPanic;if(!s||s.finished)return;
@@ -99,12 +125,16 @@ function step(dt,round){
   if(d.state==='done'){ // finished runners stroll to a parking spot and are not solid
    const dx=d.parkX-p.x;p.vx=Math.abs(dx)>3?Math.sign(dx)*110:0;p.vy=0;p.x+=p.vx*dt;if(p.vx)p.face=1;continue;}
   const c=p.isBot?botControl(s,p,dt):inputVector(p.input),m=Math.hypot(c.x,c.y);
-  d.ix=c.x*C.speed;d.iy=c.y*C.speed;
+  const approaching=m>.1&&obstacleNear(tr,p.x+c.x*16,p.y+c.y*16,R+7);
+  d.pushing=approaching;
+  const speed=C.speed*(approaching?C.pushFactor:1);
+  d.ix=c.x*speed;d.iy=c.y*speed;
   const k=Math.exp(-7*dt);d.kx*=k;d.ky*=k;
   p.vx=d.ix+d.kx;p.vy=d.iy+d.ky;p.x+=p.vx*dt;p.y+=p.vy*dt;
   if(m>.1){p.dir={x:c.x/m,y:c.y/m};p.face=p.dir.x<0?-1:1;}
  }
  const live=s.roster.filter(p=>p.dino.state==='run');
+ for(const p of live)pushScenery(tr,p,dt);
  // 2) body-to-body shoves: closing speed turns into a short knock for both runners
  for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
   const a=live[i],b=live[j],dx=b.x-a.x,dy=b.y-a.y,dd=Math.hypot(dx,dy);
@@ -163,9 +193,9 @@ function update(dt,round){
  const s=round.dinoPanic;if(!s)return null;
  if(s.finished)return'winner';
  if(round.paused||round.phase!=='playing')return null;
- s.accumulator=Math.min(.25,s.accumulator+clamp(Number(dt)||0,0,.25));
+ s.accumulator=Math.min(.12,s.accumulator+clamp(Number(dt)||0,0,.12));
  let cycles=0;
- while(s.accumulator+1e-9>=STEP&&cycles++<15&&!s.finished){step(STEP,round);s.accumulator-=STEP;}
+ while(s.accumulator+1e-9>=STEP&&cycles++<6&&!s.finished){step(STEP,round);s.accumulator-=STEP;}
  return s.finished?'winner':null;
 }
 function draw(g,time,round,ps){const s=round.dinoPanic;if(s)drawWorld(g,time,s);}
