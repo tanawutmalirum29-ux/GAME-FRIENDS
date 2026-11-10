@@ -16,7 +16,7 @@ const C=Object.freeze({
  cell:12,pitch:50,
  speed:67.5,botSpeed:.93, // move at half of the old speed
  introSeconds:3,planeSpeed:760,bombTime:.55,
- mineRespawn:3.2,
+ mineRespawn:.2, // fixed 200 ms rearm after each explosion
  respawnDelay:.8,spawnProtection:.9,
  maxAttempts:14,
  radar:Object.freeze({bodyR:34,minR:62,shrinkTime:2.5}),
@@ -374,12 +374,11 @@ function explode(s,m,victims){
  }
 }
 
-// Reactivate a mine after its blast cooldown, never underneath a player.
+// Reactivate each mine exactly after its 0.2 s cooldown; no occupancy postponement.
 function respawnMines(s){
  let changed=false;
  for(const m of s.mines){
   if(m.alive||s.clock<m.respawnAt)continue;
-  if(s.roster.some(p=>p.df?.state==='run'&&Math.hypot(p.x-m.x,p.y-m.y)<C.hazard+C.radius+6))continue;
   m.alive=true;m.respawnAt=Infinity;changed=true;
   s.burns=s.burns.filter(b=>Math.hypot(b.x-m.x,b.y-m.y)>1);
  }
