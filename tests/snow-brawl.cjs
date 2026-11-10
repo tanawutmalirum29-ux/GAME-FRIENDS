@@ -353,12 +353,15 @@ assert.equal(left.snow.ballId,null);assert.equal(right.snow.ballId,null);
 {
  // Simultaneous falls tie, surviving players win, and solo lasts sixty seconds.
  const g=match(4),[a,b,c,d]=g.ps;
- a.x=g.s.radius+30;b.x=-g.s.radius-30;
+ // Recreate genuine *external* knockback; simply walking into the rim
+ // must not kill a player. Simultaneous knockback ring-outs still tie.
+ a.x=g.s.radius-20;b.x=-g.s.radius+20;
+ a.kvx=3000;b.kvx=-3000;
  tick(g);
  assert.equal(a.snow.alive,false);
  assert.equal(b.snow.alive,false);
  assert.equal(a.snow.eliminatedTick,b.snow.eliminatedTick);
- c.x=g.s.radius+50;tick(g);
+ c.x=g.s.radius-20;c.kvx=3000;tick(g);
  assert.equal(g.s.finished,true);
  assert.deepEqual([...g.s.winnerIds],[d.id]);
  const ranks=Object.fromEntries(g.s.ranking.map(q=>[q.id,q.rank]));
