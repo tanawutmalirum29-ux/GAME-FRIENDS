@@ -25,7 +25,7 @@ function setup(round,ps){
   candies:[],bombs:[],fx:[],floats:[],live:[],drawList:[],
   pool:{candy:[],bomb:[],fx:[],float:[]},
   candyTimer:0,candyGoal:0,bombTimer:0,bombCap:bombCap(n,world),recent:[],lastNear:[],rot:[],
-  shake:0,layers:null,winnerIds:[],ranking:[]};
+  shake:0,layers:null,winnerIds:[],ranking:[],candiesReady:false};
  round.candyChaos=s;
  s.layers=art.preload(world);
  // spread the start positions on an ellipse around the middle, order shuffled with the seed
@@ -39,7 +39,8 @@ function setup(round,ps){
   p.dyn={cvx:0,cvy:0,kx:0,ky:0,ox:x,oy:y,stunUntil:-9,immuneUntil:-9,hits:0,got:0,bot:p.isBot?makeBot(s):null};
   if(p.dyn.bot){p.dyn.bot.lastX=x;p.dyn.bot.lastY=y;}
  });
- fillCandies(s,ps);
+ // Pre-round countdown is intentionally an empty arena.
+ // Candy appears only on the first playable simulation tick.
  round.remaining=s.duration;
  return s;
 }
@@ -113,6 +114,8 @@ function finish(s,round,ps){
 }
 function step(dt,round,ps){
  const s=round.candyChaos;if(!s||s.finished)return;
+ if(round.phase==='countdown')return;
+ if(!s.candiesReady){fillCandies(s,ps);s.candiesReady=true;}
  s.tick++;s.clock+=dt;
  const live=s.live;live.length=0;
  for(const p of ps)if(p.active&&p.dyn)live.push(p);
@@ -161,7 +164,6 @@ function draw(g,time,round,ps){
  g.scale(960/w.w,540/w.h);
  if(s.shake>0)g.translate(Math.sin(s.clock*91)*6*s.shake,Math.cos(s.clock*77)*6*s.shake);
  art.drawBackdrop(g,w,s.layers);
- for(const bm of s.bombs)if(bm.state==='warn')art.drawWarn(g,bm,s.clock);
  drawFx(g,s,true);
  for(const c of s.candies)art.drawCandy(g,c,s.clock);
  for(const bm of s.bombs)if(bm.state==='live')art.drawBomb(g,bm,s.clock);
