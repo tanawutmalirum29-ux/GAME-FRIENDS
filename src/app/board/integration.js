@@ -255,19 +255,9 @@ function refreshBoardTools(){
  // Exit must be available during normal BOARD play, not only while paused.
  $('boardExitBtn').classList.toggle('hidden',!active);
  if(active){
-  const c=boardSession.camera;
-  const botsOnly=boardSession.players.every(p=>p.isBot);
-   if(!botsOnly){c.debugNodes=false;c.selectedId=null;}
-   $('boardNodeDebugBtn').classList.toggle('hidden',!botsOnly);
-   $('boardNodeDebugBtn').setAttribute('aria-pressed',String(botsOnly&&!!c.debugNodes));
-  $('boardEffectsBtn').setAttribute('aria-pressed',String(!!c.lowDetail));
-  $('boardStartDiceBtn').classList.add('hidden'); // Automatic 2-second panorama, no manual start required.
-  const canZoom=hostCanControlBoardZoom();
-  // Overview/follow change zoom implicitly; treat them as zoom controls too.
-  $('boardFollowBtn').disabled=['overview','intro_zoom'].includes(boardSession.phase)||!canZoom;
-  $('boardOverviewBtn').disabled=boardSession.phase==='intro_zoom'||
-    (boardSession.phase!=='overview'&&!canZoom);
-  $('boardZoomInBtn').disabled=!canZoom;$('boardZoomOutBtn').disabled=!canZoom;
+  // Debug overlays are local to the Host and never change BOARD rules or
+  // network state. Leave the ID button visible in human and bot rooms.
+  $('boardNodeDebugBtn').setAttribute('aria-pressed',String(!!boardSession.camera.debugNodes));
  }
  if(active&&round.paused){
   $('pauseBtn').title='เล่นต่อ';$('pauseBtn').setAttribute('aria-label','เล่นต่อ');
@@ -309,7 +299,7 @@ function updateBoard(dt){
     pending-=step;
     if(s.phase==='minigame_pending'||s.phase==='minigame'||s.phase==='finished')break;
   }
-  refreshBoardTools();
+  // No per-frame DOM toolbar updates: only pause, exit and ID remain.
    if(s.phase==='minigame_pending'){
     const mode=window.BoardMinigame.pick(boardRegistry(),s.players.length,s.lastMinigame,s.rng);
     if(!mode)throw Error('No compatible minigame');

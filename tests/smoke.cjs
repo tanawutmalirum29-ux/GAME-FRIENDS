@@ -2835,7 +2835,7 @@ for(const count of [1,12]){
  assert.equal(s.deadline,Infinity,'exploration has no human timeout');
  api.updateBoard(1);api.updateBoard(.95);
  assert.equal(s.phase,'overview','full-map introduction remains visible before two seconds');
- assert.equal(ui.elements.get('boardStartDiceBtn').classList.contains('hidden'),true,'manual skip is hidden now that intro is timed');
+ assert.equal(ui.elements.has('boardStartDiceBtn'),false,'manual skip button was removed: timed intro is automatic');
  api.updateBoard(.05);
  assert.equal(s.phase,'intro_zoom','camera fly-in begins automatically at two seconds');
  assert.ok(Math.abs(s.deadline-s.phaseAt-1.5)<1e-9,'intro zoom lasts 1.5 seconds');
@@ -2854,7 +2854,7 @@ for(const count of [1,12]){
  assert.equal(s.phase,'intro_zoom','order cannot start until the fly-in finishes');
  api.updateBoard(.05);
  assert.equal(s.phase,'order','dice ordering starts automatically after 3.5 seconds');
- assert.equal(ui.elements.has('boardStartDiceBtn'),true,'legacy element remains for accessibility but auto intro needs no click');
+ assert.equal(ui.elements.has('boardNodeDebugBtn'),true,'the only BOARD toolbar control is Show ID');
  for(let i=0;i<10000&&s.phase!=='minigame';i++)api.updateBoard(.05);
  assert.equal(s.phase,'minigame','every turn completes and starts the reel');
  assert.ok(api.getSelection());
@@ -3032,7 +3032,7 @@ for(const count of [1,12]){
  const initial=s.camera.zoom;
  spectator.fire('data',{t:'board-camera-zoom',direction:1});
  assert.equal(s.camera.zoom,initial,'spectator zoom rejected by host');
- ui.click('boardZoomInBtn');
+ assert.equal(ui.elements.has('boardZoomInBtn'),false,'obsolete Host zoom button must not exist');
  assert.equal(s.camera.zoom,initial,'host screen cannot bypass a REMOTE current turn');
  owner.fire('data',{t:'board-camera-zoom',direction:1});
  assert.ok(s.camera.zoom>initial,'authorized current player can zoom');
