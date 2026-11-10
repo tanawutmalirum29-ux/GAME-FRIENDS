@@ -186,7 +186,7 @@ function generate(s,attempt,fallback){
   if(obstacles.some(ob=>overlaps(ob,nd.x,nd.y,C.mineR+4)))continue;
   mines.push({id:mines.length,x:nd.x+(rng()-.5)*6,y:nd.y+(rng()-.5)*6,r:C.mineR,alive:true,respawnAt:Infinity,seed:rng()});
  }
- return{mines,obstacles};
+ return{mines,obstacles,routeNodes:L.nodes.filter(nd=>open[nd.j*L.cols+nd.i]).map(nd=>({i:nd.i,j:nd.j,x:nd.x,y:nd.y}))};
 }
 function analyse(s,cand){
  const nav=s.nav,base=staticBlocked(s,cand.obstacles),blocked=base.slice();
@@ -208,7 +208,7 @@ function buildWorld(s){
   const a=analyse(s,cand);if(a)info=a;
  }
  if(!info){cand=generate(s,0,true);info=analyse(s,cand);s.usedFallback=true;}
- s.attempts=attempts;s.mines=cand.mines;s.obstacles=cand.obstacles;
+ s.attempts=attempts;s.mines=cand.mines;s.obstacles=cand.obstacles;s.routeNodes=cand.routeNodes;
  s.navBase=info.base;s.D0=info.D;s.startDist=info.start;s.goalSeeds=info.seeds;
  // Live snapshot: mines that exploded stop blocking, recomputed once per explosion tick.
  s.blockedLive=info.blocked.slice();s.dLive=Float64Array.from(info.D);
