@@ -150,9 +150,21 @@ function drawBreaking(g,L,cache,i,state,p,time){
   g.drawImage(sprite,x,y,T,T);g.fillStyle='rgba(120,70,20,'+(.08+.12*p).toFixed(3)+')';g.fillRect(x,y,T,T);
   strokeCracks(g,cr,x,y,T,3,.15+.4*p,0,1.1,'rgba(70,40,10,.8)');
  }else if(state===2){
-  const j=p>.7?Math.sin(time*70+i)*.45:0;
-  g.drawImage(sprite,x+j,y,T,T);g.fillStyle='rgba(105,58,16,'+(.22+.22*p).toFixed(3)+')';g.fillRect(x+j,y,T,T);
-  strokeCracks(g,cr,x+j,y,T,6,.5+.4*p,.3+.5*p,1.7,'rgba(55,30,8,.88)');
+  // First tile layer has dropped away; show a distinct inset lower floor.
+  g.fillStyle='#4a3020';g.fillRect(x,y,T,T);
+  g.fillStyle='#a0784b';g.fillRect(x+3,y+3,T-6,T-6);
+  g.drawImage(sprite,x+5,y+5,T-10,T-10);
+  g.fillStyle='rgba(36,22,13,.3)';g.fillRect(x+5,y+5,T-10,T-10);
+  g.strokeStyle='rgba(251,212,136,.7)';g.lineWidth=1;
+  g.strokeRect(x+5.5,y+5.5,T-11,T-11);
+ }else if(state===3&&p<.78){
+  // The bottom layer starts as a solid surface; cracks grow before it breaks.
+  const q=p/.78,j=Math.sin(time*39+i)*q*.4;
+  g.fillStyle='#4a3020';g.fillRect(x,y,T,T);
+  g.drawImage(sprite,x+5+j,y+5,T-10,T-10);
+  g.fillStyle='rgba(59,30,15,'+(.24+.3*q).toFixed(3)+')';g.fillRect(x+5+j,y+5,T-10,T-10);
+  strokeCracks(g,cr,x+j,y,T,6,.18+.82*q,.2+.75*q,1.4+q,
+   'rgba(37,20,10,.95)');
  }else{
   g.fillStyle='#120a04';g.fillRect(x,y,T,T);
   const A=.8+1.7*p,cx=cr.cx,cy=cr.cy;

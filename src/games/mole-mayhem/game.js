@@ -177,6 +177,7 @@ function setup(round,ps){
   p.active=true;p.score=0;p.x=world.cx+Math.cos(a)*ring;p.y=world.cy+Math.sin(a)*ring;p.vx=p.vy=0;
   p.dir={x:-Math.cos(a)||0,y:-Math.sin(a)||1};if(n===1)p.dir={x:0,y:1};p.face=p.dir.x<0?-1:1;
   p.mole={att:null,stunUntil:-9,kx:0,ky:0,wantAtk:false,aWas:false,bot:p.isBot?makeBot(s):null};
+  resolveObstacles(s,p); // Spawn outside all solid holes.
   if(p.mole.bot){p.mole.bot.lastX=p.x;p.mole.bot.lastY=p.y;}
  });
  round.remaining=s.duration;
@@ -231,7 +232,7 @@ function botDecide(s,p,live){
  }else if(best){
   b.target=best.id;
   const v=toward(best.x,best.y);
-  if(v.d>reach*.9){mx=v.ux;my=v.uy;}
+  if(v.d>reach*.97){mx=v.ux;my=v.uy;}
   if(v.d<=reach&&idle&&clock>=b.nextAtk&&upLeft(best)>C.attack.windup+.03){
    const err=(rng(s)-.5)*(1-b.skill)*.5,ca=Math.cos(err),sa=Math.sin(err);
    p.dir={x:v.ux*ca-v.uy*sa,y:v.ux*sa+v.uy*ca};p.face=p.dir.x<0?-1:1;
@@ -257,13 +258,14 @@ function botDecide(s,p,live){
     let bestPt=null,bsc=-Infinity;
     for(let k=0;k<7;k++){
      const a=rng(s)*TAU,r=Math.sqrt(rng(s))*W.R*.72,x=W.cx+Math.cos(a)*r,y=W.cy+Math.sin(a)*r;
+     if(s.slots.some(sl=>hyp(x-sl.x,y-sl.y)<(22+C.radius+5)*u))continue;
      let near=Infinity;for(const q of live)if(q!==p)near=Math.min(near,hyp(q.x-x,q.y-y));
      const sc=Math.min(near,200*u)+(b.patrol?Math.min(hyp(b.patrol.x-x,b.patrol.y-y),200):0)*.6+rng(s)*30;
      if(sc>bsc){bsc=sc;bestPt={x,y};}
     }
     b.patrol=bestPt;b.patrolUntil=clock+1.6+rng(s)*1.6;
    }
-   const v=toward(b.patrol.x,b.patrol.y);mx=v.ux;my=v.uy;
+   if(b.patrol){const v=toward(b.patrol.x,b.patrol.y);mx=v.ux;my=v.uy;}
   }
  }
  // separation from other players so bots do not pile up
@@ -299,6 +301,26 @@ function clampArena(s,p){
  const w=s.world,r=C.radius*w.unit+3,lim=w.R-r,dx=p.x-w.cx,dy=p.y-w.cy,d=hyp(dx,dy);
  if(d>lim){p.x=w.cx+dx/d*lim;p.y=w.cy+dy/d*lim;}
 }
+// All garden holes block movement, whether vegetables or moles occupy them.
+// Animate-moving vegetables also block players during position swaps.
+function resolveObstacles(s,p){
+ const u=s.world.unit,pr=C.radius*u;
+ for(let pass=0;pass<5;pass++){
+  let moved=false;
+  const push=(x,y,rx,ry)=>{
+   let dx=p.x-x,dy=p.y-y;
+   if(Math.abs(dx)<1e-6&&Math.abs(dy)<1e-6){dx=1;dy=0;}
+   const norm=Math.hypot(dx/rx,dy/ry);
+   if(norm>=1)return;
+   p.x=x+dx/Math.max(norm,1e-5);p.y=y+dy/Math.max(norm,1e-5);
+   moved=true;
+  };
+  for(const sl of s.slots)push(sl.x,sl.y,22*u+pr+2*u,17*u+pr+2*u);
+  for(const v of s.vegs)if(v.t<1)push(v.x,v.y,22*u+pr+2*u,20*u+pr+2*u);
+  clampArena(s,p);
+  if(!moved)break;
+ }
+}
 function movePlayer(s,p,live,dt){
  const m=p.mole,u=s.world.unit,st=stunned(s,p);
  const inp=p.isBot?botInput(s,p,live,dt):humanInput(p);
@@ -317,6 +339,7 @@ function movePlayer(s,p,live,dt){
  if(hyp(m.kx,m.ky)<1){m.kx=0;m.ky=0;}
  p.x+=m.kx*dt;p.y+=m.ky*dt;
  clampArena(s,p);
+ resolveObstacles(s,p);
  p.vx=(p.x-ox)/dt;p.vy=(p.y-oy)/dt;
 }
 function resolvePlayers(s,live){
@@ -327,7 +350,7 @@ function resolvePlayers(s,live){
   if(d>=r*2)continue;if(d<1e-4){dx=1;dy=0;d=1;}
   const o=(r*2-d)/2;a.x-=dx/d*o;a.y-=dy/d*o;b.x+=dx/d*o;b.y+=dy/d*o;
  }
- for(const p of live)clampArena(s,p);
+ for(const p of live){clampArena(s,p);resolveObstacles(s,p);}
 }
 function hitPlayer(s,a,q){
  const u=s.world.unit,att=a.mole.att;
