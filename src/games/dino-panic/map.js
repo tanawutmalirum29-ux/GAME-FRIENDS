@@ -161,7 +161,7 @@ export function buildTrack(tier,seed,playerCount){
   if(!o.alive||(!dx&&!dy))return false;
   const rx=o.shape==='circle'?o.r:o.hw,ry=o.shape==='circle'?o.r:o.hh;
   const nx=o.x+dx,ny=o.y+dy;
-  if(ny-ry<top+3||ny+ry>bottom-3||nx-rx<lastSpawn+45||nx+rx>finishX-35)return false;
+  if(ny-ry<top-3||ny+ry>bottom+3||nx-rx<lastSpawn+45||nx+rx>finishX-35)return false;
   for(const q of query(nx-rx-5,nx+rx+5)){
    if(q===o)continue;
    const qx=q.shape==='circle'?q.r:q.hw,qy=q.shape==='circle'?q.r:q.hh;
