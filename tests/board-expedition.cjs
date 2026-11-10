@@ -55,10 +55,10 @@ p.hp=100;assert.equal(B.chooseNext(s,p),'b76_1','healthy bot can take a risky sh
 assert.equal(B.route(s,'b76_1','c76_1'),null,'sibling paths are not connected by nearby scenery');
 assert.ok(B.route(s,'n56','n66'),'return to the same island is reachable using directed edges');
 assert.equal(B.route(s,'n66','n56'),null,'island return cannot reverse graph progress');
-// Version barriers cover update, input, start-turn, snapshots and minigame return.
-const packet={turnId:s.turnId,mapVersion:'winter-fixed-120-v2',actionId:1,keys:{action:true}};
-assert.equal(P.input(s,p.id,packet),false);assert.equal(P.snapshot(s).mapVersion,M.MAP_VERSION);
-s.map.version='winter-fixed-120-v2';
+// Canonical map identity guards update, input, start-turn, snapshots and minigame return.
+const packet={turnId:s.turnId,mapId:'stale-expedition',actionId:1,keys:{action:true}};
+assert.equal(P.input(s,p.id,packet),false);assert.equal(P.snapshot(s).mapId,M.MAP_ID);
+s.map.id='stale-expedition';
 for(const fn of [()=>P.update(s,.05),()=>P.input(s,p.id,packet),()=>P.startTurn(s),()=>P.snapshot(s),()=>P.minigameEnded(s,[])])assert.throws(fn,/Incompatible/);
 // Decorations are part of the fixed definition, with safe footprints on actual snow.
 const inside=(p,poly)=>{let yes=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)yes=!yes;}return yes;};
@@ -85,4 +85,4 @@ for(const island of map.islands){
   for(const [x,y] of [[b[0],b[1]],[b[2],b[1]],[b[0],b[3]],[b[2],b[3]]])assert.ok(inside({x:d.x+x*k,y:d.y+y*k},outline),'decoration on snow: '+island.id+' '+d.kind+' '+d.x);
  }
 }
-console.log('EXPEDITION PASS: all '+nodes.length+' nodes followed at 2 aspect ratios, all fork choices framed, nearby non-edges blocked, graph-aware bots, old-version rejection, curved coast and fixed decoration containment');
+console.log('EXPEDITION PASS: all '+nodes.length+' nodes followed at 2 aspect ratios, all fork choices framed, nearby non-edges blocked, graph-aware bots, stale-map rejection, curved coast and fixed decoration containment');
