@@ -50,6 +50,11 @@ jobs:
           node tests/controller-bundle.cjs
       - name: Automatically check syntax of all present and future JavaScript files
         run: node scripts/check-javascript.cjs
+      - name: Discover and run Node regressions owned by changed minigames
+        if: ${{ needs.browser-plan.outputs.full != 'true' && contains(fromJSON(needs.browser-plan.outputs.areas), 'game') }}
+        env:
+          QA_IMPACT_JSON: ${{ needs.browser-plan.outputs.impact }}
+        run: node scripts/ci-game-tests.cjs
       - name: Validate discovered game plug-ins and immutable catalog
         if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game') || contains(fromJSON(needs.browser-plan.outputs.areas), 'platform') }}
         run: |
