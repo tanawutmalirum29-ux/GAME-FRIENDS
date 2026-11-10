@@ -609,7 +609,7 @@ function nodes(g,s){
   if(!visible(x,y,75))continue;
   const owner=n.type==='sword'?s.players.find(p=>p.id===s.map.territories[n.territoryId]?.ownerId):null;
   const tileColor=owner?.color||colors[n.type]||colors.neutral;
-  const pulse=s.camera.lowDetail?0:Math.sin(s.time*3)*1.5;
+  const pulse=0; // Fixed tile marks; no ornamental pulse every render frame.
   if(n.type==='lucky')circle(g,x,y,49+pulse,'#ffd66a25','#d4b867',2);
   if(n.nextNodes.length>1){circle(g,x,y,53,null,'#b9985b',3);for(let j=0;j<4;j++)circle(g,x+Math.cos(j*Math.PI/2)*53,y+Math.sin(j*Math.PI/2)*53,3,'#ffe6aa');}
   // Ceramic playing pieces, inset emblem and a shaded rim sit above the trail.
@@ -621,7 +621,7 @@ function nodes(g,s){
   g.save();g.translate(x,y);
   if(n.type==='movement'||n.type==='start'){const q=s.map.nodes[n.nextNodes[0]];if(q)g.rotate(Math.atan2(q.position.y-y,q.position.x-x));}
   icon(g,n.type,0,0,n.type==='sword'?25:n.type==='lucky'?23:20,'#f7ffff');g.restore();
-   if(c.debugNodes&&s.players.every(p=>p.isBot)){
+   if(c.debugNodes){
     g.save();g.translate(x,y-53);g.scale(1/c.zoom,1/c.zoom);
     box(g,-27,-9,54,18,4,'#0a2a43e9','#72b1cf');
     label(g,c.zoom<.2?n.id.replace(/^n/,''):n.id,0,0,9,'#fff','center',800,50);
@@ -1128,13 +1128,13 @@ function zoom(s,scale){
  c.manualZoom=c.zoom;c.panned=true;c.rescuedOffscreen=false;return true;
 }
 function toggleDebug(s){
-  // Debug identifiers are restricted to bot-only sessions.
-  if(s.players.some(p=>!p.isBot)){s.camera.debugNodes=false;s.camera.selectedId=null;return false;}
+  // Read-only Host overlay, available to human and bot rooms. Never affects
+  // collisions, turn ownership, scoring or data sent to controllers.
   s.camera.debugNodes=!s.camera.debugNodes;if(!s.camera.debugNodes)s.camera.selectedId=null;
   return s.camera.debugNodes;
  }
 function inspect(s,x,y){
- if(!s.camera.debugNodes||s.players.some(p=>!p.isBot))return null;
+ if(!s.camera.debugNodes)return null;
  const top=94,viewH=mapBottom(s)-top,c=s.camera;
  if(y<top||y>mapBottom(s))return null;
  const wx=c.x+(x-480)/c.zoom,wy=c.y+(y-(top+viewH/2))/c.zoom;
@@ -1220,17 +1220,13 @@ function draw(g,t,s){
  g.clearRect(0,0,960,sceneHeight(s));g.fillStyle='#183e5d';g.fillRect(0,top,960,viewH);g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();g.translate(480,top+viewH/2);g.scale(c.zoom,c.zoom);g.translate(-c.x,-c.y);
  ground(g,s);
  roadGuides(g,s);
-  const designData=window.BOARD_DESIGN,sceneryApi=window.BOARD_SCENERY;
-  if(designData&&sceneryApi){
-   if(!c.lowDetail){
-    if(!s.__sceneryFx)s.__sceneryFx=sceneryApi.createEffects(designData,1);
-    s.__sceneryFx.draw(g,{x:c.x-480/c.zoom,y:c.y-viewH/(2*c.zoom),w:960/c.zoom,h:viewH/c.zoom,zoom:c.zoom},t);
-   }
-  }else{decorations(g,s);if(typeof ambience==='function'&&!c.lowDetail)ambience(g,s,t);}
+  // Terrain, paths, islands and landmarks are already cached/static.
+  // Skip animated scenery overlays and shimmer entirely.
+  if(!(window.BOARD_DESIGN&&window.BOARD_SCENERY))decorations(g,s);
   mapLandmarks(g,s);
   nodes(g,s);actors(g,s,t);effects(g,s,t);g.restore();
- // Snow is a screen overlay; never modifies hitboxes or graph state.
- g.save();g.beginPath();g.rect(0,top,960,viewH);g.clip();for(let i=0;i<(c.lowDetail?0:35);i++){const x=(i*137.3+Math.sin(t*.3+i)*20)%960,y=top+(i*71+t*(12+i%7))%viewH;circle(g,x,y,1+i%3*.45,'#ffffff8c');}g.restore();
+ // No continuously moving snow/particles over the board. The gameplay
+ // effects layer above still communicates real hazards and item outcomes.
  hud(g,s);
  if(!overviewMode&&!c.paused){
   // The A/B/C guide sits directly below scoreboard player #1 on the left.
@@ -1239,7 +1235,7 @@ function draw(g,t,s){
   turnDice(g,s);intermissionNotice(g,s);luckyRoulette(g,s);
   g.restore();overlay(g,s);
  }
- if(s.camera.debugNodes&&s.players.every(p=>p.isBot)&&s.camera.selectedId){
+ if(s.camera.debugNodes&&s.camera.selectedId){
   const n=s.map.nodes[s.camera.selectedId],t=s.map.territories[n.territoryId];
   box(g,207,bottom-49,546,57,8,'#0a2a43f5','#91cde7');
   label(g,(s.map.nodePathIds?.[n.id]||n.id)+' ['+n.id+'] • '+n.type+' • progress '+n.progress+' • HP '+(n.effects.hp||0),
