@@ -206,7 +206,7 @@ function resumeGame(){
   round.paused=false;
   if(round.mode==='board'&&boardSession){const s=boardSession;s.camera.paused=false;s.camera.overview=false;s.camera.manualZoom=null;s.inputs={};}
   $('pauseMenu').classList.add('hidden');
-  $('boardExitBtn').classList.add('hidden');
+  $('boardExitBtn').classList.toggle('hidden',round.mode!=='board'||!boardSession);
   $('pauseBtn').setAttribute('aria-expanded','false');
   refreshBoardTools();
   broadcastRoster();
@@ -229,12 +229,13 @@ function returnToLobby(){
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
 $('boardExitBtn').addEventListener('click',()=>{
- if(round?.mode!=='board'||!round.paused||!boardSession)return;
+ if(currentView!=='game'||round?.mode!=='board'||!boardSession)return;
  confirmAction('ต้องการออกจาก BOARD PARTY และกลับไปยังล็อบบี้หรือไม่? ความคืบหน้าบอร์ดเกมรอบนี้จะสิ้นสุด',{
   title:'ยืนยันออกจากบอร์ดเกม',confirmLabel:'ยืนยันออกเกม',danger:true
  }).then(confirmed=>{
-  // Cancel leaves the board paused; only an explicit confirmation exits.
-  if(confirmed&&round?.mode==='board'&&round.paused&&boardSession)returnToLobby();
+  // Cancel preserves the existing running/paused state. The confirmation may
+  // complete on a later event loop tick; don't tear down another session.
+  if(confirmed&&currentView==='game'&&round?.mode==='board'&&boardSession)returnToLobby();
  });
 });
 // Re-enter native fullscreen only after a real user click (required by the API).
