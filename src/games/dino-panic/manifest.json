@@ -1,0 +1,17 @@
+{
+  "id": "dino_panic",
+  "name": "DINO PANIC",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {"min": 1, "max": 12},
+  "modes": ["normal", "board"],
+  "controls": ["joystick"],
+  "entry": "./game.js",
+  "cover": "cover.svg",
+  "legacyScripts": [],
+  "controller": {
+    "help": "หนีไดโนเสาร์ไปทางขวา • จอยสติ๊กใช้วิ่งและหลบลังไม้ • ชนเพื่อนแล้วเสียจังหวะ • โดนเหยียบตกรอบ • A/B ไม่ใช้",
+    "labels": {},
+    "status": "DINO PANIC • รอด {survivors} คน"
+  }
+}
