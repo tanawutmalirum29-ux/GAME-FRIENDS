@@ -1,0 +1,25 @@
+{
+  "id": "dynamite",
+  "name": "DYNAMITE",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {
+    "min": 1,
+    "max": 12
+  },
+  "modes": [
+    "normal",
+    "board"
+  ],
+  "controls": [
+    "joystick"
+  ],
+  "cover": "cover.svg",
+  "entry": "./game.js",
+  "legacyScripts": [],
+  "controller": {
+    "help": "วิ่งชนผู้เล่นอื่นเพื่อส่งระเบิด • หลบรถรางเหมือง • ถูกชนจะมึน 1.2 วินาที",
+    "labels": {},
+    "status": "DYNAMITE • รอด {survivors} คน"
+  }
+}
