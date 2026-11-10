@@ -12,8 +12,8 @@ const C=Object.freeze({
  swapMin:6,swapMax:10,swapAnim:.85,
  rise:.28,sink:.3,bonk:.55,
  tiers:[
-  {max:6,w:960,h:540,unit:1,R:235,spacing:92,veg:5,moles:[1,3],seconds:45},
-  {max:12,w:1280,h:720,unit:1.12,R:315,spacing:90,veg:9,moles:[2,5],seconds:60}
+  {max:6,w:960,h:540,unit:1,R:235,spacing:105,moles:[1,3],seconds:45},
+  {max:12,w:1280,h:720,unit:1.12,R:315,spacing:120,moles:[2,5],seconds:60}
  ]
 });
 const VEG=['cabbage','pumpkin','carrot','watermelon'];
@@ -43,7 +43,8 @@ function buildSlots(s){
 }
 function placeVeg(s){
  const u=s.world.unit,free=shuffle(s,s.slots.slice());
- const n=Math.min(s.world.veg,free.length-s.world.moles[1]-1);
+ // Approximately 60% of holes stay filled with vegetables, leaving spawnable holes.
+ const n=Math.min(Math.round(free.length*.6),free.length-s.world.moles[1]);
  s.vegs=[];
  for(let i=0;i<n;i++){
   const sl=free[i];
