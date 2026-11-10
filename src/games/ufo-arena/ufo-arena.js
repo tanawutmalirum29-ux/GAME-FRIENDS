@@ -6,7 +6,9 @@ import * as Art from './ufo-art.js';
 const STEP=1/120,TAU=Math.PI*2,EPS=1e-9;
 const C=Object.freeze({
  radius:17,acc:330,fric:1.85,brake:2.15,maxSpeed:560,mass:1,
- ufoRest:.82,impactMultiplier:1.25,maxCollisionSpeed:600, // direct ship impacts feel springy; energy cannot multiply through a chain
+ ufoRest:.82,impactMultiplier:1.25,maxCollisionSpeed:600, // chain collisions conserve/dissipate impulse
+ minPairSeparationSpeed:160, // fresh ship contact must kick BOTH ships apart (scaled world units/s)
+ edgeBounceMultiplier:1.5,   // perimeter walls + coloured corner bumpers only, not centre bumper
  wallRest:.7,
  cornerRest:.84,cornerBase:190,cornerGain:.45,        // strong bumper: out = max(|vn|*rest, base + min(|vn|,260)*gain)
  bumperRest:.78,bumperBase:165,bumperGain:.38,bumperRadius:42,
@@ -305,10 +307,10 @@ function capCollisionSpeed(p,u){
  const speed=hyp(p.vx,p.vy),cap=C.maxCollisionSpeed*u;
  if(speed>cap){p.vx*=cap/speed;p.vy*=cap/speed;}
 }
-function bounceOff(p,nx,ny,rest,base,gain,u){
+function bounceOff(p,nx,ny,rest,base,gain,u,bounceScale=1){
  const vn=p.vx*nx+p.vy*ny;if(vn>=0)return 0;
  const inN=-vn;
- const out=Math.max(inN*rest,base?base*u+Math.min(inN,260*u)*gain:0)*C.impactMultiplier;
+ const out=Math.max(inN*rest,base?base*u+Math.min(inN,260*u)*gain:0)*C.impactMultiplier*bounceScale;
  p.vx+=nx*(out-vn);p.vy+=ny*(out-vn);
  capCollisionSpeed(p,u);
  p.ufo.impactT=.32; // short impact allowance; no multi-body energy explosion
@@ -320,7 +322,7 @@ function envCollide(s,p){
   const e=geo.edges[i],dist=(p.x-e.a.x)*e.n.x+(p.y-e.a.y)*e.n.y;
   if(dist>=R)continue;
   p.x+=e.n.x*(R-dist);p.y+=e.n.y*(R-dist);
-  const inN=e.strong?bounceOff(p,e.n.x,e.n.y,C.cornerRest,C.cornerBase,C.cornerGain,u):bounceOff(p,e.n.x,e.n.y,C.wallRest,0,0,u);
+  const inN=e.strong?bounceOff(p,e.n.x,e.n.y,C.cornerRest,C.cornerBase,C.cornerGain,u,C.edgeBounceMultiplier):bounceOff(p,e.n.x,e.n.y,C.wallRest,0,0,u,C.edgeBounceMultiplier);
   if(inN>70*u&&d.fxCool<=0){
    d.fxCool=.12;
    const col={cyan:'#7fe0ff',green:'#8dff7a',red:'#ff7a6a',yellow:'#ffe27a',gray:'#e6e8ff'}[e.kind];
@@ -339,27 +341,38 @@ function envCollide(s,p){
   }
  }
 }
-function pairCollide(s,live){
- const u=s.geo.u,R2=C.radius*u*2;
+function pairCollide(s,live,previousContacts,currentContacts){
+ const u=s.geo.u,R2=C.radius*u*2,minimum=C.minPairSeparationSpeed*u;
  for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
   const a=live[i],b=live[j];
   let dx=b.x-a.x,dy=b.y-a.y,d=hyp(dx,dy);
   if(d>=R2)continue;
-  if(d<1e-5){dx=a.id<b.id?1:-1;dy=0;d=1e-5;}
-  const nx=dx/d,ny=dy/d,ma=a.ufo.mass,mb=b.ufo.mass,im=1/ma+1/mb,pen=R2-d;
-  const corr=pen*.9/im;
-  a.x-=nx*corr/ma;a.y-=ny*corr/ma;b.x+=nx*corr/mb;b.y+=ny*corr/mb;
+  // Treat a contact as a single event across the solver passes / frames.
+  // Without a fresh-contact impulse, nearly stationary UFOs can get stuck
+  // pushing one another despite being drawn as overlapping vehicles.
+  const key=i+','+j;
+  const fresh=!previousContacts.has(key)&&!currentContacts.has(key);
+  currentContacts.add(key);
+  if(d<1e-5){dx=String(a.id)<String(b.id)?1:-1;dy=0;d=1e-5;}
+  const nx=dx/d,ny=dy/d,ma=a.ufo.mass,mb=b.ufo.mass,im=1/ma+1/mb;
+  const separation=(R2-d+.35*u)/im;
+  a.x-=nx*separation/ma;a.y-=ny*separation/ma;
+  b.x+=nx*separation/mb;b.y+=ny*separation/mb;
   const rel=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
-  if(rel<0){
-   // Ordinary pair impulse conserves momentum and loses energy (e<1).
-   // Strong wall/bumper boost is NOT propagated through every ship collision.
-   const j2=-(1+C.ufoRest)*rel/im;
-   a.vx-=j2*nx/ma;a.vy-=j2*ny/ma;b.vx+=j2*nx/mb;b.vy+=j2*ny/mb;
+  // Normal collisions are dissipative (restitution < 1). A fresh,
+  // slow or already-overlapping contact gets ONE minimum separating
+  // velocity so both UFOs visibly rebound instead of sticking together.
+  // Do not add this speed every solver pass or on sustained contact.
+  const target=Math.max(-C.ufoRest*rel,fresh?minimum:0);
+  if(target>rel){
+   const impulse=(target-rel)/im;
+   a.vx-=impulse*nx/ma;a.vy-=impulse*ny/ma;
+   b.vx+=impulse*nx/mb;b.vy+=impulse*ny/mb;
    capCollisionSpeed(a,u);capCollisionSpeed(b,u);
    a.ufo.impactT=b.ufo.impactT=.32;
-   if(-rel>90*u&&a.ufo.fxCool<=0&&b.ufo.fxCool<=0){
+   if((fresh||-rel>90*u)&&a.ufo.fxCool<=0&&b.ufo.fxCool<=0){
     a.ufo.fxCool=b.ufo.fxCool=.12;
-    impactFx(s,(a.x+b.x)/2,(a.y+b.y)/2,'#fff4c2',clamp(-rel/(260*u),.2,1));
+    impactFx(s,(a.x+b.x)/2,(a.y+b.y)/2,'#fff4c2',clamp(Math.max(-rel,minimum)/(260*u),.25,1));
    }
   }
  }
@@ -403,7 +416,7 @@ function finish(s,round,ps){
 }
 function release(s){
  if(s.art){Art.releaseArt(s.art);}
- s.fx.length=0;
+ s.fx.length=0;s.pairContacts?.clear();
 }
 function step(dt,round,ps){
  const s=round.ufoArena;if(!s||s.finished)return;
@@ -411,7 +424,19 @@ function step(dt,round,ps){
  updateZones(s,dt);
  const live=living(ps);
  for(const p of live)integrate(s,p,live,dt);
- for(let it=0;it<3;it++){pairCollide(s,live);for(const p of live)envCollide(s,p);}
+ const previousContacts=s.pairContacts||new Set(),currentContacts=new Set();
+ for(let it=0;it<3;it++){
+  pairCollide(s,live,previousContacts,currentContacts);
+  for(const p of live)envCollide(s,p);
+ }
+ // Keep contact state across ticks with a small release tolerance to avoid
+ // repeated artificial knockback when ships skim / press on one another.
+ const R2=C.radius*s.geo.u*2,release=R2+3*s.geo.u,nextContacts=new Set();
+ for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
+  const key=i+','+j;
+  if((currentContacts.has(key)||previousContacts.has(key))&&hyp(live[i].x-live[j].x,live[i].y-live[j].y)<=release)nextContacts.add(key);
+ }
+ s.pairContacts=nextContacts;
  spikeHits(s,live);
  round.remaining=Math.max(0,s.total-s.clock);
  if(!s.pendingFinish){
