@@ -44,10 +44,6 @@
  <circle cx="0" cy="-24" r="8" fill="url(#gcdyn-boom)"/><circle cx="0" cy="-24" r="3" fill="#fff3b0"/>
 </g>
 <g stroke="#ffd27a" stroke-width="2.5" stroke-linecap="round"><path d="M178 128l10 6M184 114l12-2M120 96l-8-8"/></g>
-<!-- tunnel mouth + title -->
+<!-- tunnel mouths -->
 <path d="M96 0H150V10Q123 4 96 10Z" fill="#1a0b06"/><path d="M178 180H234V170Q206 176 178 170Z" fill="#1a0b06"/>
-<g font-family="system-ui,sans-serif" font-weight="900" text-anchor="middle">
- <text x="160" y="31" font-size="22" fill="#3a0b06" stroke="#3a0b06" stroke-width="5" stroke-linejoin="round" paint-order="stroke">DYNAMITE</text>
- <text x="160" y="31" font-size="22" fill="#ffe08a">DYNAMITE</text>
-</g>
 </svg>
