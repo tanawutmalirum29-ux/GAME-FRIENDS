@@ -97,7 +97,7 @@ const ui={
 };
 vm.createContext(ui);
 vm.runInContext(runtime.slice(startLandscape,endLandscape)+
- '\\nthis.updateLandscape=syncLandscapePresentation;',ui);
+ '\nthis.updateLandscape=syncLandscapePresentation;',ui);
 ui.updateLandscape();
 assert.equal(uiFlags.has('gf-virtual-landscape'),true,
  'installed PWA uses landscape fallback when no scanner is open');
@@ -111,11 +111,11 @@ assert.equal(uiFlags.has('gf-virtual-landscape'),true,
  'closing the camera restores virtual landscape for the controller');
 assert.ok(repaint>=2,'switching scan and game views invalidates cached layout');
 
-assert.match(controller,/syncLandscapePresentation\\(\\);[\\s\\S]*?await releaseQrSession\\(session\\)/,
+assert.match(controller,/syncLandscapePresentation\(\);[\s\S]*?await releaseQrSession\(session\)/,
  'closing the scanner restores the original orientation');
-assert.match(controller,/session\\.reader\\.start\\(\\{facingMode:'environment'\\},\\{/);
-assert.match(controller,/qrbox:\\(width,height\\)=>/,
+assert.match(controller,/session\.reader\.start\(\{facingMode:'environment'\},\{/);
+assert.match(controller,/qrbox:\(width,height\)=>/,
  'camera scan region must adapt to real sensor dimensions');
-assert.match(css,/#roomScannerPanel #roomQrReader video\\{[\\s\\S]*?height:auto!important/,
+assert.match(css,/#roomScannerPanel #roomQrReader video\{[\s\S]*?height:auto!important/,
  'scanner video keeps intrinsic aspect rather than stretching to its parent');
 console.log('LANDSCAPE ORIENTATION PASS: physical QR camera, PWA native/fallback switching, world touch, BOARD map and controller fallback');
