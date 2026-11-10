@@ -1,0 +1,25 @@
+{
+  "id": "candy_chaos",
+  "name": "CANDY CHAOS",
+  "apiVersion": 1,
+  "enabled": true,
+  "players": {
+    "min": 1,
+    "max": 12
+  },
+  "modes": [
+    "normal",
+    "board"
+  ],
+  "controls": [
+    "joystick"
+  ],
+  "cover": "cover.svg",
+  "entry": "./game.js",
+  "controller": {
+    "help": "วิ่งเก็บลูกอม +35 คะแนน • หลบระเบิดที่ดักหน้า (โดน -35 และสตัน 1.2 วิ) • คะแนนสูงสุดเมื่อหมดเวลาชนะ • A/B ไม่ใช้",
+    "labels": {},
+    "status": "CANDY CHAOS • เหลือ {remaining} วิ"
+  },
+  "legacyScripts": []
+}
