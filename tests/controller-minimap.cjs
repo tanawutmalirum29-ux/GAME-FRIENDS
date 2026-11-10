@@ -6,9 +6,10 @@ const source=fs.readFileSync('src/app/board/integration.js','utf8');
 const boundary=source.indexOf('function boardRegistry()');
 assert.ok(boundary>0,'minimap functions must remain before BOARD registration');
 const packets=[];
+let positionCalls=0;
 const player={id:'p1',color:'#f02a55',worldPosition:{x:1000,y:700}};
 const rival={id:'p2',color:'#2cf0b3',worldPosition:{x:1200,y:740}};
-const session={id:'board-test-123',turnId:'b:1',map:{
+const session={id:'board-test-123',turnId:'b:1',time:0,map:{
  id:'winter-expedition',width:3000,height:2000,
  nodes:{a:{position:{x:900,y:680},nextNodes:['b']},
   b:{position:{x:1050,y:720},nextNodes:['c']},
@@ -31,7 +32,7 @@ const elements={controllerBoardMinimap:canvas,
  controllerPreviewPlaceholder:{classList:classes}};
 const conn={open:true,playerId:'p1',previewEnabled:true,boardMinimapCapable:true};
 const scope={boardSession:session,round:{mode:'board'},hostConnections:new Set([conn]),
- window:{BoardParty:{current:()=>player},BoardItems:{position:(_s,p)=>p.worldPosition}},
+ window:{BoardParty:{current:()=>player},BoardItems:{position:(_s,p)=>{positionCalls++;return p.worldPosition;}}},
  controllerPreviewEnabled:true,controllerGameMode:'board',controllerId:'p1',
  $:id=>elements[id],send:(c,p)=>packets.push(p),Math,console};
 vm.createContext(scope);
@@ -56,6 +57,34 @@ assert.equal(vm.runInContext('phoneMiniMapPositions.players.length',scope),2,
 conn.previewEnabled=false;
 scope.sendBoardMiniMap(conn);
 assert.equal(packets.length,3,'preview off never streams topology or positions');
+// The 12 Hz BOARD minimap must be calculated once for all connected phones.
+// No movement: suppress duplicates but retain a one-second heartbeat.
+conn.previewEnabled=true;
+const spectator={open:true,playerId:'p2',previewEnabled:true,boardMinimapCapable:true};
+scope.hostConnections.add(spectator);
+scope.broadcastBoardMiniMap=vm.runInContext('broadcastBoardMiniMap',scope);
+const initialCount=packets.length,initialComputations=positionCalls;
+session.time=.1;
+scope.broadcastBoardMiniMap(.1);
+assert.equal(packets.length-initialCount,3,
+ 'one position packet per controller, initial map once for new controller');
+assert.equal(positionCalls-initialComputations,2,
+ 'both controllers share one calculation per player, not two');
+const idleCount=packets.length;
+session.time=.2;
+scope.broadcastBoardMiniMap(.1);
+assert.equal(packets.length,idleCount,'unchanged minimap state must not flood phones');
+session.time=.3;player.worldPosition.x+=12;
+scope.broadcastBoardMiniMap(.1);
+assert.equal(packets.length,idleCount+2,'moving actors still stream at normal rate');
+conn.dataChannel={bufferedAmount:65536};
+session.time=.4;player.worldPosition.x+=12;
+scope.broadcastBoardMiniMap(.1);
+assert.equal(packets.length,idleCount+3,'a congested controller skips stale frames');
+conn.dataChannel.bufferedAmount=0;
+session.time=1.6;
+scope.broadcastBoardMiniMap(.1);
+assert.equal(packets.length,idleCount+5,'heartbeat resumes for all observers');
 const ctrl=fs.readFileSync('src/app/controller/connection.js','utf8');
 const host=fs.readFileSync('src/app/host/room.js','utf8');
 assert.match(ctrl,/function startControllerFastAxis/);
