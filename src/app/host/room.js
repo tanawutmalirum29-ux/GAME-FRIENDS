@@ -616,10 +616,30 @@ function renderQr(code){
   const link=shareUrl(code);
   $('roomUrl').value=link;
   const box=$('qrBox');box.replaceChildren();
-  if(typeof QRCode==='function'){
-    try{new QRCode(box,{text:link,width:256,height:256,correctLevel:QRCode.CorrectLevel.M});return;}catch(e){}
-  }
-  box.textContent='QR ไม่พร้อม กรุณาคัดลอกลิงก์';
+  const paint=()=>{
+    if(!onlineHost||roomCode!==code)return;
+    box.replaceChildren();
+    if(typeof QRCode==='function'){
+      try{
+        new QRCode(box,{text:link,width:256,height:256,correctLevel:QRCode.CorrectLevel.M});
+        return;
+      }catch(error){console.warn('QR generation failed',error);}
+    }
+    box.textContent='QR ไม่พร้อม • คัดลอกลิงก์เชิญด้านล่างได้';
+  };
+  if(typeof QRCode==='function'){paint();return;}
+  // The room and copyable invite are ready without waiting for a second CDN.
+  box.textContent='กำลังเตรียม QR • ใช้ลิงก์เชิญได้ทันที';
+  const ensureQr=window.GameRuntimeDeps?.ensureQr;
+  if(ensureQr){
+    void ensureQr().then(()=>{
+      // Give the browser a chance to paint the room before QR canvas work.
+      requestAnimationFrame(()=>{if(roomCode===code)paint();});
+    }).catch(error=>{
+      console.warn('QR library unavailable',error);
+      if(onlineHost&&roomCode===code)paint();
+    });
+  }else paint();
 }
 
 function fastAxisSessionToken(){

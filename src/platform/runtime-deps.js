@@ -23,7 +23,8 @@ function load(kind){
 }
 window.GameRuntimeDeps=Object.freeze({
  ensureController:()=>load('peer'),
- ensureHost:()=>Promise.all([load('peer'),load('qr')]),
+ ensureHost:()=>load('peer'),
+ ensureQr:()=>load('qr'),
  ready:kind=>Boolean(sources[kind]?.ready())
 });
 })();

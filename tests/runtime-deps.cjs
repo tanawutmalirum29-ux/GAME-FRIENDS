@@ -35,10 +35,18 @@ async function success(){
  await Promise.all([first,duplicate]);
  assert.equal(f.window.GameRuntimeDeps.ready('peer'),true);
  const host=f.window.GameRuntimeDeps.ensureHost();
- assert.equal(f.tags.length,2,'host loads only missing QR library');
+ await host;
+ assert.equal(f.tags.length,1,'Host signaling starts without QR library');
+ assert.equal(f.window.GameRuntimeDeps.ready('qr'),false);
+ const qr=f.window.GameRuntimeDeps.ensureQr();
+ const duplicateQr=f.window.GameRuntimeDeps.ensureQr();
+ assert.equal(f.tags.length,2,'QR is requested on demand, once');
  assert.ok(f.tags[1].src.includes('qrcodejs@1.0.0'));
- f.flush();await host;
  await f.window.GameRuntimeDeps.ensureHost();
+ assert.equal(f.tags.length,2,'opening the room does not wait on QR');
+ f.flush();await Promise.all([qr,duplicateQr]);
+ assert.equal(f.window.GameRuntimeDeps.ready('qr'),true);
+ await f.window.GameRuntimeDeps.ensureQr();
  assert.equal(f.tags.length,2,'cached libraries are not downloaded again');
 }
 async function recover(){
@@ -52,5 +60,5 @@ async function recover(){
  assert.equal(f.window.GameRuntimeDeps.ready('peer'),true);
 }
 Promise.resolve().then(success).then(recover).then(()=>
- console.log('RUNTIME DEPS PASS: offline cold-start, single controller fetch, host QR and failed-download recovery')
+ console.log('RUNTIME DEPS PASS: instant signaling after PeerJS, optional deduped QR and failed-download recovery')
 ).catch(error=>{console.error(error);process.exitCode=1;});

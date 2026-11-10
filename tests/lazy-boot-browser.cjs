@@ -25,7 +25,7 @@ const buildVersion='window.GAME_DEPLOY_ID="lazy-browser-test";'+
 const injection=`window.__lazyGameTest={get round(){return round},
  get board(){return boardSession},get selection(){return gameSelection},
  get players(){return players},get view(){return currentView},
- beginBoard,beginGameSelection,updateGameSelection,returnToLobby,addLocal,receiveBoardState,
+ beginBoard,beginGameSelection,updateGameSelection,updateBoard,returnToLobby,addLocal,receiveBoardState,
  simulateReloadGuard(kind){
   const old={onlineHost,hostPeer,hostNetworkLoad,controllerReady,controllerPeer,
    controllerConn,controllerNetworkLoad,currentView,round,gameSelection,boardSession};
@@ -183,6 +183,50 @@ const server=http.createServer((req,res)=>{
   assert.equal(board.round,'board');
   assert.equal(board.board,true);
   assert.equal(board.total,15);
+  // Exercise a real BOARD -> randomly chosen minigame transition. A metadata
+  // placeholder is not sufficient: its engine and game-owned dependencies
+  // must actually download, activate and enter countdown.
+  const selectedMode=await page.evaluate(()=>{
+   const board=__lazyGameTest.board;
+   BoardParty.phase(board,'minigame_pending');
+   __lazyGameTest.updateBoard(.05);
+   return __lazyGameTest.selection?.mode||null;
+  });
+  assert.ok(selectedMode,'BOARD must launch a minigame roulette');
+  await page.waitForFunction(()=>!!__lazyGameTest.selection &&
+    (__lazyGameTest.selection.ready||__lazyGameTest.selection.error),
+    null,{polling:100,timeout:20000});
+  const transition=await page.evaluate(()=>{
+   const error=String(__lazyGameTest.selection?.error||'');
+   __lazyGameTest.updateGameSelection(4);
+   return {error,mode:__lazyGameTest.round?.mode,
+    phase:__lazyGameTest.round?.phase,board:__lazyGameTest.board?.phase};
+  });
+  assert.equal(transition.error,'','BOARD minigame must load real game assets');
+  assert.equal(transition.mode,selectedMode);
+  assert.equal(transition.phase,'countdown');
+  assert.equal(transition.board,'minigame');
+  // A failed cold roulette should switch to a loaded engine, not skip BOARD
+  // rewards/turns or disconnect everyone.
+  await page.evaluate(async()=>{
+   await Promise.all([GamePlatform.ensure('ghost'),GamePlatform.ensure('chickens')]);
+   __lazyGameTest.returnToLobby();
+   __lazyGameTest.beginBoard();
+  });
+  const fallback=await page.evaluate(()=>{
+   const s=__lazyGameTest.board;
+   BoardParty.phase(s,'minigame_pending');
+   __lazyGameTest.updateBoard(.05);
+   const failure=__lazyGameTest.selection.mode;
+   __lazyGameTest.selection.error=Error('simulated offline minigame');
+   __lazyGameTest.updateGameSelection(4);
+   return {failure,substitute:__lazyGameTest.selection?.mode||null,
+    boardPhase:s.phase,boardSame:__lazyGameTest.board===s};
+  });
+  assert.ok(fallback.substitute&&fallback.substitute!==fallback.failure,
+   'verified fallback game must replace the failed minigame');
+  assert.equal(fallback.boardPhase,'minigame');
+  assert.equal(fallback.boardSame,true,'BOARD state is retained after fallback');
   assert.deepEqual(errors,[],'no unhandled page errors in production-like lazy boot');
   console.log('LAZY BOOT BROWSER PASS '+kind+': controller bundle + BOARD bag, host physics, game selection');
  }finally{await browser.close();}

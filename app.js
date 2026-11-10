@@ -1618,10 +1618,30 @@ function renderQr(code){
   const link=shareUrl(code);
   $('roomUrl').value=link;
   const box=$('qrBox');box.replaceChildren();
-  if(typeof QRCode==='function'){
-    try{new QRCode(box,{text:link,width:256,height:256,correctLevel:QRCode.CorrectLevel.M});return;}catch(e){}
-  }
-  box.textContent='QR ไม่พร้อม กรุณาคัดลอกลิงก์';
+  const paint=()=>{
+    if(!onlineHost||roomCode!==code)return;
+    box.replaceChildren();
+    if(typeof QRCode==='function'){
+      try{
+        new QRCode(box,{text:link,width:256,height:256,correctLevel:QRCode.CorrectLevel.M});
+        return;
+      }catch(error){console.warn('QR generation failed',error);}
+    }
+    box.textContent='QR ไม่พร้อม • คัดลอกลิงก์เชิญด้านล่างได้';
+  };
+  if(typeof QRCode==='function'){paint();return;}
+  // The room and copyable invite are ready without waiting for a second CDN.
+  box.textContent='กำลังเตรียม QR • ใช้ลิงก์เชิญได้ทันที';
+  const ensureQr=window.GameRuntimeDeps?.ensureQr;
+  if(ensureQr){
+    void ensureQr().then(()=>{
+      // Give the browser a chance to paint the room before QR canvas work.
+      requestAnimationFrame(()=>{if(roomCode===code)paint();});
+    }).catch(error=>{
+      console.warn('QR library unavailable',error);
+      if(onlineHost&&roomCode===code)paint();
+    });
+  }else paint();
 }
 
 function fastAxisSessionToken(){
@@ -3260,16 +3280,35 @@ function boardRegistry(){return Object.fromEntries(modesFor('board').map(id=>{
  return [id,{minPlayers:d.players.min,maxPlayers:d.players.max,
   setup:unavailable,update:unavailable,draw:unavailable}];
 }));}
+// Prefetch minigame engines during the BOARD session, not on the initial PWA
+// route. A single in-flight download avoids starving low-bandwidth controllers.
+let boardWarmBusy=false,boardWarmTimer=null;
 function warmBoardGames(){
  const platform=window.GamePlatform;
- if(!platform?.revision||round?.mode!=='board'||navigator?.connection?.saveData)return;
- // Warm only two candidates per visit. Never download every game just to open
- // BOARD PARTY on a metered mobile connection.
+ if(!platform?.revision||round?.mode!=='board'||!boardSession||
+    document.hidden||navigator?.connection?.saveData||gameSelection||
+    boardWarmBusy||boardWarmTimer!==null)return;
+ const rejected=new Set(platform.getRejected?.().map(r=>r.id)||[]);
  const candidates=platform.games('board').filter(g=>
-  players.length>=g.players.min&&players.length<=g.players.max&&!platform.ready(g.id));
- for(const game of candidates.slice(0,2)){
-  void platform.ensure(game.id).catch(error=>console.warn('Board game unavailable: '+game.id,error));
- }
+  players.length>=g.players.min&&players.length<=g.players.max&&
+  !platform.ready(g.id)&&!rejected.has(g.id));
+ if(!candidates.length)return;
+ boardWarmBusy=true;
+ void platform.ensure(candidates[0].id)
+  .catch(error=>console.warn('Board game prewarm unavailable: '+candidates[0].id,error))
+  .finally(()=>{
+    boardWarmBusy=false;
+    if(round?.mode==='board'&&boardSession&&!document.hidden){
+      boardWarmTimer=setTimeout(()=>{boardWarmTimer=null;warmBoardGames();},12000);
+    }
+  });
+}
+function prewarmBoardCore(){
+ const core=window.BoardRuntime;
+ if(selectedSessionMode!=='board'||boardSession||round||!core||core.ready())return;
+ // The on-demand loader deduplicates script requests; clicking Start attaches
+ // its own completion callback to the SAME promise.
+ void core.ensure().catch(error=>console.warn('BOARD prewarm unavailable',error));
 }
 let boardCatalogPending=false,boardCorePending=null;
 function beginBoard(){
@@ -3294,6 +3333,7 @@ function beginBoard(){
   const core=window.BoardRuntime;
   if(core&&!core.ready()){
     if(boardCorePending)return boardCorePending;
+    showToast('กำลังเตรียม BOARD PARTY • เปิดเกมให้อัตโนมัติเมื่อพร้อม');
     const sessionMode=selectedSessionMode;
     boardCorePending=core.ensure().then(()=>{
       boardCorePending=null;
@@ -3396,6 +3436,7 @@ function updateBoard(dt){
     const mode=window.BoardMinigame.pick(boardRegistry(),s.players.length,s.lastMinigame,s.rng);
     if(!mode)throw Error('No compatible minigame');
     s.savedBoard=window.BoardParty.snapshot(s);
+    s.failedMinigames=new Set();
     if(window.BoardParty.minigameStarted(s,mode))beginGameSelection(mode);
     return;
   }
@@ -4153,12 +4194,28 @@ function pickRandomEndlessGame(previous=null,random=Math.random){
 }
 function recoverMinigameLoadFailure(mode,error){
  const reason=String(error?.message||error||'unknown').slice(0,90);
- // Never disconnect the host or lose BOARD progress because one newly
- // discovered/updated game is temporarily unavailable.
- if(boardSession?.phase==='minigame'&&window.BoardParty?.minigameCancelled?.(boardSession)){
-  showBoard();
-  showToast('ข้าม '+(MODES[mode]||mode)+' • โหลดเกมไม่สำเร็จ: '+reason,true);
-  return;
+ // An unavailable game must never strand the active BOARD session or force
+ // a skipped round when another already-verified minigame can run.
+ if(boardSession?.phase==='minigame'){
+  const failed=boardSession.failedMinigames||(boardSession.failedMinigames=new Set());
+  failed.add(mode);
+  const platform=window.GamePlatform;
+  const alternatives=platform?.games('board').filter(game=>
+   !failed.has(game.id)&&platform.ready(game.id)&&
+   boardSession.players.length>=game.players.min&&
+   boardSession.players.length<=game.players.max) || [];
+  if(alternatives.length){
+   const fallback=alternatives.find(game=>game.id!==boardSession.lastMinigame)||alternatives[0];
+   boardSession.lastMinigame=fallback.id;
+   showToast('เกม '+(MODES[mode]||mode)+' โหลดไม่สำเร็จ • เปลี่ยนเป็น '+fallback.name,true);
+   beginGameSelection(fallback.id);
+   if(gameSelection)return;
+  }
+  if(window.BoardParty?.minigameCancelled?.(boardSession)){
+   showBoard();
+   showToast('ข้าม '+(MODES[mode]||mode)+' • ยังไม่มีมินิเกมที่โหลดได้: '+reason,true);
+   return;
+  }
  }
  returnToLobby();
  showToast('โหลดมินิเกมไม่สำเร็จ: '+reason,true);
@@ -4335,6 +4392,7 @@ document.querySelectorAll('[data-session-mode]').forEach(button=>{
    other.setAttribute('aria-pressed',String(active));
   }
   broadcastRoster();
+  if(selectedSessionMode==='board')prewarmBoardCore();
   if(onlineHost)saveHost();else saveOffline();
  });
 });
