@@ -133,11 +133,13 @@ test('equal mass vehicle collision changes both velocities and separates bodies'
  assert.ok(b.ice.vx>-75,'struck car receives impulse');
  assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>=27.99);
 });
-test('exact +20% max speed and acceleration; less ice grip and forward drag',()=>{
+test('lower top speed and thrust; stronger ice traction while retaining controlled drift',()=>{
  const C=engine().config;
- almost(C.maxSpeed,255*1.2);
- almost(C.thrust,355*1.2);
- assert.ok(C.lateralGrip<1.35&&C.forwardDrag<.22,'ice should preserve more slide');
+ almost(C.maxSpeed,268);
+ almost(C.thrust,380);
+ assert.ok(C.maxSpeed<306&&C.thrust<426,'maximum speed and acceleration should be reduced');
+ assert.ok(C.lateralGrip>=2&&C.forwardDrag>=.3,
+  'stronger lateral grip and forward resistance should reduce excessive sliding');
  assert.equal(C.hullHalfLength,24);
  assert.equal(C.hullHalfWidth,18);
 });
@@ -249,16 +251,22 @@ test('bot controls share physics and never move by teleporting',()=>{
 test('all-bot races run entire 40/70 second limits with real checkpoint scores',()=>{
  for(const [n,seed] of [[1,15042],[6,15042],[12,15042],[12,17654]]){
   const {e,s,round,ps}=match(n,true,seed);
-  let falling=0,previous=ps.map(p=>p.ice.state);
+  let falling=0,speedSum=0,previous=ps.map(p=>p.ice.state);
+  assert.ok(ps.every(p=>p.ice.botSpeed>=e.config.maxSpeed*.9),
+   'AI target speed should be close to the human speed limit');
   for(let k=0;k<s.duration*60;k++){
    e.step(1/60,round,ps);
    for(let i=0;i<ps.length;i++){
     const p=ps[i];
     assert.ok(Number.isFinite(p.x+p.y+p.ice.vx+p.ice.vy));
+    speedSum+=Math.hypot(p.ice.vx,p.ice.vy);
     if(p.ice.state==='falling'&&previous[i]!=='falling')falling++;
     previous[i]=p.ice.state;
    }
   }
+  const avgSpeed=speedSum/(s.duration*60*n);
+  assert.ok(avgSpeed>(n<=6?90:140),
+   'AI must use meaningful acceleration and speed: '+n+' '+avgSpeed);
   assert.equal(s.finished,true,'game did not finish '+n);
   assert.equal(s.ranking.length,n);
   assert.ok(ps.every(p=>p.score>=1),'bots must navigate real gates '+n+' '+JSON.stringify(ps.map(p=>p.score)));
