@@ -119,6 +119,11 @@ async function geometry(page){
     await page.locator('#plazaSettingsToggle').click();
     await stable('mode '+mode);
    }
+   // Only one Plaza popup stays open. Restore the roster after the mode
+   // settings loop before clicking per-player remove buttons.
+   await page.locator('#plazaRosterToggle').click();
+   assert.equal(await page.locator('#roster').isVisible(),true,
+    'bot removal actions must be visible inside the restored roster popup');
    while(await page.locator('#roster .roster-item:not(.roster-empty)').count()){
     await page.locator('#roster .roster-item:not(.roster-empty) button[aria-label^="เอา"]').last().click();
     await stable('remove bot');
