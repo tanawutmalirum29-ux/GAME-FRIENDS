@@ -17,9 +17,9 @@ persistence. Do not implement naive LRU eviction without a reliable session pin
 protocol covering all connected clients and current rounds.
 
 CacheStorage names are isolated per Service Worker registration scope, whether
-at `/` or a subpath. Fresh game/module versions load only when chosen; the
+at `/` or a subpath. Fresh game/module updates load only when chosen; the
 worker never precaches all games or maps to discover them. Offline fallback
-requires that the relevant version was fetched while online. Same-core catalog
+requires that the requested content was fetched while online. Same-core catalog
 updates do not reload connected rooms; incompatible Core updates remain deferred.
 
 Run `node tests/cache-worker.cjs` for update, offline, scope isolation and

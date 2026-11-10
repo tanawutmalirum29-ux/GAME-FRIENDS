@@ -22,11 +22,11 @@ legacy result paths until migrated individually.
 
 `node scripts/build-game-catalog.cjs --check` validates 15 existing
 manifests (and all future entries). `--write` builds the deploy artifacts.
-The AWS build invokes this before version-stamping the HTML.
+The AWS build invokes this before validating the static HTML.
 
 ## Version and session integrity
 - A running match pins the **engine object** at its start.
-- A new game version is activated only before another round, not mid-frame.
+- New game content is activated only before another round, not mid-frame.
 - A catalog with a different core fingerprint is rejected by the live
   plugin loader; existing BOARD PARTY sessions keep running.
 - If a dependency fails to load, the game must not begin, and the room stays
@@ -79,7 +79,7 @@ removes it, even if an older engine is cached. In-flight superseded game loads
 are not quarantined; the roulette retries the newest revision once.
 
 Rollback is strictly **in-memory**: no guarantee that AWS retains an older
-versioned asset after a new deployment. A fresh browser without an old engine
+content-addressed asset after a new deployment. A fresh browser without an old engine
 will still fail safely and return to the lobby. Browser integration checks
 cover missing modules, invalid APIs, a freshly broken game, recovery after a
 good replacement and continued BOARD mounting without navigation.
@@ -102,8 +102,8 @@ reexecute the working scripts.
 
 `tests/production-deploy-browser.cjs` runs the **actual**
 `scripts/build-static.cjs` production build twice in isolated temporary
-trees with different deployment versions, adds a fixture plug-in in each,
-and serves the resulting version-stamped HTML/JS, generated catalogs and
+trees with different deployments, adds a fixture plug-in in each,
+and serves the resulting canonical-filename HTML/JS, generated catalogs and
 content-addressed files to real Chromium and WebKit. The test checks
 on-demand Host startup, no eager app/BOARD/physics downloads, a live BOARD
 session, a same-core game update, new plug-in discovery, engine pinning,
@@ -167,5 +167,5 @@ malformed. The loader rejects the invalid entry individually, exposes the
 error using `GamePlatform.getInvalid()`, and keeps the most recently verified
 in-memory engine for that ID only if it is still explicitly enabled. A broken
 previously unseen game remains unavailable; malformed top-level catalog and
-incompatible core versions still fail closed. This does not make an invalid
+incompatible core fingerprints still fail closed. This does not make an invalid
 production build acceptable: the build-time catalog validator remains strict.

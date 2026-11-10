@@ -31,7 +31,7 @@
 
 - Geometry code: `arena-scale.js` (pure forward/inverse transforms, tier selection, centered grid and ratio diagnostics).
 - Automated contracts: `tests/map-scale-regression.cjs` covers **15 engines × 12 player counts** plus **BOARD PARTY × 12 counts**; exact fruit, switch, chicken, claim, shopping, pizza, snow and shock invariants. All existing tests still required.
-- Delivery: `index.html` loads shared math first; `scripts/build-static.cjs` includes it in Amplify versioning.
+- Delivery: `index.html` loads shared math first; `scripts/build-static.cjs` includes it in Amplify static build.
 - Existing browser QA: `tests/party-arenas-browser.cjs`, `tests/farm-ice-browser.cjs`, `tests/board-browser.cjs`, `tests/mobile-host-lobby-browser.cjs`, `tests/ghost-courtyards-browser.cjs` and WebKit variants.
 - **Verified pre-integration GitHub Actions:** [Verify static game run 42490735186](https://github.com/tanawutmalirum29-ux/GAME-FRIENDS/actions/runs/42490735186) completed successfully on PR head `4ceb355338875d3990dc4cf5be38c2d5f7928867`. Both `validate` and `board-browser` jobs passed. The dedicated COLOR SWITCH, Fruit Memory / Shockwave, HUD, and GLADIATORS workflows passed on this same head.
 - **Node tests:** the verified `validate` job passed `tests/map-scale-regression.cjs` on 15 engines × 12 counts and BOARD PARTY × 12 counts (192 setups), plus the existing combat, physics, bot, scoring, avatar, farm/ice, fruit, switch, ghost, board, controller and build smoke suites.
@@ -44,7 +44,7 @@
 Do not merge until `verify.yml` tests and browser checks finish without failures. If any engine remains visibly too small, reports inaccessible gaps, or colliders misregister, add exact measured before/after metrics and update this audit before merging.
 
 
-### BOARD PARTY V10 island tour audit (2026-11-09)
+### BOARD PARTY canonical island tour audit (2026-11-09)
 
 - Board physical road and bridge deck: 88 world units before and after.
   Walkable half-width: 44, with 10-unit avatar clearance, unchanged.
@@ -62,4 +62,4 @@ Do not merge until `verify.yml` tests and browser checks finish without failures
 - Static browser simulations for 1–12 players, WebKit and Chromium required
   on final PR head. Mobile/iPad physical device behavior is not certified by CI.
 
-- V10 finishing art pass: two landmark positions are immutable (Harbor lighthouse 2800,5260; Gingerbread cottage 6220,5490); bridge drawing now prioritizes elevated arched decks over the lower lanes, still 88 units wide. Every board fork receives a sign with measured shortest node count and upcoming hazard/healing/lucky tile presence computed from the actual converging routes. Bot branch choices use cached whole-route cost by HP bracket rather than the first tile alone.
+- canonical finishing art pass: two landmark positions are immutable (Harbor lighthouse 2800,5260; Gingerbread cottage 6220,5490); bridge drawing now prioritizes elevated arched decks over the lower lanes, still 88 units wide. Every board fork receives a sign with measured shortest node count and upcoming hazard/healing/lucky tile presence computed from the actual converging routes. Bot branch choices use cached whole-route cost by HP bracket rather than the first tile alone.
