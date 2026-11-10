@@ -18,7 +18,7 @@ Read **[docs/CI_TESTING.md](docs/CI_TESTING.md)** before coding a new mode, chan
 
 ## BOARD PARTY graph migration policy
 
-Read [docs/BOARD_BRANCH_GRAPH_RULES.md](docs/BOARD_BRANCH_GRAPH_RULES.md) before changing BOARD PARTY nodes, edges, arrows or display IDs. Run the V9 strict graph audit after any deletion; any stranded node, bridge or sword pair must be resolved without inventing edges, and every explicit or necessary cleanup deletion must be documented. Keep internal IDs stable independently of display names, validate collisions, and do not merge partial graph migrations.
+Read [docs/BOARD_BRANCH_GRAPH_RULES.md](docs/BOARD_BRANCH_GRAPH_RULES.md) before changing BOARD PARTY nodes, edges, arrows or display IDs. Run the strict graph audit after any deletion; any stranded node, bridge or sword pair must be resolved without inventing edges, and every explicit or necessary cleanup deletion must be documented. Keep internal IDs stable independently of display names, validate collisions, and do not merge partial graph migrations.
 
 ## Zero-touch game folder discovery
 
@@ -40,10 +40,10 @@ Read [docs/ADDING_BOARD_MAPS.md](docs/ADDING_BOARD_MAPS.md) before adding or edi
 
 Read [docs/ADDING_BOARD_SYSTEMS.md](docs/ADDING_BOARD_SYSTEMS.md). New BOARD systems are discovered from `src/board-party/plugins/{items,spaces,events}/<slug>/manifest.json` and loaded only when entering BOARD, not from `index.html` or `app.js`. Built-in item IDs and tile kinds remain reserved. Run `node tests/board-system-discovery.cjs` and complete BOARD regressions. Do not activate plugin updates mid-session.
 
-## PeerJS version negotiation
+## PeerJS core compatibility
 
-Read [docs/VERSION_HANDSHAKE.md](docs/VERSION_HANDSHAKE.md) before changing peer messages. Production Host/Controller must agree on `protocolVersion` and `coreHash` at join/welcome; never disconnect an existing room merely to update. Minigame code is Host-authoritative and pinned until the next round. Run `node tests/version-handshake.cjs` and browser QA.
+Read [docs/CONNECTION_COMPAT.md](docs/CONNECTION_COMPAT.md) before changing peer messages. Production Host/Controller must agree on `coreHash` at join/welcome; never disconnect an existing room merely to update. Minigame code is Host-authoritative and pinned until the next round. Run `node tests/version-handshake.cjs` and browser QA.
 
 ## Single BOARD runtime location (no legacy root duplicates)
 
-BOARD runtime scripts are owned only at `src/board-party/runtime/` and the archived V7 source at `src/board-party/legacy/v7-source/`. Do not restore any `board-*.js` to the repository root or add a second compiled bundle. The `src/board-party/core|systems|ui/` sources assemble the **one** runtime `src/board-party/runtime/board-party.js`. Maintain `scripts/build-board-v7.cjs`, `scripts/build-board-party.cjs`, `index.html`, `src/platform/board-runtime.js` and `scripts/lazy-game-scripts.cjs` together. Run `node tests/board-no-root-assets.cjs`, all BOARD tests and Chromium/WebKit Browser QA before merge.
+BOARD runtime scripts are owned only at `src/board-party/runtime/` and the canonical compressed BOARD source at `src/board-party/source/`. Do not restore any `board-*.js` to the repository root or add a second compiled bundle. The `src/board-party/core|systems|ui/` sources assemble the **one** runtime `src/board-party/runtime/board-party.js`. Maintain `scripts/build-board-assets.cjs`, `scripts/build-board-party.cjs`, `index.html`, `src/platform/board-runtime.js` and `scripts/lazy-game-scripts.cjs` together. Run `node tests/board-no-root-assets.cjs`, all BOARD tests and Chromium/WebKit Browser QA before merge.

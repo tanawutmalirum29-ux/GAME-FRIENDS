@@ -1,11 +1,11 @@
 # BOARD PARTY: folder-only map plug-ins
 
-The existing 302-node/17-island winter expedition V10 remains the **legacy
-default**. Its generated V7 source, graph adapters, item rules, and scripts are
+The existing 302-node/17-island winter expedition current remains the **legacy
+default**. Its generated original source, graph adapters, item rules, and scripts are
 not migrated or altered by the map registry. The default manifest is
 `src/board-party/maps/winter-expedition/manifest.json`.
-Do not move the committed/generated V10 sources or substitute the older
-213-node V6 base for the active map.
+Do not move the committed/generated current sources or substitute the older
+213-node base base for the active map.
 
 ## New map
 
@@ -26,7 +26,6 @@ Manifest example:
 {
   "id": "coast",
   "name": "COAST",
-  "version": "1.0.0",
   "apiVersion": 1,
   "enabled": true,
   "kind": "module",
@@ -40,8 +39,8 @@ The map `index.js` must export a default object with `map` and
 `art` implementations compatible with the existing `BoardMap`
 and `BoardArt` APIs. In particular, `map.create(seed,{players})`
 must synchronously return a complete session map, `map.validate(map)`
-and `map.assertCompatible(map)` must verify the returned version,
-and `map.MAP_VERSION` must match that version. The existing
+and `map.assertCompatible(map)` must verify the returned map identity,
+and `map.MAP_ID` must match that map ID. The existing
 BOARD engine assumes start tile `n0`, consistent end tile,
 territory/index metadata, and the properties exercised by existing tests.
 The renderer must expose the full same-name runtime API; a draw-only stub
@@ -68,7 +67,7 @@ before creating a new session. Existing sessions remain on their original
 map and mini-game object. New same-core maps are selectable at the next
 session. A Core/BOARD protocol change must not force a connected room reload.
 The host publishes `mapVersion` on board-state packets, and
-the existing controller checks the version and turn tokens. The map manifest
+the existing controller checks the map ID and turn tokens. The map manifest
 does not grant third-party code sandboxing: trust only reviewed repository
 modules. Cache previously fetched immutable board assets, but never prefetch
 all maps merely to display their names.

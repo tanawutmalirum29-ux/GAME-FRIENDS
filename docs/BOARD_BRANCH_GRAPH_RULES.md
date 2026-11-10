@@ -1,4 +1,4 @@
-# BOARD PARTY — V9 Graph, Directional Arrows & Branch Identity
+# BOARD PARTY — canonical Graph, Directional Arrows & Branch Identity
 
 ## Source of truth
 
@@ -8,13 +8,13 @@ The playable BOARD PARTY map is an **authoritative directed graph**:
 items. Arrowheads project that graph visually; they **do not limit movement**.
 No new nodes, islands or edges were added by this migration.
 
-## Implemented V9 migration (8 November 2026)
+## Directed-route and map-identity rules
 
-| Metric | V8 | V9 |
+| Metric | canonical | canonical |
 |---|---:|---:|
 | Nodes | 359 | 310 |
 | Directed edges | 398 | 331 |
-| V7-added surviving bridges | 20 | 15 |
+| canonical-added surviving bridges | 20 | 15 |
 | Islands | 17 | 17 |
 
 The change deletes the 36 specifically requested MS/prefix nodes and
@@ -38,13 +38,13 @@ No further pruning occurs if the authored topology changes unexpectedly.
 
 ### Sword-pair preservation
 
-Two old court members are deleted, so the same two V8 sword territories
+Two old court members are deleted, so the same two canonical sword territories
 are repositioned onto **already existing, adjacent** tiles:
 - Harbor Watch: `h0 / hs30_0` → `h2 / h3`.
 - Ginger Watch: `g0 / g1` → `g4 / g5`.
 
 No replacement edge or new tile was created. Both courts still occupy
-linked pairs, keeping the number of V8 courts at four and all historical
+linked pairs, keeping the number of canonical courts at four and all historical
 base-map territories intact.
 
 ## Arrow rendering
@@ -104,7 +104,7 @@ The complete machine-readable old/internal/new display ID mapping is
 generated from the exact runtime graph by:
 
 ```sh
-node scripts/build-board-v7.cjs
+node scripts/build-board-assets.cjs
 node scripts/export-board-id-mapping.cjs --json
 node scripts/export-board-id-mapping.cjs > board-id-mapping.csv
 ```
@@ -112,12 +112,12 @@ node scripts/export-board-id-mapping.cjs > board-id-mapping.csv
 ## Structural/Visual/Gameplay QA
 
 ```sh
-node scripts/build-board-v7.cjs
+node scripts/build-board-assets.cjs
 node tests/board-branch-naming.cjs
 node tests/board-graph-migration.cjs
 node scripts/audit-board-graph.cjs --strict
-node tests/board-v7.cjs
-node tests/board-v8-layout.cjs
+node tests/board-map-geometry.cjs
+node tests/board-map-layout.cjs
 ```
 
 The strict audit blocks missing/ghost visual segments, deleted references,
@@ -151,7 +151,7 @@ keep renderer, bridge metadata and gameplay in sync.
   reachability, four contracted routes, all sword pairs, no ghost edges,
   plus transparent zero-height host toolbar for the browser's BOARD view.
 
-## 9 November 2026 — V10 island circulation and branch balance
+## 9 November 2026 — canonical island circulation and branch balance
 
 - The Meadow route from n51 now enters m0 and exits from m7 to n56. This
   eliminates the 46-checkpoint jump to n108 and forces a single forward farm
@@ -162,8 +162,8 @@ keep renderer, bridge metadata and gameplay in sync.
 - Harbor (3 nodes) and Gingerbread (2 nodes) are designated compact scenic
   pauses, with authored small footprints, rather than large empty islands.
 - The entire active road/path metadata, including bridge styles, is rebuilt
-  from directed edges after graph mutation. V10 replaces V9 for saved-session
-  compatibility; V9 snapshots must restart instead of being silently remapped.
+  from directed edges after graph mutation. canonical replaces canonical for saved-session
+  compatibility; canonical snapshots must restart instead of being silently remapped.
 - Two crossings where the arched Workshop viaduct passes above the Meadow
   entrance and exit lanes are tagged explicitly: xmw_2→xmw_3 and
   xmw_4→xmw_5. There is no implied footpath between crossing lanes.

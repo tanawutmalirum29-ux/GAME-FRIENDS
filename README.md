@@ -31,7 +31,7 @@
 
 เพิ่มโหมดกระดานต่อเนื่องแยกจาก **NORMAL PARTY** เลือก **BOARD PARTY • กระดานหิมะ** ในล็อบบี้ได้ทันที รองรับ 1–12 คน ทอยสองลูกกลางจอ ใช้อนาล็อกเดินอิสระภายในช่องและแนวทางเดิน ถอยแก้ทางหรือเลี้ยวกลับไปเลือกกิ่งใหม่ก่อนถึงช่องถัดไปได้โดยไม่เสียก้าว มีตัวนับก้าวป้องกันข้ามช่อง พร้อม **กระเป๋าไอเทมสะสมหลายชิ้น** (B เลือกไอเทม → A ยืนยัน) รองรับไอเทม 6 ชนิดรวมโล่ และเล่นมินิเกมเดิมเมื่อครบหนึ่งรอบ ผู้เล่นครึ่งบนได้รับไอเทมเข้ากระเป๋าอัตโนมัติก่อนกลับกระดานเดิม โดยเรียงตารอบใหม่ตามอันดับมินิเกม ผู้ถึง FINISH ก่อนชนะ
 
-แมพ **Fixed Expedition v3** มี **9 เกาะ / 152 ช่วงหลัก / 212 Node รวมทางเลือก** เส้นทางเดินทั่วเกาะใหญ่ 4 เกาะ วกกลับเข้าหมู่บ้านและทะเลสาบผ่านสะพานอีกด้านโดยใช้ Node ใหม่ พร้อมทางแยกสามทาง ทุกพิกัด ประเภทช่อง เกาะ สะพานและของตกแต่งกำหนดไว้ล่วงหน้า 100% ไม่เปลี่ยนตาม seed กล้องภาพรวมให้ลากและซูมจนกดเริ่มทอย กล้องติดตามเห็นทางเลือกที่ทางแยก พร้อม Debug เกาะ/สะพานและ Graph ข้อมูลแมตช์จาก map version เก่าต้องเริ่มใหม่ รายละเอียดและผลทดสอบอยู่ใน [คู่มือ BOARD PARTY](docs/board-party.md)
+แมพ **WINTER EXPEDITION** มี **17 เกาะ / 152 ช่วงหลัก / 302 Node รวมทางเลือก** เส้นทางเดินทั่วเกาะใหญ่ 4 เกาะ วกกลับเข้าหมู่บ้านและทะเลสาบผ่านสะพานอีกด้านโดยใช้ Node ใหม่ พร้อมทางแยกสามทาง ทุกพิกัด ประเภทช่อง เกาะ สะพานและของตกแต่งกำหนดไว้ล่วงหน้า 100% ไม่เปลี่ยนตาม seed กล้องภาพรวมให้ลากและซูมจนกดเริ่มทอย กล้องติดตามเห็นทางเลือกที่ทางแยก พร้อม Debug เกาะ/สะพานและ Graph ข้อมูลแมตช์จาก map version เก่าต้องเริ่มใหม่ รายละเอียดและผลทดสอบอยู่ใน [คู่มือ BOARD PARTY](docs/board-party.md)
 
 ดู [ภาพรวมแมพ](docs/board-overview.jpg) หรือ ดู [วิธีเล่น กติกาไอเทม โครงสร้าง และผลการทดสอบ](docs/board-party.md) หรือรัน `node tests/board-party.cjs` และ `node tests/smoke.cjs`
 
@@ -159,7 +159,7 @@ for (const p of players) if (p.active) characters.draw(ctx, p, {time:clock});
 
 - A host lobby refresh reopens its original PeerJS room ID from tab-scoped session storage, preserving player seats, local bots, selected games and settings. Joined controllers store a stable per-tab token and automatically reconnect to the saved room after an update or refresh.
 - Unexpected disconnects hold a remote player's slot for up to 60 seconds. Explicit departure removes the slot immediately.
-- The auto-update checker runs periodically and on visibility/focus, and may refresh idle host lobbies, controller join forms, joined controllers in the lobby, offline lobbies and home, restoring each page after the new version loads. It defers updates during active matches.
+- The auto-update checker runs periodically and on visibility/focus, and may refresh idle host lobbies, controller join forms, joined controllers in the lobby, offline lobbies and home, restoring each page after the new deployment loads. It defers updates during active matches.
 - **Limit:** A manual browser reload of the host in the middle of a match returns to the same room lobby but cannot resume the in-memory live game; uninterrupted match state would need server-side persistence. Reconnecting to a PeerJS room still requires network access.
 
 ## FRUIT MEMORY (third mini-game)
@@ -181,7 +181,7 @@ for (const p of players) if (p.active) characters.draw(ctx, p, {time:clock});
 - CHICKENS: ลานดินกลางสนามหญ้า รั้วเว้นช่องตามประตูคอกจริง และคอกสีผู้เล่น
 - SHOCKWAVE: แท่นหิน 5×5 กลางลาวา ช่องอันตรายมีสีส้มกะพริบ ขอบสว่าง และเครื่องหมาย `!`; พื้นยังคงอยู่ตามกติกาเดิม
 - FRUIT MEMORY: สวนผลไม้ การ์ดม่วงด้านหลังเหมือนกันทุกชนิด สีและรูปผลไม้ปรากฏเฉพาะตอนเปิดเท่านั้น
-- GHOST ATTACK: ผังลานสุสานและวิหารอียิปต์ v4 ออกแบบไว้ล่วงหน้า 4 แบบ แบ่ง 1–6 คน (1080×608) และ 7–12 คน (1280×720) สุสานมีป่าสนม่วง รั้วเหล็ก ป้ายหลุมศพและโลงยาว ส่วนวิหารมีโลงฟาโรห์คู่ ลายแมลงปีกแข็ง เสาและกำแพงตัว L ทุกชิ้นใช้ตำแหน่งเดียวกันในภาพ ระบบชน และเส้นทางบอท สนามใหญ่มีพื้นที่เดินจริงเพิ่มมากกว่า 50% และจัดทางหลบเพิ่ม
+- GHOST ATTACK: ผังลานสุสานและวิหารอียิปต์ ออกแบบไว้ล่วงหน้า 4 แบบ แบ่ง 1–6 คน (1080×608) และ 7–12 คน (1280×720) สุสานมีป่าสนม่วง รั้วเหล็ก ป้ายหลุมศพและโลงยาว ส่วนวิหารมีโลงฟาโรห์คู่ ลายแมลงปีกแข็ง เสาและกำแพงตัว L ทุกชิ้นใช้ตำแหน่งเดียวกันในภาพ ระบบชน และเส้นทางบอท สนามใหญ่มีพื้นที่เดินจริงเพิ่มมากกว่า 50% และจัดทางหลบเพิ่ม
 - รั้วรอบนอกกั้นทั้งคนและผี ส่วนสิ่งกีดขวางด้านในยังให้ผีทะลุได้ตามกติกาเดิม จุดเกิดและกล่องไอเทมเลือกเฉพาะพื้นเดินได้ การใช้บูสต์หรือเฟรมหน่วงไม่ทำให้เดินทะลุรั้วบาง ปุ่มตรวจสอบแผนที่ยังแสดง ID และกรอบชนจริง
 - ทดสอบผัง การชน ทางเดิน และบอทครบ 1–12 คนด้วย `node tests/ghost-courtyards.cjs`; ทดสอบภาพและจอ HOST ใน Chromium/WebKit ด้วย `node tests/ghost-courtyards-browser.cjs` (ต้องมี Playwright)
 
@@ -236,7 +236,7 @@ Development checks: \`node --check src/games/witching-snake/witching-snake.js\`,
 - **KNIGHT MATCH:** a circular dirt fair with timber rails following the collision circle, four striped canopies, hay, target, crate and brazier. Larger canonical riders sit on visible brown horses. Movement speed, balloon counts/sizes, owner scoring, rainbow odds and lance reach remain unchanged. The rendered lance uses the extension from the actual collision step, so the silver tip and swept hit test coincide even after the attack timer advances.
 - **WITCHING SNAKE:** a slate courtyard, glowing segmented rail, four shingle shrines and golden frond trees, with canonical overhead avatars visibly riding brooms. The courtyard is more compact for 1–6 players and wider for 7–12; the drawn rail and fatal boundary use the same polygon. Seeded spawns, steering, trail collisions, star growth and overtime retain their existing rules.
 - **All 12 covers:** `game-cover-art.js` provides original text-free SVG illustrations for the phone picker, host roster, roulette and bulk bot picker, including LAWN MOWER. Each instance gets distinct gradient and clip IDs. Game names remain accessible DOM text outside the pictures. The homepage SVG also includes all twelve worlds.
-- Review all scenes at `tools/art-preview.html`; choose 4 or 12 players to compare their proportions. The three new games, all twelve cover illustrations and the shared assets are versioned in the deployment build.
+- Review all scenes at `tools/art-preview.html`; choose 4 or 12 players to compare their proportions. The three new games, all twelve cover illustrations and the shared assets are published through the deployment build.
 
 Checks: `node tests/party-arenas.cjs`, `node tests/shopping-time.cjs`, `node tests/knight-match.cjs`, `node tests/witching-snake.test.cjs`, `node tests/svg-only-policy.cjs`, and `node tests/party-arenas-browser.cjs`. The browser checks run against the real HOST in Chromium and WebKit, rasterize every cover, verify the three game interactions, exercise 1/4/6/9/12-player scenes and save images in `/tmp/game-friends-board/party-arenas`. GitHub Actions uploads these with the existing board, ghost and pizza screenshots.
 
