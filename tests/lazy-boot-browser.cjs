@@ -19,8 +19,8 @@ const source=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const html=pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(source,catalog)))));
 assert.ok(!html.includes('src="./src/games/ghost-attack/ghost-attack.js"'),'production must strip eager ghost engine');
 assert.ok(!html.includes('src="./src/board-party/runtime/board-party.js"'),'production must defer BOARD core');
-const buildVersion='window.GAME_BUILD_VERSION="lazy-browser-test";'+
- 'window.GAME_CORE_VERSION='+JSON.stringify(catalog.coreHash)+';'+
+const buildVersion='window.GAME_DEPLOY_ID="lazy-browser-test";'+
+ 'window.GAME_CORE_HASH='+JSON.stringify(catalog.coreHash)+';'+
  'window.GAME_GAME_HASHES='+JSON.stringify(Object.fromEntries(catalog.games.map(g=>[g.id,g.hash])))+';';
 const injection=`window.__lazyGameTest={get round(){return round},
  get board(){return boardSession},get selection(){return gameSelection},
@@ -51,8 +51,8 @@ const server=http.createServer((req,res)=>{
  let content,ext='.js';
  if(pathname==='/'||pathname==='/index.html'){content=html;ext='.html';}
  else if(pathname==='/game-catalog.json'){content=JSON.stringify(catalog);ext='.json';}
- else if(pathname==='/version.json'){content=JSON.stringify({version:'lazy-browser-test'});ext='.json';}
- else if(pathname==='/build-version.js'){content=buildVersion;}
+ else if(pathname==='/deployment.json'){content=JSON.stringify({deployId:'lazy-browser-test'});ext='.json';}
+ else if(pathname==='/runtime-config.js'){content=buildVersion;}
  else if(pathname.startsWith('/game-assets/')){
   const parts=pathname.split('/').filter(Boolean);
   const id=parts[1],hash=parts[2],record=catalog.games.find(g=>g.id===id);

@@ -17,7 +17,7 @@ const scripts=[
  'src/games/knight-match/knight-match.js','src/games/lawn-mower/lawn-mower.js','src/games/color-claim/color-claim.js','src/games/witching-snake/witching-snake.js',
  'src/games/ghost-attack/ghost-attack.js','src/games/ice-race/ice-race.js','src/games/shockwave/shockwave.js','src/games/boulder-bash/boulder-bash.js',
  'src/games/shopping-time/shopping-time.js','src/games/pizza-time/pizza-time.js','src/games/gladiators/gladiators.js',
- 'src/board-party/runtime/board-map.js','src/board-party/runtime/board-v7-design.js','src/board-party/runtime/board-v7-art.js','src/board-party/runtime/board-v7-adapter.js',
+ 'src/board-party/runtime/board-map.js','src/board-party/runtime/board-design.js','src/board-party/runtime/board-scenery.js','src/board-party/runtime/board-layout.js',
  'src/board-party/runtime/board-dice.js','src/board-party/runtime/board-items.js','src/board-party/runtime/board-party.js'
 ];
 for(const file of scripts)require(path.join('..',file));
@@ -166,5 +166,5 @@ assert.doesNotMatch(html,/src="\.\/src\/games\/[^"]+\.js"/,
 assert.match(html,/src="\.\/src\/platform\/game-platform\.js"/,
  'One platform registry discovers minigames for Normal and Board Party');
 assert.ok(build.includes("const deployAsset=")&&build.includes("fs.statSync(filename).isFile()"),
- 'Amplify versions and validates HTML assets from their actual references');
+ 'Amplify validates stable HTML assets from their actual references');
 console.log('GLOBAL MAP SCALE PASS: '+checks+' player/tier setups (15 minigames + BOARD PARTY) and projection contracts');
