@@ -179,8 +179,17 @@ async function main(){
    'Show ID must be accessible even when humans are playing');
   await host.locator('#boardNodeDebugBtn').click();
   assert.equal(await host.evaluate(()=>__boardTest.board.camera.debugNodes),true);
-  for(let i=0;i<7;i++)await host.evaluate(()=>BoardArt.zoom(__boardTest.board,1.25));
+  // Consume any viewport-resize canvas synchronization before setting a manual
+  // zoom. At the board's fit-to-all view (roughly 0.09x), both axes are
+  // clamped by map bounds and dragging correctly cannot move the camera.
   await host.evaluate(()=>__boardTest.drawGame(0));
+  await host.evaluate(()=>{
+    const s=__boardTest.board;
+    BoardArt.zoom(s,.4/s.camera.zoom);
+    __boardTest.drawGame(0);
+  });
+  assert.ok(await host.evaluate(()=>__boardTest.board.camera.zoom>=.39),
+    'pan regression must start zoomed in, not at the clamped full-map overview');
   const beforePan=await host.evaluate(()=>({...__boardTest.board.camera}));
   const box=await host.locator('#arena').boundingBox(),viewHeight=await host.evaluate(()=>__boardTest.board.camera.viewHeight),scale=Math.min(box.width/960,box.height/viewHeight);
   const arena={x:box.x+(box.width-960*scale)/2,y:box.y+(box.height-viewHeight*scale)/2,width:960*scale,height:viewHeight*scale};
