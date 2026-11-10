@@ -25,7 +25,7 @@ const buildVersion='window.GAME_DEPLOY_ID="lazy-browser-test";'+
 const injection=`window.__lazyGameTest={get round(){return round},
  get board(){return boardSession},get selection(){return gameSelection},
  get players(){return players},get view(){return currentView},
- beginBoard,beginGameSelection,updateGameSelection,updateBoard,returnToLobby,addLocal,receiveBoardState,
+ beginBoard,beginGameSelection,updateGameSelection,updateBoard,animate,returnToLobby,addLocal,receiveBoardState,
  simulateReloadGuard(kind){
   const old={onlineHost,hostPeer,hostNetworkLoad,controllerReady,controllerPeer,
    controllerConn,controllerNetworkLoad,currentView,round,gameSelection,boardSession};
@@ -186,13 +186,22 @@ const server=http.createServer((req,res)=>{
   // Exercise a real BOARD -> randomly chosen minigame transition. A metadata
   // placeholder is not sufficient: its engine and game-owned dependencies
   // must actually download, activate and enter countdown.
-  const selectedMode=await page.evaluate(()=>{
+  const transitionFrame=await page.evaluate(()=>{
    const board=__lazyGameTest.board;
+   const originalBoardId=board.id;
    BoardParty.phase(board,'minigame_pending');
-   __lazyGameTest.updateBoard(.05);
-   return __lazyGameTest.selection?.mode||null;
+   // The real host RAF must NOT paint a missing engine after switching from
+   // BOARD to the roulette. That used to throw and silently close the room.
+   __lazyGameTest.animate(performance.now()+20);
+   return {mode:__lazyGameTest.selection?.mode||null,
+    phase:__lazyGameTest.round?.phase,view:__lazyGameTest.view,
+    boardPreserved:__lazyGameTest.board?.id===originalBoardId};
   });
-  assert.ok(selectedMode,'BOARD must launch a minigame roulette');
+  assert.ok(transitionFrame.mode,'BOARD RAF must launch a minigame roulette');
+  assert.equal(transitionFrame.phase,'roulette');
+  assert.equal(transitionFrame.view,'game','RAF transition may not return to lobby');
+  assert.equal(transitionFrame.boardPreserved,true);
+  const selectedMode=transitionFrame.mode;
   await page.waitForFunction(()=>!!__lazyGameTest.selection &&
     (__lazyGameTest.selection.ready||__lazyGameTest.selection.error),
     null,{polling:100,timeout:20000});
