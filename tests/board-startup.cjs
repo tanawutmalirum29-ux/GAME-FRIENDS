@@ -72,15 +72,19 @@ async function main(){
    await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
    await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
    await page.screenshot({path:path.join(out,engine+'-terrain-'+(denyTerrain?'fallback':'normal')+'.png')});
-   // Spectators have no owner until a local player's walking turn starts.
-   // That owner can still inspect Overview then Follow back to the game.
+   // Only Pause, Exit and Show ID may remain on the BOARD Host.
    await page.evaluate(()=>{
     const s=__boardStartup.board,p=s.players[0];
     __boardStartup.locals[0].isBot=false;p.isBot=false;
     BoardParty.beginMove(s,p,2);__boardStartup.refreshBoardTools();
    });
-   await page.locator('#boardOverviewBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
-   await page.locator('#boardFollowBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
+   assert.equal(await page.locator('#boardTools button').count(),1);
+   assert.equal(await page.locator('#boardNodeDebugBtn').isVisible(),true,
+    'Show ID stays visible with human players');
+   await page.locator('#boardNodeDebugBtn').click();
+   assert.equal(await page.evaluate(()=>__boardStartup.board.camera.debugNodes),true);
+   await page.locator('#boardNodeDebugBtn').click();
+   assert.equal(await page.evaluate(()=>__boardStartup.board.camera.debugNodes),false);
    // EXIT must be available in live BOARD, without having to pause first.
    assert.equal(await page.locator('#boardExitBtn').isVisible(),true,
     'board exit remains visible while a session is running');
