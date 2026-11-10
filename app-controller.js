@@ -735,6 +735,7 @@ function setView(view) {
   if(view==='game')markArenaResolutionDirty();
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
+  window.PartyPlaza?.setActive(view==='hostLobby');
   syncLandscapePresentation();
   if(view!=='game')hostFullscreenWasEntered=false;
   syncZoomPolicy();syncWebAppHelp();syncFullscreenRecovery();
@@ -4239,6 +4240,38 @@ window.addEventListener('beforeunload',()=>{
   try{if(controllerChannel)controllerChannel.close();}catch(_){}
   stopHostReconnect();
   if(hostPeer)hostPeer.destroy();
+});
+
+// PARTY PLAZA overlays never resize/reflow the map. Existing room, roster and
+// session controls are retained; only their presentation changes.
+const plazaHost=$('hostLobby');
+const togglePlazaPanel=(name)=>plazaHost.classList.toggle('plaza-show-'+name);
+$('plazaRoomToggle')?.addEventListener('click',()=>togglePlazaPanel('room'));
+$('plazaRosterToggle')?.addEventListener('click',()=>togglePlazaPanel('roster'));
+$('plazaSettingsToggle')?.addEventListener('click',()=>togglePlazaPanel('controls'));
+$('plazaStartBtn')?.addEventListener('click',()=>{if(!$('startBtn').disabled)beginParty();});
+window.PartyPlaza?.configure({
+ interact(p,z){
+  if(!z)return;
+  switch(z.id){
+   case 'game_arcade':
+    if(selectedSessionMode==='board'){showToast('เลือกเกมเดี่ยวได้ใน NORMAL PARTY');return;}
+    if(p.conn?.open)send(p.conn,{t:'plaza-picker',open:true});
+    else if(p.isBot)openBulkBotPicker();
+    break;
+   case 'ready_area':
+    if(p.conn?.open)castLobbyReadyVote(p.conn);
+    else showToast('บอทพร้อมเล่นอยู่แล้ว • เจ้าของห้องกดเริ่มได้');
+    break;
+   case 'board_portal':
+    if(p.isBot)document.querySelector('[data-session-mode="board"]')?.click();
+    else showToast(p.name+' ขอเล่น BOARD PARTY • เจ้าของห้องเลือกโหมดที่แถบตั้งค่า');
+    break;
+   case 'room_corner': togglePlazaPanel('room');break;
+   case 'wardrobe':showToast('WARDROBE ยังไม่เปิดให้แต่งตัว');break;
+  }
+ },
+ cancel(p){if(p.conn?.open)send(p.conn,{t:'plaza-picker',open:false});}
 });
 
 const entryParams=new URLSearchParams(location.search);
