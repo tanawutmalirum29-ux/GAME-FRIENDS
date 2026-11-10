@@ -2968,7 +2968,7 @@ for(const count of [1,12]){
  assert.equal(s.phase,'ready');
  assert.equal(owner.sent.filter(x=>x.t==='board-state').at(-1).canZoom,true,
   'the currently playing human may inspect the map before the first dice roll');
- const token={turnId:s.turnId,mapVersion:s.map.version};
+ const token={turnId:s.turnId,mapId:s.map.id};
  owner.fire('data',{t:'board-camera-mode',enabled:true,...token});
  assert.equal(owner.boardCameraGestureToken,s.turnId);
  assert.equal(s.camera.bagMapInspect,true,'host renderer hides item selection panel');
@@ -3004,7 +3004,7 @@ for(const count of [1,12]){
  assert.equal(one.canZoom,true,'current player receives zoom permission');
  assert.equal(two.canZoom,false,'spectator receives no zoom permission');
  // Remote-only camera mode: owner may inspect; spectators never can.
- const cameraPacket={turnId:s.turnId,mapVersion:s.map.version};
+ const cameraPacket={turnId:s.turnId,mapId:s.map.id};
  spectator.fire('data',{t:'board-camera-mode',enabled:true,...cameraPacket});
  spectator.fire('data',{t:'board-camera-gesture',kind:'pinch',scale:1.2,...cameraPacket});
  assert.equal(spectator.boardCameraGestureToken,null,'spectator camera activation rejected');
