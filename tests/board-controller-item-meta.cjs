@@ -21,7 +21,7 @@ assert.equal(actual.ids.at(-1),'future-item');
 assert.equal(actual.names['future-item'],'Future Item');
 assert.match(src,/boardItemMetaSession!==boardSession\.id/);
 assert.match(src,/send\(conn,\{t:'board-item-meta'/);
-assert.match(src,/sessionId:boardSession\.id,mapVersion/);
+assert.match(src,/sessionId:boardSession\.id,mapId:boardSession\.map\.id/);
 assert.match(src,/phoneBoardItemMeta&&phoneBoardItemMeta\.sessionId===info\.sessionId/);
 assert.equal(null&&undefined===undefined,null,'absence of item metadata must fall back to legacy slots');
 assert.match(ctrl,/data\.t==='board-item-meta'/);
