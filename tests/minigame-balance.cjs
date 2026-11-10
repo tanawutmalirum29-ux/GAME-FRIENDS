@@ -81,8 +81,9 @@ const block=w.BlockBreakers;
      for(const player of ps)clear(player);
     }
    }
-   if(slug==='candy-chaos')assert.ok(s.candies.length>0,'candy field populated');
+   if(slug==='candy-chaos')assert.equal(s.candies.length,0,'countdown arena must begin empty');
    if(slug!=='mole-mayhem')for(let t=0;t<60;t++)plugin.update(1/60,rd,ps);
+   if(slug==='candy-chaos')assert.ok(s.candies.length>0,'candies spawn when play begins');
   }
  }
  console.log('NEW MINIGAME BALANCE REGRESSION PASS');
