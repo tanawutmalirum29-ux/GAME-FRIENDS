@@ -42,6 +42,8 @@ jobs:
         run: |
           node scripts/build-game-catalog.cjs --check
           node tests/game-platform.cjs
+      - name: Test BLOCK BREAKERS two-layer timing and MOLE MAYHEM solid holes
+        run: node tests/minigame-balance.cjs
       - name: Validate BOARD map folder discovery and directed graph safety
         run: |
           node scripts/build-board-map-catalog.cjs --check
