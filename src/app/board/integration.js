@@ -288,6 +288,7 @@ function updateBoard(dt){
     const mode=window.BoardMinigame.pick(boardRegistry(),s.players.length,s.lastMinigame,s.rng);
     if(!mode)throw Error('No compatible minigame');
     s.savedBoard=window.BoardParty.snapshot(s);
+    s.failedMinigames=new Set();
     if(window.BoardParty.minigameStarted(s,mode))beginGameSelection(mode);
     return;
   }
