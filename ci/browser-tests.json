@@ -9,119 +9,181 @@
       "browsers": {
         "chromium": 37
       },
-      "chromiumOnlyReason": "Existing board-browser harness targets Chromium and its controller input model"
+      "chromiumOnlyReason": "Existing board-browser harness targets Chromium and its controller input model",
+      "areas": [
+        "board"
+      ]
     },
     {
       "file": "tests/board-startup.cjs",
       "browsers": {
         "chromium": 21,
         "webkit": 38
-      }
+      },
+      "areas": [
+        "board",
+        "platform"
+      ]
     },
     {
       "file": "tests/mobile-host-lobby-browser.cjs",
       "browsers": {
         "chromium": 10,
         "webkit": 16
-      }
+      },
+      "areas": [
+        "lobby",
+        "controller"
+      ]
     },
     {
       "file": "tests/lobby-stability-browser.cjs",
       "browsers": {
         "chromium": 16,
         "webkit": 43
-      }
+      },
+      "areas": [
+        "lobby"
+      ]
     },
     {
       "file": "tests/farm-ice-browser.cjs",
       "browsers": {
         "chromium": 22,
         "webkit": 89
-      }
+      },
+      "areas": [
+        "game:chickens",
+        "game:ice-race"
+      ]
     },
     {
       "file": "tests/ghost-courtyards-browser.cjs",
       "browsers": {
         "chromium": 19,
         "webkit": 113
-      }
+      },
+      "areas": [
+        "game:ghost-attack"
+      ]
     },
     {
       "file": "tests/pizza-kitchen-browser.cjs",
       "browsers": {
         "chromium": 17,
         "webkit": 149
-      }
+      },
+      "areas": [
+        "game:pizza-time"
+      ]
     },
     {
       "file": "tests/party-arenas-browser.cjs",
       "browsers": {
         "chromium": 45,
         "webkit": 111
-      }
+      },
+      "areas": [
+        "game:knight-match",
+        "game:gladiators",
+        "art"
+      ]
     },
     {
       "file": "tests/map-scale-browser.cjs",
       "browsers": {
         "chromium": 31,
         "webkit": 51
-      }
+      },
+      "areas": [
+        "scale"
+      ]
     },
     {
       "file": "tests/avatar-browser.cjs",
       "browsers": {
         "chromium": 8
       },
-      "chromiumOnlyReason": "Legacy avatar SVG rasterization harness imports Chromium directly"
+      "chromiumOnlyReason": "Legacy avatar SVG rasterization harness imports Chromium directly",
+      "areas": [
+        "avatar",
+        "art"
+      ]
     },
     {
       "file": "tests/reference-arenas-browser.cjs",
       "browsers": {
         "chromium": 35,
         "webkit": 65
-      }
+      },
+      "areas": [
+        "art",
+        "scale"
+      ]
     },
     {
       "file": "tests/game-platform-browser.cjs",
       "browsers": {
         "chromium": 12,
         "webkit": 20
-      }
+      },
+      "areas": [
+        "platform",
+        "game"
+      ]
     },
     {
       "file": "tests/lazy-boot-browser.cjs",
       "browsers": {
         "chromium": 15,
         "webkit": 25
-      }
+      },
+      "areas": [
+        "loading",
+        "platform"
+      ]
     },
     {
       "file": "tests/production-deploy-browser.cjs",
       "browsers": {
         "chromium": 42,
         "webkit": 65
-      }
+      },
+      "areas": [
+        "deployment"
+      ]
     },
     {
       "file": "tests/host-reconnect-browser.cjs",
       "browsers": {
         "chromium": 15,
         "webkit": 24
-      }
+      },
+      "areas": [
+        "network"
+      ]
     },
     {
       "file": "tests/controller-stage-browser.cjs",
       "browsers": {
         "chromium": 18,
         "webkit": 28
-      }
+      },
+      "areas": [
+        "controller",
+        "network"
+      ]
     },
     {
       "file": "tests/landscape-shell-browser.cjs",
       "browsers": {
         "chromium": 22,
         "webkit": 35
-      }
+      },
+      "areas": [
+        "orientation",
+        "controller"
+      ]
     }
   ]
 }
