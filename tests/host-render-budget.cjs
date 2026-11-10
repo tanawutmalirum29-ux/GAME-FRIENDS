@@ -8,7 +8,7 @@ const runtime=fs.readFileSync('src/app/core/runtime.js','utf8');
 const start=render.indexOf('let lastBoardPaintAt=0;');
 const end=render.indexOf('function animate(ts)',start);
 assert.ok(start>=0&&end>start,'BOARD paint-budget helper must be present');
-const helper=render.slice(start,end)+'\nthis.paint=shouldPaintBoardFrame;\n';
+const helper=render.slice(start,end)+'\nthis.paint=shouldPaintBoardFrame;this.paintNormal=shouldPaintNormalFrame;\n';
 function countPaints(hz,lowDetail,dense){
  const ctx={};
  vm.runInNewContext(helper,ctx);
@@ -18,6 +18,18 @@ function countPaints(hz,lowDetail,dense){
  }
  return frames;
 }
+function countNormalPaints(hz){
+ const ctx={};
+ vm.runInNewContext(helper,ctx);
+ let frames=0;
+ for(let i=0;i<hz;i++)if(ctx.paintNormal(1000+i*1000/hz))frames++;
+ return frames;
+}
+const regular120=countNormalPaints(120);
+assert.ok(regular120>=59&&regular120<=61,
+ 'normal minigames must paint near 60/s on a 120Hz screen, got '+regular120);
+assert.equal(countNormalPaints(60),60,
+ 'normal minigames must retain every physical 60Hz frame');
 const board120=countPaints(120,false,true);
 assert.ok(board120>=29&&board120<=31,
  'dense BOARD on 120 Hz must be near 30 paints/s, got '+board120);
