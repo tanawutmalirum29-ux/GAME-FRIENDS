@@ -37,7 +37,8 @@ async function load(slug){
  }
  const ufo=await load('ufo-arena');
  assert.equal(ufo.config.impactMultiplier,1.25,'UFO collisions must dissipate energy rather than chain-accelerate');
- assert.ok(ufo.config.ufoRest<.5,'player-to-player restitution must be damped');
+ assert.ok(ufo.config.ufoRest>.75&&ufo.config.ufoRest<1,'restore springy single hits while conserving/dissipating energy');
+ assert.ok(ufo.config.wallRest>.6,'ordinary walls should visibly bounce');
  assert.equal(ufo.config.spike.maxLiveFrac,.5);
  const up=participants(2),ur={phase:'playing',paused:false,ufoArenaSeed:20261110},us=ufo.setup(ur,up);
  assert.equal(us.zones.length,24,'small UFO arena should contain 24 spike holes');
