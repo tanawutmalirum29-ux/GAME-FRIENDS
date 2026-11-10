@@ -608,7 +608,8 @@ function syncArenaResolution(){
  }
  if(boardActive&&box?.width){
   const toolScale=content.scale,originX=content.left,originY=content.top;
-  $('boardTools').style.cssText='left:'+(originX+600*toolScale)+'px;top:'+(originY+99*toolScale)+'px;transform:scale('+toolScale+');';
+  // The only BOARD toolbar control is Show ID, directly beneath Exit.
+  $('boardTools').style.cssText='left:'+(originX+872*toolScale)+'px;top:'+(originY+169*toolScale)+'px;transform:scale('+toolScale+');';
   $('pauseBtn').style.cssText='left:'+(originX+921*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
    // Right-align the full-size red Exit button with the tiny Pause control.
    $('boardExitBtn').style.cssText='left:'+(originX+872*toolScale)+'px;top:'+(originY+135*toolScale)+'px;transform:scale('+toolScale+');';
@@ -3428,19 +3429,9 @@ function refreshBoardTools(){
  // Exit must be available during normal BOARD play, not only while paused.
  $('boardExitBtn').classList.toggle('hidden',!active);
  if(active){
-  const c=boardSession.camera;
-  const botsOnly=boardSession.players.every(p=>p.isBot);
-   if(!botsOnly){c.debugNodes=false;c.selectedId=null;}
-   $('boardNodeDebugBtn').classList.toggle('hidden',!botsOnly);
-   $('boardNodeDebugBtn').setAttribute('aria-pressed',String(botsOnly&&!!c.debugNodes));
-  $('boardEffectsBtn').setAttribute('aria-pressed',String(!!c.lowDetail));
-  $('boardStartDiceBtn').classList.add('hidden'); // Automatic 2-second panorama, no manual start required.
-  const canZoom=hostCanControlBoardZoom();
-  // Overview/follow change zoom implicitly; treat them as zoom controls too.
-  $('boardFollowBtn').disabled=['overview','intro_zoom'].includes(boardSession.phase)||!canZoom;
-  $('boardOverviewBtn').disabled=boardSession.phase==='intro_zoom'||
-    (boardSession.phase!=='overview'&&!canZoom);
-  $('boardZoomInBtn').disabled=!canZoom;$('boardZoomOutBtn').disabled=!canZoom;
+  // Debug overlays are local to the Host and never change BOARD rules or
+  // network state. Leave the ID button visible in human and bot rooms.
+  $('boardNodeDebugBtn').setAttribute('aria-pressed',String(!!boardSession.camera.debugNodes));
  }
  if(active&&round.paused){
   $('pauseBtn').title='เล่นต่อ';$('pauseBtn').setAttribute('aria-label','เล่นต่อ');
@@ -3482,7 +3473,7 @@ function updateBoard(dt){
     pending-=step;
     if(s.phase==='minigame_pending'||s.phase==='minigame'||s.phase==='finished')break;
   }
-  refreshBoardTools();
+  // No per-frame DOM toolbar updates: only pause, exit and ID remain.
    if(s.phase==='minigame_pending'){
     const mode=window.BoardMinigame.pick(boardRegistry(),s.players.length,s.lastMinigame,s.rng);
     if(!mode)throw Error('No compatible minigame');
@@ -3697,25 +3688,9 @@ function updateAdaptiveBoardDetail(elapsed){
   c.lowDetail=false;c.autoDetailEngaged=false;fastBoardSeconds=0;refreshBoardTools();
  }
 }
-// Drawing the 302-node BOARD map at 120 Hz needlessly burns GPU/CPU on iPad.
-// Physics, joystick input, minigame timing and network updates stay on every RAF.
-let lastBoardPaintAt=0;
-function shouldPaintBoardFrame(ts,lowDetail,dense){
- const budget=1000/(lowDetail||dense?30:60);
- if(!lastBoardPaintAt||ts<lastBoardPaintAt||ts-lastBoardPaintAt>=budget-0.5){
-  lastBoardPaintAt=ts;return true;
- }
- return false;
-}
-// Other 3D/SVG minigames also need a 60 Hz drawing ceiling on ProMotion
-// devices. Input, combat and physics continue at the device's RAF cadence.
-let lastNormalPaintAt=0;
-function shouldPaintNormalFrame(ts){
- if(!lastNormalPaintAt||ts<lastNormalPaintAt||ts-lastNormalPaintAt>=1000/60-0.5){
-  lastNormalPaintAt=ts;return true;
- }
- return false;
-}
+// Render on every browser animation frame. There is no application-side 30/60
+// FPS cap: display refresh rate and the browser scheduler set the cadence.
+// Simulation timing, input polling and gameplay remain independent.
 function animate(ts){
   const elapsed=Math.max(0,(ts-frameLast)/1000||.016);
   const dt=Math.min(.045,elapsed);
@@ -3735,12 +3710,8 @@ function animate(ts){
     if(round&&!gameSelection){
       const onBoard=round.mode==='board';
       if(onBoard)updateAdaptiveBoardDetail(elapsed);
-      const shouldDraw=onBoard?shouldPaintBoardFrame(ts,
-       boardSession?.camera?.lowDetail,boardSession?.players.length>=8):
-       shouldPaintNormalFrame(ts);
-      if(shouldDraw){drawGame(graphicsClock);renderHostVideoFrames();}
-      if(onBoard)lastNormalPaintAt=0;
-      else lastBoardPaintAt=0;
+      drawGame(graphicsClock);
+      renderHostVideoFrames();
     }
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
@@ -3848,20 +3819,11 @@ $('webAppHelpBtn').addEventListener('click',()=>{
  help.classList.toggle('hidden',!opened);
  $('webAppHelpBtn').setAttribute('aria-expanded',String(opened));
 });
-$('boardOverviewBtn').addEventListener('click',()=>{
- if(round?.mode!=='board'||!boardSession||boardSession.phase==='intro_zoom'||
-   (boardSession.phase!=='overview'&&!hostCanControlBoardZoom()))return;
- if(boardSession.phase!=='overview')pauseGame();
- window.BoardArt.overview(boardSession);refreshBoardTools();
+$('boardNodeDebugBtn').addEventListener('click',()=>{
+ if(!boardSession||round?.mode!=='board')return;
+ window.BoardArt.toggleDebug(boardSession);
+ refreshBoardTools();
 });
-$('boardStartDiceBtn').addEventListener('click',()=>{if(boardSession&&window.BoardParty.startOrder(boardSession))refreshBoardTools();});
-$('boardFollowBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom()){window.BoardArt.follow(boardSession);if(round.paused)resumeGame();refreshBoardTools();}});
-$('boardEffectsBtn').addEventListener('click',()=>{if(boardSession){boardSession.camera.lowDetail=!boardSession.camera.lowDetail;
- boardSession.camera.manualDetail=true;boardSession.camera.autoDetailEngaged=false;
- refreshBoardTools();}});
-$('boardZoomInBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,1.25);});
-$('boardZoomOutBtn').addEventListener('click',()=>{if(hostCanControlBoardZoom())window.BoardArt.zoom(boardSession,.8);});
-$('boardNodeDebugBtn').addEventListener('click',()=>{if(boardSession&&boardSession.players.every(p=>p.isBot)){window.BoardArt.toggleDebug(boardSession);refreshBoardTools();}});
 $('resumeBtn').addEventListener('click',resumeGame);
 document.addEventListener('keydown',e=>{
   if(currentView==='game'&&(e.code==='Escape'||e.code==='KeyP')){
