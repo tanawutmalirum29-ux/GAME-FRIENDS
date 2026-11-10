@@ -10,12 +10,13 @@ const STEP=1/60,TAU=Math.PI*2;
 // Tunables (balance values are meant to be edited here).
 const C=Object.freeze({
  radius:14,          // body radius (world px, never scaled with the screen)
- mineR:11,           // visible mine radius
- hazard:21,          // centre distance that triggers a mine
- navR:31.5,          // hazard + half cell diagonal + slack: every free nav cell is truly safe
+ mineR:16,           // larger mines on the field
+ hazard:26,          // larger explosion collision radius
+ navR:36.5,          // conservative safe navigation clearance
  cell:12,pitch:50,
- speed:135,botSpeed:.93,
- introSeconds:4,planeSpeed:760,bombTime:.55,
+ speed:67.5,botSpeed:.93, // move at half of the old speed
+ introSeconds:3,planeSpeed:760,bombTime:.55,
+ mineRespawn:3.2,
  respawnDelay:.8,spawnProtection:.9,
  maxAttempts:14,
  radar:Object.freeze({bodyR:34,minR:62,shrinkTime:1.8}),
@@ -134,54 +135,29 @@ function carvePath(L,rng,open,from,to,jit,pen){
  return out;
 }
 function carveRoutes(L,rng,open,template,fallback){
- const {cols,rows}=L,pick=(a,b)=>a+Math.floor(rng()*(b-a+1));
- const nodeAt=(i,j)=>{i=clamp(i,0,cols-1);j=clamp(j,0,rows-1);let v=j*cols+i;if(!L.forbid[v])return v;
-  for(let d=1;d<rows;d++)for(const jj of[j-d,j+d]){if(jj<0||jj>=rows)continue;const w=jj*cols+i;if(!L.forbid[w])return w;}return v;};
- const route=(pts,jit,pen)=>{for(let k=0;k<pts.length-1;k++){
-   const path=carvePath(L,rng,open,nodeAt(pts[k][0],pts[k][1]),nodeAt(pts[k+1][0],pts[k+1][1]),jit,pen);
-   if(!path.length)return false;for(const v of path)open[v]=1;}return true;};
- if(fallback){ // two plain corridors along top and bottom rows: always valid
-  for(let i=0;i<cols;i++){open[1*cols+i]=1;open[(rows-2)*cols+i]=1;}return true;}
- const q=(k)=>Math.round(k*(cols-1));
- let ok=true;
- if(template===0){ // snake + narrow shortcut
-  const K=cols>14?5:4,pts=[[0,pick(1,rows-2)]];
-  for(let k=1;k<K;k++)pts.push([Math.round(k*(cols-1)/K),k%2?pick(rows-3,rows-1):pick(0,2)]);
-  pts.push([cols-1,pick(1,rows-2)]);
-  ok=route(pts,1.2,0)&&route([[0,pick(2,rows-3)],[cols-1,pick(2,rows-3)]],.4,5);
- }else if(template===1){ // fork, crossover and merge
-  const c1=q(.34),c2=q(.66);
-  ok=route([[0,pick(0,2)],[c1,pick(0,2)],[c2,pick(1,3)],[cols-1,pick(0,3)]],.8,0)&&
-   route([[0,pick(rows-3,rows-1)],[c1,pick(rows-3,rows-1)],[c2,pick(rows-4,rows-2)],[cols-1,pick(rows-4,rows-1)]],.8,0)&&
-   route([[pick(c1-1,c1+1),pick(1,2)],[pick(c1-1,c1+1),pick(rows-3,rows-2)]],.5,0);
- }else if(template===2){ // braid of three winding routes
-  for(let r=0;r<3&&ok;r++){const pts=[[0,pick(0,rows-1)]];
-   for(let k=1;k<=3;k++)pts.push([Math.round(k*(cols-1)/4)+pick(-1,1),pick(0,rows-1)]);
-   pts.push([cols-1,pick(0,rows-1)]);ok=route(pts,1.6,2.5);}
- }else{ // direct narrow line around the radar + long perimeter route
-  ok=route([[0,pick(rows>>1,(rows>>1)+1)],[cols-1,pick(rows>>1,(rows>>1)+1)]],.3,0)&&
-   route([[0,1],[cols-3,1],[cols-3,rows-2],[cols-1,rows-2]],.9,3)&&
-   route([[0,rows-2],[2,rows-2],[2,0],[cols-1,0]],.9,3);
- }
- if(!ok)return false;
- // Dead-end spurs: visible decoys the player has to remember.
- const list=[];for(let v=0;v<cols*rows;v++)if(open[v]&&v%cols>0&&v%cols<cols-1)list.push(v);
- const spurs=cols>14?pick(4,7):pick(2,4);
- for(let k=0;k<spurs&&list.length;k++){
-  let v=list[Math.floor(rng()*list.length)];const d=NB[Math.floor(rng()*4)],len=pick(2,4);
-  for(let step=0;step<len;step++){
-   const i=v%cols+d[0],j=((v/cols)|0)+d[1];if(i<1||j<0||i>=cols-1||j>=rows)break;
-   const w=j*cols+i;if(open[w]||L.forbid[w])break;
-   let touches=0;for(const e of NB.slice(0,4)){const ii=i+e[0],jj=j+e[1];if(ii<0||jj<0||ii>=cols||jj>=rows)continue;if(open[jj*cols+ii]&&jj*cols+ii!==v)touches++;}
-   if(touches)break;open[w]=1;v=w;
+ // Two winding alternatives: zigzag every ~2 columns, no straight
+ // cross-map highway. Spawn and goal boundaries connect all lanes.
+ const {cols,rows}=L;
+ const mark=(i,j)=>{if(i<0||i>=cols||j<0||j>=rows||L.forbid[j*cols+i])return false;
+  open[j*cols+i]=1;return true;};
+ for(let j=0;j<rows;j++)if(!mark(0,j)||!mark(cols-1,j))return false;
+ for(const top of [true,false]){
+  let prev=top?1:rows-2;
+  if(!mark(0,prev))return false;
+  const offset=(template+(top?0:1))%2;
+  for(let i=1;i<cols;i++){
+   const flip=(Math.floor((i+offset)/2)&1);
+   const row=top?1+flip:rows-2-flip;
+   for(let j=Math.min(prev,row);j<=Math.max(prev,row);j++)if(!mark(i,j))return false;
+   prev=row;
   }
  }
- // Occasional wider stretches.
- let count=0;for(let v=0;v<cols*rows;v++)count+=open[v];
- for(let k=0;k<count*.14;k++){
-  const v=list[Math.floor(rng()*list.length)];if(v===undefined)break;const d=NB[Math.floor(rng()*4)];
-  const i=v%cols+d[0],j=((v/cols)|0)+d[1];if(i<0||j<0||i>=cols||j>=rows)continue;
-  const w=j*cols+i;if(!L.forbid[w])open[w]=1;
+ if(!fallback){
+  // Short branches are decoys; they never open a long linear shortcut.
+  for(let q=0;q<Math.min(4,Math.floor(cols/3));q++){
+   const i=2+Math.floor(rng()*(cols-4)),top=rng()<.5,j=top?2:rows-3;
+   if(!L.forbid[j*cols+i])open[j*cols+i]=1;
+  }
  }
  return true;
 }
@@ -209,7 +185,7 @@ function generate(s,attempt,fallback){
  for(const nd of L.nodes){
   const v=nd.j*L.cols+nd.i;if(open[v])continue;
   if(obstacles.some(ob=>overlaps(ob,nd.x,nd.y,C.mineR+4)))continue;
-  mines.push({id:mines.length,x:nd.x+(rng()-.5)*6,y:nd.y+(rng()-.5)*6,r:C.mineR,alive:true,seed:rng()});
+  mines.push({id:mines.length,x:nd.x+(rng()-.5)*6,y:nd.y+(rng()-.5)*6,r:C.mineR,alive:true,respawnAt:Infinity,seed:rng()});
  }
  return{mines,obstacles};
 }
@@ -383,7 +359,8 @@ function mineHit(s,x0,y0,x1,y1){
  return hit;
 }
 function explode(s,m,victims){
- m.alive=false;s.burns.push({x:m.x,y:m.y,r:13+m.seed*5,a:m.seed*TAU});
+ m.alive=false;m.respawnAt=s.clock+C.mineRespawn;
+ s.burns.push({x:m.x,y:m.y,r:18+m.seed*6,a:m.seed*TAU});
  addEffect(s,{type:'boom',x:m.x,y:m.y,life:.9,max:.9,seed:m.seed});
  for(const p of victims){
   const d=p.df;d.state='dead';d.respawnLeft=C.respawnDelay;d.deaths++;p.vx=0;p.vy=0;
@@ -394,6 +371,20 @@ function explode(s,m,victims){
  }
 }
 
+// Reactivate a mine after its blast cooldown, never underneath a player.
+function respawnMines(s){
+ let changed=false;
+ for(const m of s.mines){
+  if(m.alive||s.clock<m.respawnAt)continue;
+  if(s.roster.some(p=>p.df?.state==='run'&&Math.hypot(p.x-m.x,p.y-m.y)<C.hazard+C.radius+6))continue;
+  m.alive=true;m.respawnAt=Infinity;changed=true;
+  s.burns=s.burns.filter(b=>Math.hypot(b.x-m.x,b.y-m.y)>1);
+ }
+ if(changed){
+  s.navEvent++;refreshLive(s);
+  for(const p of s.roster)if(p.df?.bot)p.df.bot.dirty=true;
+ }
+}
 /* ───────────── bot perception + planning ───────────── */
 function perceive(s,p){
  const b=p.df.bot,late=s.radar.state!=='intact';
@@ -460,6 +451,7 @@ function step(dt,round,ps){
  const s=round.dangerField;if(!s||s.finished)return;
  s.tick++;s.clock+=dt;s.remaining=Math.max(0,s.duration-s.clock);
  stepRadar(s,dt);
+ respawnMines(s);
  const live=[];
  for(const p of s.roster){
   const d=p.df;

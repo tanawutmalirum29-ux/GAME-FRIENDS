@@ -22,4 +22,35 @@ for(const n of [1,2,6,7,12]){
   'every possible spawn is connected to finish');
  assert.ok(round.remaining>0,'timer initialized');
 }
-console.log('DANGERFIELD setup/navigation regression OK');
+// Balance contract: slower traversal, larger mines, and early radar plane.
+assert.equal(G.config.speed,67.5);
+assert.equal(G.config.mineR,16);
+assert.equal(G.config.hazard,26);
+assert.equal(G.config.introSeconds,3);
+assert.equal(G.config.mineRespawn,3.2);
+// Repeated generation cannot produce a disconnected alternative route.
+for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
+ const ps=Array.from({length:n},(_,i)=>({id:'seed-'+i,active:false,isBot:false,input:{axisX:0,axisY:0}}));
+ const round={phase:'countdown',dangerSeed:seed};
+ const s=G.setup(round,ps);
+ assert.ok(s.mines.length>0);
+ assert.ok(s.slots.every(q=>Number.isFinite(G.remainingAt(s,q.x,q.y))),
+  'winding route disconnected for '+n+'/'+seed);
+}
+{
+ const ps=[{id:'solo',active:false,isBot:false,input:{axisX:0,axisY:0}}],
+  round={phase:'playing',paused:false,dangerSeed:789},s=G.setup(round,ps),mine=s.mines[0];
+ ps[0].x=mine.x;ps[0].y=mine.y;
+ G.step(1/60,round,ps);
+ assert.equal(mine.alive,false,'triggered mine should explode');
+ assert.equal(ps[0].df.state,'dead','explosion sends the runner to respawn');
+ assert.ok(mine.respawnAt>s.clock);
+ const deadline=mine.respawnAt;
+ while(s.clock<deadline-.15)G.step(1/60,round,ps);
+ assert.equal(mine.alive,false,'mine rearm must have a visible delay');
+ while(s.clock<deadline+.15)G.step(1/60,round,ps);
+ assert.equal(mine.alive,true,'mine must respawn after its cooldown');
+ // Airplane is summoned at 3 s, one second earlier than before.
+ assert.ok(s.plane,'airplane must arrive from the 3-second trigger');
+}
+console.log('DANGERFIELD setup/navigation, mines, speed and airplane regression OK');

@@ -85,6 +85,10 @@ jobs:
         run: node tests/map-scale-regression.cjs
       - name: LAWN MOWER 1–12 player race and sun distribution checks
         run: node tests/lawn-mower.cjs
+      - name: UFO ARENA and DANGERFIELD winding minefield regression
+        run: |
+          node tests/ufo-arena.cjs
+          node tests/dangerfield.cjs
       - name: ICE RACE traction, acceleration, full-speed bots and checkpoint regression
         run: node tests/ice-race.cjs
       - name: Original covers, scene geometry, exact lance tips and 1–12-player rounds
