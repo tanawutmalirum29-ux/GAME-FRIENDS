@@ -1,5 +1,13 @@
 # GAME-FRIENDS repository instructions for coding agents
 
+## NON-NEGOTIABLE RENDER QUALITY AND PERFORMANCE RULE — ALL MINIGAMES
+
+**DO NOT reduce rendering resolution, Canvas device pixel ratio, SVG/art fidelity, original tile/nav/path grid detail or visual quality in order to address lag/FPS. EVER.** Every game must conform to the same 960×540 logical Host viewport with devicePixelRatio-sharp backing pixels and MAP_SCALE_RULES.md, retaining its original gameplay-specific world/tier proportions. Gameplay grid detail and render resolution are different concepts; do not coarsen either as a performance shortcut.
+
+**Optimize the SYSTEM instead:** profile costly update/AI/pathfinding/collision/render/network/GC; eliminate redundant computations; share caches; use spatial indices; avoid duplicated loops and allocations. Preserve visual quality and gameplay geometry in tests. Example: DINO PANIC original bot path grid = **10 world units** (restore from 16); path validation grid = **8 world units**. Never make these coarser for speed. See the all-caps top section of README.md.
+
+
+
 ## FAST PR-FIRST WORKFLOW — mandatory for every future AI
 
 **Never run the entire QA matrix before opening a Pull Request.** Check the latest `main` and existing PRs, implement the smallest scoped change, run syntax and a relevant game-level preflight, then **commit, push, and OPEN a non-draft PR immediately**. Creating a PR does not require completed CI checks. Let GitHub Actions test while the PR is open; merge only after all applicable required checks pass on the latest head and there are no conflicts.

@@ -6,10 +6,10 @@ import * as Art from './ufo-art.js';
 const STEP=1/120,TAU=Math.PI*2,EPS=1e-9;
 const C=Object.freeze({
  radius:17,acc:330,fric:1.85,brake:2.15,maxSpeed:560,mass:1,
- ufoRest:.4,impactMultiplier:1.25,
- wallRest:.38,
- cornerRest:.8,cornerBase:190,cornerGain:.45,        // strong bumper: out = max(|vn|*rest, base + min(|vn|,260)*gain)
- bumperRest:.65,bumperBase:165,bumperGain:.38,bumperRadius:42,
+ ufoRest:.82,impactMultiplier:1.25,maxCollisionSpeed:600, // direct ship impacts feel springy; energy cannot multiply through a chain
+ wallRest:.7,
+ cornerRest:.84,cornerBase:190,cornerGain:.45,        // strong bumper: out = max(|vn|*rest, base + min(|vn|,260)*gain)
+ bumperRest:.78,bumperBase:165,bumperGain:.38,bumperRadius:42,
  hp:5,invuln:.8,
  spike:{len:27,warn:.6,actMin:1.2,actMax:1.8,restMin:.8,restMax:1.4,extend:.09,retract:.2,knock:190,
   slot:84,maxLiveFrac:.5,maxLiveEdges:8},
@@ -290,7 +290,7 @@ function integrate(s,p,live,dt){
  let ix=finite(inp.x),iy=finite(inp.y);const m0=hyp(ix,iy);if(m0>1){ix/=m0;iy/=m0;}
  const mag=hyp(ix,iy);
  p.vx+=ix*C.acc*u*dt;p.vy+=iy*C.acc*u*dt;
- const f=Math.exp(-(mag>.05?C.fric:C.brake)*dt);p.vx*=f;p.vy*=f;
+ const f=Math.exp(-(d.impactT>0?.8:(mag>.05?C.fric:C.brake))*dt);p.vx*=f;p.vy*=f;
  const sp=hyp(p.vx,p.vy),cap=C.maxSpeed*u*(d.impactT>0?C.impactMultiplier:1);if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
  p.x+=p.vx*dt;p.y+=p.vy*dt;
  d.tx=ix;d.ty=iy;d.thrust=mag;
@@ -301,12 +301,17 @@ function integrate(s,p,live,dt){
   fx(s,{k:'puff',x:p.x-ix*q*13*u+(fxr(s)-.5)*5*u,y:p.y-iy*q*13*u+(fxr(s)-.5)*5*u,vx:-ix*40*u,vy:-iy*40*u,life:.32,max:.32,r0:2.6*u,grow:5*u,alpha:.5,color:'#ffd27a'});
  }
 }
+function capCollisionSpeed(p,u){
+ const speed=hyp(p.vx,p.vy),cap=C.maxCollisionSpeed*u;
+ if(speed>cap){p.vx*=cap/speed;p.vy*=cap/speed;}
+}
 function bounceOff(p,nx,ny,rest,base,gain,u){
  const vn=p.vx*nx+p.vy*ny;if(vn>=0)return 0;
  const inN=-vn;
  const out=Math.max(inN*rest,base?base*u+Math.min(inN,260*u)*gain:0)*C.impactMultiplier;
  p.vx+=nx*(out-vn);p.vy+=ny*(out-vn);
- p.ufo.impactT=.3; // short impact allowance; no multi-body energy explosion
+ capCollisionSpeed(p,u);
+ p.ufo.impactT=.32; // short impact allowance; no multi-body energy explosion
  return inN;
 }
 function envCollide(s,p){
@@ -346,9 +351,12 @@ function pairCollide(s,live){
   a.x-=nx*corr/ma;a.y-=ny*corr/ma;b.x+=nx*corr/mb;b.y+=ny*corr/mb;
   const rel=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
   if(rel<0){
-   const j2=-(1+C.ufoRest)*rel/im*C.impactMultiplier;
+   // Ordinary pair impulse conserves momentum and loses energy (e<1).
+   // Strong wall/bumper boost is NOT propagated through every ship collision.
+   const j2=-(1+C.ufoRest)*rel/im;
    a.vx-=j2*nx/ma;a.vy-=j2*ny/ma;b.vx+=j2*nx/mb;b.vy+=j2*ny/mb;
-   a.ufo.impactT=b.ufo.impactT=.3;
+   capCollisionSpeed(a,u);capCollisionSpeed(b,u);
+   a.ufo.impactT=b.ufo.impactT=.32;
    if(-rel>90*u&&a.ufo.fxCool<=0&&b.ufo.fxCool<=0){
     a.ufo.fxCool=b.ufo.fxCool=.12;
     impactFx(s,(a.x+b.x)/2,(a.y+b.y)/2,'#fff4c2',clamp(-rel/(260*u),.2,1));

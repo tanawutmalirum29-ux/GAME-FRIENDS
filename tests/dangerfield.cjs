@@ -41,6 +41,28 @@ for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
  assert.ok(route.length>15,'danger route must extend beyond a straight crossing');
  assert.equal(route.filter(p=>degree(p)===1).length,2,'two unique route endpoints');
  assert.ok(route.every(p=>degree(p)===1||degree(p)===2),'no parallel split or branching corridor');
+ // A graph can be a single path yet mostly straight. Demand visible S-bends
+ // throughout the arena and reject a long straight lower highway.
+ const endpoints=route.filter(p=>degree(p)===1);
+ const coords=new Map(route.map(p=>[p.i+','+p.j,p]));
+ const walk=[endpoints[0]];let prev=null,cur=endpoints[0];
+ while(walk.length<route.length){
+  const next=[[1,0],[-1,0],[0,1],[0,-1]]
+   .map(([di,dj])=>coords.get((cur.i+di)+','+(cur.j+dj)))
+   .find(q=>q&&q!==prev);
+  assert.ok(next,'route must be one continuous winding line');
+  prev=cur;cur=next;walk.push(cur);
+ }
+ let turns=0,straight=0,longestStraight=0,previousDir=null;
+ for(let i=1;i<walk.length;i++){
+  const dir=walk[i].i===walk[i-1].i?'v':'h';
+  if(previousDir&&previousDir!==dir)turns++;
+  if(dir==='h'){straight++;longestStraight=Math.max(longestStraight,straight);}else straight=0;
+  previousDir=dir;
+ }
+ assert.ok(turns>=4,'road requires multiple real hairpin turns, not a straight crossing');
+ assert.ok(longestStraight<=6,'road must not have a long straight highway across the screen');
+ assert.ok(walk.length>12+(n>6?20:12),'winding road must use the arena height');
  assert.ok(s.slots.every(q=>Number.isFinite(G.remainingAt(s,q.x,q.y))),
   'winding route disconnected for '+n+'/'+seed);
 }

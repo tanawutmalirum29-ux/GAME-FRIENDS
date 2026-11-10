@@ -1,5 +1,19 @@
 # GAME-FRIENDS — STICK SQUAD PARTY
 
+# ⛔ กฎสูงสุด: ห้ามลดความละเอียดของเกมเพื่อแก้อาการแลค — ทุกมินิเกมต้องรักษามาตรฐานภาพเดียวกัน
+
+> **คำสั่งถาวรสำหรับ AI / Codex / ผู้พัฒนาทุกคน: ห้ามลดความละเอียดภาพ, Canvas backing resolution, DPR, SVG/raster quality, ขนาดกริดเดิม, ความละเอียดการคำนวณเส้นทาง, หรือคุณภาพกราฟิกของเกมใด ๆ เพื่อแก้ปัญหากระตุก/แลค โดยเด็ดขาด**
+>
+> **เมื่อเกมแลค ให้หาต้นเหตุในระบบและแก้ที่ต้นเหตุเท่านั้น เช่น AI pathfinding คำนวณซ้ำ, collision ซ้ำซ้อน, งานที่รันทุกเฟรม, object allocation/GC, Canvas draw calls, asset decoding และการอัปเดตสถานะเครือข่าย ห้ามใช้การลดความละเอียดหรือขยายขนาดกริดเป็นทางลัด**
+>
+> **มาตรฐานภาพทุกมินิเกมต้องสม่ำเสมอ:** ใช้ Host logical viewport 960×540, Canvas ตาม devicePixelRatio ตามระบบกลาง, SVG/ภาพความคมชัดเดิม, world-to-screen transform ถูกต้อง และรักษาสัดส่วนขนาดตัวละคร/วัตถุ/ชนตาม [MAP_SCALE_RULES](docs/MAP_SCALE_RULES.md) (ความกว้าง world และขนาดสนามแต่ละเกมอาจต่างกันตามกติกาได้ ไม่ใช่บังคับเปลี่ยนเป็น world เดียวกัน)
+
+**วิธีปฏิบัติบังคับก่อนแก้แลค:** (1) วัด/ตรวจ CPU frame time แยก update, AI, collision, render และ heap allocation (2) หารูปแบบงานซ้ำแล้วแก้ algorithm/cache/spatial index/batching (3) รักษาความละเอียดเดิมทุกค่า (4) เพิ่ม regression ตรวจคุณภาพและ performance รวมถึง Chromium/WebKit ตามพื้นที่ที่แก้ (5) อธิบาย root cause และหลักฐานไว้ใน PR ห้ามสรุปว่า "ความละเอียดเป็นสาเหตุ" โดยไม่พิสูจน์
+
+**ตัวอย่างที่ต้องไม่เกิดซ้ำ:** DINO PANIC เคยเปลี่ยนกริดบอทจาก 10 เป็น 16 world units เพื่อหวังให้เร็วขึ้น — **คืนค่า 10 แล้ว** โดยแก้ระบบค้นหาเส้นทางให้บอทใช้ข้อมูลร่วมกันแทน ขนาดกริดตรวจแผนที่ 8 world units คงเดิม ห้ามเพิ่มค่าทั้งสองเพื่อแก้แลคอีก
+
+---
+
 ![GAME FRIENDS cover — Ghost Attack, Chickens, Fruit Memory, Shockwave, Color Switch, Pizza Time](assets/game-friends-cover.svg)
 
 ภาพปกเกมอยู่ใน `assets/game-friends-cover.svg` พร้อมภาพแชร์ `assets/game-friends-social.png` และไอคอน `assets/game-friends-icon.svg` ใช้จากไฟล์ใน repository โดยตรง
