@@ -64,8 +64,12 @@ for(const asset of ['farm-ice-art.js','graveyard-art.js'])
   'Source HTML must not eagerly download game-owned scenery: '+asset);
 assert.ok(lazyHTML.includes('src="./src/platform/board-runtime.js"'),
  'production loads BOARD through the deferred core runtime');
-assert.equal(catalog.games.length,15,'all 15 legacy games must be automatically discovered');
-assert.equal(new Set(catalog.games.map(g=>g.id)).size,15);
+const pluginFolders=fs.readdirSync(path.join(root,'src','games'),{withFileTypes:true})
+ .filter(entry=>entry.isDirectory());
+assert.equal(catalog.games.length,pluginFolders.length,
+ 'all folder-owned games must be automatically discovered');
+assert.equal(new Set(catalog.games.map(g=>g.id)).size,catalog.games.length,
+ 'discovered game IDs must stay unique as new plug-ins are added');
 for(const game of catalog.games){
  assert.match(game.hash,/^[a-f0-9]{24}$/);
  assert.ok(game.entryUrl.endsWith('/game.js'));
