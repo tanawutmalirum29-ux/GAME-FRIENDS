@@ -13,7 +13,10 @@ global.window={PartyCharacters:{
  const base=path.resolve(__dirname,'../src/games/dino-panic');
  const game=(await import(pathToFileURL(path.join(base,'game.js')).href)).default;
  const {C}=await import(pathToFileURL(path.join(base,'config.js')).href);
+ const {BOT_NAV_CELL}=await import(pathToFileURL(path.join(base,'bot.js')).href);
  assert.equal(C.speed,130,'reduced runner/dinosaur speed');
+ assert.equal(BOT_NAV_CELL,10,'original 10-unit navigation grid MUST NOT be coarsened for speed');
+ assert.equal(C.cell,8,'original precise track validation grid MUST remain unchanged');
  assert.ok(C.pushFactor<.5,'walking speed is greatly reduced while pushing');
  const create=(n,seed)=>{const ps=Array.from({length:n},(_,i)=>({
   id:'d'+i,name:'D'+i,active:false,isBot:i>0,color:'#ffcc33',
@@ -57,7 +60,10 @@ global.window={PartyCharacters:{
   const millis=performance.now()-t;
   assert.ok(ps.every(p=>Number.isFinite(p.x+p.y)),'12 bots remain finite');
   assert.ok(millis<12000,'6 seconds of 12-player game should not take more than 12 seconds CPU');
-  console.log('DINO PANIC 12-bot 6-second simulation CPU ms:',Math.round(millis));
+  assert.ok(s.botFieldsBuilt>0,'shared nav fields are generated');
+  assert.ok(s.botFieldsBuilt<100,'coalesced bot navigation reuses fields instead of 12 independent searches');
+  assert.ok(s.botFields.size<=12,'shared cache stays bounded');
+  console.log('DINO PANIC 12-bot 6-second CPU ms:',Math.round(millis),'shared Dijkstra fields:',s.botFieldsBuilt);
  }
  console.log('DINO PANIC slow obstacle pushes, spatial index and bot workload PASS');
 })().catch(e=>{console.error(e);process.exitCode=1;});
