@@ -100,8 +100,8 @@ function updateAdaptiveBoardDetail(elapsed){
 // Physics, joystick input, minigame timing and network updates stay on every RAF.
 let lastBoardPaintAt=0;
 function shouldPaintBoardFrame(ts,lowDetail,dense){
- const budget=1000/(lowDetail||dense?30:45);
- if(!lastBoardPaintAt||ts<lastBoardPaintAt||ts-lastBoardPaintAt>=budget){
+ const budget=1000/(lowDetail||dense?30:60);
+ if(!lastBoardPaintAt||ts<lastBoardPaintAt||ts-lastBoardPaintAt>=budget-0.5){
   lastBoardPaintAt=ts;return true;
  }
  return false;
