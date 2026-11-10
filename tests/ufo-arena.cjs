@@ -19,7 +19,9 @@ global.window={PartyCharacters:{
   assert.equal(typeof engine[method],'function',method+' missing');
  assert.equal(engine.config.hp,5);
  assert.ok(engine.config.ufoRest>=.8,'direct UFO impact has responsive restitution');
- assert.ok(engine.config.maxCollisionSpeed<=engine.config.maxSpeed*1.15,'bounded chain energy');
+ assert.equal(engine.config.bounceBoost,2,'all UFO collision rebounds doubled');
+ assert.equal(engine.config.maxCollisionSpeed,1200,'collision cap raised with rebound impulse');
+ assert.equal(engine.config.spike.knock,380,'spike impact knockback also doubled');
  assert.equal(engine.config.edgeBounceMultiplier,1.5,'perimeter collisions must rebound 1.5x harder');
  assert.ok(engine.config.minPairSeparationSpeed>=140,'fresh contact must have visible separating motion');
  assert.ok(fs.readFileSync(path.join(folder,'cover.svg'),'utf8').includes('<svg'));
@@ -57,7 +59,7 @@ global.window={PartyCharacters:{
   engine.step(1/120,round,ps);
   assert.ok(Math.max(ps[1].vx,ps[2].vx)>110,'first collision must transfer a clearly noticeable impulse through the ships');
   const energy=ps.reduce((sum,p)=>sum+p.vx*p.vx+p.vy*p.vy,0);
-  assert.ok(energy<=initialEnergy*1.001,'a UFO-to-UFO chain must not amplify energy');
+  assert.ok(energy<=initialEnergy*8,'one-shot doubled contact impulses must have bounded energy');
   for(let t=0;t<200&&!state.finished;t++){
    engine.step(1/120,round,ps);
    for(const p of ps)assert.ok(Math.hypot(p.vx,p.vy)<=engine.config.maxCollisionSpeed*state.geo.u+1,
@@ -84,15 +86,18 @@ global.window={PartyCharacters:{
    engine.step(1/120,round,ps);
    peak=Math.max(peak,Math.abs(ps[0].vx),Math.abs(ps[1].vx));
   }
-  assert.ok(peak<200*u,'contact must not generate an escalating chain of rebound speed');
+  assert.ok(peak<400*u,'one-shot double rebound must not self-amplify on sustained contact');
   assert.ok(ps[1].x-ps[0].x>80*u,'ships must move apart instead of remaining attached');
  }
- // Boundary restitution is exactly 1.5x its prior value on normal and
+ // Boundary restitution is now 2x the previous 1.5x build on normal and
  // coloured corner edges, independently of the centre bumper.
  for(const n of [1,7])for(const edgeId of [0,1]){
   const ps=[{id:'wall',name:'Wall',active:false,isBot:false,color:'#ffeeaa',input:{axisX:0,axisY:0}}];
   const round={phase:'playing',paused:false,ufoArenaSeed:9191+n+edgeId},
    state=engine.setup(round,ps),p=ps[0],u=state.geo.u,e=state.geo.edges[edgeId],R=engine.config.radius*u;
+  // Isolate restitution from the new continuously armed spikes: an
+  // independently triggered spike knock would add its own 2x knockback.
+  for(const z of state.zones){z.state='idle';z.ext=0;}
   const midX=(e.a.x+e.b.x)/2,midY=(e.a.y+e.b.y)/2;
   p.x=midX+e.n.x*(R-.8*u);
   p.y=midY+e.n.y*(R-.8*u);
@@ -104,8 +109,50 @@ global.window={PartyCharacters:{
   const before=Math.max(inSpeed*rest,base+Math.min(inSpeed,260*u)*gain)*engine.config.impactMultiplier;
   engine.step(1/120,round,ps);
   const rebound=p.vx*e.n.x+p.vy*e.n.y;
-  assert.ok(Math.abs(rebound/before-1.5)<.03,
-   'perimeter '+(e.strong?'strong bumper':'gray wall')+' must bounce exactly 1.5x at tier '+n+' players');
+  assert.ok(Math.abs(rebound/before-3)<.03,
+   'perimeter '+(e.strong?'strong bumper':'gray wall')+' must bounce exactly 3x the original unboosted baseline at tier '+n+' players');
  }
- console.log('UFO ARENA 1-12-player API, outward pair impulses, 1.5x walls and stable chains PASS');
+ // 50% of spike slots must always be lethally deployed, including setup
+ // and during exact same-tick retraction/extension handoffs.
+ for(const n of [2,7]){
+  const ps=Array.from({length:n},(_,i)=>({id:'hazard'+i,name:'Hazard '+i,active:false,
+   isBot:false,color:'#e3c9ff',input:{axisX:0,axisY:0}}));
+  const round={phase:'playing',paused:false,ufoArenaSeed:75126+n},state=engine.setup(round,ps);
+  const required=Math.round(state.zones.length*engine.config.spike.maxLiveFrac);
+  const count=()=>state.zones.filter(z=>z.state==='active'&&z.ext>=1).length;
+  assert.equal(count(),required,'initial setup must display exactly 50% full-length spikes');
+  let handoffs=0,seenRetracting=false;
+  for(let t=0;t<2300;t++){
+   const before=new Set(state.zones.filter(z=>z.state==='active').map(z=>z.id));
+   engine.step(1/120,round,ps);
+   assert.equal(count(),required,'no frame may have fewer than 50% full-length lethal spikes');
+   const after=state.zones.filter(z=>z.state==='active');
+   const entered=after.filter(z=>!before.has(z.id));
+   const exited=state.zones.filter(z=>before.has(z.id)&&z.state==='rest');
+   if(entered.length){
+    handoffs++;
+    assert.equal(entered.length,exited.length,'same-frame spike handoff must swap equal numbers');
+    assert.ok(entered.every(z=>z.ext===1),'incoming spikes must strike immediately at full length');
+    assert.ok(exited.every(z=>z.ext>0),'outgoing spikes retract while replacements already attack');
+   }
+   if(state.zones.some(z=>z.state==='rest'&&z.ext>0))seenRetracting=true;
+  }
+  assert.ok(handoffs>=7,'spike groups must continue rotating, never reach a cooldown pause');
+  assert.ok(seenRetracting,'retiring spikes must retract alongside live incoming spikes');
+ }
+ // Centre bumper rebound is also exactly twice the previous release.
+ for(const n of [1,7]){
+  const p={id:'centre',name:'Centre',active:false,isBot:false,color:'#fff',
+   input:{axisX:0,axisY:0}},round={phase:'playing',paused:false,ufoArenaSeed:888+n};
+  const state=engine.setup(round,[p]),u=state.geo.u,b=state.geo.bumper;
+  const R=engine.config.radius*u;
+  p.x=b.x+b.r+R-.5*u;p.y=b.y;p.vx=-120*u;p.vy=0;
+  const v=120*u*Math.exp(-engine.config.brake/120);
+  const base=Math.max(v*engine.config.bumperRest,
+   engine.config.bumperBase*u+Math.min(v,260*u)*engine.config.bumperGain)
+   *engine.config.impactMultiplier;
+  engine.step(1/120,round,[p]);
+  assert.ok(Math.abs(p.vx/base-2)<.04,'centre bumper rebound must double at world tier '+n);
+ }
+ console.log('UFO ARENA doubled rebounds, permanent 50% spikes and bounded contact physics PASS');
 })().catch(e=>{console.error(e);process.exitCode=1});

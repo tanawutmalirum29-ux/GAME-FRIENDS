@@ -6,14 +6,15 @@ import * as Art from './ufo-art.js';
 const STEP=1/120,TAU=Math.PI*2,EPS=1e-9;
 const C=Object.freeze({
  radius:17,acc:330,fric:1.85,brake:2.15,maxSpeed:560,mass:1,
- ufoRest:.82,impactMultiplier:1.25,maxCollisionSpeed:600, // chain collisions conserve/dissipate impulse
- minPairSeparationSpeed:160, // fresh ship contact must kick BOTH ships apart (scaled world units/s)
+ ufoRest:.82,impactMultiplier:1.25,bounceBoost:2,maxCollisionSpeed:1200,
+ // 2x impact rebound vs previous release, with a finite 2x higher safety cap
+ minPairSeparationSpeed:160, // doubled at contact by bounceBoost; applied once, never per iteration
  edgeBounceMultiplier:1.5,   // perimeter walls + coloured corner bumpers only, not centre bumper
  wallRest:.7,
  cornerRest:.84,cornerBase:190,cornerGain:.45,        // strong bumper: out = max(|vn|*rest, base + min(|vn|,260)*gain)
  bumperRest:.78,bumperBase:165,bumperGain:.38,bumperRadius:42,
  hp:5,invuln:.8,
- spike:{len:27,warn:.6,actMin:1.2,actMax:1.8,restMin:.8,restMax:1.4,extend:.09,retract:.2,knock:190,
+ spike:{len:27,warn:0,actMin:1.2,actMax:1.8,restMin:0,restMax:0,extend:0,retract:.2,knock:380,
   slot:84,maxLiveFrac:.5,maxLiveEdges:8},
  firstSpike:1.5,finishDelay:1.1,seconds:{small:60,large:80},
  hudCap:5
@@ -123,56 +124,89 @@ function setup(round,ps){
    phase:rng(s)*TAU,tx:0,ty:0,thrust:0,fxCool:0,impactT:0,bot:p.isBot?makeBot(s):null};
   if(p.ufo.bot){p.ufo.bot.lastX=q.x;p.ufo.bot.lastY=q.y;}
  });
+ if(!trySpawnPattern(s))throw Error('Unable to initialize permanent 50% spike coverage');
  round.remaining=s.total;
  return s;
 }
 
 /* ------------------------------ spikes ------------------------------ */
-function activatePattern(s,list){
- const dur=between(s,C.spike.actMin,C.spike.actMax);
- for(const z of list){z.state='warn';z.timer=C.spike.warn;z.activeDur=dur;z.ext=0;}
+// Keep exactly 50% of slots at full lethal extension at all times.
+// A new batch activates on the SAME simulation tick that the retiring batch
+// starts its (visual-only) withdrawal. Old and new spikes briefly overlap
+// visually, but the lethal deployed count is always exactly 50%.
+function shuffled(s,items){
+ const out=items.slice();
+ for(let i=out.length-1;i>0;i--){const j=Math.floor(rng(s)*(i+1));[out[i],out[j]]=[out[j],out[i]];}
+ return out;
 }
-function liveZones(s){return s.zones.filter(z=>z.state==='warn'||z.state==='active');}
 function trySpawnPattern(s){
- const geo=s.geo,live=liveZones(s);
- // One batch per cycle: exactly half of every hole (12 of 24 on small maps).
- // Keep 180-degree pairs for fairness and never spawn on an already-active hole.
- if(live.length)return false;
- if(s.zones.some(z=>z.state==='rest'))return false;
- const target=Math.round(geo.zones.length*C.spike.maxLiveFrac);
- const chosen=[],used=new Set();
- const available=geo.zones.filter(z=>z.state==='idle');
- for(let attempt=0;attempt<available.length*3&&chosen.length<target;attempt++){
-  const z=available[Math.floor(rng(s)*available.length)];
-  if(used.has(z.id))continue;
-  const partner=image(geo,z,'rot');
-  if(!partner||partner.state!=='idle'||used.has(partner.id))continue;
-  if(target-chosen.length<2)break;
-  chosen.push(z,partner);used.add(z.id);used.add(partner.id);
+ const zones=s.zones,target=Math.round(zones.length*C.spike.maxLiveFrac);
+ const seen=new Set(),pairs=[];
+ for(const z of zones){
+  if(seen.has(z.id))continue;
+  const opposite=image(s.geo,z,'rot');
+  if(opposite&&opposite.id!==z.id&&!seen.has(opposite.id)&&image(s.geo,opposite,'rot')?.id===z.id){
+   pairs.push([z,opposite]);seen.add(z.id);seen.add(opposite.id);
+  }else{pairs.push([z]);seen.add(z.id);}
  }
- if(chosen.length<target){
-  for(const z of available)if(chosen.length<target&&!used.has(z.id)){chosen.push(z);used.add(z.id);}
- }
+ const oldActive=zones.filter(z=>z.state==='active');
+ const fullActivePairs=shuffled(s,pairs.filter(pair=>pair.length===2&&pair.every(z=>z.state==='active')));
+ const fullIdlePairs=shuffled(s,pairs.filter(pair=>pair.length===2&&pair.every(z=>z.state==='idle')));
+ const chosen=[],picked=new Set();
+ const take=pair=>{
+  if(chosen.length+pair.length>target||pair.some(z=>picked.has(z.id)))return false;
+  for(const z of pair){chosen.push(z);picked.add(z.id);}
+  return true;
+ };
+ // Preserve some old spikes while changing the rest of the pattern.
+ const keepPairs=oldActive.length?Math.min(fullActivePairs.length,Math.floor(target*.18)):0;
+ for(const group of fullActivePairs.slice(0,keepPairs))take(group);
+ for(const group of fullIdlePairs)take(group);
+ // Rare odd slot totals or unusual arena art can leave one singleton.
+ // First use already-idle slots, then old actives; never pick withdrawing
+ // spikes, because they are not yet free until their animation is complete.
+ for(const z of shuffled(s,zones.filter(z=>z.state==='idle')))if(chosen.length<target)take([z]);
+ for(const z of shuffled(s,oldActive))if(chosen.length<target)take([z]);
  if(chosen.length!==target)return false;
- activatePattern(s,chosen);
+ const ends=s.nextSpawn;
+ for(const z of zones){
+  if(z.state==='active'&&!picked.has(z.id)){
+   z.state='rest';z.timer=C.spike.retract;z.ext=1;
+  }else if(picked.has(z.id)){
+   const newSpike=z.state!=='active';
+   z.state='active';z.ext=1;z.timer=Math.max(0,ends-s.clock);
+   // A retained spike begins a fresh hazard wave as well: don't leave
+   // previously hit players permanently immune to a still-visible spike.
+   z.hit=Object.create(null);
+   if(newSpike){
+    z.act=(z.act||0)+1;
+    const e=s.geo.edges[z.edge],m=(z.s0+z.s1)/2;
+    fx(s,{k:'ring',x:e.a.x+e.d.x*m+e.n.x*10*s.geo.u,
+     y:e.a.y+e.d.y*m+e.n.y*10*s.geo.u,life:.25,max:.25,
+     r0:4*s.geo.u,r1:26*s.geo.u,color:'#ff6a4a'});
+   }
+  }
+ }
+ s.spikeHandoffs=(s.spikeHandoffs||0)+(oldActive.length?1:0);
  return true;
 }
 function updateZones(s,dt){
  for(const z of s.zones){
-  if(z.state==='warn'){
-   z.timer-=dt;
-   if(z.timer<=0){z.state='active';z.timer=z.activeDur;z.act++;z.hit=Object.create(null);z.ext=0;
-    const e=s.geo.edges[z.edge],m=(z.s0+z.s1)/2;
-    fx(s,{k:'ring',x:e.a.x+e.d.x*m+e.n.x*10*s.geo.u,y:e.a.y+e.d.y*m+e.n.y*10*s.geo.u,life:.25,max:.25,r0:4*s.geo.u,r1:26*s.geo.u,color:'#ff6a4a'});}
-  }else if(z.state==='active'){
-   z.timer-=dt;z.ext=Math.min(1,(z.activeDur-z.timer)/C.spike.extend);
-   if(z.timer<=0){z.state='rest';z.timer=between(s,C.spike.restMin,C.spike.restMax);}
-  }else if(z.state==='rest'){
-   z.timer-=dt;z.ext=Math.max(0,z.ext-dt/C.spike.retract);
+  if(z.state==='rest'){
+   z.timer=Math.max(0,z.timer-dt);
+   z.ext=z.timer/C.spike.retract;
    if(z.timer<=0){z.state='idle';z.ext=0;}
+  }else if(z.state==='active'){
+   z.timer=Math.max(0,s.nextSpawn-s.clock);
+   z.ext=1;
   }
  }
- if(s.clock>=s.nextSpawn)s.nextSpawn=s.clock+(trySpawnPattern(s)?between(s,.35,.95):.25);
+ if(s.clock>=s.nextSpawn){
+  const next=s.clock+between(s,C.spike.actMin,C.spike.actMax);
+  s.nextSpawn=next;
+  // The selection is atomic: there is never an all-hidden cooldown.
+  if(!trySpawnPattern(s))throw Error('UFO spike coverage invariant broken');
+ }
 }
 
 /* ------------------------------ input ------------------------------ */
@@ -293,7 +327,7 @@ function integrate(s,p,live,dt){
  const mag=hyp(ix,iy);
  p.vx+=ix*C.acc*u*dt;p.vy+=iy*C.acc*u*dt;
  const f=Math.exp(-(d.impactT>0?.8:(mag>.05?C.fric:C.brake))*dt);p.vx*=f;p.vy*=f;
- const sp=hyp(p.vx,p.vy),cap=C.maxSpeed*u*(d.impactT>0?C.impactMultiplier:1);if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
+ const sp=hyp(p.vx,p.vy),cap=C.maxSpeed*u*(d.impactT>0?C.impactMultiplier*C.bounceBoost:1);if(sp>cap){p.vx*=cap/sp;p.vy*=cap/sp;}
  p.x+=p.vx*dt;p.y+=p.vy*dt;
  d.tx=ix;d.ty=iy;d.thrust=mag;
  if(mag>.1){p.dir={x:ix/mag,y:iy/mag};p.face=p.dir.x<0?-1:1;}
@@ -310,7 +344,7 @@ function capCollisionSpeed(p,u){
 function bounceOff(p,nx,ny,rest,base,gain,u,bounceScale=1){
  const vn=p.vx*nx+p.vy*ny;if(vn>=0)return 0;
  const inN=-vn;
- const out=Math.max(inN*rest,base?base*u+Math.min(inN,260*u)*gain:0)*C.impactMultiplier*bounceScale;
+ const out=Math.max(inN*rest,base?base*u+Math.min(inN,260*u)*gain:0)*C.impactMultiplier*bounceScale*C.bounceBoost;
  p.vx+=nx*(out-vn);p.vy+=ny*(out-vn);
  capCollisionSpeed(p,u);
  p.ufo.impactT=.32; // short impact allowance; no multi-body energy explosion
@@ -363,7 +397,9 @@ function pairCollide(s,live,previousContacts,currentContacts){
   // slow or already-overlapping contact gets ONE minimum separating
   // velocity so both UFOs visibly rebound instead of sticking together.
   // Do not add this speed every solver pass or on sustained contact.
-  const target=Math.max(-C.ufoRest*rel,fresh?minimum:0);
+  // Boost only the initial encounter; continuous contacts keep dissipative
+  // restitution and must never receive a fresh boost on each solver pass.
+  const target=fresh?C.bounceBoost*Math.max(-C.ufoRest*rel,minimum):Math.max(-C.ufoRest*rel,0);
   if(target>rel){
    const impulse=(target-rel)/im;
    a.vx-=impulse*nx/ma;a.vy-=impulse*ny/ma;
