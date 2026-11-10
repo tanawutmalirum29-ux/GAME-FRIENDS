@@ -98,6 +98,7 @@ async function run(){
   assert.equal(recovered.room,initial.code);
   assert.ok(recovered.newId&&recovered.newId!==initial.id,'new player joins after same-Peer reconnect');
   assert.equal(recovered.instances,1,'do not replace a recoverable PeerJS instance');
+  await page.locator('#plazaSettingsToggle').click();
   await page.locator('[data-session-mode="board"]').click();
   await page.locator('#startBtn').click();
   await page.waitForFunction(()=>!!__peerQA.board,null,{polling:100,timeout:15000});

@@ -38,7 +38,7 @@ function initialize(){
  const dpr=Math.max(window.devicePixelRatio||1,1);
  canvas.width=Math.round(WORLD.width*dpr);canvas.height=Math.round(WORLD.height*dpr);
  canvas.style.aspectRatio='16 / 9';
- $('hostLobby')?.classList.add('plaza-loaded','plaza-show-room');
+ $('hostLobby')?.classList.add('plaza-loaded');
  loading=Promise.allSettled([
    fetch('./src/lobby/lobby-zones.json',{cache:'force-cache'}).then(r=>{if(!r.ok)throw Error('layout '+r.status);return r.json();}).then(data=>{
      if(data?.world?.width===960&&data?.world?.height===540&&Array.isArray(data.obstacles)&&Array.isArray(data.zones)&&Array.isArray(data.spawnPoints))layout=data;

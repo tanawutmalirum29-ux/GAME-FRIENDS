@@ -6144,3 +6144,23 @@ body.controller-playing #controller .phone-game-choices{
  #hostLobby.plaza-loaded .lobby-player-panel{width:55vw!important}
  #hostLobby.plaza-loaded .lobby-controls{width:65vw!important}
 }
+
+/* When the physical device remains portrait, the existing HOST shell itself
+   rotates. Plaza dimensions are relative to that rotated shell, NOT 100dvw. */
+@media (orientation:portrait){
+ body.gf-virtual-landscape #hostLobby.host-lobby.plaza-loaded:not(.hidden){
+  width:100%!important;height:100%!important;max-height:100%!important;
+  min-height:0!important;padding:0!important;display:block!important;
+ }
+ body.gf-virtual-landscape #hostLobby.plaza-loaded .lobby-controls{
+  height:auto!important;min-height:0!important;max-height:calc(100% - 108px)!important;
+  grid-template-columns:1fr!important;grid-template-rows:auto!important;
+ }
+ body.gf-virtual-landscape #hostLobby.plaza-loaded .lobby-controls>.lobby-session-control,
+ body.gf-virtual-landscape #hostLobby.plaza-loaded .lobby-controls>.lobby-room-actions{
+  grid-column:auto!important;grid-row:auto!important;
+ }
+ body.gf-virtual-landscape #hostLobby.plaza-loaded .lobby-roster{
+  height:auto!important;min-height:260px!important;
+ }
+}

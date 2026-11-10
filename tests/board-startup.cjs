@@ -42,7 +42,7 @@ async function main(){
    const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e)));
    page.on('console',m=>{if(m.type()==='error'&&m.text().includes('failed'))errors.push(m.text());});
    await page.goto('http://127.0.0.1:'+server.address().port+'/?host=1');
-   await page.locator('#offlineBtn').click();if(denyTerrain)for(let i=0;i<10;i++)await page.locator('#addLocalBtn').click();
+   await page.locator('#offlineBtn').click();await page.locator('#plazaSettingsToggle').click();if(denyTerrain)for(let i=0;i<10;i++)await page.locator('#addLocalBtn').click();
    await page.locator('[data-session-mode="board"]').click();
    await page.evaluate(deny=>{
     window.__denyTerrain=deny;

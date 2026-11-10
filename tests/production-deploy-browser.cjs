@@ -141,6 +141,7 @@ async function run(){
   assert.equal(version1.version,'v1');
   assert.equal(version1.count,a.games.length);
   // Enter an actual BOARD party; core runtime must remain mounted on refresh.
+  await page.locator('#plazaSettingsToggle').click();
   await page.locator('[data-session-mode="board"]').click();
   await page.locator('#startBtn').click();
   await page.waitForFunction(()=>!!window.BoardParty&&

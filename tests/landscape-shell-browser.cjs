@@ -45,6 +45,7 @@ async function test(){
    }
    // The offline button belongs to the home page; add bot is a lobby control.
    await page.locator('#offlineBtn').click();
+   await page.locator('#plazaSettingsToggle').click();
    await page.locator('#addLocalBtn').click();
    await page.waitForFunction(()=>document.body.classList.contains('gf-virtual-landscape'));
    const r=await page.evaluate(()=>{

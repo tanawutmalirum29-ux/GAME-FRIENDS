@@ -1,7 +1,12 @@
 // PARTY PLAZA overlays never resize/reflow the map. Existing room, roster and
 // session controls are retained; only their presentation changes.
 const plazaHost=$('hostLobby');
-const togglePlazaPanel=(name)=>plazaHost.classList.toggle('plaza-show-'+name);
+const togglePlazaPanel=(name)=>{
+ const visible=plazaHost.classList.toggle('plaza-show-'+name);
+ const selector={room:'.lobby-qr-panel',roster:'.lobby-player-panel',controls:'.lobby-controls'}[name];
+ const panel=selector&&plazaHost.querySelector(selector);
+ if(panel)panel.style.setProperty('display',visible?(name==='controls'?'grid':'flex'):'none','important');
+};
 $('plazaRoomToggle')?.addEventListener('click',()=>togglePlazaPanel('room'));
 $('plazaRosterToggle')?.addEventListener('click',()=>togglePlazaPanel('roster'));
 $('plazaSettingsToggle')?.addEventListener('click',()=>togglePlazaPanel('controls'));
