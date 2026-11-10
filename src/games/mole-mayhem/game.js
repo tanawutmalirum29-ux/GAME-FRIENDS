@@ -5,7 +5,7 @@
 const STEP=1/60,TAU=Math.PI*2,EPS=1e-8;
 const C=Object.freeze({
  radius:15,speed:165,
- attack:{windup:.2,active:.1,recovery:.2},windupMove:.3,   // movement multiplier while winding up (0 afterwards)
+ attack:{windup:.2,active:.1,recovery:.35},windupMove:.3,   // movement multiplier while winding up (0 afterwards)
  reach:24,hitR:22,moleR:14,                                // hammer zone centre distance / radius / mole radius (world units * unit)
  stun:1.2,knock:150,knockDecay:5,
  normalScore:5,hatScore:10,hatChance:.3,
