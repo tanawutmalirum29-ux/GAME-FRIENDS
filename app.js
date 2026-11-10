@@ -1209,7 +1209,7 @@ function castLobbyReadyVote(conn){
   if(round||gameSelection||currentView!=='hostLobby'||!conn?.playerId)return false;
   const p=players.find(p=>p.id===conn.playerId&&p.conn===conn&&p.type==='remote');
   if(!p)return false;
-  if(window.PartyPlaza&&!window.PartyPlaza.inZone(p,'ready_area'))return false;
+  if(typeof window!=='undefined'&&window.PartyPlaza&&!window.PartyPlaza.inZone(p,'ready_area'))return false;
   if(lobbyReadyVotes.has(p.id))lobbyReadyVotes.delete(p.id);
   else lobbyReadyVotes.add(p.id);
   renderRoster();
