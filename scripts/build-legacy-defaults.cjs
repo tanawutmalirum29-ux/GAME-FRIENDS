@@ -7,18 +7,19 @@ const folder=path.join(root,'src/games');
 const target=path.join(root,'src/app/core/legacy-game-defaults.js');
 function generated(){
  const values={};
+ const legacyOrder=["ghost","chickens","fruit_memory","shockwave","color_switch","pizza_time","knight_match","boulder_bash","snow_brawl","shopping_time","witching_snake","lawn_mower","color_claim","ice_race","gladiators"];
  for(const slug of fs.readdirSync(folder,{withFileTypes:true})
    .filter(x=>x.isDirectory()).map(x=>x.name).sort()){
   const pathToManifest=path.join(folder,slug,'manifest.json');
   if(!fs.existsSync(pathToManifest))throw Error('Missing manifest: '+slug);
   const meta=JSON.parse(fs.readFileSync(pathToManifest,'utf8'));
-  if(!meta.global)continue;
+  if(!meta.global||!legacyOrder.includes(meta.id))continue;
   assert.ok(/^[a-z][a-z0-9_]*$/.test(meta.id),'Invalid legacy game ID: '+slug);
   assert.ok(!Object.hasOwn(values,meta.id),'Duplicate legacy ID: '+meta.id);
   values[meta.id]={name:meta.name,global:meta.global,
    controls:meta.controls,controller:meta.controller||null};
  }
- const legacyOrder=["ghost","chickens","fruit_memory","shockwave","color_switch","pizza_time","knight_match","boulder_bash","snow_brawl","shopping_time","witching_snake","lawn_mower","color_claim","ice_race","gladiators"];
+
  const sequence=Object.fromEntries(Object.entries(values).sort(([a],[b])=>{
   const rank=id=>{const i=legacyOrder.indexOf(id);return i<0?legacyOrder.length:i;};
   return rank(a)-rank(b)||a.localeCompare(b);
