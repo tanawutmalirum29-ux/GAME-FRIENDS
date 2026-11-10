@@ -16,7 +16,6 @@
   ],
   "cover": "cover.svg",
   "entry": "./game.js",
-  "global": "Dynamite",
   "legacyScripts": [],
   "controller": {
     "help": "วิ่งชนผู้เล่นอื่นเพื่อส่งระเบิด • หลบรถรางเหมือง • ถูกชนจะมึน 1.2 วินาที",
