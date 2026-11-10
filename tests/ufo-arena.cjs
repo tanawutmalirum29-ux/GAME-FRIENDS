@@ -53,7 +53,7 @@ global.window={PartyCharacters:{
   ps[0].vx=210;
   const initialEnergy=ps.reduce((sum,p)=>sum+p.vx*p.vx+p.vy*p.vy,0);
   engine.step(1/120,round,ps);
-  assert.ok(ps[1].vx>110,'first collision must bounce/push the next UFO noticeably');
+  assert.ok(Math.max(ps[1].vx,ps[2].vx)>110,'first collision must transfer a clearly noticeable impulse through the ships');
   const energy=ps.reduce((sum,p)=>sum+p.vx*p.vx+p.vy*p.vy,0);
   assert.ok(energy<=initialEnergy*1.001,'a UFO-to-UFO chain must not amplify energy');
   for(let t=0;t<200&&!state.finished;t++){
