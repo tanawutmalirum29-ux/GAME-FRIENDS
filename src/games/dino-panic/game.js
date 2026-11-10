@@ -142,15 +142,22 @@ function step(dt,round){
   const nx=dx/dd,ny=dy/dd,cs=Math.max(0,(a.dino.ix-b.dino.ix)*nx+(a.dino.iy-b.dino.iy)*ny),J=9+cs*.22;
   for(const[q,sg]of[[a,-1],[b,1]]){const d=q.dino;d.kx+=nx*J*sg;d.ky+=ny*J*sg;const km=Math.hypot(d.kx,d.ky);if(km>70){d.kx*=70/km;d.ky*=70/km;}}
  }
- // 3) collision resolution: central PartyCharacters.resolve (if present) + own stable pass, then obstacles/walls last
- for(let it=0;it<3;it++){
-  if(pc?.resolve&&live.length>1)pc.resolve(live,{radius:R,iterations:1,maxShift:6,bounds:{x:-600,y:tr.top,w:tr.endX+1200,h:tr.H}});
-  for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
-   const a=live[i],b=live[j];let dx=b.x-a.x,dy=b.y-a.y,dd=Math.hypot(dx,dy);
-   if(dd>=2*R)continue;if(dd<1e-6){dx=0;dy=(i%2?1:-1);dd=1;}
-   const o=(2*R-dd)/2,nx=dx/dd,ny=dy/dd;a.x-=nx*o;a.y-=ny*o;b.x+=nx*o;b.y+=ny*o;
-  }
+ // 3) Resolve player pairs through the shared solver; do not run a second
+ // O(n²) pair solver three times on top of PartyCharacters.resolve().
+ if(pc?.resolve&&live.length>1){
+  pc.resolve(live,{radius:R,iterations:2,maxShift:6,bounds:{x:-600,y:tr.top,w:tr.endX+1200,h:tr.H}});
   for(const p of live)pushOut(tr,p,R);
+ }else{
+  // Standalone engine tests can run without the shared collision API.
+  for(let it=0;it<2;it++){
+   for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
+    const a=live[i],b=live[j];let dx=b.x-a.x,dy=b.y-a.y,dd=Math.hypot(dx,dy);
+    if(dd>=2*R)continue;if(dd<1e-6){dx=0;dy=(i%2?1:-1);dd=1;}
+    const overlap=(2*R-dd)/2,nx=dx/dd,ny=dy/dd;
+    a.x-=nx*overlap;a.y-=ny*overlap;b.x+=nx*overlap;b.y+=ny*overlap;
+   }
+   for(const p of live)pushOut(tr,p,R);
+  }
  }
  for(const p of live){const d=p.dino;p.vx=(p.x-d.px)/dt;p.vy=(p.y-d.py)/dt;}
  // 4) the dinosaur flattens every obstacle its snout reaches (it never slows down)
@@ -242,7 +249,7 @@ function getControllerPacket(p,round){
 }
 function dispose(round){ // give every resource back when the round ends
  const s=round?.dinoPanic;if(!s)return;
- s.fx.length=0;s.track.obstacles.length=0;s.track.query=()=>[];s.ranking=[];
+ s.fx.length=0;s.botFields?.clear();s.track.obstacles.length=0;s.track.query=()=>[];s.ranking=[];
  for(const p of s.roster)if(p.dino){p.dino.bot=null;}
  delete round.dinoPanic;
 }
