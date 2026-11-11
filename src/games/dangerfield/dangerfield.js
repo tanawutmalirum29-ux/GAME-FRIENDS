@@ -7,8 +7,8 @@
 (() => {
 'use strict';
 const STEP=1/60,TAU=Math.PI*2;
-// Shorten only the time the damaged radar stays in poor-visibility mode.
-// Keep plane timing, explosion, signal shrink, gameplay and radar range unchanged.
+// Keep the 30%-shorter damaged-radar outages. Between outages, wide scans
+// reliably reveal the whole field, giving human players time to read the path.
 const RADAR_OUTAGE_DURATION_SCALE=.7;
 // Tunables (balance values are meant to be edited here).
 const C=Object.freeze({
@@ -22,7 +22,8 @@ const C=Object.freeze({
  mineRespawn:.2, // fixed 200 ms rearm after each explosion
  respawnDelay:.8,spawnProtection:.9,
  maxAttempts:14,
- radar:Object.freeze({bodyR:34,minR:62,shrinkTime:2.5,lowVisibilityScale:RADAR_OUTAGE_DURATION_SCALE}),
+ radar:Object.freeze({bodyR:34,minR:62,shrinkTime:2.5,lowVisibilityScale:RADAR_OUTAGE_DURATION_SCALE,
+  lowRadiusRatio:.55,lowRadiusJitter:.05,wideRadiusRatio:1.08,wideSeconds:2,wideJitter:.5}),
  small:Object.freeze({w:960,h:540,field:Object.freeze({x:60,y:50,w:840,h:440}),zone:100,duration:60,crates:2}),
  large:Object.freeze({w:1280,h:720,field:Object.freeze({x:70,y:60,w:1140,h:600}),zone:120,duration:80,crates:4})
 });
@@ -266,13 +267,23 @@ function launchPlane(s){
  const rp=s.radarPos,k=s.w/960,sx=-130*k,sy=rp.y-130*k,ex=s.w+130*k,ey=rp.y+70*k,dx=ex-sx,dy=ey-sy,L=Math.hypot(dx,dy);
  s.plane={x:sx,y:sy,vx:dx/L*C.planeSpeed*k,vy:dy/L*C.planeSpeed*k,ang:Math.atan2(dy,dx),dropped:false,gone:false,bomb:null,endX:ex,k};
 }
+function lowRadarRadius(s){
+ // The old ~62px radius exposed almost none of either arena. Keep damaged
+ // visibility restricted, but large enough to show nearby junctions.
+ return Math.max(C.radar.minR,s.rmax*C.radar.lowRadiusRatio)+
+  s.radar.rng()*s.rmax*C.radar.lowRadiusJitter;
+}
 function nextRegime(s){
- const r=s.radar,rr=r.rng,R=s.rmax;
- if(r.regime==='low'&&rr()<.28){
-  if(rr()<.82){r.regime='mid';r.left=.45+rr()*.45;r.target=R*(.22+rr()*.16);}
-  else{r.regime='high';r.left=.3+rr()*.3;r.target=R*(.65+rr()*.12);}
+ const r=s.radar,rr=r.rng;
+ if(r.regime==='low'){
+  // Guaranteed, readable full-field scan after every poor-visibility period.
+  // The old 28% chance of a 0.3–0.9s partial scan favored bot memory.
+  r.regime='high';r.left=C.radar.wideSeconds+rr()*C.radar.wideJitter;
+  r.target=s.rmax*C.radar.wideRadiusRatio;
+  r.flicker=0;r.flickerIn=-1;
  }else{
-  r.regime='low';r.left=(3.4+rr()*2.7)*C.radar.lowVisibilityScale;r.target=C.radar.minR+rr()*R*.05;
+  r.regime='low';r.left=(3.4+rr()*2.7)*C.radar.lowVisibilityScale;
+  r.target=lowRadarRadius(s);
   r.flickerIn=rr()<.14?rr()*r.left:-1;
  }
 }
@@ -288,7 +299,7 @@ function stepRadar(s,dt){
   if(pl.bomb&&pl.bomb.u<1){
    pl.bomb.u=Math.min(1,pl.bomb.u+dt/C.bombTime);
    if(pl.bomb.u>=1){ // impact: only the radar is hurt, the minefield is untouched
-    r.state='damaged';r.phase='shrink';r.phaseT=0;r.radius=s.rmax;r.hitAt=s.clock;r.regime='low';r.left=0;r.shrinkTo=C.radar.minR+r.rng()*s.rmax*.08;
+    r.state='damaged';r.phase='shrink';r.phaseT=0;r.radius=s.rmax;r.hitAt=s.clock;r.regime='low';r.left=0;r.shrinkTo=lowRadarRadius(s);
     addEffect(s,{type:'radarhit',x:rp.x,y:rp.y,life:1.4,max:1.4});
    }
   }
