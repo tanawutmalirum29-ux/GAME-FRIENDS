@@ -18,6 +18,18 @@ global.window={PartyCharacters:{
  assert.equal(BOT_NAV_CELL,10,'original 10-unit navigation grid MUST NOT be coarsened for speed');
  assert.equal(C.cell,8,'original precise track validation grid MUST remain unchanged');
  assert.ok(C.pushFactor<.5,'walking speed is greatly reduced while pushing');
+ // The previous giant elliptical body shade and rectangular snout gradient
+ // obscured half the arena as a dark plate. Keep only object-local shadows.
+ const render=require('node:fs').readFileSync(path.join(base,'render.js'),'utf8');
+ assert.doesNotMatch(render,/ellipse\(-330,14,360,200/,
+  'DINO PANIC must not paint a giant dark ellipse across the playable arena');
+ assert.doesNotMatch(render,/gradients\(g,tr\)\.sh|G\.top|G\.bot/,
+  'DINO PANIC must not paint full-width dark gradient bands');
+ assert.match(render,/function drawObstacles\(/);
+ assert.match(render,/function drawRunners\(/);
+ assert.match(render,/g\.drawImage\(headI,/,
+  'original high-fidelity dinosaur is still drawn');
+
  const create=(n,seed)=>{const ps=Array.from({length:n},(_,i)=>({
   id:'d'+i,name:'D'+i,active:false,isBot:i>0,color:'#ffcc33',
   input:{axisX:0,axisY:0,action:false}})),
