@@ -163,7 +163,15 @@ function animate(ts){
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
       if(round.autoNextRemaining===0)advanceParty();
-      else renderResultVotes();
+    }
+    // Use the same Host-authoritative clock for the A lock and the 7-second
+    // auto-next. Broadcast ONLY when a displayed second changes.
+    if(round&&['results','summary'].includes(round.phase)){
+      const remaining=resultWaitSeconds();
+      const auto=round.phase==='results'&&round.autoNextRemaining>0?
+        Math.ceil(round.autoNextRemaining):null;
+      if(remaining!==round.lastBroadcastResultWaitSeconds||
+         auto!==round.lastBroadcastAutoNextSeconds)renderResultVotes();
     }
     botTestClock+=dt;
     if(botTestClock>.2){botTestClock=0;roundAux('bot-controls',()=>renderBotTestPad());}
