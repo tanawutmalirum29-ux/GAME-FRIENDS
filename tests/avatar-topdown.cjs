@@ -205,3 +205,43 @@ assert.ok(redIds.length>0&&redIds.every(id=>!blueIds.includes(id)));
  }
  console.log('PUNCH-V2 TIMING PASS: sixteen original SVG frames, locked orientation, 480ms, no double VFX');
 }
+
+/* Every hand-punching minigame shares the actual colored punch-v2 atlas;
+   custom COUNTDOWN DROP combat timing is mapped visually, not rewritten. */
+{
+ const expected=[[0,0],[24.99,0],[25,1],[140,5],[179,6],
+  [180,7],[210,8],[280,10],[455,15],[479.9,15],[480,-1],[-1,-1]];
+ for(const [time,frame] of expected)
+  assert.equal(Avatar.punchFrameAtMs(time),frame,'shared punch frame at '+time+'ms');
+ const local={x:92,y:79,color:'#ffd45b',dir:{x:0,y:-1},name:'COUNTDOWN'};
+ const {ctx,calls}=probe();
+ Avatar.draw(ctx,local,{punchElapsedMs:190,punchFacing:{x:1,y:0},attacking:true,label:false});
+ assert.ok(calls.some(c=>c[0]==='rotate'&&Math.abs(c[1]-Math.PI/2)<1e-9),
+  'COUNTDOWN custom punch is anchored to original character and locked heading');
+ assert.ok(calls.some(c=>c[0]==='translate'&&c[1]===92&&c[2]===79));
+ assert.equal(Avatar.consumePunchDrawn(local),true);
+ const code={
+  chicken:fs.readFileSync('src/games/chickens/chickens.js','utf8'),
+  switch:fs.readFileSync('src/games/color-switch/color-switch.js','utf8'),
+  fruit:fs.readFileSync('src/games/fruit-memory/fruit-memory.js','utf8'),
+  ghost:fs.readFileSync('src/games/ghost-attack/ghost-attack.js','utf8'),
+  countdown:fs.readFileSync('src/games/countdown-drop/countdown-drop.js','utf8'),
+  countdownArt:fs.readFileSync('src/games/countdown-drop/countdown-drop-art.js','utf8')
+ };
+ for(const slug of ['chicken','switch','fruit']){
+  assert.match(code[slug],/PartyCharacters\.draw\(/,slug+' draws shared character');
+  assert.match(code[slug],/PartyCharacters\.(?:startPunch|punchFriends)\(/,
+   slug+' uses shared physical punch');
+ }
+ assert.match(code.ghost,/PartyPlayerAvatar\.draw\(/);
+ assert.match(code.ghost,/PartyCharacters\.punchFriends\(/);
+ assert.match(code.countdown,/punchElapsedMs:visualMs,punchFacing:pn\.dir/,
+  'custom game calls shared punch-v2 visual sampler');
+ assert.match(code.countdown,/wind:\.12,active:\.1,recovery:\.18,cooldown:\.65/,
+  'custom faster attack/cooldown unchanged');
+ assert.match(code.countdown,/stun:1\.4/,'custom stun unchanged');
+ assert.doesNotMatch(code.countdown,/a\.drawFist\(/,
+  'old independent fist art must not display over SVG punch');
+ assert.doesNotMatch(code.countdownArt,/function drawFist\(/);
+ console.log('PUNCH MAP AUDIT PASS: CHICKENS, COLOR SWITCH, FRUIT MEMORY, GHOST ATTACK, COUNTDOWN DROP all share punch-v2 art');
+}
