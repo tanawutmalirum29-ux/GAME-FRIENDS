@@ -1,3 +1,8 @@
+const RESULT_A_GRACE_MS=3000;
+function resultWaitSeconds(){
+ if(!round||!['results','summary'].includes(round.phase))return 0;
+ return Math.ceil(Math.max(0,(Number(round.resultAUnlockAt)||0)-Date.now())/1000);
+}
 function resultVoters(){
   return players.filter(p=>p.type==='remote'&&p.active&&p.conn?.open&&p.conn.playerId===p.id);
 }
@@ -40,6 +45,7 @@ function resultVoteSnapshot(){
   return {t:'result-votes',
     next:round.resultVotes.next.size,lobby:round.resultVotes.lobby.size,
     total:valid.size,nextLabel:resultNextLabel(),backLabel:resultBackLabel(),
+    nextWaitSeconds:resultWaitSeconds(),
     // The same authoritative 7-second auto-next timer drives the host button
     // and each connected phone's A label. Votes do not pause or reset it.
     autoNextSeconds:round.phase==='results'&&round.autoNextRemaining>0?Math.ceil(round.autoNextRemaining):null};
@@ -47,10 +53,12 @@ function resultVoteSnapshot(){
 function renderResultVotes(sendUpdate=false){
   const v=resultVoteSnapshot();if(!v)return;
   const seconds=v.autoNextSeconds!==null?' • อีก '+v.autoNextSeconds+' วิ':'';
+  const wait=v.nextWaitSeconds>0?' • รอกด A '+v.nextWaitSeconds+' วิ':'';
   // Align A/B on the left, action text in the center and votes on the right.
   // The accessibility label contains the full sentence for screen readers.
   const next=$('replayBtn'),back=$('backBtn');
-  next.textContent=v.nextLabel+seconds;
+  next.textContent=v.nextLabel+seconds+wait;
+  next.disabled=v.nextWaitSeconds>0;
   next.dataset.action='A';next.dataset.votes=v.next+'/'+v.total;
   next.setAttribute('aria-label','A '+next.textContent+' '+next.dataset.votes);
   back.textContent=v.backLabel;
@@ -58,8 +66,10 @@ function renderResultVotes(sendUpdate=false){
   back.setAttribute('aria-label','B '+v.backLabel+' '+back.dataset.votes);
   // Only broadcast when the displayed second changes or a vote changes;
   // never spam all controllers on every animation frame.
-  if(sendUpdate||round.lastBroadcastAutoNextSeconds!==v.autoNextSeconds){
+  if(sendUpdate||round.lastBroadcastAutoNextSeconds!==v.autoNextSeconds||
+     round.lastBroadcastResultWaitSeconds!==v.nextWaitSeconds){
     round.lastBroadcastAutoNextSeconds=v.autoNextSeconds;
+    round.lastBroadcastResultWaitSeconds=v.nextWaitSeconds;
     broadcast(v);
   }
 }
@@ -184,11 +194,15 @@ function onResultBack(){
 }
 function beginResultVoting(){
   layoutFinalResults();
+  // Set a fresh, Host-authoritative lock for each new result/summary screen.
+  // Held A from the minigame cannot skip the ranking before it is readable.
+  round.resultAUnlockAt=Date.now()+RESULT_A_GRACE_MS;
   round.resultVotes={next:new Set(),lobby:new Set()};
   renderResultVotes(true);
 }
 function castResultVote(conn,choice){
   if(!round||!['results','summary'].includes(round.phase)||!['next','lobby'].includes(choice))return;
+  if(choice==='next'&&resultWaitSeconds()>0)return;
   const voter=resultVoters().find(p=>p.id===conn.playerId&&p.conn===conn);
   if(!voter)return;
   const votes=round.resultVotes||(round.resultVotes={next:new Set(),lobby:new Set()});
