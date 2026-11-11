@@ -102,8 +102,9 @@ Do not merge until `verify.yml` tests and browser checks finish without failures
 **Verification:** Dedicated Node contracts in `tests/avatar-topdown.cjs` and `tests/dino-panic.cjs`, plus required latest-head Chromium/WebKit browser and CI gates. Physical-device visual validation remains a separate limitation.
 
 
-### 2026-11-11 — DINO PANIC movable rocks (PR #254 follow-up)
+### 2026-11-11 — DINO PANIC obstacle behavior clarification
 
-- Fixed a false rectangular collider against round rocks: collision checks now use circle–circle and circle–rectangle separation so a diagonal gap does not pin a rock in place. Boundaries and solid objects remain authoritative.
-- Rock push impulse uses the actual circumference contact point, contact-normal momentum with limited tangential friction and a rock-specific damping value. Its rendered spin is tied to **actual displacement divided by radius**, so even a centred forward shove rolls the rock. If blocked, lateral sliding is attempted without clipping through obstacles.
-- Added a dedicated 48-step human-to-rock shove regression and post-contact momentum assertions. These do not change the two world tiers, 960×540 logical DPR-backed renderer, 8-unit validation grid, 10-unit bot path grid, 15-unit player radius or high-detail rock SVG.
+- **Only rocks are immovable**: solid circular rocks cannot translate, roll, spin, or receive movement impulses, including direct `moveObstacle` and `impulseObstacle` calls.
+- Crates and logs retain contact-normal pushing, offset torque, damped inertia, sliding, interpolation and their current collision rules. Fences remain immovable as before.
+- Keep existing circular rock collisions and spatial indexing; preserve the 8-unit map-validation grid, 10-unit bot-navigation grid, high-fidelity rock SVG, two world tiers and device-pixel-ratio backing resolution.
+- Regression: 48 fixed steps of player pressing against a rock (no displacement or spin), direct impulse/move guards, and an independent crate shove assertion.

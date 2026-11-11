@@ -161,14 +161,13 @@ export function buildTrack(tier,seed,playerCount){
  // colliders and visible sprites would diverge after crossing a bucket edge.
  const QM=[];let out2;
  const moveObstacle=(o,dx,dy)=>{
-  if(!o.alive||(!dx&&!dy))return false;
+  if(!o.alive||o.kind==='rock'||o.kind==='fence'||(!dx&&!dy))return false;
   const rx=o.shape==='circle'?o.r:o.hw,ry=o.shape==='circle'?o.r:o.hh;
   const nx=o.x+dx,ny=o.y+dy;
   if(ny-ry<top-3||ny+ry>bottom+3||nx-rx<lastSpawn+45||nx+rx>finishX-35)return false;
   for(const q of query(nx-rx-5,nx+rx+5,QM)){
    if(q===o)continue;
-   // The old AABB-vs-AABB test treated a round rock as a square.
-   // Diagonal gaps that were actually open falsely immobilized the rock.
+   // Circle–rectangle contact remains exact when movable crates/logs hit fixed rocks.
    const pad=1;
    let blocked=false;
    if(o.shape==='circle'&&q.shape==='circle'){
@@ -198,43 +197,36 @@ export function buildTrack(tier,seed,playerCount){
   if(o.mt!==out2.tick){o.mt=out2.tick;o.ox=o.x;o.oy=o.y;}   // position at the start of this tick (render interpolation)
   o.x=nx;o.y=ny;return true;
  };
- // Fixed-step obstacle inertia. The validated 8-unit path grid, character
- // collision radius and obstacle footprints never change with visual spin.
+ // Fixed-step inertia applies ONLY to crates/logs. Rocks and fences never move
+ // or rotate, but retain their original solid collision geometry and artwork.
  const moving=new Set();
  const impulseObstacle=(o,ix,iy,cx,cy)=>{
-  if(!o.alive||o.kind==='fence'||Math.hypot(ix,iy)<1e-6)return;
-  const rock=o.kind==='rock',gain=rock?16:11,cap=rock?110:95;
-  o.mvx=clamp(o.mvx+ix*gain,-cap,cap);
-  o.mvy=clamp(o.mvy+iy*gain,-cap,cap);
+  if(!o.alive||o.kind==='rock'||o.kind==='fence'||Math.hypot(ix,iy)<1e-6)return;
+  o.mvx=clamp(o.mvx+ix*11,-95,95);
+  o.mvy=clamp(o.mvy+iy*11,-95,95);
   const lever=(cx-o.x)*iy-(cy-o.y)*ix;
   const inertia=Math.max(180,(o.hw*o.hw+o.hh*o.hh)*.5);
-  o.spin=clamp(o.spin+lever*(rock?210:150)/inertia,-5,5);
+  o.spin=clamp(o.spin+lever*150/inertia,-5,5);
   moving.add(o);
  };
  const stepObstacles=dt=>{
   for(const o of moving){
-   if(!o.alive){moving.delete(o);continue;}
-   const prevX=o.x,prevY=o.y,dx=o.mvx*dt,dy=o.mvy*dt;
+   if(!o.alive||o.kind==='rock'||o.kind==='fence'){
+    o.mvx=o.mvy=o.spin=0;
+    if(o.kind==='rock'){o.angle=0;o.prevAngle=0;}
+    moving.delete(o);continue;
+   }
+   const dx=o.mvx*dt,dy=o.mvy*dt;
    if(Math.hypot(o.mvx,o.mvy)>.15){
     let moved=moveObstacle(o,dx,dy);
-    // Try tangent sliding when another collider blocks the full vector.
-    // Do not teleport through props or let a rock leave the corridor.
+    // Slide along an obstacle if the full displacement is blocked.
     if(!moved&&Math.abs(dx)>1e-5&&Math.abs(dy)>1e-5)
      moved=moveObstacle(o,dx,0)||moveObstacle(o,0,dy);
     if(!moved){o.mvx*=.18;o.mvy*=.18;o.spin*=.7;}
    }
    if(o.at!==out2.tick){o.at=out2.tick;o.prevAngle=o.angle;}
-   if(o.kind==='rock'){
-    // Rock rotation follows ACTUAL travelled distance (rolling without slipping),
-    // even when the player pushes directly through its centre.
-    const mx=o.x-prevX,my=o.y-prevY,travel=Math.hypot(mx,my);
-    if(travel>1e-6){
-     const direction=Math.abs(mx)>=Math.abs(my)?Math.sign(mx):Math.sign(my);
-     o.angle+=direction*travel/Math.max(o.r,8);
-    }
-    o.angle+=o.spin*dt;
-   }else o.angle+=o.spin*dt;
-   const damping=Math.exp(-(o.kind==='rock'?2.5:5)*dt);
+   o.angle+=o.spin*dt;
+   const damping=Math.exp(-5*dt);
    o.mvx*=damping;o.mvy*=damping;o.spin*=Math.exp(-4*dt);
    if(Math.abs(o.mvx)+Math.abs(o.mvy)+Math.abs(o.spin)<.06){
     o.mvx=o.mvy=o.spin=0;moving.delete(o);
