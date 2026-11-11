@@ -29,7 +29,9 @@ const options=[];
 let selector=null;
 const mode={append(el){selector=el;},
  querySelectorAll(){return [btn];}};
+let inMatch=false;
 const document={readyState:'complete',baseURI:'https://example.test/index.html',
+ body:{classList:{contains(name){return name==='board-playing'&&inMatch;}}},
  hidden:false,
  getElementById(id){return id==='sessionMode'?mode:id==='boardMapSelector'?selector:null;},
  querySelector(){return btn;},
@@ -97,5 +99,25 @@ const runtime=window.BoardRuntime;
  assert.equal(window.BoardMap,legacyMap);
  assert.equal(runtime.activeMapId,'winter-expedition');
  assert.ok(requested>=3);
- console.log('BOARD MAP RUNTIME PASS: metadata only, on-demand import, new-session hot pin, legacy fallback');
+ // A fresh catalog during an active BOARD match must be staged. Returning to
+ // the Host lobby then installs the newest selected map without a page reload.
+ missing=false;
+ await runtime.ensure();
+ const matchMap=window.BoardMap,oldDescriptor=runtime.maps().find(m=>m.id==='coast');
+ assert.equal(oldDescriptor.hash,hash('d'));
+ inMatch=true;
+ catalog={...catalog,maps:[catalog.maps[0],descriptor('coast','e','module')]};
+ assert.equal(await runtime.refreshMaps(),true,'a new map was discovered during gameplay');
+ assert.equal(runtime.pendingMapUpdate,true);
+ assert.equal(runtime.maps().find(m=>m.id==='coast').hash,oldDescriptor.hash,
+  'the live map catalog and selector must stay pinned while playing');
+ assert.equal(window.BoardMap,matchMap,'the BOARD session keeps its existing map');
+ inMatch=false;
+ await runtime.onLobbyEntered();
+ assert.equal(runtime.pendingMapUpdate,false);
+ assert.equal(runtime.maps().find(m=>m.id==='coast').hash,hash('e'));
+ assert.notEqual(window.BoardMap,matchMap,'new map activates only on return to lobby');
+ assert.equal(runtime.activeMapId,'coast');
+ assert.equal(runtime.ready(),true);
+ console.log('BOARD MAP RUNTIME PASS: live-match deferral, lobby activation, immutable map pin and fallback');
 })().catch(e=>{console.error(e);process.exitCode=1;});
