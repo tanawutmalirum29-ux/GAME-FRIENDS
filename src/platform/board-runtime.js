@@ -142,6 +142,9 @@ async function activate(id){
  if(id===DEFAULT){
   if(!legacy)throw Error('Default BOARD map missing');
   const info=catalog.find(m=>m.id===DEFAULT&&m.enabled);
+  // Development/old fixtures have no generated hash in runtime-config.
+  // Their already loaded globals are the baseline until a later revision.
+  if(!legacyHash&&!INITIAL_LEGACY_HASH&&info?.hash)legacyHash=info.hash;
   if(info?.hash&&legacyHash!==info.hash){
    // Switch immutable map assets only after the running BOARD has ended.
    if(playingBoard())throw Error('Default BOARD update cannot activate mid-game');
