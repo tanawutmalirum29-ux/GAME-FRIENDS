@@ -65,8 +65,9 @@ if(!welcome){
  return;
 }
 // The welcome view has not opened a room and is always safe to refresh.
-window.GAME_CAN_AUTO_RELOAD=()=>!loadPromise;
-preflightJob=preflightRestore();
+let preflightFinished=false;
+window.GAME_CAN_AUTO_RELOAD=()=>!loadPromise&&preflightFinished;
+preflightJob=preflightRestore().finally(()=>{preflightFinished=true;});
 const host=document.getElementById('hostBtn'),offline=document.getElementById('offlineBtn');
 function onChoice(event){
  event.preventDefault();event.stopImmediatePropagation();
