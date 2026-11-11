@@ -339,8 +339,10 @@ assert.ok(cleanStandings.includes('สรุปผลมินิเกม'));
 assert.ok(!cleanStandings.some(x=>x.includes('และรางวัล')||x.includes('อันดับการแข่งขันและสิทธิ์รางวัล')||
  x.includes('ดำเนินต่ออัตโนมัติ')),'circled results copy removed');
 assert.ok(cleanStandings.some(x=>/^\d+ วินาที$/.test(x)),'results keep a clean countdown');
-for(let i=0;i<52;i++)P.update(intermission,.05);
-assert.equal(intermission.phase,'rewards');
+for(let i=0;i<59;i++)P.update(intermission,.05);
+assert.equal(intermission.phase,'standings','BOARD results stay visible for 3 seconds');
+for(let i=0;i<2;i++)P.update(intermission,.05);
+assert.equal(intermission.phase,'rewards','rewards begin only after the 3-second results hold');
 const firstReveal=frameLabels();
 assert.ok(firstReveal.includes('สรุปผลมินิเกม'));
 assert.ok(!firstReveal.includes('กำลังสุ่ม...'),'result rewards reveal the assigned item without spinning');
