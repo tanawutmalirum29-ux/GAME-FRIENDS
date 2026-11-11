@@ -12,7 +12,7 @@ global.window={PartyCharacters:{
 (async()=>{
  const base=path.resolve(__dirname,'../src/games/dino-panic');
  const game=(await import(pathToFileURL(path.join(base,'game.js')).href)).default;
- const {C}=await import(pathToFileURL(path.join(base,'config.js')).href);
+ const {C,STEP}=await import(pathToFileURL(path.join(base,'config.js')).href);
  const {BOT_NAV_CELL}=await import(pathToFileURL(path.join(base,'bot.js')).href);
  assert.equal(C.speed,130,'reduced runner/dinosaur speed');
  assert.equal(BOT_NAV_CELL,10,'original 10-unit navigation grid MUST NOT be coarsened for speed');
