@@ -18,7 +18,8 @@ let punchAtlasSource=null,punchAtlasPromise=null,punchAtlasFailed=false;
 function punchFrameFor(p){
  if(!(p?.attackRemaining>0))return -1;
  const total=window.PartyCombatMotion?.TOTAL??.48;
- const elapsed=Math.max(0,Math.min(479.9999,(total-p.attackRemaining)*1000));
+ // Snap sub-microsecond binary float noise at authored frame boundaries.
+ const elapsed=Math.max(0,Math.min(479.9999,Math.round((total-p.attackRemaining)*1e6)/1000));
  return PUNCH_FRAME_ENDS.findIndex(end=>elapsed<end);
 }
 function punchHeading(p){return heading({dir:p.attackFacing||p.dir});}
