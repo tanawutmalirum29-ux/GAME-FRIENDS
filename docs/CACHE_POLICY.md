@@ -45,10 +45,13 @@ When a same-Core modular BOARD map catalog changes during BOARD play, the new
 metadata is staged without mutating active `BoardMap`, `BoardArt` or the
 selector. Returning to the Host lobby applies the staged catalog, refreshes
 again and safely prepares the selected map for the next BOARD session.
-**The built-in legacy `winter-expedition` map is part of the shared Core
-fingerprint**; replacing that built-in map requires a safe Core reload instead
-of a mid-room swap. Do not claim the default built-in map can be hot-swapped
-until it is migrated to separately pinned map assets.
+The built-in `winter-expedition` map is now also packaged as four
+content-addressed runtime scripts (design, scenery, map, art) and tracked by
+`GAME_DEFAULT_BOARD_MAP_HASH`, independent of the shared Core fingerprint.
+A new map/art release is validated and swapped only after BOARD has exited to
+the Host lobby, with previous map globals restored on load/validation failure.
+**Changes to shared BOARD rules, engine, controls or layout still change Core**,
+and those cannot hot-reload while an online PeerJS room is active.
 
 An old browser tab now checks the deployment manifest *before* reconnecting
 a saved Host or controller room (with a short offline timeout). The temporary
