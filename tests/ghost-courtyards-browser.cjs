@@ -92,7 +92,7 @@ const server=http.createServer((req,res)=>{
   // cancellation is not a JavaScript page error in the current document.
   // Preserve every other pageerror, including all script/runtime failures.
   const unexpectedErrors=errors.filter(message=>name!=='webkit'||
-   !/^Cannot load blob: [^\\n]+ due to access control checks\\.$/.test(message));
+   !/^Cannot load blob: [^\n]+ due to access control checks\.$/.test(message));
   assert.deepEqual(unexpectedErrors,[],'HOST, reload and art gallery produce no browser errors');
   console.log('GHOST BROWSER PASS '+name+': 1/6/7/12-player host, 4 layouts, SVG decoding, inspector, reload, cached drawing. '+JSON.stringify(timings));
  }finally{await browser.close();server.close();}
