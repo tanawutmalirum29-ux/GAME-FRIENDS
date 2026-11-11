@@ -7,8 +7,8 @@
 (() => {
 'use strict';
 const STEP=1/60,TAU=Math.PI*2;
-// Keep the 30%-shorter damaged-radar outages and guaranteed full-field scans.
-// During blackouts, restore the original tight detection range for contrast.
+// Keep original narrow sweeps and 30%-shorter blackouts. Give the damaged
+// radar sustained small / medium steps on the way to and from each wide scan.
 const RADAR_OUTAGE_DURATION_SCALE=.7;
 // Tunables (balance values are meant to be edited here).
 const C=Object.freeze({
@@ -23,7 +23,8 @@ const C=Object.freeze({
  respawnDelay:.8,spawnProtection:.9,
  maxAttempts:14,
  radar:Object.freeze({bodyR:34,minR:62,shrinkTime:2.5,lowVisibilityScale:RADAR_OUTAGE_DURATION_SCALE,
-  lowRadiusJitter:.05,wideRadiusRatio:1.08,wideSeconds:2,wideJitter:.5}),
+  lowRadiusJitter:.05,partialSmallRatio:.32,partialMediumRatio:.60,
+  partialSeconds:.85,partialJitter:.3,wideRadiusRatio:1.08,wideSeconds:2,wideJitter:.5}),
  small:Object.freeze({w:960,h:540,field:Object.freeze({x:60,y:50,w:840,h:440}),zone:100,duration:60,crates:2}),
  large:Object.freeze({w:1280,h:720,field:Object.freeze({x:70,y:60,w:1140,h:600}),zone:120,duration:80,crates:4})
 });
@@ -273,15 +274,23 @@ function lowRadarRadius(s){
  return C.radar.minR+s.radar.rng()*s.rmax*C.radar.lowRadiusJitter;
 }
 function nextRegime(s){
- const r=s.radar,rr=r.rng;
- if(r.regime==='low'){
-  // Guaranteed, readable full-field scan after every poor-visibility period.
-  // The old 28% chance of a 0.3–0.9s partial scan favored bot memory.
-  r.regime='high';r.left=C.radar.wideSeconds+rr()*C.radar.wideJitter;
-  r.target=s.rmax*C.radar.wideRadiusRatio;
-  r.flicker=0;r.flickerIn=-1;
- }else{
-  r.regime='low';r.left=(3.4+rr()*2.7)*C.radar.lowVisibilityScale;
+ const r=s.radar,rr=r.rng,cfg=C.radar,previous=r.regime;
+ // Progressively open and close rather than toggling immediately between
+ // completely narrow and full-field coverage. Each intermediate range lasts
+ // long enough to spot and remember nearby mines on either map size.
+ const partial=(stage,ratio)=>{
+  r.regime=stage;r.left=cfg.partialSeconds+rr()*cfg.partialJitter;
+  r.target=s.rmax*ratio;r.flicker=0;r.flickerIn=-1;
+ };
+ if(previous==='low')partial('small-in',cfg.partialSmallRatio);
+ else if(previous==='small-in')partial('medium-in',cfg.partialMediumRatio);
+ else if(previous==='medium-in'){
+  r.regime='high';r.left=cfg.wideSeconds+rr()*cfg.wideJitter;
+  r.target=s.rmax*cfg.wideRadiusRatio;r.flicker=0;r.flickerIn=-1;
+ }else if(previous==='high')partial('medium-out',cfg.partialMediumRatio);
+ else if(previous==='medium-out')partial('small-out',cfg.partialSmallRatio);
+ else{
+  r.regime='low';r.left=(3.4+rr()*2.7)*cfg.lowVisibilityScale;
   r.target=lowRadarRadius(s);
   r.flickerIn=rr()<.14?rr()*r.left:-1;
  }
