@@ -48,6 +48,28 @@ function session(loaded,deployed,safeOn=true,remember=null,url='https://game.exa
  return {win,doc,events,docEvents,requests,intervals,delays,stored,
   setSafe:v=>{can=v;},get notices(){return notify;}};
 }
+async function preboot(loaded,deployed,offline=false){
+ const source=fs.readFileSync(path.join(root,'src/platform/main-loader.js'),'utf8');
+ const storage=new Map(),scripts=[],requests=[];
+ const location={href:'https://game.example/?join=ABC123',search:'?join=ABC123',
+  replace(url){this.redirected=url;}};
+ const document={baseURI:location.href,
+  querySelector(){return null;},createElement(){return {};},
+  head:{append(script){scripts.push(script);queueMicrotask(()=>script.onload?.());}}};
+ const window={GAME_DEPLOY_ID:loaded,GameHostRuntime:null};
+ const ctx={window,document,location,sessionStorage:{
+  getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},
+  URL,URLSearchParams,Date,console,
+  fetch:async(url,opts)=>{
+   requests.push({url,opts});if(offline)throw Error('Network unavailable');
+   return {ok:true,json:async()=>({deployId:deployed})};
+  },
+  setTimeout(){return 1;},clearTimeout(){}};
+ vm.runInNewContext(source,ctx,{filename:'main-loader.js'});
+ await new Promise(resolve=>setImmediate(resolve));
+ await new Promise(resolve=>setImmediate(resolve));
+ return {scripts,requests,location,storage};
+}
 async function main(){
  buildTest();
  const old='a'.repeat(40),next='b'.repeat(40);
@@ -115,6 +137,16 @@ async function main(){
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(catalogRefreshes,1,'Returning from browser cache refreshes live plugins');
  assert.equal(refresh.intervals[0].ms,45000,'Live catalog and deploy poll share a cadence');
+ const staleBoot=await preboot(old,next);
+ assert.equal(staleBoot.scripts.length,0,
+  'A returning controller must not reconnect from an out-of-date shell');
+ assert.equal(new URL(staleBoot.location.redirected).searchParams.get('join'),'ABC123');
+ assert.equal(staleBoot.requests[0].opts.cache,'no-store');
+ const currentBoot=await preboot(next,next);
+ assert.equal(currentBoot.scripts.length,1,'Current controllers can reconnect normally');
+ assert.ok(currentBoot.scripts[0].src.endsWith('/app-controller.js'));
+ const offlineBoot=await preboot(old,next,true);
+ assert.equal(offlineBoot.scripts.length,1,'Offline restoration remains usable after a failed check');
  console.log('AUTO UPDATE PASS: 45-second poll, same-core hot refresh, stale reload recovery and safe-room deferral');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
