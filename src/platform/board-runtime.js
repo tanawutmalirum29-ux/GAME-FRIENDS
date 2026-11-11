@@ -10,6 +10,20 @@ const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame',
 const loaded=new Set(),modules=new Map();
 let pending=null,refreshing=null,legacy=null,active=DEFAULT,activeHash=null;
 let catalog=[{id:DEFAULT,name:'WINTER EXPEDITION',kind:'legacy',enabled:true}],revision=0,selector=null;
+let deferredMaps=null,applyingLobby=null;
+// A live BOARD session pins BoardMap/BoardArt and the selected-map menu.
+function playingBoard(){
+ return document.body?.classList?.contains('board-playing')===true;
+}
+function applyMapCatalog(next){
+ if(JSON.stringify(next)===JSON.stringify(catalog)){render();return false;}
+ catalog=next;revision++;render();return true;
+}
+function applyPendingMaps(){
+ if(playingBoard()||!deferredMaps)return false;
+ const next=deferredMaps;deferredMaps=null;
+ return applyMapCatalog(next);
+}
 const globalsReady=()=>required.every(id=>!!window[id]);
 function captureDefault(){
  if(!legacy&&globalsReady())
@@ -79,8 +93,14 @@ async function refreshMaps(){
   if(window.GAME_CORE_HASH&&data.coreHash!==window.GAME_CORE_HASH)return false;
   const next=inspect(data);
   if(!next.some(m=>m.id===DEFAULT&&m.enabled))throw Error('Default BOARD map unavailable');
-  if(JSON.stringify(next)===JSON.stringify(catalog)){render();return false;}
-  catalog=next;revision++;render();return true;
+  if(playingBoard()){
+   // Do not replace the map picker or activate new topology during gameplay.
+   // The latest valid catalog is staged until BOARD returns to Host lobby.
+   deferredMaps=JSON.stringify(next)===JSON.stringify(catalog)?null:next;
+   return deferredMaps!==null;
+  }
+  deferredMaps=null;
+  return applyMapCatalog(next);
  })().finally(()=>{refreshing=null;});
  return refreshing;
 }
@@ -129,6 +149,7 @@ async function activate(id){
  active=id;activeHash=info.hash;
 }
 async function ensure(){
+ if(!playingBoard())applyPendingMaps();
  if(ready())return;
  if(pending)return pending;
  pending=(async()=>{
@@ -162,11 +183,13 @@ function mount(){
 if(typeof document!=='undefined'&&typeof document.getElementById==='function'){
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
  else mount();
+ // auto-update.js owns the production 45-second poll. Keep a fallback in
+ // local development where the deployment watcher is intentionally disabled.
  setInterval(()=>{
-  if(!document.hidden&&selector&&
-    document.querySelector('[data-session-mode="board"]')?.classList.contains('active'))
+  if(document.hidden||window.GameAutoUpdate)return;
+  if(selector&&document.querySelector('[data-session-mode="board"]')?.classList.contains('active'))
    void refreshMaps().catch(()=>{});
-  if(!document.hidden)void refreshSystems().catch(()=>{});
+  void refreshSystems().catch(()=>{});
  },45000);
 }
 
@@ -272,7 +295,24 @@ window.BoardSystemPlugins=Object.freeze({
  get rejected(){return [...systemRejected.keys()];}
 });
 
-window.BoardRuntime=Object.freeze({ready,ensure,refreshMaps,maps:()=>catalog.map(m=>({...m})),
+async function onLobbyEntered(){
+ if(playingBoard())return false;
+ if(applyingLobby)return applyingLobby;
+ applyingLobby=(async()=>{
+  let changed=applyPendingMaps();
+  try{changed=await refreshMaps()||changed;}
+  catch(error){console.warn('BOARD map refresh on lobby return failed',error);}
+  // The previous BOARD session has ended: now it is safe to switch a selected
+  // content-addressed map or BOARD system implementation for the next game.
+  if(globalsReady()&&!ready())try{await ensure();}
+  catch(error){console.warn('BOARD updated map could not be prepared',error);}
+  return changed;
+ })().finally(()=>{applyingLobby=null;});
+ return applyingLobby;
+}
+window.BoardRuntime=Object.freeze({ready,ensure,refreshMaps,onLobbyEntered,
+ maps:()=>catalog.map(m=>({...m})),
+ get pendingMapUpdate(){return deferredMaps!==null;},
  get selectedMapId(){return chosen();},
  get activeMapId(){return active;},
  get revision(){return revision;}
