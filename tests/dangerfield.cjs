@@ -22,11 +22,15 @@ for(const n of [1,2,6,7,12]){
   'every possible spawn is connected to finish');
  assert.ok(round.remaining>0,'timer initialized');
 }
-// Balance contract: slower traversal, larger mines, and early radar plane.
+// Balance contract: radar stays down 30% less per visibility blackout; impact timing unchanged.
 assert.equal(G.config.speed,67.5);
 assert.equal(G.config.mineR,20.8);
 assert.equal(G.config.hazard,33.8);
-assert.equal(G.config.introSeconds,3);
+assert.equal(G.config.introSeconds,3,'plane introduction stays at its original delay');
+assert.equal(G.config.planeSpeed,760,'plane flight speed must remain unchanged');
+assert.equal(G.config.bombTime,.55,'bomb flight animation must remain unchanged');
+assert.equal(G.config.radar.shrinkTime,2.5,'radar damage animation must remain unchanged');
+assert.equal(G.config.radar.lowVisibilityScale,.7,'radar poor-visibility intervals are 30% shorter');
 assert.equal(G.config.mineRespawn,0.2,'mines must rearm after 200 ms, not the old 3.2 seconds');
 // Repeated generation cannot produce a disconnected alternative route.
 for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
@@ -81,8 +85,26 @@ for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
  assert.equal(mine.alive,true,'mine must be armed again at 0.2 seconds');
  assert.ok(s.clock-deadline<=1/60+1e-8,'rearm must not be late beyond one fixed step');
  assert.equal(mine.respawnAt,Infinity,'rearmed mine no longer has a pending deadline');
- // Radar plane remains a separate three-second event, not tied to mine rearm.
+ // The plane, impact, and radar shrink keep their original timing.
+ while(s.clock<2.95&&!s.finished)G.step(1/60,round,ps);
+ assert.equal(s.plane,null,'plane must not appear before the original 3-second intro');
  while(s.clock<3.1&&!s.finished)G.step(1/60,round,ps);
- assert.ok(s.plane,'airplane must arrive after its own 3-second trigger');
+ assert.ok(s.plane,'plane appears after the original 3-second intro');
+ while(s.clock<5.5&&!s.finished&&s.radar.hitAt===null)G.step(1/60,round,ps);
+ assert.ok(s.radar.hitAt>=3.8&&s.radar.hitAt<=4.3,
+  'impact remains unchanged: only radar outage time should change');
+ while(s.clock<7.5&&!s.finished&&s.radar.phase!=='cycle')G.step(1/60,round,ps);
+ assert.equal(s.radar.phase,'cycle','radar damage animation still completes normally');
+ assert.ok(s.radar.left>=3.4*.7&&s.radar.left<=6.1*.7,
+  'first post-impact low-visibility outage lasts 2.38–4.27 seconds instead of 3.4–6.1');
+ const firstLowDuration=s.radar.left;
+ // Force another low-visibility cycle without relying on RNG's 28% chance of
+ // intermittent high/mid recovery. The repeated blackout must also be shorter.
+ s.radar.regime='mid';s.radar.left=0;
+ G.step(1/60,round,ps);
+ assert.equal(s.radar.regime,'low');
+ assert.ok(s.radar.left>=3.4*.7&&s.radar.left<=6.1*.7,
+  'subsequent blackouts use the same 30% shorter duration');
+ assert.ok(firstLowDuration<6.1,'original 6.1-second low-visibility interval is gone');
 }
 console.log('DANGERFIELD setup/navigation, mines, speed and airplane regression OK');
