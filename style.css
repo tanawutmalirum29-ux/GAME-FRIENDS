@@ -5843,6 +5843,7 @@ body.controller-playing #controller #controllerActive #joystickZone.is-active .j
 body.controller-playing #controller #controllerActive #joystickZone.has-used:not(.is-active) .joystick-base,
 body.controller-playing #controller #controllerActive .controller-buttons.is-picking #joystickZone .joystick-base{
  visibility:hidden!important;opacity:0!important;
+ transition:none!important; /* Immediate release; do not retain the last frame during fade-out. */
 }
 body.controller-playing #controller #controllerActive #joystickZone.board-camera-mode .joystick-base{opacity:.16!important}
 body.controller-playing #controller #controllerActive #joystickZone .joystick-knob{
