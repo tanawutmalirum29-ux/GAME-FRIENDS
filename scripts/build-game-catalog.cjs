@@ -32,7 +32,9 @@ function list(dir,relative=''){
 function coreHash(){
  const h=crypto.createHash('sha256');
  // A change to ANY shared runtime source requires a new core fingerprint.
- // Game-specific engine assets are omitted: their own hashes permit hot patches.
+ // Game-specific engines and the built-in BOARD map/art assets are omitted:
+ // their independent immutable catalog hashes permit safe lobby-only hot patches.
+ // Board rules, layout, controls, network and shared APIs REMAIN in the Core hash.
  for(const relative of [
   "index.html",
   "app.js",
@@ -49,9 +51,6 @@ function coreHash(){
   "party-arena-scenes.js",
   "party-ui-art.js",
   "game-cover-art.js",
-  "src/board-party/runtime/board-map.js",
-  "src/board-party/runtime/board-design.js",
-  "src/board-party/runtime/board-scenery.js",
   "src/board-party/runtime/board-branch-naming.js",
   "src/board-party/runtime/board-layout.js",
   "src/board-party/runtime/board-dice.js",
@@ -60,11 +59,9 @@ function coreHash(){
   "src/board-party/runtime/board-bots.js",
   "src/board-party/runtime/board-minigame.js",
   "src/board-party/runtime/board-party.js",
-  "src/board-party/runtime/board-art.js",
   "src/board-party/runtime/board-controller-camera.js",
   "src/platform/game-platform.js","src/platform/runtime-deps.js",
   "src/platform/board-runtime.js","src/platform/main-loader.js","src/platform/host-runtime.js",
-  "src/board-party/maps/winter-expedition/manifest.json",
   "src/platform/board-items-brief.js"
 ]){
   if(fs.existsSync(path.join(root,relative))){
