@@ -36,9 +36,27 @@ async function toolbarInside(page){
    assert.equal(backdrop.background,'none','no black overlay over BOARD player HUD');
    assert.ok(backdrop.height<1,'board host toolbar must not cover Canvas header');
 
-   const toolBounds=await page.evaluate(()=>{const a=document.getElementById('arena').getBoundingClientRect(),b=document.getElementById('boardTools').getBoundingClientRect(),height=__boardTest.board.camera.viewHeight||540,scale=Math.min(a.width/960,a.height/height),x=a.left+(a.width-960*scale)/2,y=a.top+(a.height-height*scale)/2;return{left:(b.left-x)/scale,right:(b.right-x)/scale,top:(b.top-y)/scale,bottom:(b.bottom-y)/scale};});
-   assert.ok(toolBounds.left>=865&&toolBounds.right<=958&&toolBounds.top>=160&&toolBounds.bottom<=208,
-    'Show ID sits beneath Exit beside Pause, without obscuring the BOARD HUD');
+   const controls=await page.evaluate(()=>{
+     const a=document.getElementById('arena').getBoundingClientRect();
+     const height=__boardTest.board.camera.viewHeight||540;
+     const scale=Math.min(a.width/960,a.height/height);
+     const x=a.left+(a.width-960*scale)/2,y=a.top+(a.height-height*scale)/2;
+     return ['boardExitBtn','boardNodeDebugBtn','pauseBtn'].map(id=>{
+       const b=document.getElementById(id),r=b.getBoundingClientRect();
+       return{id,left:(r.left-x)/scale,top:(r.top-y)/scale,
+        width:r.width/scale,height:r.height/scale,
+        iconOnly:!!b.querySelector('svg')&&!b.textContent.trim(),
+        accessible:!!b.getAttribute('aria-label')};
+     });
+   });
+   assert.deepEqual(controls.map(v=>v.id),['boardExitBtn','boardNodeDebugBtn','pauseBtn']);
+   controls.forEach((v,i)=>{
+     assert.ok(Math.abs(v.left-[849,885,921][i])<=2&&Math.abs(v.top-101)<=2,
+      v.id+' aligns inside the BOARD icon toolbar below the roster');
+     assert.ok(Math.abs(v.width-29)<=2&&Math.abs(v.height-27)<=2,
+      v.id+' has matching compact icon-button dimensions');
+     assert.ok(v.iconOnly&&v.accessible,v.id+' shows an accessible icon without a visible text label');
+   });
    assert.equal(await page.locator('#boardTools button').count(),1,'only Show ID remains in the BOARD toolbar');
    for(const id of ['boardOverviewBtn','boardStartDiceBtn','boardFollowBtn','boardZoomInBtn','boardZoomOutBtn','boardEffectsBtn'])
     assert.equal(await page.locator('#'+id).count(),0,'retired BOARD control must not exist: '+id);
