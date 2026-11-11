@@ -13,7 +13,7 @@ const A={
 };
 const LOG=new Map(),QR=[],RB=[];   // baked log/fence sprites, scratch lists
 export function preloadArt(track){
- LOG.clear();GR.tr=null;
+ LOG.clear();
  A.body();A.head();A.foot();for(let v=0;v<3;v++){A.crate(v);A.rock(v);}A.crate(3);
  if(track){A.dirt(track.H);A.forest(track.top,11);A.forest(VH-track.bottom,23);}
 }
