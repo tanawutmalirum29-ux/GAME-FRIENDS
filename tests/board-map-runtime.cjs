@@ -132,12 +132,13 @@ const runtime=window.BoardRuntime;
  // The built-in winter map also has immutable assets, independent from Core.
  // Its script assets may be applied only after the current BOARD exits to lobby.
  const previousBuiltIn=legacyMap;
+ const boardBeforeBuiltInUpdate=window.BoardMap;
  inMatch=true;
  catalog={...catalog,maps:[descriptor('winter-expedition','f','legacy'),catalog.maps[1]]};
  assert.equal(await runtime.refreshMaps(),true);
  assert.equal(runtime.pendingMapUpdate,true);
- assert.equal(window.BoardMap,matchMap===window.BoardMap?matchMap:window.BoardMap,
-  'a pending built-in map update does not forcibly replace current map');
+ assert.equal(window.BoardMap,boardBeforeBuiltInUpdate,
+  'a pending built-in map update does not replace the active BOARD session');
  const loadedBefore=legacyDownloads.length;
  inMatch=false;
  selector.value='winter-expedition';
