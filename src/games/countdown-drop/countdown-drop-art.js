@@ -167,7 +167,7 @@ function drawFall(g,p,k,unit){
  // k 0..1: shrinks and sinks into the pit
  g.save();g.translate(p.x,p.y+k*18*unit);
  const s=1-.8*k;g.scale(s,s);g.globalAlpha=1-k*.85;g.rotate(k*2.2);g.translate(-p.x,-p.y);
- if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:k*3,label:false});
+ if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:k*3,label:false,scale:unit});
  else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(p.x,p.y,15*unit,0,TAU);g.fill();}
  g.restore();
 }

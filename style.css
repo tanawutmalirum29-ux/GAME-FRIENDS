@@ -3465,7 +3465,7 @@ body.controller-playing #controllerActive .gamepad-preview-off{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:clamp(2px,1.1dvh,8px);text-align:center;
   padding:10px;pointer-events:none;
-  background:radial-gradient(ellipse at center,#1a2739 0%,#080e1b 95%);
+  background:#000;
   color:#eef3fa;
 }
 body.controller-playing #controllerActive .gamepad-preview-off .preview-off-symbol{
@@ -5832,12 +5832,18 @@ body.controller-playing #controller #controllerActive #joystickZone .joystick-ba
  height:var(--gf-controller-stick-size,72px)!important;
  left:50%;top:50%;
  visibility:visible!important;
- opacity:.34!important;
+ opacity:1!important;
  will-change:transform!important;
  backdrop-filter:none!important;
  -webkit-backdrop-filter:none!important;
 }
 body.controller-playing #controller #controllerActive #joystickZone.is-active .joystick-base{opacity:1!important}
+/* Visible at initial load; after first touch the ring follows the pointer
+   and becomes hidden when released. The finger coordinates remain unchanged. */
+body.controller-playing #controller #controllerActive #joystickZone.has-used:not(.is-active) .joystick-base,
+body.controller-playing #controller #controllerActive .controller-buttons.is-picking #joystickZone .joystick-base{
+ visibility:hidden!important;opacity:0!important;
+}
 body.controller-playing #controller #controllerActive #joystickZone.board-camera-mode .joystick-base{opacity:.16!important}
 body.controller-playing #controller #controllerActive #joystickZone .joystick-knob{
  width:var(--gf-controller-knob-size,30px)!important;

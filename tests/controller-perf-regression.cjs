@@ -77,6 +77,10 @@ assert.match(css,/width:844px!important;height:390px!important/);
 assert.match(css,/portrait-fallback #controller #controllerActive.controller-active/);
 assert.match(css,/controllerBoardMinimap/);
 assert.match(controller,/function queueAnalogInput\(/);
+assert.match(controller,/zone\.classList\.add\('has-used'\)/,'stick marks first touch');
+assert.match(css,/has-used:not\(\.is-active\)/,'stick hidden after release');
+assert.match(read('index.html'),/<div id="controllerPreviewOff"[^>]*><\/div>/,
+ 'preview disabled has no explanatory text');
 assert.match(host,/t:'input-ack'/);
 assert.match(controller,/data\.t==='input-ack'/);
 assert.match(read('src/board-party/runtime/board-art.js'),/const boardPaintCache=new WeakMap\(\)/);

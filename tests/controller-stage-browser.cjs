@@ -64,6 +64,28 @@ async function run(){
      'A/B should scale exactly once '+JSON.stringify(sizes));
    assert.ok(Math.abs(sizes.stick.w-72*expected)<2.5,
      'floating stick should share stage scale '+JSON.stringify(sizes));
+   const visuals=await page.evaluate(()=>{
+    const zone=document.getElementById('joystickZone');
+    const base=document.getElementById('joystickBase');
+    const off=document.getElementById('controllerPreviewOff');
+    const state=()=>({visible:getComputedStyle(base).visibility,opacity:+getComputedStyle(base).opacity});
+    const initial=state();
+    zone.classList.add('has-used');
+    const released=state();
+    zone.classList.add('is-active');
+    const held=state();
+    zone.classList.remove('has-used','is-active');
+    return {initial,released,held,offText:off.textContent.trim(),
+     offBg:getComputedStyle(off).backgroundColor};
+   });
+   assert.equal(visuals.initial.visible,'visible','show centered stick before first touch');
+   assert.ok(visuals.initial.opacity>=.9,'initial stick must be readable');
+   assert.equal(visuals.released.visible,'hidden','hide stick after first touch release');
+   assert.equal(visuals.released.opacity,0);
+   assert.equal(visuals.held.visible,'visible','held stick must be visible');
+   assert.ok(visuals.held.opacity>=.9);
+   assert.equal(visuals.offText,'','preview disabled shows no message');
+   assert.equal(visuals.offBg,'rgb(0, 0, 0)','preview disabled is black');
    if(!portrait){
     const ratio=sizes.a.w/sizes.stage.h;
     if(reference!==null)assert.ok(Math.abs(ratio-reference)<.005,'same control proportions across phones');
