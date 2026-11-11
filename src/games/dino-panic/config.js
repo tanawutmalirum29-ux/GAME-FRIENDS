@@ -35,3 +35,5 @@ export class Heap{
   this.rk=rk;return rv;}
 }
 export const NB=[[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.4142],[1,-1,1.4142],[-1,1,1.4142],[-1,-1,1.4142]];
+/* flat neighbour tables: iterate with indices in hot loops (no per-iteration array destructuring garbage) */
+export const NBX=Int8Array.from(NB,n=>n[0]),NBY=Int8Array.from(NB,n=>n[1]),NBL=Float64Array.from(NB,n=>n[2]);
