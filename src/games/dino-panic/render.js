@@ -1,7 +1,7 @@
 /* DINO PANIC — renderer. Draws the long side-scrolling world on the 960×540 host canvas.
    World units == canvas units (scale 1); only the camera translation is applied, so physics and drawing share one frame.
    Off-screen obstacles are skipped through the track's spatial index; nothing needed by the simulation is ever deleted here. */
-import {C,TAU,clamp} from './config.js';
+import {C,TAU,STEP,clamp,lerp} from './config.js';
 import {svgImage,bodySVG,headSVG,footSVG,dirtSVG,forestSVG,crateSVG,rockSVG} from './dino-art.js';
 import {dinoEdge} from './map.js';
 
@@ -11,30 +11,39 @@ const A={
  dirt:h=>svgImage('dirt'+h,()=>dirtSVG(h)),forest:(h,k)=>svgImage('forest'+h+'_'+k,()=>forestSVG(h,k)),
  crate:v=>svgImage('crate'+v,()=>crateSVG(v)),rock:v=>svgImage('rock'+v,()=>rockSVG(v))
 };
+const LOG=new Map(),QR=[],RB=[];   // baked log/fence sprites, scratch lists
 export function preloadArt(track){
+ LOG.clear();GR.tr=null;
  A.body();A.head();A.foot();for(let v=0;v<3;v++){A.crate(v);A.rock(v);}A.crate(3);
  if(track){A.dirt(track.H);A.forest(track.top,11);A.forest(VH-track.bottom,23);}
 }
 
 /* ───────── ground ───────── */
+const GR={tr:null,top:null,bot:null,sh:null};
+function gradients(g,tr){          // gradients are created once per track, not once per frame
+ if(GR.tr===tr)return GR;
+ GR.tr=tr;
+ let gr=g.createLinearGradient(0,tr.top,0,tr.top+16);gr.addColorStop(0,'rgba(40,20,5,.32)');gr.addColorStop(1,'rgba(40,20,5,0)');GR.top=gr;
+ gr=g.createLinearGradient(0,tr.bottom,0,tr.bottom-16);gr.addColorStop(0,'rgba(40,20,5,.32)');gr.addColorStop(1,'rgba(40,20,5,0)');GR.bot=gr;
+ gr=g.createLinearGradient(0,0,90,0);gr.addColorStop(0,'rgba(20,10,0,.30)');gr.addColorStop(1,'rgba(20,10,0,0)');GR.sh=gr;
+ return GR;
+}
 function drawGround(g,s,cam){
- const tr=s.track,x0=Math.floor(cam/TILE)*TILE,x1=cam+VW;
+ const tr=s.track,x0=Math.floor(cam/TILE)*TILE,x1=cam+VW,G=gradients(g,tr),TW=TILE+1; // +1px overlap hides hairline seams at fractional camera positions
  const ft=A.forest(tr.top,11),fb=A.forest(VH-tr.bottom,23),dirt=A.dirt(tr.H);
  for(let x=x0;x<x1;x+=TILE){
-  if(ft)g.drawImage(ft,x,0);else{g.fillStyle='#3d7a2b';g.fillRect(x,0,TILE,tr.top);}
-  if(fb){g.save();g.translate(x,VH);g.scale(1,-1);g.drawImage(fb,0,0);g.restore();}
+  if(ft)g.drawImage(ft,x,0,TW,ft.lh||ft.height);else{g.fillStyle='#3d7a2b';g.fillRect(x,0,TILE,tr.top);}
+  if(fb){g.save();g.translate(x,VH);g.scale(1,-1);g.drawImage(fb,0,0,TW,fb.lh||fb.height);g.restore();}
   else{g.fillStyle='#3d7a2b';g.fillRect(x,tr.bottom,TILE,VH-tr.bottom);}
-  if(dirt)g.drawImage(dirt,x,tr.top);else{g.fillStyle='#d6a169';g.fillRect(x,tr.top,TILE,tr.H);}
+  if(dirt)g.drawImage(dirt,x,tr.top,TW,tr.H);else{g.fillStyle='#d6a169';g.fillRect(x,tr.top,TILE,tr.H);}
  }
  // soft shade under the forest edges
- let gr=g.createLinearGradient(0,tr.top,0,tr.top+16);gr.addColorStop(0,'rgba(40,20,5,.32)');gr.addColorStop(1,'rgba(40,20,5,0)');
- g.fillStyle=gr;g.fillRect(cam,tr.top,VW,16);
- gr=g.createLinearGradient(0,tr.bottom,0,tr.bottom-16);gr.addColorStop(0,'rgba(40,20,5,.32)');gr.addColorStop(1,'rgba(40,20,5,0)');
- g.fillStyle=gr;g.fillRect(cam,tr.bottom-16,VW,16);
+ g.fillStyle=G.top;g.fillRect(cam,tr.top,VW,16);
+ g.fillStyle=G.bot;g.fillRect(cam,tr.bottom-16,VW,16);
  // the corridor ends in dense jungle behind the finish area
  if(x1>tr.endX){g.save();g.beginPath();g.rect(tr.endX,tr.top-2,VW,tr.H+4);g.clip();
   g.fillStyle='#2f6a24';g.fillRect(tr.endX,tr.top,VW,tr.H);
-  if(ft)for(let y=tr.top-ft.height*.2;y<tr.bottom;y+=ft.height*.8)for(let x=Math.floor(tr.endX/TILE)*TILE;x<x1;x+=TILE)g.drawImage(ft,x,y);
+  if(ft){const fh=ft.lh||ft.height;for(let y=tr.top-fh*.2;y<tr.bottom;y+=fh*.8)for(let x=Math.floor(tr.endX/TILE)*TILE;x<x1;x+=TILE)g.drawImage(ft,x,y,TW,fh);}
   g.restore();}
 }
 function drawFinish(g,s,cam){
@@ -72,35 +81,54 @@ function drawLog(g,o,fence){
  }
  g.restore();
 }
-function drawObstacles(g,s,cam){
- const tr=s.track,list=tr.query(cam-120,cam+VW+120);
+/* log / fence sprites are painted once (same detail, 2x raster) and then blitted */
+function drawLogAt(g,o,x,y){
+ const key=o.kind+'|'+o.hw+'|'+o.hh;let sp=LOG.get(key);
+ if(sp===undefined){
+  sp=null;
+  if(typeof document!=='undefined'){
+   try{const w=Math.ceil(o.hw*2+24),h=Math.ceil(o.hh*2+24),c=document.createElement('canvas');c.width=w*2;c.height=h*2;
+    const k=c.getContext('2d');k.scale(2,2);k.translate(w/2,h/2);
+    drawLog(k,{x:0,y:0,hw:o.hw,hh:o.hh,kind:o.kind},o.kind==='fence');c.lw=w;c.lh=h;sp=c;}catch(err){sp=null;}
+  }
+  LOG.set(key,sp);
+ }
+ if(sp)g.drawImage(sp,x-sp.lw/2,y-sp.lh/2,sp.lw,sp.lh);
+ else drawLog(g,{kind:o.kind,hw:o.hw,hh:o.hh,x,y},o.kind==='fence');
+}
+let IX=0,IY=0;
+function ipos(o,s,a){ // shoved obstacles move inside a tick; blend like the runners so they don't jitter against them
+ if(a<1&&o.mt===s.tick){IX=o.ox+(o.x-o.ox)*a;IY=o.oy+(o.y-o.oy)*a;}else{IX=o.x;IY=o.y;}
+}
+function drawObstacles(g,s,cam,a){
+ const tr=s.track,list=tr.query(cam-120,cam+VW+120,QR);
  g.fillStyle='rgba(30,16,4,.28)';
- for(const o of list){g.beginPath();
-  if(o.shape==='circle')g.ellipse(o.x+4,o.y+6,o.r*1.05,o.r*.95,0,0,TAU);
-  else g.rect(o.x-o.hw+4,o.y-o.hh+6,o.hw*2,o.hh*2);g.fill();}
- for(const o of list){
+ for(const o of list){ipos(o,s,a);g.beginPath();
+  if(o.shape==='circle')g.ellipse(IX+4,IY+6,o.r*1.05,o.r*.95,0,0,TAU);
+  else g.rect(IX-o.hw+4,IY-o.hh+6,o.hw*2,o.hh*2);g.fill();}
+ for(const o of list){ipos(o,s,a);
   if(o.kind==='crate'){const im=A.crate(o.v),sz=C.crate*2+6;
-   if(im)g.drawImage(im,o.x-sz/2,o.y-sz/2,sz,sz);else{g.fillStyle='#b97a3c';g.fillRect(o.x-o.hw,o.y-o.hh,o.hw*2,o.hh*2);g.strokeStyle='#3d6bb0';g.lineWidth=4;g.strokeRect(o.x-o.hw,o.y-o.hh,o.hw*2,o.hh*2);}
+   if(im)g.drawImage(im,IX-sz/2,IY-sz/2,sz,sz);else{g.fillStyle='#b97a3c';g.fillRect(IX-o.hw,IY-o.hh,o.hw*2,o.hh*2);g.strokeStyle='#3d6bb0';g.lineWidth=4;g.strokeRect(IX-o.hw,IY-o.hh,o.hw*2,o.hh*2);}
   }else if(o.kind==='rock'){const im=A.rock(o.v),sz=o.r*2.5;
-   if(im)g.drawImage(im,o.x-sz/2,o.y-sz/2,sz,sz);else{g.fillStyle='#8a8077';g.beginPath();g.arc(o.x,o.y,o.r,0,TAU);g.fill();}
-  }else drawLog(g,o,o.kind==='fence');
+   if(im)g.drawImage(im,IX-sz/2,IY-sz/2,sz,sz);else{g.fillStyle='#8a8077';g.beginPath();g.arc(IX,IY,o.r,0,TAU);g.fill();}
+  }else drawLogAt(g,o,IX,IY);
  }
 }
 
 /* ───────── effects ───────── */
-function drawFx(g,s,pass){
+function drawFx(g,s,pass,a){
  for(const e of s.fx){
-  const k=e.life/e.max;
+  const k=e.life/e.max,ex=e.x-e.vx*STEP*(1-a),ey=e.y-e.vy*STEP*(1-a);
   if(pass===0){
-   if(e.t==='dust'){g.globalAlpha=clamp(k*.5,0,.5);g.fillStyle=e.color;g.beginPath();g.arc(e.x,e.y,e.size*(1+(1-k)*1.3),0,TAU);g.fill();}
-   else if(e.t==='squash'){const u=1-k;g.save();g.translate(e.x,e.y);g.globalAlpha=clamp(k*1.2,0,1);
+   if(e.t==='dust'){g.globalAlpha=clamp(k*.5,0,.5);g.fillStyle=e.color;g.beginPath();g.arc(ex,ey,e.size*(1+(1-k)*1.3),0,TAU);g.fill();}
+   else if(e.t==='squash'){const u=1-k;g.save();g.translate(ex,ey);g.globalAlpha=clamp(k*1.2,0,1);
     g.fillStyle=e.color;g.beginPath();g.ellipse(0,2,18+u*14,9+u*6,0,0,TAU);g.fill();
     g.fillStyle='rgba(60,30,10,.55)';g.beginPath();g.ellipse(0,3,12+u*10,5+u*4,0,0,TAU);g.fill();
     g.strokeStyle='#fff';g.lineWidth=2.2;g.globalAlpha=clamp(k,0,1);
     for(let i=0;i<5;i++){const a=i*1.26+.3,r0=20+u*10,r1=r0+8;g.beginPath();g.moveTo(Math.cos(a)*r0,Math.sin(a)*r0*.6);g.lineTo(Math.cos(a)*r1,Math.sin(a)*r1*.6);g.stroke();}
     g.restore();}
   }else if(e.t==='debris'||e.t==='pebble'||e.t==='confetti'){
-   g.save();g.globalAlpha=clamp(k*1.4,0,1);g.translate(e.x,e.y);g.rotate(e.rot);g.fillStyle=e.color;
+   g.save();g.globalAlpha=clamp(k*1.4,0,1);g.translate(ex,ey);g.rotate(e.rot);g.fillStyle=e.color;
    if(e.t==='confetti')g.fillRect(-e.size,-e.size*.5,e.size*2,e.size);else g.fillRect(-e.size*.6,-e.size*.4,e.size*1.2,e.size*.8);
    g.restore();}
  }
@@ -108,27 +136,31 @@ function drawFx(g,s,pass){
 }
 
 /* ───────── runners ───────── */
-function drawRunners(g,s,time){
+function drawRunners(g,s,time,a){
  const pc=typeof window!=='undefined'?window.PartyCharacters:undefined;
- const list=s.roster.filter(p=>p.dino.state!=='dead').sort((a,b)=>a.y-b.y);
- for(const p of list){
-  const done=p.dino.state==='done';
-  g.fillStyle='rgba(30,16,4,.3)';g.beginPath();g.ellipse(p.x+2,p.y+14,15,6,0,0,TAU);g.fill();
-  g.save();if(done){g.globalAlpha=.9;g.translate(0,-Math.abs(Math.sin(time*7+p.id))*3);}
-  if(pc?.draw)pc.draw(g,p,{time:s.clock||time,label:false});
-  else{g.fillStyle=p.color||'#f5c87a';g.beginPath();g.arc(p.x,p.y,C.R,0,TAU);g.fill();}
-  g.restore();
+ RB.length=0;for(const p of s.roster)if(p.dino.state!=='dead')RB.push(p);
+ RB.sort((p,q)=>p.y-q.y);
+ const ct=s.clock?s.clock-STEP*(1-a):time;
+ for(const p of RB){
+  const d=p.dino,done=d.state==='done',rx=p.x,ry=p.y;
+  if(a<1&&Number.isFinite(d.px)){p.x=d.px+(rx-d.px)*a;p.y=d.py+(ry-d.py)*a;}   // draw between the previous and current tick
+  try{
+   g.fillStyle='rgba(30,16,4,.3)';g.beginPath();g.ellipse(p.x+2,p.y+14,15,6,0,0,TAU);g.fill();
+   g.save();if(done){g.globalAlpha=.9;g.translate(0,-Math.abs(Math.sin(time*7+p.id))*3);}
+   if(pc?.draw)pc.draw(g,p,{time:ct,label:false});
+   else{g.fillStyle=p.color||'#f5c87a';g.beginPath();g.arc(p.x,p.y,C.R,0,TAU);g.fill();}
+   g.restore();
+  }finally{p.x=rx;p.y=ry;}
  }
 }
 
 /* ───────── the dinosaur ───────── */
-function drawDino(g,s,time){
- const tr=s.track,k=(tr.H+70)/380,t=s.clock>0?s.clock:time*.6,ph=t*TAU/.64;
+function drawDino(g,s,time,front,a){
+ const tr=s.track,k=(tr.H+70)/380,t=s.clock>0?s.clock-STEP*(1-a):time*.6,ph=t*TAU/.64;
  const bodyI=A.body(),headI=A.head(),footI=A.foot();
- g.save();g.translate(s.front,tr.cy);g.scale(k,k);
+ g.save();g.translate(front,tr.cy);g.scale(k,k);
  // ground shadow in front of the snout (readable, never hides obstacles)
- const sh=g.createLinearGradient(0,0,90,0);sh.addColorStop(0,'rgba(20,10,0,.30)');sh.addColorStop(1,'rgba(20,10,0,0)');
- g.fillStyle=sh;g.fillRect(0,-200,90,400);
+ g.fillStyle=gradients(g,tr).sh;g.fillRect(0,-200,90,400);
  g.fillStyle='rgba(20,10,0,.28)';g.beginPath();g.ellipse(-330,14,360,200,0,0,TAU);g.fill();
  // feet: diagonal pairs, planted foot gets bigger (stomp)
  const feet=[[-310,-176,0],[-310,176,Math.PI],[-520,-176,Math.PI],[-520,176,0]];
@@ -148,17 +180,20 @@ function drawDino(g,s,time){
  g.restore();
 }
 
-export function drawWorld(g,time,s){
- const tr=s.track,cam=s.camX;
+export function drawWorld(g,time,s,a=1){
+ const tr=s.track;
+ // camera and dinosaur are blended between the previous and current simulation tick
+ const cam=(a<1&&s.prevCam!==undefined)?lerp(s.prevCam,s.camX,a):s.camX,
+  front=(a<1&&s.prevFront!==undefined)?lerp(s.prevFront,s.front,a):s.front;
  g.save();
  g.fillStyle='#2f6a24';g.fillRect(0,0,VW,VH);
  g.translate(-cam,0);
  drawGround(g,s,cam);
  drawFinish(g,s,cam);
- drawObstacles(g,s,cam);
- drawFx(g,s,0);
- drawRunners(g,s,time);
- drawFx(g,s,1);
- drawDino(g,s,time);
+ drawObstacles(g,s,cam,a);
+ drawFx(g,s,0,a);
+ drawRunners(g,s,time,a);
+ drawFx(g,s,1,a);
+ drawDino(g,s,time,front,a);
  g.restore();
 }

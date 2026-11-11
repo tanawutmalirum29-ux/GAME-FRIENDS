@@ -2,22 +2,28 @@
    Bots share short-lived navigation fields for the same corridor segment instead
    of running 12 independent Dijkstra searches over nearly identical obstacles.
    Each bot still has independent replan timing, steering and crowd avoidance. */
-import {C,clamp,Heap,NB} from './config.js';
+import {C,clamp,Heap,NB,NBX,NBY,NBL} from './config.js';
+const HEAP=new Heap(),QB=[];   // one shared heap + scratch list: fields are built one at a time
 export const BOT_NAV_CELL=10; // Original fidelity restored (was increased to 16 for speed).
 const WINDOW=420,SECTION=180,MAX_FIELD_AGE=.34,AVOID_RADIUS=66;
 export function makeBot(idx,rng){
  return{idx,key:(idx+1)*7919,look:250+rng()*100,replan:.34+rng()*.18,turn:7+rng()*6,noise:.06+rng()*.1,
   next:idx*.031+rng()*.09,dx:1,dy:0,tx:null,ty:null,pxs:0,pys:0,pt:0,unstick:0,side:0,sideUntil:0};
 }
-function buildField(s,x0){
+function buildField(s,x0,old){
  const tr=s.track,R=C.R+4,top=tr.top,nc=WINDOW/BOT_NAV_CELL,nr=Math.floor(tr.H/BOT_NAV_CELL),
-  n=nc*nr,blocked=new Uint8Array(n),D=new Float64Array(n),heap=new Heap(),x1=x0+WINDOW;
+  n=nc*nr,x1=x0+WINDOW;
+ let blocked,D;   // rebuilding a stale field reuses its buffers instead of allocating new ones
+ const spare=!old&&s.fieldPool&&s.fieldPool.pop();   // buffers of evicted sections are recycled too
+ if(!old&&spare)old=spare;
+ if(old&&old.D.length===n){blocked=old.blocked;blocked.fill(0);D=old.D;old.x0=x0;}else{blocked=new Uint8Array(n);D=new Float64Array(n);old=null;}
+ const heap=HEAP;heap.k.length=0;heap.v.length=0;
  D.fill(Infinity);
  for(let j=0;j<nr;j++){
   const y=top+(j+.5)*BOT_NAV_CELL;
   if(y<top+C.R||y>tr.bottom-C.R)blocked.fill(1,j*nc,(j+1)*nc);
  }
- for(const o of tr.query(x0-42,x1+42)){
+ for(const o of tr.query(x0-42,x1+42,QB)){
   const r=o.shape==='circle'?o.r:0;
   const ex=(r||o.hw)+R,ey=(r||o.hh)+R;
   const i0=Math.max(0,Math.floor((o.x-ex-x0)/BOT_NAV_CELL)),i1=Math.min(nc-1,Math.floor((o.x+ex-x0)/BOT_NAV_CELL));
@@ -42,8 +48,8 @@ function buildField(s,x0){
  while(heap.size){
   const u=heap.pop(),d=heap.rk;if(d>D[u])continue;
   const i=u%nc,j=(u/nc)|0;
-  for(const [dx,dy,len] of NB){
-   const ni=i+dx,nj=j+dy;
+  for(let q=0;q<8;q++){
+   const dx=NBX[q],dy=NBY[q],len=NBL[q],ni=i+dx,nj=j+dy;
    if(ni<0||nj<0||ni>=nc||nj>=nr)continue;
    const v=nj*nc+ni;
    if(blocked[v]||(dx&&dy&&(blocked[j*nc+ni]||blocked[nj*nc+i])))continue;
@@ -51,18 +57,21 @@ function buildField(s,x0){
    if(nd<D[v]){D[v]=nd;heap.push(nd,v);}
   }
  }
+ if(old){old.at=s.clock;return old;}
  return{x0,top,nc,nr,blocked,D,at:s.clock};
 }
 function getField(s,p){
  if(!s.botFields)s.botFields=new Map();
  const x0=Math.floor((p.x-50)/SECTION)*SECTION;
  let field=s.botFields.get(x0);
- if(!field||s.clock-field.at>=MAX_FIELD_AGE){
-  field=buildField(s,x0);s.botFields.set(x0,field);
+ // at most ONE stale field is rebuilt per tick (spreads the Dijkstra cost over frames); a missing or very old one is always built
+ const age=field?s.clock-field.at:Infinity;
+ if(!field||(age>=MAX_FIELD_AGE&&(s.fieldTick!==s.tick||age>=MAX_FIELD_AGE*2.2))){
+  field=buildField(s,x0,field);s.fieldTick=s.tick;s.botFields.set(x0,field);
   s.botFieldsBuilt=(s.botFieldsBuilt||0)+1; // diagnostic: actual shared Dijkstra computations
  }
  if(s.botFields.size>12){
-  for(const [key,v] of s.botFields)if(s.clock-v.at>1)s.botFields.delete(key);
+  for(const [key,v] of s.botFields)if(s.clock-v.at>1){(s.fieldPool||(s.fieldPool=[])).push(v);s.botFields.delete(key);}
  }
  return field;
 }
@@ -84,8 +93,8 @@ function plan(s,p){
  for(let t=0;t<24&&len<110;t++){
   const u=chain[chain.length-1],i=u%nc,j=(u/nc)|0;
   let best=-1,bv=D[u];
-  for(const [dx,dy] of NB){
-   const ni=i+dx,nj=j+dy;if(ni<0||nj<0||ni>=nc||nj>=nr)continue;
+  for(let q=0;q<8;q++){
+   const dx=NBX[q],dy=NBY[q],ni=i+dx,nj=j+dy;if(ni<0||nj<0||ni>=nc||nj>=nr)continue;
    const v=nj*nc+ni;if(!(D[v]<bv))continue;
    if(dx&&dy&&!(isFinite(D[j*nc+ni])&&isFinite(D[nj*nc+i])))continue;
    best=v;bv=D[v];

@@ -1,7 +1,7 @@
 /* Real SVG rasterization: projections, heading, inline colors and vector fallback. */
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const {chromium}=require('playwright');
+const {chromium,webkit}=require('playwright');
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
  try{
@@ -58,6 +58,42 @@ const {chromium}=require('playwright');
    frame.remove();return maxMean;
   },source);
   assert.ok(comparison<4,'SVG/fallback rendering mismatch: '+comparison);
+
+   // Actual integrated atlas decode / tint / 16-frame crop on both engine families.
+   // Stub only the network response: browser rasterizes the real 63KB SVG.
+   const atlasSource=fs.readFileSync('assets/animations/punch-v2/punch-strip.svg','utf8');
+   for(const target of ['chromium','webkit']){
+    const isolated=target==='chromium'?page:await webkit.launch({headless:true});
+    const probePage=target==='chromium'?page:await isolated.newPage();
+    try{
+     if(target==='webkit')await probePage.addScriptTag({path:path.resolve('player-avatar.js')});
+     const asset=await probePage.evaluate(async source=>{
+      window.fetch=async()=>({ok:true,text:async()=>source});
+      const A=window.PartyPlayerAvatar;
+      const loaded=await A.loadPunchAtlas();
+      const image=A.punchImageFor('#fa3761');
+      await image.decode();
+      const actor={x:110,y:110,color:'#fa3761',dir:{x:0,y:-1},
+       attackFacing:{x:1,y:0},attackRemaining:.48-.19};
+      const canvas=document.createElement('canvas');canvas.width=canvas.height=220;
+      const ctx=canvas.getContext('2d');A.draw(ctx,actor,{label:false});
+      const rgba=ctx.getImageData(0,0,220,220).data;
+      let painted=0;for(let i=3;i<rgba.length;i+=4)if(rgba[i]>0)painted++;
+      return {loaded:loaded?.length,width:image.naturalWidth,height:image.naturalHeight,
+       frame:A.punchFrameFor(actor),painted,consumed:A.consumePunchDrawn(actor),
+       recolored:!!A.punchSvgFor(actor.color)?.includes('#fa3761')};
+     },atlasSource);
+     assert.equal(asset.width,1536,target+' decoded full punch atlas');
+     assert.equal(asset.height,112);
+     assert.equal(asset.frame,7,'contact pose at 190ms');
+     assert.ok(asset.painted>500,'actual punch cropped frame rendered: '+target);
+     assert.equal(asset.consumed,true);
+     assert.equal(asset.recolored,true);
+    }finally{
+     if(target==='webkit')await isolated.close();
+    }
+   }
+   console.log('PUNCH-V2 BROWSER PASS: Chromium and WebKit rasterized 16-frame SVG atlas in player color');
   assert.deepEqual(errors,[]);
   fs.mkdirSync('/tmp/game-friends-avatar',{recursive:true});
   await page.screenshot({path:'/tmp/game-friends-avatar/reference-projections.jpg',type:'jpeg',quality:92,scale:'css'});

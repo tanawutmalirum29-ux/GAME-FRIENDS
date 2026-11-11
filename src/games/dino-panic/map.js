@@ -1,7 +1,9 @@
 /* DINO PANIC — track generation by chunks. Every chunk is checked with a real shortest-path pass
    (body radius + clearance) before it is accepted, so the route always exists and the best possible
    route never costs more time than the dinosaur's head start can absorb. */
-import {C,clamp,mkRng,Heap,NB} from './config.js';
+import {C,clamp,mkRng,Heap,NB,NBX,NBY,NBL} from './config.js';
+const PO=[];                                   // scratch list for pushOut (no per-call array)
+let _b=new Uint8Array(8192),_d=new Float64Array(8192);const _h=new Heap();  // reusable validator buffers
 const PAD=26,BUCKET=128;
 
 /* ───────── obstacle builders ───────── */
@@ -79,7 +81,7 @@ function pickTemplate(G,last,t){
 
 /* ───────── real route validation (windowed Dijkstra, carries the frontier across chunks) ───────── */
 function blockedGrid(G,X0,nc,rows,obs){
- const cell=C.cell,b=new Uint8Array(nc*rows),R=C.R+.5;
+ const cell=C.cell,R=C.R+.5;if(_b.length<nc*rows)_b=new Uint8Array(nc*rows*2);const b=_b.subarray(0,nc*rows);b.fill(0);
  for(let j=0;j<rows;j++){const y=G.top+(j+.5)*cell;if(y<G.top+C.R||y>G.bottom-C.R)for(let i=0;i<nc;i++)b[j*nc+i]=1;}
  for(const ob of obs){
   const ex=(ob.shape==='circle'?ob.r:ob.hw)+R,ey=(ob.shape==='circle'?ob.r:ob.hh)+R;
@@ -98,13 +100,13 @@ class Flow{
  constructor(G){this.G=G;this.rows=Math.floor(G.H/C.cell);this.front=null;this.base=0;}
  test(X0,X1,obs){
   const cell=C.cell,rows=this.rows,nc=Math.max(3,Math.round((X1-X0)/cell)),b=blockedGrid(this.G,X0,nc,rows,obs);
-  const dist=new Float64Array(nc*rows).fill(Infinity),h=new Heap();
+  const dn=nc*rows;if(_d.length<dn)_d=new Float64Array(dn*2);const dist=_d.subarray(0,dn).fill(Infinity),h=_h;h.k.length=0;h.v.length=0;
   let base=this.base;
   for(let j=0;j<rows;j++){const idx=j*nc;if(b[idx])continue;
    const c=this.front?(this.front[j]+cell):0;if(!isFinite(c))continue;dist[idx]=c;h.push(c,idx);}
   if(this.front)base+=cell;
   while(h.size){const u=h.pop(),d=h.rk;if(d>dist[u])continue;const i=u%nc,j=(u/nc)|0;
-   for(const[dx,dy,len]of NB){const ni=i+dx,nj=j+dy;if(ni<0||nj<0||ni>=nc||nj>=rows)continue;
+   for(let q=0;q<8;q++){const dx=NBX[q],dy=NBY[q],len=NBL[q];const ni=i+dx,nj=j+dy;if(ni<0||nj<0||ni>=nc||nj>=rows)continue;
     const v=nj*nc+ni;if(b[v])continue;if(dx&&dy&&(b[j*nc+ni]||b[nj*nc+i]))continue;
     const nd=d+len*cell;if(nd<dist[v]){dist[v]=nd;h.push(nd,v);}}}
   const front=new Float64Array(rows);let best=Infinity;
@@ -151,18 +153,19 @@ export function buildTrack(tier,seed,playerCount){
   o._bucketLo=Math.floor((o.x-e)/BUCKET);o._bucketHi=Math.floor((o.x+e)/BUCKET);
   for(let b=o._bucketLo;b<=o._bucketHi;b++){let a=buckets.get(b);if(!a)buckets.set(b,a=[]);a.push(o);}}
  let stamp=0;
- const query=(xa,xb)=>{const out=[];stamp++;
+ const query=(xa,xb,buf)=>{const out=buf||[];out.length=0;stamp++;
   for(let b=Math.floor(xa/BUCKET);b<=Math.floor(xb/BUCKET);b++){const a=buckets.get(b);if(!a)continue;
    for(const o of a)if(o.alive&&o._q!==stamp){o._q=stamp;out.push(o);}}
   return out;};
  // Obstacles stay in the bucket index when shoved by a runner: otherwise
  // colliders and visible sprites would diverge after crossing a bucket edge.
+ const QM=[];let out2;
  const moveObstacle=(o,dx,dy)=>{
   if(!o.alive||(!dx&&!dy))return false;
   const rx=o.shape==='circle'?o.r:o.hw,ry=o.shape==='circle'?o.r:o.hh;
   const nx=o.x+dx,ny=o.y+dy;
   if(ny-ry<top-3||ny+ry>bottom+3||nx-rx<lastSpawn+45||nx+rx>finishX-35)return false;
-  for(const q of query(nx-rx-5,nx+rx+5)){
+  for(const q of query(nx-rx-5,nx+rx+5,QM)){
    if(q===o)continue;
    const qx=q.shape==='circle'?q.r:q.hw,qy=q.shape==='circle'?q.r:q.hh;
    if(Math.abs(nx-q.x)<rx+qx+3&&Math.abs(ny-q.y)<ry+qy+3)return false;
@@ -177,16 +180,18 @@ export function buildTrack(tier,seed,playerCount){
    for(let i=lo;i<=hi;i++){let list=buckets.get(i);if(!list)buckets.set(i,list=[]);list.push(o);}
    o._bucketLo=lo;o._bucketHi=hi;
   }
+  if(o.mt!==out2.tick){o.mt=out2.tick;o.ox=o.x;o.oy=o.y;}   // position at the start of this tick (render interpolation)
   o.x=nx;o.y=ny;return true;
  };
- return{tier,top,bottom,H,cy,cols,perCol,spawnX,lastSpawn,finishX,endX,obstacles,chunks,query,moveObstacle,
-  overhead:prevOver,fallbacks,seed};
+ out2={tier,top,bottom,H,cy,cols,perCol,spawnX,lastSpawn,finishX,endX,obstacles,chunks,query,moveObstacle,
+  overhead:prevOver,fallbacks,seed,tick:0};
+ return out2;
 }
 
 /* ───────── collision helpers (circle body vs obstacle / corridor walls) ───────── */
 export function pushOut(track,p,R=C.R){
  let hit=false;
- const list=track.query(p.x-R-4,p.x+R+4);
+ const list=track.query(p.x-R-4,p.x+R+4,PO);
  for(const o of list){
   if(o.shape==='circle'){
    const dx=p.x-o.x,dy=p.y-o.y,d=Math.hypot(dx,dy),m=o.r+R;

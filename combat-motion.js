@@ -130,6 +130,10 @@ function drawStun(ctx,entity,time,opts={}){
 }
 function drawAttack(ctx,entity){
   if(!isAttacking(entity))return;
+  // The canonical SVG punch has its own two-joint strike arm and fist.
+  // Consume the render marker rather than drawing the legacy line over it.
+  // Custom game renderers without PartyPlayerAvatar keep their old VFX.
+  if(window.PartyPlayerAvatar?.consumePunchDrawn?.(entity))return;
   const elapsed=TOTAL-entity.attackRemaining;
   const progress=elapsed/TOTAL;
   const dir=entity.attackFacing||entity.dir||{x:1,y:0};

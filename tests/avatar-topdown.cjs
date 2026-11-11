@@ -171,3 +171,37 @@ console.log('PROJECTION CONTRACT PASS: eight headings, separate portrait, stable
 const redIds=[...Avatar.svgForFront('#ff0000').matchAll(/id="([^"]+)"/g)].map(m=>m[1]);
 const blueIds=[...Avatar.svgForFront('#0000ff').matchAll(/id="([^"]+)"/g)].map(m=>m[1]);
 assert.ok(redIds.length>0&&redIds.every(id=>!blueIds.includes(id)));
+
+/* PUNCH-V2 TIMING: artwork is sampled from combat state, never drives damage. */
+{
+ const frame=ms=>Avatar.punchFrameFor({attackRemaining:.48-ms/1000});
+ for(const [ms,index] of [
+  [0,0],[24,0],[25,1],[139,4],[140,5],
+  [179,6],[180,7],[209,7],[210,8],[279,9],
+  [280,10],[454,14],[455,15],[479,15]
+ ])assert.equal(frame(ms),index,'punch atlas frame at '+ms+'ms');
+ assert.equal(Avatar.punchFrameFor({attackRemaining:0}),-1,'no frame after attack is canceled');
+ assert.equal(Avatar.punchFrameFor({attackRemaining:-.1}),-1);
+ assert.equal(Avatar.punchFrameFor(null),-1);
+ const locked={dir:{x:0,y:-1},attackFacing:{x:1,y:0}};
+ assert.ok(Math.abs(Avatar.punchHeading(locked)-Math.PI/2)<1e-9,'attack direction is locked independently of movement');
+ const fixed={x:42,y:43,color:'#36d9e5',dir:{x:0,y:-1},attackFacing:{x:1,y:0},
+  attackRemaining:.48-.19,name:'Punch',vx:0,vy:0};
+ const {ctx,calls}=probe();
+ Avatar.draw(ctx,fixed,{time:.2,label:false});
+ assert.ok(calls.find(c=>c[0]==='translate'&&c[1]===42&&c[2]===43),'punch keeps physics origin');
+ assert.ok(calls.find(c=>c[0]==='rotate'&&Math.abs(c[1]-Math.PI/2)<1e-9),'punch uses locked heading');
+ assert.equal(Avatar.consumePunchDrawn(fixed),true,'legacy line must not double-draw');
+ assert.equal(Avatar.consumePunchDrawn(fixed),false,'draw marker may only be consumed once');
+ const timing=JSON.parse(fs.readFileSync('assets/animations/punch-v2/timing.json','utf8'));
+ assert.equal(timing.durationsMs.total,480);
+ assert.equal(timing.frames.length,16);
+ assert.deepEqual(timing.viewBox,[-16,-32,96,112]);
+ for(let i=0;i<16;i++){
+  const item=timing.frames[i],text=fs.readFileSync('assets/animations/punch-v2/'+item.file,'utf8');
+  assert.match(text,/viewBox="-16 -32 96 112"/,'each frame retains transparent padding, not hitbox');
+  assert.match(text,/data-part="head"/);
+  assert.equal(item.endMs,(i===15?480:timing.frames[i+1].startMs));
+ }
+ console.log('PUNCH-V2 TIMING PASS: sixteen original SVG frames, locked orientation, 480ms, no double VFX');
+}
