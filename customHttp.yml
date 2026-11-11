@@ -16,6 +16,20 @@ customHeaders:
     headers:
       - key: Cache-Control
         value: 'no-cache, max-age=0, s-maxage=0, must-revalidate'
+  # All mutable catalog endpoints must be revalidated even when a PWA resumes.
+  # Content-addressed /game-assets and /board-map-assets remain immutable.
+  - pattern: '/game-catalog.json'
+    headers:
+      - key: Cache-Control
+        value: 'no-store, max-age=0, s-maxage=0'
+  - pattern: '/board-map-catalog.json'
+    headers:
+      - key: Cache-Control
+        value: 'no-store, max-age=0, s-maxage=0'
+  - pattern: '/board-system-catalog.json'
+    headers:
+      - key: Cache-Control
+        value: 'no-store, max-age=0, s-maxage=0'
   - pattern: '**/*.js'
     headers:
       - key: Cache-Control

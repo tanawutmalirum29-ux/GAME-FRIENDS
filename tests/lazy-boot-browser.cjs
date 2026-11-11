@@ -104,8 +104,8 @@ const server=http.createServer((req,res)=>{
   await page.waitForFunction(()=>!!window.__lazyGameTest,null,{polling:100,timeout:15000});
   assert.equal(await page.evaluate(()=>window.GameHostRuntime.ready()),true,
    'host physics and scenery must finish loading before application init');
-  assert.equal(await page.evaluate(()=>window.GAME_CAN_AUTO_RELOAD()),true,
-   'offline host lobby may safely preserve bots and reload');
+  assert.equal(await page.evaluate(()=>window.GAME_CAN_AUTO_RELOAD()),false,
+   'offline Host lobby stays mounted while same-core updates load in place');
   for(const mode of ['host-connected','host-connecting'])
    assert.equal(await page.evaluate(m=>__lazyGameTest.simulateReloadGuard(m),mode),false,
     'core releases must not disconnect an online/connecting Host');

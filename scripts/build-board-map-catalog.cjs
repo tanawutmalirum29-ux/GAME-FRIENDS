@@ -6,6 +6,11 @@ const crypto=require('node:crypto');
 const root=path.resolve(process.env.GAME_BUILD_ROOT||path.join(__dirname,'..'));
 const mapsRoot=path.join(root,'src','board-party','maps');
 const slugPattern=/^[a-z][a-z0-9-]*$/;
+// The bundled default map is also emitted as immutable, hot-loadable assets.
+// Map/source art can change independently of Core, but activation is lobby-only.
+const LEGACY_RUNTIME=[
+ 'board-design.js','board-scenery.js','board-map.js','board-art.js'
+].map(file=>({source:'src/board-party/runtime/'+file,dest:'runtime/'+file}));
 function assert(condition,message){if(!condition)throw Error(message);}
 function list(dir,prefix=''){
  let result=[];
@@ -116,8 +121,19 @@ function build({write=false,coreHash}={}){
    checksum.update(relative+'\0');
    checksum.update(fs.readFileSync(path.join(folder,relative)));
   }
+  if(info.kind==='legacy')for(const {source} of LEGACY_RUNTIME){
+   const location=path.join(root,source);
+   assert(fs.existsSync(location),'Missing built-in BOARD asset: '+source);
+   checksum.update('runtime:'+source+'\0');
+   checksum.update(fs.readFileSync(location));
+  }
   const fingerprint=checksum.digest('hex').slice(0,24);
   const prefix='board-map-assets/'+slug+'/'+fingerprint+'/';
+  if(write&&info.kind==='legacy')for(const {source,dest} of LEGACY_RUNTIME){
+   const target=path.join(root,prefix,dest);
+   fs.mkdirSync(path.dirname(target),{recursive:true});
+   fs.copyFileSync(path.join(root,source),target);
+  }
   if(write&&info.kind==='module'){
    for(const relative of local){
     const dest=path.join(root,prefix,relative);
@@ -127,7 +143,9 @@ function build({write=false,coreHash}={}){
   }
   maps.push({id:info.id,name:info.name,apiVersion:1,
    enabled:info.enabled,kind:info.kind,players:info.players,hash:fingerprint,
-   entryUrl:entry?'/'+prefix+entry:null});
+   entryUrl:entry?'/'+prefix+entry:null,
+   legacyUrls:info.kind==='legacy'?
+    LEGACY_RUNTIME.map(({dest})=>'/'+prefix+dest):[]});
  }
  const catalog={schema:1,coreHash:hash,maps};
  if(write)fs.writeFileSync(path.join(root,'board-map-catalog.json'),

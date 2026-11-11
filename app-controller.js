@@ -3881,7 +3881,11 @@ function returnToLobby(){
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
   // Keep document-root fullscreen during lobby/round transitions.
-  setView('hostLobby');renderRoster();broadcastRoster();renderBotTestPad();
+  setView('hostLobby');
+  // BOARD map/system updates received during a match are applied only now,
+  // after its session has been released and before the next BOARD starts.
+  void window.BoardRuntime?.onLobbyEntered?.();
+  renderRoster();broadcastRoster();renderBotTestPad();
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
 $('boardExitBtn').addEventListener('click',()=>{
@@ -4424,8 +4428,11 @@ if(launchedHost&&!joinCode){
 window.GAME_CAN_AUTO_RELOAD=()=>{
  if(round||gameSelection||boardSession||onlineHost||hostPeer||hostNetworkLoad||
     controllerReady||controllerPeer||controllerConn||controllerNetworkLoad)return false;
+ // Restored offline lobbies can be visible before older compatibility
+ // initialization has synchronized currentView. Protect the actual mounted
+ // Host lobby as well as its logical view from a destructive Core reload.
+ if(currentView==='hostLobby'||!$('hostLobby').classList.contains('hidden'))return false;
  if(currentView==='home')return true;
- if(currentView==='hostLobby')return saveOffline();
  return currentView==='controller';
 };
 window.GAME_PREPARE_AUTO_RELOAD=()=>{

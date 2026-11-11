@@ -142,8 +142,10 @@ those connected-but-not-playing states and therefore could briefly
 disconnect active players. The new `GAME_CAN_AUTO_RELOAD` denies a
 full reload whenever Host/Controller Peer objects, open sessions,
 pending dependency requests, active rounds, BOARD sessions or a pending
-roulette exist. Idle offline Host rooms may still save their bot state
-and reload; a disconnected Controller/Host welcome may reload.
+roulette exist. Offline Host lobbies are also protected: live game/BOARD-map assets can
+update while the lobby stays open. Full Core reload waits until the room
+has been closed and the Host is back at Home; disconnected controllers
+and the fresh Host welcome view may reload.
 
 The independent `GamePlatform.refresh()` still activates compatible
 same-core game patches and newly discovered minigames without a page
