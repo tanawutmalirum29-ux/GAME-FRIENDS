@@ -839,6 +839,14 @@ function hud(g,s){
   if(hpRatio>0)box(g,hpX,y+29,hpW*hpRatio,6,3,p.color);
   if(window.BoardParty.isProtected(s,p))icon(g,'shield',x+w-10,y+31,8);
  });
+ // Top-left movement HUD appears after dice roll and lasts through walking.
+ const diceSettled=s.phase==='dice'&&s.time-s.phaseAt>=window.BoardDice.TIMING.throw;
+ if(active&&s.rolled&&(s.move?.kind==='walk'||diceSettled)){
+  const steps=Math.max(0,window.BoardParty.remainingSteps(s,active.id));
+  box(g,12,104,102,55,11,'#133b51ed','#79bbd1');
+  footsteps(g,41,131,34,'#89d9fa');
+  label(g,String(steps),100,132,27,'#ffe5a1','right',900,40);
+ }
  const footerY=sceneHeight(s)-80;
  box(g,12,footerY,936,68,16,'#102e44f5','#53758a');
  const p=active;
@@ -887,9 +895,7 @@ function hud(g,s){
    }
    g.restore();
   });
-  // Replace the old "steps remaining" caption with two small footprint glyphs.
-  footsteps(g,855,footerY+32,35,'#86d3f5');
-  label(g,window.BoardParty.remainingSteps(s,p.id),916,footerY+32,29,'#ffe3a1','right',900,36);
+  // The step counter now lives in the upper-left map HUD.
  }
  const timed=Number.isFinite(s.deadline)&&(['aim','car','rocket'].includes(s.phase)||(['move_ready','branch'].includes(s.phase)&&s.move?.kind!=='walk'));
  if(timed){box(g,886,footerY-32,60,25,8,'#173c53e8');label(g,Math.max(0,Math.ceil(s.deadline-s.time))+'s',933,footerY-19,12,'#e4f5fc','right');}
@@ -1245,11 +1251,10 @@ function draw(g,t,s){
     (t?'  เจ้าของ: '+(t.ownerId||'ไม่มี'):''),
     221,bottom-10,10,'#d6efff','left',700,513);
  }
+ // Keep the board camera hint at the top-center; the map footer stays clear.
  if(canPan(s)&&!overviewMode&&!c.debugNodes){
-  box(g,305,bottom-29,350,30,9,'#133b50d9','#6cafc3');
-  label(g,c.paused?'หยุดเกม • ลากสำรวจ / กดเล่นต่อเมื่อพร้อม':
-   walkingCamera(s)?'ลากดูแมพ / กางนิ้วซูม • กดติดตามเพื่อกลับหาตัวละคร':
-   'ลากสำรวจ • ขยับจอยหรือ A เพื่อเริ่มเดิน',480,bottom-13,11,'#e9faff','center',700,335);
+  box(g,317,107,326,33,9,'#133b50dc','#6cafc3');
+  label(g,'กดจอย 2 ครั้งเพื่อซูม',480,124,15,'#e9faff','center',800,310);
  }
 }
 window.BoardArt=Object.freeze({draw,icon,dice,colors,turnDice,canPan,pan,overview,follow,zoom,toggleDebug,inspect,fitZoom,branchFrame,
