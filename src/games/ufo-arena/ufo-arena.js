@@ -313,7 +313,9 @@ function botDecide(s,p,live){
  else if(best){b.dx=best.ux;b.dy=best.uy;}
 }
 function botInput(s,p,live,dt){
- const b=p.ufo.bot;b.at-=dt;
+ // Preserve HP, velocity and collision state when a disconnected human becomes AI.
+ const b=p.ufo.bot||(p.ufo.bot=Object.assign(makeBot(s),{lastX:p.x,lastY:p.y}));
+ b.at-=dt;
  if(b.at<=0){botDecide(s,p,live);b.at=b.interval*(.85+rng(s)*.3);}
  const a=1-Math.exp(-12*dt);b.ax+=(b.dx-b.ax)*a;b.ay+=(b.dy-b.ay)*a;
  return{x:b.ax,y:b.ay};
