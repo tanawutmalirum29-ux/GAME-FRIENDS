@@ -9,7 +9,9 @@ const hash=value=>value.repeat(24);
 const core='f'.repeat(20);
 const descriptor=(id,h,kind)=>({id,name:id.toUpperCase(),apiVersion:1,
  enabled:true,kind,players:{min:1,max:12},hash:hash(h),
- entryUrl:kind==='legacy'?null:'/board-map-assets/'+id+'/'+hash(h)+'/index.js'});
+ entryUrl:kind==='legacy'?null:'/board-map-assets/'+id+'/'+hash(h)+'/index.js',
+ legacyUrls:kind==='legacy'?['board-design.js','board-scenery.js','board-map.js','board-art.js']
+  .map(file=>'/board-map-assets/'+id+'/'+hash(h)+'/runtime/'+file):[]});
 const legacyMap={MAP_ID:'winter-expedition',create(){return{};},
  validate(){return true;},assertCompatible(){return true;},
  choose(){return null;},neighbors(){return [];}};
@@ -30,13 +32,21 @@ let selector=null;
 const mode={append(el){selector=el;},
  querySelectorAll(){return [btn];}};
 let inMatch=false;
+const legacyDownloads=[];
 const document={readyState:'complete',baseURI:'https://example.test/index.html',
  body:{classList:{contains(name){return name==='board-playing'&&inMatch;}}},
  hidden:false,
  getElementById(id){return id==='sessionMode'?mode:id==='boardMapSelector'?selector:null;},
  querySelector(){return btn;},
+ head:{append(tag){
+  legacyDownloads.push(tag.src);
+  if(tag.src.endsWith('/runtime/board-map.js'))window.BoardMap={...legacyMap};
+  if(tag.src.endsWith('/runtime/board-art.js'))window.BoardArt={...legacyArt};
+  queueMicrotask(()=>tag.onload?.());
+ }},
  createElement(type){
-  assert.ok(['select','option'].includes(type),'Only metadata dropdown may be created');
+  assert.ok(['select','option','script'].includes(type),'Only map metadata and assets may load');
+  if(type==='script')return{src:'',remove(){}};
   return type==='select'?{
    value:'',style:{},disabled:false,options,
    setAttribute(){},replaceChildren(){options.splice(0);this.value='';},
@@ -119,5 +129,25 @@ const runtime=window.BoardRuntime;
  assert.notEqual(window.BoardMap,matchMap,'new map activates only on return to lobby');
  assert.equal(runtime.activeMapId,'coast');
  assert.equal(runtime.ready(),true);
- console.log('BOARD MAP RUNTIME PASS: live-match deferral, lobby activation, immutable map pin and fallback');
+ // The built-in winter map also has immutable assets, independent from Core.
+ // Its script assets may be applied only after the current BOARD exits to lobby.
+ const previousBuiltIn=legacyMap;
+ inMatch=true;
+ catalog={...catalog,maps:[descriptor('winter-expedition','f','legacy'),catalog.maps[1]]};
+ assert.equal(await runtime.refreshMaps(),true);
+ assert.equal(runtime.pendingMapUpdate,true);
+ assert.equal(window.BoardMap,matchMap===window.BoardMap?matchMap:window.BoardMap,
+  'a pending built-in map update does not forcibly replace current map');
+ const loadedBefore=legacyDownloads.length;
+ inMatch=false;
+ selector.value='winter-expedition';
+ await runtime.onLobbyEntered();
+ assert.equal(runtime.pendingMapUpdate,false);
+ assert.equal(legacyDownloads.length-loadedBefore,4,
+  'exactly four immutable built-in runtime assets are fetched in the lobby');
+ assert.notEqual(window.BoardMap,previousBuiltIn);
+ assert.equal(window.BoardMap.MAP_ID,'winter-expedition');
+ assert.equal(runtime.activeMapId,'winter-expedition');
+ assert.equal(runtime.ready(),true);
+ console.log('BOARD MAP RUNTIME PASS: plugin and built-in map hot patches defer to lobby');
 })().catch(e=>{console.error(e);process.exitCode=1;});
