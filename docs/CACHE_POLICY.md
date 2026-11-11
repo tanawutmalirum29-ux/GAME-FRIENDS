@@ -34,7 +34,7 @@ deployment manifest and catalogs bypass the HTTP cache; content-addressed game
 and map assets remain reusable. Controllers and NORMAL-only rooms skip BOARD
 catalog traffic.
 
-In an online Host lobby or running BOARD session, the same-Core game catalog
+In an online or offline Host lobby or running BOARD session, the same-Core game catalog
 is refreshed **without navigating or closing PeerJS**. New/changed minigames
 are loaded from immutable asset URLs on demand, and active engine instances
 stay pinned until their round ends. Incompatible **Core** updates cannot replace
