@@ -102,7 +102,7 @@ function boardRecovery(){
   const boardState=board?{phase:'minigame'}:null;
   const ctx=vm.createContext({
    Math,frameLast:0,currentView:'game',gameSelection:null,graphicsClock:0,
-   possessedBotId:null,round:{mode:'mole_mayhem',phase:'playing',paused:false},
+   possessedBotId:null,drawFailureStreak:0,round:{mode:'mole_mayhem',phase:'playing',paused:false},
    boardSession:boardState,window:{BoardParty:{minigameCancelled(s){
     assert.equal(s,boardState);cancelled++;s.phase='standings';return true;}}},
    updateRound(){throw Error('simulated bad game update');},
