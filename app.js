@@ -4255,7 +4255,11 @@ function returnToLobby(){
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
   // Keep document-root fullscreen during lobby/round transitions.
-  setView('hostLobby');renderRoster();broadcastRoster();renderBotTestPad();
+  setView('hostLobby');
+  // BOARD map/system updates received during a match are applied only now,
+  // after its session has been released and before the next BOARD starts.
+  void window.BoardRuntime?.onLobbyEntered?.();
+  renderRoster();broadcastRoster();renderBotTestPad();
 }
 $('pauseBtn').addEventListener('click',()=>round?.paused?resumeGame():pauseGame());
 $('boardExitBtn').addEventListener('click',()=>{
