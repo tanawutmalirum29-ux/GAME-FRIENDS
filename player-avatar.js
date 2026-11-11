@@ -153,9 +153,11 @@ function imageForFront(color){
  return svgImage(svgForFront(color),safeColor(color)+'/front');
 }
 function preload(players){
+ // Preload idle/walk/portrait synchronously only. Deferred punch images would
+ // race other games' SVG decode barriers and consume memory for unused actions.
+ // The punch atlas itself is fetched once and each tinted variant is decoded
+ // lazily on first real attack, with an unchanged canonical fallback meanwhile.
  for(const p of players||[]){imageForFront(p.color);for(const pose of POSES)imageFor(p.color,pose);}
- const colors=[...new Set((players||[]).map(p=>safeColor(p.color)))];
- loadPunchAtlas()?.then(source=>{if(source)for(const color of colors)punchImageFor(color);});
 }
 function drawFallback(ctx,color,pose){
  ctx.save();ctx.scale(52/64,52/64);ctx.translate(-32,-32);
