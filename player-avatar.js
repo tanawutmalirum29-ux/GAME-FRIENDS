@@ -4,6 +4,61 @@
 (() => {
 'use strict';
 const TAU=Math.PI*2,cache=new Map();
+
+/* Punch-v2 atlas: 16 hand-authored SVG frames, one decoded image per player
+   color. Timing is sampled from the authoritative PartyCombatMotion state,
+   never from a rendering-side timer or a new hitbox. */
+const PUNCH_FRAME_ENDS=Object.freeze([25,55,85,115,140,160,180,210,245,280,315,350,390,430,455,480]);
+const PUNCH_PALETTE=Object.freeze({
+ '#36d9e5':0,'#1c7177':1,'#279ca5':2,'#52dee9':3,
+ '#32cad5':4,'#2698a0':5,'#2db6c0':6,'#4edee8':7
+});
+const punchImages=new Map(),punchDrawn=new WeakSet();
+let punchAtlasSource=null,punchAtlasPromise=null,punchAtlasFailed=false;
+function punchFrameFor(p){
+ if(!(p?.attackRemaining>0))return -1;
+ const total=window.PartyCombatMotion?.TOTAL??.48;
+ const elapsed=Math.max(0,Math.min(479.9999,(total-p.attackRemaining)*1000));
+ return PUNCH_FRAME_ENDS.findIndex(end=>elapsed<end);
+}
+function punchHeading(p){return heading({dir:p.attackFacing||p.dir});}
+function punchSvgFor(color){
+ if(!punchAtlasSource)return null;
+ const body=safeColor(color);
+ const to=[body,shade(body,-.48),shade(body,-.28),shade(body,.14),
+   shade(body,-.07),shade(body,-.3),shade(body,-.16),shade(body,.12)];
+ return punchAtlasSource.replace(/#[0-9a-f]{6}/gi,hex=>{
+  const i=PUNCH_PALETTE[hex.toLowerCase()];
+  return i===undefined?hex:to[i];
+ });
+}
+function loadPunchAtlas(){
+ if(punchAtlasPromise||punchAtlasFailed||typeof fetch!=='function')return punchAtlasPromise;
+ punchAtlasPromise=fetch('./assets/animations/punch-v2/punch-strip.svg',{cache:'force-cache'})
+  .then(response=>{if(!response.ok)throw Error('punch atlas HTTP '+response.status);return response.text();})
+  .then(source=>{
+   if(!source.includes('viewBox="0 0 1536 112"'))throw Error('unexpected punch atlas');
+   punchAtlasSource=source;
+   return source;
+  })
+  .catch(()=>{punchAtlasFailed=true;return null;});
+ return punchAtlasPromise;
+}
+function punchImageFor(color){
+ const body=safeColor(color);
+ if(typeof Image==='undefined')return null;
+ if(punchImages.has(body))return punchImages.get(body);
+ if(!punchAtlasSource){loadPunchAtlas();return null;}
+ const img=svgImage(punchSvgFor(body),body+'/punch-atlas');
+ punchImages.set(body,img);
+ return img;
+}
+function consumePunchDrawn(entity){
+ if(!entity||!punchDrawn.has(entity))return false;
+ punchDrawn.delete(entity);
+ return true;
+}
+
 const COSTUMES=Object.freeze(['standard']);
 const POSES=Object.freeze(['idle','walk','walk2','hold','attack']);
 const safeColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value):'#8bd9ec';
@@ -99,6 +154,8 @@ function imageForFront(color){
 }
 function preload(players){
  for(const p of players||[]){imageForFront(p.color);for(const pose of POSES)imageFor(p.color,pose);}
+ const colors=[...new Set((players||[]).map(p=>safeColor(p.color)))];
+ loadPunchAtlas()?.then(source=>{if(source)for(const color of colors)punchImageFor(color);});
 }
 function drawFallback(ctx,color,pose){
  ctx.save();ctx.scale(52/64,52/64);ctx.translate(-32,-32);
@@ -118,10 +175,20 @@ function draw(ctx,p,opts={}){
  ctx.globalAlpha=(typeof ctx.globalAlpha==='number'?ctx.globalAlpha:1)*(opts.alpha===undefined?1:opts.alpha);
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
  ctx.fillStyle='#06142255';ctx.beginPath();ctx.ellipse(0,0,19,16,0,0,TAU);ctx.fill();
- ctx.save();ctx.rotate(heading(p));
- const img=imageFor(color,pose);
- if(img&&img.complete&&img.naturalWidth)ctx.drawImage(img,-26,-26,52,52);
- else drawFallback(ctx,color,pose);
+ const punchFrame=!opts.holding&&opts.attacking!==false?punchFrameFor(p):-1;
+ ctx.save();ctx.rotate(punchFrame>=0?punchHeading(p):heading(p));
+ const atlas=punchFrame>=0?punchImageFor(color):null;
+ if(atlas&&atlas.complete&&atlas.naturalWidth){
+  // Padded SVG viewBox is not an actor scale or physics origin change.
+  ctx.drawImage(atlas,punchFrame*96,0,96,112,-39,-52,78,91);
+  punchDrawn.add(p);
+ }else{
+  const img=imageFor(color,pose);
+  if(img&&img.complete&&img.naturalWidth)ctx.drawImage(img,-26,-26,52,52);
+  else drawFallback(ctx,color,pose);
+  // Never draw the old line from the face on top of the fallback arm.
+  if(punchFrame>=0)punchDrawn.add(p);
+ }
  ctx.restore();ctx.restore();
  if(opts.label!==false){
   ctx.font='bold 12px sans-serif';ctx.textAlign='center';
@@ -140,5 +207,6 @@ function drawFront(ctx,p,x,y,size=60){
  }
  ctx.restore();
 }
-window.PartyPlayerAvatar=Object.freeze({draw,drawFront,imageFor,imageForFront,svgFor,svgForFront,heading,costumeFor,COSTUMES,preload});
+window.PartyPlayerAvatar=Object.freeze({draw,drawFront,imageFor,imageForFront,svgFor,svgForFront,heading,costumeFor,COSTUMES,preload,
+ punchFrameFor,punchImageFor,punchSvgFor,punchHeading,consumePunchDrawn,loadPunchAtlas});
 })();
