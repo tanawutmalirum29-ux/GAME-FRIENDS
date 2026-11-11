@@ -34,6 +34,9 @@ assert.equal(G.config.radar.lowVisibilityScale,.7,'radar poor-visibility interva
 assert.equal(G.config.radar.minR,62,'restricted radar returns to its original narrow range');
 assert.equal(G.config.radar.wideRadiusRatio,1.08,'every wide pulse should reveal the full field');
 assert.equal(G.config.radar.wideSeconds,2,'wide scan lasts long enough for a human to inspect mines');
+assert.equal(G.config.radar.partialSmallRatio,.32,'small intermediate radar range is 32%');
+assert.equal(G.config.radar.partialMediumRatio,.60,'medium radar range is 60%');
+assert.ok(G.config.radar.partialSeconds>=.8,'intermediate radar scans are held, not instant transitions');
 assert.equal(G.config.mineRespawn,0.2,'mines must rearm after 200 ms, not the old 3.2 seconds');
 // Repeated generation cannot produce a disconnected alternative route.
 for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
@@ -101,16 +104,17 @@ for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
  assert.ok(s.radar.left>=3.4*.7&&s.radar.left<=6.1*.7,
   'first post-impact low-visibility outage lasts 2.38–4.27 seconds instead of 3.4–6.1');
  const firstLowDuration=s.radar.left;
- // Force another low-visibility cycle. The repeated blackout must stay 30% shorter.
- s.radar.regime='mid';s.radar.left=0;
+ // Return from the last small-stage sweep. Repeated blackouts stay 30% shorter.
+ s.radar.regime='small-out';s.radar.left=0;
  G.step(1/60,round,ps);
  assert.equal(s.radar.regime,'low');
  assert.ok(s.radar.left>=3.4*.7&&s.radar.left<=6.1*.7,
   'subsequent blackouts use the same 30% shorter duration');
  assert.ok(firstLowDuration<6.1,'original 6.1-second low-visibility interval is gone');
 }
- // Both arena sizes must offer frequent, readable, full-width scans even for
- // human-only rooms; the minefield physics/route does not depend on visibility.
+// Verify an actual narrow → small → medium → wide → medium → small → narrow
+// radar cycle on both arenas. Humans must get meaningful intermediate
+// visibility rather than the old instant all-or-nothing switch.
 for(const n of [1,12]){
  const ps=Array.from({length:n},(_,i)=>({
   id:'human-'+i,active:false,isBot:false,input:{axisX:0,axisY:0}
@@ -119,25 +123,50 @@ for(const n of [1,12]){
  const low=G.config.radar.minR;
  s.radar.state='damaged';s.radar.phase='cycle';s.radar.regime='low';
  s.radar.radius=low;s.radar.target=low;s.radar.left=0;
- G.step(1/60,round,ps);
- assert.equal(s.radar.regime,'high','every completed blackout must trigger a wide scan for '+n+' players');
- assert.ok(s.radar.left>=2&&s.radar.left<=2.5,
-  'wide scan lasts at least 2 seconds (not the old 0.3–0.9s partial flash)');
- for(let i=0;i<60;i++)G.step(1/60,round,ps);
- assert.ok(G.visRadius(s)>s.rmax*.98,'wide scan should expand to all arena edges');
- assert.ok(s.mines.length>0&&s.mines.every(m=>G.mineAlpha(s,m)>.95),
-  'all active mines, including at distant edges, are readable during wide scans');
+ const next=(stage,ratio,duration=false)=>{
+  G.step(1/60,round,ps);
+  assert.equal(s.radar.regime,stage,'radar enters '+stage+' for '+n+' players');
+  if(ratio!==null)assert.ok(Math.abs(s.radar.target/s.rmax-ratio)<1e-9,
+   'target radius of '+stage+' is scaled to arena size');
+  if(duration)assert.ok(s.radar.left>=G.config.radar.partialSeconds&&
+   s.radar.left<=G.config.radar.partialSeconds+G.config.radar.partialJitter,
+   'intermediate '+stage+' must be visible for at least 0.85 s');
+ };
+ next('small-in',.32,true);
+ for(let i=0;i<40;i++)G.step(1/60,round,ps);
+ assert.ok(G.visRadius(s)>s.rmax*.25&&G.visRadius(s)<s.rmax*.43,
+  'small scan should visibly cover about a third of the arena');
  s.radar.left=0;
- G.step(1/60,round,ps);
- assert.equal(s.radar.regime,'low','wide scans must still alternate with damaged radar downtime');
+ next('medium-in',.60,true);
+ for(let i=0;i<40;i++)G.step(1/60,round,ps);
+ assert.ok(G.visRadius(s)>s.rmax*.49&&G.visRadius(s)<s.rmax*.67,
+  'medium scan should visibly cover more than half the arena');
+ s.radar.left=0;
+ next('high',G.config.radar.wideRadiusRatio);
+ assert.ok(s.radar.left>=2&&s.radar.left<=2.5,
+  'wide scan must still last 2–2.5 seconds');
+ for(let i=0;i<60;i++)G.step(1/60,round,ps);
+ assert.ok(G.visRadius(s)>s.rmax*.98,'wide scan reaches all arena edges');
+ assert.ok(s.mines.length>0&&s.mines.every(m=>G.mineAlpha(s,m)>.95),
+  'all active mines are readable during the full-field scan');
+ s.radar.left=0;
+ next('medium-out',.60,true);
+ for(let i=0;i<40;i++)G.step(1/60,round,ps);
+ assert.ok(G.visRadius(s)>s.rmax*.51&&G.visRadius(s)<s.rmax*.86,
+  'radar must shrink through medium range, not jump from full to closed');
+ s.radar.left=0;
+ next('small-out',.32,true);
+ for(let i=0;i<40;i++)G.step(1/60,round,ps);
+ assert.ok(G.visRadius(s)>s.rmax*.33&&G.visRadius(s)<s.rmax*.57,
+  'radar must shrink through a small intermediate range');
+ s.radar.left=0;
+ next('low',null);
  assert.ok(s.radar.left>=3.4*.7&&s.radar.left<=6.1*.7,
-  'the previously approved 30% shorter blackout period is unchanged');
+  'low period preserves the 30%-shorter blackout');
  assert.ok(s.radar.target>=low&&s.radar.target<=low+s.rmax*.05,
-  'restricted radar returns to its original 62px plus up to 5% arena radius');
- // The real detection radius converges back to the original small radius,
- // not the enlarged 55–60% map-wide visibility from the earlier change.
+  'low scan returns to the original narrow target');
  for(let i=0;i<90;i++)G.step(1/60,round,ps);
  assert.ok(G.visRadius(s)<s.rmax*.25,
-  'radar must actually become narrow again between guaranteed wide scans');
+  'radar really becomes narrow again, rather than staying medium-size');
 }
-console.log('DANGERFIELD setup/navigation, wide radar scans, mines and airplane regression OK');
+console.log('DANGERFIELD setup/navigation, multistage radar scans, mines and airplane regression OK');
