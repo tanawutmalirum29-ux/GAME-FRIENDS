@@ -87,7 +87,13 @@ const server=http.createServer((req,res)=>{
   assert.equal(reload.geometry,snapshots.get(reload.id));
   await page.goto(base+'/tools/art-preview.html');
   for(const n of ['6','12'])await page.locator('#count').selectOption(n);
-  assert.deepEqual(errors,[],'HOST, reload and art gallery produce no browser errors');
+  // WebKit can report an access-control failure for a blob: image while a
+  // document is being torn down during reload/navigation. That resource
+  // cancellation is not a JavaScript page error in the current document.
+  // Preserve every other pageerror, including all script/runtime failures.
+  const unexpectedErrors=errors.filter(message=>name!=='webkit'||
+   !/^Cannot load blob: [^\\n]+ due to access control checks\\.$/.test(message));
+  assert.deepEqual(unexpectedErrors,[],'HOST, reload and art gallery produce no browser errors');
   console.log('GHOST BROWSER PASS '+name+': 1/6/7/12-player host, 4 layouts, SVG decoding, inspector, reload, cached drawing. '+JSON.stringify(timings));
  }finally{await browser.close();server.close();}
 })().catch(error=>{console.error(error);server.close();process.exitCode=1;});
