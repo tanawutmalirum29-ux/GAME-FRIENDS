@@ -2582,7 +2582,8 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  const offlineB=setup('https://game.example/?host=1',false,offlineA.sessionData);
  assert.equal(offlineB.elements.get('hostLobby').classList.contains('hidden'),false);
  assert.equal(offlineB.scope.window.__ghostTest.getPlayers().length,oldBotCount);
- assert.equal(offlineB.scope.window.GAME_CAN_AUTO_RELOAD(),true);
+ assert.equal(offlineB.scope.window.GAME_CAN_AUTO_RELOAD(),false,
+  'offline Host lobby stays mounted while same-core minigames and BOARD maps refresh');
 }
 // The green roulette outline must share the card width, not exceed it.
 // Its height is shared by CSS on landscape and short/mobile screens.
