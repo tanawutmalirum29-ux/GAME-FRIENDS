@@ -7,9 +7,9 @@
 (() => {
 'use strict';
 const STEP=1/60,TAU=Math.PI*2;
-// Only the radar destruction timeline is shortened by 30%; mine physics,
-// respawn timing, movement, and total race duration stay unchanged.
-const RADAR_BREAK_TIMELINE=.7;
+// Shorten only the time the damaged radar stays in poor-visibility mode.
+// Keep plane timing, explosion, signal shrink, gameplay and radar range unchanged.
+const RADAR_OUTAGE_DURATION_SCALE=.7;
 // Tunables (balance values are meant to be edited here).
 const C=Object.freeze({
  radius:14,          // body radius (world px, never scaled with the screen)
@@ -18,12 +18,11 @@ const C=Object.freeze({
  navR:41,            // expanded safe navigation clearance
  cell:12,pitch:50,
  speed:67.5,botSpeed:.93, // move at half of the old speed
- introSeconds:3*RADAR_BREAK_TIMELINE,planeSpeed:760/RADAR_BREAK_TIMELINE,
- bombTime:.55*RADAR_BREAK_TIMELINE,
+ introSeconds:3,planeSpeed:760,bombTime:.55,
  mineRespawn:.2, // fixed 200 ms rearm after each explosion
  respawnDelay:.8,spawnProtection:.9,
  maxAttempts:14,
- radar:Object.freeze({bodyR:34,minR:62,shrinkTime:2.5*RADAR_BREAK_TIMELINE}),
+ radar:Object.freeze({bodyR:34,minR:62,shrinkTime:2.5,lowVisibilityScale:RADAR_OUTAGE_DURATION_SCALE}),
  small:Object.freeze({w:960,h:540,field:Object.freeze({x:60,y:50,w:840,h:440}),zone:100,duration:60,crates:2}),
  large:Object.freeze({w:1280,h:720,field:Object.freeze({x:70,y:60,w:1140,h:600}),zone:120,duration:80,crates:4})
 });
@@ -273,7 +272,7 @@ function nextRegime(s){
   if(rr()<.82){r.regime='mid';r.left=.45+rr()*.45;r.target=R*(.22+rr()*.16);}
   else{r.regime='high';r.left=.3+rr()*.3;r.target=R*(.65+rr()*.12);}
  }else{
-  r.regime='low';r.left=3.4+rr()*2.7;r.target=C.radar.minR+rr()*R*.05;
+  r.regime='low';r.left=(3.4+rr()*2.7)*C.radar.lowVisibilityScale;r.target=C.radar.minR+rr()*R*.05;
   r.flickerIn=rr()<.14?rr()*r.left:-1;
  }
 }
@@ -299,7 +298,7 @@ function stepRadar(s,dt){
  if(r.phase==='shrink'){
   r.phaseT+=dt;const u=clamp(r.phaseT/C.radar.shrinkTime,0,1),e=u*u*(3-2*u);
   r.radius=lerp(s.rmax,r.shrinkTo,e);
-  if(u>=1){r.phase='cycle';r.regime='low';r.left=3.4+r.rng()*2.7;r.target=r.shrinkTo;}
+  if(u>=1){r.phase='cycle';r.regime='low';r.left=(3.4+r.rng()*2.7)*C.radar.lowVisibilityScale;r.target=r.shrinkTo;}
   return;
  }
  r.left-=dt;
