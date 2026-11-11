@@ -109,14 +109,21 @@ function obstacleNear(tr,x,y,r){
 function pushScenery(tr,p,dt){
  if(!p.dino.pushing)return;
  const R=C.R,vx=p.dino.ix,vy=p.dino.iy;
- for(const o of tr.query(p.x-R-7,p.x+R+7,QP)){
-  let dx,dy;
-  if(o.shape==='circle'){dx=p.x-o.x;dy=p.y-o.y;}
-  else{dx=p.x-clamp(p.x,o.x-o.hw,o.x+o.hw);dy=p.y-clamp(p.y,o.y-o.hh,o.y+o.hh);}
-  const d=Math.hypot(dx,dy),limit=R+(o.shape==='circle'?o.r:0)+1;
-  if(d>limit)continue;
-  if(d>1e-5&&dx*vx+dy*vy>=0)continue; // only when moving into it
-  tr.moveObstacle(o,vx*dt,vy*dt);
+ for(const o of tr.query(p.x-R-8,p.x+R+8,QP)){
+  const cx=o.shape==='circle'?o.x:clamp(p.x,o.x-o.hw,o.x+o.hw);
+  const cy=o.shape==='circle'?o.y:clamp(p.y,o.y-o.hh,o.y+o.hh);
+  let nx=p.x-cx,ny=p.y-cy,d=Math.hypot(nx,ny);
+  if(d>R+(o.shape==='circle'?o.r:0)+2)continue;
+  if(d<1e-5){nx=p.x-o.x;ny=p.y-o.y;d=Math.hypot(nx,ny);}
+  if(d<1e-5){nx=-vx;ny=-vy;d=Math.hypot(nx,ny);}
+  if(d<1e-5)continue;
+  nx/=d;ny/=d;
+  const closing=-(vx*nx+vy*ny);
+  if(closing<=0)continue;
+  // Normal impulse and offset contact torque; heavy obstacles resist shoves.
+  const mass=o.kind==='crate'?1:o.kind==='rock'?1.7:4.5;
+  const impulse=Math.min(165,closing)*dt*3.2/mass;
+  tr.impulseObstacle(o,-nx*impulse,-ny*impulse,cx,cy);
  }
 }
 /* ───────── simulation step ───────── */
@@ -145,6 +152,7 @@ function step(dt,round){
  }
  const live=s.live;live.length=0;for(const p of s.roster)if(p.dino.state==='run')live.push(p);
  for(const p of live)pushScenery(tr,p,dt);
+ tr.stepObstacles(dt);
  // 2) body-to-body shoves: closing speed turns into a short knock for both runners
  for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
   const a=live[i],b=live[j],dx=b.x-a.x,dy=b.y-a.y,dd=Math.hypot(dx,dy);

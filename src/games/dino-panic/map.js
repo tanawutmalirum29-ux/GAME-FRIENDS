@@ -7,7 +7,7 @@ let _b=new Uint8Array(8192),_d=new Float64Array(8192);const _h=new Heap();  // r
 const PAD=26,BUCKET=128;
 
 /* ───────── obstacle builders ───────── */
-const O=(kind,shape,x,y,hw,hh,v)=>({id:0,kind,shape,x,y,hw,hh,r:shape==='circle'?hw:0,v:v|0,alive:true});
+const O=(kind,shape,x,y,hw,hh,v)=>({id:0,kind,shape,x,y,hw,hh,r:shape==='circle'?hw:0,v:v|0,alive:true,angle:0,prevAngle:0,spin:0,mvx:0,mvy:0});
 const crate=(x,y,G)=>O('crate','rect',x,y,C.crate,C.crate,G.rng()*4);
 const rock=(x,y,r,G)=>O('rock','circle',x,y,r,r,G.rng()*3);
 const logV=(x,y0,y1)=>O('log','rect',x,(y0+y1)/2,15,(y1-y0)/2,0);
@@ -183,7 +183,30 @@ export function buildTrack(tier,seed,playerCount){
   if(o.mt!==out2.tick){o.mt=out2.tick;o.ox=o.x;o.oy=o.y;}   // position at the start of this tick (render interpolation)
   o.x=nx;o.y=ny;return true;
  };
- out2={tier,top,bottom,H,cy,cols,perCol,spawnX,lastSpawn,finishX,endX,obstacles,chunks,query,moveObstacle,
+ // Fixed-step obstacle inertia; preserve validated axis-aligned collision footprint.
+ const moving=new Set();
+ const impulseObstacle=(o,ix,iy,cx,cy)=>{
+  if(!o.alive||o.kind==='fence'||Math.hypot(ix,iy)<1e-6)return;
+  o.mvx=clamp(o.mvx+ix*11,-95,95);o.mvy=clamp(o.mvy+iy*11,-95,95);
+  const lever=(cx-o.x)*iy-(cy-o.y)*ix;
+  const inertia=Math.max(180,(o.hw*o.hw+o.hh*o.hh)*.5);
+  o.spin=clamp(o.spin+lever*150/inertia,-5,5);
+  moving.add(o);
+ };
+ const stepObstacles=dt=>{
+  for(const o of moving){
+   if(Math.hypot(o.mvx,o.mvy)>.15&&!moveObstacle(o,o.mvx*dt,o.mvy*dt)){
+    o.mvx*=.18;o.mvy*=.18;o.spin*=.7;
+   }
+   if(o.at!==out2.tick){o.at=out2.tick;o.prevAngle=o.angle;}
+   o.angle+=o.spin*dt;
+   o.mvx*=Math.exp(-5*dt);o.mvy*=Math.exp(-5*dt);o.spin*=Math.exp(-4*dt);
+   if(Math.abs(o.mvx)+Math.abs(o.mvy)+Math.abs(o.spin)<.06){
+    o.mvx=o.mvy=o.spin=0;moving.delete(o);
+   }
+  }
+ };
+ out2={tier,top,bottom,H,cy,cols,perCol,spawnX,lastSpawn,finishX,endX,obstacles,chunks,query,moveObstacle,impulseObstacle,stepObstacles,
   overhead:prevOver,fallbacks,seed,tick:0};
  return out2;
 }

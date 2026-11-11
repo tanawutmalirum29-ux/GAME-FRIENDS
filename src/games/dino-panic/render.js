@@ -95,11 +95,15 @@ function drawObstacles(g,s,cam,a){
   if(o.shape==='circle')g.ellipse(IX+4,IY+6,o.r*1.05,o.r*.95,0,0,TAU);
   else g.rect(IX-o.hw+4,IY-o.hh+6,o.hw*2,o.hh*2);g.fill();}
  for(const o of list){ipos(o,s,a);
+  g.save();g.translate(IX,IY);
+  const angle=o.at===s.tick?o.prevAngle+(o.angle-o.prevAngle)*a:o.angle;
+  g.rotate(angle);g.translate(-IX,-IY);
   if(o.kind==='crate'){const im=A.crate(o.v),sz=C.crate*2+6;
    if(im)g.drawImage(im,IX-sz/2,IY-sz/2,sz,sz);else{g.fillStyle='#b97a3c';g.fillRect(IX-o.hw,IY-o.hh,o.hw*2,o.hh*2);g.strokeStyle='#3d6bb0';g.lineWidth=4;g.strokeRect(IX-o.hw,IY-o.hh,o.hw*2,o.hh*2);}
   }else if(o.kind==='rock'){const im=A.rock(o.v),sz=o.r*2.5;
    if(im)g.drawImage(im,IX-sz/2,IY-sz/2,sz,sz);else{g.fillStyle='#8a8077';g.beginPath();g.arc(IX,IY,o.r,0,TAU);g.fill();}
   }else drawLogAt(g,o,IX,IY);
+  g.restore();
  }
 }
 
