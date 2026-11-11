@@ -79,10 +79,15 @@ async function check(){
 }
 async function refreshLive(){
  if(liveRefresh)return liveRefresh;
+ // Controllers and NORMAL-only lobbies do not download BOARD metadata on every
+ // poll; entering BOARD explicitly refreshes its catalog independently.
+ const boardRelevant=!!document.getElementById?.('boardMapSelector')&&
+  (document.body?.classList?.contains('board-playing')||
+   document.querySelector?.('[data-session-mode="board"]')?.classList?.contains('active'));
  liveRefresh=Promise.allSettled([
   Promise.resolve().then(()=>window.GamePlatform?.refresh?.()),
-  Promise.resolve().then(()=>window.BoardRuntime?.refreshMaps?.()),
-  Promise.resolve().then(()=>window.BoardSystemPlugins?.refresh?.())
+  Promise.resolve().then(()=>boardRelevant?window.BoardRuntime?.refreshMaps?.():undefined),
+  Promise.resolve().then(()=>boardRelevant?window.BoardSystemPlugins?.refresh?.():undefined)
  ]).finally(()=>{liveRefresh=null;});
  return liveRefresh;
 }
