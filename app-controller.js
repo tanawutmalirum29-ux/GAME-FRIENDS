@@ -617,11 +617,11 @@ function syncArenaResolution(){
  }
  if(boardActive&&box?.width){
   const toolScale=content.scale,originX=content.left,originY=content.top;
-  // The only BOARD toolbar control is Show ID, directly beneath Exit.
-  $('boardTools').style.cssText='left:'+(originX+872*toolScale)+'px;top:'+(originY+169*toolScale)+'px;transform:scale('+toolScale+');';
+  // BOARD icon row, left to right: Exit, Show ID, Pause.
+  // Coordinates stay in 960-wide canvas space and follow the existing scale.
+  $('boardExitBtn').style.cssText='left:'+(originX+849*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
+  $('boardTools').style.cssText='left:'+(originX+885*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
   $('pauseBtn').style.cssText='left:'+(originX+921*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
-   // Right-align the full-size red Exit button with the tiny Pause control.
-   $('boardExitBtn').style.cssText='left:'+(originX+872*toolScale)+'px;top:'+(originY+135*toolScale)+'px;transform:scale('+toolScale+');';
  }else {$('pauseBtn').style.cssText='';$('boardExitBtn').style.cssText='';}
  // Long/short sides are intentional: portrait fallback may rotate the
  // host canvas by 90 degrees without changing the game world's coordinates.
