@@ -466,7 +466,18 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  assert.ok(!texts.some(x=>x.includes('ลากจอยเพื่อเดิน')),
   'old instruction below the portrait is not drawn');
  assert.match(artSource,/clippedPlayerName\(g,p\.name,nameX/,'all top names use a measured clipping window');
- assert.match(artSource,/footsteps\(g,855,footerY\+32/,'two vector footprints precede the step total');
+  assert.match(artSource,/footsteps\(g,41,131,34/,'vector footsteps move to upper-left BOARD HUD');
+  assert.doesNotMatch(artSource,/footsteps\(g,855,footerY\+32/,
+   'the inventory footer no longer renders steps');
+  assert.match(artSource,/กดจอย 2 ครั้งเพื่อซูม/,'top-center camera gesture hint is present');
+  assert.doesNotMatch(artSource,/box\(g,305,bottom-29,350,30/,
+   'the obstructive bottom-center camera help banner has been removed');
+  assert.equal(frame.some(x=>x.x===100&&x.y===132),false,
+   'step count remains hidden until the active player rolls the dice');
+  s.rolled=true;s.phase='dice';s.phaseAt=0;s.time=4;s.die=7;s.moveDice=[3,4];
+  const afterRoll=labelDraws.length;A.draw(g,s.time,s);
+  assert.ok(labelDraws.slice(afterRoll).some(x=>x.text==='7'&&x.x===100&&x.y===132),
+   'the actual remaining dice steps appear in the top-left HUD after rolling');
  assert.match(artSource,/kinds=\['roll',\.\.\.window\.BoardItems\.ids\]/,
   'all fixed inventory types appear alongside the Roll slot');
 }
