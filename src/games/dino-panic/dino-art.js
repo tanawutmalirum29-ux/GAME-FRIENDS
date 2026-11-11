@@ -2,11 +2,28 @@
 import {mkRng,TAU} from './config.js';
 const cache=new Map();
 const f1=n=>Math.round(n*10)/10;
-export function svgImage(key,build){
+const BAKE=2; // raster scale: each SVG is rasterised ONCE at 2x its native size, then drawn as a plain bitmap every frame
+function bakeImage(img,k){
+ try{
+  const w=img.naturalWidth,h=img.naturalHeight,c=document.createElement('canvas');
+  c.width=Math.round(w*k);c.height=Math.round(h*k);
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  c.lw=w;c.lh=h;                              // logical (world) size: callers always draw with explicit sizes
+  return c;
+ }catch(err){return img;}
+}
+export function svgImage(key,build,bake=BAKE){
  if(typeof Image==='undefined')return null;
  let e=cache.get(key);
- if(!e){const img=new Image();img.decoding='async';img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(build());e=img;cache.set(key,e);}
- return e.complete&&e.naturalWidth?e:null;
+ if(!e){
+  const img=new Image();img.decoding='async';
+  e={img,out:null};cache.set(key,e);
+  img.onload=()=>{if(!e.out&&img.naturalWidth)e.out=bakeImage(img,bake);};   // each bake runs in its own task → no single big hitch
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(build());
+ }
+ if(e.out)return e.out;
+ if(e.img.complete&&e.img.naturalWidth){e.out=bakeImage(e.img,bake);return e.out;}
+ return null;
 }
 export function clearArt(){cache.clear();}
 
