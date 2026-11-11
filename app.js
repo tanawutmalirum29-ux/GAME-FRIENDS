@@ -343,7 +343,7 @@ let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPe
 let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0, inventoryClock=0;
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,cancel:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false,controllerPlayerEliminated=false;
-let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
+let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null,voteWaitSeconds:0};
 let controllerLobbyVotes={ready:0,total:0,selfReady:false};
 let disconnectRequested=false;
 // Optional, deployment-supplied short-lived TURN credentials. Without them,
@@ -2602,10 +2602,14 @@ function joinRoom(recovery=false){
             nextLabel:typeof data.nextLabel==='string'?data.nextLabel:'เกมถัดไป',
             backLabel:typeof data.backLabel==='string'?data.backLabel:'กลับล็อบบี้',
             autoNextSeconds:Number.isFinite(data.autoNextSeconds)&&data.autoNextSeconds>0?
-              Math.ceil(data.autoNextSeconds):null
+              Math.ceil(data.autoNextSeconds):null,
+            voteWaitSeconds:Number.isFinite(data.voteWaitSeconds)?
+              Math.max(0,Math.min(3,Math.ceil(data.voteWaitSeconds))):0
           };
           showControllerMode(controllerGameMode);
-          $('controllerState').textContent='กด A เพื่อเล่นต่อ หรือ B เพื่อ'+controllerResultVotes.backLabel;
+          $('controllerState').textContent=controllerResultVotes.voteWaitSeconds>0?
+            'กำลังสรุปผล • กด A/B ได้ใน '+controllerResultVotes.voteWaitSeconds+' วิ':
+            'กด A เพื่อเล่นต่อ หรือ B เพื่อ'+controllerResultVotes.backLabel;
         }
       }else if(data.t==='inventory'){
         renderPhoneInventory(data);
@@ -2750,7 +2754,8 @@ function setControllerGameContext(mode,phase,active){
   }
   if(!['results','summary'].includes(controllerGamePhase)||
      !['results','summary'].includes(previousControllerPhase))
-    controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
+    controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null,
+      voteWaitSeconds:['results','summary'].includes(controllerGamePhase)?3:0};
   controllerPlayerActive=!!active;
   // Revoke camera mode when the walking turn ends or the owner loses control.
   if(boardCameraController?.enabled()&&(!controllerReady||mode!=='board'||
@@ -2812,9 +2817,13 @@ function showControllerMode(mode){
     voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
     controllerResultVotes.nextLabel)+
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
+    (controllerResultVotes.voteWaitSeconds>0?
+      ' • รอกด A/B '+controllerResultVotes.voteWaitSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
     playing?(labels.A||''):'';
-  const bLabel=controllerGamePhase==='lobby'&&plazaPickerOpen?'ปิดรายการเกม':voting?controllerResultVotes.backLabel+' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
+  const bLabel=controllerGamePhase==='lobby'&&plazaPickerOpen?'ปิดรายการเกม':voting?controllerResultVotes.backLabel+
+    (controllerResultVotes.voteWaitSeconds>0?' • รอกด A/B '+controllerResultVotes.voteWaitSeconds+' วิ':'')+
+    ' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
     ghost?($('controllerButtons').classList.contains('has-target')?
     'ยืนยันสโลว์':(labels.B||'ใช้ไอเทม')):(playing?(labels.B||''):'');
   $('controllerButtons').classList.remove('board-bomber-aim');
@@ -2860,6 +2869,12 @@ function showControllerMode(mode){
       button.setAttribute('aria-label',caption?'ปุ่ม '+key+' '+caption:'ปุ่ม '+key);
     }
     $('controllerHelp').textContent=ui.help||'ใช้จอยเพื่อเคลื่อนที่และปุ่มความสามารถตามที่เกมกำหนด';
+  }
+  // The phone's disabled A/B is feedback only. The Host independently rejects
+  // premature votes even when a delayed or modified controller submits them.
+  if(voting&&controllerResultVotes.voteWaitSeconds>0){
+    $('buttonA').disabled=true;
+    $('buttonB').disabled=true;
   }
 }
 function renderPhoneLawnStatus(info){
@@ -3700,6 +3715,11 @@ function updateRound(dt){
 
 // Result decisions are host-authoritative. Connected human controllers count;
 // bots have no joypad and must never prevent a unanimous decision.
+const RESULT_ACTION_GRACE_MS=3000;
+function resultWaitSeconds(){
+ if(!round||!['results','summary'].includes(round.phase))return 0;
+ return Math.ceil(Math.max(0,(Number(round.resultActionsUnlockAt)||0)-Date.now())/1000);
+}
 function resultVoters(){
   return players.filter(p=>p.type==='remote'&&p.active&&p.conn?.open&&p.conn.playerId===p.id);
 }
@@ -3742,6 +3762,7 @@ function resultVoteSnapshot(){
   return {t:'result-votes',
     next:round.resultVotes.next.size,lobby:round.resultVotes.lobby.size,
     total:valid.size,nextLabel:resultNextLabel(),backLabel:resultBackLabel(),
+    voteWaitSeconds:resultWaitSeconds(),
     // The same authoritative 7-second auto-next timer drives the host button
     // and each connected phone's A label. Votes do not pause or reset it.
     autoNextSeconds:round.phase==='results'&&round.autoNextRemaining>0?Math.ceil(round.autoNextRemaining):null};
@@ -3749,10 +3770,13 @@ function resultVoteSnapshot(){
 function renderResultVotes(sendUpdate=false){
   const v=resultVoteSnapshot();if(!v)return;
   const seconds=v.autoNextSeconds!==null?' • อีก '+v.autoNextSeconds+' วิ':'';
+  const wait=v.voteWaitSeconds>0?' • กด A/B ได้ใน '+v.voteWaitSeconds+' วิ':'';
   // Align A/B on the left, action text in the center and votes on the right.
   // The accessibility label contains the full sentence for screen readers.
   const next=$('replayBtn'),back=$('backBtn');
-  next.textContent=v.nextLabel+seconds;
+  next.textContent=v.nextLabel+seconds+wait;
+  next.disabled=v.voteWaitSeconds>0;
+  back.disabled=v.voteWaitSeconds>0;
   next.dataset.action='A';next.dataset.votes=v.next+'/'+v.total;
   next.setAttribute('aria-label','A '+next.textContent+' '+next.dataset.votes);
   back.textContent=v.backLabel;
@@ -3760,8 +3784,10 @@ function renderResultVotes(sendUpdate=false){
   back.setAttribute('aria-label','B '+v.backLabel+' '+back.dataset.votes);
   // Only broadcast when the displayed second changes or a vote changes;
   // never spam all controllers on every animation frame.
-  if(sendUpdate||round.lastBroadcastAutoNextSeconds!==v.autoNextSeconds){
+  if(sendUpdate||round.lastBroadcastAutoNextSeconds!==v.autoNextSeconds||
+     round.lastBroadcastResultWaitSeconds!==v.voteWaitSeconds){
     round.lastBroadcastAutoNextSeconds=v.autoNextSeconds;
+    round.lastBroadcastResultWaitSeconds=v.voteWaitSeconds;
     broadcast(v);
   }
 }
@@ -3878,6 +3904,7 @@ function showCumulativeScores(){
   return true;
 }
 function onResultBack(){
+  if(['results','summary'].includes(round?.phase)&&resultWaitSeconds()>0)return;
   if(round?.phase==='summary'){returnToLobby();return;}
   if(round?.phase==='results'&&tournament?.endless){
     showCumulativeScores();return;
@@ -3886,11 +3913,15 @@ function onResultBack(){
 }
 function beginResultVoting(){
   layoutFinalResults();
+  // Set a fresh, Host-authoritative A/B lock for each result/summary screen.
+  // Held buttons from the minigame cannot skip ranking before it is readable.
+  round.resultActionsUnlockAt=Date.now()+RESULT_ACTION_GRACE_MS;
   round.resultVotes={next:new Set(),lobby:new Set()};
   renderResultVotes(true);
 }
 function castResultVote(conn,choice){
   if(!round||!['results','summary'].includes(round.phase)||!['next','lobby'].includes(choice))return;
+  if(resultWaitSeconds()>0)return;
   const voter=resultVoters().find(p=>p.id===conn.playerId&&p.conn===conn);
   if(!voter)return;
   const votes=round.resultVotes||(round.resultVotes={next:new Set(),lobby:new Set()});
@@ -4148,7 +4179,15 @@ function animate(ts){
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
       if(round.autoNextRemaining===0)advanceParty();
-      else renderResultVotes();
+    }
+    // Use the same Host-authoritative clock for the A lock and the 7-second
+    // auto-next. Broadcast ONLY when a displayed second changes.
+    if(round&&['results','summary'].includes(round.phase)){
+      const remaining=resultWaitSeconds();
+      const auto=round.phase==='results'&&round.autoNextRemaining>0?
+        Math.ceil(round.autoNextRemaining):null;
+      if(remaining!==round.lastBroadcastResultWaitSeconds||
+         auto!==round.lastBroadcastAutoNextSeconds)renderResultVotes();
     }
     botTestClock+=dt;
     if(botTestClock>.2){botTestClock=0;roundAux('bot-controls',()=>renderBotTestPad());}
@@ -4473,7 +4512,7 @@ function beginParty(){
   beginGameSelection(tournament.schedule[0]);
 }
 function advanceParty(){
-  if(gameSelection)return;
+  if(gameSelection||(['results','summary'].includes(round?.phase)&&resultWaitSeconds()>0))return;
   if(boardSession){if(boardSession.phase==='finished')beginBoard();return;}
   if(tournament?.endless){
     tournament.roundsPlayed++;

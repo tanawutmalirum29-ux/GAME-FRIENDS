@@ -1352,6 +1352,7 @@ assert.equal(host.elements.get('leaderboard').style['--leader-count'],'12',
 matchPlayers.splice(-11);host.scope.window.__ghostTest.renderLeaderboard();
 assert.equal(host.elements.get('results').classList.contains('hidden'),false,
  'one player wins after the initial ghost spawn');
+host.scope.window.__ghostTest.getRound().resultActionsUnlockAt=Date.now()-1;
 host.click('backBtn');
 assert.equal(host.elements.get('hostLobby').classList.contains('hidden'),false);
 assert.equal(host.scope.document.fullscreenElement,host.scope.document.documentElement);
@@ -1864,6 +1865,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
    assert.equal(p.total,11-i,'cumulative score equals first-round points');
  });
  const totals=new Map(players.map(p=>[p.id,p.total]));
+ round.resultActionsUnlockAt=Date.now()-1; // Simulate completing the required 3-second result hold.
  ui.click('backBtn');
  assert.equal(round.phase,'summary','B opens the cumulative standings');
  assert.equal(round.autoNextRemaining,0);
@@ -1874,6 +1876,7 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
    assert.equal(row.dataset.rank,String(i+1));
    assert.ok(row.children[1].textContent.includes(String(11-i)+' คะแนนสะสม'));
  });
+ round.resultActionsUnlockAt=Date.now()-1; // Summary receives its own 3-second hold.
  ui.click('replayBtn');
  const after=api.getSelection();
  assert.ok(after,'summary A spins before playing another game');
@@ -1902,11 +1905,13 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  api.endRound();
  assert.equal(ps[0].lastRoundPoints,11,'joint first gets 11');
  assert.equal(ps[1].lastRoundPoints,11,'joint first ties get 11');
+ api.getRound().resultActionsUnlockAt=Date.now()-1;
  ui.click('backBtn');
  const rows=ui.elements.get('resultList').children.filter(x=>x.className==='result-player');
  assert.equal(rows.length,2);
  assert.ok(rows.every(r=>r.dataset.rank==='1'&&!r.children[0].textContent.includes('อันดับ')),
   'tied winners show their names while rank remains on the metallic badge');
+ api.getRound().resultActionsUnlockAt=Date.now()-1;
  ui.click('backBtn');
  assert.equal(ui.elements.get('hostLobby').classList.contains('hidden'),false);
  assert.equal(api.getTournament(),null,'leaving ends continuous session');
@@ -1928,11 +1933,17 @@ assert.match(css,/#game #gameRoulette \.roulette-option\.is-selected\{/);
  assert.equal(game.phase,'results');
  const packet=cons[0].sent.filter(x=>x.t==='result-votes').at(-1);
  assert.equal(packet.backLabel,'สรุปคะแนน');
+ assert.equal(packet.voteWaitSeconds,3,'Host publishes a 3-second lock for both result controls');
+ cons[0].fire('data',{t:'result-vote',choice:'lobby'});
+ assert.equal(game.resultVotes.lobby.size,0,'B pressed in the first 3 seconds is discarded');
+ game.resultActionsUnlockAt=Date.now()-1;
  cons[0].fire('data',{t:'result-vote',choice:'lobby'});
  assert.equal(game.phase,'results');
  cons[1].fire('data',{t:'result-vote',choice:'lobby'});
  assert.equal(game.phase,'summary');
  assert.equal(cons[0].sent.filter(x=>x.t==='result-votes').at(-1).backLabel,'กลับล็อบบี้');
+ assert.equal(game.resultVotes.lobby.size,0,'A new summary restarts the 3-second input guard');
+ game.resultActionsUnlockAt=Date.now()-1;
  cons[0].fire('data',{t:'result-vote',choice:'lobby'});
  assert.equal(game.phase,'summary');
  cons[1].fire('data',{t:'result-vote',choice:'lobby'});
@@ -1966,6 +1977,21 @@ function createVoteHost(){
    'host next-game action still displays the seven-second timer');
  assert.equal(cons[0].sent.filter(m=>m.t==='result-votes').at(-1).autoNextSeconds,7,
    'connected controller receives the original countdown in the vote packet');
+ const api=ui.scope.window.__ghostTest;
+ assert.equal(api.resultVoteSnapshot().voteWaitSeconds,3,'A/B grace starts at 3 seconds');
+ assert.equal(ui.elements.get('replayBtn').disabled,true,'Host A is disabled while results arrive');
+ assert.equal(ui.elements.get('backBtn').disabled,true,'Host B is disabled while results arrive');
+ // Buttons held from gameplay must not vote, even when packets reach Host.
+ for(const choice of ['next','lobby']){
+  cons[0].fire('data',{t:'result-vote',choice});
+  cons[1].fire('data',{t:'result-vote',choice});
+ }
+ ui.click('replayBtn');ui.click('backBtn');
+ assert.equal(api.getRound(),round,'early A/B cannot leave the results page');
+ assert.equal(round.resultVotes.next.size,0);
+ assert.equal(round.resultVotes.lobby.size,0);
+ // Use a completed real-time guard so older vote/tournament assertions stay focused.
+ round.resultActionsUnlockAt=Date.now()-1;
  return {ui,cons,round};
 }
 {
@@ -2330,18 +2356,23 @@ phoneConn.fire('data',{t:'roster',phase:'results',mode:'ghost',
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
  'role and item must disappear as soon as a round ends');
 assert.equal(phone.elements.get('inventoryItem').textContent,'');
-assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป 0/0');
-assert.equal(phone.elements.get('buttonBLabel').textContent,'กลับล็อบบี้ 0/0');
-phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',autoNextSeconds:7});
-assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 7 วิ 1/2',
-  'the controller next-game action shows timer together with votes');
-phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',backLabel:'สรุปคะแนน',autoNextSeconds:6});
-assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 6 วิ 1/2',
-  'the controller countdown changes independently of the vote count');
-assert.equal(phone.elements.get('buttonBLabel').textContent,'สรุปคะแนน 0/2');
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • รอกด A/B 3 วิ 0/0');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'กลับล็อบบี้ • รอกด A/B 3 วิ 0/0');
+assert.equal(phone.elements.get('buttonA').disabled,true,'a new result locks A');
+assert.equal(phone.elements.get('buttonB').disabled,true,'a new result locks B');
+phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',autoNextSeconds:7,voteWaitSeconds:2});
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 7 วิ • รอกด A/B 2 วิ 1/2',
+  'controller displays the authoritative 3-second grace alongside auto-next');
+assert.equal(phone.elements.get('buttonB').disabled,true,'B remains locked during the countdown');
+phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',backLabel:'สรุปคะแนน',autoNextSeconds:6,voteWaitSeconds:1});
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 6 วิ • รอกด A/B 1 วิ 1/2',
+  'the result grace and automatic next-game timer count independently');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'สรุปคะแนน • รอกด A/B 1 วิ 0/2');
 phoneConn.fire('data',{t:'roster',phase:'summary',mode:'color_switch',players:[{id:'p1',active:true,choice:'color_switch'}]});
-phoneConn.fire('data',{t:'result-votes',next:0,lobby:0,total:2,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null});
+phoneConn.fire('data',{t:'result-votes',next:0,lobby:0,total:2,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null,voteWaitSeconds:0});
 assert.equal(phone.elements.get('buttonBLabel').textContent,'กลับล็อบบี้ 0/2','B changes to lobby on score summary');
+assert.equal(phone.elements.get('buttonA').disabled,false,'A unlocks after result grace');
+assert.equal(phone.elements.get('buttonB').disabled,false,'B unlocks after result grace');
 phone.padButtons.action.fire('pointerdown');
 assert.equal(phoneConn.sent.filter(m=>m.t==='result-vote').at(-1).choice,'next',
  'A joypad press votes to advance');
@@ -2898,7 +2929,8 @@ for(const count of [1,12]){
  assert.equal(s.phase,'finished');assert.equal(api.getRound().phase,'results');
  const winnerNote=ui.elements.get('resultList').children[0].children[1].textContent;
  assert.equal(winnerNote,'100% • HP '+p.hp+'/100','finish summary uses current map length and HP maximum');
- assert.ok(api.resultVoteSnapshot());ui.click('replayBtn');
+ assert.ok(api.resultVoteSnapshot());
+ api.getRound().resultActionsUnlockAt=Date.now()-1;ui.click('replayBtn');
  assert.notEqual(api.getBoard(),s);assert.notEqual(api.getBoard().map,map);assert.equal(api.getBoard().phase,'overview');assert.equal(api.getPlayers().length,count);
  ui.click('exitBtn');assert.equal(api.getBoard(),null);
  ui.sessionButtons[1].fire('click');ui.click('startBtn');finishReel(ui);assert.notEqual(api.getRound().mode,'board');assert.ok(api.getTournament().endless);

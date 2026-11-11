@@ -9,7 +9,7 @@ function minigameEnded(s,ranking){
  // Competition ranks remain unchanged; tied players retain their prior relative order.
  const ranks=new Map(ranking.map(r=>[r.id,r.rank]));
  s.nextOrder=[...s.order].sort((a,b)=>ranks.get(a)-ranks.get(b));
- s.pendingItems={};s.rewardGrantRound=null;phase(s,'standings',2.5);return true;
+ s.pendingItems={};s.rewardGrantRound=null;phase(s,'standings',3);return true;
 }
 // If a new or updated plug-in cannot load, keep the BOARD PARTY session.
  // The failed game grants no random items or advantage, and the original
@@ -21,7 +21,7 @@ function minigameCancelled(s){
   label:'ข้ามมินิเกมที่ไม่พร้อมเล่น',reward:null}));
  s.nextOrder=[...s.order];
  s.pendingItems={};s.rewardGrantRound=null;
- phase(s,'standings',2.5);
+ phase(s,'standings',3);
  return true;
 }
 function grant(s){

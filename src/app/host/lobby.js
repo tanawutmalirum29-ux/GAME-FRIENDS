@@ -160,7 +160,7 @@ function beginParty(){
   beginGameSelection(tournament.schedule[0]);
 }
 function advanceParty(){
-  if(gameSelection)return;
+  if(gameSelection||(['results','summary'].includes(round?.phase)&&resultWaitSeconds()>0))return;
   if(boardSession){if(boardSession.phase==='finished')beginBoard();return;}
   if(tournament?.endless){
     tournament.roundsPlayed++;
