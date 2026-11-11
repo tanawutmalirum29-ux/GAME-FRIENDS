@@ -35,14 +35,16 @@ const gameCatalog=fs.existsSync(path.join(root,'src','games'))?
 // Detect BOARD item/space/event plugins by their own manifests.
 require('./build-board-system-catalog.cjs').build({write:true,coreHash:gameCatalog?.coreHash});
 // Discover BOARD maps at build time. Do not eagerly fetch map engines.
-if(fs.existsSync(path.join(root,'src','board-party','maps')))
- require('./build-board-map-catalog.cjs').build({write:true,coreHash:gameCatalog?.coreHash});
+const boardCatalog=fs.existsSync(path.join(root,'src','board-party','maps'))?
+ require('./build-board-map-catalog.cjs').build({write:true,coreHash:gameCatalog?.coreHash}):null;
 fs.writeFileSync(path.join(root,'deployment.json'),JSON.stringify({deployId:id})+'\n');
 fs.writeFileSync(path.join(root,'runtime-config.js'),
   'window.GAME_DEPLOY_ID='+JSON.stringify(id)+';\n'+
   (turnUrl?'window.GF_TURN_CREDENTIALS_ENDPOINT='+JSON.stringify(turnUrl)+';\n':'')+
   (gameCatalog?'window.GAME_CORE_HASH='+JSON.stringify(gameCatalog.coreHash)+';\n'+
-   'window.GAME_GAME_HASHES='+JSON.stringify(Object.fromEntries(gameCatalog.games.map(g=>[g.id,g.hash])))+';\n':''));
+   'window.GAME_GAME_HASHES='+JSON.stringify(Object.fromEntries(gameCatalog.games.map(g=>[g.id,g.hash])))+';\n':'')+
+  (boardCatalog?'window.GAME_DEFAULT_BOARD_MAP_HASH='+JSON.stringify(
+   boardCatalog.maps.find(m=>m.id==='winter-expedition')?.hash||'')+';\n':''));
 const indexPath=path.join(root,'index.html');
 let html=fs.readFileSync(indexPath,'utf8');
 // Validate every local file referenced by HTML without rewriting its URL. No game names,
