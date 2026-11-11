@@ -7,6 +7,9 @@
 (() => {
 'use strict';
 const STEP=1/60,TAU=Math.PI*2;
+// Only the radar destruction timeline is shortened by 30%; mine physics,
+// respawn timing, movement, and total race duration stay unchanged.
+const RADAR_BREAK_TIMELINE=.7;
 // Tunables (balance values are meant to be edited here).
 const C=Object.freeze({
  radius:14,          // body radius (world px, never scaled with the screen)
@@ -15,11 +18,12 @@ const C=Object.freeze({
  navR:41,            // expanded safe navigation clearance
  cell:12,pitch:50,
  speed:67.5,botSpeed:.93, // move at half of the old speed
- introSeconds:3,planeSpeed:760,bombTime:.55,
+ introSeconds:3*RADAR_BREAK_TIMELINE,planeSpeed:760/RADAR_BREAK_TIMELINE,
+ bombTime:.55*RADAR_BREAK_TIMELINE,
  mineRespawn:.2, // fixed 200 ms rearm after each explosion
  respawnDelay:.8,spawnProtection:.9,
  maxAttempts:14,
- radar:Object.freeze({bodyR:34,minR:62,shrinkTime:2.5}),
+ radar:Object.freeze({bodyR:34,minR:62,shrinkTime:2.5*RADAR_BREAK_TIMELINE}),
  small:Object.freeze({w:960,h:540,field:Object.freeze({x:60,y:50,w:840,h:440}),zone:100,duration:60,crates:2}),
  large:Object.freeze({w:1280,h:720,field:Object.freeze({x:70,y:60,w:1140,h:600}),zone:120,duration:80,crates:4})
 });
