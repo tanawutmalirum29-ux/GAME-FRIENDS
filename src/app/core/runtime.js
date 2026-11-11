@@ -101,7 +101,7 @@ let players = [], nextId=1, round=null, roomCode='', hostPeer=null, controllerPe
 let hostConnections = new Set(), onlineHost=false, currentView='home', frameLast=0, graphicsClock=0, hudClock=0, networkClock=0, inventoryClock=0;
 let controllerKeys={left:false,right:false,jump:false,down:false,action:false,alt:false,cancel:false,axisX:0,axisY:0}, controllerId=null, controllerReady=false;
 let controllerGameMode=null,controllerGamePhase='lobby',controllerPlayerActive=false,controllerPlayerEliminated=false;
-let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
+let controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null,nextWaitSeconds:0};
 let controllerLobbyVotes={ready:0,total:0,selfReady:false};
 let disconnectRequested=false;
 // Optional, deployment-supplied short-lived TURN credentials. Without them,
