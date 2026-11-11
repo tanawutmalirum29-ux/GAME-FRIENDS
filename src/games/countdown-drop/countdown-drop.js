@@ -298,7 +298,9 @@ function botDecide(s,p,ps){
  }
 }
 function botInput(s,p,ps,dt){
- const b=p.dyn.bot;
+ // Late takeover must not dereference the null human-only bot controller.
+ const b=p.dyn.bot||(p.dyn.bot=makeBot(s));
+ if(b.lastX===0&&b.lastY===0){b.lastX=p.x;b.lastY=p.y;b.tx=p.x;b.ty=p.y;}
  b.at-=dt;
  if(b.at<=0){botDecide(s,p,ps);b.at=b.interval*(.85+rng(s)*.3);}
  let dx=b.tx-p.x,dy=b.ty-p.y;const dist=hyp(dx,dy);

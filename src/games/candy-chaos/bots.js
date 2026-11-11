@@ -89,7 +89,8 @@ function decide(s,p,ps){
  else if(bestC){b.dx=bestC.dx;b.dy=bestC.dy;}
 }
 export function botInput(s,p,ps,dt){
- const b=p.dyn.bot;
+ // Takeovers during an active round preserve candy, bomb and score state.
+ const b=p.dyn.bot||(p.dyn.bot=Object.assign(makeBot(s),{lastX:p.x,lastY:p.y}));
  b.at-=dt;b.switchT+=dt;
  if(b.switchT>3){b.switchT=0;b.switches=0;}
  if(b.at<=0){decide(s,p,ps);b.at=b.interval*(.85+rng(s)*.3);}

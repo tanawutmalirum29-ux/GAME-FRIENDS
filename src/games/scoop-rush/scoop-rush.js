@@ -293,7 +293,8 @@ function botDecide(s,p){
  planPush(s,p,m,t.x+t.vx*.4-m.vx*.4,t.y+t.vy*.4-m.vy*.4,best.gap);
 }
 function botInput(s,p,dt){
- const b=p.sr.bot;
+ // Remote seat expiration can switch isBot while the arena is still active.
+ const b=p.sr.bot||(p.sr.bot=Object.assign(makeBot(s),{lastX:p.x,lastY:p.y}));
  b.at-=dt;
  if(b.at<=0){botDecide(s,p);b.at=b.interval*(.85+rng(s)*.3);}
  const a=1-Math.exp(-13*dt);

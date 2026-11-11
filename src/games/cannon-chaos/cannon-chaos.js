@@ -175,7 +175,8 @@ function firstTarget(s,p,ps,ang){
 }
 // The bot only ever decides WHEN to press; the barrel angle is never touched.
 function botThink(s,p,ps,dt){
- const c=p.cn,b=c.bot;
+ // Controller disconnections can promote a human without resetting the turret.
+ const c=p.cn,b=c.bot||(c.bot=makeBot(s));
  b.at-=dt;b.errT-=dt;
  if(b.errT<=0){b.err=(rng(s)-.5)*2*(1-b.skill)*C.botErrDeg*RAD;b.errT=.25+rng(s)*.3;}
  if(b.at>0)return;

@@ -781,7 +781,10 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
           cancelSeat(p.id);
           if(p.conn&&p.conn!==conn){const old=p.conn;p.conn=null;try{old.close()}catch(_){}}
           p.conn=conn;
-          if(boardSession){p.isBot=false;const bp=boardSession.players.find(q=>q.id===p.id);if(bp)bp.isBot=false;delete boardSession.lastActions[p.id];delete boardSession.inputs[p.id];}
+          // Restores control after timed AI handoff in NORMAL and BOARD modes.
+          // Do not reset game-specific state: same score, position and HP.
+          p.isBot=false;p.input=blankInput();
+          if(boardSession){const bp=boardSession.players.find(q=>q.id===p.id);if(bp)bp.isBot=false;delete boardSession.lastActions[p.id];delete boardSession.inputs[p.id];}
         }else{
           if(boardSession){send(conn,{t:'reject',reason:'BOARD PARTY กำลังเล่นอยู่ • เข้าร่วมได้เมื่อกลับล็อบบี้'});return;}
           if(players.length>=MAX_PLAYERS){send(conn,{t:'reject',reason:'ห้องเต็มแล้ว (สูงสุด '+MAX_PLAYERS+' คน)'});return;}

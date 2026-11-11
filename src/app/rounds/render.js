@@ -97,6 +97,36 @@ function updateAdaptiveBoardDetail(elapsed){
  }
 }
 // Render on every browser animation frame. There is no application-side 30/60
+// Keep a bounded local crash trail so intermittent Safari/PeerJS failures can
+// be diagnosed without a debugger and without storing player names or IDs.
+const roundFaultLog=[];
+const roundFaultRate=new Map();
+window.GameCrashDiagnostics=Object.freeze({
+ recent:()=>roundFaultLog.map(entry=>({...entry}))
+});
+function logRoundFault(stage,error,mode=round?.mode){
+ const entry={
+  time:new Date().toISOString(),game:String(mode||'unknown'),
+  phase:String(round?.phase||'none'),board:!!boardSession,stage,
+  message:String(error?.message||error).slice(0,240),
+  stack:String(error?.stack||'').slice(0,1000)
+ };
+ const key=entry.game+':'+stage+':'+entry.message;
+ const now=Date.now(),prior=roundFaultRate.get(key)||0;
+ if(now-prior<5000)return;
+ roundFaultRate.set(key,now);
+ // Avoid an unbounded map or sessionStorage writes in a repeated render failure.
+ if(roundFaultRate.size>40)roundFaultRate.clear();
+ roundFaultLog.push(entry);
+ if(roundFaultLog.length>12)roundFaultLog.shift();
+ try{sessionStorage.setItem('gf-last-round-errors',JSON.stringify(roundFaultLog));}catch(_){}
+ console.error('GAME-FRIENDS round fault ['+stage+']',entry.game,error);
+}
+function roundAux(stage,fn){
+ try{return fn();}
+ catch(error){logRoundFault(stage,error);return null;}
+}
+let drawFailureStreak=0;
 // FPS cap: display refresh rate and the browser scheduler set the cadence.
 // Simulation timing, input polling and gameplay remain independent.
 function animate(ts){
@@ -119,8 +149,16 @@ function animate(ts){
     if(round&&!gameSelection){
       const onBoard=round.mode==='board';
       if(onBoard)updateAdaptiveBoardDetail(elapsed);
-      drawGame(graphicsClock);
-      renderHostVideoFrames();
+      // Brief Canvas/SVG race failures should not erase a session. A genuinely
+      // broken renderer is escalated after three consecutive failed frames.
+      try{drawGame(graphicsClock);drawFailureStreak=0;}
+      catch(error){
+       logRoundFault('draw',error);
+       if(++drawFailureStreak>=3)throw error;
+      }
+      roundAux('video-preview',()=>{
+       renderHostVideoFrames();
+      });
     }
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
@@ -128,32 +166,48 @@ function animate(ts){
       else renderResultVotes();
     }
     botTestClock+=dt;
-    if(botTestClock>.2){botTestClock=0;renderBotTestPad();}
+    if(botTestClock>.2){botTestClock=0;roundAux('bot-controls',()=>renderBotTestPad());}
     hudClock+=dt;
     if(hudClock>.38){
-      renderLeaderboard();hudClock=0;
+      roundAux('roster',()=>renderLeaderboard());hudClock=0;
     }
     inventoryClock+=dt;
     if(inventoryClock>=.28){
       inventoryClock=0;
-      broadcastPlayerInventories();
+      roundAux('inventory',()=>broadcastPlayerInventories());
     }
     remotePreviewClock+=dt;
     if(remotePreviewClock>=1.1&&!round.paused){
       remotePreviewClock=0;
-      broadcastGamePreview();
+      roundAux('remote-preview',()=>broadcastGamePreview());
     }
     networkClock+=dt;
     if(networkClock>.85){
-      broadcast({t:'state',phase:networkPhase(),
-        survivors:gameEngine(round.mode).hud(players,round).survivors,remaining:round.remaining,mode:round.mode});
+      roundAux('network-hud',()=>{
+       const survivors=gameEngine(round.mode)?.hud?.(players,round)?.survivors;
+       broadcast({t:'state',phase:networkPhase(),
+        survivors,remaining:round.remaining,mode:round.mode});
+      });
       networkClock=0;
     }
    }
   }catch(error){
-    console.error('Game frame failed',round?.mode,error);
     const mode=round?.mode;
-    if(mode){
+    logRoundFault('simulation',error,mode);
+    drawFailureStreak=0;
+    // A failing minigame must NEVER destroy a live BOARD PARTY map, turn,
+    // inventory or HP. The existing canonical cancellation gives no rewards.
+    let resumedBoard=false;
+    if(boardSession?.phase==='minigame'&&mode!=='board'){
+     try{
+      resumedBoard=window.BoardParty?.minigameCancelled?.(boardSession)===true;
+      if(resumedBoard){
+       showBoard();
+       showToast('มินิเกมมีปัญหา • ข้ามรอบนี้และกลับบอร์ด โดยไม่เสียความคืบหน้า',true);
+      }
+     }catch(recoveryError){logRoundFault('board-recovery',recoveryError,mode);}
+    }
+    if(!resumedBoard&&mode){
       returnToLobby();
       showToast((MODES[mode]||mode)+' หยุดเพราะมีข้อผิดพลาด: '+String(error?.message||error).slice(0,100),true);
     }
@@ -163,8 +217,11 @@ function animate(ts){
 
 function broadcastGameState(){
   if(!round||gameSelection)return;
-  broadcast({t:'state',phase:networkPhase(),
-    survivors:gameEngine(round.mode).hud(players,round).survivors,remaining:round.remaining,mode:round.mode});
+  roundAux('network-hud',()=>{
+   const survivors=gameEngine(round.mode)?.hud?.(players,round)?.survivors;
+   broadcast({t:'state',phase:networkPhase(),
+    survivors,remaining:round.remaining,mode:round.mode});
+  });
 }
 function pauseGame(){
   if(currentView!=='game'||!round||gameSelection||round.phase==='results'||round.paused)return;
@@ -201,6 +258,13 @@ function returnToLobby(){
   boardSession=null;boardStateToken=null;document.body.classList.remove('board-playing');
   $('pauseBtn').style.cssText='';$('boardExitBtn').style.cssText='';$('boardExitBtn').classList.add('hidden');$('pauseBtn').classList.remove('board-resume');
   tournament=null;round=null;resetInputs();
+  drawFailureStreak=0;
+  // A timed-out remote participant who became a round-only bot must not
+  // occupy an orphaned lobby seat forever after the round is finally gone.
+  for(let i=players.length-1;i>=0;i--){
+   const p=players[i];
+   if(p.type==='remote'&&p.isBot&&!p.conn){cancelSeat(p.id);players.splice(i,1);}
+  }
   stopAllHostVideoCalls();
   broadcast({t:'preview-reset'});
   $('pauseMenu').classList.add('hidden');
