@@ -71,6 +71,7 @@ const server=http.createServer((req,res)=>{
  // assets switch atomically to the newly deployed release.
  const release=(serving===second&&
   (pathname==='/game-catalog.json'||pathname==='/deployment.json'||
+   pathname==='/board-map-catalog.json'||pathname.startsWith('/board-map-assets/')||
    pathname.startsWith('/game-assets/')))?second:first;
  const file=path.resolve(release,'.'+pathname.replace(/\/$/,'/index.html'));
  if(!file.startsWith(release+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){
@@ -85,7 +86,15 @@ async function run(){
  copyRelease(first);copyRelease(second);
  plugin(first,'probe','v1');plugin(second,'probe','v2');
  plugin(second,'fresh','new');
+ // Isolate a built-in BOARD map edit from shared Core, with the same topology.
+ fs.appendFileSync(path.join(second,'src/board-party/runtime/board-map.js'),
+  '\n// second release: immutable BOARD map-only artwork/data revision\n');
  const a=build(first,REV_A),b=build(second,REV_B);
+ const mapA=JSON.parse(fs.readFileSync(path.join(first,'board-map-catalog.json'),'utf8'));
+ const mapB=JSON.parse(fs.readFileSync(path.join(second,'board-map-catalog.json'),'utf8'));
+ assert.notEqual(mapA.maps.find(m=>m.id==='winter-expedition').hash,
+  mapB.maps.find(m=>m.id==='winter-expedition').hash,
+  'Built-in BOARD map-only change must have its own content hash');
  assert.equal(a.coreHash,b.coreHash,
   'changing or introducing a minigame must never modify the shared core hash');
  assert.equal(a.games.length+1,b.games.length);
@@ -148,6 +157,7 @@ async function run(){
    !document.querySelector('#game')?.classList.contains('hidden'),
    null,{timeout:25000,polling:100});
   const currentUrl=page.url();
+  await page.evaluate(()=>{window.__rehearsalPreviousMap=window.BoardMap;});
   serving=second;
   const change=await page.evaluate(async()=>{
    const changed=await GamePlatform.refresh();
@@ -177,10 +187,30 @@ async function run(){
   assert.equal(after.pending,REV_B);
   assert.equal(after.boardVisible,true);
   assert.equal(after.boardCoreReady,true);
-  assert.equal(page.url(),currentUrl,'core-compatible deployed hotpatch cannot navigate an active room');
+  const staged=await page.evaluate(async()=>{
+   await BoardRuntime.refreshMaps();
+   return{pending:BoardRuntime.pendingMapUpdate,
+    stillPinned:window.BoardMap===window.__rehearsalPreviousMap};
+  });
+  assert.equal(staged.pending,true,'Changed built-in map is staged while BOARD is active');
+  assert.equal(staged.stillPinned,true,'Board map source cannot swap mid-session');
+  await page.locator('#boardExitBtn').click();
+  await page.locator('#uiConfirmBtn').click();
+  await page.waitForFunction(expected=>
+   !!document.querySelector('#hostLobby:not(.hidden)')&&
+   BoardRuntime.maps().find(m=>m.id==='winter-expedition')?.hash===expected&&
+   BoardRuntime.ready()===true,
+   mapB.maps.find(m=>m.id==='winter-expedition').hash,{timeout:20000,polling:100});
+  const applied=await page.evaluate(()=>({
+   newMap:window.BoardMap!==window.__rehearsalPreviousMap,
+   boardCatalogPending:BoardRuntime.pendingMapUpdate
+  }));
+  assert.equal(applied.newMap,true,'New built-in BOARD map activates after returning to lobby');
+  assert.equal(applied.boardCatalogPending,false);
+  assert.equal(page.url(),currentUrl,'same-Core updates cannot navigate an active room');
   assert.deepEqual(errors,[],'no unhandled page errors in production build');
   console.log('PRODUCTION DEPLOY REHEARSAL PASS '+kind+
-   ': two actual builds, host startup, active BOARD pin, discovered game and safe defer');
+   ': same-core minigame live update, built-in BOARD map staged then applied in lobby');
   await context.close();
  }finally{await browser.close();}
 }
