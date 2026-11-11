@@ -180,6 +180,8 @@ jobs:
       - name: iPadOS Home Screen and native fullscreen status-bar regression
         if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'controller') || contains(fromJSON(needs.browser-plan.outputs.areas), 'orientation') }}
         run: node tests/ipad-statusbar.cjs
+      - name: Long-room reliability, seven mid-round bot takeovers and BOARD recovery
+        run: node tests/round-drop-recovery.cjs
       - name: Runtime smoke test
         run: node tests/smoke.cjs
       - name: GHOST ATTACK courtyards, wall collisions, reachable lanes and 1–12 bots
