@@ -12,6 +12,14 @@ try{
  fs.mkdirSync(basedir,{recursive:true});
  fs.cpSync(path.join(root,'src','board-party','maps','winter-expedition'),
   path.join(basedir,'winter-expedition'),{recursive:true});
+ // Production emits the canonical built-in map and vector artwork as immutable
+ // releases. Reproduce those runtime files in the isolated map fixture.
+ const legacyFiles=['board-design.js','board-scenery.js','board-map.js','board-art.js'];
+ for(const file of legacyFiles){
+  const relative=path.join('src','board-party','runtime',file),dest=path.join(tmp,relative);
+  fs.mkdirSync(path.dirname(dest),{recursive:true});
+  fs.copyFileSync(path.join(root,relative),dest);
+ }
  const fixture=path.join(basedir,'future-map');
  fs.mkdirSync(fixture,{recursive:true});
  fs.writeFileSync(path.join(fixture,'manifest.json'),JSON.stringify({
@@ -41,7 +49,19 @@ try{
  const record=first.maps.find(m=>m.id==='future-map');
  assert.match(record.entryUrl,/^\/board-map-assets\/future-map\/[a-f0-9]{24}\/index\.js$/);
  assert.ok(fs.existsSync(path.join(tmp,record.entryUrl.slice(1))));
- assert.equal(first.maps.find(m=>m.id==='winter-expedition').entryUrl,null);
+ const builtin=first.maps.find(m=>m.id==='winter-expedition');
+ assert.equal(builtin.entryUrl,null);
+ assert.equal(builtin.legacyUrls.length,4,'built-in board map has four immutable runtime assets');
+ for(const url of builtin.legacyUrls)
+  assert.ok(fs.existsSync(path.join(tmp,url.slice(1))),'Missing built-in map asset '+url);
+ const originalCore=first.coreHash,originalBuiltInHash=builtin.hash;
+ const changedSource=path.join(tmp,'src/board-party/runtime/board-map.js');
+ fs.appendFileSync(changedSource,'\n// map-only hotfix\n');
+ const afterBuiltInEdit=build();
+ assert.notEqual(afterBuiltInEdit.maps.find(m=>m.id==='winter-expedition').hash,originalBuiltInHash,
+  'Built-in BOARD map source changes must have an independent asset hash');
+ assert.equal(afterBuiltInEdit.coreHash,originalCore,
+  'Built-in BOARD content cannot invalidate a connected room Core');
  const initialHash=record.hash;
  fs.writeFileSync(path.join(fixture,'extra.svg'),'<svg xmlns="http://www.w3.org/2000/svg"/>');
  assert.notEqual(build().maps[0].hash,initialHash,'Changed assets must receive immutable paths');
@@ -52,5 +72,5 @@ try{
  graph.nodes.n2.previousNodes=[];
  fs.writeFileSync(path.join(fixture,'large.json'),JSON.stringify(graph));
  assert.throws(build,/Non-reciprocal directed edge/);
- console.log('BOARD MAP DISCOVERY PASS: folder-only manifest, 2 tiers, asset hash and directed graph guards');
+ console.log('BOARD MAP DISCOVERY PASS: immutable built-in art/map, same Core, 2 tiers and directed graph guards');
 }finally{fs.rmSync(tmp,{recursive:true,force:true});}
