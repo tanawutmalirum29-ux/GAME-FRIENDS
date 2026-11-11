@@ -4,7 +4,7 @@
 'use strict';
 // Development/test HTML still loads the app.js compatibility bundle normally.
 if(document.querySelector('script[defer][src^="./app.js"]'))return;
-let loadPromise=null,delayedChoice=null;
+let loadPromise=null,delayedChoice=null,preflightJob=null;
 const params=new URLSearchParams(location.search);
 let saved=false;
 try{saved=Boolean(sessionStorage.getItem('gf-host-room-v2')||
@@ -66,7 +66,7 @@ if(!welcome){
 }
 // The welcome view has not opened a room and is always safe to refresh.
 window.GAME_CAN_AUTO_RELOAD=()=>!loadPromise;
-void preflightRestore();
+preflightJob=preflightRestore();
 const host=document.getElementById('hostBtn'),offline=document.getElementById('offlineBtn');
 function onChoice(event){
  event.preventDefault();event.stopImmediatePropagation();
@@ -84,7 +84,8 @@ function onChoice(event){
    if(promise?.catch)promise.catch(()=>{});
   }
  }catch(_){}
- void loadApp().then(()=>{
+ void preflightJob.then(redirecting=>redirecting?null:loadApp()).then(result=>{
+  if(result===null)return; // A fresh document navigation is already underway.
   host.removeEventListener('click',onChoice,true);
   offline.removeEventListener('click',onChoice,true);
   button.disabled=false;
