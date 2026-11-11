@@ -48,40 +48,46 @@ global.window={PartyCharacters:{
   for(let i=0;i<90&&!s.finished;i++)game.update(1/60,round,ps);
   assert.ok(ps.every(p=>Number.isFinite(p.x+p.y)),'finite positions');
  }
- // Round rocks must receive a real impulse, translate and ROLL instead of
- // staying static: old code applied zero torque at the rock's centre.
+ // ONLY rocks are immovable: pushing one must not translate or roll it.
  {
   const {s,ps,round}=create(1,8124),tr=s.track,p=ps[0];
   const rock=tr.obstacles.filter(o=>o.kind==='rock')
    .map(o=>({o,clear:Math.min(...tr.obstacles.filter(q=>q!==o).map(q=>
     Math.hypot(o.x-q.x,o.y-q.y)-o.r-(q.shape==='circle'?q.r:Math.max(q.hw,q.hh))))}))
    .sort((a,b)=>b.clear-a.clear)[0]?.o;
-  assert.ok(rock,'DINO PANIC must generate round, pushable rocks');
+  assert.ok(rock,'DINO PANIC must generate solid, immovable rocks');
   const initial={x:rock.x,y:rock.y,angle:rock.angle,r:rock.r};
   p.x=rock.x-rock.r-C.R-.5;p.y=rock.y;
   p.dino.px=p.x;p.dino.py=p.y;p.input.axisX=1;
-  for(let i=0;i<48&&!s.finished;i++)game.update(1/60,round,ps);
-  assert.ok(rock.x>initial.x+2,'a direct player shove moves the rock');
-  assert.ok(rock.angle>initial.angle+.08,'a rock rolls with travelled distance even on a centred shove');
-  assert.equal(rock.r,initial.r,'rolling never shrinks or inflates the rock collision radius');
-  assert.ok(tr.query(rock.x-2,rock.x+2).includes(rock),'rock spatial index follows actual motion');
-  assert.ok(Number.isFinite(rock.mvx+rock.mvy+rock.spin+rock.angle));
-  // After contact stops, the rock keeps moving briefly due to inertia.
-  tr.tick++;
-  const rollingX=rock.x;
+  let pushing=false;
+  for(let i=0;i<48&&!s.finished;i++){
+   game.update(STEP,round,ps);pushing||=p.dino.pushing;
+  }
+  assert.ok(pushing,'the player feels resistance when running into a rock');
+  assert.equal(rock.x,initial.x,'player impact must not translate a rock horizontally');
+  assert.equal(rock.y,initial.y,'player impact must not translate a rock vertically');
+  assert.equal(rock.angle,initial.angle,'player impact must not rotate a rock');
+  assert.ok(p.x<=rock.x-rock.r-C.R+.01,'rock remains a solid obstacle to the player');
+  assert.equal(rock.r,initial.r,'original rock collision radius remains unchanged');
+  assert.equal(tr.moveObstacle(rock,12,7),false,'direct obstacle movement cannot move rocks');
+  tr.impulseObstacle(rock,30,12,rock.x-rock.r,rock.y);
   for(let i=0;i<8;i++){tr.tick++;tr.stepObstacles(STEP);}
-  assert.ok(rock.x>=rollingX,'the rolling rock never teleports backwards');
+  assert.equal(rock.x,initial.x,'even direct impulses must not move a rock');
+  assert.equal(rock.y,initial.y);
+  assert.equal(rock.angle,initial.angle,'even direct impulses must not roll a rock');
+  assert.equal(rock.mvx+rock.mvy+rock.spin,0,'rocks must not accumulate momentum');
+  assert.ok(tr.query(rock.x-2,rock.x+2).includes(rock),'fixed rock stays in spatial index');
  }
- // Select an isolated crate/rock to prove that player motion physically
- // moves an object and the spatial index follows its changing position.
+ // Select an isolated CRATE to prove other scenery remains movable
+ // and the spatial index follows its changing position.
  {
   const {s,ps,round}=create(1,8124),tr=s.track,p=ps[0];
-  const choices=tr.obstacles.filter(o=>o.kind==='crate'||o.kind==='rock')
+  const choices=tr.obstacles.filter(o=>o.kind==='crate')
    .map(o=>({o,nearest:Math.min(...tr.obstacles.filter(q=>q!==o)
     .map(q=>Math.hypot(q.x-o.x,q.y-o.y)))}))
    .sort((a,b)=>b.nearest-a.nearest);
-  assert.ok(choices.length>0,'pushable obstacle generated');
-  const o=choices[0].o,r=o.shape==='circle'?o.r:o.hw,oldX=o.x;
+  assert.ok(choices.length>0,'pushable crate generated');
+  const o=choices[0].o,r=o.hw,oldX=o.x;
   p.x=o.x-r-C.R-.5;p.y=o.y;p.dino.px=p.x;p.dino.py=p.y;
   p.input.axisX=1;
   let pushing=false;
@@ -104,5 +110,5 @@ global.window={PartyCharacters:{
   assert.ok(s.botFields.size<=12,'shared cache stays bounded');
   console.log('DINO PANIC 12-bot 6-second CPU ms:',Math.round(millis),'shared Dijkstra fields:',s.botFieldsBuilt);
  }
- console.log('DINO PANIC slow obstacle pushes, spatial index and bot workload PASS');
+ console.log('DINO PANIC fixed rocks, movable crates, spatial index and bot workload PASS');
 })().catch(e=>{console.error(e);process.exitCode=1;});

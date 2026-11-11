@@ -110,7 +110,7 @@ function pushScenery(tr,p,dt){
  if(!p.dino.pushing)return;
  const R=C.R,vx=p.dino.ix,vy=p.dino.iy;
  for(const o of tr.query(p.x-R-8,p.x+R+8,QP)){
-  if(o.kind==='fence')continue; // fixed structural obstacles
+  if(o.kind==='fence'||o.kind==='rock')continue; // rocks are immovable; crates/logs still shove
   const circle=o.shape==='circle';
   const px=circle?o.x:clamp(p.x,o.x-o.hw,o.x+o.hw);
   const py=circle?o.y:clamp(p.y,o.y-o.hh,o.y+o.hh);
@@ -122,13 +122,12 @@ function pushScenery(tr,p,dt){
   nx/=d;ny/=d;
   const closing=-(vx*nx+vy*ny);
   if(closing<=0)continue;
-  // Transfer force along the collision normal. The rocky surface is a
-  // CONTACT point on the circumference, not the rock's centre.
-  const mass=o.kind==='crate'?1:o.kind==='rock'?1.25:4.5;
+  // Only movable crates and logs receive contact-normal momentum and torque.
+  const mass=o.kind==='crate'?1:4.5;
   const impulse=Math.min(165,closing)*dt*3.2/mass;
   const tx=-ny,ty=nx;
   const tangential=vx*tx+vy*ty;
-  const grip=(o.kind==='rock'?.22:.09)*tangential*dt;
+  const grip=.09*tangential*dt;
   const cx=circle?o.x+nx*o.r:px,cy=circle?o.y+ny*o.r:py;
   tr.impulseObstacle(o,-nx*impulse+tx*grip,-ny*impulse+ty*grip,cx,cy);
  }
