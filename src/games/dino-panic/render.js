@@ -19,17 +19,8 @@ export function preloadArt(track){
 }
 
 /* ───────── ground ───────── */
-const GR={tr:null,top:null,bot:null,sh:null};
-function gradients(g,tr){          // gradients are created once per track, not once per frame
- if(GR.tr===tr)return GR;
- GR.tr=tr;
- let gr=g.createLinearGradient(0,tr.top,0,tr.top+16);gr.addColorStop(0,'rgba(40,20,5,.32)');gr.addColorStop(1,'rgba(40,20,5,0)');GR.top=gr;
- gr=g.createLinearGradient(0,tr.bottom,0,tr.bottom-16);gr.addColorStop(0,'rgba(40,20,5,.32)');gr.addColorStop(1,'rgba(40,20,5,0)');GR.bot=gr;
- gr=g.createLinearGradient(0,0,90,0);gr.addColorStop(0,'rgba(20,10,0,.30)');gr.addColorStop(1,'rgba(20,10,0,0)');GR.sh=gr;
- return GR;
-}
 function drawGround(g,s,cam){
- const tr=s.track,x0=Math.floor(cam/TILE)*TILE,x1=cam+VW,G=gradients(g,tr),TW=TILE+1; // +1px overlap hides hairline seams at fractional camera positions
+ const tr=s.track,x0=Math.floor(cam/TILE)*TILE,x1=cam+VW,TW=TILE+1; // +1px overlap hides hairline seams at fractional camera positions
  const ft=A.forest(tr.top,11),fb=A.forest(VH-tr.bottom,23),dirt=A.dirt(tr.H);
  for(let x=x0;x<x1;x+=TILE){
   if(ft)g.drawImage(ft,x,0,TW,ft.lh||ft.height);else{g.fillStyle='#3d7a2b';g.fillRect(x,0,TILE,tr.top);}
@@ -37,9 +28,6 @@ function drawGround(g,s,cam){
   else{g.fillStyle='#3d7a2b';g.fillRect(x,tr.bottom,TILE,VH-tr.bottom);}
   if(dirt)g.drawImage(dirt,x,tr.top,TW,tr.H);else{g.fillStyle='#d6a169';g.fillRect(x,tr.top,TILE,tr.H);}
  }
- // soft shade under the forest edges
- g.fillStyle=G.top;g.fillRect(cam,tr.top,VW,16);
- g.fillStyle=G.bot;g.fillRect(cam,tr.bottom-16,VW,16);
  // the corridor ends in dense jungle behind the finish area
  if(x1>tr.endX){g.save();g.beginPath();g.rect(tr.endX,tr.top-2,VW,tr.H+4);g.clip();
   g.fillStyle='#2f6a24';g.fillRect(tr.endX,tr.top,VW,tr.H);
@@ -159,9 +147,8 @@ function drawDino(g,s,time,front,a){
  const tr=s.track,k=(tr.H+70)/380,t=s.clock>0?s.clock-STEP*(1-a):time*.6,ph=t*TAU/.64;
  const bodyI=A.body(),headI=A.head(),footI=A.foot();
  g.save();g.translate(front,tr.cy);g.scale(k,k);
- // ground shadow in front of the snout (readable, never hides obstacles)
- g.fillStyle=gradients(g,tr).sh;g.fillRect(0,-200,90,400);
- g.fillStyle='rgba(20,10,0,.28)';g.beginPath();g.ellipse(-330,14,360,200,0,0,TAU);g.fill();
+ // No full-scene shadow plates: the dinosaur SVG carries its own local shading.
+ // World-space shadows stay attached to individual obstacles and runners.
  // feet: diagonal pairs, planted foot gets bigger (stomp)
  const feet=[[-310,-176,0],[-310,176,Math.PI],[-520,-176,Math.PI],[-520,176,0]];
  for(const[fx0,fy,off]of feet){
