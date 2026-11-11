@@ -289,7 +289,11 @@ function botDecide(s,p,live){
  if(clock<b.unstick){b.mx=b.ux;b.my=b.uy;}
 }
 function botInput(s,p,live,dt){
- const b=p.mole.bot;b.at-=dt;
+ // A disconnected human may become a bot midway through the SAME round.
+ // Initialise only the AI controller; preserve position, score, stun and hammer.
+ const b=p.mole.bot||(p.mole.bot=makeBot(s));
+ if(b.lastX===0&&b.lastY===0){b.lastX=p.x;b.lastY=p.y;}
+ b.at-=dt;
  if(b.at<=0){botDecide(s,p,live);b.at=b.interval*(.85+rng(s)*.3);}
  const a=1-Math.exp(-13*dt);b.ax+=(b.mx-b.ax)*a;b.ay+=(b.my-b.ay)*a;
  const act=b.atk;b.atk=false;
