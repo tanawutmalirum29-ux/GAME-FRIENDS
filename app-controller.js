@@ -3768,7 +3768,9 @@ function animate(ts){
        logRoundFault('draw',error);
        if(++drawFailureStreak>=3)throw error;
       }
-      roundAux('video-preview',()=>renderHostVideoFrames());
+      roundAux('video-preview',()=>{
+       renderHostVideoFrames();
+      });
     }
     if(round&&round.phase==='results'&&round.autoNextRemaining>0){
       round.autoNextRemaining=Math.max(0,round.autoNextRemaining-dt);
