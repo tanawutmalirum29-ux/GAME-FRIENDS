@@ -100,3 +100,10 @@ Do not merge until `verify.yml` tests and browser checks finish without failures
 **Scale contract:** Both shared and custom-timed punches render around the same physics origin with the original 52/64 = 0.8125 unit-per-SVG pixel scale. The transparent padded atlas remains 96×112 SVG units, with draw destination (−39, −52, 78, 91); no hitbox grows to fit the fist. A COUNTDOWN DROP animation is visual state only; hit tests and gameplay authority remain in that engine.
 
 **Verification:** Dedicated Node contracts in `tests/avatar-topdown.cjs` and `tests/dino-panic.cjs`, plus required latest-head Chromium/WebKit browser and CI gates. Physical-device visual validation remains a separate limitation.
+
+
+### 2026-11-11 — DINO PANIC movable rocks (PR #254 follow-up)
+
+- Fixed a false rectangular collider against round rocks: collision checks now use circle–circle and circle–rectangle separation so a diagonal gap does not pin a rock in place. Boundaries and solid objects remain authoritative.
+- Rock push impulse uses the actual circumference contact point, contact-normal momentum with limited tangential friction and a rock-specific damping value. Its rendered spin is tied to **actual displacement divided by radius**, so even a centred forward shove rolls the rock. If blocked, lateral sliding is attempted without clipping through obstacles.
+- Added a dedicated 48-step human-to-rock shove regression and post-contact momentum assertions. These do not change the two world tiers, 960×540 logical DPR-backed renderer, 8-unit validation grid, 10-unit bot path grid, 15-unit player radius or high-detail rock SVG.

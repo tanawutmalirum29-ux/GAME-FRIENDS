@@ -48,6 +48,30 @@ global.window={PartyCharacters:{
   for(let i=0;i<90&&!s.finished;i++)game.update(1/60,round,ps);
   assert.ok(ps.every(p=>Number.isFinite(p.x+p.y)),'finite positions');
  }
+ // Round rocks must receive a real impulse, translate and ROLL instead of
+ // staying static: old code applied zero torque at the rock's centre.
+ {
+  const {s,ps,round}=create(1,8124),tr=s.track,p=ps[0];
+  const rock=tr.obstacles.filter(o=>o.kind==='rock')
+   .map(o=>({o,clear:Math.min(...tr.obstacles.filter(q=>q!==o).map(q=>
+    Math.hypot(o.x-q.x,o.y-q.y)-o.r-(q.shape==='circle'?q.r:Math.max(q.hw,q.hh))))}))
+   .sort((a,b)=>b.clear-a.clear)[0]?.o;
+  assert.ok(rock,'DINO PANIC must generate round, pushable rocks');
+  const initial={x:rock.x,y:rock.y,angle:rock.angle,r:rock.r};
+  p.x=rock.x-rock.r-C.R-.5;p.y=rock.y;
+  p.dino.px=p.x;p.dino.py=p.y;p.input.axisX=1;
+  for(let i=0;i<48&&!s.finished;i++)game.update(1/60,round,ps);
+  assert.ok(rock.x>initial.x+2,'a direct player shove moves the rock');
+  assert.ok(rock.angle>initial.angle+.08,'a rock rolls with travelled distance even on a centred shove');
+  assert.equal(rock.r,initial.r,'rolling never shrinks or inflates the rock collision radius');
+  assert.ok(tr.query(rock.x-2,rock.x+2).includes(rock),'rock spatial index follows actual motion');
+  assert.ok(Number.isFinite(rock.mvx+rock.mvy+rock.spin+rock.angle));
+  // After contact stops, the rock keeps moving briefly due to inertia.
+  tr.tick++;
+  const rollingX=rock.x;
+  for(let i=0;i<8;i++){tr.tick++;tr.stepObstacles(STEP);}
+  assert.ok(rock.x>=rollingX,'the rolling rock never teleports backwards');
+ }
  // Select an isolated crate/rock to prove that player motion physically
  // moves an object and the spatial index follows its changing position.
  {

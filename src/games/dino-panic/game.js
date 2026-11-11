@@ -110,20 +110,27 @@ function pushScenery(tr,p,dt){
  if(!p.dino.pushing)return;
  const R=C.R,vx=p.dino.ix,vy=p.dino.iy;
  for(const o of tr.query(p.x-R-8,p.x+R+8,QP)){
-  const cx=o.shape==='circle'?o.x:clamp(p.x,o.x-o.hw,o.x+o.hw);
-  const cy=o.shape==='circle'?o.y:clamp(p.y,o.y-o.hh,o.y+o.hh);
-  let nx=p.x-cx,ny=p.y-cy,d=Math.hypot(nx,ny);
-  if(d>R+(o.shape==='circle'?o.r:0)+2)continue;
+  if(o.kind==='fence')continue; // fixed structural obstacles
+  const circle=o.shape==='circle';
+  const px=circle?o.x:clamp(p.x,o.x-o.hw,o.x+o.hw);
+  const py=circle?o.y:clamp(p.y,o.y-o.hh,o.y+o.hh);
+  let nx=p.x-px,ny=p.y-py,d=Math.hypot(nx,ny);
+  if(d>R+(circle?o.r:0)+2)continue;
   if(d<1e-5){nx=p.x-o.x;ny=p.y-o.y;d=Math.hypot(nx,ny);}
   if(d<1e-5){nx=-vx;ny=-vy;d=Math.hypot(nx,ny);}
   if(d<1e-5)continue;
   nx/=d;ny/=d;
   const closing=-(vx*nx+vy*ny);
   if(closing<=0)continue;
-  // Normal impulse and offset contact torque; heavy obstacles resist shoves.
-  const mass=o.kind==='crate'?1:o.kind==='rock'?1.7:4.5;
+  // Transfer force along the collision normal. The rocky surface is a
+  // CONTACT point on the circumference, not the rock's centre.
+  const mass=o.kind==='crate'?1:o.kind==='rock'?1.25:4.5;
   const impulse=Math.min(165,closing)*dt*3.2/mass;
-  tr.impulseObstacle(o,-nx*impulse,-ny*impulse,cx,cy);
+  const tx=-ny,ty=nx;
+  const tangential=vx*tx+vy*ty;
+  const grip=(o.kind==='rock'?.22:.09)*tangential*dt;
+  const cx=circle?o.x+nx*o.r:px,cy=circle?o.y+ny*o.r:py;
+  tr.impulseObstacle(o,-nx*impulse+tx*grip,-ny*impulse+ty*grip,cx,cy);
  }
 }
 /* ───────── simulation step ───────── */
