@@ -22,11 +22,14 @@ for(const n of [1,2,6,7,12]){
   'every possible spawn is connected to finish');
  assert.ok(round.remaining>0,'timer initialized');
 }
-// Balance contract: slower traversal, larger mines, and early radar plane.
+// Balance contract: movement and mine cooldown unchanged; radar destruction 30% sooner.
 assert.equal(G.config.speed,67.5);
 assert.equal(G.config.mineR,20.8);
 assert.equal(G.config.hazard,33.8);
-assert.equal(G.config.introSeconds,3);
+assert.ok(Math.abs(G.config.introSeconds-3*.7)<1e-9);
+assert.ok(Math.abs(G.config.planeSpeed-760/.7)<1e-9);
+assert.ok(Math.abs(G.config.bombTime-.55*.7)<1e-9);
+assert.ok(Math.abs(G.config.radar.shrinkTime-2.5*.7)<1e-9);
 assert.equal(G.config.mineRespawn,0.2,'mines must rearm after 200 ms, not the old 3.2 seconds');
 // Repeated generation cannot produce a disconnected alternative route.
 for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
@@ -81,8 +84,17 @@ for(const n of [1,6,7,12])for(const seed of [1001,2026,7777]){
  assert.equal(mine.alive,true,'mine must be armed again at 0.2 seconds');
  assert.ok(s.clock-deadline<=1/60+1e-8,'rearm must not be late beyond one fixed step');
  assert.equal(mine.respawnAt,Infinity,'rearmed mine no longer has a pending deadline');
- // Radar plane remains a separate three-second event, not tied to mine rearm.
- while(s.clock<3.1&&!s.finished)G.step(1/60,round,ps);
- assert.ok(s.plane,'airplane must arrive after its own 3-second trigger');
+ // Radar-only tempo: the plane appears at 2.1s, impacts near 2.9s,
+ // and the shrinking signal is gone near 4.7s. Mine rearm stays 0.2s.
+ while(s.clock<2.05&&!s.finished)G.step(1/60,round,ps);
+ assert.equal(s.plane,null,'plane cannot appear before the faster radar intro');
+ while(s.clock<2.2&&!s.finished)G.step(1/60,round,ps);
+ assert.ok(s.plane,'airplane must arrive after the 2.1-second radar intro');
+ while(s.clock<4&&!s.finished&&s.radar.hitAt===null)G.step(1/60,round,ps);
+ assert.ok(s.radar.hitAt>=2.8&&s.radar.hitAt<=3.15,
+  'radar must be bombed about 30% earlier without speeding player movement');
+ while(s.clock<5.25&&!s.finished&&s.radar.phase!=='cycle')G.step(1/60,round,ps);
+ assert.equal(s.radar.phase,'cycle','radar shrink finishes about 30% earlier');
+ assert.ok(s.clock<5.25,'complete radar failure must occur before the old timeline');
 }
 console.log('DANGERFIELD setup/navigation, mines, speed and airplane regression OK');
