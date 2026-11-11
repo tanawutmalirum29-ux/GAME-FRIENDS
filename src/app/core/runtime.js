@@ -260,8 +260,17 @@ function holdSeat(p){
   seatTimers.delete(p.id);
   const q=players.find(q=>q.id===p.id);
   if(q&&!q.conn){
-   if(boardSession){q.isBot=true;const bp=boardSession.players.find(p=>p.id===q.id);if(bp)bp.isBot=true;}
-   else removePlayer(p.id);
+   if(boardSession){
+    // Keep the same physical player/board identity while a remote seat is offline.
+    q.isBot=true;q.input=blankInput();
+    const bp=boardSession.players.find(p=>p.id===q.id);
+    if(bp)bp.isBot=true;
+   }else if(round&&['countdown','playing'].includes(round.phase)&&q.active){
+    // A 60-second loss during NORMAL PARTY must not splice an active
+    // participant out of the engine's immutable per-round roster.
+    // Game-owned AI is initialized lazily on its first bot simulation tick.
+    q.isBot=true;q.input=blankInput();
+   }else removePlayer(p.id);
   }
  },60000));
 }
