@@ -182,9 +182,11 @@ window.GamePlatform=Object.freeze({initialize,refresh,games,descriptor,engine,re
  getRejected:()=>[...rejected.entries()].filter(([,v])=>v.until>Date.now())
   .map(([id,v])=>({id,hash:v.hash,retryAfter:v.until,message:v.message}))});
 if(typeof window.addEventListener==='function'){
- window.addEventListener('focus',()=>{void refresh().catch(()=>{});});
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh().catch(()=>{});});
- setInterval(()=>{if(!document.hidden)void refresh().catch(()=>{});},45000);
+ // Production checks are coordinated by auto-update.js. Local development
+ // without a deploy watcher retains this 45-second fallback.
+ window.addEventListener('focus',()=>{if(!window.GameAutoUpdate)void refresh().catch(()=>{});});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!window.GameAutoUpdate)void refresh().catch(()=>{});});
+ setInterval(()=>{if(!document.hidden&&!window.GameAutoUpdate)void refresh().catch(()=>{});},45000);
 }
 // Service worker never reloads a room; it caches only hashed assets.
 if(typeof navigator!=='undefined'&&navigator.serviceWorker&&location.protocol==='https:'){
