@@ -31,7 +31,7 @@ assert.equal(G.config.planeSpeed,760,'plane flight speed must remain unchanged')
 assert.equal(G.config.bombTime,.55,'bomb flight animation must remain unchanged');
 assert.equal(G.config.radar.shrinkTime,2.5,'radar damage animation must remain unchanged');
 assert.equal(G.config.radar.lowVisibilityScale,.7,'radar poor-visibility intervals are 30% shorter');
-assert.equal(G.config.radar.lowRadiusRatio,.55,'damaged radar should still cover the central 55% of its radius');
+assert.equal(G.config.radar.minR,62,'restricted radar returns to its original narrow range');
 assert.equal(G.config.radar.wideRadiusRatio,1.08,'every wide pulse should reveal the full field');
 assert.equal(G.config.radar.wideSeconds,2,'wide scan lasts long enough for a human to inspect mines');
 assert.equal(G.config.mineRespawn,0.2,'mines must rearm after 200 ms, not the old 3.2 seconds');
@@ -116,7 +116,7 @@ for(const n of [1,12]){
   id:'human-'+i,active:false,isBot:false,input:{axisX:0,axisY:0}
  }));
  const round={phase:'playing',paused:false,dangerSeed:3100+n},s=G.setup(round,ps);
- const low=s.rmax*G.config.radar.lowRadiusRatio;
+ const low=G.config.radar.minR;
  s.radar.state='damaged';s.radar.phase='cycle';s.radar.regime='low';
  s.radar.radius=low;s.radar.target=low;s.radar.left=0;
  G.step(1/60,round,ps);
@@ -132,7 +132,12 @@ for(const n of [1,12]){
  assert.equal(s.radar.regime,'low','wide scans must still alternate with damaged radar downtime');
  assert.ok(s.radar.left>=3.4*.7&&s.radar.left<=6.1*.7,
   'the previously approved 30% shorter blackout period is unchanged');
- assert.ok(s.radar.target>=low&&s.radar.target<=s.rmax*.6,
-  'even limited-visibility radar sees multiple nearby lanes');
+ assert.ok(s.radar.target>=low&&s.radar.target<=low+s.rmax*.05,
+  'restricted radar returns to its original 62px plus up to 5% arena radius');
+ // The real detection radius converges back to the original small radius,
+ // not the enlarged 55–60% map-wide visibility from the earlier change.
+ for(let i=0;i<60;i++)G.step(1/60,round,ps);
+ assert.ok(G.visRadius(s)<s.rmax*.25,
+  'radar must actually become narrow again between guaranteed wide scans');
 }
 console.log('DANGERFIELD setup/navigation, wide radar scans, mines and airplane regression OK');
