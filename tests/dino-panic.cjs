@@ -26,7 +26,7 @@ global.window={PartyCharacters:{
  assert.doesNotMatch(render,/gradients\(g,tr\)\.sh|G\.top|G\.bot/,
   'DINO PANIC must not paint full-width dark gradient bands');
  const dinoArt=require('node:fs').readFileSync(path.join(base,'dino-art.js'),'utf8');
- assert.doesNotMatch(dinoArt,/id="sd"|fill="url\\(#sd\\)"/,
+ assert.doesNotMatch(dinoArt,/id="sd"|url\(#sd\)/,
   'jungle SVG tiles must not bake another continuous dark edge plate');
  assert.match(render,/function drawObstacles\(/);
  assert.match(render,/function drawRunners\(/);
