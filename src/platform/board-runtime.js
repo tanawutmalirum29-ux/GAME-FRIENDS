@@ -3,12 +3,15 @@
 (()=>{
 'use strict';
 const DEFAULT='winter-expedition';
+const LEGACY_ASSETS=['board-design.js','board-scenery.js','board-map.js','board-art.js'];
+const INITIAL_LEGACY_HASH=String(window.GAME_DEFAULT_BOARD_MAP_HASH||'');
 const files=["src/board-party/runtime/board-map.js","src/board-party/runtime/board-design.js","src/board-party/runtime/board-scenery.js",
  "src/board-party/runtime/board-branch-naming.js","src/board-party/runtime/board-layout.js","src/board-party/runtime/board-dice.js","src/board-party/runtime/board-dice-renderer.js",
  "src/board-party/runtime/board-items.js","src/board-party/runtime/board-bots.js","src/board-party/runtime/board-minigame.js","src/board-party/runtime/board-party.js","src/board-party/runtime/board-art.js"];
 const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt'];
 const loaded=new Set(),modules=new Map();
-let pending=null,refreshing=null,legacy=null,active=DEFAULT,activeHash=null;
+let pending=null,refreshing=null,legacy=null,active=DEFAULT,activeHash=INITIAL_LEGACY_HASH||null;
+let legacyHash=INITIAL_LEGACY_HASH||null,defaultCatalogChecked=!INITIAL_LEGACY_HASH;
 let catalog=[{id:DEFAULT,name:'WINTER EXPEDITION',kind:'legacy',enabled:true}],revision=0,selector=null;
 let deferredMaps=null,applyingLobby=null;
 // A live BOARD session pins BoardMap/BoardArt and the selected-map menu.
@@ -33,7 +36,11 @@ captureDefault();
 const chosen=()=>selector?.value||DEFAULT;
 function ready(){
  if(!globalsReady()||chosen()!==active||!systemPrepared)return false;
- if(active===DEFAULT)return true;
+ if(active===DEFAULT){
+  if(!defaultCatalogChecked)return false;
+  const meta=catalog.find(m=>m.id===DEFAULT&&m.enabled);
+  return !meta?.hash||meta.hash===legacyHash;
+ }
  return catalog.some(m=>m.id===active&&m.enabled&&m.hash===activeHash);
 }
 function inject(file){
@@ -59,7 +66,11 @@ function inspect(data){
     m.players?.min!==1||m.players?.max!==12)throw Error('Invalid BOARD map descriptor');
   seen.add(m.id);
   if(m.kind==='legacy'){
-   if(m.id!==DEFAULT||m.entryUrl!==null)throw Error('Invalid legacy map');
+   const prefix='/board-map-assets/'+DEFAULT+'/'+m.hash+'/runtime/';
+   if(m.id!==DEFAULT||m.entryUrl!==null||
+      !Array.isArray(m.legacyUrls)||m.legacyUrls.length!==LEGACY_ASSETS.length||
+      m.legacyUrls.some((url,i)=>url!==prefix+LEGACY_ASSETS[i]))
+    throw Error('Invalid immutable default BOARD assets');
   }else if(typeof m.entryUrl!=='string'||
     !m.entryUrl.startsWith('/board-map-assets/'+m.id+'/'+m.hash+'/')||
     !/\.js$/.test(m.entryUrl))throw Error('Invalid BOARD map URL');
@@ -89,8 +100,11 @@ async function refreshMaps(){
   const res=await fetch(url.href,{cache:'no-store'});
   if(!res.ok)throw Error('BOARD map catalog unavailable: '+res.status);
   const data=await res.json();
-  // A different Core must wait for an explicit safe reload, not an active room.
-  if(window.GAME_CORE_HASH&&data.coreHash!==window.GAME_CORE_HASH)return false;
+  // A different Core must wait for a safe full reload; keep the pinned map.
+  if(window.GAME_CORE_HASH&&data.coreHash!==window.GAME_CORE_HASH){
+   defaultCatalogChecked=true;return false;
+  }
+  defaultCatalogChecked=true;
   const next=inspect(data);
   if(!next.some(m=>m.id===DEFAULT&&m.enabled))throw Error('Default BOARD map unavailable');
   if(playingBoard()){
@@ -127,8 +141,34 @@ async function activate(id){
  captureDefault();
  if(id===DEFAULT){
   if(!legacy)throw Error('Default BOARD map missing');
+  const info=catalog.find(m=>m.id===DEFAULT&&m.enabled);
+  if(info?.hash&&legacyHash!==info.hash){
+   // Switch immutable map assets only after the running BOARD has ended.
+   if(playingBoard())throw Error('Default BOARD update cannot activate mid-game');
+   const previous={map:window.BoardMap,art:window.BoardArt,
+    design:window.BOARD_DESIGN,scenery:window.BOARD_SCENERY};
+   try{
+    for(const url of info.legacyUrls)await inject(url.slice(1));
+    const map=window.BoardMap,art=window.BoardArt;
+    if(map===previous.map||art===previous.art||map?.MAP_ID!==DEFAULT||
+       typeof map.create!=='function'||typeof map.validate!=='function'||
+       typeof map.assertCompatible!=='function'||typeof art.draw!=='function')
+     throw Error('Invalid updated built-in BOARD map');
+    for(const count of [1,6,7,12]){
+     const instance=map.create(0,{players:count});
+     map.assertCompatible(instance);
+     if(map.validate(instance)!==true)
+      throw Error('Updated built-in BOARD map failed validation');
+    }
+    legacy={map,art};legacyHash=info.hash;
+   }catch(error){
+    window.BoardMap=previous.map;window.BoardArt=previous.art;
+    window.BOARD_DESIGN=previous.design;window.BOARD_SCENERY=previous.scenery;
+    throw error;
+   }
+  }
   window.BoardMap=legacy.map;window.BoardArt=legacy.art;
-  active=id;activeHash=null;return;
+  active=id;activeHash=legacyHash||info?.hash||null;return;
  }
  let info=catalog.find(m=>m.id===id&&m.enabled&&m.kind==='module');
  if(!info){await refreshMaps();info=catalog.find(m=>m.id===id&&m.enabled&&m.kind==='module');}
@@ -157,6 +197,12 @@ async function ensure(){
   if(!globalsReady())for(const file of files)if(!loaded.has(file))await inject(file);
   if(!globalsReady()){loaded.clear();throw Error('BOARD PARTY core is incomplete');}
   captureDefault();
+  if(!defaultCatalogChecked)try{await refreshMaps();}
+  catch(error){
+   // Offline clients retain the bundled default map; retry on the next poll.
+   console.warn('BOARD map metadata unavailable; retaining bundled map',error);
+   defaultCatalogChecked=true;
+  }
   await activate(chosen());
   await prepareSystems();
   if(!ready())throw Error('BOARD map/system activation incomplete');
