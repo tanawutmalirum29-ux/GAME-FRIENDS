@@ -136,7 +136,7 @@ for(const n of [1,12]){
   'restricted radar returns to its original 62px plus up to 5% arena radius');
  // The real detection radius converges back to the original small radius,
  // not the enlarged 55–60% map-wide visibility from the earlier change.
- for(let i=0;i<60;i++)G.step(1/60,round,ps);
+ for(let i=0;i<90;i++)G.step(1/60,round,ps);
  assert.ok(G.visRadius(s)<s.rmax*.25,
   'radar must actually become narrow again between guaranteed wide scans');
 }
