@@ -11,6 +11,7 @@ import {drawWorld,preloadArt} from './render.js';
 const active=ps=>ps.filter(p=>p.active);
 const E_TIE=1e-9;                       // crossing / elimination times closer than this are a true tie (sub-nanosecond)
 const PC=()=>typeof window!=='undefined'?window.PartyCharacters:undefined;
+const QN=[],QP=[],QD=[];                 // scratch lists for spatial queries (no array allocation per call)
 
 function inputVector(input){
  const pc=PC(),v=pc?.control?pc.control(input||{}):input||{};
@@ -46,6 +47,7 @@ function setup(round,players){
    bot:p.isBot?makeBot(i,rng):null};
  });
  s.camX=camFor(s);
+ s.prevCam=s.camX;s.prevFront=s.front;s.live=[];s.rk=null;s.rkTick=-1;
  round.dinoPanic=s;round.remaining=duration;
  return s;
 }
@@ -75,8 +77,14 @@ function rankAll(s){
   if(ga===0){const df=a.d.finishAt-b.d.finishAt;return Math.abs(df)>E_TIE?df:0;}
   if(ga===1){const dx=b.p.x-a.p.x;return Math.abs(dx)>1e-6?dx:0;}
   const de=b.d.elimAt-a.d.elimAt;return Math.abs(de)>E_TIE?de:0;};
- rows.forEach(r=>{r.rank=1+rows.filter(q=>q!==r&&cmp(q,r)<0).length;});
+ for(const r of rows){let better=0;for(const q of rows)if(q!==r&&cmp(q,r)<0)better++;r.rank=1+better;}
  return rows.sort((a,b)=>a.rank-b.rank);
+}
+// ranking only changes inside step(), so it is computed at most once per tick no matter how often the host asks
+function rankCached(s){
+ if(s.finished&&s.ranking.length)return s.ranking;
+ if(!s.rk||s.rkTick!==s.tick){s.rk=rankAll(s);s.rkTick=s.tick;}
+ return s.rk;
 }
 function finish(s,round,reason){
  if(s.finished)return;
@@ -88,7 +96,7 @@ function finish(s,round,reason){
 /* ───────── shoveable scenery ───────── */
 // Local bucket search avoids scanning the full corridor each frame.
 function obstacleNear(tr,x,y,r){
- for(const o of tr.query(x-r-8,x+r+8)){
+ for(const o of tr.query(x-r-8,x+r+8,QN)){
   if(o.shape==='circle'){
    if(Math.hypot(x-o.x,y-o.y)<r+o.r)return true;
   }else{
@@ -101,7 +109,7 @@ function obstacleNear(tr,x,y,r){
 function pushScenery(tr,p,dt){
  if(!p.dino.pushing)return;
  const R=C.R,vx=p.dino.ix,vy=p.dino.iy;
- for(const o of tr.query(p.x-R-7,p.x+R+7)){
+ for(const o of tr.query(p.x-R-7,p.x+R+7,QP)){
   let dx,dy;
   if(o.shape==='circle'){dx=p.x-o.x;dy=p.y-o.y;}
   else{dx=p.x-clamp(p.x,o.x-o.hw,o.x+o.hw);dy=p.y-clamp(p.y,o.y-o.hh,o.y+o.hh);}
@@ -112,12 +120,14 @@ function pushScenery(tr,p,dt){
  }
 }
 /* ───────── simulation step ───────── */
+function knock(q,x,y){const d=q.dino;d.kx+=x;d.ky+=y;const km=Math.hypot(d.kx,d.ky);if(km>70){d.kx*=70/km;d.ky*=70/km;}}
 function step(dt,round){
  const s=round.dinoPanic;if(!s||s.finished)return;
  const tr=s.track,R=C.R,t0=s.tick*STEP,prevFront=s.front;
  s.tick++;s.clock=s.tick*STEP;s.front=C.speed*s.clock;     // constant dinosaur speed, no rubber-banding
  s.remaining=Math.max(0,s.duration-s.clock);round.remaining=s.remaining;
  const pc=PC();
+ s.prevFront=prevFront;s.prevCam=s.camX;tr.tick=s.tick;   // previous-tick state for render interpolation
  // 1) runners move (same speed for humans and bots)
  for(const p of s.roster){
   const d=p.dino;d.px=p.x;d.py=p.y;
@@ -133,14 +143,14 @@ function step(dt,round){
   p.vx=d.ix+d.kx;p.vy=d.iy+d.ky;p.x+=p.vx*dt;p.y+=p.vy*dt;
   if(m>.1){p.dir={x:c.x/m,y:c.y/m};p.face=p.dir.x<0?-1:1;}
  }
- const live=s.roster.filter(p=>p.dino.state==='run');
+ const live=s.live;live.length=0;for(const p of s.roster)if(p.dino.state==='run')live.push(p);
  for(const p of live)pushScenery(tr,p,dt);
  // 2) body-to-body shoves: closing speed turns into a short knock for both runners
  for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
   const a=live[i],b=live[j],dx=b.x-a.x,dy=b.y-a.y,dd=Math.hypot(dx,dy);
   if(dd>=2*R+1||dd<1e-6)continue;
   const nx=dx/dd,ny=dy/dd,cs=Math.max(0,(a.dino.ix-b.dino.ix)*nx+(a.dino.iy-b.dino.iy)*ny),J=9+cs*.22;
-  for(const[q,sg]of[[a,-1],[b,1]]){const d=q.dino;d.kx+=nx*J*sg;d.ky+=ny*J*sg;const km=Math.hypot(d.kx,d.ky);if(km>70){d.kx*=70/km;d.ky*=70/km;}}
+  knock(a,-nx*J,-ny*J);knock(b,nx*J,ny*J);
  }
  // 3) Resolve player pairs through the shared solver; do not run a second
  // O(n²) pair solver three times on top of PartyCharacters.resolve().
@@ -161,7 +171,7 @@ function step(dt,round){
  }
  for(const p of live){const d=p.dino;p.vx=(p.x-d.px)/dt;p.vy=(p.y-d.py)/dt;}
  // 4) the dinosaur flattens every obstacle its snout reaches (it never slows down)
- for(const o of tr.query(s.front-60,s.front+120)){
+ for(const o of tr.query(s.front-60,s.front+120,QD)){
   const e=o.shape==='circle'?o.r:o.hw,eh=o.shape==='circle'?o.r:o.hh,yc=clamp(tr.cy,o.y-eh,o.y+eh);
   if(dinoEdge(tr,s.front,yc)>=o.x-e){o.alive=false;
    burst(s,o.x,o.y,o.kind==='rock'?7:10,{t:o.kind==='rock'?'pebble':'debris',v:110,life:.75,size:o.kind==='log'?6:5,color:o.kind==='rock'?'#8a8077':'#b9783a',bx:60});
@@ -186,7 +196,7 @@ function step(dt,round){
   }
  }
  // 7) effects
- for(let i=s.fx.length-1;i>=0;i--){const e=s.fx[i];e.life-=dt;if(e.life<=0){s.fx.splice(i,1);continue;}
+ for(let i=s.fx.length-1;i>=0;i--){const e=s.fx[i];e.life-=dt;if(e.life<=0){const last=s.fx.pop();if(i<s.fx.length)s.fx[i]=last;continue;}   // O(1) swap-remove
   e.x+=e.vx*dt;e.y+=e.vy*dt;e.vx*=.97;e.vy*=.97;e.rot+=e.spin*dt;}
  s.camX=camFor(s);
  // 8) end of race
@@ -203,13 +213,18 @@ function update(dt,round){
  s.accumulator=Math.min(.12,s.accumulator+clamp(Number(dt)||0,0,.12));
  let cycles=0;
  while(s.accumulator+1e-9>=STEP&&cycles++<6&&!s.finished){step(STEP,round);s.accumulator-=STEP;}
+ if(s.accumulator>=STEP)s.accumulator%=STEP;   // after a long stall drop the backlog instead of racing to catch up
  return s.finished?'winner':null;
 }
-function draw(g,time,round,ps){const s=round.dinoPanic;if(s)drawWorld(g,time,s);}
+function draw(g,time,round,ps){
+ const s=round.dinoPanic;if(!s)return;
+ // render alpha = how far we are between the previous and the current 1/60 s tick (removes 0-or-2-steps-per-frame judder)
+ drawWorld(g,time,s,s.finished?1:clamp(s.accumulator/STEP,0,1));
+}
 function hud(ps,round){
- const s=round.dinoPanic,list=active(ps);
- return{survivors:list.filter(p=>p.dino?.state!=='dead').length,remaining:round.remaining,elapsed:s?.clock||0,
-  finished:list.filter(p=>p.dino?.state==='done').length,winnerIds:s?.winnerIds||[]};
+ const s=round.dinoPanic;let survivors=0,finished=0;
+ for(const p of ps){if(!p.active)continue;const st=p.dino?.state;if(st!=='dead')survivors++;if(st==='done')finished++;}
+ return{survivors,remaining:round.remaining,elapsed:s?.clock||0,finished,winnerIds:s?.winnerIds||[]};
 }
 
 /* ───────── results / roster / controller ───────── */
@@ -226,31 +241,50 @@ function getResult(round,players){
  });
 }
 function getRoster(round,players){
- const s=round.dinoPanic,order=new Map((s?rankAll(s):[]).map(r=>[r.id,r.rank]));
+ const s=round.dinoPanic,order=new Map((s?rankCached(s):[]).map(r=>[r.id,r.rank]));
  return players.filter(p=>p.active).map(p=>({id:p.id,value:-(order.get(p.id)||99),
   label:p.dino?.state==='done'?'ถึงเส้นชัย':p.dino?.state==='dead'?'ตกรอบ':'วิ่งอยู่',status:p.dino?.state||'run',eliminated:p.dino?.state==='dead'}));
 }
+const ROSTER=new WeakMap();
+const roleText=d=>d?.state==='done'?'ถึงเส้นชัย':d?.state==='dead'?'ตกรอบ':'วิ่งอยู่';
+/* Chips are created once per player and then only touched when something actually changed.
+   Same output as before, but no DOM churn (and the elimination animation is no longer restarted on every call). */
 function renderRoster(root,activePlayers,round){
- const s=round.dinoPanic,order=new Map((s?rankAll(s):[]).map(r=>[r.id,r.rank]));
- [...activePlayers].sort((a,b)=>(order.get(a.id)||99)-(order.get(b.id)||99)).forEach(p=>{
-  const box=document.createElement('div');box.className='leader-chip';
-  if(p.dino?.state==='dead')box.classList.add('shockwave-eliminated');
-  const dot=document.createElement('span');dot.className='circle';dot.style.background=p.color;
-  const name=document.createElement('span');name.className='leader-name';name.textContent=p.name;
-  const role=document.createElement('small');role.className='leader-role';
-  role.textContent=p.dino?.state==='done'?'ถึงเส้นชัย':p.dino?.state==='dead'?'ตกรอบ':'วิ่งอยู่';
-  const info=document.createElement('span');info.className='leader-item-slot';info.textContent=p.dino?.state==='dead'?'ถูกเหยียบ':' ';
-  box.append(dot,name,role,info);root.append(box);
- });
+ const s=round.dinoPanic,order=new Map((s?rankCached(s):[]).map(r=>[r.id,r.rank]));
+ const list=[...activePlayers].sort((a,b)=>(order.get(a.id)||99)-(order.get(b.id)||99));
+ let st=ROSTER.get(root);if(!st){st={sig:'',nodes:new Map(),first:null};ROSTER.set(root,st);}
+ let sig='';for(const p of list)sig+=p.id+':'+(p.dino?.state||'run')+'|';
+ if(sig===st.sig&&root.firstElementChild===st.first&&root.childElementCount===list.length)return;
+ for(const p of list){
+  let n=st.nodes.get(p.id);
+  if(!n){
+   const box=document.createElement('div');box.className='leader-chip';
+   const dot=document.createElement('span');dot.className='circle';
+   const name=document.createElement('span');name.className='leader-name';
+   const role=document.createElement('small');role.className='leader-role';
+   const info=document.createElement('span');info.className='leader-item-slot';
+   box.append(dot,name,role,info);
+   n={box,dot,name,role,info,state:null,color:null,nm:null};st.nodes.set(p.id,n);
+  }
+  const state=p.dino?.state||'run';
+  if(n.color!==p.color){n.dot.style.background=p.color;n.color=p.color;}
+  if(n.nm!==p.name){n.name.textContent=p.name;n.nm=p.name;}
+  if(n.state!==state){n.role.textContent=roleText(p.dino);n.info.textContent=state==='dead'?'ถูกเหยียบ':' ';n.box.classList.toggle('shockwave-eliminated',state==='dead');n.state=state;}
+  root.append(n.box);
+ }
+ st.sig=sig;st.first=root.firstElementChild;
 }
+function survivorCount(s){let n=0;for(const p of s.roster)if(p.dino?.state!=='dead')n++;return n;}
 function getControllerPacket(p,round){
- const s=round.dinoPanic,d=p.dino||{};
- return{t:'dino-panic-status',mode:round.mode,status:d.state||'run',progress:Math.round(p.score||0),survivors:hud(s?.roster||[],round).survivors};
+ const s=round.dinoPanic,d=p.dino||{},status=d.state||'run',progress=Math.round(p.score||0),survivors=s?survivorCount(s):0,c=p._dpPkt;
+ // identical content → identical object, so a host that de-duplicates (by reference or by value) sends nothing
+ if(c&&c.mode===round.mode&&c.status===status&&c.progress===progress&&c.survivors===survivors)return c;
+ return p._dpPkt={t:'dino-panic-status',mode:round.mode,status,progress,survivors};
 }
 function dispose(round){ // give every resource back when the round ends
  const s=round?.dinoPanic;if(!s)return;
  s.fx.length=0;s.botFields?.clear();s.track.obstacles.length=0;s.track.query=()=>[];s.ranking=[];
- for(const p of s.roster)if(p.dino){p.dino.bot=null;}
+ for(const p of s.roster){delete p._dpPkt;if(p.dino){p.dino.bot=null;}}
  delete round.dinoPanic;
 }
 const engine=Object.freeze({getControllerPacket,renderRoster,getResult,getRoster,dispose,resultTitle:'ผู้รอดจากไดโนเสาร์!',countdownSeconds:3,
