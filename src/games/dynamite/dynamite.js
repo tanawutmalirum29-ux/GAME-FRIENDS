@@ -336,7 +336,10 @@ function botDecide(s,p,ps){
  else if(bestC){b.dx=bestC.dx;b.dy=bestC.dy;}
 }
 function botInput(s,p,ps,dt){
- const b=p.dyn.bot;
+ // Create AI on an in-progress takeover (never reset the fuse, held bomb or velocities).
+ const b=p.dyn.bot||(p.dyn.bot=Object.assign(makeBot(s),{
+  homeX:p.x,homeY:p.y,lastX:p.x,lastY:p.y
+ }));
  // After a pass, sprint away from the new holder. This outranks normal
  // target/rail positioning and prevents two-bot pass ping-pong.
  if(b.escapeUntil>s.clock&&s.bomb?.holderId!==p.id){
