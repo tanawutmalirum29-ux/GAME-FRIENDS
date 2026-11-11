@@ -4428,10 +4428,11 @@ if(launchedHost&&!joinCode){
 window.GAME_CAN_AUTO_RELOAD=()=>{
  if(round||gameSelection||boardSession||onlineHost||hostPeer||hostNetworkLoad||
     controllerReady||controllerPeer||controllerConn||controllerNetworkLoad)return false;
+ // Restored offline lobbies can be visible before older compatibility
+ // initialization has synchronized currentView. Protect the actual mounted
+ // Host lobby as well as its logical view from a destructive Core reload.
+ if(currentView==='hostLobby'||!$('hostLobby').classList.contains('hidden'))return false;
  if(currentView==='home')return true;
- // Host lobbies (online OR offline) are live rooms. Never replace the
- // document or drop the roster just because BOARD returned to lobby.
- if(currentView==='hostLobby')return false;
  return currentView==='controller';
 };
 window.GAME_PREPARE_AUTO_RELOAD=()=>{
