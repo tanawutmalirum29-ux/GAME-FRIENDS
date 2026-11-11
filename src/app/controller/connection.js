@@ -568,10 +568,14 @@ function joinRoom(recovery=false){
             nextLabel:typeof data.nextLabel==='string'?data.nextLabel:'เกมถัดไป',
             backLabel:typeof data.backLabel==='string'?data.backLabel:'กลับล็อบบี้',
             autoNextSeconds:Number.isFinite(data.autoNextSeconds)&&data.autoNextSeconds>0?
-              Math.ceil(data.autoNextSeconds):null
+              Math.ceil(data.autoNextSeconds):null,
+            nextWaitSeconds:Number.isFinite(data.nextWaitSeconds)?
+              Math.max(0,Math.min(3,Math.ceil(data.nextWaitSeconds))):0
           };
           showControllerMode(controllerGameMode);
-          $('controllerState').textContent='กด A เพื่อเล่นต่อ หรือ B เพื่อ'+controllerResultVotes.backLabel;
+          $('controllerState').textContent=controllerResultVotes.nextWaitSeconds>0?
+            'กำลังสรุปผล • กด A ได้ใน '+controllerResultVotes.nextWaitSeconds+' วิ':
+            'กด A เพื่อเล่นต่อ หรือ B เพื่อ'+controllerResultVotes.backLabel;
         }
       }else if(data.t==='inventory'){
         renderPhoneInventory(data);
@@ -716,7 +720,8 @@ function setControllerGameContext(mode,phase,active){
   }
   if(!['results','summary'].includes(controllerGamePhase)||
      !['results','summary'].includes(previousControllerPhase))
-    controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null};
+    controllerResultVotes={next:0,lobby:0,total:0,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null,
+      nextWaitSeconds:['results','summary'].includes(controllerGamePhase)?3:0};
   controllerPlayerActive=!!active;
   // Revoke camera mode when the walking turn ends or the owner loses control.
   if(boardCameraController?.enabled()&&(!controllerReady||mode!=='board'||
@@ -778,6 +783,8 @@ function showControllerMode(mode){
     voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
     controllerResultVotes.nextLabel)+
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
+    (controllerResultVotes.nextWaitSeconds>0?
+      ' • รอกด A '+controllerResultVotes.nextWaitSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
     playing?(labels.A||''):'';
   const bLabel=controllerGamePhase==='lobby'&&plazaPickerOpen?'ปิดรายการเกม':voting?controllerResultVotes.backLabel+' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
@@ -827,6 +834,9 @@ function showControllerMode(mode){
     }
     $('controllerHelp').textContent=ui.help||'ใช้จอยเพื่อเคลื่อนที่และปุ่มความสามารถตามที่เกมกำหนด';
   }
+  // The phone's disabled A is feedback only. Host castResultVote independently
+  // enforces the deadline against lagged/forged packets and held presses.
+  if(voting&&controllerResultVotes.nextWaitSeconds>0)$('buttonA').disabled=true;
 }
 function renderPhoneLawnStatus(info){
   if(!isLiveGameContext()||controllerGameMode!=='lawn_mower'||!info||
