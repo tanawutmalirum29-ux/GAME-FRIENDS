@@ -464,6 +464,14 @@ function hud(ps,round){
 }
 
 /* ------------------------------ drawing ------------------------------ */
+// COUNTDOWN DROP keeps its 0.12 / 0.10 / 0.18-second punch and 1.4s stun.
+// This function maps VISUAL phases only to the canonical 16-frame SVG.
+function punchVisualMs(pn){
+ if(pn.phase==='wind')return 180*clamp(pn.t/C.punch.wind,0,.99999);
+ if(pn.phase==='active')return 180+100*clamp(pn.t/C.punch.active,0,.99999);
+ if(pn.phase==='recovery')return 280+200*clamp(pn.t/C.punch.recovery,0,.99999);
+ return null;
+}
 function draw(g,time,round,ps){
  const s=round.countdownDrop;if(!s)return;
  const a=art(),w=s.world,u=1;
@@ -476,13 +484,12 @@ function draw(g,time,round,ps){
  for(const e of s.fx)if(e.k==='puff')a.drawPuff(g,e);
  for(const f of s.fallers)a.drawFall(g,f.p,clamp(f.t/C.fallTime,0,1),u);
  for(const p of living(ps)){
-  if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:s.clock,label:false});
+  const pn=p.dyn.pn,visualMs=punchVisualMs(pn);
+  if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{
+   time:s.clock,label:false,attacking:visualMs!==null,
+   ...(visualMs===null?{}:{punchElapsedMs:visualMs,punchFacing:pn.dir})
+  });
   else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(p.x,p.y,C.radius,0,TAU);g.fill();}
-  const pn=p.dyn.pn;
-  if(pn.phase!=='idle'){
-   const prog=pn.phase==='wind'?-.35*(pn.t/C.punch.wind):pn.phase==='active'?1:1-pn.t/C.punch.recovery;
-   a.drawFist(g,{x:p.x,y:p.y,dir:pn.dir},Math.max(-.35,prog),u,C.radius);
-  }
   if(s.clock<p.dyn.stunUntil)a.drawStun(g,p,s.clock,u);
  }
  for(const e of s.fx){if(e.k==='spark')a.drawSpark(g,e);else if(e.k==='ring')a.drawRing(g,e);}
