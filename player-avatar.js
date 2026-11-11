@@ -15,14 +15,21 @@ const PUNCH_PALETTE=Object.freeze({
 });
 const punchImages=new Map(),punchDrawn=new WeakSet();
 let punchAtlasSource=null,punchAtlasPromise=null,punchAtlasFailed=false;
+// Visual sampler only: other games can map THEIR OWN authoritative attack
+// phases to 0–480ms without changing stun, cooldown, physics or hit timing.
+function punchFrameAtMs(elapsed){
+ if(!Number.isFinite(elapsed)||elapsed<0||elapsed>=480)return -1;
+ const ms=Math.round(elapsed*1000)/1000;
+ return PUNCH_FRAME_ENDS.findIndex(end=>ms<end);
+}
 function punchFrameFor(p){
  if(!(p?.attackRemaining>0))return -1;
  const total=window.PartyCombatMotion?.TOTAL??.48;
- // Snap sub-microsecond binary float noise at authored frame boundaries.
- const elapsed=Math.max(0,Math.min(479.9999,Math.round((total-p.attackRemaining)*1e6)/1000));
- return PUNCH_FRAME_ENDS.findIndex(end=>elapsed<end);
+ // Clamp rounding at the final positive attack tick.
+ const elapsed=Math.max(0,Math.min(479.999,Math.round((total-p.attackRemaining)*1e6)/1000));
+ return punchFrameAtMs(elapsed);
 }
-function punchHeading(p){return heading({dir:p.attackFacing||p.dir});}
+function punchHeading(p,facing){return heading({dir:facing||p.attackFacing||p.dir});}
 function punchSvgFor(color){
  if(!punchAtlasSource)return null;
  const body=safeColor(color);
@@ -172,14 +179,16 @@ function heading(p){
 function draw(ctx,p,opts={}){
  const x=opts.local?0:(p.x||0),y=opts.local?0:(p.y||0),t=opts.time||0;
  const moving=Math.hypot(p.vx||0,p.vy||0)>15;
- const pose=opts.holding?'hold':opts.attacking?'attack':moving?(Math.sin(t*12)>0?'walk':'walk2'):'idle';
+ const pose=opts.attacking?'attack':opts.holding?'hold':moving?(Math.sin(t*12)>0?'walk':'walk2'):'idle';
  const color=opts.color||p.color,scale=opts.scale===undefined?1:opts.scale;
  ctx.save();
  ctx.globalAlpha=(typeof ctx.globalAlpha==='number'?ctx.globalAlpha:1)*(opts.alpha===undefined?1:opts.alpha);
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
  ctx.fillStyle='#06142255';ctx.beginPath();ctx.ellipse(0,0,19,16,0,0,TAU);ctx.fill();
- const punchFrame=!opts.holding&&opts.attacking!==false?punchFrameFor(p):-1;
- ctx.save();ctx.rotate(punchFrame>=0?punchHeading(p):heading(p));
+ const punchFrame=opts.attacking===false?-1:
+  Number.isFinite(opts.punchElapsedMs)?punchFrameAtMs(opts.punchElapsedMs):punchFrameFor(p);
+ if(punchFrame<0)punchDrawn.delete(p); // a different round must not inherit a previous draw marker
+ ctx.save();ctx.rotate(punchFrame>=0?punchHeading(p,opts.punchFacing):heading(p));
  const atlas=punchFrame>=0?punchImageFor(color):null;
  if(atlas&&atlas.complete&&atlas.naturalWidth){
   // Padded SVG viewBox is not an actor scale or physics origin change.
@@ -211,5 +220,7 @@ function drawFront(ctx,p,x,y,size=60){
  ctx.restore();
 }
 window.PartyPlayerAvatar=Object.freeze({draw,drawFront,imageFor,imageForFront,svgFor,svgForFront,heading,costumeFor,COSTUMES,preload,
- punchFrameFor,punchImageFor,punchSvgFor,punchHeading,consumePunchDrawn,loadPunchAtlas});
+ punchFrameFor,punchFrameAtMs,punchImageFor,punchSvgFor,punchHeading,consumePunchDrawn,loadPunchAtlas});
+ // Fetch atlas text early on HTTP hosts (no Image decoding until actually punching).
+ if(typeof location!=='undefined'&&/^https?:$/.test(location.protocol))loadPunchAtlas();
 })();

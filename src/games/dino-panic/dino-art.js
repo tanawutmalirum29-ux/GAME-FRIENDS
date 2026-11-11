@@ -106,7 +106,7 @@ export function forestSVG(h,seed){
 <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f6a24"/><stop offset="1" stop-color="#5f9a32"/></linearGradient>
 <radialGradient id="c" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#7cc03e"/><stop offset=".6" stop-color="#4d9a2a"/><stop offset="1" stop-color="#2b6a1f"/></radialGradient>
 <radialGradient id="rk" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#d8bf9a"/><stop offset=".6" stop-color="#a98a66"/><stop offset="1" stop-color="#6b5640"/></radialGradient>
-<linearGradient id="sd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#2a1a0c" stop-opacity=".45"/></linearGradient></defs>
+</defs>
 <rect width="${W}" height="${h}" fill="url(#g)"/>`;
  const wrap=(fn,x=0,rad=1e9)=>{for(const o of[-W,0,W])if(x+o+rad>0&&x+o-rad<W)fn(o);};
  for(let i=0;i<130;i++){const x=r()*W,y=r()*h,l=8+r()*10,a=-1.2+r()*.5;
@@ -126,7 +126,6 @@ export function forestSVG(h,seed){
  // boulders hugging the corridor edge (bottom of the strip)
  for(let x=10;x<W;x+=34+r()*40){const w=30+r()*30,y=h-4-r()*8,hh=w*.55;
   wrap(o=>{s+=`<ellipse cx="${f1(x+o+4)}" cy="${f1(y+4)}" rx="${f1(w/2)}" ry="${f1(hh/2)}" fill="#2a1a0c" opacity=".35"/><path d="M${f1(x+o-w/2)} ${f1(y)} q${f1(w*.05)} ${f1(-hh)} ${f1(w*.35)} ${f1(-hh*.9)} q${f1(w*.4)} ${f1(-hh*.2)} ${f1(w*.65)} ${f1(hh*.9)} Z" fill="url(#rk)" stroke="#5a4733" stroke-width="2.4" stroke-linejoin="round"/><path d="M${f1(x+o-w*.2)} ${f1(y-hh*.55)} l${f1(w*.25)} ${f1(hh*.2)}" stroke="#fff" stroke-width="2" opacity=".35"/>`;},x,w);}
- s+=`<rect y="${h-18}" width="${W}" height="18" fill="url(#sd)"/>`;
  return s+`</svg>`;
 }
 export function crateSVG(v){

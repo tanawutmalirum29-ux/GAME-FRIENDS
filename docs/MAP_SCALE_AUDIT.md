@@ -82,3 +82,21 @@ Do not merge until `verify.yml` tests and browser checks finish without failures
 | DINO PANIC 1–6 / 7–12 | Host world projected into 960×540 logical Canvas; world actor radius 15, speed 130; 8-unit track validation and 10-unit bot path grid | Unchanged gameplay dimensions and collision scale; revised spatial and bot buffers, cached SVG rasterization, interpolated camera/obstacle positions | Neither logical host resolution, DPR, bot navigation grid, validation grid, nor atlas detail is reduced for FPS |
 
 **Verification boundary:** On the integration branch the attached DINO PANIC package was byte-for-byte checked against uploaded ZIP blobs before each remote update. ZIP-local 1/2/6/7/12 runner simulation smoke passed with original 8/10 world-unit grids (measured 300 updates each). Full repository CI/browser checks remain the authoritative requirement before merging, and physical iPad hardware QA is separate. Do not infer a physical-device FPS improvement from these Node checks.
+
+## DINO PANIC shadow plate removal / five-game punch audit (2026-11-11)
+
+**Reported visual defect:** giant translucent dark areas appeared as a left-side plate near the dinosaur and continuous strips next to the upper/lower jungle edges. These were NOT occlusion or gameplay mechanics. They were the renderer's deliberately painted 360×200 elliptical dinosaur shadow, 90×400 snout-gradient rectangle, two full-width 16-unit corridor edge overlays, and a repeated 18-unit-wide dark strip baked into each `forestSVG` tile. All of these continuous dark plates have been removed from `render.js` and `dino-art.js`. Individual obstacle and player ground-contact shadows remain.
+
+**Unchanged:** Both DINO PANIC world tiers; 960×540 logical host, full DPR backing pixels; 130-unit runner/dinosaur speed, 15-unit character radius, 8-unit map-validation grid and 10-unit bot-navigation grid. No physics, path, asset or actor scale was altered.
+
+**Punch audit of all 26 discoverable minigame engines:**
+
+| Classification | Minigames | Rendering decision |
+|---|---|---|
+| Hand punch (5 games) | CHICKENS, COLOR SWITCH, COUNTDOWN DROP, FRUIT MEMORY, GHOST ATTACK | All use the canonical `PartyPlayerAvatar` punch-v2, 16 SVG frames. CHICKENS, COLOR SWITCH, FRUIT MEMORY and GHOST ATTACK keep the original `PartyCombatMotion` timeline. COUNTDOWN DROP now maps its own windup/active/recovery phases to punch-v2 frames without altering its 0.12/0.10/0.18s hit timeline, 0.65s cooldown, 1.4s stun or immunity/knockback. No legacy `drawFist` call or duplicate arm. |
+| Unique weapon/attack (8 games) | CANNON CHAOS, COWBOY CROSSFIRE, GLADIATORS, KNIGHT MATCH, MOLE MAYHEM, PIZZA TIME, SNOW BRAWL, UFO ARENA | Preserve their original weapon/throw/ram mechanics. A hammer in MOLE MAYHEM and a lance in KNIGHT MATCH are not unarmed punches. PIZZA TIME is a carry/serve action, not punch. |
+| Movement, capture, survival or other non-punch action (13 games) | BLOCK BREAKERS, BOULDER BASH, CANDY CHAOS, COLOR CLAIM, DANGERFIELD, DINO PANIC, DYNAMITE, ICE RACE, LAWN MOWER, SCOOP RUSH, SHOCKWAVE, SHOPPING TIME, WITCHING SNAKE | No standard hand punch; do not force an irrelevant punch animation. |
+
+**Scale contract:** Both shared and custom-timed punches render around the same physics origin with the original 52/64 = 0.8125 unit-per-SVG pixel scale. The transparent padded atlas remains 96×112 SVG units, with draw destination (−39, −52, 78, 91); no hitbox grows to fit the fist. A COUNTDOWN DROP animation is visual state only; hit tests and gameplay authority remain in that engine.
+
+**Verification:** Dedicated Node contracts in `tests/avatar-topdown.cjs` and `tests/dino-panic.cjs`, plus required latest-head Chromium/WebKit browser and CI gates. Physical-device visual validation remains a separate limitation.

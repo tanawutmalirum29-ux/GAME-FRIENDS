@@ -163,15 +163,6 @@ function star(g,x,y,r,color){
  g.beginPath();for(let i=0;i<10;i++){const rr=i%2?r*.45:r,a=-Math.PI/2+i*Math.PI/5;g.lineTo(Math.cos(a)*rr,Math.sin(a)*rr);}
  g.closePath();g.fill();g.stroke();g.restore();
 }
-function drawFist(g,p,prog,unit,R){
- // prog 0..1 extends the fist along p.dir
- const d=p.dir||{x:1,y:0},reach=(R*.55+R*1.25*prog)*1;
- const fx=p.x+d.x*(R+reach*.55),fy=p.y+d.y*(R+reach*.55);
- g.save();g.translate(fx,fy);
- g.fillStyle='#ffd9a0';g.strokeStyle='#5a3414';g.lineWidth=2*unit;
- g.beginPath();g.arc(0,0,7.5*unit,0,TAU);g.fill();g.stroke();
- g.restore();
-}
 function drawFall(g,p,k,unit){
  // k 0..1: shrinks and sinks into the pit
  g.save();g.translate(p.x,p.y+k*18*unit);
@@ -193,5 +184,5 @@ function drawRing(g,e){
  g.beginPath();g.arc(e.x,e.y,(e.r0||6)+(e.grow||26)*k,0,TAU);g.stroke();g.restore();
 }
 function release(){images.clear();}
-window.CountdownDropArt=Object.freeze({release,preload,drawBackdrop,drawForeground,drawTile,drawNumber,drawStun,drawFist,drawFall,drawPuff,drawSpark,drawRing,level});
+window.CountdownDropArt=Object.freeze({release,preload,drawBackdrop,drawForeground,drawTile,drawNumber,drawStun,drawFall,drawPuff,drawSpark,drawRing,level});
 })();
