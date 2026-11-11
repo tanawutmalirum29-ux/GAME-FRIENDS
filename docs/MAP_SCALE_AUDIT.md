@@ -85,7 +85,7 @@ Do not merge until `verify.yml` tests and browser checks finish without failures
 
 ## DINO PANIC shadow plate removal / five-game punch audit (2026-11-11)
 
-**Reported visual defect:** giant translucent dark areas appeared as a left-side plate near the dinosaur and continuous strips next to the upper/lower jungle edges. These were NOT occlusion or gameplay mechanics. They were the renderer's deliberately painted 360×200 elliptical dinosaur shadow, 90×400 snout-gradient rectangle, and two full-width 16-unit corridor edge overlays. All five large overlays have been removed from `src/games/dino-panic/render.js`. Individual obstacle and player ground-contact shadows remain.
+**Reported visual defect:** giant translucent dark areas appeared as a left-side plate near the dinosaur and continuous strips next to the upper/lower jungle edges. These were NOT occlusion or gameplay mechanics. They were the renderer's deliberately painted 360×200 elliptical dinosaur shadow, 90×400 snout-gradient rectangle, two full-width 16-unit corridor edge overlays, and a repeated 18-unit-wide dark strip baked into each `forestSVG` tile. All of these continuous dark plates have been removed from `render.js` and `dino-art.js`. Individual obstacle and player ground-contact shadows remain.
 
 **Unchanged:** Both DINO PANIC world tiers; 960×540 logical host, full DPR backing pixels; 130-unit runner/dinosaur speed, 15-unit character radius, 8-unit map-validation grid and 10-unit bot-navigation grid. No physics, path, asset or actor scale was altered.
 
