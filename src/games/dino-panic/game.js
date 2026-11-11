@@ -109,14 +109,28 @@ function obstacleNear(tr,x,y,r){
 function pushScenery(tr,p,dt){
  if(!p.dino.pushing)return;
  const R=C.R,vx=p.dino.ix,vy=p.dino.iy;
- for(const o of tr.query(p.x-R-7,p.x+R+7,QP)){
-  let dx,dy;
-  if(o.shape==='circle'){dx=p.x-o.x;dy=p.y-o.y;}
-  else{dx=p.x-clamp(p.x,o.x-o.hw,o.x+o.hw);dy=p.y-clamp(p.y,o.y-o.hh,o.y+o.hh);}
-  const d=Math.hypot(dx,dy),limit=R+(o.shape==='circle'?o.r:0)+1;
-  if(d>limit)continue;
-  if(d>1e-5&&dx*vx+dy*vy>=0)continue; // only when moving into it
-  tr.moveObstacle(o,vx*dt,vy*dt);
+ for(const o of tr.query(p.x-R-8,p.x+R+8,QP)){
+  if(o.kind==='fence')continue; // fixed structural obstacles
+  const circle=o.shape==='circle';
+  const px=circle?o.x:clamp(p.x,o.x-o.hw,o.x+o.hw);
+  const py=circle?o.y:clamp(p.y,o.y-o.hh,o.y+o.hh);
+  let nx=p.x-px,ny=p.y-py,d=Math.hypot(nx,ny);
+  if(d>R+(circle?o.r:0)+2)continue;
+  if(d<1e-5){nx=p.x-o.x;ny=p.y-o.y;d=Math.hypot(nx,ny);}
+  if(d<1e-5){nx=-vx;ny=-vy;d=Math.hypot(nx,ny);}
+  if(d<1e-5)continue;
+  nx/=d;ny/=d;
+  const closing=-(vx*nx+vy*ny);
+  if(closing<=0)continue;
+  // Transfer force along the collision normal. The rocky surface is a
+  // CONTACT point on the circumference, not the rock's centre.
+  const mass=o.kind==='crate'?1:o.kind==='rock'?1.25:4.5;
+  const impulse=Math.min(165,closing)*dt*3.2/mass;
+  const tx=-ny,ty=nx;
+  const tangential=vx*tx+vy*ty;
+  const grip=(o.kind==='rock'?.22:.09)*tangential*dt;
+  const cx=circle?o.x+nx*o.r:px,cy=circle?o.y+ny*o.r:py;
+  tr.impulseObstacle(o,-nx*impulse+tx*grip,-ny*impulse+ty*grip,cx,cy);
  }
 }
 /* ───────── simulation step ───────── */
@@ -145,6 +159,7 @@ function step(dt,round){
  }
  const live=s.live;live.length=0;for(const p of s.roster)if(p.dino.state==='run')live.push(p);
  for(const p of live)pushScenery(tr,p,dt);
+ tr.stepObstacles(dt);
  // 2) body-to-body shoves: closing speed turns into a short knock for both runners
  for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
   const a=live[i],b=live[j],dx=b.x-a.x,dy=b.y-a.y,dd=Math.hypot(dx,dy);

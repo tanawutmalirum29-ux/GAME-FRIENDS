@@ -7,7 +7,7 @@ let _b=new Uint8Array(8192),_d=new Float64Array(8192);const _h=new Heap();  // r
 const PAD=26,BUCKET=128;
 
 /* ───────── obstacle builders ───────── */
-const O=(kind,shape,x,y,hw,hh,v)=>({id:0,kind,shape,x,y,hw,hh,r:shape==='circle'?hw:0,v:v|0,alive:true});
+const O=(kind,shape,x,y,hw,hh,v)=>({id:0,kind,shape,x,y,hw,hh,r:shape==='circle'?hw:0,v:v|0,alive:true,angle:0,prevAngle:0,spin:0,mvx:0,mvy:0});
 const crate=(x,y,G)=>O('crate','rect',x,y,C.crate,C.crate,G.rng()*4);
 const rock=(x,y,r,G)=>O('rock','circle',x,y,r,r,G.rng()*3);
 const logV=(x,y0,y1)=>O('log','rect',x,(y0+y1)/2,15,(y1-y0)/2,0);
@@ -167,8 +167,23 @@ export function buildTrack(tier,seed,playerCount){
   if(ny-ry<top-3||ny+ry>bottom+3||nx-rx<lastSpawn+45||nx+rx>finishX-35)return false;
   for(const q of query(nx-rx-5,nx+rx+5,QM)){
    if(q===o)continue;
-   const qx=q.shape==='circle'?q.r:q.hw,qy=q.shape==='circle'?q.r:q.hh;
-   if(Math.abs(nx-q.x)<rx+qx+3&&Math.abs(ny-q.y)<ry+qy+3)return false;
+   // The old AABB-vs-AABB test treated a round rock as a square.
+   // Diagonal gaps that were actually open falsely immobilized the rock.
+   const pad=1;
+   let blocked=false;
+   if(o.shape==='circle'&&q.shape==='circle'){
+    blocked=Math.hypot(nx-q.x,ny-q.y)<o.r+q.r+pad;
+   }else if(o.shape==='circle'){
+    const cx=clamp(nx,q.x-q.hw,q.x+q.hw);
+    const cy=clamp(ny,q.y-q.hh,q.y+q.hh);
+    blocked=Math.hypot(nx-cx,ny-cy)<o.r+pad;
+   }else if(q.shape==='circle'){
+    const cx=clamp(q.x,nx-rx,nx+rx),cy=clamp(q.y,ny-ry,ny+ry);
+    blocked=Math.hypot(q.x-cx,q.y-cy)<q.r+pad;
+   }else{
+    blocked=Math.abs(nx-q.x)<rx+q.hw+pad&&Math.abs(ny-q.y)<ry+q.hh+pad;
+   }
+   if(blocked)return false;
   }
   const lo=Math.floor((nx-rx)/BUCKET),hi=Math.floor((nx+rx)/BUCKET);
   if(lo!==o._bucketLo||hi!==o._bucketHi){
@@ -183,7 +198,50 @@ export function buildTrack(tier,seed,playerCount){
   if(o.mt!==out2.tick){o.mt=out2.tick;o.ox=o.x;o.oy=o.y;}   // position at the start of this tick (render interpolation)
   o.x=nx;o.y=ny;return true;
  };
- out2={tier,top,bottom,H,cy,cols,perCol,spawnX,lastSpawn,finishX,endX,obstacles,chunks,query,moveObstacle,
+ // Fixed-step obstacle inertia. The validated 8-unit path grid, character
+ // collision radius and obstacle footprints never change with visual spin.
+ const moving=new Set();
+ const impulseObstacle=(o,ix,iy,cx,cy)=>{
+  if(!o.alive||o.kind==='fence'||Math.hypot(ix,iy)<1e-6)return;
+  const rock=o.kind==='rock',gain=rock?16:11,cap=rock?110:95;
+  o.mvx=clamp(o.mvx+ix*gain,-cap,cap);
+  o.mvy=clamp(o.mvy+iy*gain,-cap,cap);
+  const lever=(cx-o.x)*iy-(cy-o.y)*ix;
+  const inertia=Math.max(180,(o.hw*o.hw+o.hh*o.hh)*.5);
+  o.spin=clamp(o.spin+lever*(rock?210:150)/inertia,-5,5);
+  moving.add(o);
+ };
+ const stepObstacles=dt=>{
+  for(const o of moving){
+   if(!o.alive){moving.delete(o);continue;}
+   const prevX=o.x,prevY=o.y,dx=o.mvx*dt,dy=o.mvy*dt;
+   if(Math.hypot(o.mvx,o.mvy)>.15){
+    let moved=moveObstacle(o,dx,dy);
+    // Try tangent sliding when another collider blocks the full vector.
+    // Do not teleport through props or let a rock leave the corridor.
+    if(!moved&&Math.abs(dx)>1e-5&&Math.abs(dy)>1e-5)
+     moved=moveObstacle(o,dx,0)||moveObstacle(o,0,dy);
+    if(!moved){o.mvx*=.18;o.mvy*=.18;o.spin*=.7;}
+   }
+   if(o.at!==out2.tick){o.at=out2.tick;o.prevAngle=o.angle;}
+   if(o.kind==='rock'){
+    // Rock rotation follows ACTUAL travelled distance (rolling without slipping),
+    // even when the player pushes directly through its centre.
+    const mx=o.x-prevX,my=o.y-prevY,travel=Math.hypot(mx,my);
+    if(travel>1e-6){
+     const direction=Math.abs(mx)>=Math.abs(my)?Math.sign(mx):Math.sign(my);
+     o.angle+=direction*travel/Math.max(o.r,8);
+    }
+    o.angle+=o.spin*dt;
+   }else o.angle+=o.spin*dt;
+   const damping=Math.exp(-(o.kind==='rock'?2.5:5)*dt);
+   o.mvx*=damping;o.mvy*=damping;o.spin*=Math.exp(-4*dt);
+   if(Math.abs(o.mvx)+Math.abs(o.mvy)+Math.abs(o.spin)<.06){
+    o.mvx=o.mvy=o.spin=0;moving.delete(o);
+   }
+  }
+ };
+ out2={tier,top,bottom,H,cy,cols,perCol,spawnX,lastSpawn,finishX,endX,obstacles,chunks,query,moveObstacle,impulseObstacle,stepObstacles,
   overhead:prevOver,fallbacks,seed,tick:0};
  return out2;
 }
