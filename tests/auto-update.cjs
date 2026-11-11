@@ -35,7 +35,8 @@ function session(loaded,deployed,safeOn=true,remember=null,url='https://game.exa
   GAME_NOTIFY_UPDATE:()=>{notify++;},location,
   addEventListener(name,fn){(events[name]??=[]).push(fn);}};
  const doc={hidden:false,addEventListener(name,fn){(docEvents[name]??=[]).push(fn);}};
- const storage={getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)};
+ const storage={getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v),
+  removeItem:k=>stored.delete(k)};
  const ctx={window:win,document:doc,sessionStorage:storage,URL,Date,
   fetch:async (link,opts)=>{
    requests.push({url:link,opts});
@@ -55,11 +56,16 @@ async function main(){
  assert.equal(same.win.location.redirected,undefined);
  assert.equal(same.requests[0].opts.cache,'no-store');
  assert.equal(new URL(same.requests[0].url).pathname,'/deployment.json');
- assert.equal(new URL(same.requests[0].url).search,'');
+ assert.ok(new URL(same.requests[0].url).searchParams.has('_gf_check'),
+  'Every poll must bypass stale CDN/browser JSON cache');
  const idle=session(old,next);
  assert.equal(await idle.win.GameAutoUpdate.check(),true);
- assert.equal(idle.win.location.redirected,'https://game.example/?join=ABC123');
- assert.equal(idle.stored.get('gf-reloaded-deploy'),next);
+ const redirected=new URL(idle.win.location.redirected);
+ assert.equal(redirected.searchParams.get('join'),'ABC123',
+  'The existing invite or room query survives a forced fresh navigation');
+ assert.ok(redirected.searchParams.has('gf_refresh'),
+  'Full reload bypasses stale document cache using a temporary nonce');
+ assert.equal(JSON.parse(idle.stored.get('gf-reloaded-deploy')).id,next);
  assert.equal(idle.notices,0);
  const veto=session(old,next);
  let saves=0;veto.win.GAME_PREPARE_AUTO_RELOAD=()=>{saves++;return false;};
@@ -75,11 +81,20 @@ async function main(){
  assert.equal(busy.notices,1);
  await busy.win.GameAutoUpdate.check();assert.equal(busy.notices,1);
  busy.setSafe(true);assert.equal(busy.win.GameAutoUpdate.onSafePoint(),true);
- assert.equal(busy.win.location.redirected,'https://game.example/?join=ABC123');
- const stale=session(old,next,true,next);
+ assert.equal(new URL(busy.win.location.redirected).searchParams.get('join'),'ABC123');
+ // Legacy guard strings are not permanent blockers, and a JSON guard expires
+ // if a CDN returns the same stale application shell after navigation.
+ const legacy=session(old,next,true,next);
+ await legacy.win.GameAutoUpdate.check();
+ assert.ok(legacy.win.location.redirected);
+ const prior={id:next,from:old,at:Date.now()-1000};
+ const stale=session(old,next,true,JSON.stringify(prior));
  await stale.win.GameAutoUpdate.check();
  assert.equal(stale.win.location.redirected,undefined);
  assert.equal(stale.notices,1);
+ stale.stored.set('gf-reloaded-deploy',JSON.stringify({...prior,at:Date.now()-30000}));
+ assert.equal(stale.win.GameAutoUpdate.onSafePoint(),true,
+  'An expired failed reload can retry automatically without exiting a room');
  const hidden=session(old,next);
  hidden.doc.hidden=true;
  assert.equal(await hidden.win.GameAutoUpdate.check(),false);
@@ -89,7 +104,17 @@ async function main(){
  await new Promise(resolve=>setImmediate(resolve));
  assert.ok(hidden.win.location.redirected);
  assert.equal(hidden.intervals[0].ms,45000);
- assert.ok(hidden.delays[0].ms>0);
- console.log('AUTO UPDATE PASS: stable deployment URLs, safe reload, live-room deferral, no redirect loop');
+ assert.equal(hidden.delays[0].ms,0,'Checks begin as soon as the page boots');
+ const newer=session(next,next,true,JSON.stringify({id:next,from:old,at:Date.now()}));
+ assert.equal(newer.stored.has('gf-reloaded-deploy'),false,
+  'Landing on the new deployment clears the previous reload guard');
+ const refresh=session(old,old);
+ let catalogRefreshes=0;
+ refresh.win.GamePlatform={refresh:()=>{catalogRefreshes++;return Promise.resolve();}};
+ for(const fn of refresh.events.pageshow||[])fn();
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(catalogRefreshes,1,'Returning from browser cache refreshes live plugins');
+ assert.equal(refresh.intervals[0].ms,45000,'Live catalog and deploy poll share a cadence');
+ console.log('AUTO UPDATE PASS: 45-second poll, same-core hot refresh, stale reload recovery and safe-room deferral');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
