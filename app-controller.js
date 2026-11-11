@@ -4429,7 +4429,9 @@ window.GAME_CAN_AUTO_RELOAD=()=>{
  if(round||gameSelection||boardSession||onlineHost||hostPeer||hostNetworkLoad||
     controllerReady||controllerPeer||controllerConn||controllerNetworkLoad)return false;
  if(currentView==='home')return true;
- if(currentView==='hostLobby')return saveOffline();
+ // Host lobbies (online OR offline) are live rooms. Never replace the
+ // document or drop the roster just because BOARD returned to lobby.
+ if(currentView==='hostLobby')return false;
  return currentView==='controller';
 };
 window.GAME_PREPARE_AUTO_RELOAD=()=>{
