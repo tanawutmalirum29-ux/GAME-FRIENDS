@@ -7,8 +7,8 @@
 (() => {
 'use strict';
 const STEP=1/60,TAU=Math.PI*2;
-// Keep the 30%-shorter damaged-radar outages. Between outages, wide scans
-// reliably reveal the whole field, giving human players time to read the path.
+// Keep the 30%-shorter damaged-radar outages and guaranteed full-field scans.
+// During blackouts, restore the original tight detection range for contrast.
 const RADAR_OUTAGE_DURATION_SCALE=.7;
 // Tunables (balance values are meant to be edited here).
 const C=Object.freeze({
@@ -23,7 +23,7 @@ const C=Object.freeze({
  respawnDelay:.8,spawnProtection:.9,
  maxAttempts:14,
  radar:Object.freeze({bodyR:34,minR:62,shrinkTime:2.5,lowVisibilityScale:RADAR_OUTAGE_DURATION_SCALE,
-  lowRadiusRatio:.55,lowRadiusJitter:.05,wideRadiusRatio:1.08,wideSeconds:2,wideJitter:.5}),
+  lowRadiusJitter:.05,wideRadiusRatio:1.08,wideSeconds:2,wideJitter:.5}),
  small:Object.freeze({w:960,h:540,field:Object.freeze({x:60,y:50,w:840,h:440}),zone:100,duration:60,crates:2}),
  large:Object.freeze({w:1280,h:720,field:Object.freeze({x:70,y:60,w:1140,h:600}),zone:120,duration:80,crates:4})
 });
@@ -268,10 +268,9 @@ function launchPlane(s){
  s.plane={x:sx,y:sy,vx:dx/L*C.planeSpeed*k,vy:dy/L*C.planeSpeed*k,ang:Math.atan2(dy,dx),dropped:false,gone:false,bomb:null,endX:ex,k};
 }
 function lowRadarRadius(s){
- // The old ~62px radius exposed almost none of either arena. Keep damaged
- // visibility restricted, but large enough to show nearby junctions.
- return Math.max(C.radar.minR,s.rmax*C.radar.lowRadiusRatio)+
-  s.radar.rng()*s.rmax*C.radar.lowRadiusJitter;
+ // Restore the original narrow scan during blackouts; full-field scans
+ // remain guaranteed between blackouts so human players can reread the route.
+ return C.radar.minR+s.radar.rng()*s.rmax*C.radar.lowRadiusJitter;
 }
 function nextRegime(s){
  const r=s.radar,rr=r.rng;
