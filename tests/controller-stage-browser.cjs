@@ -68,6 +68,9 @@ async function run(){
     const zone=document.getElementById('joystickZone');
     const base=document.getElementById('joystickBase');
     const off=document.getElementById('controllerPreviewOff');
+    // Disable only CSS fade during the contract probe: assert the target
+    // style after a state change, not a partially animated opacity.
+    base.style.transition='none';
     const state=()=>({visible:getComputedStyle(base).visibility,opacity:+getComputedStyle(base).opacity});
     const initial=state();
     zone.classList.add('has-used');
