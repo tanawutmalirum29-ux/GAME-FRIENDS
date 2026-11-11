@@ -1072,13 +1072,12 @@ function bindAnalogStick(zone,base,knob,target){
     e.preventDefault();
     dismissHint();
     pointerId=e.pointerId;
+    zone.classList.add('has-used');
     originX=e.clientX;originY=e.clientY;
     // Place the visual ring exactly under the finger in LOCAL UI coordinates,
     // including when the entire gamepad is CSS-rotated 90 degrees.
     const box=zone.getBoundingClientRect();
     const halfX=box.left+box.width/2,halfY=box.top+box.height/2;
-    const localWidth=rotated()?box.height:box.width;
-    const localHeight=rotated()?box.width:box.height;
     const stageScale=parseFloat($('controller')?.style?.getPropertyValue?.('--gf-controller-stage-scale'))||1;
     const offsetX=(rotated()?e.clientY-halfY:e.clientX-halfX)/stageScale;
     const offsetY=(rotated()?-(e.clientX-halfX):e.clientY-halfY)/stageScale;

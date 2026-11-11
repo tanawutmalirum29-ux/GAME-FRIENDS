@@ -476,7 +476,7 @@ function punchVisualMs(pn){
 }
 function draw(g,time,round,ps){
  const s=round.countdownDrop;if(!s)return;
- const a=art(),w=s.world,u=1;
+ const a=art(),w=s.world,u=1,avatarScale=2;
  g.save();
  g.fillStyle='#2a2e35';g.fillRect(0,0,960,540);
  g.scale(960/w.w,540/w.h);
@@ -484,15 +484,15 @@ function draw(g,time,round,ps){
  for(const t of s.tiles)a.drawTile(g,t,t.x,t.y,t.w,t.h,s.clock,u);
  for(const t of s.tiles)a.drawNumber(g,t,t.x,t.y,t.w,t.h,s.clock);
  for(const e of s.fx)if(e.k==='puff')a.drawPuff(g,e);
- for(const f of s.fallers)a.drawFall(g,f.p,clamp(f.t/C.fallTime,0,1),u);
+ for(const f of s.fallers)a.drawFall(g,f.p,clamp(f.t/C.fallTime,0,1),u*avatarScale);
  for(const p of living(ps)){
   const pn=p.dyn.pn,visualMs=punchVisualMs(pn);
   if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{
-   time:s.clock,label:false,attacking:visualMs!==null,
+   time:s.clock,label:false,scale:avatarScale,attacking:visualMs!==null,
    ...(visualMs===null?{}:{punchElapsedMs:visualMs,punchFacing:pn.dir})
   });
-  else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(p.x,p.y,C.radius,0,TAU);g.fill();}
-  if(s.clock<p.dyn.stunUntil)a.drawStun(g,p,s.clock,u);
+  else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(p.x,p.y,C.radius*avatarScale,0,TAU);g.fill();}
+  if(s.clock<p.dyn.stunUntil)a.drawStun(g,p,s.clock,u*avatarScale);
  }
  for(const e of s.fx){if(e.k==='spark')a.drawSpark(g,e);else if(e.k==='ring')a.drawRing(g,e);}
  a.drawForeground(g,w,s.layers);
