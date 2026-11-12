@@ -3442,6 +3442,12 @@ function beginBoard(){
   try{
     tournament=null;gameSelection=null;
     boardSession=window.BoardParty.create(players);
+    // BOARD makes its own player copies: pass visual wardrobe identity through
+    // without modifying the generated BOARD engine or its gameplay rules.
+    for(const bp of boardSession.players){
+      const original=players.find(p=>p.id===bp.id);
+      bp.cosmetic=window.PartyCosmetics?.normalize?.(original?.cosmetic)||'none';
+    }
      boardMiniMapCache=null;boardMiniMapClock=0;
     boardSession.camera.lowDetail=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
      boardSession.camera.manualDetail=boardSession.camera.lowDetail;
