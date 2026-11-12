@@ -70,20 +70,31 @@ function calculateDangerContact(s,p,dangerIds){
 function inputVector(p,s){
  if(p.isBot){
    const t=tileAt(s,p.x,p.y);
-   // During a rolling blast, already-exploded tiles no longer threaten bots.
-   const pending=s.phase==='EXPLOSION'?s.danger.filter(id=>s.tiles[id].state==='warning'):s.danger;
-   if(!t||calculateDangerContact(s,p,pending)===0)return {x:0,y:0};
+   // Bot reactions happen during warnings, not after an entire short wave.
+   const pending=s.phase==='EXPLOSION'?s.danger.filter(id=>s.tiles[id].state==='warning'):
+     s.phase==='WARNING'?s.danger:[];
+   if(!t||!pending.length)return {x:0,y:0};
+   const danger=new Set(pending);
+   const threatened=calculateDangerContact(s,p,danger)>0;
+   // Even a currently safe bot moves toward the centre of its tile when
+   // necessary: an edge position can still graze a red neighbouring tile.
+   const safe=s.tiles.filter(tile=>tile.state==='safe'&&!danger.has(tile.id));
+   if(!safe.length)return {x:0,y:0};
    if(p.shockBotWave!==s.wave){
-     p.shockBotWave=s.wave;p.shockBotReadyAt=s.clock+.18+
-       random(s)*Math.min(1.7,s.warningDuration*.83);
+     p.shockBotWave=s.wave;
+     p.shockBotReadyAt=s.clock+.04+random(s)*.10;
    }
    if(s.clock<p.shockBotReadyAt)return {x:0,y:0};
-   const safe=s.tiles.filter(t=>t.state==='safe'||t.state==='exploding');
-   if(!safe.length)return {x:0,y:0};
-   safe.sort((a,b)=>{const aa=tileCenter(s,a),bb=tileCenter(s,b);
-     return Math.hypot(p.x-aa.x,p.y-aa.y)-Math.hypot(p.x-bb.x,p.y-bb.y);});
-   const c=tileCenter(s,safe[0]),dx=c.x-p.x,dy=c.y-p.y,d=Math.hypot(dx,dy);
-   return d<4?{x:0,y:0}:{x:dx/d,y:dy/d};
+   let target=!threatened&&t.state==='safe'&&!danger.has(t.id)?t:null;
+   if(!target){
+     let nearest=Infinity;
+     for(const tile of safe){
+       const c=tileCenter(s,tile),distance=Math.hypot(p.x-c.x,p.y-c.y);
+       if(distance<nearest){nearest=distance;target=tile;}
+     }
+   }
+   const c=tileCenter(s,target),dx=c.x-p.x,dy=c.y-p.y,d=Math.hypot(dx,dy);
+   return d<6?{x:0,y:0}:{x:dx/d,y:dy/d};
  }
  const keys=p.input||{};
  let x=Number.isFinite(keys.axisX)?keys.axisX:Number(!!keys.right)-Number(!!keys.left);
@@ -102,7 +113,7 @@ function resolvePlayerCollision(s,ps){
 function movePlayers(dt,s,ps){
  const b=s.board,foot=C.avatarRadius;
  for(const p of living(ps)){
-   const v=inputVector(p,s),speed=p.isBot?C.speed*.88:C.speed;
+   const v=inputVector(p,s),speed=p.isBot?C.speed*.95:C.speed;
    p.vx=v.x*speed;p.vy=v.y*speed;
    if(Math.hypot(v.x,v.y)>.1)p.dir={x:v.x,y:v.y};
    p.x=clamp(p.x+p.vx*dt,b.x+foot,b.x+b.w-foot);
@@ -239,7 +250,7 @@ function startWave(s,ps){
  s.blastSchedule=[];s.blastCursor=0;s.blastElapsed=0;s.blastDuration=0;
  s.plannedWarningDuration=0;s.plannedDangerCount=0;
 }
-// Every selected tile ignites in a <=0.5s explosion window.
+// Every selected tile ignites by 0.30 s; the 0.08 s afterglow follows.
 // Distance is measured in square rings from the board's outside inward.
 // The first danger tile ignites at t=0; gaps vary rather than synchronizing.
 function buildBlastSchedule(s,chosen=s.danger){
@@ -261,7 +272,7 @@ function buildBlastSchedule(s,chosen=s.danger){
  }
  if(ordered.length===0)return [];
  if(ordered.length===1)return [{id:ordered[0],at:0}];
- const total=.40+random(s)*.02; // Last ignition by 0.42s, plus 0.08s afterglow.
+ const total=.28+random(s)*.02; // Last ignition by 0.30s, plus 0.08s afterglow.
  const gaps=Array.from({length:ordered.length-1},()=>.25+random(s)*.75);
  const sum=gaps.reduce((a,b)=>a+b,0);
  let time=0;
@@ -296,7 +307,7 @@ function triggerExplosion(s,ps){
  }
  s.blastSchedule=buildBlastSchedule(s);
  s.blastCursor=0;s.blastElapsed=0;
- // Complete the entire cascade, including afterglow, within 0.5 seconds.
+ // Complete the cascade and afterglow within 0.38 seconds.
  s.blastDuration=(s.blastSchedule.at(-1)?.at||0)+.08;
  s.phase='EXPLOSION';s.timer=s.blastDuration;
  igniteScheduledTiles(s,ps);
