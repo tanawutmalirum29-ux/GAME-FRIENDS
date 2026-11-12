@@ -210,27 +210,94 @@ export function drawScoop(g,sc,c,t){
  }
 }
 
-/* ------------------------------ polar bear mount ------------------------------ */
-export function drawBear(g,p,c,t,moving){
- const f=p.face<0?-1:1,ph=t*14+(p.x+p.y)*.03,bob=moving?Math.sin(ph)*1.1:0;
- g.save();g.translate(p.x,p.y+3);
- g.fillStyle='rgba(18,64,120,.30)';g.beginPath();g.ellipse(0,11,18,5.5,0,0,TAU);g.fill();
- g.globalAlpha=.8;g.strokeStyle=c;g.lineWidth=2.4;g.beginPath();g.ellipse(0,10.5,16.5,5,0,0,TAU);g.stroke();g.globalAlpha=1;
- g.scale(f,1);
- const leg=(x,y,k)=>{g.fillStyle='#e4eef8';g.strokeStyle='#9db8d4';g.lineWidth=.8;g.beginPath();g.ellipse(x,y+(moving?Math.sin(ph+k)*1.8:0),3.4,3.8,0,0,TAU);g.fill();g.stroke();};
- leg(-10,8,0);leg(-4,9,Math.PI);leg(6,9,0);leg(12,8,Math.PI);
- g.translate(0,bob);
- const body=g.createLinearGradient(0,-8,0,13);body.addColorStop(0,'#ffffff');body.addColorStop(1,'#cfe0f1');
- g.fillStyle=body;g.strokeStyle='#9db8d4';g.lineWidth=1;g.beginPath();g.ellipse(0,3,16.5,10.5,0,0,TAU);g.fill();g.stroke();
- g.fillStyle='#fff';g.beginPath();g.arc(-16.5,1.5,3,0,TAU);g.fill();g.stroke();
- // saddle in the player's flavour colour
- g.fillStyle=c;g.strokeStyle=mix(c,'#000000',.45);g.lineWidth=1;g.beginPath();g.ellipse(0,-3,8.5,3.6,0,0,TAU);g.fill();g.stroke();
- // head
- g.fillStyle='#fff';g.strokeStyle='#9db8d4';g.lineWidth=1;
- g.beginPath();g.arc(14,-1,7,0,TAU);g.fill();g.stroke();
- g.beginPath();g.arc(11,-7,2.6,0,TAU);g.fill();g.stroke();g.beginPath();g.arc(18,-6.6,2.6,0,TAU);g.fill();g.stroke();
- g.fillStyle='#f1f7fd';g.beginPath();g.ellipse(19.6,1.4,3.6,2.9,0,0,TAU);g.fill();g.stroke();
- g.fillStyle='#1b2433';g.beginPath();g.arc(22,.6,1.3,0,TAU);g.fill();g.beginPath();g.arc(16.4,-2,.95,0,TAU);g.fill();
+/* ------------------------------ overhead polar bear mount ------------------------------ */
+// Both the saddle artwork and its live shared rider use this local anchor.
+// Forward is -Y; the caller rotates the entire mount once using player.dir.
+export const BEAR_MOUNT=Object.freeze({seatY:6,riderScale:.8});
+function bearPaw(g,x,y,swing){
+ g.save();g.translate(x,y+swing);g.rotate(x<0?-.1:.1);
+ g.fillStyle='#eaf3fa';g.strokeStyle='#819db5';g.lineWidth=.9;
+ g.beginPath();g.ellipse(0,0,3.9,5.8,0,0,TAU);g.fill();g.stroke();
+ g.fillStyle='#fff';g.beginPath();g.ellipse(-.7,-1,2.4,3.7,0,0,TAU);g.fill();
+ // Dorsal toe creases, never the dark underside pads of a raised paw.
+ g.strokeStyle='#9db3c5';g.lineWidth=.65;g.lineCap='round';g.beginPath();
+ for(const x0 of [-1.3,0,1.3]){g.moveTo(x0,-4.6);g.lineTo(x0,-3.4);}
+ g.stroke();g.restore();
+}
+// Local top-down equipment only. stride is visual (-1..1); no gameplay state
+// or RNG is touched, and no character/headwear is baked into the bear.
+export function drawBear(g,c,stride=0){
+ const step=stride*1.6;
+ g.save();g.lineJoin='round';g.lineCap='round';
+ // A broad footprint beneath the back replaces the former side-on foot line.
+ g.fillStyle='rgba(18,64,120,.22)';g.beginPath();g.ellipse(1,2,20.5,24,0,0,TAU);g.fill();
+ g.save();g.globalAlpha*=.32;g.strokeStyle=c;g.lineWidth=1.4;
+ g.beginPath();g.ellipse(0,1,22,25,0,0,TAU);g.stroke();g.restore();
+ // Four feet around the body, with diagonally opposite pairs stepping together.
+ bearPaw(g,-17,-6,-step);bearPaw(g,17,-6,step);
+ bearPaw(g,-15.5,16,step);bearPaw(g,15.5,16,-step);
+ g.fillStyle='#e5eff7';g.strokeStyle='#819db5';g.lineWidth=1;
+ g.beginPath();g.ellipse(0,23,3.4,3.5,0,0,TAU);g.fill();g.stroke();
+ const fur=g.createRadialGradient(-7,-6,2,0,3,26);
+ fur.addColorStop(0,'#ffffff');fur.addColorStop(.58,'#f7fbff');
+ fur.addColorStop(.83,'#e3eef7');fur.addColorStop(1,'#bfd2e4');
+ // Broad shoulders and a rounded rump seen along the spine, with no upright
+ // chest/belly or horizontal row of legs from the old side projection.
+ g.fillStyle=fur;g.strokeStyle='#7896ad';g.lineWidth=1.1;
+ g.beginPath();g.moveTo(0,-16);
+ g.bezierCurveTo(9,-16,16,-10,18,-1);
+ g.bezierCurveTo(21,6,18.5,17,12.5,21);
+ g.quadraticCurveTo(0,28,-12.5,21);
+ g.bezierCurveTo(-18.5,17,-21,6,-18,-1);
+ g.bezierCurveTo(-16,-10,-9,-16,0,-16);g.closePath();g.fill();g.stroke();
+ g.strokeStyle='#ffffff';g.lineWidth=1.5;g.beginPath();
+ g.moveTo(-13,-7);g.bezierCurveTo(-17,-1,-17,8,-13,15);g.stroke();
+ g.strokeStyle='#c4d8e7';g.lineWidth=.9;g.beginPath();
+ g.moveTo(15,1);g.quadraticCurveTo(17,12,11,18);
+ g.moveTo(-7,20);g.quadraticCurveTo(0,23,7,20);g.stroke();
+ // A curved saddle cloth follows the back; its colour identifies the owner.
+ g.save();g.translate(0,BEAR_MOUNT.seatY);
+ g.fillStyle=c;g.strokeStyle=mix(c,'#000000',.35);g.lineWidth=1;
+ g.beginPath();g.moveTo(-13,-10);g.quadraticCurveTo(0,-13,13,-10);
+ g.bezierCurveTo(16,-9,17,7,12.5,11);g.quadraticCurveTo(0,15,-12.5,11);
+ g.bezierCurveTo(-17,7,-16,-9,-13,-10);g.closePath();g.fill();g.stroke();
+ g.strokeStyle=mix(c,'#ffffff',.62);g.lineWidth=1;g.beginPath();
+ g.moveTo(-12,7);g.quadraticCurveTo(0,12,12,7);g.stroke();
+ g.fillStyle=mix(c,'#000000',.18);g.beginPath();g.ellipse(0,0,8.5,7,0,0,TAU);g.fill();
+ g.restore();
+ // Small rounded ears flank the back of the skull. Both remain visible from
+ // above; the tapered muzzle points forward rather than sideways off a face.
+ for(const side of [-1,1]){
+  g.fillStyle='#f5faff';g.strokeStyle='#819db5';g.lineWidth=.9;
+  g.beginPath();g.ellipse(side*10,-14.5,3.1,3.4,side*.18,0,TAU);g.fill();g.stroke();
+  g.fillStyle='#b9cbd9';g.beginPath();g.ellipse(side*10,-14.7,1.7,1.9,0,0,TAU);g.fill();
+ }
+ const head=g.createLinearGradient(-9,-26,11,-10);
+ head.addColorStop(0,'#ffffff');head.addColorStop(.55,'#f8fcff');head.addColorStop(1,'#d1e1ee');
+ g.fillStyle=head;g.strokeStyle='#7896ad';g.lineWidth=1;
+ g.beginPath();g.moveTo(-9.5,-10.5);
+ g.bezierCurveTo(-13,-15,-11.5,-22,-7.5,-26);
+ g.quadraticCurveTo(-4.5,-29,0,-29.5);g.quadraticCurveTo(4.5,-29,7.5,-26);
+ g.bezierCurveTo(11.5,-22,13,-15,9.5,-10.5);
+ g.quadraticCurveTo(0,-6.5,-9.5,-10.5);g.closePath();g.fill();g.stroke();
+ g.strokeStyle='#ffffff';g.lineWidth=1.3;g.beginPath();
+ g.moveTo(-7.7,-18);g.quadraticCurveTo(-7.5,-23,-4.2,-25);g.stroke();
+ // Only the upper muzzle and side-set eyes show in this camera projection.
+ g.fillStyle='#f3f8fc';g.strokeStyle='#c2d5e4';g.lineWidth=.7;
+ g.beginPath();g.moveTo(-4.5,-23.5);g.quadraticCurveTo(-4,-29,0,-30.2);
+ g.quadraticCurveTo(4,-29,4.5,-23.5);g.quadraticCurveTo(0,-21.5,-4.5,-23.5);
+ g.closePath();g.fill();g.stroke();
+ g.fillStyle='#233344';
+ for(const side of [-1,1]){
+  g.beginPath();g.ellipse(side*6.8,-23,1,1.35,side*.3,0,TAU);g.fill();
+ }
+ g.fillStyle='#fff';
+ for(const side of [-1,1]){g.beginPath();g.arc(side*6.8-.25,-23.45,.3,0,TAU);g.fill();}
+ g.fillStyle='#243441';g.strokeStyle='#152536';g.lineWidth=.7;
+ g.beginPath();g.moveTo(-2.5,-30.4);g.quadraticCurveTo(0,-31.3,2.5,-30.4);
+ g.lineTo(2,-28.6);g.quadraticCurveTo(0,-27.8,-2,-28.6);g.closePath();g.fill();g.stroke();
+ g.strokeStyle='#7d95a5';g.lineWidth=.65;g.beginPath();
+ g.moveTo(-1.3,-30);g.quadraticCurveTo(0,-30.4,1.1,-30);g.stroke();
  g.restore();
 }
 
@@ -257,4 +324,4 @@ export function drawFx(g,e){
  g.restore();
 }
 
-export default Object.freeze({FLAVORS,mix,preload,drawBackdrop,drawGround,drawScoop,drawBear,drawFx});
+export default Object.freeze({FLAVORS,BEAR_MOUNT,mix,preload,drawBackdrop,drawGround,drawScoop,drawBear,drawFx});

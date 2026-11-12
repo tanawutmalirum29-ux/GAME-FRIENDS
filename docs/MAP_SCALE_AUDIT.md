@@ -25,6 +25,22 @@ Branch: `art/rope-hat-svg-2077-2078`; main source baseline: `34a22766949bb4f696b
 
 The shared avatar accepts an optional local `heading` in radians and `shadow:false` for mounts. Defaults, canonical SVG dimensions and image-loading fallback geometry are unchanged. All driver render paths forward the complete player object. Equipment is painted beneath the avatar without a head/cockpit clipping mask; cosmetic padding is never a collider. Keep 960×540 logical rendering, native DPR and each map's existing world transform. All screen dimensions above are arithmetic from source constants and require the next AI's latest-head browser evidence before merge.
 
+### SCOOP RUSH overhead polar bear (2026-11-12)
+
+Follow-up on `art/rope-hat-svg-2077-2078`, after syncing the previously integrated work from main `9295057dbbcc6fa502fcaad1ad4cf368dc4b01d7` (PR #264). This supersedes the SCOOP RUSH seat/projection entry above; it does not change other mounts.
+
+**Authored source dimensions, not a visual test or runtime measurement. No game, browser, build, syntax check, QA or tests were run for this follow-up.** The next AI owns validation and merge; prior integration evidence is not evidence for this bear revision.
+
+| Item | Before | New authored projection |
+|---|---|---|
+| Bear camera | Side profile, horizontal left/right mirror from `p.face`; all legs below the body | True overhead back/spine, paired ears and tapered forward muzzle, four paws beside the shoulders/hips; −Y is forward, rotated with the full `p.dir` vector |
+| Bear art envelope | Horizontal body ellipse 33×21, head displaced +14 on X, feet in one screen-bottom row | Artwork contained in an approximately 46×60 world-unit local envelope `x: −23…23`, `y: −32…28`, including stroke/foot motion allowance before rotation; approximately 46×60 / 34.5×45 logical screen pixels across the two tiers |
+| Saddle/rider | Fixed screen-space offset `(0,−8)`, unrelated to bear facing | Mount-local `(0,6)` using `BEAR_MOUNT.seatY`; the bear and shared rider use one Canvas rotation, with rider `heading:0` to prevent double rotation |
+| Rider size | Shared 52 × `.8` = 41.6 world-unit padded sprite | Same 41.6 world units: 41.6 / 31.2 logical screen pixels. Holding pose, original player identity, and shared cosmetic path; no bear-head or cockpit clipping mask |
+| Locomotion/ground | Side-profile body bob and vertical line of legs; screen-bottom shadow | Opposite diagonal paw pairs move ±1.6 in local Y; fixed dorsal saddle and a broad shadow under the body. Depth sorting uses ground anchor `p.y` |
+
+The longer forward/back silhouette is decorative mount overhang needed for an overhead animal, not a larger collider or push range. Player radius **15**, maximum speed **165**, scoop base radius **22**, five initial scoops per player, collision/merging/bot rules and 50/70-second timers remain as authored. World tiers stay **960×540 (1–6)** and **1280×720 (7–12)**; rink bounds, host DPR, full Canvas quality and shared avatar dimensions are unchanged. No rendering-side writes to `p.x`, `p.y` or `p.dir`. Next-AI checks should include eight directions, idle/walk transitions, all hats, pushing near scoops/edges, layer order and 6→7 readability before merge.
+
 ### Previous map scale decisions
 
 | Engine | Before | After / decision | Underlying reason / invariant |
