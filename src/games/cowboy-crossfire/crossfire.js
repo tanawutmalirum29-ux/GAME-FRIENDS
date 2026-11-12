@@ -161,8 +161,14 @@ function place(s,p){
 function heldFire(p){
  const k=p.input||{};let q=null;
  try{q=window.PartyCharacters?.control?.(k);}catch(e){q=null;}
- // A, B and C all fire. Pause / system buttons are not read here at all.
- return !!(q&&(q.action||q.alt))||!!(k.a||k.b||k.c||k.A||k.B||k.C||k.action||k.alt||k.actionC||k.buttonC||k.fire||k.shoot);
+ // A/B/C or a new joystick/directional movement press fires. The runner
+ // still moves automatically; the normal rising-edge latch prevents repeats.
+ // System buttons are never interpreted as shots.
+ const moving=!!(q&&Math.hypot(q.x,q.y)>.12)||
+  Math.hypot(Number(k.axisX)||0,Number(k.axisY)||0)>.12||
+  !!(k.left||k.right||k.up||k.down||k.jump);
+ return moving||!!(q&&(q.action||q.alt))||
+  !!(k.a||k.b||k.c||k.A||k.B||k.C||k.action||k.alt||k.actionC||k.buttonC||k.fire||k.shoot);
 }
 // Single entry point for humans AND bots: shoot only if off cooldown, and reverse only on a real shot.
 function tryFire(s,p){
