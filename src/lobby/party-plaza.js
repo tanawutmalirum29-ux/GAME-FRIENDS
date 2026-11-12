@@ -169,7 +169,11 @@ function tick(dt,players){
   if(!p.isBot&&p.conn?.open){
    const a=!!p.input.action,b=!!p.input.alt;
    if(a&&!p.plazaAPressed)callbacks.interact?.(p,zoneAt(p));
-   if(b&&!p.plazaBPressed)callbacks.cancel?.(p);
+   if(b&&!p.plazaBPressed){
+    const zone=zoneAt(p);
+    if(zone?.id==='wardrobe')callbacks.changeCosmetic?.(p);
+    else callbacks.cancel?.(p);
+   }
    p.plazaAPressed=a;p.plazaBPressed=b;
   }
  }
@@ -201,7 +205,7 @@ function paint(){
  if(image)c.drawImage(image,0,0,960,540);else backgroundFallback(c);
  const avatar=window.PartyPlayerAvatar;
  for(const p of [...playerCache].sort((a,b)=>a.plazaY-b.plazaY)){
-  const state={x:p.plazaX,y:p.plazaY,vx:p.plazaVX,vy:p.plazaVY,dir:p.plazaHeading,color:p.color,name:p.name};
+  const state={x:p.plazaX,y:p.plazaY,vx:p.plazaVX,vy:p.plazaVY,dir:p.plazaHeading,color:p.color,name:p.name,cosmetic:p.cosmetic};
   if(avatar?.draw)avatar.draw(c,state,{time:clock,scale:1,label:true});
   else{
    c.beginPath();c.arc(p.plazaX,p.plazaY,18,0,Math.PI*2);
@@ -216,7 +220,8 @@ function paint(){
  }
  const focus=playerCache.find(p=>!p.isBot&&p.conn?.open)||playerCache[0];
  const zone=zoneAt(focus),hint=$('plazaZoneHint');
- if(hint)hint.textContent=zone?zone.label+' • A ใช้งาน':'เดินด้วยจอย • ไปที่จุดต่าง ๆ แล้วกด A';
+ if(hint)hint.textContent=zone?.id==='wardrobe'?'WARDROBE • B เปลี่ยนเครื่องแต่งกาย':
+  zone?zone.label+' • A ใช้งาน':'เดินด้วยจอย • ไปที่จุดต่าง ๆ แล้วกด A';
 }
 window.PartyPlaza=Object.freeze({configure,setActive,sync,tick,inZone,zoneAt,getLayout:()=>layout,getPlayers:()=>playerCache,isReady:()=>loaded,debug:v=>{debug=!!v;}});
 })();

@@ -165,7 +165,7 @@ function preload(players){
  // race other games' SVG decode barriers and consume memory for unused actions.
  // The punch atlas itself is fetched once and each tinted variant is decoded
  // lazily on first real attack, with an unchanged canonical fallback meanwhile.
- for(const p of players||[]){imageForFront(p.color);for(const pose of POSES)imageFor(p.color,pose);}
+ for(const p of players||[]){imageForFront(p.color);for(const pose of POSES)imageFor(p.color,pose);window.PartyCosmetics?.preload?.(p);}
 }
 function drawFallback(ctx,color,pose){
  ctx.save();ctx.scale(52/64,52/64);ctx.translate(-32,-32);
@@ -207,6 +207,9 @@ function draw(ctx,p,opts={}){
   // Never draw the old line from the face on top of the fallback arm.
   if(punchFrame>=0)punchDrawn.add(p);
  }
+ // A single head-aligned accessory follows the same transform as the face,
+ // including the punch atlas and game-specific rider scale/heading.
+ window.PartyCosmetics?.drawTop?.(ctx,p);
  ctx.restore();ctx.restore();
  if(opts.label!==false){
   ctx.font='bold 12px sans-serif';ctx.textAlign='center';
@@ -220,9 +223,13 @@ function drawFront(ctx,p,x,y,size=60){
  ctx.save();
  if(im&&im.complete&&im.naturalWidth)ctx.drawImage(im,x-size/2,y-size/2,size,size);
  else{
-  ctx.translate(x-size/2,y-size/2);ctx.scale(size/96,size/96);
-  paintArtwork(ctx,color,'idle',true);
+  // The body fallback uses portrait-local coordinates; restore them before
+  // drawing accessories, whose anchors are expressed in screen coordinates.
+  ctx.save();ctx.translate(x-size/2,y-size/2);ctx.scale(size/96,size/96);
+  paintArtwork(ctx,color,'idle',true);ctx.restore();
  }
+ // Portrait assets have their own viewBoxes; preserve the authored anchor.
+ if(p&&typeof p==='object')window.PartyCosmetics?.drawFront?.(ctx,p,x,y,size);
  ctx.restore();
 }
 window.PartyPlayerAvatar=Object.freeze({draw,drawFront,imageFor,imageForFront,svgFor,svgForFront,heading,costumeFor,COSTUMES,preload,
