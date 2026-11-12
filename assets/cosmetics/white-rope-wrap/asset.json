@@ -135,12 +135,14 @@
     "activation": "rising edge, inside wardrobe only",
     "cycle": [
       "none",
-      "white-rope-wrap"
+      "white-rope-wrap",
+      "pirate-hat"
     ],
     "outsideZone": "preserve existing B behavior",
     "holdingButton": "one change per physical press",
     "promptTh": "B เปลี่ยนหมวก",
-    "persistence": "keep selection after leaving the zone; use existing player identity persistence for reconnects"
+    "persistence": "keep selection after leaving the zone; use existing player identity persistence for reconnects",
+    "sharedCatalog": "../wardrobe-assets.json"
   },
   "assetRules": {
     "transparent": true,
@@ -152,7 +154,7 @@
   },
   "examples": {
     "artBoard": "preview.svg",
-    "cycle": "wardrobe-cycle.svg",
+    "cycle": "../wardrobe-cycle.svg",
     "front": "examples/front-wearing.svg",
     "topDown": "examples/top-wearing.svg"
   },

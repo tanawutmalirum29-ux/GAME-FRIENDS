@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "status": "art-handoff-not-runtime-registration",
+  "branch": "art/rope-hat-svg-2077-2078",
+  "zoneId": "wardrobe",
+  "input": "B / input.alt",
+  "promptTh": "B เปลี่ยนหมวก",
+  "activation": "One change per new press while inside the wardrobe zone",
+  "cycle": [
+    "none",
+    "white-rope-wrap",
+    "pirate-hat"
+  ],
+  "items": [
+    {
+      "id": "none",
+      "nameTh": "ไม่ใส่หมวก",
+      "overlay": null
+    },
+    {
+      "id": "white-rope-wrap",
+      "nameTh": "หมวกผ้าขาวเชือกคู่",
+      "asset": "white-rope-wrap/asset.json",
+      "colorPart": "rope"
+    },
+    {
+      "id": "pirate-hat",
+      "nameTh": "หมวกโจรสลัด",
+      "asset": "pirate-hat/asset.json",
+      "colorPart": "upper-trim"
+    }
+  ],
+  "cycleIllustration": "wardrobe-cycle.svg",
+  "handoff": "HANDOFF.md",
+  "notes": [
+    "This catalog does not register or implement in-game behavior.",
+    "Use each projection viewBox/anchor. Do not assume identical padding for both hats.",
+    "Preserve current B behavior outside wardrobe. Keep each player hat after leaving the zone."
+  ]
+}
