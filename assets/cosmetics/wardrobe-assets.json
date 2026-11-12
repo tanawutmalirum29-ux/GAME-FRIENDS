@@ -11,12 +11,13 @@
     "white-rope-wrap",
     "pirate-hat",
     "golden-crown",
-    "shades-white-beard"
+    "shades-white-beard",
+    "pharaoh-nemes"
   ],
   "items": [
     {
       "id": "none",
-      "nameTh": "ไม่ใส่หมวก",
+      "nameTh": "ไม่ใส่",
       "overlay": null
     },
     {
@@ -43,6 +44,12 @@
       "asset": "shades-white-beard/asset.json",
       "colorPart": null,
       "colorMode": "fixed"
+    },
+    {
+      "id": "pharaoh-nemes",
+      "nameTh": "หมวกฟาโร",
+      "asset": "pharaoh-nemes/asset.json",
+      "colorPart": "player-color-stripes"
     }
   ],
   "cycleIllustration": "wardrobe-cycle.svg",
@@ -51,6 +58,7 @@
     "This catalog does not register or implement in-game behavior.",
     "Use each projection viewBox/anchor. Do not assume identical padding for all accessories.",
     "Preserve current B behavior outside wardrobe. Keep each player hat after leaving the zone.",
-    "shades-white-beard uses fixed neutral colors: no tint or player-color variants."
+    "shades-white-beard uses fixed neutral colors: no tint or player-color variants.",
+    "pharaoh-nemes alternates fixed gold stripes with player-color cloth stripes in both projections; brow band and cobra stay gold."
   ]
 }
