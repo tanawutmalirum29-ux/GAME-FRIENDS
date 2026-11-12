@@ -30,6 +30,7 @@ const lawnSource=fs.readFileSync('src/games/lawn-mower/lawn-mower.js','utf8');
 const gladiatorsArtSource=fs.readFileSync('src/games/gladiators/gladiators-art.js','utf8');
 const gladiatorsSource=fs.readFileSync('src/games/gladiators/gladiators.js','utf8');
 const iceRaceSource=fs.readFileSync('src/games/ice-race/ice-race.js','utf8');
+const claimGeometrySource=fs.readFileSync('src/games/color-claim/territory-geometry.js','utf8');
 const claimSource=fs.readFileSync('src/games/color-claim/color-claim.js','utf8');
 const ghostSource=fs.readFileSync('src/games/ghost-attack/ghost-attack.js','utf8');
 const farmIceSource=fs.readFileSync('src/shared/farm-ice-art.js','utf8');
@@ -1248,6 +1249,7 @@ function setup(url='https://game.example/?host=1',portrait=false,savedSession=nu
    vm.runInContext(gladiatorsArtSource,scope,{filename:'src/games/gladiators/gladiators-art.js'});
    vm.runInContext(gladiatorsSource,scope,{filename:'src/games/gladiators/gladiators.js'});
    vm.runInContext(iceRaceSource,scope,{filename:'src/games/ice-race/ice-race.js'});
+  vm.runInContext(claimGeometrySource,scope,{filename:'src/games/color-claim/territory-geometry.js'});
   vm.runInContext(claimSource,scope,{filename:'src/games/color-claim/color-claim.js'});
   for(const name of ['board-map','board-dice','board-dice-renderer','board-items','board-bots','board-minigame','board-party','board-art'])
     vm.runInContext(fs.readFileSync('src/board-party/runtime/'+name+'.js','utf8'),scope,{filename:'src/board-party/runtime/'+name+'.js'});
