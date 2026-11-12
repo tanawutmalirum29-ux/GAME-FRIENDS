@@ -1,5 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
+require('./direction-fire-hud.cjs'); // Shared HUD and controller directional-fire regression
 const fs=require('node:fs');
 const vm=require('node:vm');
 require('./cosmetics.cjs'); // Wardrobe overlays and lobby B edge are release-critical.
