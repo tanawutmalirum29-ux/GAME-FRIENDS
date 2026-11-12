@@ -73,7 +73,26 @@
         65,
         65
       ],
-      "layer": "after canonical head and eyes, before names/status; follow the same head transform"
+      "layer": "after canonical head and eyes, before names/status; follow the same head transform",
+      "glassesOrientation": {
+        "noseCutoutOpensToward": [
+          0,
+          -1
+        ],
+        "roundedLensBottomsFace": [
+          0,
+          -1
+        ],
+        "continuousBrowRimFaces": [
+          0,
+          1
+        ],
+        "templesExtendToward": [
+          0,
+          1
+        ],
+        "note": "Corrected top-view lens orientation: nose cutout opens toward the moustache and beard, not the forehead. Keep beard and temples in their existing directions; do not rotate the whole overlay."
+      }
     }
   },
   "colorBinding": {
