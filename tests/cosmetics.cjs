@@ -78,6 +78,28 @@ calls.length=0;
 scope.window.PartyPlayerAvatar.drawFront(canvas,player,120,90,60);
 assert.ok(calls.some(c=>c.src.endsWith('pirate-hat/colors/front-36d9e5.svg')),
  'BOARD/lobby portrait renderer composites the same outfit');
+// The first portrait frame can render before the base SVG decodes.
+// The fallback's local transform must not affect the accessory anchor.
+const portraitImage=scope.window.PartyPlayerAvatar.imageForFront(player.color);
+const wasReady=portraitImage.naturalWidth;portraitImage.naturalWidth=0;
+let transformDepth=0,accessoryDepth=-1;
+const saved=[];
+const fallbackCanvas=new Proxy({}, {
+ get(target,key){
+  if(key==='save')return()=>saved.push(transformDepth);
+  if(key==='restore')return()=>{transformDepth=saved.pop();};
+  if(key==='translate'||key==='scale'||key==='rotate')return()=>{transformDepth++;};
+  if(key==='drawImage')return image=>{
+   if(image.src.endsWith('pirate-hat/colors/front-36d9e5.svg'))accessoryDepth=transformDepth;
+  };
+  if(key==='createRadialGradient'||key==='createLinearGradient')return()=>({addColorStop(){}});
+  return target[key]??(()=>{});
+ },set(target,key,value){target[key]=value;return true;}
+});
+scope.window.PartyPlayerAvatar.drawFront(fallbackCanvas,player,120,90,60);
+assert.equal(accessoryDepth,0,'portrait fallback restores local transform before outfit overlay');
+assert.equal(saved.length,0,'portrait fallback keeps canvas save/restore balanced');
+portraitImage.naturalWidth=wasReady;
 const host=read('app.js'),plaza=read('src/lobby/party-plaza.js');
 assert.match(host,/p\.cosmetic=cosmetics\.next\(p\.cosmetic\)/);
 assert.match(host,/cosmetic:type==='local'\?\(window\.PartyCosmetics\?\.randomBot/);
