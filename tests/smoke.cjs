@@ -780,7 +780,7 @@ const drawProbe=new Proxy({},{
 // Renderer integration: NPC ghosts retain themed sprites, while infected
 // human players keep the same shared avatar identity, color and headwear.
 // The map-specific aura still receives the current theme, never the opposite one.
-assert.match(ghostSource,/Art\\.drawPlayerGhostAura\\(ctx,p,t,theme,GHOST_VISUAL_SCALE\\)/);
+assert.match(ghostSource,/Art\.drawPlayerGhostAura\(ctx,p,t,theme,GHOST_VISUAL_SCALE\)/);
 const originalAvatar=ghostSandbox.window.PartyPlayerAvatar;
 const sharedAvatarDraws=[];
 ghostSandbox.window.PartyPlayerAvatar={...originalAvatar,
