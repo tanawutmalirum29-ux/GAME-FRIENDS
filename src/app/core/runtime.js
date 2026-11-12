@@ -210,7 +210,8 @@ function makeToken(){
 }
 const stablePhoneToken=makeToken();
 const compactPlayer=p=>({id:p.id,name:p.name,color:p.color,type:p.type,
- choice:p.choice,token:p.clientToken||null,total:p.total||0});
+ choice:p.choice,cosmetic:window.PartyCosmetics?.normalize?.(p.cosmetic)||'none',
+ token:p.clientToken||null,total:p.total||0});
 function saveHost(){
  if(!onlineHost||!roomCode)return false;
  return putSession(HOST_SESSION,{code:roomCode,players:players.map(compactPlayer),
@@ -244,7 +245,10 @@ function restorePlayers(list){
   players.push({id:a.id,name:cleanName(a.name),color,type:a.type,
    clientToken:a.token||null,conn:null,input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,
    score:0,total:Number(a.total)||0,choice:Object.hasOwn(MODES,a.choice)?a.choice:null,
-   ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,isBot:a.type==='local'});
+   ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
+    cosmetic:window.PartyCosmetics?.IDS?.includes(a.cosmetic)?a.cosmetic:
+      a.type==='local'?(window.PartyCosmetics?.randomBot?.()||'none'):'none',
+    isBot:a.type==='local'});
  }
  nextId=Math.max(nextId,...players.map(p=>Number(p.id.slice(1))+1));
 }
