@@ -544,18 +544,25 @@ function draw(g,time,round,ps){
  for(const sc of s.scoops)Art.drawGround(g,sc,flav[sc.owner]||'#fff');
  const items=[];
  for(const sc of s.scoops)items.push({y:sc.y+sc.drawR*.3,sc});
- for(const p of ps)if(p.active&&p.sr)items.push({y:p.y+10,p});
+ for(const p of ps)if(p.active&&p.sr)items.push({y:p.y,p});
  items.sort((a,b)=>a.y-b.y);
  for(const it of items){
   if(it.sc){Art.drawScoop(g,it.sc,flav[it.sc.owner]||'#fff',t);continue;}
   const p=it.p;
-  Art.drawBear(g,p,p.sr.flavor,t,p.sr.moving);
-  // Keep the bear as a mount, and move only the canvas to its saddle. The
-  // shared avatar receives the original player, never a changed physics anchor.
-  g.save();g.translate(0,-8);
+  const d=p.dir||{x:0,y:-1};
+  const heading=window.PartyPlayerAvatar?.heading?.(p)??
+   (hyp(d.x,d.y)>.001?Math.atan2(d.y,d.x)+Math.PI/2:0);
+  // One overhead frame for the mount, saddle and shared rider in every
+  // direction. Steering never mirrors a side view or changes player state.
+  g.save();g.translate(p.x,p.y);g.rotate(heading);
+  const stride=p.sr.moving?Math.sin(t*14+(p.x+p.y)*.03):0;
+  Art.drawBear(g,p.sr.flavor,stride);
+  g.translate(0,Art.BEAR_MOUNT.seatY);
   const drawAvatar=window.PartyCharacters?.draw||window.PartyPlayerAvatar?.draw;
-  if(drawAvatar)drawAvatar(g,p,{time:t,scale:.8,label:false});
-  else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(p.x,p.y,10,0,TAU);g.fill();}
+  if(drawAvatar)drawAvatar(g,p,{time:t,local:true,heading:0,
+   scale:Art.BEAR_MOUNT.riderScale,holding:true,attacking:false,
+   combat:false,label:false,shadow:false});
+  else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(0,0,10,0,TAU);g.fill();}
   g.restore();
  }
  for(const e of s.fx)Art.drawFx(g,e);
