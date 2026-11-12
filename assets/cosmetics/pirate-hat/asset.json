@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "id": "pirate-hat",
+  "nameTh": "หมวกโจรสลัด",
+  "status": "svg-art-only-unintegrated-untested",
+  "sourceBaseCommit": "34a22766949bb4f696be88062ad0a6294a5148eb",
+  "branch": "art/rope-hat-svg-2077-2078",
+  "references": {
+    "front": "User pirate hat portrait: black wide brim, white skull and cyan upper trim",
+    "topDown": "User overhead pirate hat: faces left; recessed crown and foreshortened front crest"
+  },
+  "projections": {
+    "front": {
+      "file": "hat-front.svg",
+      "viewBox": [
+        -12,
+        -20,
+        120,
+        116
+      ],
+      "anchor": [
+        48,
+        48
+      ],
+      "avatarSourceViewBox": [
+        0,
+        0,
+        96,
+        96
+      ],
+      "drawRectInAvatarSvgUnits": [
+        -60,
+        -68,
+        120,
+        116
+      ],
+      "scaleRule": "Multiply draw rect by portraitSize / 96 after translating to portrait center"
+    },
+    "topDown": {
+      "file": "hat-top.svg",
+      "viewBox": [
+        -8,
+        -8,
+        80,
+        80
+      ],
+      "anchor": [
+        32,
+        32
+      ],
+      "avatarSourceViewBox": [
+        0,
+        0,
+        64,
+        64
+      ],
+      "headPivot": [
+        32,
+        30
+      ],
+      "forward": [
+        0,
+        -1
+      ],
+      "worldUnitsPerSvgUnit": 0.8125,
+      "worldDrawRect": [
+        -32.5,
+        -32.5,
+        65,
+        65
+      ],
+      "layer": "after head with matching head transform; before labels/status overlays",
+      "crestOrientation": {
+        "rotationDeg": 180,
+        "center": [
+          32,
+          24.5
+        ],
+        "scale": [
+          0.5,
+          0.32
+        ],
+        "crownDirection": [
+          0,
+          1
+        ],
+        "teethDirection": [
+          0,
+          -1
+        ]
+      }
+    }
+  },
+  "colorBinding": {
+    "source": "player.color",
+    "svgAttribute": "color",
+    "location": "root svg",
+    "default": "#36d9e5",
+    "affectedPart": "upper-trim",
+    "trimStroke": "currentColor",
+    "fixedParts": [
+      "black-felt",
+      "front-fold",
+      "recessed-crown",
+      "rolled-side-tips",
+      "skull-and-bones"
+    ],
+    "externalImageCssInheritance": false,
+    "recipe": "Set root color before decoding SVG. Leave charcoal, ivory and neutral shading unchanged."
+  },
+  "readyColorVariants": [
+    {
+      "color": "#c62222",
+      "front": "colors/front-c62222.svg",
+      "topDown": "colors/top-c62222.svg"
+    },
+    {
+      "color": "#36d9e5",
+      "front": "colors/front-36d9e5.svg",
+      "topDown": "colors/top-36d9e5.svg"
+    },
+    {
+      "color": "#215a94",
+      "front": "colors/front-215a94.svg",
+      "topDown": "colors/top-215a94.svg"
+    },
+    {
+      "color": "#d7b000",
+      "front": "colors/front-d7b000.svg",
+      "topDown": "colors/top-d7b000.svg"
+    },
+    {
+      "color": "#f53695",
+      "front": "colors/front-f53695.svg",
+      "topDown": "colors/top-f53695.svg"
+    },
+    {
+      "color": "#f57a00",
+      "front": "colors/front-f57a00.svg",
+      "topDown": "colors/top-f57a00.svg"
+    },
+    {
+      "color": "#36d595",
+      "front": "colors/front-36d595.svg",
+      "topDown": "colors/top-36d595.svg"
+    },
+    {
+      "color": "#000094",
+      "front": "colors/front-000094.svg",
+      "topDown": "colors/top-000094.svg"
+    },
+    {
+      "color": "#009400",
+      "front": "colors/front-009400.svg",
+      "topDown": "colors/top-009400.svg"
+    },
+    {
+      "color": "#b800f5",
+      "front": "colors/front-b800f5.svg",
+      "topDown": "colors/top-b800f5.svg"
+    },
+    {
+      "color": "#008484",
+      "front": "colors/front-008484.svg",
+      "topDown": "colors/top-008484.svg"
+    },
+    {
+      "color": "#94004a",
+      "front": "colors/front-94004a.svg",
+      "topDown": "colors/top-94004a.svg"
+    }
+  ],
+  "interactionHandoff": {
+    "implemented": false,
+    "zoneId": "wardrobe",
+    "input": "B / input.alt",
+    "activation": "rising edge, inside wardrobe only",
+    "cycle": [
+      "none",
+      "white-rope-wrap",
+      "pirate-hat",
+      "golden-crown",
+      "shades-white-beard",
+      "pharaoh-nemes",
+      "plumed-turban",
+      "paper-bag-mask"
+    ],
+    "sharedCatalog": "../wardrobe-assets.json",
+    "promptTh": "B เปลี่ยนเครื่องแต่งกาย"
+  },
+  "assetRules": {
+    "transparent": true,
+    "containsAvatar": false,
+    "containsBackground": false,
+    "containsScripts": false,
+    "physicsChanges": false,
+    "headScaleChanges": false,
+    "viewBoxPaddingIsCollision": false
+  },
+  "examples": {
+    "artBoard": "preview.svg",
+    "cycle": "../wardrobe-cycle.svg",
+    "front": "examples/front-wearing.svg",
+    "topDown": "examples/top-wearing.svg"
+  },
+  "integrationOwner": "Next AI: integrate all seven accessories, test, then merge after required checks pass."
+}

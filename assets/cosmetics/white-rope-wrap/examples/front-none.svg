@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img" aria-label="GAME FRIENDS hat art sample: front, none" >
+<title>GAME FRIENDS hat art sample: front, none</title>
+<g color="#c62222"><defs>
+<radialGradient id="example-front-none-avatar-head" gradientUnits="userSpaceOnUse" cx="35" cy="24" r="57">
+<stop offset="0" stop-color="#ce4141"/><stop offset=".48" stop-color="#c62222"/><stop offset=".82" stop-color="#b82020"/><stop offset="1" stop-color="#8b1818"/>
+</radialGradient>
+<radialGradient id="example-front-none-avatar-body" gradientUnits="userSpaceOnUse" cx="35" cy="69" r="58"><stop offset="0" stop-color="#c62222"/><stop offset=".6" stop-color="#a61d1d"/><stop offset="1" stop-color="#671212"/></radialGradient>
+</defs><g data-part="sample-avatar" stroke-linejoin="round" stroke-linecap="round"><path d="M15 96 Q15 77 33 70 L63 70 Q81 77 81 96 Z" fill="url(#example-front-none-avatar-body)" /><ellipse cx="48" cy="44" rx="36" ry="37" fill="url(#example-front-none-avatar-head)" stroke="#8f1818" stroke-width="1.1"/><path d="M20 43 Q30 49 43 58 Q39 64 29 61 Q20 57 20 43 Z" fill="#fff" stroke="#21191c" stroke-width="1.7" /><path d="M76 43 Q66 49 53 58 Q57 64 67 61 Q76 57 76 43 Z" fill="#fff" stroke="#21191c" stroke-width="1.7" /><path d="M32 75 Q48 80 64 75" fill="none" stroke="#a41c1c" stroke-width="1.2" /></g></g></svg>

@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "id": "shades-white-beard",
+  "nameTh": "แว่นดำและหนวดเคราขาว",
+  "status": "svg-art-only-unintegrated-untested",
+  "sourceBaseCommit": "34a22766949bb4f696be88062ad0a6294a5148eb",
+  "branch": "art/rope-hat-svg-2077-2078",
+  "references": {
+    "front": "User portrait: opaque black sunglasses, paired white moustache, long bushy white beard",
+    "topDown": "User overhead view faces right: beard projects in front of glasses, temples follow head sides"
+  },
+  "projections": {
+    "front": {
+      "file": "accessory-front.svg",
+      "viewBox": [
+        0,
+        0,
+        96,
+        116
+      ],
+      "anchor": [
+        48,
+        48
+      ],
+      "avatarSourceViewBox": [
+        0,
+        0,
+        96,
+        96
+      ],
+      "drawRectInAvatarSvgUnits": [
+        -48,
+        -48,
+        96,
+        116
+      ],
+      "scaleRule": "Multiply draw rect by portraitSize / 96 after translating to portrait center"
+    },
+    "topDown": {
+      "file": "accessory-top.svg",
+      "viewBox": [
+        -8,
+        -16,
+        80,
+        80
+      ],
+      "anchor": [
+        32,
+        32
+      ],
+      "avatarSourceViewBox": [
+        0,
+        0,
+        64,
+        64
+      ],
+      "headPivot": [
+        32,
+        30
+      ],
+      "forward": [
+        0,
+        -1
+      ],
+      "beardDirection": [
+        0,
+        -1
+      ],
+      "worldUnitsPerSvgUnit": 0.8125,
+      "worldDrawRect": [
+        -32.5,
+        -39,
+        65,
+        65
+      ],
+      "layer": "after canonical head and eyes, before names/status; follow the same head transform",
+      "glassesOrientation": {
+        "noseCutoutOpensToward": [
+          0,
+          -1
+        ],
+        "roundedLensBottomsFace": [
+          0,
+          -1
+        ],
+        "continuousBrowRimFaces": [
+          0,
+          1
+        ],
+        "templesExtendToward": [
+          0,
+          1
+        ],
+        "note": "Corrected top-view lens orientation: nose cutout opens toward the moustache and beard, not the forehead. Keep beard and temples in their existing directions; do not rotate the whole overlay."
+      }
+    }
+  },
+  "colorBinding": {
+    "mode": "fixed",
+    "source": null,
+    "svgAttribute": null,
+    "affectedParts": [],
+    "playerColorVariants": false,
+    "externalImageCssInheritance": false,
+    "palette": {
+      "sunglasses": "fixed charcoal / black",
+      "hair": "fixed neutral white / gray"
+    },
+    "recipe": "Use the same two overlay SVGs for every player. Do not tint, replace colors, or apply root-color binding."
+  },
+  "composition": {
+    "parts": [
+      "sunglasses",
+      "glasses-temples",
+      "sideburns",
+      "moustache",
+      "beard"
+    ],
+    "selection": "one combined accessory option",
+    "glasses": "opaque; cover canonical eyes",
+    "colorVariantDirectory": null
+  },
+  "interactionHandoff": {
+    "implemented": false,
+    "zoneId": "wardrobe",
+    "input": "B / input.alt",
+    "activation": "rising edge, inside wardrobe only",
+    "cycle": [
+      "none",
+      "white-rope-wrap",
+      "pirate-hat",
+      "golden-crown",
+      "shades-white-beard",
+      "pharaoh-nemes",
+      "plumed-turban",
+      "paper-bag-mask"
+    ],
+    "promptTh": "B เปลี่ยนเครื่องแต่งกาย",
+    "sharedCatalog": "../wardrobe-assets.json"
+  },
+  "assetRules": {
+    "transparentBackground": true,
+    "opaqueLenses": true,
+    "containsAvatar": false,
+    "containsScripts": false,
+    "physicsChanges": false,
+    "headScaleChanges": false,
+    "viewBoxPaddingIsCollision": false
+  },
+  "examples": {
+    "artBoard": "preview.svg",
+    "cycle": "../wardrobe-cycle.svg",
+    "front": "examples/front-wearing.svg",
+    "topDown": "examples/top-wearing.svg"
+  },
+  "integrationOwner": "Next AI: integrate all seven accessories, test, then merge after required checks pass."
+}

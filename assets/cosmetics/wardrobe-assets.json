@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "status": "art-handoff-not-runtime-registration",
+  "branch": "art/rope-hat-svg-2077-2078",
+  "zoneId": "wardrobe",
+  "input": "B / input.alt",
+  "promptTh": "B เปลี่ยนเครื่องแต่งกาย",
+  "activation": "One change per new press while inside the wardrobe zone",
+  "cycle": [
+    "none",
+    "white-rope-wrap",
+    "pirate-hat",
+    "golden-crown",
+    "shades-white-beard",
+    "pharaoh-nemes",
+    "plumed-turban",
+    "paper-bag-mask"
+  ],
+  "items": [
+    {
+      "id": "none",
+      "nameTh": "ไม่ใส่",
+      "overlay": null
+    },
+    {
+      "id": "white-rope-wrap",
+      "nameTh": "หมวกผ้าขาวเชือกคู่",
+      "asset": "white-rope-wrap/asset.json",
+      "colorPart": "rope"
+    },
+    {
+      "id": "pirate-hat",
+      "nameTh": "หมวกโจรสลัด",
+      "asset": "pirate-hat/asset.json",
+      "colorPart": "upper-trim"
+    },
+    {
+      "id": "golden-crown",
+      "nameTh": "มงกุฎทอง",
+      "asset": "golden-crown/asset.json",
+      "colorPart": "front-gemstone"
+    },
+    {
+      "id": "shades-white-beard",
+      "nameTh": "แว่นดำและหนวดเคราขาว",
+      "asset": "shades-white-beard/asset.json",
+      "colorPart": null,
+      "colorMode": "fixed"
+    },
+    {
+      "id": "pharaoh-nemes",
+      "nameTh": "หมวกฟาโร",
+      "asset": "pharaoh-nemes/asset.json",
+      "colorPart": "player-color-stripes"
+    },
+    {
+      "id": "plumed-turban",
+      "nameTh": "หมวกโพกขนนก",
+      "asset": "plumed-turban/asset.json",
+      "colorParts": [
+        "player-color-feather",
+        "player-color-gemstone"
+      ]
+    },
+    {
+      "id": "paper-bag-mask",
+      "nameTh": "หน้ากากถุงกระดาษ",
+      "asset": "paper-bag-mask/asset.json",
+      "colorPart": null,
+      "colorMode": "fixed"
+    }
+  ],
+  "cycleIllustration": "wardrobe-cycle.svg",
+  "handoff": "HANDOFF.md",
+  "notes": [
+    "This catalog does not register or implement in-game behavior.",
+    "Use each projection viewBox/anchor. Do not assume identical padding for all accessories.",
+    "Preserve current B behavior outside wardrobe. Keep each player hat after leaving the zone.",
+    "shades-white-beard uses fixed neutral colors: no tint or player-color variants.",
+    "pharaoh-nemes alternates fixed gold stripes with player-color cloth stripes in both projections; brow band and cobra stay gold.",
+    "plumed-turban binds both feather and gemstone to player.color; white cloth and gold band/setting remain fixed. The overhead feather points backward (+Y).",
+    "paper-bag-mask uses fixed cream paper and black ink. Its mouth and jagged hem face forward (-Y) in overhead view. Roof seams and hem openings show the real avatar without baked-in red."
+  ]
+}

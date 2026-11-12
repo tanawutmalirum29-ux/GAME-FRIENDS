@@ -658,10 +658,21 @@ function draw(g,t,round,ps){
   if(!q.alive)continue;
   g.save();g.shadowColor=p.color;g.shadowBlur=7;
   disk(g,p.x,p.y+5*unit,(SETTINGS.radius+3)*unit,'rgba(0,0,0,.23)');g.restore();
-  if(!window.ReferenceArenaArt?.claimCar(g,p,SETTINGS.radius*unit)){
-   if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:t,combat:false,scale:unit});
-   else{disk(g,p.x,p.y,SETTINGS.radius*unit,p.color||'#80efff');}
+  const hasArtwork=window.ReferenceArenaArt?.claimCar(g,p,SETTINGS.radius*unit);
+  const carScale=SETTINGS.radius*unit*2/44,d=p.dir||{x:1,y:0};
+  g.save();g.translate(p.x,p.y);g.rotate(Math.atan2(d.y,d.x));g.scale(carScale,carScale);
+  if(!hasArtwork){
+   // Open bumper car under the same rider, including while the SVG decodes.
+   disk(g,0,0,22,'#172337');
+   g.fillStyle=p.color||'#80efff';g.beginPath();g.ellipse(1,0,18,17,0,0,TAU);g.fill();
+   g.fillStyle='#152638';g.beginPath();g.ellipse(-4,0,12,14,0,0,TAU);g.fill();
+   g.strokeStyle='#a9b7c7';g.lineWidth=1.8;g.beginPath();g.arc(10,0,4.5,0,TAU);g.stroke();
   }
+  g.translate(-4,0);
+  const drawAvatar=window.PartyCharacters?.draw||window.PartyPlayerAvatar?.draw;
+  drawAvatar?.(g,p,{time:t,local:true,heading:Math.PI/2,holding:true,
+   attacking:false,combat:false,label:false,shadow:false});
+  g.restore();
   if(freezeActive(s,p)){
    g.save();g.globalAlpha=.75;g.strokeStyle='#b9efff';g.lineWidth=3;
    g.beginPath();g.arc(p.x,p.y,(SETTINGS.radius+5)*unit,0,TAU);g.stroke();

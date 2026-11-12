@@ -562,7 +562,7 @@ function draw(g,time,round,ps){
  const alive=living(ps).slice().sort((a,b)=>a.y-b.y);
  for(const p of alive){
   const d=p.ufo,inv=s.clock<d.invulnUntil,blink=inv&&Math.floor(s.clock*14)%2===0;
-  Art.drawUFO(g,p.x,p.y,{u,time:s.clock,phase:d.phase,color:p.color||'#ddd',dx:p.dir?.x??1,dy:p.dir?.y??0,
+  Art.drawUFO(g,p,{u,time:s.clock,phase:d.phase,
    tx:d.tx,ty:d.ty,thrust:d.thrust,flash:d.flash,alpha:blink?.35:1});
  }
  drawFx(g,s,'over');

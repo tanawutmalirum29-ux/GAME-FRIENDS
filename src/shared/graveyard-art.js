@@ -315,6 +315,31 @@
     }
     ctx.restore();
   }
+  // Converted players keep the canonical head and cosmetics. Only a translucent
+  // trailing robe/halo belongs to this map; NPC specters keep their own artwork.
+  function drawPlayerGhostAura(ctx,p,time,theme='graveyard',scale=1){
+    const egypt=theme==='egypt',wave=Math.sin(time*5)*1.2;
+    const d=p.dir||{x:0,y:-1};
+    const angle=Math.hypot(d.x||0,d.y||0)>.001?Math.atan2(d.y,d.x)+Math.PI/2:0;
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);ctx.scale(scale,scale);
+    ctx.fillStyle=egypt?'rgba(255,228,151,.18)':'rgba(141,231,255,.18)';
+    ctx.beginPath();ctx.ellipse(0,5,25,22,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=egypt?'rgba(255,242,203,.62)':'rgba(219,248,255,.62)';
+    ctx.strokeStyle=egypt?'#ffe9a7':'#bdf2ff';ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(-19,3);
+    ctx.bezierCurveTo(-22,11,-18,18,-24,23);
+    ctx.quadraticCurveTo(-16,20,-11,25+wave);
+    ctx.quadraticCurveTo(-6,20,0,26-wave);
+    ctx.quadraticCurveTo(6,20,11,25+wave);
+    ctx.quadraticCurveTo(17,20,24,23);
+    ctx.bezierCurveTo(18,17,22,11,19,3);
+    ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle=egypt?'#fff2c8':'#e3fbff';
+    for(const side of [-1,1]){
+      ctx.beginPath();ctx.ellipse(side*22,9+side*wave,1.4,2.5,0,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+  }
   function drawActor(ctx,p,color,isGhost,time,theme='graveyard',scale=1){
     if(!isGhost){window.PartyPlayerAvatar.draw(ctx,p,{time,color,label:false,attacking:p.attackRemaining>0});return;}
     const movement=Math.hypot(p.vx||0,p.vy||0);
@@ -401,5 +426,5 @@
   window.GhostCemeteryArt=Object.freeze({KINDS,THEMES,GRAVEYARD_KINDS,
     EGYPT_KINDS,kindsForTheme,themeLabel,pickTheme,actorSVG,pharaohGhostSVG,obstacleSVG,
     lootSVG,getLootImage,drawLootBox,getActorImage,getObstacleImage,
-    specialObstacleSVG,getSpecialObstacleImage,drawActor,drawObstacle,preload});
+    specialObstacleSVG,getSpecialObstacleImage,drawActor,drawPlayerGhostAura,drawObstacle,preload});
 })();
