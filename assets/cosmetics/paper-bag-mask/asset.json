@@ -80,7 +80,7 @@
       "printedFaceProjection": "translate(32 28) rotate(180) scale(.54 .28) translate(-48 -8)",
       "referenceExampleRotationDeg": 90,
       "orientation": "Mouth and jagged hem face forward (-Y), roof folds extend backward (+Y). The +90 degree example has mouth/hem on the right and folded roof on the left.",
-      "layer": "Side gussets, separate roof flaps with open Y seam, forward printed face; composite after head with matching head transform"
+      "layer": "Continuous opaque side walls covering both cheeks, separate roof flaps with central open Y seam, forward printed face; side returns overlap panel and roof corners; composite after head with matching head transform"
     }
   },
   "colorBinding": {
@@ -107,7 +107,8 @@
     "opaqueFaceCover": true,
     "inkIsCutout": false,
     "originalEyes": "Covered by the opaque paper, do not draw original eyes over the mask.",
-    "openings": "Actual transparent gaps at hem and roof seams; do not replace with fixed red."
+    "openings": "Actual transparent gaps at hem and roof seams; do not replace with fixed red.",
+    "cheekCoverage": "Overhead side gussets extend from the front hem to the rear roof. Inner returns overlap the printed face and roof corners to close both cheek gaps. Keep only the narrow central roof seam open; preserve avatar size, anchor and existing draw rect."
   },
   "interactionHandoff": {
     "implemented": false,
