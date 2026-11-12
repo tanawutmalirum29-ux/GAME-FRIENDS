@@ -12,6 +12,14 @@ The 960×540 logical Host viewport, DPR scaling, all arena tier dimensions, coll
 
 COWBOY CROSSFIRE and CANNON CHAOS preserve existing world sizes, projectiles, turn rates, cooldowns, knockback, physics and hitboxes; directional joystick/D-pad input is an additional edge-triggered fire action (A/B/C retained). SHOCKWAVE stays 5×5 with 78-unit cells, avatar radius 29, body radius 13, human speed 177 and unchanged 1–12-player bounds. Bot warning reaction is shortened from about 0.18–1.88 s to 0.04–0.14 s, movement multiplier improves from .88 to .95 (relative to 177 units/s), its safe-target selection excludes exploding/warning tiles, and the last blast ignition occurs 0.28–0.30 s instead of 0.40–0.42 s (plus 0.08 s afterglow). All warning-route safety and original tile counts are retained.
 
+### SHOCKWAVE free-roaming bots and restored reaction (2026-11-12)
+
+Previous behavior: bots returned zero movement outside warning/explosion and moved only when visibly threatened, making them stand still throughout the countdown, between waves and while safe. The previous patch also shortened hazard reaction to 0.04–0.14 seconds.
+
+New behavior: each bot walks toward seeded, nearby tile waypoints continuously, including during countdown, PREPARE, NEXT_WAVE and nonthreatened WARNING/EXPLOSION phases. Upon actual danger contact, bot **reaction time is restored exactly** to `0.18 + random * min(1.7, warningDuration * 0.83)` seconds; it continues regular roaming during that reaction delay, then seeks safe ground. Already-reacted bots avoid targeting warned tiles. Existing 0.28–0.30-second ignition cascade and 0.08-second afterglow remain unchanged.
+
+MAP checks: the 5×5 arena, tile size 78 world units, board 390×390 at (285,116), Host viewport 960×540, avatar boundary radius 29, collision radius 13, human walk speed 177, bot walk speed multiplier 0.95, attack/hazard contacts, and the 1–12-player limits remain unchanged. Bot waypoints are virtual steering positions; no change to physics coordinates, grid resolution, DPR, SVG assets or camera. Node regressions now cover free wandering without hazard, reaction-delay behavior, map bounds, warning and explosion timing. Required CI and browser checks gate merge.
+
 ## Findings and changes
 
 ### Shared avatar mounts (2026-11-12)
