@@ -122,14 +122,18 @@ export function setup(round,ps){
 }
 
 /* ------------------------------ input ------------------------------ */
-// Any of A / B / C counts as "fire". Joystick and system buttons are ignored on purpose.
+// A/B/C and a new joystick/directional input press fire once on the same
+// rising edge. System buttons never fire and movement cannot steer the turret.
 const BTN=['A','B','C','a','b','c','action','alt','fire','shoot','buttonA','buttonB','buttonC','btnA','btnB','btnC','primary','secondary','tertiary','action2','action3'];
 function readFire(p){
  const inp=p.input;if(!inp||p.isBot)return false;
  try{
   const pc=globalThis.PartyCharacters;
-  if(pc&&pc.control){const c=pc.control(inp);if(c&&(c.action||c.alt))return true;}
+  if(pc&&pc.control){const c=pc.control(inp);
+   if(c&&(c.action||c.alt||Math.hypot(c.x,c.y)>.12))return true;}
  }catch(e){/* fall through to raw flags */}
+ if(Math.hypot(Number(inp.axisX)||0,Number(inp.axisY)||0)>.12||
+    inp.left||inp.right||inp.up||inp.down||inp.jump)return true;
  for(const k of BTN)if(inp[k])return true;
  if(Array.isArray(inp.buttons)&&inp.buttons.slice(0,3).some(Boolean))return true;
  return false;
