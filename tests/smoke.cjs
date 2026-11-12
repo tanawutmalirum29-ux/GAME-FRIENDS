@@ -777,30 +777,45 @@ const drawProbe=new Proxy({},{
   },
   set(){return true;}
 });
-// Renderer integration: BOTH the initial AI ghost and a converted
-// participant must use Pharaoh sprites on Egyptian rounds, without changing
-// player-specific color or leaking Pharaoh art into cemetery rounds.
-{
- for(const theme of ['egypt','graveyard']){
-  const x=init(3),player=x.players[0];
-  x.state.theme=theme;x.state.ghostSpawned=true;
-  player.ghost=true;player.stun=0;
-  art.preload(x.players,theme);
-  const pose='float0';
-  const ai=art.getActorImage(true,'#f5faff',pose,theme);
-  const converted=art.getActorImage(true,player.color,pose,theme);
-  drawImages.length=0;
-  ghost.draw(drawProbe,0,x.round,x.players);
-  assert.ok(drawImages.some(args=>args[0]===ai),
-    'AI ghost uses the '+theme+' themed sprite in the actual canvas draw');
-  assert.ok(drawImages.some(args=>args[0]===converted),
-    'converted player uses the '+theme+' themed sprite in the actual canvas draw');
-  const wrong=theme==='egypt'?'graveyard':'egypt';
-  assert.ok(!drawImages.some(args=>args[0]===
-    art.getActorImage(true,'#f5faff',pose,wrong)),
-    'ghost sprite from another map theme must not be drawn');
+// Renderer integration: NPC ghosts retain themed sprites, while infected
+// human players keep the same shared avatar identity, color and headwear.
+// The map-specific aura still receives the current theme, never the opposite one.
+assert.match(ghostSource,/Art\.drawPlayerGhostAura\(ctx,p,t,theme,GHOST_VISUAL_SCALE\)/);
+const originalAvatar=ghostSandbox.window.PartyPlayerAvatar;
+const sharedAvatarDraws=[];
+ghostSandbox.window.PartyPlayerAvatar={...originalAvatar,
+ draw(ctx,actor,options){
+  sharedAvatarDraws.push({ctx,actor,options});
+  return originalAvatar.draw(ctx,actor,options);
  }
+};
+for(const theme of ['egypt','graveyard']){
+ const x=init(3),player=x.players[0];
+ x.state.theme=theme;x.state.ghostSpawned=true;
+ player.ghost=true;player.stun=0;
+ art.preload(x.players,theme);
+ const pose='float0';
+ const ai=art.getActorImage(true,'#f5faff',pose,theme);
+ const obsolete=art.getActorImage(true,player.color,pose,theme);
+ drawImages.length=0;sharedAvatarDraws.length=0;
+ ghost.draw(drawProbe,0,x.round,x.players);
+ assert.ok(drawImages.some(args=>args[0]===ai),
+  'AI ghost uses the '+theme+' themed sprite in the actual canvas draw');
+ const matches=sharedAvatarDraws.filter(call=>call.actor===player);
+ assert.equal(matches.length,1,'converted player is rendered once through the shared avatar');
+ const options=matches[0].options;
+ assert.equal(options.color,player.color,'converted avatar retains the player color');
+ assert.equal(options.scale,1.26,'converted player stays visibly larger with unchanged physics');
+ assert.equal(options.alpha,.78,'converted player keeps the ghost translucent layer');
+ assert.equal(options.label,false,'the ghost game owns its red player name');
+ assert.ok(!drawImages.some(args=>args[0]===obsolete),
+  'converted player cannot revert to the themed NPC sprite');
+ const wrong=theme==='egypt'?'graveyard':'egypt';
+ assert.ok(!drawImages.some(args=>args[0]===
+  art.getActorImage(true,'#f5faff',pose,wrong)),
+  'ghost sprite from another map theme must not be drawn');
 }
+ghostSandbox.window.PartyPlayerAvatar=originalAvatar;
 // The host game engine must no longer paint its own corner HUD labels.
 // Time/player-count belong exclusively to app.js's shared centre badge.
 {
