@@ -470,8 +470,6 @@ function savePhone(){
 }
 function restorePlayers(list){
  if(!Array.isArray(list)||list.length>MAX_PLAYERS)return;
- // Node-based lobby regression runs without a browser global.
- const cosmetics=typeof window==='undefined'?null:window.PartyCosmetics;
  const originalColors=new Set(),ids=new Set();
  players=[];
  for(const a of list){
@@ -490,8 +488,8 @@ function restorePlayers(list){
    clientToken:a.token||null,conn:null,input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,
    score:0,total:Number(a.total)||0,choice:Object.hasOwn(MODES,a.choice)?a.choice:null,
    ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
-    cosmetic:cosmetics?.IDS?.includes(a.cosmetic)?a.cosmetic:
-      a.type==='local'?(cosmetics?.randomBot?.()||'none'):'none',
+    cosmetic:(typeof window!=='undefined'&&window.PartyCosmetics?.IDS?.includes(a.cosmetic))?a.cosmetic:
+      a.type==='local'?(typeof window!=='undefined'?(window.PartyCosmetics?.randomBot?.()||'none'):'none'):'none',
     isBot:a.type==='local'});
  }
  nextId=Math.max(nextId,...players.map(p=>Number(p.id.slice(1))+1));
