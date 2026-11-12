@@ -196,8 +196,9 @@ function setup(round,ps){
    bot:p.isBot?makeBot(s):null};
   if(p.dyn.bot){p.dyn.bot.lastX=q.x;p.dyn.bot.lastY=q.y;}
  });
- // Host countdown covers the 3 s before play; `remaining` is only a placeholder so no host timer ends the round.
- round.remaining=s.solo?C.soloSeconds:9999;
+ // Multiplayer has no overall time limit. The shared Host HUD uses null to
+ // display the survivors badge instead of an invented 9999-second timer.
+ round.remaining=s.solo?C.soloSeconds:null;
  return s;
 }
 function cleanup(round){
@@ -442,7 +443,7 @@ function step(dt,round,ps){
   round.remaining=Math.max(0,C.soloSeconds-s.clock);
   if(!s.pendingFinish&&(left===0||s.clock>=C.soloSeconds))s.pendingFinish=left===0?C.finishDelay:EPS;
  }else{
-  round.remaining=9999;
+  round.remaining=null; // Shared Host HUD now shows living players.
   if(!s.pendingFinish&&left<=1)s.pendingFinish=C.finishDelay;
  }
  if(s.pendingFinish){
