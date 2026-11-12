@@ -1,7 +1,7 @@
 /* COWBOY CROSSFIRE — last-gunslinger-standing duel on a shrinking circular track.
    Everyone auto-runs on ONE ring (angular position), firing = straight bullet through the arena
    centre + instant (eased) reversal of running direction. Fixed 60 Hz step, world units only. */
-import {KINDS,buildBackdrop,drawPlaza,drawObstacle,drawHat,drawRevolver,drawHeart,drawBullet,drawFx} from './crossfire-art.js';
+import {KINDS,buildBackdrop,drawPlaza,drawObstacle,drawRevolver,drawHeart,drawBullet,drawFx} from './crossfire-art.js';
 
 const STEP=1/60,TAU=Math.PI*2,EPS=1e-8;
 // All balance numbers live here; the logic below never hard-codes them.
@@ -433,7 +433,7 @@ function draw(g,time,round,ps){
   if(c.invuln>0&&Math.floor(s.clock*16)%2)g.globalAlpha=.4;
   if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:s.clock,label:false});
   else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(p.x,p.y,C.radius,0,TAU);g.fill();}
-  drawHat(g,p.x,p.y-17,p.color);
+  // Headwear belongs to the shared avatar; the revolver remains game equipment.
   drawRevolver(g,p.x+p.dir.x*8,p.y+p.dir.y*8+2,Math.atan2(p.dir.y,p.dir.x),c.recoil);
   g.restore();
   // HP pips sit just outside the track so they never cover the duel lanes

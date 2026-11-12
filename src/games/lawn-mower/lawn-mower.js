@@ -422,29 +422,34 @@ function background(s){
 }
 function drawMower(g,p,time){
  const m=p.mower;if(!m)return;
- if(window.ReferenceArenaArt?.mower(g,p,time))return;
+ const hasArtwork=window.ReferenceArenaArt?.mower(g,p,time);
  const color=p.color||'#4de0aa';
  g.save();g.translate(p.x,p.y);g.rotate(m.heading+Math.PI/2);
- g.fillStyle='rgba(18,44,16,.27)';g.beginPath();g.ellipse(3,5,22,29,.1,0,TAU);g.fill();
- for(const sx of [-1,1])for(const sy of [-1,1]){
-  rect(g,sx*16-5,sy*17-8,9,16,'#262e36');rect(g,sx*16-3,sy*17-5,5,9,'#777e80');
+ if(!hasArtwork){
+  g.fillStyle='rgba(18,44,16,.27)';g.beginPath();g.ellipse(3,5,22,29,.1,0,TAU);g.fill();
+  for(const sx of [-1,1])for(const sy of [-1,1]){
+   rect(g,sx*16-5,sy*17-8,9,16,'#262e36');rect(g,sx*16-3,sy*17-5,5,9,'#777e80');
+  }
+  rect(g,-17,-30,34,60,'#2b4931');
+  rect(g,-16,-28,32,21,'#283f32');rect(g,-15,-27,30,19,color);
+  for(const y of [-24,-21,-18])rect(g,-10,y,20,1.5,'#3f5830');
+  disk(g,0,-12,5,'#274133');disk(g,0,-12,3.5,'#a5bd9c');
+  rect(g,-15,-3,30,31,'#1d332b');rect(g,-12,22,24,7,'#405b46');
+  g.strokeStyle='#cce5a2';g.lineWidth=3;g.beginPath();
+  g.moveTo(-13,0);g.quadraticCurveTo(0,-4,13,0);g.stroke();
+  g.fillStyle='#fff';g.font='bold 10px system-ui';g.textAlign='center';
+  g.fillText(String(p.name||'').slice(0,11),0,-37);
+  if(m.moving){
+   g.save();g.strokeStyle='#dceab9';g.lineWidth=1.3;g.globalAlpha=.35+.2*Math.sin(time*16);
+   g.beginPath();g.moveTo(-12,-32);g.lineTo(-17,-37);g.moveTo(12,-32);g.lineTo(18,-38);g.stroke();g.restore();
+  }
  }
- rect(g,-16,-26,32,27,'#283f32');rect(g,-15,-25,30,25,color);
- rect(g,-12,-25,24,8,'#e0e9b5');
- disk(g,0,-12,8,'#274133');disk(g,0,-12,5,'#a5bd9c');
- rect(g,-12,2,24,21,'#253b33');rect(g,-11,3,22,19,color);
- rect(g,-10,4,20,5,'#eff0cf');
- g.strokeStyle='#394344';g.lineWidth=4;g.beginPath();g.moveTo(-12,18);g.lineTo(-14,30);g.lineTo(14,30);g.lineTo(12,18);g.stroke();
- // Driver's head and arms visible above the machine.
- disk(g,0,12,11,'#f4ca9e');
- disk(g,-3,10,1.4,'#304338');disk(g,3,10,1.4,'#304338');
- rect(g,-9,18,18,7,color);
- g.fillStyle='#fff';g.font='bold 10px system-ui';g.textAlign='center';
- g.fillText(String(p.name||'').slice(0,11),0,-37);
- if(m.moving){
-  g.strokeStyle='#dceab9';g.lineWidth=1.3;g.globalAlpha=.35+.2*Math.sin(time*16);
-  g.beginPath();g.moveTo(-12,-32);g.lineTo(-17,-37);g.moveTo(12,-32);g.lineTo(18,-38);g.stroke();
- }
+ // One live rider in both artwork/loading paths. Seat offsets are render-only;
+ // retain p itself so the shared avatar can read all equipped cosmetics.
+ g.translate(0,12);
+ const drawAvatar=window.PartyCharacters?.draw||window.PartyPlayerAvatar?.draw;
+ drawAvatar?.(g,p,{time,local:true,heading:0,scale:.9,holding:true,
+  attacking:false,combat:false,label:false,shadow:false});
  g.restore();
 }
 function drawSun(g,x,y,r){

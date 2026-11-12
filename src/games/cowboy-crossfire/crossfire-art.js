@@ -247,16 +247,7 @@ export function drawObstacle(g,o,clock){
  if(o.hitFlash>0){g.save();g.globalAlpha=Math.min(.7,o.hitFlash*4);g.fillStyle='#fff';g.beginPath();g.arc(o.x,o.y,r*.9,0,TAU);g.fill();g.restore();}
 }
 
-/* ---------------- cowboy extras: hat + revolver drawn over the central avatar ---------------- */
-export function drawHat(g,x,y,color){
- g.save();g.translate(x,y);
- g.fillStyle='rgba(30,14,4,.35)';g.beginPath();g.ellipse(2,3,14,5.4,0,0,TAU);g.fill();
- g.fillStyle='#7c4a22';g.strokeStyle='#2e1708';g.lineWidth=1.4;
- g.beginPath();g.ellipse(0,0,14,5.4,0,0,TAU);g.fill();g.stroke(); // brim
- g.fillStyle='#8f5a2c';g.beginPath();g.moveTo(-7.5,-.5);g.quadraticCurveTo(-7,-10,0,-9.5);g.quadraticCurveTo(7,-10,7.5,-.5);g.closePath();g.fill();g.stroke(); // crown
- g.fillStyle=color||'#e33';g.fillRect(-7.2,-4,14.4,3);g.strokeRect(-7.2,-4,14.4,3); // identity band
- g.restore();
-}
+/* ---------------- revolver equipment; headwear is owned by the shared avatar ---------------- */
 export function drawRevolver(g,x,y,ang,recoil){
  g.save();g.translate(x,y);g.rotate(ang);g.translate(-recoil*5,0);
  g.fillStyle='#5a3418';g.strokeStyle='#1d1008';g.lineWidth=1.2;

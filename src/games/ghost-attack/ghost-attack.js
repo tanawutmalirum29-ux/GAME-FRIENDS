@@ -882,11 +882,17 @@ function hud(players,round){
 }
 const GHOST_VISUAL_SCALE=1.26;
 const GHOST_NAME_COLOR='#ff454f';
-function drawPerson(ctx,p,color,ghost,t,alpha=1,theme='graveyard'){
+function drawPerson(ctx,p,color,ghost,t,alpha=1,theme='graveyard',npc=false){
   ctx.save();ctx.globalAlpha=alpha;
-  // Only enlarge ghost artwork; preserve gameplay speed, hit radius and physics.
-  if(ghost)Art.drawActor(ctx,p,color,true,t,theme,GHOST_VISUAL_SCALE);
-   else window.PartyPlayerAvatar.draw(ctx,p,{time:t,color,label:false,attacking:p.attackRemaining>0});
+  // NPCs have authored specter art. Player ghosts retain their full shared
+  // identity and headwear, with a ghost-only robe/halo and the existing red name.
+  if(ghost&&npc)Art.drawActor(ctx,p,color,true,t,theme,GHOST_VISUAL_SCALE);
+  else{
+    if(ghost)Art.drawPlayerGhostAura(ctx,p,t,theme,GHOST_VISUAL_SCALE);
+    window.PartyPlayerAvatar.draw(ctx,p,{time:t,color,label:false,
+      scale:ghost?GHOST_VISUAL_SCALE:1,alpha:ghost?.78:1,shadow:!ghost,
+      attacking:!ghost&&p.attackRemaining>0});
+  }
   // The shared combat and stun timelines also decorate the SVG sprite.
   Combat.drawAttack(ctx,p);
   Combat.drawStun(ctx,p,t);
@@ -989,7 +995,7 @@ function draw(ctx,t,round,players){
   if(state.ghostSpawned){
     for(const npc of state.npcs)
       drawPerson(ctx,{...npc,name:state.theme==='egypt'?'ฟาโรห์':'ผี'},
-        '#f5faff',true,t,npc.stun>0?.65:1,state.theme);
+        '#f5faff',true,t,npc.stun>0?.65:1,state.theme,true);
   }
   for(const p of players){
     if(!p.active)continue;

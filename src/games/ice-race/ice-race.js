@@ -635,35 +635,42 @@ function iceWorld(g,s,t){
 }
 function sled(g,p,t){
  const w=p.ice;if(!w)return;
- if(window.ReferenceArenaArt?.sled(g,p,t))return;
  if(w.state==='falling'&&w.fallLeft>.65)return;
+ const hasArtwork=window.ReferenceArenaArt?.sled(g,p,t);
  const fall=w.state==='falling',f=fall?Math.max(.25,1-w.fallLeft*1.3):1;
  g.save();g.translate(p.x,p.y+(fall?w.fallLeft*22:0));
  g.rotate(w.heading+(fall?w.fallLeft*1.7:0));g.scale(f,f);
  g.globalAlpha=fall?Math.max(.12,1-w.fallLeft*1.7):1;
- const color=p.color||'#ff6677';
- g.fillStyle='#12567e55';g.beginPath();g.ellipse(2,8,23,16,0,0,TAU);g.fill();
- if(!fall&&Math.abs(w.driftAngle)>.18&&Math.hypot(w.vx,w.vy)>60){
-  for(const o of [-1,1])disc(g,-23,o*11,3+Math.abs(Math.sin(t*12+o)), '#bbfaff');
+ if(!hasArtwork){
+  const color=p.color||'#ff6677';
+  g.fillStyle='#12567e55';g.beginPath();g.ellipse(2,8,23,16,0,0,TAU);g.fill();
+  if(!fall&&Math.abs(w.driftAngle)>.18&&Math.hypot(w.vx,w.vy)>60){
+   for(const o of [-1,1])disc(g,-23,o*11,3+Math.abs(Math.sin(t*12+o)), '#bbfaff');
+  }
+  g.strokeStyle='#207394';g.lineWidth=4;g.lineCap='round';
+  for(const side of [-1,1]){
+   g.beginPath();g.moveTo(-23,side*15);g.lineTo(23,side*15);g.stroke();
+   g.strokeStyle='#f4fcff';g.lineWidth=2;
+   g.beginPath();g.moveTo(-23,side*17);g.lineTo(23,side*17);g.stroke();
+   g.strokeStyle='#207394';g.lineWidth=4;
+  }
+  g.fillStyle='#1b4559';g.beginPath();g.roundRect(-21,-13,38,26,9);g.fill();
+  g.fillStyle=color;g.beginPath();g.roundRect(-17,-12,34,24,8);g.fill();
+  g.fillStyle='#e9f9ff';g.beginPath();g.roundRect(8,-9,10,18,5);g.fill();
+  disc(g,-21,0,4,'#294e64');
+  g.fillStyle='#214859';g.beginPath();g.roundRect(-18,-10,24,20,5);g.fill();
+  g.strokeStyle='#edfaff';g.lineWidth=2;g.beginPath();g.moveTo(7,-7);g.lineTo(7,7);g.stroke();
+  g.save();g.rotate(-w.heading);g.fillStyle='#f8feff';g.font='bold 11px system-ui';
+  g.textAlign='center';g.shadowColor='#164b80';g.shadowBlur=4;
+  g.fillText(String(p.name||'').slice(0,12),0,-29);g.restore();
+  if(w.invulnerable>0){g.strokeStyle='#c0f8ff';g.lineWidth=2;g.setLineDash([5,4]);g.beginPath();g.arc(0,0,24,0,TAU);g.stroke();g.setLineDash([]);}
  }
- g.strokeStyle='#207394';g.lineWidth=4;g.lineCap='round';
- for(const side of [-1,1]){
-  g.beginPath();g.moveTo(-23,side*15);g.lineTo(23,side*15);g.stroke();
-  g.strokeStyle='#f4fcff';g.lineWidth=2;
-  g.beginPath();g.moveTo(-23,side*17);g.lineTo(23,side*17);g.stroke();
-  g.strokeStyle='#207394';g.lineWidth=4;
- }
- g.fillStyle='#1b4559';g.beginPath();g.roundRect(-21,-13,38,26,9);g.fill();
- g.fillStyle=color;g.beginPath();g.roundRect(-17,-12,34,24,8);g.fill();
- g.fillStyle='#e9f9ff';g.beginPath();g.roundRect(8,-9,10,18,5);g.fill();
- disc(g,-15,0,9,'#294e64');disc(g,-15,0,5,'#f7b949');
- // The existing character colours remain visible on their sled.
- disc(g,-2,0,11,color);disc(g,1,0,7,'#f8d7b2');
- disc(g,4,-3,1.6,'#334957');disc(g,4,3,1.6,'#334957');
- g.save();g.rotate(-w.heading);g.fillStyle='#f8feff';g.font='bold 11px system-ui';
- g.textAlign='center';g.shadowColor='#164b80';g.shadowBlur=4;
- g.fillText(String(p.name||'').slice(0,12),0,-29);g.restore();
- if(w.invulnerable>0){g.strokeStyle='#c0f8ff';g.lineWidth=2;g.setLineDash([5,4]);g.beginPath();g.arc(0,0,24,0,TAU);g.stroke();}
+ // +X is the sled's forward axis. The shared player rides inside the same
+ // fall/spin/fade transform, with no second application of p.dir.
+ g.translate(-4,0);
+ const drawAvatar=window.PartyCharacters?.draw||window.PartyPlayerAvatar?.draw;
+ drawAvatar?.(g,p,{time:t,local:true,heading:Math.PI/2,scale:.72,holding:true,
+  attacking:false,combat:false,label:false,shadow:false});
  g.restore();
 }
 function draw(g,t,round,ps){

@@ -184,11 +184,17 @@ function draw(ctx,p,opts={}){
  ctx.save();
  ctx.globalAlpha=(typeof ctx.globalAlpha==='number'?ctx.globalAlpha:1)*(opts.alpha===undefined?1:opts.alpha);
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
- ctx.fillStyle='#06142255';ctx.beginPath();ctx.ellipse(0,0,19,16,0,0,TAU);ctx.fill();
+ // Mounts own their ground shadow. Their caller may already have rotated the
+ // canvas, so accept a local heading without rewriting the player's direction.
+ if(opts.shadow!==false){
+  ctx.fillStyle='#06142255';ctx.beginPath();ctx.ellipse(0,0,19,16,0,0,TAU);ctx.fill();
+ }
  const punchFrame=opts.attacking===false?-1:
   Number.isFinite(opts.punchElapsedMs)?punchFrameAtMs(opts.punchElapsedMs):punchFrameFor(p);
  if(punchFrame<0)punchDrawn.delete(p); // a different round must not inherit a previous draw marker
- ctx.save();ctx.rotate(punchFrame>=0?punchHeading(p,opts.punchFacing):heading(p));
+ const angle=Number.isFinite(opts.heading)?opts.heading:
+  punchFrame>=0?punchHeading(p,opts.punchFacing):heading(p);
+ ctx.save();ctx.rotate(angle);
  const atlas=punchFrame>=0?punchImageFor(color):null;
  if(atlas&&atlas.complete&&atlas.naturalWidth){
   // Padded SVG viewBox is not an actor scale or physics origin change.

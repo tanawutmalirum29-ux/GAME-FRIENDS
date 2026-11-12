@@ -8,6 +8,25 @@
 
 ## Findings and changes
 
+### Shared avatar mounts (2026-11-12)
+
+Branch: `art/rope-hat-svg-2077-2078`; main source baseline: `34a22766949bb4f696be88062ad0a6294a5148eb`.
+
+**Source dimensions only, not runtime measurements. No QA, tests, syntax checks, build, browser or CI were run for this change, as explicitly requested by the user.** The next AI owns visual/physics verification and merge. Earlier evidence elsewhere in this document does not validate this branch revision. See [handoff](SHARED_AVATAR_HANDOFF.md).
+
+| Engine | Before | Authored replacement and retained geometry |
+|---|---|---|
+| LAWN MOWER | SVG driver head diameter 24; fallback had an independent skin-tone head | Shared 52-unit avatar × `.9` = 46.8-unit padded sprite at local seat `(0,12)`; 46.8 / 35.1 logical screen pixels in the 960 / 1280 worlds. Open rear seat and shorter engine hood stay inside the existing 44×62 chassis; radius 17, blade half-width 15 and front range 16–28, speed 50.75, grass/nav detail and both tiers unchanged. |
+| COLOR CLAIM | Baked driver head diameter `18 × 2r/44`; image-loading path used a different full actor scale | Shared sprite `52 × 2r/44` at car-local `(-4,0)`; r = `13 × world.w/960`, giving approximately 30.73 logical screen pixels in either tier. Padded vehicle SVG remains 64×64, physical bumper diameter `26 × unit`; capture cells, movement and hit geometry unchanged. |
+| ICE RACE | Baked driver head diameter 24; fallback drew its own skin-tone face | Shared 52 × `.72` = 37.44-unit sprite at sled-local `(-4,0)`, projected to 37.44 / 29.952 / 24.96 screen pixels for the 960 / 1200 / 1440 worlds. Existing 48×36 hull, radius 14, road half-widths 54 / 62 / 74, 1–4 / 5–8 / 9–12 tiers, fall/spin/fade and respawn physics retained. |
+| UFO ARENA | Opaque 14.4 × unit dome with an unrelated face | Shared 52 × `.6 × unit` = 31.2 logical screen pixel pilot in an open cockpit, inside the original bob/alpha transform. Saucer, bumper balls, radius `17 × unit`, world dimensions, collisions and thrust unchanged. |
+| GHOST ATTACK | Converted players and NPCs both used a 54 × 1.26 sprite independent of the shared avatar | Converted players use shared 52 × 1.26 = 65.52-unit padded art plus a separate translucent robe/halo; NPC sprites remain 54 × 1.26. Shared player identity and headwear are retained, with ghost scale factor 1.26 and red name. Player collision radius 16, infection/attack logic, courtyard worlds and navigation unchanged. |
+| COWBOY CROSSFIRE / SCOOP RUSH | Shared character plus an unconditional cowboy hat / temporary mutation of rider `p.y` | Cowboy shared 52-unit art remains, with no forced hat overlay. Scoop shared 41.6-unit rider and −8 saddle offset remain; only Canvas is translated. Gun, bear, physics, movement and scoring unchanged. |
+
+The shared avatar accepts an optional local `heading` in radians and `shadow:false` for mounts. Defaults, canonical SVG dimensions and image-loading fallback geometry are unchanged. All driver render paths forward the complete player object. Equipment is painted beneath the avatar without a head/cockpit clipping mask; cosmetic padding is never a collider. Keep 960×540 logical rendering, native DPR and each map's existing world transform. All screen dimensions above are arithmetic from source constants and require the next AI's latest-head browser evidence before merge.
+
+### Previous map scale decisions
+
 | Engine | Before | After / decision | Underlying reason / invariant |
 |---|---|---|---|
 | **FRUIT MEMORY** | 4×4 and 5×5 both 400×400; cells 100 vs 80; board origin (280,104) in both | **Fixed:** 4×4 = 320×320, (320,110); 5×5 = 400×400, (280,70); both tile=80, hit radius=13 | Prior 4×4 tile/actor ratio drift. Spawn, feet, bots all already derive from board. Panels are visible through prestart; countdown movement exists already. |

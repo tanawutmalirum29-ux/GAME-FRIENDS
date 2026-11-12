@@ -550,11 +550,13 @@ function draw(g,time,round,ps){
   if(it.sc){Art.drawScoop(g,it.sc,flav[it.sc.owner]||'#fff',t);continue;}
   const p=it.p;
   Art.drawBear(g,p,p.sr.flavor,t,p.sr.moving);
-  if(window.PartyCharacters?.draw){
-   const oy=p.y;p.y-=8;
-   window.PartyCharacters.draw(g,p,{time:t,scale:.8,label:false});
-   p.y=oy;
-  }else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(p.x,p.y-8,10,0,TAU);g.fill();}
+  // Keep the bear as a mount, and move only the canvas to its saddle. The
+  // shared avatar receives the original player, never a changed physics anchor.
+  g.save();g.translate(0,-8);
+  const drawAvatar=window.PartyCharacters?.draw||window.PartyPlayerAvatar?.draw;
+  if(drawAvatar)drawAvatar(g,p,{time:t,scale:.8,label:false});
+  else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(p.x,p.y,10,0,TAU);g.fill();}
+  g.restore();
  }
  for(const e of s.fx)Art.drawFx(g,e);
  g.restore();

@@ -206,7 +206,8 @@ export function drawZoneSpikes(g,geo,z,clock,spikeLen){
 }
 
 /* ------------------------------ UFO ------------------------------ */
-export function drawUFO(g,x,y,o){
+export function drawUFO(g,p,o){
+ const {x,y}=p,color=p.color||'#ddd';
  const u=o.u,t=o.time,bob=Math.sin(t*3.2+o.phase)*1.5*u;
  g.save();
  g.globalAlpha=o.alpha??1;
@@ -225,13 +226,13 @@ export function drawUFO(g,x,y,o){
  // bumper balls
  for(let k=0;k<6;k++){
   const an=k*TAU/6+t*.9,bx=Math.cos(an)*15*u,by=Math.sin(an)*15*u;
-  g.fillStyle=o.color;g.beginPath();g.arc(bx,by,4.3*u,0,TAU);g.fill();
+  g.fillStyle=color;g.beginPath();g.arc(bx,by,4.3*u,0,TAU);g.fill();
   g.fillStyle='rgba(0,0,0,.28)';g.beginPath();g.arc(bx+.8*u,by+.9*u,3.4*u,0,TAU);g.fill();
   g.fillStyle='rgba(255,255,255,.65)';g.beginPath();g.arc(bx-1.3*u,by-1.4*u,1.4*u,0,TAU);g.fill();
  }
  // saucer
  g.fillStyle='#262a52';g.beginPath();g.arc(0,0,14.2*u,0,TAU);g.fill();
- g.fillStyle=o.color;g.beginPath();g.arc(0,0,12.6*u,0,TAU);g.fill();
+ g.fillStyle=color;g.beginPath();g.arc(0,0,12.6*u,0,TAU);g.fill();
  const sh=g.createRadialGradient(-4*u,-5*u,1*u,0,0,14*u);
  sh.addColorStop(0,'rgba(255,255,255,.55)');sh.addColorStop(.55,'rgba(255,255,255,0)');sh.addColorStop(1,'rgba(0,0,0,.35)');
  g.fillStyle=sh;g.beginPath();g.arc(0,0,12.6*u,0,TAU);g.fill();
@@ -239,16 +240,12 @@ export function drawUFO(g,x,y,o){
   const an=k*TAU/8-t*1.6,on=((k+Math.floor(t*4))%2)===0;
   g.fillStyle=on?'#fff6a8':'rgba(255,255,255,.35)';g.beginPath();g.arc(Math.cos(an)*10.6*u,Math.sin(an)*10.6*u,1.15*u,0,TAU);g.fill();
  }
- // dome + face
- g.fillStyle='rgba(210,245,255,.92)';g.strokeStyle='rgba(20,30,70,.75)';g.lineWidth=1.2*u;
- g.beginPath();g.arc(0,0,7.2*u,0,TAU);g.fill();g.stroke();
- const fx=o.dx,fy=o.dy,px=-fy,py=fx;
- g.fillStyle='#16204a';
- for(const sd of[-1,1]){g.beginPath();g.ellipse(fx*2.2*u+px*sd*2.7*u,fy*2.2*u+py*sd*2.7*u,1.35*u,1.9*u,Math.atan2(fy,fx),0,TAU);g.fill();}
- g.strokeStyle='#16204a';g.lineWidth=1.1*u;
- g.beginPath();g.moveTo(fx*3.6*u-px*4.6*u,fy*3.6*u-py*4.6*u);g.lineTo(fx*1.6*u-px*1.4*u,fy*1.6*u-py*1.4*u);
- g.moveTo(fx*3.6*u+px*4.6*u,fy*3.6*u+py*4.6*u);g.lineTo(fx*1.6*u+px*1.4*u,fy*1.6*u+py*1.4*u);g.stroke();
- g.fillStyle='rgba(255,255,255,.7)';g.beginPath();g.ellipse(-2.6*u,-3.4*u,2.6*u,1.3*u,-.5,0,TAU);g.fill();
+ // Open cockpit: no opaque dome or second face above the shared pilot/hat.
+ g.fillStyle='#142a46';g.strokeStyle='#c0efff';g.lineWidth=1.2*u;
+ g.beginPath();g.arc(0,0,9.7*u,0,TAU);g.fill();g.stroke();
+ const drawAvatar=window.PartyCharacters?.draw||window.PartyPlayerAvatar?.draw;
+ drawAvatar?.(g,p,{time:t,local:true,scale:.6*u,holding:true,
+  attacking:false,combat:false,label:false,shadow:false});
  if(o.flash>0){
   g.fillStyle=(Math.floor(t*30)%2)?'rgba(255,40,40,'+Math.min(.7,o.flash*1.6)+')':'rgba(255,255,255,'+Math.min(.7,o.flash*1.6)+')';
   g.beginPath();g.arc(0,0,17*u,0,TAU);g.fill();
