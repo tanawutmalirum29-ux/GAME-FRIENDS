@@ -141,8 +141,16 @@ for(const [name,engine,stateKey] of entries){
  }
 }
 const claim=code('src/games/color-claim/color-claim.js'),chickens=code('src/games/chickens/chickens.js');
-assert.match(claim,/PartyCharacters\.draw\(g,p,\{time:t,combat:false,scale:unit\}\)/,
- 'large COLOR CLAIM actors must scale like their world-space hitboxes');
+// The car mount is scaled with the same world-space unit as collisions.
+// The shared rider is drawn inside that scaled/rotated car transform.
+assert.match(claim,/const unit=s\.w\/960/,
+ 'COLOR CLAIM uses the actual world tier as its display unit');
+assert.match(claim,/const carScale=SETTINGS\.radius\*unit\*2\/44/,
+ 'large COLOR CLAIM car and rider scale with their world-space hitboxes');
+assert.match(claim,/g\.scale\(carScale,carScale\)/,
+ 'COLOR CLAIM mounts the rider in the scaled car coordinate frame');
+assert.match(claim,/drawAvatar\?\.\(g,p,\{time:t,local:true,heading:Math\.PI\/2,holding:true/,
+ 'COLOR CLAIM renders the real shared avatar, centered on the car mount');
 assert.match(claim,/trailHits\(map,from,to,5\*s\.w\/960\)/,
  'rendered territory trails and trail-cut detection must scale together');
 assert.match(chickens,/drawPlayer\(ctx,p,time,s\.unit\)/,
