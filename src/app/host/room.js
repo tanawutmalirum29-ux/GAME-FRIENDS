@@ -12,6 +12,7 @@ function makePlayer(name,type,conn) {
     input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,score:0,total:0,
     choice:type==='local'?'ghost':null,
     ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
+    cosmetic:type==='local'?(window.PartyCosmetics?.randomBot?.()||'none'):'none',
     isBot:type==='local'};
   players.push(p);renderRoster();return p;
 }
@@ -37,7 +38,8 @@ function removePlayer(id) {
   renderRoster();broadcastRoster();
   if(['results','summary'].includes(round?.phase))renderResultVotes(true);
 }
-function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active,choice:p.choice,eliminated:!!((round?.mode==='shockwave'&&p.active&&!p.shockAlive)||(round?.mode==='witching_snake'&&p.active&&!p.ws?.alive)||(round?.mode==='gladiators'&&p.active&&!p.gladiator?.alive))};}
+function playerPublic(p){return {id:p.id,name:p.name,color:p.color,type:p.type,active:p.active,choice:p.choice,
+ cosmetic:window.PartyCosmetics?.normalize?.(p.cosmetic)||'none',eliminated:!!((round?.mode==='shockwave'&&p.active&&!p.shockAlive)||(round?.mode==='witching_snake'&&p.active&&!p.ws?.alive)||(round?.mode==='gladiators'&&p.active&&!p.gladiator?.alive))};}
 function send(conn,msg){if(conn&&conn.open){try{conn.send(msg);}catch(e){/* peer disconnected */}}}
 function broadcast(msg){hostConnections.forEach(c=>send(c,msg));}
 // Low-bandwidth game view for phone controllers (no microphone, no screen capture).
@@ -796,7 +798,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
         conn.playerId=p.id;conn.previewEnabled=false;conn.boardMinimapCapable=false;
         conn.boardMiniMapSession=null;conn.fastAxisToken=fastAxisSessionToken();
         conn.fastAxisConn=null;conn.fastAxisLastAt=0;p.lastInputAt=Date.now();
-        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active,axisToken:conn.fastAxisToken,
+        send(conn,{t:'welcome',id:p.id,name:p.name,color:p.color,cosmetic:p.cosmetic,mode:round?round.mode:'ghost',phase:networkPhase(),choice:p.choice,active:p.active,axisToken:conn.fastAxisToken,
           ...gfConnectionHello(),pluginHash:round?.pluginHash||null,
           boardMapId:boardSession?.map.id||null});
         broadcastRoster();
