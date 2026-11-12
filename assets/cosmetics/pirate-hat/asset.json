@@ -181,7 +181,8 @@
       "pirate-hat",
       "golden-crown",
       "shades-white-beard",
-      "pharaoh-nemes"
+      "pharaoh-nemes",
+      "plumed-turban"
     ],
     "sharedCatalog": "../wardrobe-assets.json",
     "promptTh": "B เปลี่ยนเครื่องแต่งกาย"
@@ -201,5 +202,5 @@
     "front": "examples/front-wearing.svg",
     "topDown": "examples/top-wearing.svg"
   },
-  "integrationOwner": "Next AI: integrate all five accessories, test, then merge after required checks pass."
+  "integrationOwner": "Next AI: integrate all six accessories, test, then merge after required checks pass."
 }

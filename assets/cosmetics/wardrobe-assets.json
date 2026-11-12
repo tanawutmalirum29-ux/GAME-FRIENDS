@@ -12,7 +12,8 @@
     "pirate-hat",
     "golden-crown",
     "shades-white-beard",
-    "pharaoh-nemes"
+    "pharaoh-nemes",
+    "plumed-turban"
   ],
   "items": [
     {
@@ -50,6 +51,15 @@
       "nameTh": "หมวกฟาโร",
       "asset": "pharaoh-nemes/asset.json",
       "colorPart": "player-color-stripes"
+    },
+    {
+      "id": "plumed-turban",
+      "nameTh": "หมวกโพกขนนก",
+      "asset": "plumed-turban/asset.json",
+      "colorParts": [
+        "player-color-feather",
+        "player-color-gemstone"
+      ]
     }
   ],
   "cycleIllustration": "wardrobe-cycle.svg",
@@ -59,6 +69,7 @@
     "Use each projection viewBox/anchor. Do not assume identical padding for all accessories.",
     "Preserve current B behavior outside wardrobe. Keep each player hat after leaving the zone.",
     "shades-white-beard uses fixed neutral colors: no tint or player-color variants.",
-    "pharaoh-nemes alternates fixed gold stripes with player-color cloth stripes in both projections; brow band and cobra stay gold."
+    "pharaoh-nemes alternates fixed gold stripes with player-color cloth stripes in both projections; brow band and cobra stay gold.",
+    "plumed-turban binds both feather and gemstone to player.color; white cloth and gold band/setting remain fixed. The overhead feather points backward (+Y)."
   ]
 }

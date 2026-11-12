@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "id": "plumed-turban",
+  "nameTh": "หมวกโพกขนนก",
+  "status": "svg-art-only-unintegrated-untested",
+  "sourceBaseCommit": "34a22766949bb4f696be88062ad0a6294a5148eb",
+  "branch": "art/rope-hat-svg-2077-2078",
+  "references": {
+    "front": "User yellow and green portraits: pleated white turban, fixed gold brow band and setting, feather and round gemstone both matching the player",
+    "topDown": "User overhead reference faces right; the feather points left, backward over the white cloth"
+  },
+  "projections": {
+    "front": {
+      "file": "hat-front.svg",
+      "viewBox": [
+        -12,
+        -64,
+        120,
+        168
+      ],
+      "anchor": [
+        48,
+        48
+      ],
+      "avatarSourceViewBox": [
+        0,
+        0,
+        96,
+        96
+      ],
+      "drawRectInAvatarSvgUnits": [
+        -60,
+        -112,
+        120,
+        168
+      ],
+      "scaleRule": "Multiply draw rect by portraitSize / 96 after translating to portrait center",
+      "gemCenter": [
+        48,
+        28.3
+      ],
+      "gemRadii": [
+        6.25,
+        6.25
+      ]
+    },
+    "topDown": {
+      "file": "hat-top.svg",
+      "viewBox": [
+        -8,
+        -8,
+        80,
+        96
+      ],
+      "anchor": [
+        32,
+        32
+      ],
+      "avatarSourceViewBox": [
+        0,
+        0,
+        64,
+        64
+      ],
+      "headPivot": [
+        32,
+        30
+      ],
+      "forward": [
+        0,
+        -1
+      ],
+      "worldUnitsPerSvgUnit": 0.8125,
+      "worldDrawRect": [
+        -32.5,
+        -32.5,
+        65,
+        78
+      ],
+      "featherDirection": [
+        0,
+        1
+      ],
+      "gemCenter": [
+        32,
+        20.4
+      ],
+      "gemRadii": [
+        2.8,
+        2.05
+      ],
+      "featherProjection": "translate(32 25.2) rotate(180) scale(.72 .62) translate(-48 -21)",
+      "referenceExampleRotationDeg": 90,
+      "orientation": "Face and gemstone toward negative Y; feather leans backward toward positive Y. With the example rotated +90 degrees, the face points right and the feather points left.",
+      "layer": "White pleated cap, gold brow band, backward feather, gold setting and player-color gem; composite with matching head transform"
+    }
+  },
+  "colorBinding": {
+    "source": "player.color",
+    "svgAttribute": "color",
+    "location": "root svg",
+    "default": "#d7b000",
+    "affectedParts": [
+      "player-color-feather",
+      "player-color-gemstone"
+    ],
+    "fill": "currentColor",
+    "fixedParts": [
+      "white-cloth",
+      "gold-band",
+      "gold-bezel"
+    ],
+    "externalImageCssInheritance": false,
+    "recipe": "Set root color before decoding. Feather and gemstone follow the same player.color in both views. White cloth, gold band and jewel setting stay fixed; never tint the full image."
+  },
+  "readyColorVariants": [
+    {
+      "color": "#c62222",
+      "front": "colors/front-c62222.svg",
+      "topDown": "colors/top-c62222.svg"
+    },
+    {
+      "color": "#36d9e5",
+      "front": "colors/front-36d9e5.svg",
+      "topDown": "colors/top-36d9e5.svg"
+    },
+    {
+      "color": "#215a94",
+      "front": "colors/front-215a94.svg",
+      "topDown": "colors/top-215a94.svg"
+    },
+    {
+      "color": "#d7b000",
+      "front": "colors/front-d7b000.svg",
+      "topDown": "colors/top-d7b000.svg"
+    },
+    {
+      "color": "#f53695",
+      "front": "colors/front-f53695.svg",
+      "topDown": "colors/top-f53695.svg"
+    },
+    {
+      "color": "#f57a00",
+      "front": "colors/front-f57a00.svg",
+      "topDown": "colors/top-f57a00.svg"
+    },
+    {
+      "color": "#36d595",
+      "front": "colors/front-36d595.svg",
+      "topDown": "colors/top-36d595.svg"
+    },
+    {
+      "color": "#000094",
+      "front": "colors/front-000094.svg",
+      "topDown": "colors/top-000094.svg"
+    },
+    {
+      "color": "#009400",
+      "front": "colors/front-009400.svg",
+      "topDown": "colors/top-009400.svg"
+    },
+    {
+      "color": "#b800f5",
+      "front": "colors/front-b800f5.svg",
+      "topDown": "colors/top-b800f5.svg"
+    },
+    {
+      "color": "#008484",
+      "front": "colors/front-008484.svg",
+      "topDown": "colors/top-008484.svg"
+    },
+    {
+      "color": "#94004a",
+      "front": "colors/front-94004a.svg",
+      "topDown": "colors/top-94004a.svg"
+    }
+  ],
+  "interactionHandoff": {
+    "implemented": false,
+    "zoneId": "wardrobe",
+    "input": "B / input.alt",
+    "activation": "rising edge, inside wardrobe only",
+    "cycle": [
+      "none",
+      "white-rope-wrap",
+      "pirate-hat",
+      "golden-crown",
+      "shades-white-beard",
+      "pharaoh-nemes",
+      "plumed-turban"
+    ],
+    "sharedCatalog": "../wardrobe-assets.json",
+    "promptTh": "B เปลี่ยนเครื่องแต่งกาย"
+  },
+  "assetRules": {
+    "transparent": true,
+    "containsAvatar": false,
+    "containsBackground": false,
+    "containsScripts": false,
+    "physicsChanges": false,
+    "headScaleChanges": false,
+    "viewBoxPaddingIsCollision": false
+  },
+  "examples": {
+    "artBoard": "preview.svg",
+    "cycle": "../wardrobe-cycle.svg",
+    "front": "examples/front-wearing.svg",
+    "frontGreen": "examples/front-green.svg",
+    "topDown": "examples/top-wearing.svg",
+    "topDownGreen": "examples/top-green.svg"
+  },
+  "integrationOwner": "Next AI: integrate all six accessories, test, then merge after required checks pass."
+}
