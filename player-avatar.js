@@ -223,8 +223,10 @@ function drawFront(ctx,p,x,y,size=60){
  ctx.save();
  if(im&&im.complete&&im.naturalWidth)ctx.drawImage(im,x-size/2,y-size/2,size,size);
  else{
-  ctx.translate(x-size/2,y-size/2);ctx.scale(size/96,size/96);
-  paintArtwork(ctx,color,'idle',true);
+  // The body fallback uses portrait-local coordinates; restore them before
+  // drawing accessories, whose anchors are expressed in screen coordinates.
+  ctx.save();ctx.translate(x-size/2,y-size/2);ctx.scale(size/96,size/96);
+  paintArtwork(ctx,color,'idle',true);ctx.restore();
  }
  // Portrait assets have their own viewBoxes; preserve the authored anchor.
  if(p&&typeof p==='object')window.PartyCosmetics?.drawFront?.(ctx,p,x,y,size);
