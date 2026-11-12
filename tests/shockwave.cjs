@@ -403,8 +403,51 @@ for(const n of [2,3,4,12]){
    assert.equal(g.state.tiles.some(t=>t.state==='destroyed'),false);
  }
 }
-// Warning-phase bots must move before the danger period ends, not react
-// after the red floor has already exploded.
+// Players can walk at any time; bots now patrol even when there are NO
+// warned tiles, including the prestart countdown and inter-wave breaks.
+{
+ const g=game(4,4512,true),s=g.state,p=g.ps[0];
+ for(const other of g.ps.slice(1))other.active=false;
+ const patrolDistance=seconds=>{
+   let distance=0;
+   for(let i=0;i<Math.round(seconds*60);i++){
+     const x=p.x,y=p.y;
+     E.update(1/60,g.round,g.ps);
+     distance+=Math.hypot(p.x-x,p.y-y);
+   }
+   return distance;
+ };
+ assert.ok(patrolDistance(.9)>70,
+  'bots walk freely during countdown without a danger warning');
+ g.round.phase='playing';s.phase='NEXT_WAVE';s.timer=2;
+ assert.ok(patrolDistance(.7)>55,
+  'bots keep wandering between danger waves rather than remaining idle');
+ assert.ok(p.x>=s.board.x+E.constants.avatarRadius-1e-5);
+ assert.ok(p.y>=s.board.y+E.constants.avatarRadius-1e-5);
+ assert.ok(p.x<=s.board.x+s.board.w-E.constants.avatarRadius+1e-5);
+ assert.ok(p.y<=s.board.y+s.board.h-E.constants.avatarRadius+1e-5);
+}
+// Restore the ORIGINAL 0.18 + random*min(1.7, warningDuration*0.83)
+// reaction interval, while independent patrolling continues during that wait.
+{
+ const g=game(4,335,true),s=g.state,p=g.ps[0];
+ for(const other of g.ps.slice(1))other.active=false;
+ s.wave=7;s.phase='WARNING';s.warningDuration=.65;s.timer=.65;
+ s.warningStarted=true;s.danger=[12];
+ const danger=s.tiles[12];danger.state='warning';danger.wave=7;
+ put(p,center(s,12));g.round.phase='playing';
+ E.update(1/60,g.round,g.ps);
+ const delay=p.shockBotReadyAt-s.clock;
+ assert.ok(delay>=.18-1e-9&&delay<=.18+.65*.83+1e-9,
+  'restored delayed danger reaction must use the original formula');
+ assert.equal(p.shockBotWave,7);
+ const x=p.x,y=p.y;
+ run(g,.10);
+ assert.ok(Math.hypot(p.x-x,p.y-y)>8,
+  'reaction delay does not freeze normal bot walking');
+}
+// Warning-phase bots continue walking during the danger period while
+// preserving the original delayed hazard response.
 {
  const g=game(4,332,true),s=g.state,p=g.ps[0];
  for(const other of g.ps.slice(1))other.active=false;
