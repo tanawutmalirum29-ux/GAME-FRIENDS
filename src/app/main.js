@@ -51,8 +51,20 @@ window.PartyPlaza?.configure({
     else showToast(p.name+' ขอเล่น BOARD PARTY • เจ้าของห้องเลือกโหมดที่แถบตั้งค่า');
     break;
    case 'room_corner': togglePlazaPanel('room');break;
-   case 'wardrobe':showToast('WARDROBE ยังไม่เปิดให้แต่งตัว');break;
+   case 'wardrobe':showToast('WARDROBE • กด B เพื่อเปลี่ยนเครื่องแต่งกาย');break;
   }
+ },
+ changeCosmetic(p){
+  // Only the authenticated player physically in Wardrobe may cycle outfits.
+  if(round||currentView!=='hostLobby'||p?.isBot||!p?.conn?.open||
+     !window.PartyPlaza?.inZone(p,'wardrobe'))return false;
+  const cosmetics=window.PartyCosmetics;
+  if(!cosmetics)return false;
+  p.cosmetic=cosmetics.next(p.cosmetic);
+  cosmetics.preload(p);
+  broadcastRoster(); // room snapshot + reconnect persistence
+  showToast('เปลี่ยนเครื่องแต่งกายแล้ว');
+  return true;
  },
  cancel(p){if(p.conn?.open)send(p.conn,{t:'plaza-picker',open:false});}
 });
