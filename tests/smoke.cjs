@@ -2,6 +2,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
+require('./cosmetics.cjs'); // Wardrobe overlays and lobby B edge are release-critical.
 const {webcrypto}=require('node:crypto');
 const source=fs.readFileSync('app.js','utf8');
 // Expose test-only readers inside the existing private IIFE without changing
