@@ -6,6 +6,12 @@
 
 **How to interpret a non-change:** Some modes deliberately shrink actors on screen as the whole world grows, while keeping collision and art in the same world coordinate frame. This is NOT automatically a bug. A test of every supported count, on-screen readability and route accessibility still applies.
 
+### COUNTDOWN DROP, COWBOY, CANNON and SHOCKWAVE HUD/controls audit (2026-11-12)
+
+The 960×540 logical Host viewport, DPR scaling, all arena tier dimensions, collision/hitbox footprints, tile geometry and rendering quality are unchanged. COUNTDOWN DROP retains its 4×3 (1–6 players), 5×4 (7–12 players) floor and 45 s solo clock; multiplayer has no clock and now sets `round.remaining=null` to select the existing shared Host survivor-count badge. No UI duplication.
+
+COWBOY CROSSFIRE and CANNON CHAOS preserve existing world sizes, projectiles, turn rates, cooldowns, knockback, physics and hitboxes; directional joystick/D-pad input is an additional edge-triggered fire action (A/B/C retained). SHOCKWAVE stays 5×5 with 78-unit cells, avatar radius 29, body radius 13, human speed 177 and unchanged 1–12-player bounds. Bot warning reaction is shortened from about 0.18–1.88 s to 0.04–0.14 s, movement multiplier improves from .88 to .95 (relative to 177 units/s), its safe-target selection excludes exploding/warning tiles, and the last blast ignition occurs 0.28–0.30 s instead of 0.40–0.42 s (plus 0.08 s afterglow). All warning-route safety and original tile counts are retained.
+
 ## Findings and changes
 
 ### Shared avatar mounts (2026-11-12)
