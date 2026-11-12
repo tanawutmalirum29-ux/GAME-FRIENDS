@@ -69,7 +69,26 @@
         65,
         65
       ],
-      "layer": "after head with matching head transform; before labels/status overlays"
+      "layer": "after head with matching head transform; before labels/status overlays",
+      "crestOrientation": {
+        "rotationDeg": 180,
+        "center": [
+          32,
+          24.5
+        ],
+        "scale": [
+          0.5,
+          0.32
+        ],
+        "crownDirection": [
+          0,
+          1
+        ],
+        "teethDirection": [
+          0,
+          -1
+        ]
+      }
     }
   },
   "colorBinding": {
