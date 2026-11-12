@@ -4,13 +4,14 @@
   "branch": "art/rope-hat-svg-2077-2078",
   "zoneId": "wardrobe",
   "input": "B / input.alt",
-  "promptTh": "B เปลี่ยนหมวก",
+  "promptTh": "B เปลี่ยนเครื่องแต่งกาย",
   "activation": "One change per new press while inside the wardrobe zone",
   "cycle": [
     "none",
     "white-rope-wrap",
     "pirate-hat",
-    "golden-crown"
+    "golden-crown",
+    "shades-white-beard"
   ],
   "items": [
     {
@@ -35,6 +36,13 @@
       "nameTh": "มงกุฎทอง",
       "asset": "golden-crown/asset.json",
       "colorPart": "front-gemstone"
+    },
+    {
+      "id": "shades-white-beard",
+      "nameTh": "แว่นดำและหนวดเคราขาว",
+      "asset": "shades-white-beard/asset.json",
+      "colorPart": null,
+      "colorMode": "fixed"
     }
   ],
   "cycleIllustration": "wardrobe-cycle.svg",
@@ -42,6 +50,7 @@
   "notes": [
     "This catalog does not register or implement in-game behavior.",
     "Use each projection viewBox/anchor. Do not assume identical padding for all accessories.",
-    "Preserve current B behavior outside wardrobe. Keep each player hat after leaving the zone."
+    "Preserve current B behavior outside wardrobe. Keep each player hat after leaving the zone.",
+    "shades-white-beard uses fixed neutral colors: no tint or player-color variants."
   ]
 }

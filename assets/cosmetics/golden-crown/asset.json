@@ -182,9 +182,11 @@
       "none",
       "white-rope-wrap",
       "pirate-hat",
-      "golden-crown"
+      "golden-crown",
+      "shades-white-beard"
     ],
-    "sharedCatalog": "../wardrobe-assets.json"
+    "sharedCatalog": "../wardrobe-assets.json",
+    "promptTh": "B เปลี่ยนเครื่องแต่งกาย"
   },
   "assetRules": {
     "transparent": true,

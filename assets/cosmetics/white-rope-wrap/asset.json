@@ -137,11 +137,12 @@
       "none",
       "white-rope-wrap",
       "pirate-hat",
-      "golden-crown"
+      "golden-crown",
+      "shades-white-beard"
     ],
     "outsideZone": "preserve existing B behavior",
     "holdingButton": "one change per physical press",
-    "promptTh": "B เปลี่ยนหมวก",
+    "promptTh": "B เปลี่ยนเครื่องแต่งกาย",
     "persistence": "keep selection after leaving the zone; use existing player identity persistence for reconnects",
     "sharedCatalog": "../wardrobe-assets.json"
   },

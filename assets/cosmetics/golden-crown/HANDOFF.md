@@ -4,7 +4,7 @@
 
 ผู้ใช้ให้ทำมงกุฎตามภาพด้านหน้าและภาพ overhead โดยเปลี่ยนสีเฉพาะอัญมณีกลมที่เป็นสีเขียวในภาพให้ตามสีตัวละคร ตัวมงกุฎ ฐาน ขอบ และลูกกลมที่ปลายยอดต้องคงสีทอง เพิ่มในสาขา `art/rope-hat-svg-2077-2078` เดิม ห้าม QA หรือทดสอบในรอบทำ SVG
 
-อ่าน [HANDOFF รวม](../HANDOFF.md) และ [wardrobe-assets.json](../wardrobe-assets.json) สำหรับข้อกำหนดล่าสุด ลำดับ B คือ `none → white-rope-wrap → pirate-hat → golden-crown → none` เก็บเครื่องแต่งกายทั้งสามชนิดไว้ร่วมกัน และรักษาทิศตรากะโหลกมุมบนของโจรสลัดที่แก้ไว้แล้ว
+อ่าน [HANDOFF รวม](../HANDOFF.md) และ [wardrobe-assets.json](../wardrobe-assets.json) สำหรับข้อกำหนดล่าสุด ลำดับ B คือ `none → white-rope-wrap → pirate-hat → golden-crown → shades-white-beard → none` เก็บเครื่องแต่งกายทั้งสี่ชุดไว้ร่วมกัน และรักษาทิศตรากะโหลกมุมบนของโจรสลัดที่แก้ไว้แล้ว
 
 ## ไฟล์
 
@@ -45,8 +45,8 @@
 
 ## งานของ AI ตัวถัดไป
 
-เชื่อม `golden-crown` เป็นตัวเลือกที่สี่รวม `none` ในเขต wardrobe กด B หนึ่งครั้งเปลี่ยนหนึ่งขั้น เก็บการเลือกต่อผู้เล่นเมื่อออกจากเขต ใช้ระบบ sync/reconnect เดิม ให้สีอัญมณีตามสีผู้เล่น และคง B ของเขตอื่น/มินิเกมตามเดิม
+เชื่อม `golden-crown` เป็นตัวเลือกที่สี่รวม `none` ตามด้วย `shades-white-beard` เป็นตัวเลือกที่ห้า ในเขต wardrobe กด B หนึ่งครั้งเปลี่ยนหนึ่งขั้น เก็บการเลือกต่อผู้เล่นเมื่อออกจากเขต ใช้ระบบ sync/reconnect เดิม ให้สีอัญมณีตามสีผู้เล่น และคง B ของเขตอื่น/มินิเกมตามเดิม
 
-อ่านกฎ repository/CI ก่อนเชื่อมและทดสอบทุกมุม ทุกสี ทุกท่า idle/walk/hold/punch, fallback, portrait clipping, mobile/iPad, B edge, ลำดับ 4 ตัวเลือก และการ sync แล้วเปิด PR/รวมเมื่อ required checks ของ latest head ผ่านครบ
+อ่านกฎ repository/CI ก่อนเชื่อมและทดสอบทุกมุม ทุกสี ทุกท่า idle/walk/hold/punch, fallback, portrait clipping, mobile/iPad, B edge, ลำดับ 5 ตัวเลือก และการ sync แล้วเปิด PR/รวมเมื่อ required checks ของ latest head ผ่านครบ
 
 **รอบนี้สร้างเฉพาะ SVG, metadata และคำแนะนำส่งต่อ ไม่มีการรันเกม, browser, build, syntax check, QA, tests หรือ CI และยังไม่เปิด PR/รวม main**
