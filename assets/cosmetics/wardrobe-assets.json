@@ -13,7 +13,8 @@
     "golden-crown",
     "shades-white-beard",
     "pharaoh-nemes",
-    "plumed-turban"
+    "plumed-turban",
+    "paper-bag-mask"
   ],
   "items": [
     {
@@ -60,6 +61,13 @@
         "player-color-feather",
         "player-color-gemstone"
       ]
+    },
+    {
+      "id": "paper-bag-mask",
+      "nameTh": "หน้ากากถุงกระดาษ",
+      "asset": "paper-bag-mask/asset.json",
+      "colorPart": null,
+      "colorMode": "fixed"
     }
   ],
   "cycleIllustration": "wardrobe-cycle.svg",
@@ -70,6 +78,7 @@
     "Preserve current B behavior outside wardrobe. Keep each player hat after leaving the zone.",
     "shades-white-beard uses fixed neutral colors: no tint or player-color variants.",
     "pharaoh-nemes alternates fixed gold stripes with player-color cloth stripes in both projections; brow band and cobra stay gold.",
-    "plumed-turban binds both feather and gemstone to player.color; white cloth and gold band/setting remain fixed. The overhead feather points backward (+Y)."
+    "plumed-turban binds both feather and gemstone to player.color; white cloth and gold band/setting remain fixed. The overhead feather points backward (+Y).",
+    "paper-bag-mask uses fixed cream paper and black ink. Its mouth and jagged hem face forward (-Y) in overhead view. Roof seams and hem openings show the real avatar without baked-in red."
   ]
 }

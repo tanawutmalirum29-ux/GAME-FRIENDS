@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "id": "paper-bag-mask",
+  "nameTh": "หน้ากากถุงกระดาษ",
+  "status": "svg-art-only-unintegrated-untested",
+  "sourceBaseCommit": "34a22766949bb4f696be88062ad0a6294a5148eb",
+  "branch": "art/rope-hat-svg-2077-2078",
+  "references": {
+    "front": "User cream paper bag covering the head: opaque black cross eyes, curved black smile, folded sides and jagged lower hem",
+    "topDown": "User overhead view faces right; printed face and jagged hem on the right, folded roof and Y seam on the left"
+  },
+  "projections": {
+    "front": {
+      "file": "mask-front.svg",
+      "viewBox": [
+        0,
+        -4,
+        96,
+        104
+      ],
+      "anchor": [
+        48,
+        48
+      ],
+      "avatarSourceViewBox": [
+        0,
+        0,
+        96,
+        96
+      ],
+      "drawRectInAvatarSvgUnits": [
+        -48,
+        -52,
+        96,
+        104
+      ],
+      "scaleRule": "Multiply draw rect by portraitSize / 96 after translating to portrait center"
+    },
+    "topDown": {
+      "file": "mask-top.svg",
+      "viewBox": [
+        0,
+        0,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        32
+      ],
+      "avatarSourceViewBox": [
+        0,
+        0,
+        64,
+        64
+      ],
+      "headPivot": [
+        32,
+        30
+      ],
+      "forward": [
+        0,
+        -1
+      ],
+      "worldUnitsPerSvgUnit": 0.8125,
+      "worldDrawRect": [
+        -26,
+        -26,
+        52,
+        52
+      ],
+      "mouthAndHemDirection": [
+        0,
+        -1
+      ],
+      "foldedRoofDirection": [
+        0,
+        1
+      ],
+      "printedFaceProjection": "translate(32 28) rotate(180) scale(.54 .28) translate(-48 -8)",
+      "referenceExampleRotationDeg": 90,
+      "orientation": "Mouth and jagged hem face forward (-Y), roof folds extend backward (+Y). The +90 degree example has mouth/hem on the right and folded roof on the left.",
+      "layer": "Side gussets, separate roof flaps with open Y seam, forward printed face; composite after head with matching head transform"
+    }
+  },
+  "colorBinding": {
+    "mode": "fixed",
+    "source": null,
+    "svgAttribute": null,
+    "affectedParts": [],
+    "playerColorVariants": false,
+    "palette": {
+      "paper": "fixed cream and warm ivory",
+      "sideFolds": "fixed gray beige",
+      "faceInk": "fixed near black"
+    },
+    "recipe": "Use the same SVG for every player. Do not tint paper or ink. Jagged hem gaps and narrow roof seams expose the actual avatar; no red paint or substitute player-colored shapes are embedded."
+  },
+  "composition": {
+    "parts": [
+      "paper-side-gussets",
+      "paper-front",
+      "paper-top-fold",
+      "paper-folded-roof",
+      "black-ink-face"
+    ],
+    "opaqueFaceCover": true,
+    "inkIsCutout": false,
+    "originalEyes": "Covered by the opaque paper, do not draw original eyes over the mask.",
+    "openings": "Actual transparent gaps at hem and roof seams; do not replace with fixed red."
+  },
+  "interactionHandoff": {
+    "implemented": false,
+    "zoneId": "wardrobe",
+    "input": "B / input.alt",
+    "activation": "rising edge, inside wardrobe only",
+    "cycle": [
+      "none",
+      "white-rope-wrap",
+      "pirate-hat",
+      "golden-crown",
+      "shades-white-beard",
+      "pharaoh-nemes",
+      "plumed-turban",
+      "paper-bag-mask"
+    ],
+    "sharedCatalog": "../wardrobe-assets.json",
+    "promptTh": "B เปลี่ยนเครื่องแต่งกาย"
+  },
+  "assetRules": {
+    "transparentBackground": true,
+    "opaquePaper": true,
+    "containsAvatar": false,
+    "containsScripts": false,
+    "physicsChanges": false,
+    "headScaleChanges": false,
+    "viewBoxPaddingIsCollision": false
+  },
+  "examples": {
+    "artBoard": "preview.svg",
+    "cycle": "../wardrobe-cycle.svg",
+    "front": "examples/front-wearing.svg",
+    "topDown": "examples/top-wearing.svg"
+  },
+  "integrationOwner": "Next AI: integrate all seven accessories, test, then merge after required checks pass."
+}

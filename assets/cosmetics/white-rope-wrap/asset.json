@@ -140,7 +140,8 @@
       "golden-crown",
       "shades-white-beard",
       "pharaoh-nemes",
-      "plumed-turban"
+      "plumed-turban",
+      "paper-bag-mask"
     ],
     "outsideZone": "preserve existing B behavior",
     "holdingButton": "one change per physical press",
@@ -162,5 +163,5 @@
     "front": "examples/front-wearing.svg",
     "topDown": "examples/top-wearing.svg"
   },
-  "integrationOwner": "Next AI: integrate all six accessories, test, then merge after required checks pass."
+  "integrationOwner": "Next AI: integrate all seven accessories, test, then merge after required checks pass."
 }

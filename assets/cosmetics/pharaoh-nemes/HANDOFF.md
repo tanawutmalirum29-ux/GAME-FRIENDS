@@ -4,7 +4,7 @@
 
 ผู้ใช้ให้ทำหมวกฟาโรตามภาพด้านหน้าสองสีและภาพ overhead โดย **ลายทองสลับกับลายสีตัวละคร** เพิ่มในสาขา `art/rope-hat-svg-2077-2078` เดิม และห้าม QA หรือทดสอบในรอบทำ SVG
 
-อ่าน [HANDOFF รวม](../HANDOFF.md) และ [wardrobe-assets.json](../wardrobe-assets.json) ก่อนเชื่อม ลำดับ B ล่าสุดมี 7 ตัวเลือก: `none → white-rope-wrap → pirate-hat → golden-crown → shades-white-beard → pharaoh-nemes → plumed-turban → none` ภาพ [wardrobe-cycle.svg](../wardrobe-cycle.svg) เป็นข้อกำหนดส่งต่อ ยังไม่ใช่ระบบสลับที่เชื่อมเกมแล้ว
+อ่าน [HANDOFF รวม](../HANDOFF.md) และ [wardrobe-assets.json](../wardrobe-assets.json) ก่อนเชื่อม ลำดับ B ล่าสุดมี 8 ตัวเลือก: `none → white-rope-wrap → pirate-hat → golden-crown → shades-white-beard → pharaoh-nemes → plumed-turban → paper-bag-mask → none` ภาพ [wardrobe-cycle.svg](../wardrobe-cycle.svg) เป็นข้อกำหนดส่งต่อ ยังไม่ใช่ระบบสลับที่เชื่อมเกมแล้ว
 
 ## ไฟล์
 
@@ -51,10 +51,10 @@ SVG production โปร่งใส ไม่มี avatar, กรอบทอ�
 
 ## ส่งต่อ AI ที่เชื่อม ทดสอบ และรวม
 
-1. เพิ่ม `pharaoh-nemes` ถัดจาก `shades-white-beard` ในการเลือกเครื่องแต่งกายต่อผู้เล่น รวม `none` เป็น 7 ตัวเลือก รักษาทิศตรากะโหลกโจรสลัดและรอยเว้าจมูกแว่นมุมบนที่แก้แล้ว
+1. เพิ่ม `pharaoh-nemes` ถัดจาก `shades-white-beard` ในการเลือกเครื่องแต่งกายต่อผู้เล่น รวม `none` เป็น 8 ตัวเลือก รักษาทิศตรากะโหลกโจรสลัดและรอยเว้าจมูกแว่นมุมบนที่แก้แล้ว
 2. เชื่อม B แบบหนึ่งครั้งต่อการกดใหม่ในเขต `wardrobe` เท่านั้น ใช้ข้อความ “B เปลี่ยนเครื่องแต่งกาย” และคงหน้าที่ B เดิมนอกเขต/ในเกม เก็บตัวเลือกเมื่อเดินออกจากเขต
 3. ส่ง cosmetic selection ผ่าน state ของ Plaza ไป renderer และ sync/reconnect ตาม identity/room เดิม ห้ามเก็บการเลือกเป็นค่ากลางที่เปลี่ยนหมวกทุกคน
 4. เชื่อม portrait, overhead, punch และ fallback โดยใช้กรอบวาดของแต่ละชุด ให้เฉพาะลายผ้าฟาโรตามสีผู้เล่น ส่วนทองและชุดแว่นหนวดเคราคงสีเดิม
-5. อ่าน owner instructions/CI policy แล้วทดสอบทุกสี/ทิศ/ท่า ลายสลับและทองคงที่เมื่อเปลี่ยนสี ใบหน้าเปิด/ทิศหมวก clipping มือถือ/iPad, B edge, ลำดับ 7 ตัวเลือก, sync และ reconnect จากนั้นเปิด PR ตาม workflow และรวมเมื่อ required checks ของ latest head ผ่านครบ
+5. อ่าน owner instructions/CI policy แล้วทดสอบทุกสี/ทิศ/ท่า ลายสลับและทองคงที่เมื่อเปลี่ยนสี ใบหน้าเปิด/ทิศหมวก clipping มือถือ/iPad, B edge, ลำดับ 8 ตัวเลือก, sync และ reconnect จากนั้นเปิด PR ตาม workflow และรวมเมื่อ required checks ของ latest head ผ่านครบ
 
 รอบนี้สร้างเฉพาะ SVG, metadata, ภาพตัวอย่าง และคำแนะนำส่งต่อ **ไม่ได้รันเกม, browser, build, syntax check, QA, tests หรือ CI และไม่เปิด PR/รวม main** ภาพ SVG/PNG ตัวอย่างไม่ใช่ผลทดสอบเกม

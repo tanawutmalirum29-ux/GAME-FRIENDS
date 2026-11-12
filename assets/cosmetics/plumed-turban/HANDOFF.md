@@ -4,7 +4,7 @@
 
 เพิ่มตามภาพด้านหน้าสีเหลือง/สีเขียวและภาพ overhead ที่ผู้ใช้ส่งต่อจากชุดฟาโร โดย **ขนนกและอัญมณีกลมใช้สีเดียวกับตัวละคร** ส่วนผ้าขาว แถบคาดทอง และตัวเรือนอัญมณีเป็นสีคงที่ ทำบน `art/rope-hat-svg-2077-2078` ตามขอบเขต SVG เดิม ไม่ QA หรือทดสอบ
 
-อ่าน [HANDOFF รวม](../HANDOFF.md) และ [wardrobe-assets.json](../wardrobe-assets.json) ก่อนเชื่อม ลำดับ B ล่าสุดรวม `none` เป็น 7 ตัวเลือก: `none → white-rope-wrap → pirate-hat → golden-crown → shades-white-beard → pharaoh-nemes → plumed-turban → none` Catalog และภาพลำดับเป็นข้อกำหนดส่งต่อ ยังไม่ได้ลงทะเบียนเครื่องแต่งกายหรือเชื่อม B ในเกม
+อ่าน [HANDOFF รวม](../HANDOFF.md) และ [wardrobe-assets.json](../wardrobe-assets.json) ก่อนเชื่อม ลำดับ B ล่าสุดรวม `none` เป็น 8 ตัวเลือก: `none → white-rope-wrap → pirate-hat → golden-crown → shades-white-beard → pharaoh-nemes → plumed-turban → paper-bag-mask → none` Catalog และภาพลำดับเป็นข้อกำหนดส่งต่อ ยังไม่ได้ลงทะเบียนเครื่องแต่งกายหรือเชื่อม B ในเกม
 
 ## ไฟล์
 
@@ -50,10 +50,10 @@ Production SVG โปร่งใส ไม่มีตัวละคร พื
 
 ## ส่งต่อให้ AI ตัวถัดไป
 
-1. เชื่อม `plumed-turban` ถัดจาก `pharaoh-nemes` ในการเลือกเครื่องแต่งกายต่อผู้เล่น เก็บทั้งหกชุดบนบรันช์เดียวกัน รวมไม่ใส่เป็น 7 ตัวเลือก รักษาทิศตรากะโหลกโจรสลัดและทิศแว่นที่แก้แล้ว
+1. เชื่อม `plumed-turban` ถัดจาก `pharaoh-nemes` ในการเลือกเครื่องแต่งกายต่อผู้เล่น เก็บทั้งเจ็ดชุดบนบรันช์เดียวกัน รวมไม่ใส่เป็น 8 ตัวเลือก รักษาทิศตรากะโหลกโจรสลัดและทิศแว่นที่แก้แล้ว
 2. ในเขต `wardrobe` ให้กด B ใหม่หนึ่งครั้งเปลี่ยนหนึ่งขั้น แสดง “B เปลี่ยนเครื่องแต่งกาย” คงหน้าที่ B เดิมนอกเขต/ในเกม เก็บการเลือกเมื่อเดินออกจากเขตและใช้ระบบ sync/reconnect เดิม
 3. ส่ง cosmetic selection ผ่าน state ของ Plaza ไป renderer ให้ครบ portrait, overhead, punch และ fallback ผูกสีขนนกกับอัญมณีเข้ากับสีปัจจุบันของผู้เล่น
-4. อ่าน owner instructions/CI policy แล้วทดสอบทุกสี/ทิศ/ท่า ทั้งสองส่วนเปลี่ยนสีพร้อมกัน ผ้าขาวและทองคงเดิม ขนนกมุมบนชี้ท้ายศีรษะ การวาดไม่ยืด/เลื่อนหัว clipping ของขนนกสูง มือถือ/iPad, B edge, ลำดับ 7 ตัวเลือก, sync และ reconnect
+4. อ่าน owner instructions/CI policy แล้วทดสอบทุกสี/ทิศ/ท่า ทั้งสองส่วนเปลี่ยนสีพร้อมกัน ผ้าขาวและทองคงเดิม ขนนกมุมบนชี้ท้ายศีรษะ การวาดไม่ยืด/เลื่อนหัว clipping ของขนนกสูง มือถือ/iPad, B edge, ลำดับ 8 ตัวเลือก, sync และ reconnect
 5. เปิด PR ตาม workflow หลังเชื่อมและทำ preflight โดย AI ที่รับผิดชอบ QA รวมเมื่อ required checks ของ latest head ผ่านครบ
 
 รอบทำภาพนี้สร้างเฉพาะ SVG, metadata, ตัวอย่าง และคำแนะนำส่งต่อ **ไม่ได้รันเกม, browser, build, syntax check, QA, tests หรือ CI และไม่เปิด PR/รวม main** ภาพ SVG/PNG ตัวอย่างเป็นงานประกอบภาพ ไม่ใช่ผลทดสอบเกม
