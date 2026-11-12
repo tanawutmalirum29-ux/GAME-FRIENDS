@@ -32,7 +32,7 @@
       },
       "interactionRadiusPx": 49,
       "priority": 60,
-      "trigger": "button_A"
+      "trigger": "button_B"
     },
     {
       "id": "game_arcade",
