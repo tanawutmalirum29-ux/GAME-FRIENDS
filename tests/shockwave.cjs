@@ -175,7 +175,7 @@ assert.ok(E.distanceBias(13)>E.distanceBias(3));
  assert.equal(s.tiles.length,25);
 }
 // The outer rim ignites before the inner ring and the center,
-// each threatened tile at a unique offset, all within 0.5 seconds.
+// each threatened tile at a unique offset, all within 0.30 seconds.
 for(let wave=1;wave<=14;wave++){
  const g=game(12,100+wave),s=g.state;
  s.wave=wave;
@@ -191,7 +191,8 @@ for(let wave=1;wave<=14;wave++){
   assert.ok(ring(plan[i].id)<=ring(plan[i-1].id),
    'outside tiles must explode before inner tiles');
  }
- assert.ok(plan.at(-1).at<=.42,'all tile ignitions occur within 0.42 seconds');
+ assert.ok(plan.at(-1).at<=.30,'all tile ignitions occur within 0.30 seconds');
+  assert.ok(plan.at(-1).at+.08<=.38+1e-8,'afterglow ends by 0.38 seconds');
  assert.equal(plan[0].at,0,'the first tile explodes immediately');
 }
 {
@@ -401,6 +402,21 @@ for(const n of [2,3,4,12]){
    assert.ok(g.state.tiles.every(t=>t.state==='safe'||t.state==='warning'||t.state==='exploding'));
    assert.equal(g.state.tiles.some(t=>t.state==='destroyed'),false);
  }
+}
+// Warning-phase bots must move before the danger period ends, not react
+// after the red floor has already exploded.
+{
+ const g=game(4,332,true),s=g.state,p=g.ps[0];
+ for(const other of g.ps.slice(1))other.active=false;
+ s.wave=7;s.phase='WARNING';s.warningDuration=.65;s.timer=.65;
+ s.warningStarted=true;s.danger=[12];
+ const danger=s.tiles[12];danger.state='warning';danger.wave=7;
+ put(p,center(s,12));g.round.phase='playing';
+ const start={x:p.x,y:p.y};
+ run(g,.32);
+ assert.ok(Math.hypot(p.x-start.x,p.y-start.y)>16,
+  'bot should escape promptly during a short warning');
+ assert.equal(s.phase,'WARNING','dodge completes before the explosion');
 }
 assert.match(avatars,/data:image\/svg\+xml/);
 {
