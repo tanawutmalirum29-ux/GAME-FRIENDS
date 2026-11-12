@@ -52,31 +52,50 @@ function claimSceneSVG(s,overlay=false){
  return svg(s.w,s.h,`<defs><radialGradient id="night"><stop stop-color="#40327a"/><stop offset="1" stop-color="#1c1746"/></radialGradient><linearGradient id="floor" x2=".7" y2="1"><stop stop-color="#242552"/><stop offset=".55" stop-color="#191c47"/><stop offset="1" stop-color="#29244e"/></linearGradient></defs><path d="M0 0H${s.w}V${s.h}H0Z" fill="url(#night)"/>${lights}<rect x="${f.x-13*u}" y="${f.y-13*u}" width="${f.w+26*u}" height="${f.h+26*u}" rx="${18*u}" fill="#4c2656" stroke="#181932" stroke-width="${5*u}"/><rect x="${f.x}" y="${f.y}" width="${f.w}" height="${f.h}" fill="url(#floor)"/>`);
 }
 function territoryPath(s,loop,cell){
- // A bounded subdivision removes staircase corners without changing the
- // authoritative mask. Every point moves less than half a scoring cell.
- let points=loop.map(p=>({x:s.field.x+p.x*cell,y:s.field.y+p.y*cell}));
- for(let pass=0;pass<2;pass++)points=points.map((p,i)=>{
-  const a=points[(i+points.length-1)%points.length],b=points[(i+1)%points.length];
-  return {x:(a.x+6*p.x+b.x)/8,y:(a.y+6*p.y+b.y)/8};
- });
- if(points.length<3)return '';
- const last=points.at(-1),first=points[0];let d=`M${num((last.x+first.x)/2)} ${num((last.y+first.y)/2)}`;
- points.forEach((p,i)=>{const n=points[(i+1)%points.length];d+=`Q${num(p.x)} ${num(p.y)} ${num((p.x+n.x)/2)} ${num((p.y+n.y)/2)}`;});
+ // Exact polygon: the drawn edge passes through the real vertices the rules use.
+ // No smoothing, no curve fitting (a bounded subdivision used to cut corners by
+ // tens of px and pulled shared borders apart). Output is for painting only.
+ if(loop.length<3)return '';
+ const f=s.field,r=n=>Number(n.toFixed(3));
+ let d='';
+ for(let i=0;i<loop.length;i++)d+=(i?'L':'M')+r(f.x+loop[i].x*cell)+' '+r(f.y+loop[i].y*cell);
  return d+'Z';
+}
+// Territories are painted opaque (nonzero, like the engine fallback) into a cached
+// layer that is rebuilt only when the geometry changes, then blitted with the
+// translucency. A 0.9 px same-colour hairline hides the anti-aliasing seam between
+// neighbours; it is cosmetic only.
+function territoryLayer(g,s,cell){
+ if(typeof document==='undefined')return null;
+ const m=typeof g.getTransform==='function'?g.getTransform():null;
+ const k=m?Math.hypot(m.a,m.b)||1:1,res=Math.max(.5,Math.min(2,Math.round(k*4)/4)),f=s.field;
+ let cache=territories.get(s);
+ if(cache&&cache.groups===s.contours&&cache.res===res)return cache;
+ const canvas=cache&&cache.canvas&&cache.res===res?cache.canvas:document.createElement('canvas');
+ if(canvas.width!==Math.ceil(f.w*res)||canvas.height!==Math.ceil(f.h*res)){canvas.width=Math.ceil(f.w*res);canvas.height=Math.ceil(f.h*res);}
+ const c=canvas.getContext('2d');if(!c)return null;
+ c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,canvas.width,canvas.height);
+ c.setTransform(res,0,0,res,-f.x*res,-f.y*res);
+ s.contours.forEach((loops,i)=>{
+  const d=loops.map(p=>territoryPath(s,p,cell)).join('');if(!d)return;
+  const color=colour(s.roster[i]?.color),path=new Path2D(d);
+  c.fillStyle=color;c.fill(path,'nonzero');
+  c.strokeStyle=color;c.lineWidth=.9;c.lineJoin='miter';c.miterLimit=2;c.stroke(path);
+ });
+ cache={groups:s.contours,res,canvas};territories.set(s,cache);return cache;
 }
 function claim(g,s,cell){
  const base=scene(s,'claim-base',()=>claimSceneSVG(s)),top=scene(s,'claim-top',()=>claimSceneSVG(s,true));
  if(!ready(base)||!ready(top)||typeof Path2D==='undefined')return false;
- let cache=territories.get(s);
- if(!cache||cache.groups!==s.contours){
-  cache={groups:s.contours,paths:s.contours.map(loops=>new Path2D(loops.map(p=>territoryPath(s,p,cell)).join('')))};
-  territories.set(s,cache);
- }
- g.drawImage(base,0,0,s.w,s.h);g.save();g.beginPath();g.rect(s.field.x,s.field.y,s.field.w,s.field.h);g.clip();
- for(let i=0;i<cache.paths.length;i++){
-  g.fillStyle=colour(s.roster[i]?.color);g.globalAlpha=.88;g.fill(cache.paths[i],'evenodd');
- }
- g.restore();g.drawImage(top,0,0,s.w,s.h);return true;
+ const f=s.field,layer=territoryLayer(g,s,cell);
+ g.drawImage(base,0,0,s.w,s.h);g.save();g.beginPath();g.rect(f.x,f.y,f.w,f.h);g.clip();
+ g.globalAlpha=.88;
+ if(layer)g.drawImage(layer.canvas,f.x,f.y,f.w,f.h);
+ else s.contours.forEach((loops,i)=>{
+  const d=loops.map(p=>territoryPath(s,p,cell)).join('');if(!d)return;
+  g.fillStyle=colour(s.roster[i]?.color);g.fill(new Path2D(d),'nonzero');
+ });
+ g.globalAlpha=1;g.restore();g.drawImage(top,0,0,s.w,s.h);return true;
 }
 function claimCarSVG(c){
  // Vehicle only: the engine draws the live shared player in this open seat.
