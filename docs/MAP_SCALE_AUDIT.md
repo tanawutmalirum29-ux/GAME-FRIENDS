@@ -157,3 +157,12 @@ Do not merge until `verify.yml` tests and browser checks finish without failures
 - Crates and logs retain contact-normal pushing, offset torque, damped inertia, sliding, interpolation and their current collision rules. Fences remain immovable as before.
 - Keep existing circular rock collisions and spatial indexing; preserve the 8-unit map-validation grid, 10-unit bot-navigation grid, high-fidelity rock SVG, two world tiers and device-pixel-ratio backing resolution.
 - Regression: 48 fixed steps of player pressing against a rock (no displacement or spin), direct impulse/move guards, and an independent crate shove assertion.
+
+
+## 2026-11-12 — COLOR CLAIM authoritative Polygon territory
+
+- **Before:** 10-world-pixel owner cells supplied the authoritative claim and cut boundaries, so the rendered outline could have staircase edges even when the player trail used floating-point coordinates.
+- **After:** the source of truth is \`s.terr[slot]\`, stored as real polygon rings in world coordinates. Union, difference, intersection, connected-component retention, capture, loss, ownership queries, spawn and area scoring all read the polygons. Vertices snap to a **1/64 world-pixel** robust-predicate lattice; trail simplification tolerance is **0.3 world pixels at 960 width**. The old 10-pixel cell index is a **derived compatibility view**, not an authority for gameplay.
+- **Scale unchanged:** small tier (1–6 players): **960×540 world**, 30-unit boundary margin, 900×480 playable rectangle, character radius 13 and trail width 5. Large tier (7–12 players): **1280×720 world**, 30-unit boundary margin, 1220×660 playable rectangle, character radius and physical trail width scale by 1280/960, preserving matched on-screen appearance/hit geometry. Host 960×540 logical Canvas and DPR-backed sharpness are unchanged. No render precision or geometry was reduced for performance.
+- **Loading:** \`src/games/color-claim/game.js\` imports \`territory-geometry.js\` before \`color-claim.js\`. Both are inside the game-owned immutable catalog bundle, so this is a single-game versioned patch, not a core-wide cache reset.
+- **Focused evidence:** \`node tests/color-claim.cjs\` includes 13 Polygon checks covering all 1–12-player starts, score/cut union, fractional closed trail, holes, disconnected islands, legacy raster non-authority, freeze, finite bots, drawing, and full 40/60-second bot matches with up to 12 bots. Host Chromium/WebKit visual QA must still be demonstrated by required PR CI; Node preflight alone does not prove browser rendering.
