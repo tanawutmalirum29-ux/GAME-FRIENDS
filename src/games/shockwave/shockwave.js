@@ -23,6 +23,7 @@ function spawnPlayers(s,ps){
    const pos=tileCenter(s,s.tiles[ids[i%ids.length]]);
    p.x=pos.x;p.y=pos.y;p.vx=0;p.vy=0;p.dir={x:1,y:0};
    p.shockAlive=!!p.active;p.shockFall=0;p.shockBotWave=-1;p.shockBotReadyAt=0;
+    p.shockBotRoamTile=-1;p.shockBotRoamX=p.x;p.shockBotRoamY=p.y;p.shockBotRoamUntil=0;
    p.shockEliminatedAt=0;p.shockEliminatedWave=0;
  });
 }
@@ -67,35 +68,68 @@ function calculateDangerContact(s,p,dangerIds){
  }
  return 0;
 }
+// Keep bots moving between warnings as humans are free to do. Waypoints
+// are local to each bot, use the round's seeded RNG, and never alter tile
+// geometry or hitboxes. A small in-tile step keeps a lone safe-tile bot active.
+function roamVector(s,p,avoidDanger){
+  const current=tileAt(s,p.x,p.y);
+  if(!current)return {x:0,y:0};
+  const previous=s.tiles[p.shockBotRoamTile];
+  const dx=p.shockBotRoamX-p.x,dy=p.shockBotRoamY-p.y;
+  const expired=s.clock>=p.shockBotRoamUntil;
+  if(!previous||expired||Math.hypot(dx,dy)<9||
+     (avoidDanger&&previous.state!=='safe')){
+    const maxSteps=avoidDanger?1:2;
+    const candidates=s.tiles.filter(t=>{
+      const steps=Math.abs(t.col-current.col)+Math.abs(t.row-current.row);
+      return steps>=1&&steps<=maxSteps&&(!avoidDanger||t.state==='safe');
+    });
+    // Avoid bouncing immediately back to the same waypoint when alternatives exist.
+    const alternate=candidates.filter(t=>t.id!==p.shockBotRoamTile);
+    const bag=alternate.length?alternate:candidates;
+    const target=bag.length?bag[Math.floor(random(s)*bag.length)]:current;
+    const center=tileCenter(s,target);
+    p.shockBotRoamTile=target.id;
+    p.shockBotRoamX=center.x+(random(s)-.5)*16;
+    p.shockBotRoamY=center.y+(random(s)-.5)*16;
+    p.shockBotRoamUntil=s.clock+1.2+random(s)*1.2;
+  }
+  const vx=p.shockBotRoamX-p.x,vy=p.shockBotRoamY-p.y;
+  const distance=Math.hypot(vx,vy);
+  return distance<5?{x:0,y:0}:{x:vx/distance,y:vy/distance};
+}
 function inputVector(p,s){
- if(p.isBot){
-   const t=tileAt(s,p.x,p.y);
-   // Bot reactions happen during warnings, not after an entire short wave.
-   const pending=s.phase==='EXPLOSION'?s.danger.filter(id=>s.tiles[id].state==='warning'):
-     s.phase==='WARNING'?s.danger:[];
-   if(!t||!pending.length)return {x:0,y:0};
-   const danger=new Set(pending);
-   const threatened=calculateDangerContact(s,p,danger)>0;
-   // Even a currently safe bot moves toward the centre of its tile when
-   // necessary: an edge position can still graze a red neighbouring tile.
-   const safe=s.tiles.filter(tile=>tile.state==='safe'&&!danger.has(tile.id));
-   if(!safe.length)return {x:0,y:0};
-   if(p.shockBotWave!==s.wave){
-     p.shockBotWave=s.wave;
-     p.shockBotReadyAt=s.clock+.04+random(s)*.10;
-   }
-   if(s.clock<p.shockBotReadyAt)return {x:0,y:0};
-   let target=!threatened&&t.state==='safe'&&!danger.has(t.id)?t:null;
-   if(!target){
-     let nearest=Infinity;
-     for(const tile of safe){
-       const c=tileCenter(s,tile),distance=Math.hypot(p.x-c.x,p.y-c.y);
-       if(distance<nearest){nearest=distance;target=tile;}
-     }
-   }
-   const c=tileCenter(s,target),dx=c.x-p.x,dy=c.y-p.y,d=Math.hypot(dx,dy);
-   return d<6?{x:0,y:0}:{x:dx/d,y:dy/d};
- }
+  if(p.isBot){
+    // Preserve the pre-existing delayed response to a real threat. During
+    // that reaction delay bots KEEP roaming rather than standing motionless.
+    const pending=s.phase==='EXPLOSION'?s.danger.filter(id=>s.tiles[id].state==='warning'):
+      s.phase==='WARNING'?s.danger:[];
+    const threatened=pending.length>0&&calculateDangerContact(s,p,pending)>0;
+    if(threatened){
+      if(p.shockBotWave!==s.wave){
+        p.shockBotWave=s.wave;
+        p.shockBotReadyAt=s.clock+.18+
+          random(s)*Math.min(1.7,s.warningDuration*.83);
+      }
+      if(s.clock>=p.shockBotReadyAt){
+        let target=null,nearest=Infinity;
+        for(const t of s.tiles){
+          if(t.state!=='safe')continue;
+          const c=tileCenter(s,t),distance=Math.hypot(p.x-c.x,p.y-c.y);
+          if(distance<nearest){nearest=distance;target=c;}
+        }
+        if(target){
+          const dx=target.x-p.x,dy=target.y-p.y,d=Math.hypot(dx,dy);
+          if(d>=4)return {x:dx/d,y:dy/d};
+        }
+      }
+    }
+    // A bot that already reacted avoids moving back into red tiles; others
+    // continue ordinary movement until their original reaction delay expires.
+    const reacted=p.shockBotWave===s.wave&&
+      s.clock>=p.shockBotReadyAt&&pending.length>0;
+    return roamVector(s,p,reacted);
+  }
  const keys=p.input||{};
  let x=Number.isFinite(keys.axisX)?keys.axisX:Number(!!keys.right)-Number(!!keys.left);
  let y=Number.isFinite(keys.axisY)?keys.axisY:Number(!!keys.down)-Number(!!keys.jump);
