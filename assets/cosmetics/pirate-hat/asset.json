@@ -178,7 +178,8 @@
     "cycle": [
       "none",
       "white-rope-wrap",
-      "pirate-hat"
+      "pirate-hat",
+      "golden-crown"
     ],
     "sharedCatalog": "../wardrobe-assets.json"
   },

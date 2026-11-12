@@ -9,7 +9,8 @@
   "cycle": [
     "none",
     "white-rope-wrap",
-    "pirate-hat"
+    "pirate-hat",
+    "golden-crown"
   ],
   "items": [
     {
@@ -28,13 +29,19 @@
       "nameTh": "หมวกโจรสลัด",
       "asset": "pirate-hat/asset.json",
       "colorPart": "upper-trim"
+    },
+    {
+      "id": "golden-crown",
+      "nameTh": "มงกุฎทอง",
+      "asset": "golden-crown/asset.json",
+      "colorPart": "front-gemstone"
     }
   ],
   "cycleIllustration": "wardrobe-cycle.svg",
   "handoff": "HANDOFF.md",
   "notes": [
     "This catalog does not register or implement in-game behavior.",
-    "Use each projection viewBox/anchor. Do not assume identical padding for both hats.",
+    "Use each projection viewBox/anchor. Do not assume identical padding for all accessories.",
     "Preserve current B behavior outside wardrobe. Keep each player hat after leaving the zone."
   ]
 }
