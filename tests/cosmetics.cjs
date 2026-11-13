@@ -118,7 +118,7 @@ assert.match(plaza,/p\.plazaBPressed=b/);
 // Dynamic hats use just two source masters each, then recolor currentColor in memory.
 // Test all 10 x 2 x 12 paths with the same async image pipeline as the browser.
 scope.fetch=async url=>({
- ok:true,text:async()=>read(String(url).replace(/^\\.\\//,''))
+ ok:true,text:async()=>read(String(url).replace('./',''))
 });
 (async()=>{
  const loaded=[];
