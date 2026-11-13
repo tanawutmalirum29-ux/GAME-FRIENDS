@@ -216,7 +216,10 @@ function remodelDesign(){
   // bridge have one deliberate grade-separated crossing. Mark the upper
   // viaduct visually so players cannot mistake it for a walking junction.
   D.overpasses.push({x:5270,y:4821,upper:'n134>n135',crossesOld:true});
-  D.overpasses.push({x:6066,y:5341,upper:'xgl_6>g4',crossesOld:false});
+  const glacierEnd=D.allNodePositions.xgl_6,gingerEntry=D.allNodePositions.g4;
+  D.overpasses.push({x:Math.round((glacierEnd.x+gingerEntry.x)/2),
+   y:Math.round((glacierEnd.y+gingerEntry.y)/2),
+   upper:'xgl_6>g4',crossesOld:false});
  }
 }
 remodelDesign();
@@ -516,6 +519,36 @@ function rebalanceGraph(){
  return report;
 }
 const GRAPH_REPORT=rebalanceGraph();
+/* V10 rebuilds bridge waypoints after V8. Apply final collision clearances
+ * AFTER that transformation, then regenerate every path endpoint from the
+ * authoritative positions. Never move just the icon or just the road art. */
+function applyFinalBridgeClearance(){
+ const fixes={
+  xba_1:[6710,2300],xba_2:[6580,2200],xba_5:[6050,1970],
+  xgl_6:[5945,5267],xmw_1:[2872,1400],xmw_4:[2958,1823],
+  xmw_8:[3230,2430],xwf_1:[3825,2538],xwla_1:[3881,2727]
+ };
+ const byId=new Map(D.newNodes.map(n=>[n.id,n]));
+ for(const [id,[x,y]] of Object.entries(fixes)){
+  const n=byId.get(id);
+  if(!n||n.islandId||!n.bridgeId)throw Error('Not an active bridge checkpoint '+id);
+  n.position={x,y};D.allNodePositions[id]={x,y};
+ }
+ // The two road systems share one source of truth, including cached scenery.
+ for(const kind of ['allPathSegments','existingRoadSegments','existingBridgeSegments']){
+  for(const edge of D[kind]||[]){
+   const a=D.allNodePositions[edge.from_],b=D.allNodePositions[edge.to];
+   if(a&&b){edge.x1=a.x;edge.y1=a.y;edge.x2=b.x;edge.y2=b.y;}
+  }
+ }
+ for(const marker of D.overpasses){
+  if(marker.upper!=='xgl_6>g4')continue;
+  const a=D.allNodePositions.xgl_6,b=D.allNodePositions.g4;
+  marker.x=Math.round((a.x+b.x)/2);
+  marker.y=Math.round((a.y+b.y)/2);
+ }
+}
+applyFinalBridgeClearance();
 
 function applySwordCourts(m){
  for(const [name,a,b] of SWORD_COURTS){

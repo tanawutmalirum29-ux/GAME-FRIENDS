@@ -26,6 +26,14 @@ assert.equal(m.id,'winter-expedition');
 assert.equal(nodes.length,302);assert.equal(m.islands.length,17);
 assert.equal(M.validate(m),true);
 assert.equal(edges.length,318,'preserve authored board choices while rerouting them');
+// Compare every pair, including different routes and bridge networks.
+let minClearance=Infinity;
+for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+ const d=dist(nodes[i].position,nodes[j].position);
+ minClearance=Math.min(minClearance,d);
+ assert.ok(d>=115,'BOARD tile overlap '+nodes[i].id+'/'+nodes[j].id+': '+d);
+}
+assert.ok(minClearance>=115);
 const get=id=>m.nodes[id];
 const q=[m.startId],reached=new Set();
 while(q.length){const id=q.pop();if(reached.has(id))continue;reached.add(id);q.push(...get(id).nextNodes);}

@@ -44,7 +44,7 @@ function nextStep(s){
 const WALK_SPEED=240,ROAD_HALF_WIDTH=44,AVATAR_EDGE_CLEARANCE=10;
 const LANE_RADIUS=ROAD_HALF_WIDTH-AVATAR_EDGE_CLEARANCE;
 const NODE_RADIUS=ROAD_HALF_WIDTH-AVATAR_EDGE_CLEARANCE;
-const ROCKET_LANE_RADIUS=18,TURN_DELAY=.16;
+const ROCKET_LANE_RADIUS=18,TURN_DELAY=.08;
  // The Y-junction starts to curve before its centre. Keep branch steering
  // reversible inside the visibly shared curved plaza, not only when the
  // sprite is within a skinny 18-unit strip of the ALTERNATE straight line.
@@ -84,7 +84,9 @@ function roamNode(s,p,dt){
   if(next){
    if(m.intent===next)m.intentTime+=dt;
    else{m.intent=next;m.intentTime=dt;}
-   if(m.intentTime>=TURN_DELAY){step(s,next);return;}
+   // Single-exit checkpoints should not force a new joystick hold.
+   // Genuine forks still debounce so unintended taps do not choose a route.
+   if(s.map.nodes[p.currentNodeId].nextNodes.length===1||m.intentTime>=TURN_DELAY){step(s,next);return;}
   }else{m.intent=null;m.intentTime=0;}
  }else{m.intent=null;m.intentTime=0;}
 }
@@ -131,7 +133,12 @@ function walkEdge(s,p,dt){
  if(magnitude>.1){
   // Full 2D input: forwards, sideways and backwards are all allowed. The
   // walkable lane bounds prevent shortcuts while the dice still count nodes.
-  m.t=bound(m.t+tangent*WALK_SPEED*dt/d,0,1);
+  // Gentle forward assist for diagonal input; a released or sideways stick
+  // must never move automatically. Reverse remains a real reverse.
+  const along=tangent>.14*magnitude?Math.max(tangent,.45*magnitude):tangent;
+  // A turn may reproject slightly before the next road's origin. Clamping
+  // this offset to zero immediately teleports the character at junctions.
+  m.t=bound(m.t+along*WALK_SPEED*dt/d,-NODE_RADIUS/d,1);
   // A newly selected fork can start outside the narrow straight corridor.
   // Reduce that offset at a physically reachable rate, never clamp 60px
   // sideways to 18px in one frame (the visible "character snap" bug).
@@ -164,6 +171,13 @@ function walkEdge(s,p,dt){
   m.nodeOffset={x:worldPos.x-node.x,y:worldPos.y-node.y};
   if(s.map.nodes[p.currentNodeId].type==='milestone')s.milestone={at:s.time,position:s.map.nodes[p.currentNodeId].position};
   nextStep(s);
+  // Continue across a forced one-way checkpoint during the SAME simulation
+  // update if the stick is still aligned. Dice count only actual edges.
+  if(s.move===m&&m.kind==='walk'&&!m.to&&m.remaining>0&&!m.stop&&
+     s.map.nodes[p.currentNodeId].nextNodes.length===1){
+   const next=forwardInput(s,p);
+   if(next)step(s,next);
+  }
  }
 }
 // 5-second forward-only free steering. Completed edges advance the graph;
