@@ -74,6 +74,9 @@ async function start(){
     app.returnToLobby();
     app.players.splice(n);
     while(app.players.length<n)app.addLocal();
+    // Ignore decoded images from previously checked scenes: retaining them
+    // makes WebKit decode and inspect an ever-growing backlog.
+    window.__referenceImages.length=0;
     app.startRound(mode);
     app.round.phase='playing';
     const scene=app.round[key],art=window.ReferenceArenaArt;
@@ -99,7 +102,18 @@ async function start(){
     for(let pass=0;pass<3;pass++){
      const images=window.__referenceImages.filter(i=>
       i.src.startsWith('data:image/svg+xml'));
-     await Promise.all(images.map(i=>i.decode()));
+     // SVG decoders can occasionally stall in WebKit. Fail this scene
+     // explicitly instead of leaving page.evaluate() unresolved forever.
+     let timeoutId;
+     try{
+      await Promise.race([
+       Promise.all(images.map(i=>i.decode())),
+       new Promise((_,reject)=>{
+        timeoutId=setTimeout(()=>reject(Error(
+         'SVG decode timeout: '+mode+' / '+n+' players, pass '+(pass+1))),15000);
+       })
+      ]);
+     }finally{clearTimeout(timeoutId);}
      app.drawGame(1.5);
     }
     const images=window.__referenceImages.filter(i=>
@@ -154,6 +168,7 @@ async function start(){
     });
    }
    checked++;
+   console.log('REFERENCE ARENA SCENE PASS: '+mode+' / '+n+' players / '+browserName);
   }
   console.log('REFERENCE ARENA SVG Browser QA PASS: '+checked+
    ' real HOST scenes / '+browserName+'; all images decoded, '+
