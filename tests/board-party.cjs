@@ -362,6 +362,41 @@ test('Player can reach the inner edge of an 88-unit road and circular pad withou
   'continuing forward preserves a chosen road shoulder');
 });
 
+test('Instant fork steering uses angles without any timer, across 1–12 players',()=>{
+ for(const count of [1,6,12]){
+  const s=ready(count,1900+count),p=s.players[0];
+  p.currentNodeId='n3';delete p.worldPosition;
+  P.beginMove(s,p,3);
+  assert.equal(s.phase,'branch');
+  const center=s.map.nodes.n3.position;
+  const heading=id=>{
+   const to=s.map.nodes[id].position,dx=to.x-center.x,dy=to.y-center.y;
+   const d=Math.hypot(dx,dy);return{x:dx/d,y:dy/d};
+  };
+  const a=heading('n4'),b=heading('b3_1'),x=a.x+b.x,y=a.y+b.y;
+  const len=Math.hypot(x,y);
+  // Aim midway between both exits: no forced branch or die use.
+  press(s,p,null,{axisX:x/len,axisY:y/len});
+  P.update(s,.001);
+  assert.equal(s.phase,'branch','equally aligned exits are ambiguous');
+  assert.equal(s.move.to,null,'an uncertain aim must not choose randomly');
+  assert.equal(s.move.remaining,3);
+  // Change direction and select the intended exit on the next 1ms tick.
+  const target=count%2?'b3_1':'n4',stick=target==='n4'?a:b;
+  const before=plain(I.position(s,p)),turn=s.turnId;
+  press(s,p,null,{axisX:stick.x,axisY:stick.y});
+  P.update(s,.001);
+  assert.equal(s.phase,'moving','no 80ms or any other debounce');
+  assert.equal(s.move.to,target,'correct outgoing edge selected instantly');
+  assert.equal(s.move.remaining,3,'selection does not deduct any dice step');
+  assert.equal(s.turnId,turn,'control token remains unchanged');
+  assert.ok(Math.hypot(I.position(s,p).x-before.x,I.position(s,p).y-before.y)<2,
+    'actor does not teleport while choosing the branch');
+  press(s,p,null);
+  const stopped=plain(I.position(s,p));P.update(s,.15);
+  assert.deepEqual(plain(I.position(s,p)),stopped,'released stick stops immediately');
+ }
+});
 test('Early fork can be changed without consuming a die step or jumping over nodes',()=>{
  const s=ready(),p=s.players[0];p.currentNodeId='n3';P.beginMove(s,p,2);assert.equal(s.phase,'branch');
  assert.equal(P.step(s,'n2'),false);assert.equal(P.step(s,'n8'),false);assert.equal(P.step(s,'missing'),false);
