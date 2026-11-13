@@ -6,7 +6,7 @@
   "lang": "th",
   "start_url": "./host.html",
   "scope": "./",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#0d1122",
   "theme_color": "#0d1122",
   "icons": [
@@ -23,5 +23,9 @@
       "purpose": "any"
     }
   ],
-  "orientation": "landscape"
+  "orientation": "landscape",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ]
 }
