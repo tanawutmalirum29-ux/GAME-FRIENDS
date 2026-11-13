@@ -60,10 +60,17 @@ async function main(){
    await page.evaluate(()=>window.__resumeBoardFrame());
    await page.waitForFunction(()=>__boardStartup.board?.time>.05,{},{timeout:20000});
    await page.waitForFunction(()=>__boardStartup.board?.phase==='order',{},{timeout:20000});
+   // The dice-order card screen must not expose controls from the map.
+   for(const id of ['boardExitBtn','boardNodeDebugBtn','pauseBtn'])
+    assert.equal(await page.locator('#'+id).isVisible(),false,
+     id+' must stay hidden on the BOARD dice-order overlay');
    assert.ok(await page.evaluate(()=>__boardStartup.board.time>=3.49),'automatic 2-second overview and 1.5-second fly-in');
    assert.equal(await page.evaluate(()=>__boardStartup.view),'game','initial order must also survive real animation frames');
    await page.evaluate(()=>{
     const s=__boardStartup.board;s.order=s.players.map(p=>p.id);s.players.forEach(p=>p.isBot=false);BoardParty.startTurn(s);
+    // This fixture calls BoardParty directly, bypassing the normal
+    // updateBoard phase-change hook. Refresh the Host UI explicitly.
+    __boardStartup.refreshBoardTools();
     window.__drawnTexts=[];
    });
    await page.waitForFunction(()=>__drawnTexts.includes('ทอยลูกเต๋า')&&__boardStartup.board.phase==='ready',{},{timeout:20000});
