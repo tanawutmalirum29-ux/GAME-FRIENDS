@@ -173,6 +173,14 @@ assert.match(source,/!players\.includes\(p\)/,
  'color change must require a current authoritative participant');
 assert.match(source,/inZone\(p,'color_studio'\)/,
  'color change must check real position before allowing B');
+assert.ok(source.includes("zoneBAction(p,zone)"),'host computes the contextual B action');
+assert.ok(source.includes("zone?.id==='color_studio'&&nextFreeLobbyColor(p)"),'no color glow if all colors are used');
+assert.ok(source.includes("t:'plaza-b-zone',zone"),'host sends B status to only that player');
+assert.ok(plaza.includes('p.plazaBActionConn===p.conn&&p.plazaBAction===action'),'no per-frame B prompt spam');
+assert.ok(source.includes("['wardrobe','color_studio'].includes(data.zone)"),'controller only accepts known B zones');
+assert.ok(source.includes("classList.toggle('plaza-b-ready',!!plazaBAction)"),'controller turns glow on/off');
+assert.doesNotMatch(plaza,/B • เปลี่ยนสี|WARDROBE • B|COLOR STUDIO • กด B/,
+ 'no host B legends in the zone picture');
 assert.match(source,/broadcastRoster\(\); \/\/ Immediately update all clients/,
  'color changes must be sent to peers immediately');
 assert.match(source,/if\(self\)syncControllerAvatarColor\(self\.color\)/,
