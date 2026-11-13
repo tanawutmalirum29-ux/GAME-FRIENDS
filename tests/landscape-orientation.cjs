@@ -133,7 +133,7 @@ assert.doesNotMatch(mainHtml,/id="plazaZoneHint"/,
  'no stale HOST hint at the bottom-left of PARTY PLAZA');
 for(const manifest of ['manifest.webmanifest','host.webmanifest']){
  const m=JSON.parse(fs.readFileSync(manifest,'utf8'));
- assert.equal(m.display,'fullscreen','Android PWA requests true immersive display');
+ assert.equal(m.display,'standalone','iPad PWA retains standalone fallback');
  assert.ok(m.display_override.includes('fullscreen'));
 }
 
