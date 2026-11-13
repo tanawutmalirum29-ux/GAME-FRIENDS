@@ -174,4 +174,24 @@ assert.match(source,/broadcastRoster\(\); \/\/ Immediately update all clients/,
  'color changes must be sent to peers immediately');
 assert.match(source,/if\(self\)syncControllerAvatarColor\(self\.color\)/,
  'controller portrait must update when its roster color changes');
+// Room/BOARD loading transition must not expose unfinished scene geometry.
+const plazaLoading=fs.readFileSync(path.join(root,'src/lobby/party-plaza.js'),'utf8');
+const artLoading=fs.readFileSync(path.join(root,'src/lobby/party-plaza-art.js'),'utf8');
+const boardLoading=fs.readFileSync(path.join(root,'src/app/board/integration.js'),'utf8');
+assert.match(html,/id="transitionLoading"/,'full-screen transition exists at first host creation');
+assert.match(html,/id="transitionLoadingRetry"/,'failed scene can be retried in the same room');
+assert.match(css,/\.transition-loading\.hidden\{display:none!important\}/,'loading screen fully detaches when ready');
+assert.match(source,/showTransitionLoading\('plaza'/,'first room waits behind the curtain');
+assert.match(source,/hideTransitionLoading\('plaza'\)/,'room loader can close after scene is ready');
+assert.match(plazaLoading,/await next\.decode\(\)/,'lobby SVG decodes before scene becomes ready');
+assert.match(plazaLoading,/paint\(\); \/\/ Paint the finished map BEFORE/,'first completed paint precedes readiness');
+assert.doesNotMatch(plazaLoading,/else backgroundFallback\(c\)/,
+ 'circle-zone diagnostic grid must never flash as a visible temporary lobby');
+assert.match(plazaLoading,/callbacks\.error\?\.\(error\)/,'failed SVG is recoverable without closing a room');
+assert.match(plazaLoading,/function retry\(\)/,'SVG loader offers a bounded/manual retry path');
+assert.match(artLoading,/function reset\(\)/,'broken encoded SVG cache can be retried');
+assert.match(boardLoading,/showTransitionLoading\('board'/,'board creates a loading curtain during map setup');
+assert.match(boardLoading,/drawGame\(graphicsClock\);/,'board paints the first full frame before revealing it');
+assert.match(boardLoading,/setTimeout\(\(\)=>hideTransitionLoading\('board'\),150\)/,
+ 'suspended requestAnimationFrame cannot strand the board loading curtain');
 console.log('LOBBY START PASS: votes, bot quorum, A toggle, UI cleanup, 12 distinct player colors and legacy migration');
