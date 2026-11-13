@@ -6,7 +6,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
 const {chromium}=require('playwright');
 const root=path.resolve(__dirname,'..'),out=process.env.BOARD_SCREENSHOTS||'/tmp/game-friends-board';
-const injection=`window.__boardTest={get board(){return boardSession},get round(){return round},get players(){return players},beginBoard,updateBoard,updateRound,drawGame,refreshBoardTools,hostCanControlBoardZoom,pauseGame,resumeGame,addLocal,returnToLobby,layoutFinalResults,beginGameSelection,updateGameSelection,pulse:sendInputs,
+const injection=`window.__boardTest={get board(){return boardSession},get round(){return round},get players(){return players},beginBoard,updateBoard,updateRound,drawGame,refreshBoardTools,hostCanControlBoardZoom,pauseGame,resumeGame,addLocal,setView,returnToLobby,layoutFinalResults,beginGameSelection,updateGameSelection,pulse:sendInputs,
  phone(info){controllerReady=true;controllerPlayerActive=true;controllerId='p1';controllerSessionMode='board';
  controllerConn={open:true,send:msg=>window.__boardPackets.push(msg)};window.__boardPackets=[];
  $('controllerName').textContent='Snow explorer';$('controllerAvatar').style.background='#ff628c';
@@ -143,7 +143,10 @@ async function main(){
   }
   await roulette.close();
   const host=await context.newPage(),errors=[];host.on('pageerror',e=>errors.push(String(e)));
-  await host.goto(base);
+  await host.goto(base+'/?host=1');
+  // This shared browser context may contain a restored offline lobby from
+  // the roulette fixture. Select HOME explicitly before validating its lock.
+  await host.evaluate(()=>__boardTest.setView('home'));
   const pageZoom=()=>host.evaluate(()=>({
    content:document.querySelector('#viewportMeta').content,
    locked:document.body.classList.contains('zoom-locked'),
