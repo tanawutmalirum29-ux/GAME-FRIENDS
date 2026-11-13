@@ -91,6 +91,12 @@ function ipos(o,s,a){ // shoved obstacles move inside a tick; blend like the run
 function drawObstacles(g,s,cam,a){
  const tr=s.track,list=tr.query(cam-120,cam+VW+120,QR);
  g.fillStyle='rgba(30,16,4,.28)';
+ for(const o of list){ipos(o,s,a);g.save();g.translate(IX,IY);
+  const angle=o.at===s.tick?o.prevAngle+(o.angle-o.prevAngle)*a:o.angle;
+  g.rotate(angle);g.beginPath();
+  if(o.shape==='circle')g.ellipse(4,6,o.r*1.05,o.r*.95,0,0,TAU);
+  else g.rect(-o.hw+4,-o.hh+6,o.hw*2,o.hh*2);
+  g.fill();g.restore();}
  for(const o of list){ipos(o,s,a);g.beginPath();
   if(o.shape==='circle')g.ellipse(IX+4,IY+6,o.r*1.05,o.r*.95,0,0,TAU);
   else g.rect(IX-o.hw+4,IY-o.hh+6,o.hw*2,o.hh*2);g.fill();}
