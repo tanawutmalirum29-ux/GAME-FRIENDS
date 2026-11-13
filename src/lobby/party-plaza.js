@@ -28,6 +28,7 @@ const FALLBACK={
  spawnPoints:Array.from({length:12},(_,i)=>({slot:i+1,x:Math.round(480+85*Math.cos(-Math.PI/2+i*Math.PI/6)),y:Math.round(327+85*Math.sin(-Math.PI/2+i*Math.PI/6))}))
 };
 let layout=FALLBACK,canvas=null,ctx=null,image=null,active=false,callbacks={},clock=0,loaded=false,loading=null,playerCache=[],debug=false;
+let sceneAttempts=0,sceneRetryTimer=null;
 const $=id=>document.getElementById(id);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function initialize(){
@@ -39,27 +40,64 @@ function initialize(){
  canvas.width=Math.round(WORLD.width*dpr);canvas.height=Math.round(WORLD.height*dpr);
  canvas.style.aspectRatio='16 / 9';
  $('hostLobby')?.classList.add('plaza-loaded');
- loading=Promise.allSettled([
-   fetch('./src/lobby/lobby-zones.json',{cache:'force-cache'}).then(r=>{if(!r.ok)throw Error('layout '+r.status);return r.json();}).then(data=>{
-     if(data?.world?.width===960&&data?.world?.height===540&&Array.isArray(data.obstacles)&&Array.isArray(data.zones)&&Array.isArray(data.spawnPoints))layout=data;
-   }),
-   loadArt()
- ]).then(()=>{loaded=true;});
+ void loadScene();
+}
+// The lobby is ready ONLY after the authored SVG has decoded into the canvas.
+// Zone JSON failure may use the existing fallback geometry; art failure may not
+// expose the diagnostic grid or radius circles as a visible temporary map.
+function loadScene(){
+ if(loaded||loading)return loading||Promise.resolve();
+ const zoneLoad=fetch('./src/lobby/lobby-zones.json',{cache:'force-cache'}).then(r=>{
+  if(!r.ok)throw Error('Party Plaza layout '+r.status);
+  return r.json();
+ }).then(data=>{
+  if(data?.world?.width===960&&data?.world?.height===540&&
+     Array.isArray(data.obstacles)&&Array.isArray(data.zones)&&Array.isArray(data.spawnPoints))layout=data;
+ }).catch(error=>console.warn('Party Plaza using bundled collision geometry',error));
+ loading=Promise.all([zoneLoad,loadArt()]).then(()=>{
+  if(!image||!image.naturalWidth)throw Error('Party Plaza scene did not decode');
+  loaded=true;sceneAttempts=0;
+  paint(); // Paint the finished map BEFORE removing the transition curtain.
+  callbacks.ready?.();
+ }).catch(error=>{
+  loaded=false;image=null;
+  console.warn('Party Plaza SVG load failed',error);
+  window.PartyPlazaArt?.reset?.();
+  if(!active)return;
+  sceneAttempts++;
+  if(sceneAttempts<=2){
+   callbacks.progress?.('กำลังลองโหลดฉากอีกครั้ง ('+sceneAttempts+'/2)...');
+   sceneRetryTimer=setTimeout(()=>{sceneRetryTimer=null;void loadScene();},900*sceneAttempts);
+  }else callbacks.error?.(error);
+ }).finally(()=>{loading=null;});
+ return loading;
 }
 async function loadArt(){
- try {
-  const uri=await window.PartyPlazaArt?.sceneUrl?.();
-  if(!uri)throw Error('missing scene');
-  const next=new Image();next.decoding='async';
-  await new Promise((resolve,reject)=>{next.onload=resolve;next.onerror=reject;next.src=uri;});
-  image=next;
- }catch(error){console.warn('Party Plaza art unavailable; using fallback',error);}
+ const uri=await window.PartyPlazaArt?.sceneUrl?.();
+ if(!uri)throw Error('Party Plaza scene URL unavailable');
+ const next=new Image();next.decoding='async';
+ await new Promise((resolve,reject)=>{next.onload=resolve;next.onerror=()=>reject(Error('Party Plaza SVG image load failed'));next.src=uri;});
+ if(typeof next.decode==='function')try{await next.decode();}
+ catch(error){if(!next.naturalWidth)throw error;} // WebKit may reject decode after onload.
+ image=next;
+}
+function retry(){
+ if(sceneRetryTimer!==null){clearTimeout(sceneRetryTimer);sceneRetryTimer=null;}
+ if(loaded){callbacks.ready?.();return Promise.resolve();}
+ sceneAttempts=0;callbacks.progress?.('กำลังโหลดภาพล็อบบี้ใหม่...');
+ return loadScene();
 }
 // Render the compressed SVG only while a live host lobby is visible.
  // Preloading it on every game/controller entry caused WebKit to report
  // blocked blob loads if an unrelated host test immediately reloaded.
  function configure(hooks){callbacks=hooks||{};if(active)initialize();}
-function setActive(value){active=!!value;if(active)initialize();}
+function setActive(value){
+ active=!!value;
+ if(active){
+  initialize();
+  if(!loaded&&!loading&&sceneRetryTimer===null)void loadScene();
+ }else if(sceneRetryTimer!==null){clearTimeout(sceneRetryTimer);sceneRetryTimer=null;}
+}
 function getSpawn(slot){return layout.spawnPoints[(slot%layout.spawnPoints.length+layout.spawnPoints.length)%layout.spawnPoints.length]||{x:480,y:327};}
 function isFree(x,y,exclude){
  const b=layout.walkableBounds;
@@ -231,7 +269,8 @@ function paint(){
  const c=ctx;if(!c)return;
  const t=canvas.width/960;c.setTransform(t,0,0,canvas.height/540,0,0);
  c.clearRect(0,0,960,540);
- if(image)c.drawImage(image,0,0,960,540);else backgroundFallback(c);
+ if(image)c.drawImage(image,0,0,960,540);
+ else{c.fillStyle='#0c1030';c.fillRect(0,0,960,540);} // Never flash zone circles or grid.
  paintColorStudio(c);
  const avatar=window.PartyPlayerAvatar;
  window.PartyCharacters?.beginNameFrame?.(c);
@@ -255,5 +294,5 @@ function paint(){
   zone?.id==='color_studio'?'COLOR STUDIO • กด B เปลี่ยนสี (ไม่ซ้ำเพื่อน)':
   zone?zone.label+' • A ใช้งาน':'เดินด้วยจอย • ไปที่จุดต่าง ๆ แล้วกด A';
 }
-window.PartyPlaza=Object.freeze({configure,setActive,sync,tick,inZone,zoneAt,getLayout:()=>layout,getPlayers:()=>playerCache,isReady:()=>loaded,debug:v=>{debug=!!v;}});
+window.PartyPlaza=Object.freeze({configure,setActive,sync,tick,inZone,zoneAt,retry,getLayout:()=>layout,getPlayers:()=>playerCache,isReady:()=>loaded,debug:v=>{debug=!!v;}});
 })();

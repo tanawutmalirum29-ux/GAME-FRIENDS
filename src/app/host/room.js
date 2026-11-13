@@ -592,6 +592,7 @@ function resetInputs(){
   players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
 }
 function closeHost({goHome=true}={}){
+  hideTransitionLoading();
   stopHostReconnect();
   lobbyReadyVotes.clear();
   ++hostOpenAttempt;
@@ -709,6 +710,9 @@ function acceptFastAxisConnection(conn){
 let hostNetworkLoad=null;
 function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   if(expectedAttempt!==null&&expectedAttempt!==hostOpenAttempt)return;
+  // Display first-time connection as a real loading screen, before the SVG.
+  if(!onlineHost&&currentView==='home')
+    showTransitionLoading('plaza','กำลังสร้างห้อง','กำลังติดต่อเซิร์ฟเวอร์และเตรียมล็อบบี้...');
   if(onlineHost){setView('hostLobby');return;}
   if(typeof Peer!=='function'){
     const deps=window.GameRuntimeDeps;
@@ -722,6 +726,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
           startHost(retries,resumeCode,expectedAttempt);
       }).catch(error=>{
         hostNetworkLoad=null;$('hostBtn').disabled=false;
+        hideTransitionLoading('plaza');
         setStatus('โหลดระบบเชื่อมต่อไม่สำเร็จ',true);
         showToast('โหลดเครือข่ายไม่สำเร็จ: '+String(error.message||error),true);
       });
@@ -957,6 +962,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     // PeerJS "close" means destroyed; never erase a live game/room because
     // the library closed after a transient network error.
     stopHostReconnect();
+    if(!onlineHost)hideTransitionLoading('plaza');
     setStatus('การเชื่อมต่อห้องหยุดทำงาน • สถานะเกมยังถูกเก็บไว้',true);
   });
   peer.on('error',err=>{
@@ -1001,6 +1007,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
       return;
     }
     $('hostBtn').disabled=false;
+    hideTransitionLoading('plaza');
     setStatus('เชื่อมต่อห้อง '+code+' ไม่สำเร็จ: '+type,true);
   });
 }

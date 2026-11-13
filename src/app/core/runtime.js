@@ -530,11 +530,42 @@ function syncZoomPolicy(){
   $('viewportMeta').setAttribute('content',locked?LOCKED_VIEWPORT:FREE_VIEWPORT);
   document.body.classList.toggle('zoom-locked',locked);
 }
+// Shared transition curtain for first room SVG decode and BOARD map assembly.
+// Networking, saved room data, and canvas resolution remain intact underneath.
+let transitionLoadingKind=null,transitionLoadingRetry=null;
+function showTransitionLoading(kind,title,detail){
+ const el=$('transitionLoading');
+ if(!el)return;
+ transitionLoadingKind=kind;transitionLoadingRetry=null;
+ $('transitionLoadingTitle').textContent=title;
+ $('transitionLoadingDetail').textContent=detail;
+ $('transitionLoadingRetry').classList.add('hidden');
+ el.classList.remove('hidden');
+}
+function hideTransitionLoading(kind=null){
+ if(kind&&transitionLoadingKind!==kind)return;
+ transitionLoadingKind=null;transitionLoadingRetry=null;
+ $('transitionLoading')?.classList.add('hidden');
+ $('transitionLoadingRetry')?.classList.add('hidden');
+}
+function failTransitionLoading(kind,detail,retry){
+ if(transitionLoadingKind!==kind)return;
+ $('transitionLoadingTitle').textContent='โหลดฉากไม่สำเร็จ';
+ $('transitionLoadingDetail').textContent=detail;
+ transitionLoadingRetry=typeof retry==='function'?retry:null;
+ $('transitionLoadingRetry').classList.toggle('hidden',!transitionLoadingRetry);
+}
+$('transitionLoadingRetry')?.addEventListener('click',()=>transitionLoadingRetry?.());
 function setView(view) {
   currentView=view;
   if(view==='game')markArenaResolutionDirty();
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
+  if(view==='hostLobby'){
+   if(window.PartyPlaza?.isReady?.())hideTransitionLoading();
+   else showTransitionLoading('plaza','กำลังเตรียมล็อบบี้','กำลังโหลดฉาก PARTY PLAZA และตำแหน่งโซน...');
+  }else if(view==='home'||view==='controller')hideTransitionLoading();
+  else hideTransitionLoading('plaza');
   window.PartyPlaza?.setActive(view==='hostLobby');
   syncLandscapePresentation();
   if(view!=='game')hostFullscreenWasEntered=false;

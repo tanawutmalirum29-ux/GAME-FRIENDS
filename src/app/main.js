@@ -47,6 +47,18 @@ function nextFreeLobbyColor(p,roomPlayers=players){
 }
 window.PartyPlaza?.configure({
  colorPalette(){return COLORS;},
+ ready(){hideTransitionLoading('plaza');},
+ progress(message){
+  if(transitionLoadingKind==='plaza')$('transitionLoadingDetail').textContent=message;
+ },
+ error(error){
+  console.warn('Party Plaza cannot show scene',error);
+  failTransitionLoading('plaza','ภาพล็อบบี้ยังโหลดไม่สำเร็จ ห้องยังเชื่อมต่ออยู่ สามารถลองใหม่ได้โดยไม่ต้องสร้างห้องซ้ำ',()=>{
+   if(currentView!=='hostLobby')return;
+   showTransitionLoading('plaza','กำลังเตรียมล็อบบี้','กำลังลองโหลดภาพ PARTY PLAZA ใหม่...');
+   window.PartyPlaza?.retry?.();
+  });
+ },
  interact(p,z){
   if(!z)return;
   switch(z.id){
