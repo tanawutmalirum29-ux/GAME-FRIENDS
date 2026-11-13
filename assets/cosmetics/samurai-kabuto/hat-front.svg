@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="158" viewBox="-12 -62 120 158" role="img" aria-label="GAME FRIENDS samurai kabuto — front, lacing and side flaps in player color" color="#36d9e5" data-cosmetic="samurai-kabuto" data-view="front" data-anchor="48 48" data-color-binding="root-color">
+<title>GAME FRIENDS samurai kabuto — front, lacing and side flaps in player color</title>
+<desc>Transparent hat overlay. Black lacquer bowl, gold horns and trim stay neutral. Only the lacing cords and the turned-back side flaps use currentColor. Top-down forward is negative Y; the bowl sits behind the eye marks so they stay visible.</desc>
+<defs>
+  <radialGradient id="gf-kabuto-front-lac" cx=".36" cy=".2" r=".95">
+    <stop offset="0" stop-color="#5a606e"/><stop offset=".3" stop-color="#2f3440"/>
+    <stop offset=".7" stop-color="#1a1d26"/><stop offset="1" stop-color="#0d0f15"/>
+  </radialGradient>
+  <linearGradient id="gf-kabuto-front-gold" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#f6df8a"/><stop offset=".5" stop-color="#c9a227"/><stop offset="1" stop-color="#8a6a12"/>
+  </linearGradient>
+  <linearGradient id="gf-kabuto-front-flap" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#ffffff" stop-opacity=".32"/><stop offset=".5" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity=".42"/>
+  </linearGradient>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+  <g data-part="kuwagata-horns">
+    <path id="gf-kabuto-front-horn" d="M46.4 21 C35 7 25 -22 19 -55 C30 -28 39 -4 50.4 15 Z" fill="url(#gf-kabuto-front-gold)" stroke="#5c4509" stroke-width="1"/>
+    <path d="M44.8 14 C35 0 27.5 -24 22.4 -46" fill="none" stroke="#fff3b0" stroke-width=".8" stroke-opacity=".8"/>
+    <use href="#gf-kabuto-front-horn" transform="translate(96 0) scale(-1 1)"/>
+  </g>
+  <g data-part="fukigaeshi-flaps" data-color-source="currentColor">
+    <g id="gf-kabuto-front-flapshape">
+    <path d="M16 12 C6 9 -6 15 -10.5 30 C-12 38 -7 43 0 44 C5 37 11 34.5 16.5 33.5 Z" fill="#101925" fill-opacity=".85" stroke="#101925" stroke-opacity=".85" stroke-width="2.6"/>
+    <path d="M16 12 C6 9 -6 15 -10.5 30 C-12 38 -7 43 0 44 C5 37 11 34.5 16.5 33.5 Z" fill="currentColor"/>
+    <path d="M16 12 C6 9 -6 15 -10.5 30 C-12 38 -7 43 0 44 C5 37 11 34.5 16.5 33.5 Z" fill="url(#gf-kabuto-front-flap)"/>
+    <path d="M15 17 Q5 17 -6 24" fill="none" stroke="#101925" stroke-width=".9" stroke-opacity=".55"/><path d="M15.5 23 Q4 23 -9 31" fill="none" stroke="#101925" stroke-width=".9" stroke-opacity=".55"/><path d="M16 29 Q5 30 -8 38" fill="none" stroke="#101925" stroke-width=".9" stroke-opacity=".55"/>
+    <path d="M16 12 C6 9 -6 15 -10.5 30 C-12 38 -7 43 0 44 C5 37 11 34.5 16.5 33.5 Z" fill="none" stroke="#e5c85a" stroke-width="1.1"/>
+    </g>
+    <use href="#gf-kabuto-front-flapshape" transform="translate(96 0) scale(-1 1)"/>
+  </g>
+  <g data-part="bowl">
+    <path d="M11 29.4 C9 8 24 -12 48 -12 C72 -12 87 8 85 29.4 Q48 37.8 11 29.4 Z" fill="url(#gf-kabuto-front-lac)" stroke="#05070b" stroke-width="1.1"/>
+    <path d="M48 -12 C48 5 48 20 48 34 M48 -12 C38 0 34 16 33 33 M48 -12 C58 0 62 16 63 33 M48 -12 C28 -4 20 12 20.4 31.6 M48 -12 C68 -4 76 12 75.6 31.6" fill="none" stroke="#06080c" stroke-width="2.8" stroke-opacity=".9"/>
+    <path d="M48 -12 C48 5 48 20 48 34 M48 -12 C38 0 34 16 33 33 M48 -12 C58 0 62 16 63 33 M48 -12 C28 -4 20 12 20.4 31.6 M48 -12 C68 -4 76 12 75.6 31.6" fill="none" stroke="#707889" stroke-width=".8" stroke-opacity=".55"/>
+    <g fill="#e5c85a" stroke="#6b520d" stroke-width=".3"><circle cx="48.0" cy="-3.0" r="1"/><circle cx="48.0" cy="7.5" r="1"/><circle cx="48.0" cy="17.6" r="1"/><circle cx="48.0" cy="27.2" r="1"/><circle cx="43.2" cy="-5.1" r="1"/><circle cx="38.7" cy="4.1" r="1"/><circle cx="35.6" cy="14.2" r="1"/><circle cx="33.7" cy="24.9" r="1"/><circle cx="52.8" cy="-5.1" r="1"/><circle cx="57.3" cy="4.1" r="1"/><circle cx="60.4" cy="14.2" r="1"/><circle cx="62.3" cy="24.9" r="1"/><circle cx="38.3" cy="-6.9" r="1"/><circle cx="29.5" cy="1.2" r="1"/><circle cx="23.8" cy="11.1" r="1"/><circle cx="20.9" cy="22.5" r="1"/><circle cx="57.7" cy="-6.9" r="1"/><circle cx="66.5" cy="1.2" r="1"/><circle cx="72.2" cy="11.1" r="1"/><circle cx="75.1" cy="22.5" r="1"/></g>
+    <path d="M18 20 C21 4 31 -7 42 -10" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-opacity=".4"/>
+    <ellipse cx="48" cy="-11.4" rx="6.4" ry="2.4" fill="url(#gf-kabuto-front-gold)" stroke="#5c4509" stroke-width=".7"/>
+  </g>
+  <g data-part="visor-band">
+    <path d="M10 28.6 Q48 37.6 86 28.6 L86.2 36.6 Q48 45.4 9.8 36.6 Z" fill="url(#gf-kabuto-front-lac)" stroke="#05070b" stroke-width="1"/>
+    <path d="M10.6 29.6 Q48 38.6 85.4 29.6" fill="none" stroke="#e5c85a" stroke-width=".9"/>
+    <path d="M10.4 35.8 Q48 44.4 85.6 35.8" fill="none" stroke="#e5c85a" stroke-width=".9"/>
+    <g data-color-source="currentColor">
+      <path d="M11 32.7 Q48 41.3 85 32.7" fill="none" stroke="#101925" stroke-opacity=".85" stroke-width="3.6"/>
+      <path d="M11 32.7 Q48 41.3 85 32.7" fill="none" stroke="currentColor" stroke-width="2.2"/>
+    </g>
+  </g>
+  <g data-part="crest-base">
+    <path d="M48 16.6 L55.4 27.6 L48 39.2 L40.6 27.6 Z" fill="url(#gf-kabuto-front-gold)" stroke="#5c4509" stroke-width="1"/>
+    <path d="M48 20.4 L52 27.6 L48 34.6 L44 27.6 Z" fill="#0d0f15" stroke="#5c4509" stroke-width=".6"/>
+    <path d="M45 24 L47.4 20.8" stroke="#fff3b0" stroke-width=".7" stroke-opacity=".8"/>
+  </g>
+</g>
+</svg>
