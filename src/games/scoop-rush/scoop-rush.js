@@ -9,7 +9,7 @@ const STEP=1/120,TAU=Math.PI*2,EPS=1e-8;
 // All balance numbers live here so they can be tuned without touching the logic.
 const C=Object.freeze({
  radius:15,maxSpeed:165,response:10,brake:13,knockDecay:4.2,knockShare:.3,
- scoops:5,baseR:22,playerMass:4.5,pushLoad:.16,
+ scoops:5,baseR:33,playerMass:4.5,pushLoad:.16,
  drag:1.05,coulomb:9,maxScoopSpeed:430,
  eScoop:.55,eWall:.5,ePlayer:.22,wallTangent:.94,mergeGap:.5,iterations:6,
  secondsSmall:50,secondsLarge:70,finishDelay:.55,timeoutDelay:.35
@@ -106,15 +106,18 @@ function setup(round,ps){
    moving:false,bot:p.isBot?makeBot(s):null};
   if(p.sr.bot){p.sr.bot.lastX=p.x;p.sr.bot.lastY=p.y;}
  });
- // Seeded lattice creates broad distribution without overlaps or wall clipping.
- const spacing=65,nx=Math.max(1,Math.floor((b.w-2*C.baseR-20)/spacing)),
-  ny=Math.max(1,Math.floor((b.h-2*C.baseR-20)/spacing)),spots=[];
+ // Real 1.5x scoop hitboxes need a denser, full-rink safe lattice.
+ // World tiers and render resolution stay intact; every spawn is validated.
+ const margin=C.baseR+6,pitch=2*C.baseR+4;
+ const nx=Math.max(2,Math.floor((b.w-2*margin)/pitch)+1);
+ const ny=Math.max(2,Math.floor((b.h-2*margin)/pitch)+1);
+ const spots=[];
  for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){
-  const px=b.x+(x+.5)*b.w/nx+(rng(s)-.5)*7;
-  const py=b.y+(y+.5)*b.h/ny+(rng(s)-.5)*7;
-  const fit=fitBody(b,px,py,C.baseR+3);
-  if(fit.hit||ps.some(p=>hyp(p.x-fit.x,p.y-fit.y)<C.baseR+C.radius+12))continue;
-  spots.push({x:fit.x,y:fit.y});
+  const px=b.x+margin+x*(b.w-2*margin)/(nx-1);
+  const py=b.y+margin+y*(b.h-2*margin)/(ny-1);
+  if(fitBody(b,px,py,C.baseR+3).hit||
+     ps.some(p=>hyp(p.x-px,p.y-py)<C.baseR+C.radius+3))continue;
+  spots.push({x:px,y:py});
  }
  for(let i=spots.length-1;i>0;i--){const j=Math.floor(rng(s)*(i+1));[spots[i],spots[j]]=[spots[j],spots[i]];}
  const mine=Object.create(null);
@@ -123,7 +126,7 @@ function setup(round,ps){
   let chosen=-1,best=-Infinity;
   for(let i=0;i<spots.length;i++){
    const pt=spots[i];
-   if(s.scoops.some(sc=>hyp(sc.x-pt.x,sc.y-pt.y)<C.baseR*2+9))continue;
+   if(s.scoops.some(sc=>hyp(sc.x-pt.x,sc.y-pt.y)<C.baseR*2+3))continue;
    const existing=mine[p.id];
    const spread=existing.length?Math.min(...existing.map(sc=>hyp(sc.x-pt.x,sc.y-pt.y))):0;
    const quality=spread+rng(s)*30;
@@ -189,32 +192,55 @@ function planPush(s,p,m,ax,ay,gap){
  const align=(tmx*g.ux+tmy*g.uy)/dM;
  const along=m.vx*g.ux+m.vy*g.uy;
  const coast=gap!==null&&along>18&&along/C.drag>gap+m.r*.5;
+ const safe=m.r+R+8;
  let tx=g.px,ty=g.py,dx,dy,scale=1;
- const near=dM<m.r+R+22&&align>.88;
- if(near&&!coast){
+ const near=dM<safe+14&&align>.88;
+ const plan=b.plan?.mover===m.id?b.plan:null;
+ // Lock a flank for this target: switching sides every AI tick made bears
+ // orbit stationary scoops instead of reaching the behind-the-scoop spot.
+ const front=(p.x-m.x)*g.ux+(p.y-m.y)*g.uy;
+ const lateral=(p.x-m.x)*(-g.uy)+(p.y-m.y)*g.ux;
+ if(plan&&!coast){
+  if(!plan.side)
+   plan.side=Math.abs(lateral)>3?(lateral>0?1:-1):((p.id.charCodeAt(p.id.length-1)&1)?1:-1);
+  if(plan.flank===undefined)plan.flank=0;
+  if(front> -safe*.65&&dM<safe+125&&!near&&plan.flank===0)plan.flank=1;
+  if(plan.flank===1&&Math.abs(lateral)>safe+22)plan.flank=2;
+  if(plan.flank===2&&front< -safe*.8)plan.flank=0;
+  const side=plan.side,px=-g.uy*side,py=g.ux*side;
+  if(plan.flank===1){
+   // Go to the outside tangent before going behind; cutting diagonally
+   // through the scoop pushed it away from the destination.
+   const keepFront=Math.max(0,Math.min(safe+20,front));
+   tx=m.x+g.ux*keepFront+px*(safe+34);
+   ty=m.y+g.uy*keepFront+py*(safe+34);
+  }else if(plan.flank===2){
+   tx=m.x-g.ux*(safe+26)+px*(safe+34);
+   ty=m.y-g.uy*(safe+26)+py*(safe+34);
+  }
+ }
+ if(near&&!coast&&(!plan||!plan.flank)){
   const e=ex*g.ux+ey*g.uy,lx=ex-g.ux*e,ly=ey-g.uy*e;
   dx=g.ux+lx*.05;dy=g.uy+ly*.05;
  }else{
-  const front=(p.x-m.x)*g.ux+(p.y-m.y)*g.uy;
-  if(front>-(m.r+R)*.3&&dM<m.r+R+70){
-   const side=(p.x-m.x)*(-g.uy)+(p.y-m.y)*g.ux,sg=side>=0?1:-1;
-   tx=m.x-g.uy*sg*(m.r+R+18);ty=m.y+g.ux*sg*(m.r+R+18);
-  }
   dx=tx-p.x;dy=ty-p.y;
   const dist=hyp(dx,dy);
   scale=coast?clamp(dist/20,0,1):clamp(dist/30,.3,1);
  }
  let L=hyp(dx,dy)||1;dx/=L;dy/=L;
- // soft repulsion from scoops so the bot never shoves its own scoops off by accident
+ const intendedX=dx,intendedY=dy;
+ // Repulsion is soft: it must not cancel the route or prevent planned pushes.
  for(const sc of s.scoops){
-  if(sc===m&&near&&!coast)continue;
+  if(sc===m)continue;
   const d=hyp(p.x-sc.x,p.y-sc.y)-(sc.r+R),range=26;
   if(d<range){
-   const w=Math.pow(1-Math.max(d,0)/range,2)*(sc.owner===p.id?.85:.65),k=hyp(p.x-sc.x,p.y-sc.y)||1;
+   const w=Math.pow(1-Math.max(d,0)/range,2)*(sc.owner===p.id?.36:.30);
+   const k=hyp(p.x-sc.x,p.y-sc.y)||1;
    dx+=(p.x-sc.x)/k*w;dy+=(p.y-sc.y)/k*w;
   }
  }
- L=hyp(dx,dy)||1;
+ L=hyp(dx,dy);
+ if(L<.2){dx=intendedX;dy=intendedY;L=hyp(dx,dy)||1;}
  b.dx=dx/L*scale;b.dy=dy/L*scale;b.wanting=!coast;
  return g;
 }
@@ -248,8 +274,16 @@ function botDecide(s,p){
   const m=s.scoops.find(q=>q.id===b.plan.mover&&q.owner===p.id);
   const t=s.scoops.find(q=>q.id===b.plan.target&&q.owner===p.id);
   if(m&&t&&!m.dead&&!t.dead){
-   const gap=hyp(t.x-m.x,t.y-m.y)-(m.r+t.r);
-   if(gap>-.5){
+   const gap=hyp(t.x-m.x,t.y-m.y)-(m.r+t.r),d=hyp(m.x-p.x,m.y-p.y);
+   // Moving in circles is not the same as making progress toward a merge.
+   if(gap<b.plan.bestGap-7||d<b.plan.bestDistance-15){
+    b.plan.bestGap=Math.min(b.plan.bestGap,gap);
+    b.plan.bestDistance=Math.min(b.plan.bestDistance,d);
+    b.plan.progressAt=now;
+   }
+   if(now-b.plan.progressAt>4.8){
+    b.ignore[b.plan.key]=now+4;
+   }else if(gap>-.5){
     planPush(s,p,m,t.x+t.vx*.25-m.vx*.25,t.y+t.vy*.25-m.vy*.25,gap);
     return;
    }
@@ -289,7 +323,11 @@ function botDecide(s,p){
  }
  if(!best){b.wanting=false;b.dx=0;b.dy=0;return;}
  const {m,t}=best;
- b.plan={key:best.key,mover:m.id,target:t.id,until:now+1.65};
+ const old=b.plan?.key===best.key?b.plan:null;
+ b.plan={key:best.key,mover:m.id,target:t.id,until:now+3.6,
+  side:old?.side||0,flank:old?.flank||0,
+  bestGap:old?.bestGap??best.gap,bestDistance:old?.bestDistance??hyp(m.x-p.x,m.y-p.y),
+  progressAt:old?.progressAt??now};
  planPush(s,p,m,t.x+t.vx*.4-m.vx*.4,t.y+t.vy*.4-m.vy*.4,best.gap);
 }
 function botInput(s,p,dt){

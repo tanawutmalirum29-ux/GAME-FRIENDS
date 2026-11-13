@@ -54,9 +54,9 @@ const block=w.BlockBreakers;
    const s=plugin.setup(rd,ps);assert.ok(s&&ps.every(p=>p.active),slug+' setup');
    if(slug==='scoop-rush'){
     assert.equal(s.scoops.length,n*5,'five scoops per player');
-    assert.ok(s.scoops.every(q=>q.mass===1&&q.r===22),'double initial scoop radius');
+    assert.ok(s.scoops.every(q=>q.mass===1&&q.r===33),'50% larger initial scoop physics radius');
     for(let i=0;i<s.scoops.length;i++)for(let j=i+1;j<s.scoops.length;j++)
-     assert.ok(Math.hypot(s.scoops[i].x-s.scoops[j].x,s.scoops[i].y-s.scoops[j].y)>44,'no starting overlap');
+     assert.ok(Math.hypot(s.scoops[i].x-s.scoops[j].x,s.scoops[i].y-s.scoops[j].y)>66,'no starting overlap with 1.5x scoops');
    }
    if(slug==='mole-mayhem'){
     assert.equal(s.slots.length,n<=6?13:19,'fewer holes');

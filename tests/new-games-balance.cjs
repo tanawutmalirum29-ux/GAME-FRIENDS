@@ -55,6 +55,51 @@ async function load(slug){
   for(let tick=0;tick<240;tick++)scoop.update(1/120,round,players);
   for(const p of players)assert.ok(Number.isFinite(p.x+p.y));
  }
+ // Ice-cream circles (including physics contacts) are now exactly 1.5x.
+ // Verify seed-robust capacity/clearance in both arenas for all 1–12 seats.
+ assert.equal(scoop.config.baseR,33,'scoop visual and collision base radii increase 50%');
+ for(const n of Array.from({length:12},(_,i)=>i+1)){
+  for(const seed of [11,1234,20261113]){
+   const ps=participants(n,colors),round={phase:'playing',paused:false,scoopRushSeed:seed};
+   const s=scoop.setup(round,ps);
+   assert.equal(s.scoops.length,n*5,'full scoop capacity for '+n+' players');
+   for(const sc of s.scoops){
+    assert.equal(sc.r,33,'initial scoop render and hitbox must match');
+    const b=s.world.bounds;
+    assert.ok(sc.x>=b.x+sc.r-1e-5&&sc.x<=b.x+b.w-sc.r+1e-5);
+    assert.ok(sc.y>=b.y+sc.r-1e-5&&sc.y<=b.y+b.h-sc.r+1e-5);
+   }
+   for(let i=0;i<s.scoops.length;i++)for(let j=0;j<i;j++){
+    const a=s.scoops[i],b=s.scoops[j];
+    assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>=a.r+b.r-.01,
+      'scaled scoops must never spawn overlapping ('+n+' players)');
+   }
+  }
+ }
+ // 5 bots must continue translating across the arena after the first few
+ // merges. Repeated left/right steering near a scoop previously made them
+ // rotate almost in place for the rest of the round.
+ {
+  const ps=participants(5,colors);for(const p of ps)p.isBot=true;
+  const round={phase:'playing',paused:false,scoopRushSeed:20261113};
+  const state=scoop.setup(round,ps);
+  let last=ps.map(p=>({x:p.x,y:p.y})),windows=0;
+  for(let tick=0;tick<2400&&!state.finished;tick++){
+   scoop.update(1/120,round,ps);
+   if((tick+1)%600===0){
+    windows++;
+    for(let i=0;i<ps.length;i++){
+     assert.ok(Math.hypot(ps[i].x-last[i].x,ps[i].y-last[i].y)>20,
+       'bot '+i+' must move over each 5-second interval, not orbit in place');
+    }
+    last=ps.map(p=>({x:p.x,y:p.y}));
+   }
+  }
+  assert.ok(windows>=3||state.finished,
+    'bots must keep moving through the middle of a round or finish by merging');
+  assert.ok(state.finished||state.merges>=8,
+    'five bots must merge scoops continuously or finish the round early');
+ }
  // Deterministic bot-only race: the new target commitment must actually
  // merge five scattered ice-cream balls, not just stop visibly spinning.
  {

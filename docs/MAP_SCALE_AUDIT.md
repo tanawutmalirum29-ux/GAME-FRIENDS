@@ -6,6 +6,15 @@
 
 **How to interpret a non-change:** Some modes deliberately shrink actors on screen as the whole world grows, while keeping collision and art in the same world coordinate frame. This is NOT automatically a bug. A test of every supported count, on-screen readability and route accessibility still applies.
 
+### SCOOP RUSH 50% larger ice-cream and bot routing (2026-11-13)
+
+- **Before → after:** one-mass scoop physical/visual radius 22 → **33 world units** (diameter 44 → 66, +50%); merged mass `m` still uses `33×√m`, keeping collision, merge, drawing, wall bounces, shadows and ice reflections in the same world geometry. Maximum five-scoop radius changes 49.19 → 73.79 world units. Polar-bear collision radius 15 and speed 165 remain unchanged.
+- **Small tier (1–6):** 960×540 world and 760×400 rounded rink are unchanged; projected base scoop radius increases from 22 → **33 px** in the logical host viewport.
+- **Large tier (7–12):** 1280×720 world and 1020×540 rounded rink are unchanged; the 960×540 projection changes base scoop radius from 16.5 → **24.75 px**. Host DPR, SVG/Canvas fidelity, map/grid resolution and camera transforms are unchanged.
+- **Capacity/spacing:** the initial positions use a deterministic full-rink lattice with at least physical-diameter-plus-clearance separation and exclude collisions with bear bodies and rounded rink corners. Each of 1–12 participants retains five fully present scoops and the same mass/merge scoring.
+- **Bot route correction:** each committed scoop pair preserves its selected flank (instead of flipping left/right each planning tick), circles outside the physical scoop before approaching the push position, reduces repulsion so it cannot cancel planned travel, and abandons an unproductive route after repeated nonprogress. No change to rewards, timers, color ownership, player controls or winner rules.
+- **Regression:** deterministic setups across all 1–12 participant counts and multiple seeds, a solo five-scoop merge, and multi-bot five-second translation/merge-progress checks. Required Node and selected Chromium/WebKit CI remain the merge gate.
+
 ### COUNTDOWN DROP, COWBOY, CANNON and SHOCKWAVE HUD/controls audit (2026-11-12)
 
 The 960×540 logical Host viewport, DPR scaling, all arena tier dimensions, collision/hitbox footprints, tile geometry and rendering quality are unchanged. COUNTDOWN DROP retains its 4×3 (1–6 players), 5×4 (7–12 players) floor and 45 s solo clock; multiplayer has no clock and now sets `round.remaining=null` to select the existing shared Host survivor-count badge. No UI duplication.
