@@ -3627,11 +3627,10 @@ function showBoard(){
   // Paint the order/result screen in the Start event itself. Safari can delay
   // its first animation frame during fullscreen; old minigame clips must not survive.
   canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
-  // Keep the curtain over partial maps until at least one completed paint.
-  if(transitionLoadingKind==='board'){
-   requestAnimationFrame(()=>hideTransitionLoading('board'));
-   setTimeout(()=>hideTransitionLoading('board'),150); // WebKit/hidden-tab rAF fallback.
-  }
+  // The map is fully drawn above. Let the browser present it, without
+  // injecting an extra animation frame into the game's simulation queue.
+  if(transitionLoadingKind==='board')
+   setTimeout(()=>hideTransitionLoading('board'),150);
   renderLeaderboard();broadcastRoster();renderBotTestPad();
   remotePreviewClock=1.1;
   for(const conn of hostConnections){startHostVideoCall(conn);sendBoardMiniMap(conn);}
