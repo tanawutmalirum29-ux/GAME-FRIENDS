@@ -4,7 +4,7 @@
    Rules: runners and dinosaur have the SAME reduced max speed (130 u/s). The dinosaur never speeds up. Time lost
    to obstacles / crowding / bad routes is the only way the dinosaur gains on a runner. */
 import {C,STEP,clamp,mkRng,tierFor} from './config.js';
-import {buildTrack,pushOut,dinoEdge} from './map.js';
+import {buildTrack,pushOut,dinoEdge,obstacleContact} from './map.js';
 import {makeBot,botControl} from './bot.js';
 import {drawWorld,preloadArt} from './render.js';
 
@@ -95,41 +95,34 @@ function finish(s,round,reason){
 
 /* ───────── shoveable scenery ───────── */
 // Local bucket search avoids scanning the full corridor each frame.
-function obstacleNear(tr,x,y,r){
- for(const o of tr.query(x-r-8,x+r+8,QN)){
-  if(o.shape==='circle'){
-   if(Math.hypot(x-o.x,y-o.y)<r+o.r)return true;
-  }else{
-   const xx=clamp(x,o.x-o.hw,o.x+o.hw),yy=clamp(y,o.y-o.hh,o.y+o.hh);
-   if(Math.hypot(x-xx,y-yy)<r)return true;
-  }
+// Resistance is caused by pressure INTO a surface, not by being close to it.
+// Tangential grazing (running alongside a log/crate/rock) must keep full speed.
+function pushingIntoScenery(tr,p,vx,vy){
+ for(const o of tr.query(p.x-C.R-4,p.x+C.R+4,QN)){
+  const hit=obstacleContact(o,p.x,p.y);
+  if(hit.gap>C.R+2)continue;
+  const closing=-(vx*hit.nx+vy*hit.ny);
+  if(closing>.55)return true; // deliberate approach to contact normal, not a side brush
  }
  return false;
 }
 function pushScenery(tr,p,dt){
  if(!p.dino.pushing)return;
  const R=C.R,vx=p.dino.ix,vy=p.dino.iy;
- for(const o of tr.query(p.x-R-8,p.x+R+8,QP)){
-  if(o.kind==='fence'||o.kind==='rock')continue; // rocks are immovable; crates/logs still shove
-  const circle=o.shape==='circle';
-  const px=circle?o.x:clamp(p.x,o.x-o.hw,o.x+o.hw);
-  const py=circle?o.y:clamp(p.y,o.y-o.hh,o.y+o.hh);
-  let nx=p.x-px,ny=p.y-py,d=Math.hypot(nx,ny);
-  if(d>R+(circle?o.r:0)+2)continue;
-  if(d<1e-5){nx=p.x-o.x;ny=p.y-o.y;d=Math.hypot(nx,ny);}
-  if(d<1e-5){nx=-vx;ny=-vy;d=Math.hypot(nx,ny);}
-  if(d<1e-5)continue;
-  nx/=d;ny/=d;
+ for(const o of tr.query(p.x-R-4,p.x+R+4,QP)){
+  if(o.kind==='fence'||o.kind==='rock')continue;
+  const hit=obstacleContact(o,p.x,p.y);
+  if(hit.gap>R+2)continue;
+  const {nx,ny}=hit;
   const closing=-(vx*nx+vy*ny);
   if(closing<=0)continue;
   // Only movable crates and logs receive contact-normal momentum and torque.
+  // The impulse is integrated over the fixed step and acts at the actual contact point.
   const mass=o.kind==='crate'?1:4.5;
   const impulse=Math.min(165,closing)*dt*3.2/mass;
-  const tx=-ny,ty=nx;
-  const tangential=vx*tx+vy*ty;
+  const tx=-ny,ty=nx,tangential=vx*tx+vy*ty;
   const grip=.09*tangential*dt;
-  const cx=circle?o.x+nx*o.r:px,cy=circle?o.y+ny*o.r:py;
-  tr.impulseObstacle(o,-nx*impulse+tx*grip,-ny*impulse+ty*grip,cx,cy);
+  tr.impulseObstacle(o,-nx*impulse+tx*grip,-ny*impulse+ty*grip,hit.cx,hit.cy);
  }
 }
 /* ───────── simulation step ───────── */
@@ -148,7 +141,7 @@ function step(dt,round){
   if(d.state==='done'){ // finished runners stroll to a parking spot and are not solid
    const dx=d.parkX-p.x;p.vx=Math.abs(dx)>3?Math.sign(dx)*110:0;p.vy=0;p.x+=p.vx*dt;if(p.vx)p.face=1;continue;}
   const c=p.isBot?botControl(s,p,dt):inputVector(p.input),m=Math.hypot(c.x,c.y);
-  const approaching=m>.1&&obstacleNear(tr,p.x+c.x*16,p.y+c.y*16,R+7);
+  const approaching=m>.1&&pushingIntoScenery(tr,p,c.x,c.y);
   d.pushing=approaching;
   const speed=C.speed*(approaching?C.pushFactor:1);
   d.ix=c.x*speed;d.iy=c.y*speed;
