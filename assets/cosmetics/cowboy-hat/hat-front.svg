@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="124" viewBox="-12 -28 120 124" role="img" aria-label="GAME FRIENDS cowboy hat — front, band in player color" color="#36d9e5" data-cosmetic="cowboy-hat" data-view="front" data-anchor="48 48" data-color-binding="root-color">
+<title>GAME FRIENDS cowboy hat — front, band in player color</title>
+<desc>Transparent hat overlay. Brim and crown are fixed leather brown; only the hat band uses currentColor. Top-down forward is negative Y; the brim is pushed back toward positive Y so the eye marks stay visible.</desc>
+<defs>
+  <radialGradient id="gf-cowboy-front-shade" cx=".35" cy=".25" r=".9">
+    <stop offset="0" stop-color="#ffffff" stop-opacity=".3"/><stop offset=".45" stop-color="#ffffff" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000000" stop-opacity=".45"/>
+  </radialGradient>
+  <linearGradient id="gf-cowboy-front-crown" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#000000" stop-opacity=".38"/><stop offset=".38" stop-color="#ffffff" stop-opacity=".22"/>
+    <stop offset=".7" stop-color="#000000" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity=".5"/>
+  </linearGradient>
+  <linearGradient id="gf-cowboy-front-band" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#ffffff" stop-opacity=".35"/><stop offset=".5" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity=".35"/>
+  </linearGradient>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+  <g data-part="brim">
+    <path d="M-7 3 C2 8 14 12 24 14 L72 14 C82 12 94 8 103 3 C106 14 98 29 82 35 C72 39.5 60 41.5 48 41.5 C36 41.5 24 39.5 14 35 C-2 29 -10 14 -7 3 Z" fill="#101925" fill-opacity=".85" stroke="#101925" stroke-opacity=".85" stroke-width="2.4"/>
+    <path d="M-7 3 C2 8 14 12 24 14 L72 14 C82 12 94 8 103 3 C106 14 98 29 82 35 C72 39.5 60 41.5 48 41.5 C36 41.5 24 39.5 14 35 C-2 29 -10 14 -7 3 Z" fill="#8a5a2b"/>
+    <path d="M-7 3 C2 8 14 12 24 14 L72 14 C82 12 94 8 103 3 C106 14 98 29 82 35 C72 39.5 60 41.5 48 41.5 C36 41.5 24 39.5 14 35 C-2 29 -10 14 -7 3 Z" fill="url(#gf-cowboy-front-shade)"/>
+    <path d="M-3.4 6 C5 10 15 14 24 16 M99.4 6 C91 10 81 14 72 16" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-opacity=".35"/>
+    <path d="M-4.2 6 C-6 15 1 27 16 32.6 C26 36.6 37 38.6 48 38.6 C59 38.6 70 36.6 80 32.6 C95 27 102 15 100.2 6" fill="none" stroke="#e0b073" stroke-width=".8" stroke-opacity=".55" stroke-dasharray="2.2 1.8"/>
+    <path d="M-7 3 C-10 14 -2 29 14 35 C24 39.5 36 41.5 48 41.5 C60 41.5 72 39.5 82 35 C98 29 106 14 103 3" fill="none" stroke="#3a200a" stroke-width="1" stroke-opacity=".5"/>
+  </g>
+  <path data-part="brim-shadow" d="M21 29 Q48 45 75 29 Q48 36.5 21 29 Z" fill="#000000" fill-opacity=".25" stroke="none"/>
+  <g data-part="crown">
+    <path d="M22 29 C20.5 16 22 2 26 -9 C28.5 -16 33 -19 38 -17.5 C43 -16 45.5 -12 48 -11 C50.5 -12 53 -16 58 -17.5 C63 -19 67.5 -16 70 -9 C74 2 75.5 16 74 29 Q48 35 22 29 Z" fill="#101925" fill-opacity=".85" stroke="#101925" stroke-opacity=".85" stroke-width="2.2"/>
+    <path d="M22 29 C20.5 16 22 2 26 -9 C28.5 -16 33 -19 38 -17.5 C43 -16 45.5 -12 48 -11 C50.5 -12 53 -16 58 -17.5 C63 -19 67.5 -16 70 -9 C74 2 75.5 16 74 29 Q48 35 22 29 Z" fill="#8a5a2b"/>
+    <path d="M22 29 C20.5 16 22 2 26 -9 C28.5 -16 33 -19 38 -17.5 C43 -16 45.5 -12 48 -11 C50.5 -12 53 -16 58 -17.5 C63 -19 67.5 -16 70 -9 C74 2 75.5 16 74 29 Q48 35 22 29 Z" fill="url(#gf-cowboy-front-crown)"/>
+    <path d="M48 -11 C47 2 47.5 16 48 31" fill="none" stroke="#3c230c" stroke-width="1.6" stroke-opacity=".55"/>
+    <path d="M48 -11 C47 2 47.5 16 48 31" fill="none" stroke="#d9a566" stroke-width=".7" stroke-opacity=".5" transform="translate(1.4 0)"/>
+    <path d="M26.5 -9 C28.5 -16 33 -19 38 -17.5 C43 -16 45.5 -12 48 -11 C50.5 -12 53 -16 58 -17.5 C63 -19 67.5 -16 69.5 -9" fill="none" stroke="#d9a566" stroke-width="1.2" stroke-opacity=".55"/>
+    <path d="M27 -6 C25 4 25.5 14 26.5 24" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-opacity=".35"/>
+    <path d="M70 -4 C72 6 72.5 16 71.5 24" fill="none" stroke="#000000" stroke-width="1.4" stroke-opacity=".25"/>
+  </g>
+  <g data-part="band" data-color-source="currentColor">
+    <path d="M21 18 Q48 24.5 75 18 L75.4 29.4 Q48 36 20.6 29.4 Z" fill="#101925" fill-opacity=".85" stroke="#101925" stroke-opacity=".85" stroke-width="2"/>
+    <path d="M21 18 Q48 24.5 75 18 L75.4 29.4 Q48 36 20.6 29.4 Z" fill="currentColor"/>
+    <path d="M21 18 Q48 24.5 75 18 L75.4 29.4 Q48 36 20.6 29.4 Z" fill="url(#gf-cowboy-front-band)"/>
+    <path d="M22.4 20.6 Q48 27 73.6 20.6" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity=".5"/>
+    <path d="M22 27.6 Q48 34 74 27.6" fill="none" stroke="#000000" stroke-width=".9" stroke-opacity=".25"/>
+    <path d="M23 24 Q48 30.4 73 24" fill="none" stroke="#ffffff" stroke-width=".6" stroke-opacity=".28" stroke-dasharray="1.5 2.2"/>
+  </g>
+</g>
+</svg>
