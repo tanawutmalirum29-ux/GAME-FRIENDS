@@ -230,6 +230,23 @@ assert.ok(pauseMarkup,'host pause control is present');
 assert.match(pauseMarkup,/<svg\b/,'host pause button retains its SVG icon');
 assert.match(pauseMarkup,/aria-label="หยุดเกม"/,'icon-only pause remains screen-reader accessible');
 assert.doesNotMatch(pauseMarkup,/<span\b|หยุดเกม<\/span>/,'pause control has no visible caption');
+// The possession toggle is BELOW the Pause icon, in the same BOARD cell grid.
+const pausePosition=html.indexOf('id="pauseBtn"'),possessPosition=html.indexOf('id="botPossessBtn"');
+assert.ok(pausePosition>0&&possessPosition>pausePosition&&possessPosition-pausePosition<800,
+ 'possess icon appears immediately after Pause');
+const possessMarkup=html.match(/<button id="botPossessBtn"[\s\S]*?<\/button>/)?.[0];
+assert.match(possessMarkup,/<svg\b/,'bot possession is an icon');
+assert.doesNotMatch(possessMarkup,/>สิงบอท<\/button>/,'the button has no long caption');
+assert.match(css,/body\.board-playing #game #pauseBtn\{[\s\S]*?place-items:center/,
+ 'BOARD Pause icon is precisely centered in its grid cell');
+assert.match(css,/body\.board-playing #game #botPossessBtn\{[\s\S]*?width:29px;height:27px/,
+ 'bot possession icon has the same BOARD dimensions');
+assert.match(source,/\$\('botPossessBtn'\)\.style\.cssText=boardToolCell\(921,133\)/,
+ 'bot possession lives one world grid row below Pause');
+assert.match(css,/#game \.bot-test-controls\{[\s\S]*?grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/,
+ 'the split bot controller uses two equal full-screen halves');
+assert.match(css,/#game \.bot-test-face,#game \.bot-test-tool\{[\s\S]*?width:var\(--bot-control-size\)/,
+ 'all face and tool buttons share one common diameter');
 assert.ok(css.includes('span.leader-item-slot:not(.leader-held-icon):not(.pizza-order-icons)'),
  'text status slots are not restricted to the 23px item icon');
 assert.match(css,/body\.host-playing #game \.leader-chip span\.leader-held-icon\{[\s\S]*?width:23px;/,
@@ -2712,7 +2729,9 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  ui.sessionButtons[2].fire('click');ui.click('startBtn');
  const api=ui.scope.window.__ghostTest,board=api.getBoard(),I=ui.scope.window.BoardItems,P=ui.scope.window.BoardParty;
  const bots=api.getPlayers(),count=bots.length,first=bots[0],second=bots[1];
- assert.equal(ui.elements.get('botTestPad').classList.contains('hidden'),false,'bots-only room shows a small host test control');
+ assert.equal(ui.elements.get('botTestPad').classList.contains('hidden'),false,'bots-only rooms expose test controls');
+ assert.equal(ui.elements.get('botPossessBtn').classList.contains('hidden'),false,
+  'bot-only room shows possession button beneath Pause');
  ui.click('botPossessBtn');
  assert.equal(first.isBot,false);assert.equal(board.players[0].isBot,false);
  assert.equal(second.isBot,true,'only one bot is replaced by human controls');
@@ -2722,6 +2741,11 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  assert.ok(first.input.axisX>.15,'touch joystick sends analog X instead of keyboard-only input');
  stick.fire('pointerup',{pointerId:17});
  assert.equal(first.input.axisX,0,'joystick pointer release does not drift');
+ const leftHalf=ui.elements.get('botTestLeft');
+ leftHalf.fire('pointerdown',{pointerId:27,clientX:135,clientY:100,target:leftHalf});
+ assert.ok(first.input.axisX>.15,'touch anywhere in the left half drives the bot');
+ leftHalf.fire('pointerup',{pointerId:27});
+ assert.equal(first.input.axisX,0,'releasing floating analog resets movement');
  ui.elements.get('botTestA').fire('pointerdown',{pointerId:18});
  assert.equal(first.input.action,true,'A works while the stick can be held separately');
  ui.elements.get('botTestB').fire('pointerdown',{pointerId:19});
@@ -2781,6 +2805,8 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  c.fire('data',{t:'join',name:'Human'});c.fire('data',{t:'pick',mode:'chickens'});
  ui.click('startBtn');finishReel(ui);
  assert.equal(ui.elements.get('botTestPad').classList.contains('hidden'),true,'public rooms with a phone stay unaffected');
+ assert.equal(ui.elements.get('botPossessBtn').classList.contains('hidden'),true,
+  'top-right possession icon is never visible in public multiplayer rooms');
 }
 
 // Retina host-canvas regression. The CSS size, world coordinates and
