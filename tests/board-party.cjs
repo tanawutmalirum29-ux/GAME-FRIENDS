@@ -588,7 +588,11 @@ test('Star bridge b72_5 offers old n74 exit and new b72_6 to c76_2 link',()=>{
     axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d
    }});
    P.update(s,.05);
-   if(s.move?.to)assert.equal(s.move.to,target,'stick chooses requested exit');
+   // With continuous held-stick travel, the new segment may already have
+   // started in the very same frame that b72_6 was reached. Validate only
+   // the edge departing the originally tested branch, not the next node.
+   if(s.move?.to&&p.currentNodeId==='b72_5')
+    assert.equal(s.move.to,target,'stick chooses requested exit');
   }
   assert.equal(p.currentNodeId,target,'real host controller can drive ice branch to '+target);
   if(target==='b72_6'){
