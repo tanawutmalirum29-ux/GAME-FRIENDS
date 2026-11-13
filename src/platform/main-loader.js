@@ -77,6 +77,15 @@ function onChoice(event){
  button.disabled=true;
  const status=document.getElementById('netStatus');
  if(status)status.textContent='กำลังเตรียมหน้าจอเล่นเกม...';
+ if(button===host){
+  // Production first host tap downloads the app before startHost is defined.
+  const curtain=document.getElementById('transitionLoading');
+  if(curtain){
+   document.getElementById('transitionLoadingTitle').textContent='กำลังสร้างห้อง';
+   document.getElementById('transitionLoadingDetail').textContent='กำลังเตรียมระบบเชื่อมต่อและฉากล็อบบี้...';
+   curtain.classList.remove('hidden');
+  }
+ }
  // Preserve the user's fullscreen gesture before asynchronous script loading.
  try{
   if(!navigator.standalone&&!document.fullscreenElement&&
@@ -92,6 +101,7 @@ function onChoice(event){
   button.disabled=false;
   button.click();
  }).catch(error=>{
+  document.getElementById('transitionLoading')?.classList.add('hidden');
   button.disabled=false;delayedChoice=null;
   const status=document.getElementById('netStatus');
   if(status)status.textContent='โหลดแอปไม่สำเร็จ • ลองอีกครั้ง';
