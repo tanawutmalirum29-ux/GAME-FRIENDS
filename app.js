@@ -1322,7 +1322,9 @@ function castLobbyReadyVote(conn){
   if(round||gameSelection||currentView!=='hostLobby'||!conn?.playerId)return false;
   const p=players.find(p=>p.id===conn.playerId&&p.conn===conn&&p.type==='remote');
   if(!p)return false;
-  if(typeof window!=='undefined'&&window.PartyPlaza&&!window.PartyPlaza.inZone(p,'ready_area'))return false;
+  // The physical READY pad was removed: only A pressed in an empty lobby
+  // space may vote; other interaction zones keep their own meanings.
+  if(typeof window!=='undefined'&&window.PartyPlaza?.zoneAt(p))return false;
   if(lobbyReadyVotes.has(p.id))lobbyReadyVotes.delete(p.id);
   else lobbyReadyVotes.add(p.id);
   renderRoster();
@@ -1784,7 +1786,10 @@ function shareUrl(code){
 function renderQr(code){
   const link=shareUrl(code);
   $('roomUrl').value=link;
-  const box=$('qrBox');box.replaceChildren();
+  const box=$('qrBox'),button=$('plazaCenterQrBtn');
+  button.disabled=false;
+  $('plazaCenterQrLabel').textContent='แตะคัดลอกลิงก์';
+  box.replaceChildren();
   const paint=()=>{
     if(!onlineHost||roomCode!==code)return;
     box.replaceChildren();
@@ -2175,9 +2180,27 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
 }
 function copyInvite(){
   const value=$('roomUrl').value;if(!value)return;
-  const done=()=>{const b=$('copyBtn');b.textContent='คัดลอกแล้ว';setTimeout(()=>b.textContent='คัดลอกลิงก์',1600);};
-  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(done).catch(()=>{ $('roomUrl').select();document.execCommand('copy');done();});}
-  else{$('roomUrl').select();document.execCommand('copy');done();}
+  const done=()=>{
+    showToast('คัดลอกลิงก์เข้าห้องแล้ว');
+    $('plazaCenterQrLabel').textContent='คัดลอกแล้ว';
+    const b=$('copyBtn');b.textContent='คัดลอกแล้ว';
+    setTimeout(()=>{
+      b.textContent='คัดลอกลิงก์';
+      $('plazaCenterQrLabel').textContent='แตะคัดลอกลิงก์';
+    },1600);
+  };
+  const fallback=()=>{
+    const temp=document.createElement('textarea');
+    temp.value=value;temp.readOnly=true;
+    temp.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.append(temp);temp.focus();temp.select();
+    let copied=false;
+    try{copied=document.execCommand('copy');}catch(_){}
+    temp.remove();
+    if(copied)done();else showToast('คัดลอกไม่สำเร็จ • โปรดตรวจสิทธิ์ Clipboard');
+  };
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(value).then(done).catch(fallback);
+  else fallback();
 }
 let phoneSelectionOpen=false;
 let plazaPickerOpen=false;
@@ -4948,6 +4971,9 @@ function openOfflineLobby(){
  if(!players.length){addLocal();addLocal();}
  $('hostRoomBadge').textContent='OFFLINE';
  $('roomPanel').classList.add('hidden');$('offlineRoomHint').classList.remove('hidden');
+ $('plazaCenterQrBtn').disabled=true;
+ $('qrBox').textContent='OFFLINE';
+ $('plazaCenterQrLabel').textContent='เล่นออฟไลน์';
  setView('hostLobby');renderRoster();
 }
 $('offlineBtn').addEventListener('click',()=>{
@@ -4968,6 +4994,7 @@ $('closeRoomBtn').addEventListener('click',()=>{
   .then(yes=>{if(yes)closeHostRoom();});
 });
 $('copyBtn').addEventListener('click',copyInvite);
+$('plazaCenterQrBtn').addEventListener('click',copyInvite);
 $('exitBtn').addEventListener('click',returnToLobby);
 // Results/scoring exists only in the Host bundle; bind lazily for Controller.
 $('backBtn').addEventListener('click',()=>onResultBack());
@@ -5160,7 +5187,7 @@ const plazaHost=$('hostLobby');
 // settings, QR and roster layered across each other (and under the safe-area
 // header on iPad), obscuring both the scene and the existing controls.
 const plazaPanelButtons={
- room:$('plazaRoomToggle'),roster:$('plazaRosterToggle'),controls:$('plazaSettingsToggle')
+ roster:$('plazaRosterToggle'),controls:$('plazaSettingsToggle')
 };
 const plazaPanelNames=Object.keys(plazaPanelButtons);
 function setPlazaPanel(name=null){
@@ -5176,7 +5203,6 @@ function togglePlazaPanel(name){
  if(!plazaPanelNames.includes(name))return;
  setPlazaPanel(plazaHost?.classList.contains('plaza-show-'+name)?null:name);
 }
-$('plazaRoomToggle')?.addEventListener('click',()=>togglePlazaPanel('room'));
 $('plazaRosterToggle')?.addEventListener('click',()=>togglePlazaPanel('roster'));
 $('plazaSettingsToggle')?.addEventListener('click',()=>togglePlazaPanel('controls'));
 plazaHost?.addEventListener('pointerdown',e=>{
@@ -5215,22 +5241,22 @@ window.PartyPlaza?.configure({
   });
  },
  interact(p,z){
-  if(!z)return;
+  if(!z){
+   // The circular READY zone is gone. A in free lobby space still toggles
+   // the authoritative ready vote, without affecting arcade/wardrobe actions.
+   if(p.conn?.open)castLobbyReadyVote(p.conn);
+   return;
+  }
   switch(z.id){
    case 'game_arcade':
     if(selectedSessionMode==='board'){showToast('เลือกเกมเดี่ยวได้ใน NORMAL PARTY');return;}
     if(p.conn?.open)send(p.conn,{t:'plaza-picker',open:true});
     else if(p.isBot)openBulkBotPicker();
     break;
-   case 'ready_area':
-    if(p.conn?.open)castLobbyReadyVote(p.conn);
-    else showToast('บอทพร้อมเล่นอยู่แล้ว • เจ้าของห้องกดเริ่มได้');
-    break;
    case 'board_portal':
     if(p.isBot)document.querySelector('[data-session-mode="board"]')?.click();
     else showToast(p.name+' ขอเล่น BOARD PARTY • เจ้าของห้องเลือกโหมดที่แถบตั้งค่า');
     break;
-   case 'room_corner': togglePlazaPanel('room');break;
    // Wardrobe and Color Studio use the owner's glowing controller B button,
    // never a shared HOST toast that confuses other players.
    case 'wardrobe':case 'color_studio':break;
