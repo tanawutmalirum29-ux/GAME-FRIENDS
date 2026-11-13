@@ -204,6 +204,7 @@ function paint(){
  c.clearRect(0,0,960,540);
  if(image)c.drawImage(image,0,0,960,540);else backgroundFallback(c);
  const avatar=window.PartyPlayerAvatar;
+ window.PartyCharacters?.beginNameFrame?.(c);
  for(const p of [...playerCache].sort((a,b)=>a.plazaY-b.plazaY)){
   const state={x:p.plazaX,y:p.plazaY,vx:p.plazaVX,vy:p.plazaVY,dir:p.plazaHeading,color:p.color,name:p.name,cosmetic:p.cosmetic};
   if(avatar?.draw)avatar.draw(c,state,{time:clock,scale:1,label:true});
