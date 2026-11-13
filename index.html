@@ -126,10 +126,15 @@
 
     <main id="hostLobby" class="host-lobby hidden" aria-label="จอหลักห้องปาร์ตี้">
       <canvas id="plazaCanvas" width="960" height="540" aria-label="แผนที่ล็อบบี้ PARTY PLAZA พร้อมตัวละครเดินเล่น"></canvas>
+      <button id="plazaCenterQrBtn" type="button" class="plaza-center-qr-btn" disabled
+        aria-label="แตะ QR กลางล็อบบี้เพื่อคัดลอกลิงก์เข้าห้อง" title="คัดลอกลิงก์เข้าห้อง">
+        <span class="plaza-center-qr-image" id="qrBox" aria-hidden="true">กำลังสร้างห้อง</span>
+        <span class="plaza-center-qr-label" id="plazaCenterQrLabel">QR ห้อง</span>
+      </button>
       <header class="lobby-bar">
         <div class="lobby-bar-brand"><strong>STICK SQUAD PARTY</strong></div>
         <div class="plaza-header-tools">
-          <button id="plazaRoomToggle" type="button" aria-controls="plazaRoomPanel" aria-expanded="false">QR / ห้อง</button>
+          <button id="plazaRoomToggle" type="button" aria-controls="plazaRoomPanel" aria-expanded="false" hidden aria-hidden="true" tabindex="-1">QR / ห้อง</button>
           <button id="plazaRosterToggle" type="button" aria-controls="plazaRosterPanel" aria-expanded="false">ผู้เล่น</button>
           <button id="plazaSettingsToggle" type="button" aria-controls="plazaSettingsPanel" aria-expanded="false">ตั้งค่า</button>
           <button id="plazaStartBtn" type="button">เริ่มเล่น</button>
@@ -143,7 +148,7 @@
             <div class="room-top"><div><small>ROOM CODE</small><strong id="roomCode">------</strong></div><span class="live-pill">● LIVE</span></div>
             <div class="share-layout">
               <div class="qr-share-stack">
-                <div id="qrBox" class="qr-box"></div>
+                
                 <div class="share-content">
                   <input id="roomUrl" aria-label="ลิงก์เข้าร่วมห้อง" title="ลิงก์เข้าร่วม" readonly>
                   <button class="btn btn-outline" id="copyBtn" type="button">คัดลอกลิงก์</button>
