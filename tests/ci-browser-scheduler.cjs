@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const {
- readManifest,validateManifest,expandTasks,createPlan,matrix
+ readManifest,validateManifest,expandTasks,createPlan,matrix,runBrowserProcess
 }=require('../scripts/ci-browser-scheduler.cjs');
 const config=validateManifest(readManifest());
 function verifyPlan(m){
@@ -42,4 +42,25 @@ for(const bad of [
  assert.throws(()=>validateManifest(bad,{checkFiles:false}),
   'invalid manifest must fail safely');
 }
-console.log('SCALABLE BROWSER SCHEDULER PASS: deterministic coverage, 10–160 future suites, adjustable 2–8 shard growth, no duplicate/unsafe tasks');
+// A test that ignores SIGTERM must still be killed promptly, not block a
+// GitHub runner until the workflow's outer job timeout.
+async function verifyProcessTimeout(){
+ const normal=await runBrowserProcess(process.execPath,['-e','process.exit(0)'],{
+  quiet:true,stdio:'ignore',timeoutMs:5000
+ });
+ assert.equal(normal.status,'passed','normal browser tasks must succeed');
+ const error=await runBrowserProcess(process.execPath,['-e','process.exit(7)'],{
+  quiet:true,stdio:'ignore',timeoutMs:5000
+ });
+ assert.equal(error.status,'failed','nonzero browser exit must still fail CI');
+ const hanging=await runBrowserProcess(process.execPath,
+  ['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{
+   quiet:true,stdio:'ignore',timeoutMs:250
+  });
+ assert.equal(hanging.status,'timed_out','unresponsive test must be killed');
+ assert.ok(hanging.elapsedMs<4000,
+  'test timeout must not wait for graceful SIGTERM or leave the runner stuck');
+}
+verifyProcessTimeout().then(()=>{
+ console.log('SCALABLE BROWSER SCHEDULER PASS: deterministic coverage, 10–160 future suites, adjustable 2–8 shard growth, no duplicate/unsafe tasks, fail-closed test timeout');
+}).catch(error=>{console.error(error);process.exitCode=1;});
