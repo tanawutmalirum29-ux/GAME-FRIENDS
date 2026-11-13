@@ -9,8 +9,6 @@ const FALLBACK={
   {id:'game_arcade',label:'GAME ARCADE',center:{x:480,y:181},interactionRadiusPx:53,priority:70},
   {id:'board_portal',label:'BOARD PARTY',center:{x:809,y:187},interactionRadiusPx:52,priority:65},
   {id:'main_plaza',label:'MAIN PLAZA',center:{x:480,y:327},interactionRadiusPx:0,priority:0},
-  {id:'ready_area',label:'READY / START',center:{x:480,y:457},interactionRadiusPx:46,priority:80},
-  {id:'room_corner',label:'ROOM CORNER',center:{x:816,y:439},interactionRadiusPx:43,priority:35},
   {id:'color_studio',label:'COLOR STUDIO',center:{x:144,y:437},interactionRadiusPx:49,priority:45}
  ],
  obstacles:[
@@ -41,6 +39,13 @@ function initialize(){
  canvas.width=Math.round(WORLD.width*dpr);canvas.height=Math.round(WORLD.height*dpr);
  canvas.style.aspectRatio='16 / 9';
  $('hostLobby')?.classList.add('plaza-loaded');
+ if(typeof ResizeObserver==='function'){
+  const observer=new ResizeObserver(positionCenterQr);
+  observer.observe(canvas);
+ }
+ window.addEventListener('resize',positionCenterQr);
+ window.addEventListener('orientationchange',positionCenterQr);
+ positionCenterQr();
  void loadScene();
 }
 // The lobby is ready ONLY after the authored SVG has decoded into the canvas.
@@ -82,6 +87,21 @@ async function loadArt(){
  catch(error){if(!next.naturalWidth)throw error;} // WebKit may reject decode after onload.
  image=next;
 }
+// Match the QR button to the original READY disc in 960×540 world space.
+// The canvas uses object-fit:contain, including on virtually rotated phones.
+function positionCenterQr(){
+ const button=$('plazaCenterQrBtn');if(!button||!canvas)return;
+ const w=canvas.clientWidth,h=canvas.clientHeight;
+ if(w<=0||h<=0)return;
+ const scale=Math.min(w/WORLD.width,h/WORLD.height);
+ const left=(w-WORLD.width*scale)/2+480*scale;
+ const top=(h-WORLD.height*scale)/2+439*scale;
+ const size=196*scale;
+ Object.assign(button.style,{
+  left:left+'px',top:top+'px',width:size+'px',height:size+'px',
+  fontSize:Math.max(10,13*scale)+'px'
+ });
+}
 function retry(){
  if(sceneRetryTimer!==null){clearTimeout(sceneRetryTimer);sceneRetryTimer=null;}
  if(loaded){callbacks.ready?.();return Promise.resolve();}
@@ -99,6 +119,7 @@ function setActive(value){
  }
  if(active){
   initialize();
+  requestAnimationFrame(positionCenterQr);
   if(!loaded&&!loading&&sceneRetryTimer===null)void loadScene();
  }else if(sceneRetryTimer!==null){clearTimeout(sceneRetryTimer);sceneRetryTimer=null;}
 }
@@ -342,5 +363,5 @@ function paint(){
  }
  // Contextual A/B actions are displayed on the owner's controller only.
 }
-window.PartyPlaza=Object.freeze({configure,setActive,sync,tick,inZone,zoneAt,retry,getLayout:()=>layout,getPlayers:()=>playerCache,isReady:()=>loaded,debug:v=>{debug=!!v;}});
+window.PartyPlaza=Object.freeze({configure,setActive,sync,tick,inZone,zoneAt,retry,getLayout:()=>layout,getPlayers:()=>playerCache,isReady:()=>loaded,positionCenterQr,debug:v=>{debug=!!v;}});
 })();
