@@ -119,7 +119,7 @@ function setActive(value){
  }
  if(active){
   initialize();
-  requestAnimationFrame(positionCenterQr);
+  positionCenterQr();
   if(!loaded&&!loading&&sceneRetryTimer===null)void loadScene();
  }else if(sceneRetryTimer!==null){clearTimeout(sceneRetryTimer);sceneRetryTimer=null;}
 }
