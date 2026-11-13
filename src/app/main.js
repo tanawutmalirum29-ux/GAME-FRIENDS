@@ -104,7 +104,9 @@ window.PartyPlaza?.configure({
   window.PartyCosmetics?.preload?.(p);
   renderRoster(); // Save the new color for room reload/reconnect.
   broadcastRoster(); // Immediately update all clients and their portraits.
-  showToast(p.name+' เปลี่ยนสีเป็น '+color.toUpperCase());
+  const colorName=lobbyColorName(color);
+  showToast(p.name+' เปลี่ยนสีเป็น '+colorName);
+  send(p.conn,{t:'plaza-color-changed',color,name:colorName});
   return true;
  },
  cancel(p){if(p.conn?.open)send(p.conn,{t:'plaza-picker',open:false});}
