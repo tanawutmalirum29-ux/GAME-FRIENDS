@@ -579,10 +579,10 @@ function joinRoom(recovery=false){
           total:Math.max(0,Math.min(MAX_PLAYERS,Number(ready.total)||0)),
           selfReady:Array.isArray(ready.voted)&&ready.voted.includes(controllerId)
         };
-        showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
         if(self)syncControllerAvatarColor(self.color);
         setControllerGameContext(data.mode,data.phase,!!(self&&self.active));
+        showControllerMode(data.mode);
          controllerPlayerEliminated=!!(data.mode==='shockwave'&&self?.eliminated);
         updatePhoneGamePicker(data.phase,self&&self.choice);
         $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
