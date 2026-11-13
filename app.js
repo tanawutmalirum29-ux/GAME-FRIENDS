@@ -1699,10 +1699,14 @@ function bindHostBotPad(){
   if(floating){
    // Touch anywhere in the physical left half to summon the joystick there.
    const area=left.getBoundingClientRect(),size=stick.getBoundingClientRect().width;
-   const x=Math.min(Math.max(e.clientX-area.left,size/2+6),
-    Math.max(size/2+6,area.width-size/2-6));
-   const y=Math.min(Math.max(e.clientY-area.top,size/2+6),
-    Math.max(size/2+6,area.height-size/2-6));
+   // Physical portrait hosts rotate the WHOLE game 90 degrees. Reproject
+   // touch position into the logical left-half coordinates before placing.
+   const rotated=arenaIsRotated(),rawX=rotated?e.clientY-area.top:e.clientX-area.left;
+   const rawY=rotated?area.left+area.width-e.clientX:e.clientY-area.top;
+   const w=rotated?(left.clientWidth||area.height):area.width;
+   const h=rotated?(left.clientHeight||area.width):area.height;
+   const x=Math.min(Math.max(rawX,size/2+6),Math.max(size/2+6,w-size/2-6));
+   const y=Math.min(Math.max(rawY,size/2+6),Math.max(size/2+6,h-size/2-6));
    stick.style.left=(x-size/2)+'px';stick.style.top=(y-size/2)+'px';
    stick.style.bottom='auto';stick.classList.add('floating');
   }
