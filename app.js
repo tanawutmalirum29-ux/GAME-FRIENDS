@@ -812,6 +812,7 @@ function setView(view) {
   currentView=view;
   if(view==='game')markArenaResolutionDirty();
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
+  document.documentElement.classList.remove('gf-boot-controller');
   document.body.classList.toggle('host-playing',view==='game');
   if(view==='hostLobby'){
    if(window.PartyPlaza?.isReady?.())hideTransitionLoading();
@@ -2505,63 +2506,145 @@ function loadQrLibrary(){
   }
   return qrLibraryPromise;
 }
-async function releaseQrSession(session){
-  if(!session)return;
-  if(session.started){try{await session.started;}catch(_){}}
-  if(session.reader){
-    try{await session.reader.stop();}catch(_){}
-    try{session.reader.clear();}catch(_){}
+function acceptedQrValue(session,decoded){
+ if(activeQrSession!==session||session.found)return;
+ const code=parseRoomCode(decoded);
+ if(!code){
+  $('scanRoomStatus').textContent='QR ไม่ใช่รหัสห้อง GAME-FRIENDS';
+  return;
+ }
+ session.found=true;
+ void (async()=>{
+  await stopRoomScanner();
+  if(selectRoomCode(code))joinRoom();
+ })();
+}
+async function releaseNativeQrSession(session){
+ if(session.frameId!=null){
+  cancelAnimationFrame(session.frameId);session.frameId=null;
+ }
+ const video=session.video;session.video=null;
+ if(video){
+  try{video.pause();video.srcObject=null;video.remove();}catch(_){}
+ }
+ const stream=session.stream;session.stream=null;
+ if(stream)for(const track of stream.getTracks()){
+  try{track.stop();}catch(_){}
+ }
+}
+// BarcodeDetector is built into many Chrome Android versions: opening a camera
+// must not depend on downloading a large script from an external CDN.
+async function startNativeRoomScanner(session){
+ const Detector=window.BarcodeDetector;
+ if(typeof Detector!=='function'||!navigator.mediaDevices?.getUserMedia)return false;
+ try{
+  if(typeof Detector.getSupportedFormats==='function'){
+   const formats=await Detector.getSupportedFormats();
+   if(!formats.includes('qr_code'))return false;
   }
+  if(activeQrSession!==session)return true;
+  const detector=new Detector({formats:['qr_code']});
+  const stream=await navigator.mediaDevices.getUserMedia({
+   audio:false,video:{facingMode:{ideal:'environment'},
+    width:{ideal:1280},height:{ideal:720}}
+  });
+  session.stream=stream;
+  if(activeQrSession!==session){await releaseNativeQrSession(session);return true;}
+  const video=document.createElement('video');
+  session.video=video;video.autoplay=true;video.muted=true;video.playsInline=true;
+  video.setAttribute('playsinline','');video.className='gf-native-qr-video';
+  video.srcObject=stream;
+  $('roomQrReader').replaceChildren(video);
+  await video.play();
+  if(activeQrSession!==session){await releaseNativeQrSession(session);return true;}
+  $('scanRoomStatus').textContent='กำลังสแกน QR ด้วยกล้องหลัง • จัดภาพให้อยู่กลางจอ';
+  let failures=0,last=0;
+  const scan=async t=>{
+   if(activeQrSession!==session||session.found)return;
+   if(t-last<95){session.frameId=requestAnimationFrame(scan);return;}
+   last=t;
+   try{
+    if(video.readyState>=2){
+     const results=await detector.detect(video);
+     if(activeQrSession!==session||session.found)return;
+     failures=0;
+     for(const result of results)if(result.rawValue){
+      acceptedQrValue(session,result.rawValue);
+      if(session.found)return;
+     }
+    }
+   }catch(error){
+    if(++failures>=3){
+     await releaseNativeQrSession(session);
+     if(activeQrSession===session&&!session.found)
+      void startFallbackRoomScanner(session);
+     return;
+    }
+   }
+   if(activeQrSession===session&&!session.found)
+    session.frameId=requestAnimationFrame(scan);
+  };
+  session.frameId=requestAnimationFrame(scan);
+  return true;
+ }catch(error){
+  await releaseNativeQrSession(session);
+  return false;
+ }
+}
+async function releaseQrSession(session){
+ if(!session)return;
+ await releaseNativeQrSession(session);
+ if(session.started){try{await session.started;}catch(_){}}
+ if(session.reader){
+  try{await session.reader.stop();}catch(_){}
+  try{session.reader.clear();}catch(_){}
+ }
 }
 async function stopRoomScanner(){
-  const session=activeQrSession;
-  activeQrSession=null;
-  $('roomScannerPanel').classList.add('hidden');
-  syncLandscapePresentation();
-  await releaseQrSession(session);
+ const session=activeQrSession;
+ activeQrSession=null;
+ $('roomScannerPanel').classList.add('hidden');
+ syncLandscapePresentation();
+ await releaseQrSession(session);
+}
+async function startFallbackRoomScanner(session){
+ try{
+  $('scanRoomStatus').textContent='กำลังเปิดตัวอ่าน QR สำรอง...';
+  await loadQrLibrary();
+  if(activeQrSession!==session)return;
+  const config=window.Html5QrcodeSupportedFormats?
+   {formatsToSupport:[window.Html5QrcodeSupportedFormats.QR_CODE]}:{};
+  session.reader=new window.Html5Qrcode('roomQrReader',config);
+  session.started=session.reader.start({facingMode:'environment'},{
+   fps:12,
+   qrbox:(width,height)=>{
+    const side=Math.max(96,Math.min(320,Math.floor(Math.min(width,height)*.84)));
+    return {width:side,height:side};
+   }
+  },decoded=>acceptedQrValue(session,decoded),()=>{});
+  await session.started;
+  if(activeQrSession===session&&!session.found)
+   $('scanRoomStatus').textContent='ส่อง QR Code ให้เต็มกรอบเพื่อเข้าห้อง';
+ }catch(error){
+  if(activeQrSession===session){
+   $('scanRoomStatus').textContent='สแกนไม่ได้ • ตรวจสิทธิ์กล้องและอินเทอร์เน็ต หรือใส่รหัส 6 ตัว';
+   await releaseQrSession(session);
+   if(activeQrSession===session)activeQrSession=null;
+  }
+ }
 }
 async function startRoomScanner(){
-  await stopRoomScanner();
-  const session={reader:null,started:null,found:false};
-  activeQrSession=session;
-  $('roomScannerPanel').classList.remove('hidden');
-  // QR scanning must follow the actual camera and screen orientation, not
-  // the 90-degree CSS-rotated gamepad/PWA layout.
-  syncLandscapePresentation();
-  $('scanRoomStatus').textContent='กำลังเปิดกล้องเพื่อสแกน QR...';
-  try{
-    await loadQrLibrary();
-    if(activeQrSession!==session)return;
-    const config=window.Html5QrcodeSupportedFormats?
-      {formatsToSupport:[window.Html5QrcodeSupportedFormats.QR_CODE]}:{};
-    session.reader=new window.Html5Qrcode('roomQrReader',config);
-    session.started=session.reader.start({facingMode:'environment'},{
-      fps:8,
-      // Size the scanning region from the camera viewport itself; 220 CSS px
-      // can be much too large when iOS reports a portrait sensor frame.
-      qrbox:(width,height)=>{
-        const side=Math.max(96,Math.min(240,Math.floor(Math.min(width,height)*.7)));
-        return {width:side,height:side};
-      }
-    },decoded=>{
-      if(activeQrSession!==session||session.found)return;
-      const code=parseRoomCode(decoded);
-      if(!code){$('scanRoomStatus').textContent='QR ไม่ใช่รหัสห้อง GAME-FRIENDS';return;}
-      session.found=true;
-      void (async()=>{
-        await stopRoomScanner();
-        if(selectRoomCode(code))joinRoom();
-      })();
-    },()=>{});
-    await session.started;
-    if(activeQrSession===session)$('scanRoomStatus').textContent='ส่องกล้องไปยัง QR Code ห้องใหม่';
-  }catch(_){
-    if(activeQrSession===session){
-      $('scanRoomStatus').textContent='เปิดกล้องไม่สำเร็จ ตรวจสอบสิทธิ์กล้องหรือกรอกรหัส 6 ตัวแทน';
-      await releaseQrSession(session);
-      if(activeQrSession===session)activeQrSession=null;
-    }
-  }
+ await stopRoomScanner();
+ const session={reader:null,started:null,found:false,stream:null,video:null,frameId:null};
+ activeQrSession=session;
+ $('roomQrReader').replaceChildren();
+ $('roomScannerPanel').classList.remove('hidden');
+ // The physical camera and detector must NOT inherit virtual landscape.
+ syncLandscapePresentation();
+ $('scanRoomStatus').textContent='กำลังเปิดกล้องเพื่อสแกน QR...';
+ if(typeof window.Html5Qrcode!=='function'&&await startNativeRoomScanner(session))
+  return;
+ if(activeQrSession===session)await startFallbackRoomScanner(session);
 }
 let controllerPlazaBZone=null;
 function resetControllerForRoomChange(message,awaitLeaveAck=false){
