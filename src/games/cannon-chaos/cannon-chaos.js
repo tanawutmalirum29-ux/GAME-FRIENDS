@@ -316,7 +316,7 @@ export function draw(g,time,round,ps){
   Art.drawBarrel(g,t,c.angle,c.recoil,p.color||'#eee',u,ready?1:.35,false);
   const blink=c.hitFlash>0&&Math.floor(c.hitFlash*18)%2===0;
   if(!blink){
-   if(globalThis.PartyCharacters?.draw)globalThis.PartyCharacters.draw(g,p,{time:s.clock,label:false,scale:u*.8});
+   if(globalThis.PartyCharacters?.draw)globalThis.PartyCharacters.draw(g,p,{time:s.clock,label:false,nameTag:false,scale:u*.8});
    else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(t.x,t.y,16*u,0,TAU);g.fill();}
   }
   Art.drawReload(g,t,p.color||'#eee',u,1-c.reload/C.reload,ready,time);
@@ -327,6 +327,9 @@ export function draw(g,time,round,ps){
   const c=p.cn;
   Art.drawHearts(g,s,s.turrets[c.slot],p.color||'#eee',u,Math.max(0,c.hearts),C.hearts,c.hitFlash,!c.alive);
  }
+ // Names stay between the cannon rider and the outer rim's health hearts.
+ for(const p of roster)if(p.cn?.alive)
+  globalThis.PartyCharacters?.drawName?.(g,p,{offsetY:Math.max(30,31*u),fontSize:12*u,maxWidth:100*u});
  g.restore();
 }
 
