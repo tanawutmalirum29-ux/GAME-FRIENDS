@@ -76,9 +76,21 @@ window.PartyPlaza?.configure({
     else showToast(p.name+' ขอเล่น BOARD PARTY • เจ้าของห้องเลือกโหมดที่แถบตั้งค่า');
     break;
    case 'room_corner': togglePlazaPanel('room');break;
-   case 'wardrobe':showToast('WARDROBE • กด B เพื่อเปลี่ยนเครื่องแต่งกาย');break;
-   case 'color_studio':showToast('COLOR STUDIO • กด B เพื่อเปลี่ยนเป็นสีที่ยังว่าง');break;
+   // Wardrobe and Color Studio use the owner's glowing controller B button,
+   // never a shared HOST toast that confuses other players.
+   case 'wardrobe':case 'color_studio':break;
   }
+ },
+ zoneBAction(p,zone){
+  if(round||boardSession||gameSelection||currentView!=='hostLobby'||
+     p?.type!=='remote'||p.isBot||!p.conn?.open||!players.includes(p))return null;
+  if(zone?.id==='wardrobe')return 'wardrobe';
+  if(zone?.id==='color_studio'&&nextFreeLobbyColor(p))return 'color_studio';
+  return null;
+ },
+ notifyZoneB(p,zone){
+  // The HOST computes real positional eligibility; the client only lights B.
+  if(p?.conn?.open)send(p.conn,{t:'plaza-b-zone',zone});
  },
  changeCosmetic(p){
   // Only the authenticated player physically in Wardrobe may cycle outfits.

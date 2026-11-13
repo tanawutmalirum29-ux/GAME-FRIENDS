@@ -92,6 +92,20 @@ async function run(){
    assert.equal(visuals.released.opacity,0);
    assert.equal(visuals.held.visible,'visible','held stick must be visible');
    assert.ok(visuals.held.opacity>=.9);
+   const bHint=await page.evaluate(()=>{
+    const button=document.getElementById('buttonB');
+    const caption=document.getElementById('buttonBLabel');
+    const initialAnimation=getComputedStyle(button).animationName;
+    button.classList.add('plaza-b-ready');caption.textContent='เปลี่ยนสี';
+    const active={animation:getComputedStyle(button).animationName,
+      text:caption.textContent,shadow:getComputedStyle(button).boxShadow};
+    button.classList.remove('plaza-b-ready');caption.textContent='';
+    return {initialAnimation,active,cleared:getComputedStyle(button).animationName};
+   });
+   assert.equal(bHint.active.text,'เปลี่ยนสี','B caption appears on the phone');
+   assert.match(bHint.active.animation,/gf-plaza-b-glow/,'B glows in actionable zones');
+   assert.notEqual(bHint.active.shadow,'none','B receives a visible halo');
+   assert.equal(bHint.cleared,bHint.initialAnimation,'B stops glowing outside the zone');
    assert.equal(visuals.offText,'','preview disabled shows no message');
    assert.equal(visuals.offBg,'rgb(0, 0, 0)','preview disabled is black');
    if(!portrait){

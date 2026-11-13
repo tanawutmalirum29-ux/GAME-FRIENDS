@@ -94,6 +94,9 @@ function retry(){
  function configure(hooks){callbacks=hooks||{};if(active)initialize();}
 function setActive(value){
  active=!!value;
+ if(!active)for(const p of playerCache){
+  p.plazaBActionConn=null;p.plazaBAction=null;
+ }
  if(active){
   initialize();
   if(!loaded&&!loading&&sceneRetryTimer===null)void loadScene();
@@ -225,6 +228,15 @@ function tick(dt,players){
   if(isFree(ax,ay)) {a.plazaX=ax;a.plazaY=ay;}
   if(isFree(bx,by)) {b.plazaX=bx;b.plazaY=by;}
  }
+ // Only send a controller hint when this player's actual zone/availability
+ // changes, including reconnects. No per-frame network spam or spoofable inputs.
+ for(const p of playerCache){
+  if(p.isBot||!p.conn?.open)continue;
+  const action=callbacks.zoneBAction?.(p,zoneAt(p))||null;
+  if(p.plazaBActionConn===p.conn&&p.plazaBAction===action)continue;
+  p.plazaBActionConn=p.conn;p.plazaBAction=action;
+  callbacks.notifyZoneB?.(p,action);
+ }
  paint();
 }
 function backgroundFallback(c){
@@ -303,11 +315,6 @@ function paintColorStudio(c){
   c.fillRect(x-80+i*16,y-47,16,11);
  }
  c.fillStyle='#08243c';c.fillRect(x-73,y-29,146,7);
- // The interaction sign sits on the floor, not in front of the building.
- c.fillStyle='#0d2644ee';c.fillRect(x-64,y+19,128,24);
- c.strokeStyle='#86e6e7';c.lineWidth=1.4;c.strokeRect(x-64,y+19,128,24);
- c.font='bold 13px sans-serif';c.fillStyle='#edfcfa';
- c.fillText('B • เปลี่ยนสี',x,y+31);
  c.restore();
 }
 function paint(){
@@ -335,8 +342,8 @@ function paint(){
  }
  const focus=playerCache.find(p=>!p.isBot&&p.conn?.open)||playerCache[0];
  const zone=zoneAt(focus),hint=$('plazaZoneHint');
- if(hint)hint.textContent=zone?.id==='wardrobe'?'WARDROBE • B เปลี่ยนเครื่องแต่งกาย':
-  zone?.id==='color_studio'?'COLOR STUDIO • กด B เปลี่ยนสี (ไม่ซ้ำเพื่อน)':
+ if(hint)hint.textContent=zone?.id==='wardrobe'?'WARDROBE':
+  zone?.id==='color_studio'?'COLOR STUDIO':
   zone?zone.label+' • A ใช้งาน':'เดินด้วยจอย • ไปที่จุดต่าง ๆ แล้วกด A';
 }
 window.PartyPlaza=Object.freeze({configure,setActive,sync,tick,inZone,zoneAt,retry,getLayout:()=>layout,getPlayers:()=>playerCache,isReady:()=>loaded,debug:v=>{debug=!!v;}});

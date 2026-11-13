@@ -2302,6 +2302,18 @@ assert.equal(unwantedVideo.closed,true,'disabled controller rejects incoming vid
 assert.equal(phone.elements.get('controller').classList.contains('hidden'),false);
 assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),true,
   'game selector must not obstruct the joystick while walking through Party Plaza');
+phoneConn.fire('data',{t:'plaza-b-zone',zone:'color_studio'});
+assert.equal(phone.elements.get('buttonBLabel').textContent,'เปลี่ยนสี',
+  'entering Color Studio labels B on the owner controller');
+assert.equal(phone.elements.get('buttonB').classList.contains('plaza-b-ready'),true,
+  'Color Studio glows B only when the HOST reports the action available');
+phoneConn.fire('data',{t:'plaza-b-zone',zone:'wardrobe'});
+assert.equal(phone.elements.get('buttonBLabel').textContent,'เปลี่ยนหมวก/ชุด');
+assert.equal(phone.elements.get('buttonB').classList.contains('plaza-b-ready'),true);
+phoneConn.fire('data',{t:'plaza-b-zone',zone:null});
+assert.equal(phone.elements.get('buttonBLabel').textContent,'');
+assert.equal(phone.elements.get('buttonB').classList.contains('plaza-b-ready'),false,
+  'leaving the zone clears the glow and the text');
 phoneConn.fire('data',{t:'plaza-picker',open:true});
 assert.equal(phone.elements.get('phoneGamePicker').classList.contains('hidden'),false,
   'entering the Arcade must open the original game picker');
@@ -2310,7 +2322,10 @@ assert.equal(phone.elements.get('controllerPreviewOff').classList.contains('hidd
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
   'joining room must not reveal role or items before gameplay');
 assert.equal(phone.elements.get('buttonALabel').textContent,'');
-assert.equal(phone.elements.get('buttonBLabel').textContent,'');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'ปิดรายการเกม',
+  'B closes the active game picker instead of showing a stale zone action');
+assert.equal(phone.elements.get('buttonB').classList.contains('plaza-b-ready'),false,
+  'B must not glow as a wardrobe/color action while the game picker is open');
 assert.equal(phone.elements.get('controllerModeName').textContent,'');
 phoneConn.fire('data',{t:'inventory',id:'p1',mode:'ghost',phase:'playing',item:'slow',
  ghost:false,selecting:true,targetId:'p2',targetName:'Friend'});

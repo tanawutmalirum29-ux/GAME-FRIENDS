@@ -6556,3 +6556,24 @@ body.controller-playing #controller #controllerActive .controller-buttons.is-pic
  visibility:hidden!important;
  opacity:0!important;
 }
+
+/* PARTY PLAZA: the owner-only B affordance lights up while physically in the
+   Color Studio or Wardrobe. No shared map caption, no change to hit targets. */
+body.controller-playing #controller #controllerActive #buttonB.plaza-b-ready:not(:disabled){
+  border-color:#fff0a5!important;
+  background:radial-gradient(circle at 30% 23%,#d7f9ff,#4ac7e7 44%,#126d99 100%);
+  box-shadow:0 0 0 3px #ffeaa986,0 0 22px 7px #57e8ffb5,
+    inset 0 0 13px #fff8d288!important;
+  animation:gf-plaza-b-glow 1.25s ease-in-out infinite;
+}
+body.controller-playing #controller #controllerActive #buttonB.plaza-b-ready .face-caption{
+  color:#fffbd2!important;font-weight:900;
+  text-shadow:0 0 5px #154868,0 0 9px #b5ffff;
+}
+@keyframes gf-plaza-b-glow{
+  0%,100%{filter:brightness(1);box-shadow:0 0 0 3px #ffeaa986,0 0 18px 5px #57e8ff94,inset 0 0 13px #fff8d288;}
+  50%{filter:brightness(1.17);box-shadow:0 0 0 5px #ffeaa9cc,0 0 31px 13px #57e8ffdc,inset 0 0 22px #fff8d2b0;}
+}
+@media(prefers-reduced-motion:reduce){
+  body.controller-playing #controller #controllerActive #buttonB.plaza-b-ready{animation:none;}
+}

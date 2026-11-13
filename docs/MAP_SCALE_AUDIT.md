@@ -37,6 +37,13 @@ MAP checks: the 5×5 arena, tile size 78 world units, board 390×390 at (285,116
 - **Mobile controller:** On a fresh connection a 72px floating-joystick base is visible at the left 25% of the touch zone; on finger-down it follows the actual touch, stays visible throughout drag, and hides only after release. The same motion feedback repeats on subsequent touches and reconnect. A/B and game picker keep independent higher-priority hit targets. Landscape/rotated portrait stage geometry, device pixel ratio and Host preview resolution remain unchanged.
 - **Verification:** Existing and extended controller-stage Chromium/WebKit checks cover visible-on-join, hide-on-release, visible-on-hold and left-side positioning, and lobby browser checks keep color zone accessibility while testing storefront collision. No gameplay/minigame geometry is changed.
 
+### PARTY PLAZA contextual B on controller only (2026-11-14)
+
+- The wardrobe and color studio keep the 960×540 DPR-sharp lobby, character/world scale, all trigger coordinates, collision boundaries and movement rules unchanged.
+- Remove Color Studio's floor caption `B • เปลี่ยนสี` and shared HOST B advice. The owner sees their phone B glow and the label `เปลี่ยนสี` or `เปลี่ยนหมวก/ชุด` only when standing in the respective actionable zone.
+- The HOST determines the real player zone and color availability and sends an owner-only `plaza-b-zone` event on change, not every frame; the original protected B input rules remain authoritative. Leaving the zone, switching phase, opening the picker and disconnecting clear the effect. Re-entering or reconnecting restores it.
+- Tests cover host zone notification changes and reconnects, responsive B halo visibility, and removal of misleading HOST B labels.
+
 ## Findings and changes
 
 ### Shared avatar mounts (2026-11-12)
