@@ -920,9 +920,7 @@ function luckyRoulette(g,s){
  const prize=s.lucky,items=window.BoardItems.ids;
  const time=Math.max(0,s.time-s.phaseAt),progress=Math.min(1,time/prize.spinDuration);
  const eased=1-Math.pow(1-progress,4),winningIndex=9,cardW=126,gap=16,step=cardW+gap;
- box(g,0,0,960,540,0,'#0c2341dc');
  label(g,'LUCKY STAR',480,100,30,'#ffda77','center',900);
- label(g,'สุ่มไอเทม 1 ชิ้น • เข้ากระเป๋าสะสมได้ไม่จำกัด',480,132,14,'#d4eaf7','center');
  box(g,96,183,768,164,18,'#1e3a56ee','#bd98e5');
  g.save();g.beginPath();g.rect(106,194,748,142);g.clip();
  for(let i=0;i<12;i++){
@@ -941,7 +939,7 @@ function luckyRoulette(g,s){
   label(g,'ได้รับ: '+IName(prize.item),480,401,24,'#ffe49e','center',900,620);
   const owner=s.players.find(p=>p.id===prize.playerId);
   label(g,(owner?.name||'ผู้เล่น')+' • เพิ่มเข้ากระเป๋าแล้ว',480,438,14,'#d5effd','center');
- }else label(g,'กำลังสุ่มไอเทม...',480,412,18,'#d5effd','center');
+ }
 }
 function overlay(g,s){
  const order=['order','order_result'].includes(s.phase),results=['standings','rewards'].includes(s.phase);
@@ -1246,6 +1244,10 @@ function draw(g,t,s){
  // No continuously moving snow/particles over the board. The gameplay
  // effects layer above still communicates real hazards and item outcomes.
  hud(g,s);
+ // Lucky Star is a full-screen intermission. Cover the entire live viewport
+ // in screen coordinates, BEFORE the centered 540-unit reel translation.
+ // Painting inside luckyRoulette left uncovered top/bottom strips on iPad.
+ if(s.phase==='lucky_roulette')box(g,0,0,960,sceneHeight(s),0,'#0c2341');
  if(!overviewMode&&!c.paused){
   // The A/B/C guide sits directly below scoreboard player #1 on the left.
   aimControls(g,s);
