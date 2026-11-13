@@ -6,6 +6,10 @@ const COLORS = ['#e6194b','#3cb44b','#4363d8','#ffe119','#f58231','#911eb4',
  '#42d4f4','#f032e6','#bfef45','#9a6324','#ffffff','#222222'];
 // Migrate both previous live palette and older pastel sessions without losing
 // player IDs, reconnection tokens, seats, or chosen costumes.
+// Public-facing names for the 12 canonical seat colors (never show raw HEX).
+const COLOR_NAMES=['แดง','เขียว','น้ำเงิน','เหลือง','ส้ม','ม่วง',
+ 'ฟ้า','ชมพูบานเย็น','เขียวมะนาว','น้ำตาล','ขาว','ดำ'];
+const lobbyColorName=color=>COLOR_NAMES[COLORS.indexOf(String(color||'').toLowerCase())]||'สีใหม่';
 const LEGACY_COLORS = ['#c62222','#36d9e5','#215a94','#d7b000','#f53695','#f57a00',
  '#36d595','#000094','#009400','#b800f5','#008484','#94004a',
  '#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0',
