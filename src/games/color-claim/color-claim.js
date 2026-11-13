@@ -654,6 +654,8 @@ function draw(g,t,round,ps){
   drawAvatar?.(g,p,{time:t,local:true,heading:Math.PI/2,holding:true,
    attacking:false,combat:false,label:false,shadow:false});
   g.restore();
+  // Keep the tag upright outside the rotating bumper-car transform.
+  window.PartyCharacters?.drawName?.(g,p,{offsetY:44*unit});
   if(freezeActive(s,p)){
    g.save();g.globalAlpha=.75;g.strokeStyle='#b9efff';g.lineWidth=3;
    g.beginPath();g.arc(p.x,p.y,(SETTINGS.radius+5)*unit,0,TAU);g.stroke();

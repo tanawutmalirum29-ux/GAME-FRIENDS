@@ -437,8 +437,6 @@ function drawMower(g,p,time){
   rect(g,-15,-3,30,31,'#1d332b');rect(g,-12,22,24,7,'#405b46');
   g.strokeStyle='#cce5a2';g.lineWidth=3;g.beginPath();
   g.moveTo(-13,0);g.quadraticCurveTo(0,-4,13,0);g.stroke();
-  g.fillStyle='#fff';g.font='bold 10px system-ui';g.textAlign='center';
-  g.fillText(String(p.name||'').slice(0,11),0,-37);
   if(m.moving){
    g.save();g.strokeStyle='#dceab9';g.lineWidth=1.3;g.globalAlpha=.35+.2*Math.sin(time*16);
    g.beginPath();g.moveTo(-12,-32);g.lineTo(-17,-37);g.moveTo(12,-32);g.lineTo(18,-38);g.stroke();g.restore();
@@ -451,6 +449,8 @@ function drawMower(g,p,time){
  drawAvatar?.(g,p,{time,local:true,heading:0,scale:.9,holding:true,
   attacking:false,combat:false,label:false,shadow:false});
  g.restore();
+ // Upright and clear of the entire mower, including fully loaded artwork.
+ window.PartyCharacters?.drawName?.(g,p,{offsetY:59});
 }
 function drawSun(g,x,y,r){
  if(window.ReferenceArenaArt?.sun(g,x,y,r))return;

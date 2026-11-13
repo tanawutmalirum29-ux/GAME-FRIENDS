@@ -125,11 +125,72 @@ function combat(){return window.PartyCombatMotion;}
 function startPunch(p){return combat().startAttack(p);}
 function stepPunch(p,dt,onImpact){return combat().stepAttack(p,dt,onImpact);}
 function punchFriends(attacker,players,opts){return combat().hitPlayers(attacker,players,opts);}
+// One shared readable nameplate for NORMAL games, mounts and lobby.
+// Existing health/status UI keeps its own position; game-specific mounts can
+// request a larger gap with offsetY without moving the health indicator.
+const nameRects=new WeakMap();
+function beginNameFrame(ctx){if(ctx)nameRects.set(ctx,[]);}
+function drawName(ctx,p,opts={}){
+ if(!ctx||!p||opts.nameTag===false||typeof ctx.fillText!=='function')return;
+ const raw=String(p.name??(p.isBot?'บอท':'')).trim();
+ if(!raw)return;
+ const x=Number.isFinite(opts.x)?opts.x:(opts.local?0:Number(p.x)||0);
+ const y=Number.isFinite(opts.y)?opts.y:(opts.local?0:Number(p.y)||0);
+ const scale=Number.isFinite(opts.scale)&&opts.scale>0?opts.scale:1;
+ const offset=Number.isFinite(opts.offsetY)?opts.offsetY:Math.max(35,36*scale);
+ const fontSize=Number.isFinite(opts.fontSize)?opts.fontSize:12;
+ const maxWidth=Number.isFinite(opts.maxWidth)?opts.maxWidth:94;
+ ctx.save();
+ ctx.font='800 '+fontSize+'px system-ui,sans-serif';
+ const measured=value=>{
+  if(typeof ctx.measureText==='function'){
+   const metrics=ctx.measureText(value);
+   if(Number.isFinite(metrics?.width))return metrics.width;
+  }
+  return Array.from(value).length*fontSize*.62;
+ };
+ const units=Array.from(raw);
+ let name=raw;
+ while(units.length>1&&measured(name)>maxWidth-12){
+  units.pop();name=units.join('')+'…';
+ }
+ const width=Math.min(maxWidth,Math.max(26,measured(name)+13));
+ const height=fontSize+8;
+ let left=x-width/2,top=y-offset-height;
+ const occupied=nameRects.get(ctx);
+ if(occupied){
+  const m=typeof ctx.getTransform==='function'?ctx.getTransform():null;
+  const rect=(lx,ty)=>{
+   const a=m?.a??1,b=m?.b??0,c=m?.c??0,d=m?.d??1,e=m?.e??0,f=m?.f??0;
+   const corners=[[lx,ty],[lx+width,ty],[lx,ty+height],[lx+width,ty+height]]
+    .map(([px,py])=>[a*px+c*py+e,b*px+d*py+f]);
+   const xs=corners.map(q=>q[0]),ys=corners.map(q=>q[1]);
+   return{x:Math.min(...xs),y:Math.min(...ys),r:Math.max(...xs),b:Math.max(...ys)};
+  };
+  // Stack crowded names instead of painting over another person's name.
+  for(let i=0;i<12;i++){
+   const candidate=rect(left,top);
+   if(!occupied.some(q=>candidate.x<q.r+2&&candidate.r>q.x-2&&candidate.y<q.b+2&&candidate.b>q.y-2)){
+    occupied.push(candidate);break;
+   }
+   top-=height+2;
+   if(i===11)occupied.push(rect(left,top));
+  }
+ }
+ ctx.fillStyle='rgba(8,20,37,.87)';
+ if(typeof ctx.roundRect==='function'){ctx.beginPath();ctx.roundRect(left,top,width,height,5);ctx.fill();}
+ else ctx.fillRect?.(left,top,width,height);
+ ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.strokeStyle='#071221';
+ ctx.strokeText?.(name,left+width/2,top+height/2+0.5);
+ ctx.fillStyle='#ffffff';ctx.fillText(name,left+width/2,top+height/2+0.5,maxWidth);
+ ctx.restore();
+}
 function draw(ctx,p,opts={}){
  const fx=combat();
  if(window.PartyPlayerAvatar?.draw)
    window.PartyPlayerAvatar.draw(ctx,p,{
-     ...opts,attacking:opts.attacking??!!fx?.isAttacking(p)
+     ...opts,label:false,attacking:opts.attacking??!!fx?.isAttacking(p)
    });
  else{
    // Keep visible avatar art even before SVG images have decoded.
@@ -141,8 +202,11 @@ function draw(ctx,p,opts={}){
    if(!opts.local)fx.drawAttack(ctx,p);
    fx.drawStun(ctx,p,opts.time||0,{local:!!opts.local});
  }
+ // Local riders are drawn inside rotating/scaled mounts. Their parent game
+ // draws the tag after restoring that transform to keep text upright.
+ if(opts.nameTag!==false&&!opts.local)drawName(ctx,p,opts);
 }
-window.PartyCharacters=Object.freeze({
+window.PartyCharacters=Object.freeze({beginNameFrame,drawName,
  DEFAULTS,activate,control,move,resolve,startPunch,stepPunch,punchFriends,draw
 });
 })();

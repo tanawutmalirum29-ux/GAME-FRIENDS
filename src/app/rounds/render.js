@@ -64,6 +64,8 @@ function drawGame(t){
   if(!round)return;
   syncArenaResolution();
   const engine=gameEngine(round.mode);
+  // Reset placements once per painted frame for every minigame and BOARD.
+  window.PartyCharacters?.beginNameFrame?.(g);
   engine.draw(g,t,round,players);
   if(round.mode==='board')return; // BOARD PARTY has a separate HUD.
   const seconds=hostClockValue(round,engine);

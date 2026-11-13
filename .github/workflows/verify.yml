@@ -199,9 +199,11 @@ jobs:
       - name: Mayan skull theme and 15 percent bot nerf
         if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'game:color-switch') }}
         run: node tests/color-switch-mayan.test.js
-      - name: Shared overhead avatar checks
-        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'avatar') || contains(fromJSON(needs.browser-plan.outputs.areas), 'art') }}
-        run: node tests/avatar-topdown.cjs
+      - name: Shared overhead avatar and nameplate checks
+        if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'avatar') || contains(fromJSON(needs.browser-plan.outputs.areas), 'art') || contains(fromJSON(needs.browser-plan.outputs.areas), 'physics') }}
+        run: |
+          node tests/avatar-topdown.cjs
+          node tests/character-system.cjs
       - name: Scenery cache and physics isolation
         if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'art') }}
         run: node tests/arena-art.cjs
