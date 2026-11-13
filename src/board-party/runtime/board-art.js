@@ -671,10 +671,11 @@ function actors(g,s,t){
   const shake=p.hurtUntil>s.time?Math.sin(t*50)*3:0;
   window.PartyPlayerAvatar.draw(g,{...p,x:xy.x+shake,y:xy.y,vx:freeWalking?joystick.x*90:moving&&s.move.walking?40:0,vy:freeWalking?joystick.y*90:0,
     dir:facing},{time:t,scale:.86,label:false,holding:s.effect?.kind==='heal'&&s.effect.targets.includes(p.id)});
-  const crowded=s.players.filter(q=>q.currentNodeId===p.currentNodeId).length>1;
-  if(!crowded||p.id===active?.id||p.id===s.skill?.targetId){box(g,xy.x-42,xy.y+25,84,18,7,'#15394cda');label(g,p.name,xy.x,xy.y+34,10,p.color,'center',700,78);}
-  else {circle(g,xy.x+17,xy.y+16,8,'#15394c');label(g,(s.order.indexOf(p.id)+1)||s.players.indexOf(p)+1,xy.x+17,xy.y+16,9,p.color,'center');}
   g.restore();
+  // Names belong ABOVE every explorer (including grouped players). Do not
+  // overlap the active-turn arrow/shield or the HP/roster HUD below the map.
+  window.PartyCharacters?.drawName?.(g,p,{x:xy.x,y:xy.y,
+   offsetY:p.id===active?.id?74:52,fontSize:12,maxWidth:98});
   if(s.move?.kind==='rocket'&&s.move.playerId===p.id){g.save();g.translate(pos.x,pos.y+20);if(from)g.rotate(Math.atan2(to.y-from.y,to.x-from.x)+Math.PI/2);icon(g,'rocket',0,0,25);g.restore();}
  }
 }
