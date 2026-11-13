@@ -147,12 +147,19 @@ async function geometry(page){
       r=qr.getBoundingClientRect(),area=canvas.getBoundingClientRect();
     return {size:[r.width,r.height],visible:getComputedStyle(qr).display!=='none',
       relativeCenter:[r.left+r.width/2-area.left,r.top+r.height/2-area.top],
-      canvas:[area.width,area.height]};
+      canvas:[area.width,area.height],
+      inline:[parseFloat(qr.style.left),parseFloat(qr.style.top),parseFloat(qr.style.width)],
+      expected:(()=>{
+       const w=canvas.clientWidth,h=canvas.clientHeight,k=Math.min(w/960,h/540);
+       return [(w-960*k)/2+480*k,(h-540*k)/2+439*k,196*k];
+      })()};
    });
    assert.ok(center.visible&&center.size[0]>60,'central QR replaces READY visually');
    assert.ok(Math.abs(center.size[0]-center.size[1])<1,'central code remains round');
-   assert.ok(Math.abs(center.relativeCenter[0]-center.canvas[0]/2)<2,
-    'QR is horizontally centered inside the fitted world');
+   for(let i=0;i<3;i++)
+    assert.ok(Math.abs(center.inline[i]-center.expected[i])<2,
+      'QR follows the canvas object-fit world coordinates even on rotated displays: '+
+      JSON.stringify(center));
    assert.equal(await page.locator('#plazaCenterQrBtn').isDisabled(),true,
     'offline demo has no invite to copy');
    await stable('central QR geometry');
