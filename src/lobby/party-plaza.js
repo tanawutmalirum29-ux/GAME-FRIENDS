@@ -245,7 +245,7 @@ function paintColorStudio(c){
  c.save();
  // An actual storefront with a forecourt, not an empty UI rectangle.
  // All geometry is 960x540 vector art; collision wall is in lobby-zones.json.
- c.fillStyle='#08172f9e';c.fillRect(x-91,y-100,182,166);
+ c.fillStyle='#08172f9e';c.fillRect(x-83,y-89,166,65);
  c.beginPath();
  c.moveTo(x-43,y-48);c.lineTo(x+43,y-48);
  c.lineTo(x+93,y+43);c.lineTo(x-93,y+43);c.closePath();
