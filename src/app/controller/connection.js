@@ -498,6 +498,10 @@ function joinRoom(recovery=false){
           $('joinBtn').disabled=false;safePeerDestroy();return;
         }
         controllerId=data.id;controllerReady=true;plazaPickerOpen=false;
+        // A fresh room connection shows the centered walking stick again.
+        // Its first touch floats to the finger, then hides on release.
+        releaseStick();
+        $('joystickZone').classList.remove('has-used','is-active','is-moving');
         if(data.axisToken)startControllerFastAxis(peer,data.axisToken);
         reconnectTries=0;
         if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
@@ -551,6 +555,11 @@ function joinRoom(recovery=false){
         plazaPickerOpen=data.open===true;
         updatePhoneGamePicker('lobby',myChosenMode);
         $('controllerState').textContent=plazaPickerOpen?'เลือกมินิเกม • กด B เพื่อปิด':'เดินใน PARTY PLAZA ด้วยจอย';
+      }else if(data.t==='plaza-color-changed'){
+        if(controllerReady&&typeof data.name==='string'){
+          syncControllerAvatarColor(data.color);
+          $('controllerState').textContent='เปลี่ยนสีเป็น '+data.name;
+        }
       }else if(data.t==='roster'){
         controllerSessionMode=data.sessionMode||'queue';
         const ready=data.lobbyReady||{};
