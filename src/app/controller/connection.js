@@ -743,7 +743,10 @@ function setControllerGameContext(mode,phase,active){
   if(mode!=='shockwave'||!['countdown','playing','paused'].includes(phase))controllerPlayerEliminated=false;
   const previousControllerPhase=controllerGamePhase;
   controllerGamePhase=phase||'lobby';
-  if(controllerGamePhase!=='lobby'||previousControllerPhase!=='lobby')controllerPlazaBZone=null;
+  if(controllerGamePhase!=='lobby'||previousControllerPhase!=='lobby'){
+    controllerPlazaBZone=null;
+    $('buttonB').classList.remove('plaza-b-ready');
+  }
   // Remote board camera tools are never shown in a minigame or room lobby.
   const boardZoomActive=controllerReady&&mode==='board'&&
    controllerGamePhase==='playing'&&controllerBoard?.canZoom===true;
