@@ -90,15 +90,15 @@
       "trigger": "button_A"
     },
     {
-      "id": "play_corner",
-      "label": "PLAY CORNER",
+      "id": "color_studio",
+      "label": "COLOR STUDIO",
       "center": {
         "x": 144,
         "y": 437
       },
-      "interactionRadiusPx": 0,
-      "priority": 10,
-      "trigger": "none"
+      "interactionRadiusPx": 49,
+      "priority": 45,
+      "trigger": "button_B"
     }
   ],
   "obstacles": [
