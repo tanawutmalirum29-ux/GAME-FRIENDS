@@ -3999,7 +3999,8 @@ function resultHatProjection(front){
 }
 function renderResultAvatar(p,portrait){
  const cosmetics=window.PartyCosmetics;
- const owner=players.find(q=>q.id===p?.id);
+ const owner=typeof players!=='undefined'&&Array.isArray(players)?
+   players.find(q=>q.id===p?.id):null;
  const portraitPlayer=p&&!p.cosmetic&&owner?.cosmetic?{...p,cosmetic:owner.cosmetic}:p;
  const cosmetic=cosmetics?.normalize?.(portraitPlayer?.cosmetic)||'none';
  const key=String(p?.color||'')+'/'+cosmetic;
@@ -4202,6 +4203,7 @@ function onResultBack(){
   returnToLobby();
 }
 function beginResultVoting(){
+  $('results').classList.remove('board-minigame-results');
   layoutFinalResults();
   // Set a fresh, Host-authoritative A/B lock for each result/summary screen.
   // Held buttons from the minigame cannot skip ranking before it is readable.
