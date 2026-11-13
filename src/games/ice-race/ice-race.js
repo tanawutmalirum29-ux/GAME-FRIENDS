@@ -660,9 +660,6 @@ function sled(g,p,t){
   disc(g,-21,0,4,'#294e64');
   g.fillStyle='#214859';g.beginPath();g.roundRect(-18,-10,24,20,5);g.fill();
   g.strokeStyle='#edfaff';g.lineWidth=2;g.beginPath();g.moveTo(7,-7);g.lineTo(7,7);g.stroke();
-  g.save();g.rotate(-w.heading);g.fillStyle='#f8feff';g.font='bold 11px system-ui';
-  g.textAlign='center';g.shadowColor='#164b80';g.shadowBlur=4;
-  g.fillText(String(p.name||'').slice(0,12),0,-29);g.restore();
   if(w.invulnerable>0){g.strokeStyle='#c0f8ff';g.lineWidth=2;g.setLineDash([5,4]);g.beginPath();g.arc(0,0,24,0,TAU);g.stroke();g.setLineDash([]);}
  }
  // +X is the sled's forward axis. The shared player rides inside the same
@@ -672,6 +669,8 @@ function sled(g,p,t){
  drawAvatar?.(g,p,{time:t,local:true,heading:Math.PI/2,scale:.72,holding:true,
   attacking:false,combat:false,label:false,shadow:false});
  g.restore();
+ // The sled can drift and spin; names stay upright above its rider.
+ window.PartyCharacters?.drawName?.(g,p,{offsetY:55});
 }
 function draw(g,t,round,ps){
  const s=round.iceRace;if(!s)return;
