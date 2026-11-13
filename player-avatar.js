@@ -212,9 +212,13 @@ function draw(ctx,p,opts={}){
  window.PartyCosmetics?.drawTop?.(ctx,p);
  ctx.restore();ctx.restore();
  if(opts.label!==false){
-  ctx.font='bold 12px sans-serif';ctx.textAlign='center';
-  ctx.lineWidth=3;ctx.strokeStyle='#061627';ctx.strokeText(p.name||'',x,y-30);
-  ctx.fillStyle='#fff';ctx.fillText(p.name||'',x,y-30);
+  // Lobby and direct avatar users share the same adaptive name placement.
+  if(window.PartyCharacters?.drawName)window.PartyCharacters.drawName(ctx,p,{...opts,x,y});
+  else{
+   ctx.font='bold 12px sans-serif';ctx.textAlign='center';
+   ctx.lineWidth=3;ctx.strokeStyle='#061627';ctx.strokeText(p.name||'',x,y-35);
+   ctx.fillStyle='#fff';ctx.fillText(p.name||'',x,y-35);
+  }
  }
  ctx.restore();
 }
