@@ -40,8 +40,8 @@ for(const item of catalog.items.filter(x=>x.id!=='none')){
   assert.doesNotMatch(svg,/<script\s|<foreignObject\s|\bonload\s*=/i);
   if(spec.dynamic){
    assert.equal(spec.color,true,'new costume uses player-color overlays');
-   assert.match(svg,/\\bcurrentColor\\b/,'new master SVG uses color-bound details');
-   assert.match(svg,/<svg[^>]*\\bcolor="#[0-9a-f]{6}"/i,'color is assigned at SVG root');
+   assert.ok(svg.includes('currentColor'),'new master SVG uses color-bound details');
+   assert.ok(/<svg[^>]*color="#[0-9a-f]{6}"/i.test(svg),'color is assigned at SVG root');
    assert.ok(!svg.includes('<script'),'art SVG is inert');
    continue; // Runtime renders colored master SVG asynchronously; verify below.
   }
