@@ -1,6 +1,7 @@
 /* GAME-FRIENDS outfit overlays: one canonical projection per accessory.
  * Costumes are visual-only and never alter hitboxes, movement, or timing.
- * Pre-rendered twelve-color SVGs preserve fixed whites, golds and black inks. */
+ * Old palette SVGs are retained as static assets; new player colors use
+ * currentColor on existing masters without recoloring fixed metal/cloth. */
 (() => {
 'use strict';
 const IDS=Object.freeze([
@@ -8,7 +9,8 @@ const IDS=Object.freeze([
  'shades-white-beard','pharaoh-nemes','plumed-turban',
  'viking-helmet','wizard-hat','samurai-kabuto','chef-hat','cowboy-hat','knight-helmet','devil-hat','astronaut-helmet','mining-helmet','jester-hat','paper-bag-mask'
 ]);
-const PALETTE=new Set([
+// Colors that physically exist as pre-rendered legacy SVGs in colors/ folders.
+const STATIC_PALETTE=new Set([
  'c62222','36d9e5','215a94','d7b000','f53695','f57a00',
  '36d595','000094','009400','b800f5','008484','94004a'
 ]);
@@ -46,11 +48,11 @@ function randomAvailable(occupied=[],random=Math.random){
  return choices[i];
 }
 function randomBot(random=Math.random,occupied=[]){return randomAvailable(occupied,random);}
-const safeColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).slice(1).toLowerCase():'c62222';
+const safeColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).slice(1).toLowerCase():'e6194b';
 function assetPath(id,view,color){
  const spec=ASSETS[id],prefix='./assets/cosmetics/'+id+'/';
  if(spec.dynamic)return prefix+spec.prefix+'-'+(view==='top'?'top':'front')+'.svg';
- if(spec.color&&PALETTE.has(color))return prefix+'colors/'+view+'-'+color+'.svg';
+ if(spec.color&&STATIC_PALETTE.has(color))return prefix+'colors/'+view+'-'+color+'.svg';
  return prefix+spec.prefix+'-'+(view==='top'?'top':'front')+'.svg';
 }
 function imageFor(player,view){
@@ -61,9 +63,9 @@ function imageFor(player,view){
  if(cache.has(key))return cache.get(key);
  const img=new Image();img.decoding='async';cache.set(key,img);
  const url=assetPath(id,view,color);
- // Current twelve-player palette uses authored, color-correct files directly.
- // For future custom colors, recolor only the SVG root color (currentColor).
- if(spec.color&&(spec.dynamic||!PALETTE.has(color))&&typeof fetch==='function'){
+ // Old colors reuse existing static variants. New player colors decode the
+ // unchanged master SVG with its root color replaced (only currentColor paths).
+ if(spec.color&&(spec.dynamic||!STATIC_PALETTE.has(color))&&typeof fetch==='function'){
   const sourceKey=id+'/'+view;
   let source=fallbackSources.get(sourceKey);
   if(!source){
