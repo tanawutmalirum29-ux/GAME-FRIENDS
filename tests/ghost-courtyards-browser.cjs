@@ -49,7 +49,10 @@ const server=http.createServer((req,res)=>{
     }
     __ghostView.drawGame(1.2);
    });
-   assert.equal(await page.evaluate(()=>__svgImages.filter(i=>i.src.startsWith('data:image/svg+xml')).every(i=>i.complete&&i.naturalWidth>0)),true,'all actual SVG images decode');
+   // Newly assigned hats recolor SVGs asynchronously. Wait for actual browser
+   // decode completion instead of asserting on an intermediate loading frame.
+   await page.waitForFunction(()=>__svgImages.filter(i=>i.src.startsWith('data:image/svg+xml'))
+     .every(i=>i.complete&&i.naturalWidth>0),null,{polling:50,timeout:5000});
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight),true,'HOST fits the screen');
    if(n===6||n===12){
     await page.locator('#arena').screenshot({path:path.join(out,`${name}-${theme}-${n}.png`)});
