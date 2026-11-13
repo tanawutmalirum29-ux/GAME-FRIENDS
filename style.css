@@ -4637,6 +4637,13 @@ body.board-playing #game #botPossessBtn svg{width:18px;height:18px}
  #game .bot-test-right{padding-bottom:8px}
 }
 
+/* The GHOST map-ID inspector is available without taking over a bot.
+   Its icon lives in the right-hand tools column; left-half touches stay
+   transparent to the game until an actual bot is possessed. */
+#game .bot-test-pad.ghost-only .bot-test-left{
+ pointer-events:none;background:none;
+}
+#game .bot-test-pad.ghost-only .bot-test-left::after{display:none}
 /* iPhone Safari / in-app WebKit controller viewport repair (2026-11).
    Safari's dynamic bars can change the visual viewport without recomputing
    the layout viewport immediately. app.js supplies exact visible dimensions;
