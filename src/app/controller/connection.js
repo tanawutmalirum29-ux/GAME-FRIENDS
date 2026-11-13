@@ -692,8 +692,8 @@ function joinRoom(recovery=false){
           $('buttonA').title=seconds>.03?'รอตีอีก '+seconds.toFixed(1)+' วิ':'พร้อมตี';
         }
       }else if(data.t==='state'){
-        showControllerMode(data.mode);
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
+        showControllerMode(data.mode);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         const pluginStatus=data.phase==='playing'?pluginControllerPlayingStatus(data.mode,data):null;
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
@@ -730,6 +730,8 @@ function retryPhone(){
 }
 function controllerDisconnected(){
  if(disconnectRequested)return;
+ controllerPlazaBZone=null;
+ $('buttonB').classList.remove('plaza-b-ready');
  retryPhone();
 }
 function isLiveGameContext(){
