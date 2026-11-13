@@ -13,7 +13,7 @@ global.window={PartyCharacters:{
  const base=path.resolve(__dirname,'../src/games/dino-panic');
  const game=(await import(pathToFileURL(path.join(base,'game.js')).href)).default;
  const {C,STEP}=await import(pathToFileURL(path.join(base,'config.js')).href);
- const {BOT_NAV_CELL}=await import(pathToFileURL(path.join(base,'bot.js')).href);
+ const {BOT_NAV_CELL,botControl}=await import(pathToFileURL(path.join(base,'bot.js')).href);
  const {obstacleContact}=await import(pathToFileURL(path.join(base,'map.js')).href);
  assert.equal(C.speed,130,'reduced runner/dinosaur speed');
  assert.equal(BOT_NAV_CELL,10,'original 10-unit navigation grid MUST NOT be coarsened for speed');
@@ -48,6 +48,30 @@ global.window={PartyCharacters:{
   assert.ok(ps.every(p=>p.active&&p.dino?.state==='run'));
   for(let i=0;i<90&&!s.finished;i++)game.update(1/60,round,ps);
   assert.ok(ps.every(p=>Number.isFinite(p.x+p.y)),'finite positions');
+ }
+ // Each map must show an actual horizontal wooden obstacle, not merely
+ // contain an unused horizontal template the random path validator rejects.
+ for(const [n,seed] of [[1,8124],[6,8125],[12,8126]]){
+  const {s}=create(n,seed);
+  const horizontal=s.track.obstacles.filter(o=>o.kind==='log'&&o.hw>o.hh);
+  assert.ok(horizontal.length>=1,'each generated course needs a real horizontal log');
+  assert.ok(horizontal.every(o=>o.y-o.hh>s.track.top&&o.y+o.hh<s.track.bottom),
+   'horizontal logs leave a navigable path above and below');
+ }
+ // Behind-player replans must not spin the avatar a full revolution.
+ {
+  const {s,ps}=create(2,8124),p=ps[1],b=p.dino.bot;
+  b.next=30;b.pt=-100;b.sideUntil=0;s.clock=1;
+  let total=0,prev=0;
+  for(let i=0;i<180;i++){
+   b.tx=p.x-160;
+   b.ty=p.y+(i%40<20?190:-190);
+   const v=botControl(s,p,STEP),a=Math.atan2(v.y,v.x);
+   assert.ok(v.x>0,'bot always keeps some forward progress through replans');
+   assert.ok(Math.abs(a)<Math.PI/2,'bot never points fully backwards into an orbit');
+   total+=Math.abs(a-prev);prev=a;
+  }
+  assert.ok(Number.isFinite(total),'steering remains finite');
  }
  // ONLY rocks are immovable: pushing one must not translate or roll it.
  {

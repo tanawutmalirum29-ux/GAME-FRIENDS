@@ -117,13 +117,30 @@ function plan(s,p){
  for(let k=chain.length-1;k>=1;k--){if(clear(c,chain[k])){target=chain[k];break;}}
  return{x:cx(target%nc),y:cy((target/nc)|0)};
 }
+// A stuck runner should step around the obstruction, not repeatedly orbit it.
+// Choose the free side of the nearest surface, keeping the same direction
+// through the entire recovery window.
+function escapeSide(s,p,bot){
+ const tr=s.track,near=tr.query(p.x+C.R,p.x+C.R+44);
+ let best=null,dist=Infinity;
+ for(const o of near){
+  const c=obstacleContact(o,p.x,p.y);
+  if(c.gap>C.R+20)continue;
+  const d=Math.abs(o.x-p.x)+Math.abs(o.y-p.y)*.1;
+  if(d<dist){best=o;dist=d;}
+ }
+ const toward=best?.y??tr.cy;
+ let side=p.y<=toward?-1:1;
+ if(p.y+side*75<tr.top+C.R||p.y+side*75>tr.bottom-C.R)side=-side;
+ return side;
+}
 export function botControl(s,p,dt){
  const bot=p.dino.bot;if(!bot)return{x:0,y:0};
  bot.next-=dt;bot.pt+=dt;
  if(bot.pt>=.45){
   const moved=Math.hypot(p.x-bot.pxs,p.y-bot.pys);
-  if(moved<10&&s.clock>.8){
-   bot.side=p.y>s.track.cy?-1:1;bot.sideUntil=s.clock+.55;bot.next=0;
+  if(moved<10&&s.clock>.8&&s.clock>=bot.sideUntil){
+   bot.side=escapeSide(s,p,bot);bot.sideUntil=s.clock+.65;bot.next=0;
   }
   bot.pxs=p.x;bot.pys=p.y;bot.pt=0;
  }
@@ -146,6 +163,11 @@ export function botControl(s,p,dt){
   dx-=weight*.18;
  }
  if(s.clock<bot.sideUntil){dx=.45;dy=bot.side*.9;}
+ // The dinosaur advances from the left. A waypoint behind the runner can
+ // change on consecutive replans and cause a complete 360-degree spin.
+ // Preserve lateral steering and obstacle avoidance, but never steer
+ // backwards or continuously orbit around a log.
+ dx=Math.max(.18,dx);
  mag=Math.hypot(dx,dy)||1;dx/=mag;dy/=mag;
  const k=1-Math.exp(-bot.turn*dt);
  bot.dx+=(dx-bot.dx)*k;bot.dy+=(dy-bot.dy)*k;
