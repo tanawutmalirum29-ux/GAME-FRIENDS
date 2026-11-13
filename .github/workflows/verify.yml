@@ -270,7 +270,7 @@ jobs:
     name: Browser QA / ${{ matrix.shard }}
     needs: [browser-plan]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 12
     env:
       QA_IMPACT_JSON: ${{ needs.browser-plan.outputs.impact }}
     strategy:

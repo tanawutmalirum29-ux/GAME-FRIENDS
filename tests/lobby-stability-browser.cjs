@@ -88,13 +88,23 @@ async function geometry(page){
     const zone=api.zoneAt(player)?.id;
     player.plazaX=144;player.plazaY=437;
     const colorZone=api.zoneAt(player)?.id;
+    const shop=api.getLayout().obstacles.find(o=>o.id==='color-studio-shop');
+    player.plazaX=144;player.plazaY=420;
+    player.input.axisX=0;player.input.axisY=-1;
+    api.tick(.35,[player]);
+    const shopWallY=player.plazaY;
+    player.plazaX=144;player.plazaY=437;
+    const stillReachable=api.zoneAt(player)?.id==='color_studio';
     api.sync([]);
-    return {x0,x1,yWall,zone,colorZone};
+    return {x0,x1,yWall,zone,colorZone,hasShop:!!shop,shopWallY,stillReachable};
    });
    assert.ok(walking.x1>walking.x0+5,'connected phone joystick moves the lobby avatar');
    assert.ok(walking.yWall>=153,'avatar cannot walk through the real Arcade wall');
    assert.equal(walking.zone,'ready_area','READY area interaction comes from JSON zone geometry');
    assert.equal(walking.colorZone,'color_studio','unused left-bottom PLAY CORNER becomes B color zone');
+   assert.ok(walking.hasShop,'Color Studio is now a physical building zone');
+   assert.ok(walking.shopWallY>=410,'player cannot walk through the Color Studio storefront');
+   assert.equal(walking.stillReachable,true,'the B-button color zone remains accessible in front of the shop');
    const stable=async label=>{
     const now=await geometry(page);
     assert.equal(now.slots,12,label+' 12 reserved slots');

@@ -248,6 +248,10 @@ const COLORS = ['#e6194b','#3cb44b','#4363d8','#ffe119','#f58231','#911eb4',
  '#42d4f4','#f032e6','#bfef45','#9a6324','#ffffff','#222222'];
 // Migrate both previous live palette and older pastel sessions without losing
 // player IDs, reconnection tokens, seats, or chosen costumes.
+// Public-facing names for the 12 canonical seat colors (never show raw HEX).
+const COLOR_NAMES=['แดง','เขียว','น้ำเงิน','เหลือง','ส้ม','ม่วง',
+ 'ฟ้า','ชมพูบานเย็น','เขียวมะนาว','น้ำตาล','ขาว','ดำ'];
+const lobbyColorName=color=>COLOR_NAMES[COLORS.indexOf(String(color||'').toLowerCase())]||'สีใหม่';
 const LEGACY_COLORS = ['#c62222','#36d9e5','#215a94','#d7b000','#f53695','#f57a00',
  '#36d595','#000094','#009400','#b800f5','#008484','#94004a',
  '#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0',
@@ -2677,6 +2681,10 @@ function joinRoom(recovery=false){
           $('joinBtn').disabled=false;safePeerDestroy();return;
         }
         controllerId=data.id;controllerReady=true;plazaPickerOpen=false;
+        // A fresh room connection shows the centered walking stick again.
+        // Its first touch floats to the finger, then hides on release.
+        releaseStick();
+        $('joystickZone').classList.remove('has-used','is-active','is-moving');
         if(data.axisToken)startControllerFastAxis(peer,data.axisToken);
         reconnectTries=0;
         if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
@@ -2730,6 +2738,11 @@ function joinRoom(recovery=false){
         plazaPickerOpen=data.open===true;
         updatePhoneGamePicker('lobby',myChosenMode);
         $('controllerState').textContent=plazaPickerOpen?'เลือกมินิเกม • กด B เพื่อปิด':'เดินใน PARTY PLAZA ด้วยจอย';
+      }else if(data.t==='plaza-color-changed'){
+        if(controllerReady&&typeof data.name==='string'){
+          syncControllerAvatarColor(data.color);
+          $('controllerState').textContent='เปลี่ยนสีเป็น '+data.name;
+        }
       }else if(data.t==='roster'){
         controllerSessionMode=data.sessionMode||'queue';
         const ready=data.lobbyReady||{};
@@ -5140,7 +5153,9 @@ window.PartyPlaza?.configure({
   window.PartyCosmetics?.preload?.(p);
   renderRoster(); // Save the new color for room reload/reconnect.
   broadcastRoster(); // Immediately update all clients and their portraits.
-  showToast(p.name+' เปลี่ยนสีเป็น '+color.toUpperCase());
+  const colorName=lobbyColorName(color);
+  showToast(p.name+' เปลี่ยนสีเป็น '+colorName);
+  send(p.conn,{t:'plaza-color-changed',color,name:colorName});
   return true;
  },
  cancel(p){if(p.conn?.open)send(p.conn,{t:'plaza-picker',open:false});}

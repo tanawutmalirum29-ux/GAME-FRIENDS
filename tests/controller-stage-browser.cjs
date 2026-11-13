@@ -71,7 +71,10 @@ async function run(){
     // Disable only CSS fade during the contract probe: assert the target
     // style after a state change, not a partially animated opacity.
     base.style.transition='none';
-    const state=()=>({visible:getComputedStyle(base).visibility,opacity:+getComputedStyle(base).opacity});
+    const state=()=>({visible:getComputedStyle(base).visibility,
+      opacity:+getComputedStyle(base).opacity,
+      left:parseFloat(getComputedStyle(base).left),
+      zoneWidth:zone.clientWidth});
     const initial=state();
     zone.classList.add('has-used');
     const released=state();
@@ -83,6 +86,8 @@ async function run(){
    });
    assert.equal(visuals.initial.visible,'visible','show centered stick before first touch');
    assert.ok(visuals.initial.opacity>=.9,'initial stick must be readable');
+   assert.ok(Math.abs(visuals.initial.left-visuals.initial.zoneWidth*.25)<3,
+     'walking stick starts on the left side, not in the middle of the buttons');
    assert.equal(visuals.released.visible,'hidden','hide stick after first touch release');
    assert.equal(visuals.released.opacity,0);
    assert.equal(visuals.held.visible,'visible','held stick must be visible');

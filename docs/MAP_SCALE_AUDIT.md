@@ -29,6 +29,14 @@ New behavior: each bot walks toward seeded, nearby tile waypoints continuously, 
 
 MAP checks: the 5×5 arena, tile size 78 world units, board 390×390 at (285,116), Host viewport 960×540, avatar boundary radius 29, collision radius 13, human walk speed 177, bot walk speed multiplier 0.95, attack/hazard contacts, and the 1–12-player limits remain unchanged. Bot waypoints are virtual steering positions; no change to physics coordinates, grid resolution, DPR, SVG assets or camera. Node regressions now cover free wandering without hazard, reaction-delay behavior, map bounds, warning and explosion timing. Required CI and browser checks gate merge.
 
+### PARTY PLAZA Color Studio storefront + floating controller stick (2026-11-13)
+
+- **Location:** The lobby Color Studio remains centered at **(144,437)** with interaction radius **49 logical px**, and B continues to change only the owning, connected player's unused identity color. World size **960×540**, avatar collision radius **15 px**, movement speed **112 px/s**, spawn slots and input/output cadence are unchanged.
+- **Visual and collision:** Replace the old flat painted tooltip with a crisp Canvas-vector storefront (roof, fascia, windows, awning and entrance forecourt). Add its matching non-walkable storefront footprint at x=69, y=342, w=150, h=53 to both canonical JSON and offline fallback; avatars can interact from the existing accessible foreground y≈437 without clipping the building or reaching through its walls.
+- **Colors:** Retain the original 12 distinct identity HEX colors and every collision/palette uniqueness rule; only their public UI feedback changes to mapped Thai color names (the host toast and controller notification).
+- **Mobile controller:** On a fresh connection a 72px floating-joystick base is visible at the left 25% of the touch zone; on finger-down it follows the actual touch, stays visible throughout drag, and hides only after release. The same motion feedback repeats on subsequent touches and reconnect. A/B and game picker keep independent higher-priority hit targets. Landscape/rotated portrait stage geometry, device pixel ratio and Host preview resolution remain unchanged.
+- **Verification:** Existing and extended controller-stage Chromium/WebKit checks cover visible-on-join, hide-on-release, visible-on-hold and left-side positioning, and lobby browser checks keep color zone accessibility while testing storefront collision. No gameplay/minigame geometry is changed.
+
 ## Findings and changes
 
 ### Shared avatar mounts (2026-11-12)

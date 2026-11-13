@@ -74,6 +74,9 @@ async function start(){
     app.returnToLobby();
     app.players.splice(n);
     while(app.players.length<n)app.addLocal();
+    // Ignore decoded images from previously checked scenes: retaining them
+    // makes WebKit decode and inspect an ever-growing backlog.
+    window.__referenceImages.length=0;
     app.startRound(mode);
     app.round.phase='playing';
     const scene=app.round[key],art=window.ReferenceArenaArt;
@@ -95,16 +98,39 @@ async function start(){
     }
     const canvas=document.getElementById('arena');
     const g=canvas.getContext('2d');
-    app.drawGame(1.5);
-    for(let pass=0;pass<3;pass++){
-     const images=window.__referenceImages.filter(i=>
-      i.src.startsWith('data:image/svg+xml'));
-     await Promise.all(images.map(i=>i.decode()));
-     app.drawGame(1.5);
-    }
-    const images=window.__referenceImages.filter(i=>
+    // Rendering can lazily construct more SVG assets *after* an earlier
+    // decode() pass. Await those new images as well before inspecting pixels.
+    // Previously the final draw introduced a pending image and the WebKit
+    // test misreported it as a broken SVG, despite its valid source.
+    const svgImages=()=>window.__referenceImages.filter(i=>
      i.src.startsWith('data:image/svg+xml'));
-    const broken=images.filter(i=>!i.complete||!i.naturalWidth);
+    let images=[],broken=[];
+    for(let pass=0;pass<10;pass++){
+     app.drawGame(1.5);
+     images=svgImages();
+     const pending=images.filter(i=>!i.complete||!i.naturalWidth);
+     if(!pending.length){broken=[];break;}
+     let timeoutId;
+     try{
+      await Promise.race([
+       Promise.all(pending.map(i=>i.decode())),
+       new Promise((_,reject)=>{
+        timeoutId=setTimeout(()=>reject(Error(
+         'SVG decode timeout: '+mode+' / '+n+' players, pass '+(pass+1))),15000);
+       })
+      ]);
+     }finally{clearTimeout(timeoutId);}
+     broken=svgImages().filter(i=>!i.complete||!i.naturalWidth);
+     if(pass===9&&broken.length)throw Error(
+      'SVG image decode never stabilized: '+mode+' / '+n+
+      ' players, pending '+broken.length);
+    }
+    // The last painted frame is always one drawn AFTER SVGs have decoded.
+    app.drawGame(1.5);
+    images=svgImages();
+    broken=images.filter(i=>!i.complete||!i.naturalWidth);
+    if(broken.length)throw Error('Late SVG asset after frame paint: '+mode+
+     ' / '+n+' players, pending '+broken.length);
     const first=g.getImageData(0,0,canvas.width,canvas.height).data;
     // Compare against the old Canvas fallback at exactly the same timestamp.
     // This proves the new art is actually being used, not merely imported.
@@ -154,6 +180,7 @@ async function start(){
     });
    }
    checked++;
+   console.log('REFERENCE ARENA SCENE PASS: '+mode+' / '+n+' players / '+browserName);
   }
   console.log('REFERENCE ARENA SVG Browser QA PASS: '+checked+
    ' real HOST scenes / '+browserName+'; all images decoded, '+

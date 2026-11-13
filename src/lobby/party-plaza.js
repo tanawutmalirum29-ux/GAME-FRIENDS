@@ -17,6 +17,7 @@ const FALLBACK={
   {id:'wardrobe-building',type:'rect',x:68,y:52,width:167,height:100},
   {id:'arcade-building',type:'rect',x:367,y:38,width:226,height:100},
   {id:'board-portal',type:'rect',x:742,y:47,width:143,height:104},
+  {id:'color-studio-shop',type:'rect',x:69,y:342,width:150,height:53},
   {id:'room-booth',type:'rect',x:762,y:372,width:111,height:41},
   {id:'play-prop-a',type:'circle',cx:110,cy:405,r:13},
   {id:'play-prop-b',type:'circle',cx:189,cy:410,r:13},
@@ -240,29 +241,73 @@ function backgroundFallback(c){
 function paintColorStudio(c){
  const zone=layout.zones.find(z=>z.id==='color_studio');
  if(!zone)return;
- const {x,y}=zone.center;
+ const {x,y}=zone.center,colors=callbacks.colorPalette?.()||[];
  c.save();
- // Overlay the formerly unused PLAY CORNER without reducing the original
- // high-resolution Party Plaza SVG fidelity or altering collision geometry.
+ // An actual storefront with a forecourt, not an empty UI rectangle.
+ // All geometry is 960x540 vector art; collision wall is in lobby-zones.json.
+ c.fillStyle='#08172f9e';c.fillRect(x-83,y-89,166,65);
+ c.beginPath();
+ c.moveTo(x-43,y-48);c.lineTo(x+43,y-48);
+ c.lineTo(x+93,y+43);c.lineTo(x-93,y+43);c.closePath();
+ c.fillStyle='#244568';c.fill();
+ c.strokeStyle='#6bbcca';c.lineWidth=3;c.stroke();
+ c.beginPath();
+ c.moveTo(x-32,y-37);c.lineTo(x+32,y-37);
+ c.lineTo(x+71,y+34);c.lineTo(x-71,y+34);c.closePath();
+ c.fillStyle='#2e6174';c.fill();
+ // Light up the interaction area where a player can actually stand.
  c.beginPath();c.arc(x,y,zone.interactionRadiusPx,0,Math.PI*2);
- c.strokeStyle='rgba(139,236,246,.65)';c.lineWidth=2;c.stroke();
- c.fillStyle='rgba(11,19,39,.96)';
- c.fillRect(x-96,y-81,192,65);
- c.strokeStyle='#79dbe8';c.lineWidth=1.5;
- c.strokeRect(x-96.5,y-81.5,193,66);
+ c.strokeStyle='#7ce9e9a8';c.lineWidth=2;c.stroke();
+ c.beginPath();c.arc(x,y,zone.interactionRadiusPx-8,0,Math.PI*2);
+ c.strokeStyle='#bdeff255';c.lineWidth=1;c.stroke();
+ // Building foundation, walls and a dimensional sloped roof.
+ c.fillStyle='#07172c';c.fillRect(x-83,y-88,166,60);
+ c.fillStyle='#39617b';c.fillRect(x-76,y-94,152,52);
+ c.fillStyle='#6687a1';c.fillRect(x-79,y-98,158,9);
+ c.beginPath();
+ c.moveTo(x-89,y-98);c.lineTo(x-70,y-122);
+ c.lineTo(x+71,y-122);c.lineTo(x+89,y-98);c.closePath();
+ c.fillStyle='#1b3e5f';c.fill();
+ c.strokeStyle='#89e5ec';c.lineWidth=2;c.stroke();
+ c.fillStyle='#315c78';c.fillRect(x-66,y-119,132,13);
+ c.fillStyle='#0c2641';c.fillRect(x-64,y-117,128,24);
+ c.strokeStyle='#e4d799';c.lineWidth=1.6;c.strokeRect(x-64,y-117,128,24);
  c.textAlign='center';c.textBaseline='middle';
- c.font='bold 14px sans-serif';c.fillStyle='#f4fdff';
- c.fillText('COLOR STUDIO',x,y-66);
- const colors=callbacks.colorPalette?.()||[];
- const count=Math.min(colors.length,12);
- for(let i=0;i<count;i++){
-  const px=x+(i-(count-1)/2)*14.5,py=y-47;
-  c.beginPath();c.arc(px,py,5.7,0,Math.PI*2);
-  c.fillStyle=colors[i];c.fill();
-  c.strokeStyle='rgba(255,255,255,.62)';c.lineWidth=.8;c.stroke();
+ c.font='bold 14px sans-serif';c.fillStyle='#fafff3';
+ c.fillText('COLOR STUDIO',x,y-105);
+ // Glowing roof accents, two display windows and a striped awning.
+ for(let i=0;i<11;i++){
+  c.fillStyle=i%2?'#5de5f1':'#ffd27a';
+  c.fillRect(x-65+i*13,y-92,8,3);
  }
- c.font='bold 12px sans-serif';c.fillStyle='#c1f5ff';
- c.fillText('B เปลี่ยนสี',x,y-28);
+ for(const side of [-1,1]){
+  const sx=x+side*49-20;
+  c.fillStyle='#071b34';c.fillRect(sx,y-79,40,30);
+  c.fillStyle='#1f5367';c.fillRect(sx+3,y-76,34,24);
+  c.strokeStyle='#9feeff';c.lineWidth=2;c.strokeRect(sx+2,y-77,36,26);
+ }
+ c.fillStyle='#132c46';c.fillRect(x-23,y-79,46,40);
+ c.fillStyle='#34849a';c.fillRect(x-20,y-77,40,37);
+ c.strokeStyle='#b0f6ed';c.lineWidth=2;c.strokeRect(x-20,y-77,40,37);
+ c.fillStyle='#f8d58b';c.fillRect(x+12,y-56,3,3);
+ const count=Math.min(12,colors.length);
+ for(let i=0;i<count;i++){
+  const cx=x+(i%6-2.5)*17,cy=y-73+Math.floor(i/6)*14;
+  c.beginPath();c.arc(cx,cy,5,0,Math.PI*2);
+  c.fillStyle=colors[i];c.fill();
+  c.strokeStyle='#fff9';c.lineWidth=1;c.stroke();
+ }
+ c.fillStyle='#f2c984';c.fillRect(x-82,y-48,164,7);
+ for(let i=0;i<10;i++){
+  c.fillStyle=i%2?'#66def0':'#f8e6af';
+  c.fillRect(x-80+i*16,y-47,16,11);
+ }
+ c.fillStyle='#08243c';c.fillRect(x-73,y-29,146,7);
+ // The interaction sign sits on the floor, not in front of the building.
+ c.fillStyle='#0d2644ee';c.fillRect(x-64,y+19,128,24);
+ c.strokeStyle='#86e6e7';c.lineWidth=1.4;c.strokeRect(x-64,y+19,128,24);
+ c.font='bold 13px sans-serif';c.fillStyle='#edfcfa';
+ c.fillText('B • เปลี่ยนสี',x,y+31);
  c.restore();
 }
 function paint(){

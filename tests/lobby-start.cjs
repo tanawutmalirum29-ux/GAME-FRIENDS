@@ -81,6 +81,9 @@ assert.match(source,/case 'ready_area':/,
   "this.restore=items=>{restorePlayers(items);return players.map(p=>({id:p.id,color:p.color,name:p.name,total:p.total,token:p.clientToken}))};",c);
  const palette=Array.from(c.palette);
  assert.equal(palette.length,12);
+ assert.match(source,/const COLOR_NAMES=/,'host has human-readable seat color names');
+ assert.match(source,/showToast\(p.name\+' เปลี่ยนสีเป็น '\+colorName\)/,
+  'color-change toast must say the Thai name rather than HEX');
  assert.equal(new Set(palette).size,12,'room has 12 distinct identity colors');
  // CIELAB color differences penalize hues that technically differ in RGB
  // but look nearly identical in a small top-down avatar.

@@ -88,40 +88,102 @@ function matrix(m,impact={full:true}){
    selected.map(b=>({shard:b.shard,skip:false})):
    [{shard:'no-browser-impact',skip:true}]};
 }
-function runShard(m,shard,impact={full:true}){
+// A hung Playwright browser can outlive its Node test process. Give each test
+// its own process group so the timeout removes browsers as well as the test.
+const TASK_TIMEOUT_MS=4*60*1000;
+function terminateTree(child){
+ if(!child || !child.pid)return;
+ try{
+  if(process.platform==='win32')child.kill('SIGKILL');
+  else process.kill(-child.pid,'SIGKILL');
+ }catch(e){
+  if(e.code!=='ESRCH')console.error('BROWSER QA cleanup:',e.message);
+ }
+}
+function runBrowserProcess(command,args,options={}){
+ const timeoutMs=options.timeoutMs===undefined?TASK_TIMEOUT_MS:options.timeoutMs;
+ assert(Number.isInteger(timeoutMs)&&timeoutMs>0,'invalid browser task timeout');
+ const label=options.label||args.join(' ');
+ const quiet=options.quiet===true;
+ return new Promise(resolve=>{
+  const begin=Date.now();
+  let error=null,timedOut=false;
+  const child=cp.spawn(command,args,{
+   cwd:options.cwd||root,env:options.env||process.env,
+   stdio:options.stdio||'inherit',
+   detached:process.platform!=='win32'
+  });
+  const heartbeat=setInterval(()=>{
+   if(!quiet)console.log('BROWSER QA HEARTBEAT '+label+': '+
+    Math.floor((Date.now()-begin)/1000)+'s elapsed / '+Math.ceil(timeoutMs/1000)+'s limit');
+  },options.heartbeatMs||30000);
+  const deadline=setTimeout(()=>{
+   timedOut=true;
+   if(!quiet)console.error('BROWSER QA TIMEOUT '+label+': '+
+    Math.ceil(timeoutMs/1000)+'s deadline exceeded; killing test and browser process group');
+   terminateTree(child);
+  },timeoutMs);
+  // GitHub cancellation must not leave orphan Chromium or WebKit processes.
+  const onTerm=()=>{terminateTree(child);process.exit(143);};
+  const onInt=()=>{terminateTree(child);process.exit(130);};
+  process.once('SIGTERM',onTerm);
+  process.once('SIGINT',onInt);
+  child.on('error',e=>{error=e;});
+  child.on('close',(exitCode,signal)=>{
+   clearInterval(heartbeat);
+   clearTimeout(deadline);
+   process.off('SIGTERM',onTerm);
+   process.off('SIGINT',onInt);
+   terminateTree(child); // Clean up grandchildren even when the test exits normally.
+   const elapsedMs=Date.now()-begin;
+   const status=timedOut?'timed_out':exitCode===0&&!error?'passed':'failed';
+   if(!quiet)console.log('BROWSER QA FINISH '+label+': '+status+
+    ' in '+(elapsedMs/1000).toFixed(1)+'s');
+   resolve({status,exitCode,signal,error:error?String(error):null,
+    timedOut,elapsedMs,timeoutMs});
+  });
+ });
+}
+async function runShard(m,shard,impact={full:true}){
  const bins=createPlan(m,impact),bin=bins.find(x=>x.shard===shard);
  assert(bin,'unknown shard '+shard);
  const base=path.join('/tmp/game-friends-board','ci-metrics');
  fs.mkdirSync(base,{recursive:true});
- const metrics={shard,startedAt:new Date().toISOString(),tasks:[]};
- let failed=0;
- // Require Playwright only when actually executing browser QA, not in the
- // lightweight matrix planning and Node regression jobs.
+ const metricsFile=path.join(base,shard+'.json');
+ const metrics={shard,startedAt:new Date().toISOString(),tasks:[],failed:0};
+ const save=()=>fs.writeFileSync(metricsFile,JSON.stringify(metrics,null,2)+'\n');
+ // Require Playwright only when executing browser QA, not for matrix planning.
  const executable=require('playwright').chromium.executablePath();
  for(const task of bin.tasks){
-  const heading=task.id+' (estimated '+task.seconds+'s)';
+  const heading=task.id+' (estimated '+task.seconds+'s, hard limit '+
+   Math.ceil(TASK_TIMEOUT_MS/1000)+'s)';
   process.stdout.write('::group::'+heading+'\n');
-  const begin=Date.now();
+  metrics.running=task.id;
+  save();
   const env={...process.env,BOARD_BROWSER:task.browser,CHROME_PATH:executable};
-  const result=cp.spawnSync(process.execPath,[path.join(root,task.file)],{
-   cwd:root,stdio:'inherit',env,timeout:300000
+  const result=await runBrowserProcess(process.execPath,[path.join(root,task.file)],{
+   cwd:root,env,label:task.id,timeoutMs:TASK_TIMEOUT_MS
   });
-  const status=result.status===0&&!result.error?'passed':'failed';
   metrics.tasks.push({id:task.id,file:task.file,browser:task.browser,
-   expectedSeconds:task.seconds,actualSeconds:+((Date.now()-begin)/1000).toFixed(2),
-   status,signal:result.signal||null,error:result.error?String(result.error):null});
-  if(status==='failed'){failed++;console.error('BROWSER QA FAILED: '+task.id,
-    'exit='+result.status,'error='+String(result.error||''));}
+   expectedSeconds:task.seconds,actualSeconds:+(result.elapsedMs/1000).toFixed(2),
+   timeoutSeconds:result.timeoutMs/1000,status:result.status,
+   exitCode:result.exitCode,signal:result.signal,error:result.error});
+  if(result.status!=='passed'){
+   metrics.failed++;
+   console.error('::error::BROWSER QA FAILED: '+task.id+' ('+result.status+
+    ', exit='+result.exitCode+', signal='+result.signal+')');
+  }
+  delete metrics.running;
+  save(); // Preserve each completed test even if a later test gets stuck.
   process.stdout.write('::endgroup::\n');
  }
  metrics.completedAt=new Date().toISOString();
- metrics.failed=failed;
- fs.writeFileSync(path.join(base,shard+'.json'),JSON.stringify(metrics,null,2)+'\n');
- console.log('BROWSER SHARD: '+shard+' '+(bin.tasks.length-failed)+'/'+bin.tasks.length+
+ save();
+ console.log('BROWSER SHARD: '+shard+' '+(bin.tasks.length-metrics.failed)+'/'+bin.tasks.length+
   ' checks passed; '+Math.round(bin.seconds)+'s estimated. Durations saved to artifacts.');
- if(failed)process.exitCode=1;
+ if(metrics.failed)process.exitCode=1;
 }
-function main(args){
+async function main(args){
  const m=validateManifest(readManifest());
  const impact=process.env.QA_IMPACT_JSON ? JSON.parse(process.env.QA_IMPACT_JSON) : {full:true};
  if(args[0]==='--matrix'&&args.length===1){
@@ -133,12 +195,12 @@ function main(args){
   for(const bin of plan)console.log(bin.shard+' '+bin.seconds+'s: '+
    bin.tasks.map(t=>t.id).join(', '));
  }else if(args[0]==='--run'&&args.length===2){
-  runShard(m,args[1],impact);
+  await runShard(m,args[1],impact);
  }else{
   throw Error('Usage: node scripts/ci-browser-scheduler.cjs --matrix | --plan | --run shard-01');
  }
 }
 if(require.main===module){
- try{main(process.argv.slice(2));}catch(e){console.error(e.stack||String(e));process.exitCode=1;}
+ main(process.argv.slice(2)).catch(e=>{console.error(e.stack||String(e));process.exitCode=1;});
 }
-module.exports={readManifest,validateManifest,expandTasks,selectManifest,createPlan,matrix};
+module.exports={readManifest,validateManifest,expandTasks,selectManifest,createPlan,matrix,runBrowserProcess};
