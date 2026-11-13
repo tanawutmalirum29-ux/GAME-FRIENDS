@@ -6362,3 +6362,40 @@ body.controller-playing #controller .phone-game-choices{
  #hostLobby.plaza-loaded .lobby-code-badge{font-size:10px!important}
  #hostLobby.plaza-loaded .lobby-controls{width:min(356px,calc(100% - 18px))!important}
 }
+
+/* Shared loading curtain. Keep original map/canvas resolution intact underneath. */
+.transition-loading{
+ position:fixed;inset:0;z-index:30000;display:grid;place-items:center;
+ width:100dvw;height:100dvh;overflow:hidden;
+ padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right))
+  max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+ background:radial-gradient(ellipse at 50% 42%,#1d3557 0%,#0d1c35 42%,#080e1f 100%);
+ color:#f4f9ff;text-align:center;box-sizing:border-box;
+}
+.transition-loading.hidden{display:none!important}
+.transition-loading-card{
+ width:min(410px,92vw);max-height:100%;display:flex;flex-direction:column;
+ align-items:center;justify-content:center;gap:12px;padding:18px 22px;
+ border:1px solid #536f94;border-radius:16px;background:#101c33ec;
+ box-shadow:0 22px 55px #05091473;
+}
+.transition-loading-eyebrow{font-size:12px;font-weight:800;letter-spacing:.22em;color:#9de3f0}
+.transition-loading-card h2{font-size:clamp(19px,2.7vw,26px);line-height:1.25;margin:2px 0 0}
+.transition-loading-card p{font-size:clamp(12px,1.6vw,15px);line-height:1.5;margin:0;color:#b9cbe3}
+.transition-loading-card button{margin-top:8px;min-height:38px}
+.transition-loading-orbit{position:relative;width:66px;height:66px;margin:5px 0 2px}
+.transition-loading-orbit::before,.transition-loading-orbit::after{
+ content:"";position:absolute;inset:3px;border-radius:50%;border:3px solid transparent;
+ border-top-color:#65dfec;border-right-color:#65dfec;animation:gf-loading-spin 1.15s linear infinite;
+}
+.transition-loading-orbit::after{inset:13px;border-width:2px;border-top-color:#f4cf84;
+ border-right-color:transparent;animation-direction:reverse;animation-duration:1.4s}
+.transition-loading-orbit span{position:absolute;width:6px;height:6px;border-radius:50%;
+ background:#76cddf;top:calc(50% - 3px);left:calc(50% - 3px)}
+@keyframes gf-loading-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){
+ .transition-loading-orbit::before,.transition-loading-orbit::after{animation:none}
+}
+@media(max-height:420px){.transition-loading-card{gap:6px;padding:9px 16px}
+ .transition-loading-orbit{width:40px;height:40px;margin:0}
+ .transition-loading-card h2{font-size:18px}}
