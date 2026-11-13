@@ -94,6 +94,9 @@ function retry(){
  function configure(hooks){callbacks=hooks||{};if(active)initialize();}
 function setActive(value){
  active=!!value;
+ if(!active)for(const p of playerCache){
+  p.plazaBActionConn=null;p.plazaBAction=null;
+ }
  if(active){
   initialize();
   if(!loaded&&!loading&&sceneRetryTimer===null)void loadScene();
