@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "art-handoff-not-runtime-registration",
+  "status": "runtime-synchronized",
   "branch": "art/rope-hat-svg-2077-2078",
   "zoneId": "wardrobe",
   "input": "B / input.alt",
@@ -14,6 +14,16 @@
     "shades-white-beard",
     "pharaoh-nemes",
     "plumed-turban",
+    "viking-helmet",
+    "wizard-hat",
+    "samurai-kabuto",
+    "chef-hat",
+    "cowboy-hat",
+    "knight-helmet",
+    "devil-hat",
+    "astronaut-helmet",
+    "mining-helmet",
+    "jester-hat",
     "paper-bag-mask"
   ],
   "items": [
@@ -63,6 +73,76 @@
       ]
     },
     {
+      "id": "viking-helmet",
+      "nameTh": "หมวกไวกิ้ง",
+      "asset": "viking-helmet/asset.json",
+      "colorMode": "dynamic-root-currentColor",
+      "colorPart": "currentColor-details"
+    },
+    {
+      "id": "wizard-hat",
+      "nameTh": "หมวกพ่อมด",
+      "asset": "wizard-hat/asset.json",
+      "colorMode": "dynamic-root-currentColor",
+      "colorPart": "currentColor-details"
+    },
+    {
+      "id": "samurai-kabuto",
+      "nameTh": "หมวกซามูไร",
+      "asset": "samurai-kabuto/asset.json",
+      "colorMode": "dynamic-root-currentColor",
+      "colorPart": "currentColor-details"
+    },
+    {
+      "id": "chef-hat",
+      "nameTh": "หมวกเชฟ",
+      "asset": "chef-hat/asset.json",
+      "colorMode": "dynamic-root-currentColor",
+      "colorPart": "currentColor-details"
+    },
+    {
+      "id": "cowboy-hat",
+      "nameTh": "หมวกคาวบอย",
+      "asset": "cowboy-hat/asset.json",
+      "colorMode": "dynamic-root-currentColor",
+      "colorPart": "currentColor-details"
+    },
+    {
+      "id": "knight-helmet",
+      "nameTh": "หมวกอัศวิน",
+      "asset": "knight-helmet/asset.json",
+      "colorMode": "dynamic-root-currentColor",
+      "colorPart": "currentColor-details"
+    },
+    {
+      "id": "devil-hat",
+      "nameTh": "หมวกปีศาจ",
+      "asset": "devil-hat/asset.json",
+      "colorMode": "dynamic-root-currentColor",
+      "colorPart": "currentColor-details"
+    },
+    {
+      "id": "astronaut-helmet",
+      "nameTh": "หมวกนักบินอวกาศ",
+      "asset": "astronaut-helmet/asset.json",
+      "colorMode": "dynamic-root-currentColor",
+      "colorPart": "currentColor-details"
+    },
+    {
+      "id": "mining-helmet",
+      "nameTh": "หมวกคนงานเหมือง",
+      "asset": "mining-helmet/asset.json",
+      "colorMode": "dynamic-root-currentColor",
+      "colorPart": "currentColor-details"
+    },
+    {
+      "id": "jester-hat",
+      "nameTh": "หมวกตัวตลก",
+      "asset": "jester-hat/asset.json",
+      "colorMode": "dynamic-root-currentColor",
+      "colorPart": "currentColor-details"
+    },
+    {
       "id": "paper-bag-mask",
       "nameTh": "หน้ากากถุงกระดาษ",
       "asset": "paper-bag-mask/asset.json",
@@ -73,12 +153,13 @@
   "cycleIllustration": "wardrobe-cycle.svg",
   "handoff": "HANDOFF.md",
   "notes": [
-    "This catalog does not register or implement in-game behavior.",
+    "Runtime registry and this catalog must keep the exact same item cycle; new hats use dynamic root-color decoding.",
     "Use each projection viewBox/anchor. Do not assume identical padding for all accessories.",
     "Preserve current B behavior outside wardrobe. Keep each player hat after leaving the zone.",
     "shades-white-beard uses fixed neutral colors: no tint or player-color variants.",
     "pharaoh-nemes alternates fixed gold stripes with player-color cloth stripes in both projections; brow band and cobra stay gold.",
     "plumed-turban binds both feather and gemstone to player.color; white cloth and gold band/setting remain fixed. The overhead feather points backward (+Y).",
-    "paper-bag-mask uses fixed cream paper and black ink. Its mouth and jagged hem face forward (-Y) in overhead view. Roof seams and hem openings show the real avatar without baked-in red."
+    "paper-bag-mask uses fixed cream paper and black ink. Its mouth and jagged hem face forward (-Y) in overhead view. Roof seams and hem openings show the real avatar without baked-in red.",
+    "New 10-hat art masters each have top/front SVG; only currentColor details follow player color. The old wardrobe-cycle illustration is historical."
   ]
 }

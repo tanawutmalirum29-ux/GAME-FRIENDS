@@ -38,6 +38,13 @@ for(const item of catalog.items.filter(x=>x.id!=='none')){
   const svg=read(mainFile);
   assert.match(svg,/<svg\s/);
   assert.doesNotMatch(svg,/<script\s|<foreignObject\s|\bonload\s*=/i);
+  if(spec.dynamic){
+   assert.equal(spec.color,true,'new costume uses player-color overlays');
+   assert.ok(svg.includes('currentColor'),'new master SVG uses color-bound details');
+   assert.ok(/<svg[^>]*color="#[0-9a-f]{6}"/i.test(svg),'color is assigned at SVG root');
+   assert.ok(!svg.includes('<script'),'art SVG is inert');
+   continue; // Runtime renders colored master SVG asynchronously; verify below.
+  }
   const p={cosmetic:item.id,color:'#36d9e5'};
   const before=imageCalls.length;
   if(view==='top')assert.equal(C.drawTop(ctx,p),true);
@@ -108,4 +115,33 @@ assert.match(plaza,/if\(b&&!p\.plazaBPressed\)/);
 assert.match(plaza,/zone\?\.id==='wardrobe'/);
 assert.match(plaza,/callbacks\.changeCosmetic\?\.\(p\)/);
 assert.match(plaza,/p\.plazaBPressed=b/);
-console.log('COSMETICS PASS: catalog, 120 variants, outfit scaling, portrait/overhead, B edge, bot and BOARD sync');
+// Dynamic hats use just two source masters each, then recolor currentColor in memory.
+// Test all 10 x 2 x 12 paths with the same async image pipeline as the browser.
+scope.fetch=async url=>({
+ ok:true,text:async()=>read(String(url).replace('./',''))
+});
+(async()=>{
+ const loaded=[];
+ for(const item of catalog.items){
+  const spec=C.ASSETS[item.id];
+  if(!spec?.dynamic)continue;
+  for(const view of ['top','front']){
+   for(const color of colors){
+    const im=C.imageFor({cosmetic:item.id,color:'#'+color},view);
+    assert.ok(im,'new hat image is created');
+    loaded.push({id:item.id,view,color,im});
+   }
+  }
+ }
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(loaded.length,240,'exactly 10 hats x 2 views x 12 player colors');
+ for(const item of loaded){
+  const uri=item.im.src;
+  assert.ok(uri?.startsWith('data:image/svg+xml;charset=utf-8,'),
+   'dynamic hat must decode recolored data URI: '+item.id+'/'+item.view+'/'+item.color);
+  const svg=decodeURIComponent(uri.slice('data:image/svg+xml;charset=utf-8,'.length));
+  assert.ok(svg.includes('color="#'+item.color+'"'),'root color must match wearer');
+  assert.ok(svg.includes('currentColor'),'tint is restricted to color-bound paths');
+ }
+ console.log('COSMETICS PASS: catalog, original 120 variants, 240 dynamic renders, portrait/overhead, B edge, bot and BOARD sync');
+})().catch(error=>{console.error(error);process.exitCode=1;});

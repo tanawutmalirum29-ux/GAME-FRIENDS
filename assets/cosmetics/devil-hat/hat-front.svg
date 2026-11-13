@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="148" viewBox="-12 -52 120 148" role="img" aria-label="GAME FRIENDS little devil hat — front, horns in player color" color="#c62222" data-cosmetic="devil-hat" data-view="front" data-anchor="48 48" data-color-binding="root-color">
+<title>GAME FRIENDS little devil hat — front, horns in player color</title>
+<desc>Transparent hat overlay. A dark skullcap with a dark folded brim and pointed ears stays fixed. Only the two curved horns use currentColor. Padding preserves the original head scale; use the documented anchor, not the padded image center. The brim stays above the eye marks and the ears stay outside them.</desc>
+<defs>
+  <radialGradient id="gf-devil-front-cap" cx=".4" cy=".2" r=".9">
+    <stop offset="0" stop-color="#4a3868"/><stop offset=".4" stop-color="#2f2245"/>
+    <stop offset=".8" stop-color="#1c1429"/><stop offset="1" stop-color="#110c1a"/>
+  </radialGradient>
+  <linearGradient id="gf-devil-front-brim" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#3e2e57"/><stop offset=".5" stop-color="#231a33"/><stop offset="1" stop-color="#120d1b"/>
+  </linearGradient>
+  <linearGradient id="gf-devil-front-ear" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#4a3868"/><stop offset="1" stop-color="#1c1429"/>
+  </linearGradient>
+  <g id="gf-devil-front-horn-shape" data-color-source="currentColor">
+      <path d="M27 14 L30.3 8.8 L31 5.9 L30.8 3.8 L29.8 2.1 L28.9 0.2 L28.1 -1.8 L27.4 -3.9 L26.9 -6.1 L26.5 -8.4 L26.3 -10.8 L26.2 -13.4 L26.3 -15.9 L26.6 -18.6 L27 -21.3 L27.6 -24.1 L28.4 -26.9 L29.3 -29.7 L30.3 -32.5 L31.6 -35.4 L32.9 -38.2 L34.6 -40.9 L36.2 -43.8 L35.8 -44.2 L33.2 -42.1 L30.9 -39.7 L28.6 -37.3 L26.5 -34.8 L24.5 -32.2 L22.6 -29.6 L20.9 -26.8 L19.4 -24 L18 -21.1 L16.8 -18.2 L15.8 -15.1 L14.9 -12.1 L14.3 -9 L13.8 -5.8 L13.6 -2.6 L13.6 0.6 L13.9 3.8 L14.4 7.1 L15.2 10.3 L17.3 13 L20.7 14.8 L27 14 Z" fill="#101925" fill-opacity=".85" stroke="#101925" stroke-opacity=".85" stroke-width="2"/>
+      <path d="M27 14 L30.3 8.8 L31 5.9 L30.8 3.8 L29.8 2.1 L28.9 0.2 L28.1 -1.8 L27.4 -3.9 L26.9 -6.1 L26.5 -8.4 L26.3 -10.8 L26.2 -13.4 L26.3 -15.9 L26.6 -18.6 L27 -21.3 L27.6 -24.1 L28.4 -26.9 L29.3 -29.7 L30.3 -32.5 L31.6 -35.4 L32.9 -38.2 L34.6 -40.9 L36.2 -43.8 L35.8 -44.2 L33.2 -42.1 L30.9 -39.7 L28.6 -37.3 L26.5 -34.8 L24.5 -32.2 L22.6 -29.6 L20.9 -26.8 L19.4 -24 L18 -21.1 L16.8 -18.2 L15.8 -15.1 L14.9 -12.1 L14.3 -9 L13.8 -5.8 L13.6 -2.6 L13.6 0.6 L13.9 3.8 L14.4 7.1 L15.2 10.3 L17.3 13 L20.7 14.8 L27 14 Z" fill="currentColor"/>
+      <path d="M27 14 L25.5 11.8 L24.1 9.4 L23 7 L22.1 4.6 L21.4 2 L20.9 -0.6 L20.5 -3.3 L20.4 -6 L20.4 -8.7 L20.6 -11.5 L21 -14.2 L21.6 -17.1 L22.3 -19.9 L23.2 -22.7 L24.3 -25.4 L25.5 -28.2 L26.9 -31 L28.4 -33.7 L30.1 -36.3 L31.9 -39 L33.9 -41.5 L36 -44 L35.8 -44.2 L33.2 -42.1 L30.9 -39.7 L28.6 -37.3 L26.5 -34.8 L24.5 -32.2 L22.6 -29.6 L20.9 -26.8 L19.4 -24 L18 -21.1 L16.8 -18.2 L15.8 -15.1 L14.9 -12.1 L14.3 -9 L13.8 -5.8 L13.6 -2.6 L13.6 0.6 L13.9 3.8 L14.4 7.1 L15.2 10.3 L17.3 13 L20.7 14.8 L27 14 Z" fill="#000" fill-opacity=".24"/>
+      <path d="M29.8 2.1 Q23.6 5.3 14.4 7.1 M26.5 -8.4 Q21.3 -7.5 14.3 -9 M26.6 -18.6 Q22.6 -18.5 18 -21.1 M28.4 -26.9 Q25.4 -26.9 22.6 -29.6" fill="none" stroke="#101925" stroke-opacity=".32" stroke-width=".8"/>
+      <path d="M27.9 10.3 L27.6 7.7 L26.9 5.4 L26 3.3 L25.1 1.1 L24.5 -1.2 L24 -3.6 L23.6 -6 L23.5 -8.6 L23.5 -11.2 L23.6 -13.8 L24 -16.5 L24.5 -19.2 L25.1 -22 L25.9 -24.8 L26.9 -27.5 L28.1 -30.3" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.2"/>
+    </g>
+  <g id="gf-devil-front-ear-shape">
+    <path d="M15 36 C7 36 0 33 -6 26 C-5 37 -1 46 14.6 49 Z" fill="url(#gf-devil-front-ear)" stroke="#0d0a14" stroke-width="1"/>
+    <path d="M12.6 39 C6 38.4 1.6 36 -2.4 31.6 C-1.6 39 1.6 44 12.8 46 Z" fill="#6e3260" stroke="#0d0a14" stroke-opacity=".6" stroke-width=".6"/>
+    <path d="M-4.2 28 C0 32 6 34.6 13 35.4" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width=".9"/>
+  </g>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+  <g data-part="horns" data-color-source="currentColor">
+    <use href="#gf-devil-front-horn-shape"/>
+    <use href="#gf-devil-front-horn-shape" transform="translate(96 0) scale(-1 1)"/>
+  </g>
+  <g data-part="ears">
+    <use href="#gf-devil-front-ear-shape"/>
+    <use href="#gf-devil-front-ear-shape" transform="translate(96 0) scale(-1 1)"/>
+  </g>
+  <g data-part="cap">
+    <path d="M11 34 C8 12 26 -3 48 -3 C70 -3 88 12 85 34 Q48 41 11 34 Z" fill="url(#gf-devil-front-cap)" stroke="#0d0a14" stroke-width="1"/>
+    <path d="M48 -2.6 C40 6 38 20 40 35 M48 -2.6 C56 6 58 20 56 35 M48 -2.6 C32 4 27 18 26 33 M48 -2.6 C64 4 69 18 70 33" fill="none" stroke="#0d0a14" stroke-opacity=".45" stroke-width=".8"/>
+    <path d="M19 22 C21 9 31 -0.4 42 -1.6" fill="none" stroke="#fff" stroke-opacity=".32" stroke-width="1.5"/>
+    <circle cx="48" cy="-2.2" r="2.2" fill="#2f2245" stroke="#0d0a14" stroke-width=".7"/>
+  </g>
+  <g data-part="brim">
+    <path d="M9.4 30.4 Q48 38.4 86.6 30.4 Q88 34.4 85.6 38 Q48 47 10.4 38 Q8 34.4 9.4 30.4 Z" fill="url(#gf-devil-front-brim)" stroke="#0a0710" stroke-width="1"/>
+    <path d="M11.6 31.8 Q48 39.6 84.4 31.8" fill="none" stroke="#7a62a0" stroke-opacity=".6" stroke-width=".8"/>
+    <path d="M12 35 Q48 43 84 35" fill="none" stroke="#5a4580" stroke-opacity=".75" stroke-width=".8" stroke-dasharray="2.2 2"/>
+  </g>
+</g>
+</svg>

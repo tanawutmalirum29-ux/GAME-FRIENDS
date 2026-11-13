@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="-8 -8 80 80" role="img" aria-label="GAME FRIENDS chef hat — top-down, band in player color" color="#36d9e5" data-cosmetic="chef-hat" data-view="top-down" data-anchor="32 32" data-color-binding="root-color">
+<title>GAME FRIENDS chef hat — top-down, band in player color</title>
+<desc>Transparent hat overlay. White pleated toque stays neutral. Only the base band uses currentColor. Top-down forward is negative Y; the puffy crown sits behind the eye marks so they stay visible.</desc>
+<defs>
+  <radialGradient id="gf-chef-top-puff" cx=".4" cy=".28" r=".85">
+    <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f3f5f9"/><stop offset="1" stop-color="#d3d9e3"/>
+  </radialGradient>
+  <linearGradient id="gf-chef-top-stand" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#cfd5df"/><stop offset=".3" stop-color="#ffffff"/><stop offset=".7" stop-color="#f1f3f8"/><stop offset="1" stop-color="#c5ccd8"/>
+  </linearGradient>
+  <linearGradient id="gf-chef-top-band" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#ffffff" stop-opacity=".35"/><stop offset=".5" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity=".35"/>
+  </linearGradient>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+  <g data-part="band" data-color-source="currentColor">
+    <ellipse cx="32" cy="40.2" rx="22.4" ry="18.4" fill="#101925" fill-opacity=".85"/>
+    <ellipse cx="32" cy="40.2" rx="21.2" ry="17.2" fill="currentColor"/>
+    <ellipse cx="32" cy="40.2" rx="21.2" ry="17.2" fill="url(#gf-chef-top-band)"/>
+  </g>
+  <g data-part="crown">
+    <g fill="none" stroke="#7d8696" stroke-width="2.1" stroke-opacity=".75"><circle cx="32.0" cy="25.8" r="7.3"/><circle cx="39.9" cy="27.8" r="7.3"/><circle cx="44.7" cy="33.0" r="7.3"/><circle cx="44.7" cy="39.4" r="7.3"/><circle cx="39.9" cy="44.6" r="7.3"/><circle cx="32.0" cy="46.6" r="7.3"/><circle cx="24.1" cy="44.6" r="7.3"/><circle cx="19.3" cy="39.4" r="7.3"/><circle cx="19.3" cy="33.0" r="7.3"/><circle cx="24.1" cy="27.8" r="7.3"/></g>
+    <g fill="none" stroke="#a9b1bf" stroke-width="1.1"><circle cx="32.0" cy="25.8" r="7.3"/><circle cx="39.9" cy="27.8" r="7.3"/><circle cx="44.7" cy="33.0" r="7.3"/><circle cx="44.7" cy="39.4" r="7.3"/><circle cx="39.9" cy="44.6" r="7.3"/><circle cx="32.0" cy="46.6" r="7.3"/><circle cx="24.1" cy="44.6" r="7.3"/><circle cx="19.3" cy="39.4" r="7.3"/><circle cx="19.3" cy="33.0" r="7.3"/><circle cx="24.1" cy="27.8" r="7.3"/></g>
+    <g fill="url(#gf-chef-top-puff)"><circle cx="32.0" cy="25.8" r="7.3"/><circle cx="39.9" cy="27.8" r="7.3"/><circle cx="44.7" cy="33.0" r="7.3"/><circle cx="44.7" cy="39.4" r="7.3"/><circle cx="39.9" cy="44.6" r="7.3"/><circle cx="32.0" cy="46.6" r="7.3"/><circle cx="24.1" cy="44.6" r="7.3"/><circle cx="19.3" cy="39.4" r="7.3"/><circle cx="19.3" cy="33.0" r="7.3"/><circle cx="24.1" cy="27.8" r="7.3"/></g>
+    <ellipse cx="32" cy="36.2" rx="14.4" ry="11.4" fill="url(#gf-chef-top-puff)"/>
+    <path d="M32 36.2 Q32.8 31.5 35.9 26.8 M32 36.2 Q36.2 33.3 42.3 30.4 M32 36.2 Q38.0 36.2 44.7 36.2 M32 36.2 Q37.5 39.1 42.3 42.0 M32 36.2 Q34.9 40.9 35.9 45.6 M32 36.2 Q31.2 40.9 28.1 45.6 M32 36.2 Q27.8 39.1 21.7 42.0 M32 36.2 Q26.0 36.2 19.3 36.2 M32 36.2 Q26.5 33.3 21.7 30.4 M32 36.2 Q29.1 31.5 28.1 26.8" fill="none" stroke="#b5bdca" stroke-width=".8" stroke-opacity=".85"/>
+    <path d="M32 36.2 Q32.8 31.5 35.9 26.8 M32 36.2 Q36.2 33.3 42.3 30.4 M32 36.2 Q38.0 36.2 44.7 36.2 M32 36.2 Q37.5 39.1 42.3 42.0 M32 36.2 Q34.9 40.9 35.9 45.6 M32 36.2 Q31.2 40.9 28.1 45.6 M32 36.2 Q27.8 39.1 21.7 42.0 M32 36.2 Q26.0 36.2 19.3 36.2 M32 36.2 Q26.5 33.3 21.7 30.4 M32 36.2 Q29.1 31.5 28.1 26.8" fill="none" stroke="#ffffff" stroke-width=".35" stroke-opacity=".9" transform="translate(-.5 -.4)"/>
+    <ellipse cx="32" cy="36.2" rx="2.6" ry="2.2" fill="#e6eaf1" stroke="#aab2bf" stroke-width=".5"/>
+    <path d="M17.6 31 C19.6 25 24 21.6 29 20.6" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity=".9"/>
+  </g>
+</g>
+</svg>

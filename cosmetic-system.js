@@ -5,7 +5,8 @@
 'use strict';
 const IDS=Object.freeze([
  'none','white-rope-wrap','pirate-hat','golden-crown',
- 'shades-white-beard','pharaoh-nemes','plumed-turban','paper-bag-mask'
+ 'shades-white-beard','pharaoh-nemes','plumed-turban',
+ 'viking-helmet','wizard-hat','samurai-kabuto','chef-hat','cowboy-hat','knight-helmet','devil-hat','astronaut-helmet','mining-helmet','jester-hat','paper-bag-mask'
 ]);
 const PALETTE=new Set([
  'c62222','36d9e5','215a94','d7b000','f53695','f57a00',
@@ -18,6 +19,17 @@ const ASSETS=Object.freeze({
  'shades-white-beard': {prefix:'accessory',color:false,top:[-32.5,-39,65,65],front:[-48,-48,96,116]},
  'pharaoh-nemes': {prefix:'hat',color:true,top:[-32.5,-32.5,65,65],front:[-72,-88,144,144]},
  'plumed-turban': {prefix:'hat',color:true,top:[-32.5,-32.5,65,78],front:[-60,-112,120,168]},
+ /* NEW: canonical SVG masters load lazily and inherit only player-color details. */
+ 'viking-helmet': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-84,120,132]},
+ 'wizard-hat': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-138,120,186]},
+ 'samurai-kabuto': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-110,120,158]},
+ 'chef-hat': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-132,120,180]},
+ 'cowboy-hat': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-76,120,124]},
+ 'knight-helmet': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-116,120,164]},
+ 'devil-hat': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-100,120,148]},
+ 'astronaut-helmet': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-68,120,116]},
+ 'mining-helmet': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-68,120,116]},
+ 'jester-hat': {prefix:'hat',color:true,dynamic:true,top:[-45.5,-32.5,91,65],front:[-72,-88,144,120]},
  'paper-bag-mask': {prefix:'mask',color:false,top:[-26,-26,52,52],front:[-48,-52,96,104]}
 });
 const cache=new Map(),fallbackSources=new Map();
@@ -30,6 +42,7 @@ function randomBot(random=Math.random){
 const safeColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).slice(1).toLowerCase():'c62222';
 function assetPath(id,view,color){
  const spec=ASSETS[id],prefix='./assets/cosmetics/'+id+'/';
+ if(spec.dynamic)return prefix+spec.prefix+'-'+(view==='top'?'top':'front')+'.svg';
  if(spec.color&&PALETTE.has(color))return prefix+'colors/'+view+'-'+color+'.svg';
  return prefix+spec.prefix+'-'+(view==='top'?'top':'front')+'.svg';
 }
@@ -43,7 +56,7 @@ function imageFor(player,view){
  const url=assetPath(id,view,color);
  // Current twelve-player palette uses authored, color-correct files directly.
  // For future custom colors, recolor only the SVG root color (currentColor).
- if(spec.color&&!PALETTE.has(color)&&typeof fetch==='function'){
+ if(spec.color&&(spec.dynamic||!PALETTE.has(color))&&typeof fetch==='function'){
   const sourceKey=id+'/'+view;
   let source=fallbackSources.get(sourceKey);
   if(!source){

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="116" viewBox="-12 -20 120 116" role="img" aria-label="GAME FRIENDS mining helmet — front, band in player color" color="#36d9e5" data-cosmetic="mining-helmet" data-view="front" data-anchor="48 48" data-color-binding="root-color">
+<title>GAME FRIENDS mining helmet — front, band in player color</title>
+<desc>Transparent yellow hard-hat overlay with a headlamp on the front. Yellow shell, gray lamp housing and warm light stay neutral. Only the band above the brim uses currentColor. The brim ends above the eyes. Use the documented anchor 48 48, not the padded center.</desc>
+<defs>
+  <radialGradient id="gf-mine-front-shell" cx=".34" cy=".2" r=".95">
+    <stop offset="0" stop-color="#fff3a6"/><stop offset=".34" stop-color="#ffd922"/>
+    <stop offset=".72" stop-color="#eab000"/><stop offset="1" stop-color="#b57b00"/>
+  </radialGradient>
+  <linearGradient id="gf-mine-front-brim" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#f6bd00"/><stop offset="1" stop-color="#b98100"/>
+  </linearGradient>
+  <radialGradient id="gf-mine-front-lens" cx=".5" cy=".42" r=".6">
+    <stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#fff2a8"/><stop offset="1" stop-color="#e2a900"/>
+  </radialGradient>
+  <radialGradient id="gf-mine-front-glow" cx=".5" cy=".5" r=".5">
+    <stop offset="0" stop-color="#fffbd0" stop-opacity=".8"/><stop offset="1" stop-color="#fff2a0" stop-opacity="0"/>
+  </radialGradient>
+  <clipPath id="gf-mine-front-dome"><path d="M10 29 C10 6 26-12 48-12 C70-12 86 6 86 29 Q48 37 10 29 Z"/></clipPath>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+  <path data-part="brim" d="M3 27 Q48 38 93 27 L91 32 Q48 46 5 32 Z" fill="url(#gf-mine-front-brim)" stroke="#7a5600" stroke-width="1"/>
+  <g data-part="dome">
+    <path d="M10 29 C10 6 26-12 48-12 C70-12 86 6 86 29 Q48 37 10 29 Z" fill="url(#gf-mine-front-shell)" stroke="#8a6000" stroke-width="1"/>
+    <g clip-path="url(#gf-mine-front-dome)" fill="none">
+      <path d="M31 -9 Q21 8 22 30 M65 -9 Q75 8 74 30" stroke="#b27a00" stroke-width="3.4" stroke-opacity=".5"/>
+      <path d="M31 -9 Q21 8 22 30 M65 -9 Q75 8 74 30" stroke="#fff08a" stroke-width="2"/>
+      <g data-part="band" data-color-source="currentColor">
+        <path d="M6 24 Q48 33 90 24" stroke="#101925" stroke-opacity=".8" stroke-width="6.2"/>
+        <path d="M6 24 Q48 33 90 24" stroke="currentColor" stroke-width="4.6"/>
+        <path d="M6 22.2 Q48 31.2 90 22.2" stroke="#ffffff" stroke-width=".7" stroke-opacity=".8"/>
+      </g>
+    </g>
+    <path d="M16 20 C16 6 26-4 40-8.5 M62-9 C70-5 76 2 78 10" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-opacity=".7"/>
+  </g>
+  <g data-part="headlamp">
+    <circle cx="48" cy="9" r="19" fill="url(#gf-mine-front-glow)"/>
+    <rect x="43" y="17" width="10" height="6" rx="1.6" fill="#3a4252" stroke="#1c212b" stroke-width=".8"/>
+    <circle cx="48" cy="9" r="10.8" fill="#4a5262" stroke="#1c212b" stroke-width="1"/>
+    <circle cx="48" cy="9" r="8.6" fill="#8d97a9" stroke="#2a303c" stroke-width=".7"/>
+    <circle cx="48" cy="9" r="7" fill="url(#gf-mine-front-lens)" stroke="#d9a400" stroke-width=".6"/>
+    <circle cx="48" cy="9" r="2.4" fill="#ffffff"/>
+    <path d="M42.4 5.2 Q45 2.6 48.6 2.4" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity=".9"/>
+  </g>
+</g>
+</svg>

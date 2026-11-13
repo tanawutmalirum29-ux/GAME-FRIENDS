@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="116" viewBox="-12 -20 120 116" role="img" aria-label="GAME FRIENDS astronaut helmet — front, trim in player color" color="#36d9e5" data-cosmetic="astronaut-helmet" data-view="front" data-anchor="48 48" data-color-binding="root-color">
+<title>GAME FRIENDS astronaut helmet — front, trim in player color</title>
+<desc>Transparent full-helmet overlay. White shell, gray collar and tinted glass stay neutral. Only the crown stripe, ear pads and collar band use currentColor. The visor window is open with light tinted glass so the character's eyes remain visible. Use the documented anchor 48 48, not the padded center.</desc>
+<defs>
+  <radialGradient id="gf-astro-front-shell" cx=".34" cy=".22" r=".95">
+    <stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#eef1f6"/>
+    <stop offset=".7" stop-color="#cdd4de"/><stop offset="1" stop-color="#98a2b3"/>
+  </radialGradient>
+  <linearGradient id="gf-astro-front-glass" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0b1740" stop-opacity=".55"/>
+    <stop offset=".5" stop-color="#27468a" stop-opacity=".28"/>
+    <stop offset="1" stop-color="#6f93d0" stop-opacity=".16"/>
+  </linearGradient>
+  <linearGradient id="gf-astro-front-collar" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#dde2ea"/><stop offset=".5" stop-color="#aab3c1"/><stop offset="1" stop-color="#6f7a8b"/>
+  </linearGradient>
+  <clipPath id="gf-astro-front-dome"><path d="M48-3 C76-3 92 17 92 44 C92 66 82 80 70 84 L26 84 C14 80 4 66 4 44 C4 17 20-3 48-3 Z"/></clipPath>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+  <g data-part="shell">
+    <path d="M48-3 C76-3 92 17 92 44 C92 66 82 80 70 84 L26 84 C14 80 4 66 4 44 C4 17 20-3 48-3 Z M15 40 C15 25 29 19 48 19 C67 19 81 25 81 40 L81 56 C81 69 67 77 48 77 C29 77 15 69 15 56 Z" fill="url(#gf-astro-front-shell)" fill-rule="evenodd" stroke="#59627a" stroke-width="1"/>
+    <g clip-path="url(#gf-astro-front-dome)" data-part="crown-stripe" data-color-source="currentColor">
+      <rect x="41.8" y="-4" width="12.4" height="24" fill="#101925" fill-opacity=".8"/>
+      <rect x="42.6" y="-4" width="10.8" height="24" fill="currentColor"/>
+      <path d="M40.2 -4 V20 M55.8 -4 V20" fill="none" stroke="#ffffff" stroke-width=".9" stroke-opacity=".85"/>
+    </g>
+    <path d="M9 36 C8 22 18 8 34 2 M60 0.6 C68 2.5 74 7 78 13" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-opacity=".7"/>
+    <path d="M10 62 Q14 72 24 78 M86 62 Q82 72 72 78" fill="none" stroke="#6b7586" stroke-width=".8" stroke-opacity=".5"/>
+  </g>
+  <g data-part="visor">
+    <path d="M15 40 C15 25 29 19 48 19 C67 19 81 25 81 40 L81 56 C81 69 67 77 48 77 C29 77 15 69 15 56 Z" fill="url(#gf-astro-front-glass)" stroke="#2a303c" stroke-width="3.6"/>
+    <path d="M15 40 C15 25 29 19 48 19 C67 19 81 25 81 40 L81 56 C81 69 67 77 48 77 C29 77 15 69 15 56 Z" fill="none" stroke="#9aa6bb" stroke-width=".7" stroke-opacity=".6" transform="translate(48 48) scale(.94) translate(-48 -48)"/>
+    <path d="M23 36 C25 29 33 25 41 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-opacity=".55"/>
+    <path d="M47 24 C55 24 61 26 65 29" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-opacity=".35"/>
+    <path d="M72 38 L72 50" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity=".25"/>
+  </g>
+  <g data-part="ear-pads" data-color-source="currentColor">
+    <rect x="-5" y="35" width="13" height="24" rx="5.5" fill="#4a5262" stroke="#262c37" stroke-width=".9"/>
+    <rect x="-2" y="40" width="6" height="14" rx="3" fill="currentColor"/>
+    <rect x="88" y="35" width="13" height="24" rx="5.5" fill="#4a5262" stroke="#262c37" stroke-width=".9"/>
+    <rect x="92" y="40" width="6" height="14" rx="3" fill="currentColor"/>
+  </g>
+  <g data-part="neck-collar">
+    <rect x="10" y="76" width="76" height="16" rx="8" fill="url(#gf-astro-front-collar)" stroke="#3b4351" stroke-width="1"/>
+    <g data-color-source="currentColor">
+      <rect x="14" y="82" width="68" height="4.2" rx="2.1" fill="#101925" fill-opacity=".8"/>
+      <rect x="14.6" y="82.5" width="66.8" height="3.2" rx="1.6" fill="currentColor"/>
+    </g>
+    <path d="M18 79.2 H78" fill="none" stroke="#ffffff" stroke-width=".8" stroke-opacity=".6"/>
+    <circle cx="20" cy="88.6" r="1" fill="#59627a"/><circle cx="76" cy="88.6" r="1" fill="#59627a"/>
+  </g>
+</g>
+</svg>

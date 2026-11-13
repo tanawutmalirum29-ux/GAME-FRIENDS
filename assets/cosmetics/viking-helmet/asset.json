@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "id": "viking-helmet",
+  "nameTh": "หมวกไวกิ้ง",
+  "status": "runtime-integrated",
+  "projections": {
+    "front": {
+      "file": "hat-front.svg",
+      "viewBox": [
+        -12,
+        -36,
+        120,
+        132
+      ],
+      "anchor": [
+        48,
+        48
+      ],
+      "avatarSourceViewBox": [
+        0,
+        0,
+        96,
+        96
+      ],
+      "drawRectInAvatarSvgUnits": [
+        -60,
+        -84,
+        120,
+        132
+      ]
+    },
+    "topDown": {
+      "file": "hat-top.svg",
+      "viewBox": [
+        -8,
+        -8,
+        80,
+        80
+      ],
+      "anchor": [
+        32,
+        32
+      ],
+      "avatarSourceViewBox": [
+        0,
+        0,
+        64,
+        64
+      ],
+      "headPivot": [
+        32,
+        30
+      ],
+      "forward": [
+        0,
+        -1
+      ],
+      "worldDrawRect": [
+        -32.5,
+        -32.5,
+        65,
+        65
+      ],
+      "layer": "after avatar head before labels"
+    }
+  },
+  "colorBinding": {
+    "source": "player.color",
+    "svgAttribute": "color",
+    "location": "root svg",
+    "mode": "dynamic-root-currentColor",
+    "recipe": "Replace SVG root color with current player.color before decoding; preserve fixed paints and hardware."
+  },
+  "assetRules": {
+    "transparent": true,
+    "containsAvatar": false,
+    "physicsChanges": false,
+    "headScaleChanges": false
+  }
+}
