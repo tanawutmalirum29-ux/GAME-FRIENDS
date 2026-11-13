@@ -562,8 +562,11 @@ function tryLandscapeOrientation(){
    syncLandscapePresentation();syncZoomPolicy();markArenaResolutionDirty();
   };
   restore();
-  requestAnimationFrame(()=>requestAnimationFrame(restore));
-  window.setTimeout(restore,200);
+  // Use delayed tasks rather than requestAnimationFrame: Safari may already
+  // have an intentionally suspended frame queue on initial launch/resume.
+  // Never replace or steal the Host's single pending game-render callback.
+  window.setTimeout(restore,80);
+  window.setTimeout(restore,240);
   window.setTimeout(restore,600);
  }
  window.addEventListener('pageshow',recoverForegroundPresentation);
