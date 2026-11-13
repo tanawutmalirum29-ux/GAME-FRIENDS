@@ -61,6 +61,13 @@ async function toolbarInside(page){
    for(const id of ['boardOverviewBtn','boardStartDiceBtn','boardFollowBtn','boardZoomInBtn','boardZoomOutBtn','boardEffectsBtn'])
     assert.equal(await page.locator('#'+id).count(),0,'retired BOARD control must not exist: '+id);
 }
+// Check computed visibility, including the parent #boardTools hidden state.
+async function assertBoardMapToolbar(page,visible,stage){
+ for(const id of ['boardExitBtn','boardNodeDebugBtn','pauseBtn']){
+  assert.equal(await page.locator('#'+id).isVisible(),visible,
+   stage+': '+id+' should '+(visible?'be visible':'be hidden'));
+ }
+}
 async function main(){
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+server.address().port;
  const executablePath=process.env.CHROME_PATH||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined);
@@ -143,10 +150,12 @@ async function main(){
    await toolbarInside(host);
   }
   await host.screenshot({path:path.join(out,'overview-12.png')});
+  await assertBoardMapToolbar(host,true,'initial BOARD map panorama');
   assert.equal(await host.locator('#boardTools button').count(),1);
    await host.evaluate(()=>{for(let i=0;i<70;i++)__boardTest.updateBoard(.05);__boardTest.drawGame(__boardTest.board.time);});
    assert.equal(await host.evaluate(()=>__boardTest.board.phase),'order','2s panorama + 1.5s fly-in begins automatically');
   await host.screenshot({path:path.join(out,'order-12.png')});
+  await assertBoardMapToolbar(host,false,'BOARD dice-order overlay');
   await host.screenshot({path:path.join(out,'board-order.jpg'),type:'jpeg',quality:82,scale:'css'});
   async function drawnTexts(){return host.evaluate(()=>{
    const g=document.getElementById('arena').getContext('2d'),text=g.fillText,seen=[];
@@ -171,6 +180,8 @@ async function main(){
   assert.equal(await host.evaluate(()=>__boardTest.round.paused),false,
     'local turn owner can follow/resume after inspecting overview');
   assert.equal(await host.evaluate(()=>__boardTest.board.phase),'move_ready');
+  await host.evaluate(()=>__boardTest.refreshBoardTools());
+  await assertBoardMapToolbar(host,true,'BOARD active map restored');
 
   for(const view of [{width:1440,height:900},{width:1024,height:768},{width:844,height:390}]){
    await host.setViewportSize(view);
@@ -439,10 +450,29 @@ async function main(){
    await host.screenshot({path:path.join(out,kind+'.png')});
   }
   await refreshPhone();assert.match(await phone.locator('#controllerRole').innerText(),/โล่ป้องกัน/);await noScroll(phone);
-  await host.evaluate(()=>{const s=__boardTest.board;BoardParty.phase(s,'minigame');s.players.forEach(p=>p.item='ufo');BoardParty.minigameEnded(s,[...s.players].reverse().map((p,i)=>({id:p.id,rank:i<2?1:i+1,label:(i<2?12:12-i)+' คะแนน'})));for(let i=0;i<85;i++)BoardParty.update(s,.05);__boardTest.drawGame(s.time);});
+  await host.evaluate(()=>{
+   const s=__boardTest.board;
+   BoardParty.phase(s,'minigame');
+   s.players.forEach(p=>p.item='ufo');
+   BoardParty.minigameEnded(s,[...s.players].reverse().map((p,i)=>({
+    id:p.id,rank:i<2?1:i+1,label:(i<2?12:12-i)+' คะแนน'
+   })));
+   __boardTest.refreshBoardTools();__boardTest.drawGame(s.time);
+  });
+  await assertBoardMapToolbar(host,false,'BOARD standings as pictured');
+  await host.evaluate(()=>{
+   const s=__boardTest.board;
+   for(let i=0;i<85;i++)BoardParty.update(s,.05);
+   __boardTest.refreshBoardTools();__boardTest.drawGame(s.time);
+  });
+  await assertBoardMapToolbar(host,false,'BOARD minigame rewards overlay');
   await host.screenshot({path:path.join(out,'rewards.png')});await noScroll(host);
   await host.evaluate(()=>{const s=__boardTest.board;for(let i=0;i<250&&s.phase!=='round_order';i++)BoardParty.update(s,.05);__boardTest.drawGame(s.time);});
-  assert.equal(await host.evaluate(()=>__boardTest.board.phase),'round_order');assert.equal(await host.evaluate(()=>__boardTest.board.nextOrder.slice(0,2).every(id=>__boardTest.board.players.slice(10).some(p=>p.id===id))),true);await host.screenshot({path:path.join(out,'round-order.png')});
+  assert.equal(await host.evaluate(()=>__boardTest.board.phase),'round_order');
+  await host.evaluate(()=>__boardTest.refreshBoardTools());
+  await assertBoardMapToolbar(host,true,'returned to BOARD map');
+  assert.equal(await host.evaluate(()=>__boardTest.board.nextOrder.slice(0,2).every(id=>__boardTest.board.players.slice(10).some(p=>p.id===id))),true);
+  await host.screenshot({path:path.join(out,'round-order.png')});
   assert.deepEqual(errors,[]);console.log('BROWSER PASS: 1–12 players; 1440/1024/844 viewports; DPR 2; centered double dice; actual phone continuous joystick/stop/steering; shield and all item renderers; next-round order; no JavaScript errors. Screenshots: '+out);
  }finally{await browser.close();server.close();}
 }

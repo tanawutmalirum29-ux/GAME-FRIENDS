@@ -1,6 +1,7 @@
 function finishBoard(){
   round.phase='results';round.paused=false;resetInputs();renderBotTestPad();
   $('pauseBtn').classList.add('hidden');
+  refreshBoardTools();
   const s=boardSession,ranked=[...s.players].sort((a,b)=>s.map.nodes[b.currentNodeId].progress-s.map.nodes[a.currentNodeId].progress);
   $('results').querySelector('.eyebrow').textContent='BOARD PARTY • FINISH';
   $('results').querySelector('h2').textContent='ผู้ชนะ: '+s.players.filter(p=>s.winnerIds.includes(p.id)).map(p=>p.name).join(' / ');
@@ -52,6 +53,8 @@ function startRound(forcedMode=null){
   $('pauseBtn').classList.remove('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');
   setView('game');
+  // An active BOARD minigame is not the board map.
+  refreshBoardTools();
   requestHostFullscreen();
   remotePreviewClock=1.1;
   stopAllHostVideoCalls();
