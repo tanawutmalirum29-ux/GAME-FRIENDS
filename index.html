@@ -183,26 +183,29 @@
           <div id="rouletteMessage" class="roulette-message">เลือกเกมสำหรับรอบนี้</div>
         </div>
       </div>
-      <!-- Host-only bot test controller. Hidden for rooms with human phones. -->
-      <div id="botTestPad" class="bot-test-pad hidden" aria-label="ทดสอบสิงบอทด้วยจอยบนจอหลัก">
-        <div class="bot-test-header">
-          <button type="button" id="botPossessBtn" class="bot-test-trigger">สิงบอท</button>
-          <strong id="botTestName" class="bot-test-name hidden"></strong>
-          <button type="button" id="botNextBtn" class="bot-test-tool hidden" aria-label="สิงบอทตัวถัดไป">ตัวถัดไป</button>
-          <button type="button" id="botUnlimitedBtn" class="bot-test-tool hidden" aria-pressed="false" aria-label="เปิดหรือปิดไอเทมไม่จำกัดสำหรับบอททดสอบ">ไอเทม ∞</button>
-          <button type="button" id="botReleaseBtn" class="bot-test-tool hidden" aria-label="คืนบอทให้ AI ควบคุม">คืนบอท</button>
-          <button type="button" id="botGhostIdsBtn" class="bot-test-tool hidden" aria-pressed="false" aria-controls="ghostMapInspector" aria-label="ดู ID สิ่งกีดขวางและขนาดแมพ GHOST ATTACK">ดู ID</button>
-        </div>
+      <!-- Only all-bot local rooms get the host possession controls. The
+           two controller halves occupy the full landscape GAME canvas area. -->
+      <div id="botTestPad" class="bot-test-pad hidden" aria-label="จอยสิงบอท แบ่งซ้ายเคลื่อนที่และขวาปุ่มคำสั่ง">
         <div id="botTestControls" class="bot-test-controls hidden">
-          <div id="botTestStick" class="bot-test-stick" role="group" aria-label="อนาล็อกสำหรับบอทที่สิงอยู่">
-            <span class="bot-test-stick-ring"></span>
-            <span id="botTestKnob" class="bot-test-knob"></span>
-          </div>
-          <div class="bot-test-keys">
-            <button type="button" id="botTestA" class="bot-test-face bot-test-a" aria-label="ปุ่ม A">A</button>
-            <button type="button" id="botTestB" class="bot-test-face bot-test-b" aria-label="ปุ่ม B">B</button>
-            <button type="button" id="botTestC" class="bot-test-face bot-test-c" aria-label="ปุ่ม C ยกเลิกการเล็งไอเทม">C</button>
-          </div>
+          <section id="botTestLeft" class="bot-test-half bot-test-left" aria-label="ฝั่งซ้าย: จอยเดิน แตะที่ใดก็ได้เพื่อเดิน">
+            <div id="botTestStick" class="bot-test-stick" role="group" aria-label="จอยอนาล็อกเดิน">
+              <span class="bot-test-stick-ring"></span><span id="botTestKnob" class="bot-test-knob"></span>
+            </div>
+            <strong id="botTestName" class="bot-test-name hidden" aria-live="polite"></strong>
+          </section>
+          <section class="bot-test-half bot-test-right" aria-label="ฝั่งขวา: ปุ่มเกมและเครื่องมือสิงบอท">
+            <div class="bot-test-actions">
+              <button type="button" id="botNextBtn" class="bot-test-tool hidden" aria-label="สิงบอทตัวถัดไป" title="บอทตัวถัดไป"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 5 9 7-9 7V5ZM18 5v14"/></svg></button>
+              <button type="button" id="botUnlimitedBtn" class="bot-test-tool hidden" aria-pressed="false" aria-label="เปิดหรือปิดไอเทมไม่จำกัดสำหรับบอททดสอบ" title="ไอเทมไม่จำกัด">∞</button>
+              <button type="button" id="botGhostIdsBtn" class="bot-test-tool hidden" aria-pressed="false" aria-controls="ghostMapInspector" aria-label="ดู ID สิ่งกีดขวางและขนาดแมพ GHOST ATTACK" title="ดู ID สิ่งกีดขวาง"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M13 9h5M13 13h5M6 17h12"/></svg></button>
+              <button type="button" id="botReleaseBtn" class="bot-test-tool hidden" aria-label="คืนบอทให้ AI ควบคุม" title="เลิกสิงบอท"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M13 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg></button>
+            </div>
+            <div id="botTestKeys" class="bot-test-keys">
+              <button type="button" id="botTestA" class="bot-test-face bot-test-a" aria-label="ปุ่ม A">A</button>
+              <button type="button" id="botTestB" class="bot-test-face bot-test-b" aria-label="ปุ่ม B">B</button>
+              <button type="button" id="botTestC" class="bot-test-face bot-test-c" aria-label="ปุ่ม C ยกเลิกการเล็งไอเทม">C</button>
+            </div>
+          </section>
         </div>
       </div>
       <aside id="ghostMapInspector" class="ghost-map-inspector hidden" role="status" aria-live="polite" aria-label="ข้อมูลผังสนามและสิ่งกีดขวาง">
@@ -220,6 +223,7 @@
         <button id="restoreHostFullscreenBtn" class="game-fullscreen-restore hidden" type="button" aria-label="กลับเข้าโหมดเต็มจอ" title="กลับเข้าโหมดเต็มจอ">เต็มจออีกครั้ง</button>
         <button id="boardExitBtn" class="board-exit-btn hidden" type="button" aria-label="ออกจากบอร์ดเกมและกลับล็อบบี้" title="ออกเกม"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></button>
         <button id="pauseBtn" class="game-pause-btn" type="button" aria-label="หยุดเกม" aria-haspopup="dialog" aria-expanded="false"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg></button>
+        <button id="botPossessBtn" class="bot-test-trigger hidden" type="button" aria-label="สิงบอท" title="สิงบอท"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6M4 9l2-2m-2 2 2 2m14-2-2-2m2 2-2 2"/></svg></button>
       </div>
       <div id="pauseMenu" class="game-pause-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pauseHeading">
         <div class="game-pause-card">

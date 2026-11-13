@@ -4504,81 +4504,146 @@ body:has(#home:not(.hidden)) footer{
 #controller .gamepad-avatar svg{width:100%;height:100%;display:block}
 
 
-/* Host-only QA controller: compact, multitouch-friendly and independent of
-   the remote phone pad. Never changes Canvas dimensions or world hitboxes. */
+/* BOT POSSESSION — same compact map grid as Pause; icon centered in the cell.
+   BOARD uses 29×27 world-grid cells, all sharing the same transform origin. */
+#game #pauseBtn{
+ display:grid;place-items:center;justify-content:center;align-content:center;
+ box-sizing:border-box;line-height:0;padding:0;
+}
+#game #pauseBtn svg{display:block;justify-self:center;align-self:center;margin:auto}
+#game #botPossessBtn{
+ position:absolute;right:max(8px,env(safe-area-inset-right,0px));
+ top:calc(max(0px,env(safe-area-inset-top,0px)) + clamp(36px,3.5vw,44px) + 6px);
+ display:grid;place-items:center;box-sizing:border-box;
+ width:clamp(36px,3.5vw,44px);height:clamp(36px,3.5vw,44px);
+ min-width:36px;min-height:36px;padding:0;margin:0;
+ background:#295b72;color:#e9faff;border:1px solid #83c9dd;border-radius:10px;
+ box-shadow:0 3px 10px #0008;
+ font:900 16px/1 system-ui,sans-serif;touch-action:manipulation;pointer-events:auto;
+ -webkit-tap-highlight-color:transparent;
+}
+#game #botPossessBtn svg{display:block;width:20px;height:20px;flex:none;margin:auto}
+body.board-playing #game #pauseBtn{
+ position:fixed;right:auto;width:29px;height:27px;
+ min-width:29px;min-height:27px;padding:0;margin:0;
+ border-radius:7px;box-sizing:border-box;
+ transform-origin:top left;place-items:center;line-height:0;
+}
+body.board-playing #game #pauseBtn svg{width:18px;height:18px;margin:auto}
+body.board-playing #game #pauseBtn.board-resume::before{margin:0;align-self:center;justify-self:center}
+body.board-playing #game #botPossessBtn{
+ position:fixed;right:auto;top:auto;
+ width:29px;height:27px;min-width:29px;min-height:27px;
+ border-radius:7px;transform-origin:top left;
+}
+body.board-playing #game #botPossessBtn svg{width:18px;height:18px}
+
+/* Host-only bot gamepad: the ENTIRE logical landscape screen has two
+   equal real touch halves. The original 960×540 arena resolution is unchanged.
+   Left half is a floating joystick; right half is face + debug icons. */
 #game .bot-test-pad{
- position:absolute;z-index:7;
- left:max(8px,env(safe-area-inset-left,0px));
- bottom:max(9px,env(safe-area-inset-bottom,0px));
- max-width:calc(100vw - 16px);
- padding:5px 7px;border-radius:13px;
- background:#091c33e9;border:1px solid #80bdce9e;
- box-shadow:0 4px 18px #0009;backdrop-filter:blur(9px);
- color:#e9faff;touch-action:none;user-select:none;-webkit-user-select:none;
-}
-body.board-playing #game .bot-test-pad{
- bottom:max(78px,calc(env(safe-area-inset-bottom,0px) + 70px));
-}
-#game .bot-test-header{display:flex;align-items:center;gap:4px;min-height:29px;min-width:0}
-#game .bot-test-header button{
- min-height:29px;min-width:31px;padding:4px 7px;
- background:#244c69;color:#fff;border:1px solid #7aa7c0;
- border-radius:7px;font:800 10px/1.1 system-ui,sans-serif;
- white-space:nowrap;touch-action:manipulation;
-}
-#game .bot-test-header .bot-test-trigger{background:#3b6582;color:#eafff9}
-#game .bot-test-header #botUnlimitedBtn[aria-pressed="true"]{
- background:#b68d3a;color:#131f30;border-color:#ffdc86;
-}
-#game .bot-test-name{
- min-width:0;max-width:79px;overflow:hidden;text-overflow:ellipsis;
- white-space:nowrap;font:850 11px/1.2 system-ui,sans-serif;
+ position:absolute;inset:0;z-index:7;
+ width:100%;height:100%;max-width:none;max-height:none;
+ margin:0;padding:0;border:0;border-radius:0;
+ color:#e9faff;background:transparent;box-shadow:none;backdrop-filter:none;
+ overflow:hidden;pointer-events:none;touch-action:none;
+ -webkit-user-select:none;user-select:none;
 }
 #game .bot-test-controls{
- display:flex;justify-content:space-between;align-items:center;
- width:222px;max-width:100%;height:103px;
- padding:5px 4px 0;
+ position:absolute;inset:0;display:grid;
+ grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+ width:100%;height:100%;margin:0;padding:0;gap:0;overflow:visible;
+ --bot-control-size:clamp(36px,min(11.5dvh,7.8vw),74px);
+ --bot-control-gap:clamp(4px,1.5dvh,9px);
+}
+#game .bot-test-half{min-width:0;min-height:0;position:relative}
+#game .bot-test-left{
+ pointer-events:auto;touch-action:none;
+ background:linear-gradient(90deg,#10213c0d,transparent 85%);
+}
+#game .bot-test-left::after{
+ content:"";position:absolute;right:0;top:25%;bottom:18%;
+ border-right:1px dashed #c1e7f326;pointer-events:none;
 }
 #game .bot-test-stick{
- position:relative;flex:0 0 96px;width:96px;height:96px;border-radius:50%;
- background:radial-gradient(circle,#173450,#163046 65%,#0a192a 70%);
- border:2px solid #6793ad;touch-action:none;overflow:hidden;
+ position:absolute;
+ left:clamp(12px,3vw,32px);bottom:clamp(24px,5dvh,42px);
+ width:clamp(96px,min(24vw,37dvh),190px);
+ height:clamp(96px,min(24vw,37dvh),190px);
+ border-radius:50%;
+ background:radial-gradient(circle at 45% 40%,#315a77a9,#10243cc9 65%,#0a1827e6 73%);
+ border:2px solid #a7d4efb0;
+ box-shadow:0 0 0 5px #203d5c42,0 6px 24px #0007;
+ overflow:hidden;touch-action:none;pointer-events:auto;
 }
+#game .bot-test-stick.floating{bottom:auto}
 #game .bot-test-stick-ring{
- position:absolute;inset:19%;border:1px dashed #d4eaf577;
+ position:absolute;inset:19%;border:2px dashed #d4eaf577;
  border-radius:50%;pointer-events:none;
 }
 #game .bot-test-knob{
- position:absolute;left:50%;top:50%;width:39px;height:39px;border-radius:50%;
- transform:translate(-50%,-50%);
- border:2px solid #cce8f4;background:radial-gradient(circle at 32% 30%,#7d9eb7,#2c5775);
- box-shadow:0 2px 9px #000a;pointer-events:none;
+ position:absolute;left:50%;top:50%;width:41%;height:41%;
+ transform:translate(-50%,-50%);border-radius:50%;border:2px solid #d8f0fa;
+ background:radial-gradient(circle at 32% 30%,#9fc3d9,#32617d);
+ box-shadow:0 3px 13px #000a;pointer-events:none;
 }
-#game .bot-test-keys{
- display:grid;grid-template-columns:repeat(2,44px);grid-template-rows:repeat(2,44px);
- align-items:center;justify-items:center;gap:5px;flex:0 0 auto;
+#game .bot-test-name{
+ position:absolute;left:clamp(12px,3vw,32px);
+ bottom:clamp(2px,1dvh,8px);
+ min-width:0;max-width:calc(100% - 24px);
+ padding:3px 9px;border-radius:7px;
+ font:800 clamp(10px,1.5vw,13px)/1.2 system-ui,sans-serif;
+ color:#f3fbff;background:#0c2034ba;text-overflow:ellipsis;
+ overflow:hidden;white-space:nowrap;pointer-events:none;
 }
-#game .bot-test-face{
- width:44px;height:44px;min-width:44px;min-height:44px;padding:0;
- border-radius:50%;border:2px solid #e9f0fc;
- color:#fff;font:1000 18px/1 system-ui,sans-serif;
- touch-action:none;-webkit-tap-highlight-color:transparent;
- box-shadow:0 3px 0 #0e1829;
+#game .bot-test-right{
+ display:flex;flex-direction:row;justify-content:flex-end;align-items:flex-end;
+ gap:clamp(7px,2.3vw,25px);
+ padding:0 max(12px,env(safe-area-inset-right,0px)) clamp(10px,2.5dvh,24px) 4px;
+ pointer-events:none;touch-action:none;
 }
+#game .bot-test-actions,#game .bot-test-keys{
+ display:flex;flex-direction:column;justify-content:flex-end;align-items:center;
+ gap:var(--bot-control-gap);flex:none;min-width:0;pointer-events:none;
+}
+#game .bot-test-face,#game .bot-test-tool{
+ display:grid;place-items:center;flex:none;box-sizing:border-box;
+ width:var(--bot-control-size);height:var(--bot-control-size);
+ min-width:var(--bot-control-size);min-height:var(--bot-control-size);
+ border-radius:50%;border:2px solid #e1ecffb0;
+ color:#fff;font:1000 clamp(17px,3.6dvh,26px)/1 system-ui,sans-serif;
+ margin:0;padding:0;white-space:nowrap;text-align:center;
+ box-shadow:0 4px 10px #09192ec4;
+ pointer-events:auto;touch-action:none;
+ -webkit-tap-highlight-color:transparent;user-select:none;
+}
+#game .bot-test-face svg,#game .bot-test-tool svg{
+ width:55%;height:55%;display:block;flex:none;
+}
+#game .bot-test-tool{background:#234c66}
+#game #botReleaseBtn{background:#8d4253}
+#game #botUnlimitedBtn[aria-pressed="true"]{
+ background:#b68d3a;color:#132638;border-color:#ffdc86;
+}
+#game #botGhostIdsBtn[aria-pressed="true"]{background:#2b7a84;border-color:#b1f2ff}
 #game .bot-test-a{background:#32a878}
 #game .bot-test-b{background:#d66073}
-#game .bot-test-c{background:#4c79b8;grid-column:1 / 3;grid-row:2}
+#game .bot-test-c{background:#4c79b8;grid-column:auto;grid-row:auto}
 #game .bot-test-face.pressed{filter:brightness(1.3);transform:scale(.94)}
 @media(max-height:390px){
- #game .bot-test-pad{padding:3px 5px}
- #game .bot-test-controls{height:87px;width:207px}
- #game .bot-test-stick{width:79px;height:79px;flex-basis:79px}
- #game .bot-test-knob{width:33px;height:33px}
- #game .bot-test-face{width:42px;height:42px;min-width:42px;min-height:42px}
- #game .bot-test-keys{grid-template-columns:repeat(2,42px);grid-template-rows:repeat(2,42px);gap:3px}
- body.board-playing #game .bot-test-pad{bottom:72px}
+ #game .bot-test-controls{--bot-control-size:clamp(32px,11dvh,42px);--bot-control-gap:4px}
+ #game .bot-test-stick{width:clamp(86px,26dvh,119px);height:clamp(86px,26dvh,119px)}
+ #game .bot-test-knob{width:39%;height:39%}
+ #game .bot-test-right{padding-bottom:8px}
 }
 
+/* The GHOST map-ID inspector is available without taking over a bot.
+   Its icon lives in the right-hand tools column; left-half touches stay
+   transparent to the game until an actual bot is possessed. */
+#game .bot-test-pad.ghost-only .bot-test-left{
+ pointer-events:none;background:none;
+}
+#game .bot-test-pad.ghost-only .bot-test-left::after{display:none}
 /* iPhone Safari / in-app WebKit controller viewport repair (2026-11).
    Safari's dynamic bars can change the visual viewport without recomputing
    the layout viewport immediately. app.js supplies exact visible dimensions;

@@ -387,6 +387,7 @@ function addLocal(){
 // On-host test pad: a local bot can be temporarily piloted without adding a seat.
 // Minigames already honor p.isBot; BOARD PARTY has a distinct copied bot flag.
 let possessedBotId=null,botUnlimitedBackup=null,botTestClock=0;
+let botStickPointer=null,botStickOwner=null;
 const botPadKeys={axisX:0,axisY:0,action:false,alt:false,cancel:false};
 function canUseBotTest(){
  return players.length>0&&players.every(p=>p.type==='local'&&(p.isBot||p.id===possessedBotId));
@@ -405,6 +406,9 @@ function applyBotPadKeys(){
 }
 function clearBotPadKeys(){
  botPadKeys.axisX=0;botPadKeys.axisY=0;botPadKeys.action=false;botPadKeys.alt=false;botPadKeys.cancel=false;
+ botStickPointer=null;botStickOwner=null;
+ const stick=$('botTestStick');
+ if(stick){stick.classList.remove('floating');stick.style.left='';stick.style.top='';stick.style.bottom='';}
  const knob=$('botTestKnob');if(knob)knob.style.transform='translate(-50%,-50%)';
  for(const id of ['botTestA','botTestB','botTestC'])$(id).classList.remove('pressed');
  applyBotPadKeys();
@@ -488,9 +492,16 @@ function renderBotTestPad(){
  if(!eligible&&possessedBotId){releaseBotPossession();return;}
  const visible=eligible&&currentView==='game'&&!!round&&!gameSelection&&
   !['results','summary'].includes(round.phase);
+ // GHOST inspector was usable BEFORE possession; retain this test-mode feature
+ // on the right half, without exposing the joystick or other controls.
+ const ghostOnly=visible&&!active&&canInspectGhostMap();
  el.classList.toggle('hidden',!visible);
- $('botPossessBtn').classList.toggle('hidden',active);
- $('botTestControls').classList.toggle('hidden',!active);
+ el.classList.toggle('ghost-only',ghostOnly);
+ // Bot possess is outside the pad, immediately below Pause. No public-room leak.
+ $('botPossessBtn').classList.toggle('hidden',!visible||active);
+ $('botTestControls').classList.toggle('hidden',!active&&!ghostOnly);
+ $('botTestStick').classList.toggle('hidden',!active);
+ $('botTestKeys').classList.toggle('hidden',!active);
  $('botTestName').classList.toggle('hidden',!active);
  $('botNextBtn').classList.toggle('hidden',!active||players.length<2);
  $('botReleaseBtn').classList.toggle('hidden',!active);
@@ -542,33 +553,61 @@ function bindHostBotPad(){
  });
  $('botReleaseBtn').addEventListener('click',releaseBotPossession);
  $('botUnlimitedBtn').addEventListener('click',toggleInfiniteBotItems);
- const stick=$('botTestStick'),knob=$('botTestKnob');let pointer=null;
+ const stick=$('botTestStick'),knob=$('botTestKnob'),left=$('botTestLeft');
  const update=e=>{
   const rect=stick.getBoundingClientRect(),cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
   const max=Math.max(22,Math.min(rect.width,rect.height)*.37);
-  // Rotate the joystick vector back into the landscape game world.
-   const rotated=arenaIsRotated(),sx=e.clientX-cx,sy=e.clientY-cy;
-   let dx=(rotated?sy:sx)/max,dy=(rotated?-sx:sy)/max;
+  // Translate physical portrait touch directions back into landscape movement.
+  const rotated=arenaIsRotated(),sx=e.clientX-cx,sy=e.clientY-cy;
+  let dx=(rotated?sy:sx)/max,dy=(rotated?-sx:sy)/max;
   const len=Math.hypot(dx,dy);if(len>1){dx/=len;dy/=len;}
   if(len<.12)dx=dy=0;
   botPadKeys.axisX=Math.round(dx*100)/100;botPadKeys.axisY=Math.round(dy*100)/100;
   knob.style.transform='translate(calc(-50% + '+Math.round(dx*max*.8)+'px),calc(-50% + '+Math.round(dy*max*.8)+'px))';
   applyBotPadKeys();
  };
- const release=e=>{
-  if(pointer===null||e.pointerId!==pointer)return;
-  pointer=null;botPadKeys.axisX=0;botPadKeys.axisY=0;
-  knob.style.transform='translate(-50%,-50%)';applyBotPadKeys();
+ const resetFloating=()=>{
+  stick.classList.remove('floating');stick.style.left='';stick.style.top='';stick.style.bottom='';
  };
- stick.addEventListener('pointerdown',e=>{
-  if(!possessedBotId||pointer!==null)return;
-  e.preventDefault();pointer=e.pointerId;
-  try{stick.setPointerCapture(pointer);}catch(_){}
+ const release=e=>{
+  if(botStickPointer===null||e.pointerId!==botStickPointer)return;
+  botStickPointer=null;botStickOwner=null;
+  botPadKeys.axisX=0;botPadKeys.axisY=0;
+  knob.style.transform='translate(-50%,-50%)';resetFloating();applyBotPadKeys();
+ };
+ const start=(e,owner,floating=false)=>{
+  if(!possessedBotId||botStickPointer!==null)return;
+  e.preventDefault();botStickPointer=e.pointerId;botStickOwner=owner;
+  if(floating){
+   // Touch anywhere in the physical left half to summon the joystick there.
+   const area=left.getBoundingClientRect(),size=stick.getBoundingClientRect().width;
+   // Physical portrait hosts rotate the WHOLE game 90 degrees. Reproject
+   // touch position into the logical left-half coordinates before placing.
+   const rotated=arenaIsRotated(),rawX=rotated?e.clientY-area.top:e.clientX-area.left;
+   const rawY=rotated?area.left+area.width-e.clientX:e.clientY-area.top;
+   const w=rotated?(left.clientWidth||area.height):area.width;
+   const h=rotated?(left.clientHeight||area.width):area.height;
+   const x=Math.min(Math.max(rawX,size/2+6),Math.max(size/2+6,w-size/2-6));
+   const y=Math.min(Math.max(rawY,size/2+6),Math.max(size/2+6,h-size/2-6));
+   stick.style.left=(x-size/2)+'px';stick.style.top=(y-size/2)+'px';
+   stick.style.bottom='auto';stick.classList.add('floating');
+  }
+  try{owner.setPointerCapture(e.pointerId);}catch(_){}
   update(e);
+ };
+ stick.addEventListener('pointerdown',e=>{e.stopPropagation?.();start(e,stick);});
+ left.addEventListener('pointerdown',e=>{
+  if(e.target===stick||stick.contains?.(e.target))return;
+  start(e,left,true);
  });
- stick.addEventListener('pointermove',e=>{if(e.pointerId===pointer){e.preventDefault();update(e);}});
- for(const evt of ['pointerup','pointercancel','lostpointercapture'])stick.addEventListener(evt,release);
- stick.addEventListener('contextmenu',e=>e.preventDefault());
+ for(const target of [stick,left]){
+  target.addEventListener('pointermove',e=>{
+   if(e.pointerId===botStickPointer&&target===botStickOwner){e.preventDefault();update(e);}
+  });
+  for(const evt of ['pointerup','pointercancel','lostpointercapture'])
+   target.addEventListener(evt,release);
+  target.addEventListener('contextmenu',e=>e.preventDefault());
+ }
  for(const [id,key] of [['botTestA','action'],['botTestB','alt'],['botTestC','cancel']]){
   const btn=$(id),ids=new Set();
   btn.addEventListener('pointerdown',e=>{
