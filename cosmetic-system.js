@@ -35,10 +35,17 @@ const ASSETS=Object.freeze({
 const cache=new Map(),fallbackSources=new Map();
 const normalize=id=>IDS.includes(id)?id:'none';
 const next=id=>IDS[(Math.max(0,IDS.indexOf(normalize(id)))+1)%IDS.length];
-function randomBot(random=Math.random){
+// Draw a visible costume not yet worn by another participant in this room.
+function randomAvailable(occupied=[],random=Math.random){
+ const taken=new Set(occupied);
+ const unused=IDS.filter(id=>id!=='none'&&!taken.has(id));
+ // There are 17 visible outfits and at most 12 room participants.
+ const choices=unused.length?unused:IDS.slice(1);
  const value=Number(random());
- return IDS[1+Math.min(IDS.length-2,Math.max(0,Math.floor((Number.isFinite(value)?value:0)*(IDS.length-1))))];
+ const i=Math.max(0,Math.min(choices.length-1,Math.floor((Number.isFinite(value)?value:0)*choices.length)));
+ return choices[i];
 }
+function randomBot(random=Math.random,occupied=[]){return randomAvailable(occupied,random);}
 const safeColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).slice(1).toLowerCase():'c62222';
 function assetPath(id,view,color){
  const spec=ASSETS[id],prefix='./assets/cosmetics/'+id+'/';
@@ -89,5 +96,5 @@ function drawFront(ctx,player,x,y,size=60){
  ctx.drawImage(img,x+dx*scale,y+dy*scale,w*scale,h*scale);
  return true;
 }
-window.PartyCosmetics=Object.freeze({IDS,ASSETS,normalize,next,randomBot,preload,drawTop,drawFront,imageFor});
+window.PartyCosmetics=Object.freeze({IDS,ASSETS,normalize,next,randomAvailable,randomBot,preload,drawTop,drawFront,imageFor});
 })();
