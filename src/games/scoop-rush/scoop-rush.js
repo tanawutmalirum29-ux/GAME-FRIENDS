@@ -565,6 +565,8 @@ function draw(g,time,round,ps){
   else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(0,0,10,0,TAU);g.fill();}
   g.restore();
  }
+ // Always upright and above the mount, after drawing all bears.
+ for(const p of ps)if(p.active&&p.sr)window.PartyCharacters?.drawName?.(g,p,{offsetY:49});
  for(const e of s.fx)Art.drawFx(g,e);
  g.restore();
 }
