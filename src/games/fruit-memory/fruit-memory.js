@@ -492,6 +492,7 @@ function drawPlayer(ctx,p,state,time){
  ctx.globalAlpha=1-progress*.85;ctx.scale(1-progress*.65,1-progress*.65);
  window.PartyCharacters.draw(ctx,p,{local:true,time,
    color:p.color,attacking:Combat.isAttacking(p)});
+ window.PartyCharacters?.drawName?.(ctx,p,{local:true,x:0,y:0,offsetY:40});
  ctx.restore();
 }
 
