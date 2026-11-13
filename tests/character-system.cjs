@@ -77,11 +77,13 @@ const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 // One nameplate per actor. A crowded label shifts above its neighbour rather
 // than covering it, and no name is drawn while a parent mount is rotating.
 {
- const painted=[];
- const canvas={save(){},restore(){},beginPath(){},roundRect(){},fill(){},
+ const painted=[],plates=[],outlines=[];
+ const canvas={save(){},restore(){},beginPath(){},roundRect(x,y,w,h){plates.push({x,y,w,h});},
+  rect(){},clip(){},fill(){},
   measureText(t){return{width:Array.from(t).length*7}},
   getTransform(){return{a:1,b:0,c:0,d:1,e:0,f:0}},
-  fillText(t,x,y){painted.push({t,x,y})},strokeText(){}};
+  fillText(...args){const [t,x,y]=args;painted.push({t,x,y,args,align:this.textAlign});},
+  strokeText(...args){outlines.push(args);}};
  const a=make('a',180,200),b=make('b',180,200);
  a.name='ผู้เล่น A';b.name='บอท B';
  rules.beginNameFrame(canvas);
@@ -90,6 +92,21 @@ const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  assert.equal(painted.length,2,'every player gets a label');
  assert.ok(painted.every(q=>q.y<a.y-30),'labels sit above the character, not on its body');
  assert.notEqual(painted[0].y,painted[1].y,'crowded labels never overlap one another');
+ // A screenshot on iPad Safari exposed text beginning at the plate centre.
+ // Explicit text-left placement keeps Thai glyphs INSIDE the black rounded box
+ // irrespective of the browser's textAlign/maxWidth behaviour.
+ for(let i=0;i<painted.length;i++){
+  const text=painted[i],plate=plates[i],glyphWidth=canvas.measureText(text.t).width;
+  assert.equal(text.align,'left','do not depend on Safari centred text anchors');
+  assert.equal(text.args.length,3,'never pass maxWidth to fillText on iPad');
+  assert.equal(outlines[i].length,3,'stroke and fill use identical arguments');
+  assert.equal(outlines[i][1],text.x,'text stroke is not offset from fill');
+  assert.ok(text.x>=plate.x+4,'label starts INSIDE its background');
+  assert.ok(text.x+glyphWidth<=plate.x+plate.w-4,'label ends INSIDE its background');
+  assert.ok(Math.abs(text.x+glyphWidth/2-(plate.x+plate.w/2))<1e-9,
+   'glyph centre matches the rectangle centre exactly');
+ }
+ assert.equal(painted[0].t,'ผู้เล่น A','Thai name text is preserved');
  rules.beginNameFrame(canvas);painted.length=0;
  rules.drawName(canvas,a,{nameTag:false});
  assert.equal(painted.length,0,'specific game HUD can suppress a redundant label');
