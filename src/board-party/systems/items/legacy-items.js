@@ -8,7 +8,20 @@ function forwardForce(s,p,toId){
 }
 function forwardInput(s,p){
  const a=axes(s,p.id),id=M().choose(s.map,p.currentNodeId,a.x,a.y);
- return forwardForce(s,p,id)>0?id:null;
+ if(!id||forwardForce(s,p,id)<=0)return null;
+ const node=s.map.nodes[p.currentNodeId],exits=node.nextNodes;
+ if(exits.length>1){
+  // A nearly equal angular fit is ambiguous, NOT a reason to hold the stick
+  // for a fixed time. Once the heading is clear the player moves immediately.
+  const strength=Math.hypot(a.x,a.y);
+  const dot=toId=>{
+   const to=s.map.nodes[toId].position,dx=to.x-node.position.x,dy=to.y-node.position.y;
+   return (dx*a.x+dy*a.y)/(Math.hypot(dx,dy)*strength);
+  };
+  const best=dot(id);
+  if(exits.some(other=>other!==id&&best-dot(other)<.08))return null;
+ }
+ return id;
 }
 // Slots remain fixed [Roll, Potion, UFO, Rocket, Bomber, Car, Shield].
 // B skips empty item types and repeated rewards do not duplicate slots.

@@ -174,3 +174,9 @@ Do not merge until `verify.yml` tests and browser checks finish without failures
 - Two previously documented geometric path crossings remain; no new crossing or alternate route was introduced.
 - Forced one-way checkpoints now continue in the same game tick when a joystick is still aligned, instead of requiring a fresh 0.16s input hold at every pad. Fork debounce is now 0.08s; world-position projection is carried through sharp turns without clamping negative approach coordinates to zero. Gentle forward steering assist covers near-sideways thumb angles while pure sideways, backward and released inputs remain non-advancing.
 - Regression coverage added for **all 302 tile-pair spacings** in `tests/board-map-layout.cjs` and for same-token two-edge walking, no positional snap, exact step consumption and stick-release stopping in `tests/board-party.cjs`. Original camera, node topology, arrow direction, multi-player and map-scale checks remain required.
+
+### BOARD PARTY — Immediate geometric fork steering (2026-11-13)
+
+- Completely removed the `TURN_DELAY` 0.08-second branch confirmation, `intentTime` and per-move intent accumulation; single-exit roads and forks both accept a deliberate joystick direction on the first movement update, with **no time-based selection**.
+- Preserve the forward dot-product threshold (strength 0.25, directional dot > 0.35). On multi-exit nodes, require the strongest normalized directional dot to exceed every competing exit by 0.08. An ambiguous bisector leaves the avatar freely walkable on the current pad instead of guessing an exit. The moment aim becomes distinct, traversal starts immediately.
+- Directed graph, 302 node geometry, 88-unit pads, 34-unit lanes, speed 240, free pan/zoom, late branch switching, reverse, release-to-stop, authoritative die-step counting and controls remain unchanged. Canonical runtime regenerated from authored source modules; 1/6/12-player 1ms fork-choice regressions added.
