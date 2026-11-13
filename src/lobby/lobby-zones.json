@@ -68,28 +68,6 @@
       "trigger": "none"
     },
     {
-      "id": "ready_area",
-      "label": "READY / START",
-      "center": {
-        "x": 480,
-        "y": 457
-      },
-      "interactionRadiusPx": 46,
-      "priority": 80,
-      "trigger": "button_A"
-    },
-    {
-      "id": "room_corner",
-      "label": "ROOM CORNER",
-      "center": {
-        "x": 816,
-        "y": 439
-      },
-      "interactionRadiusPx": 43,
-      "priority": 35,
-      "trigger": "button_A"
-    },
-    {
       "id": "color_studio",
       "label": "COLOR STUDIO",
       "center": {

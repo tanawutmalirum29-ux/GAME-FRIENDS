@@ -30,11 +30,14 @@ async function run(){
    assert.equal(await page.locator('#plazaCanvas').isVisible(),true);
    const original=await page.locator('#plazaCanvas').boundingBox();
    assert.equal(await page.locator('#hostLobby').evaluate(e=>e.classList.contains('plaza-loaded')),true);
-   const buttons=['#plazaRoomToggle','#plazaRosterToggle','#plazaSettingsToggle','#plazaStartBtn'];
+   const buttons=['#plazaRosterToggle','#plazaSettingsToggle','#plazaStartBtn'];
+   assert.equal(await page.locator('#plazaRoomToggle').isVisible(),false,
+    'old header QR button must be absent');
+   assert.equal(await page.locator('#plazaCenterQrBtn').isVisible(),true,
+    'central room QR remains on the map');
    for(const selector of buttons)assert.equal(await page.locator(selector).isVisible(),true,selector);
    // All twelve slots still exist, but do not consume the entire display.
    assert.equal(await page.locator('#roster .roster-item').count(),12);
-   await page.locator('#plazaRoomToggle').click();
    await page.evaluate(()=>{
     document.getElementById('roomPanel').classList.remove('hidden');
     document.getElementById('offlineRoomHint').classList.add('hidden');
@@ -46,8 +49,8 @@ async function run(){
      if((x*x+3*y+x*y)%5<2)ctx.fillRect(8+x*11,8+y*11,11,11);
     document.getElementById('qrBox').replaceChildren(canvas);
    });
-   assert.equal(await page.locator('#qrBox').isVisible(),true,'QR open in overlay');
-   assert.equal(await page.locator('#copyBtn').isVisible(),true,'copy link open in overlay');
+   assert.equal(await page.locator('#qrBox').isVisible(),true,'QR remains in the central button');
+   assert.equal(await page.locator('#copyBtn').isVisible(),false,'old copy button is hidden');
    assert.ok((await page.locator('#qrBox').boundingBox()).width>=65,'QR legible');
    await page.locator('#plazaRosterToggle').click();
    assert.equal(await page.locator('#roster').isVisible(),true);
@@ -83,17 +86,18 @@ async function run(){
    assert.equal(await page.locator('#roster .roster-item:not(.roster-empty)').count(),3);
    // Hiding panels restores full map, not a new layout or smaller canvas.
    await page.locator('#plazaSettingsToggle').click();
-   await page.locator('#plazaRoomToggle').click();
+
    await page.locator('#plazaRosterToggle').click();
    const after=await page.locator('#plazaCanvas').boundingBox();
    for(const field of ['x','y','width','height'])
     assert.ok(Math.abs(original[field]-after[field])<=1,'world canvas resized/reflowed: '+field);
-   assert.equal(await page.locator('#qrBox').isVisible(),false);
+   assert.equal(await page.locator('#qrBox').isVisible(),true,
+    'central QR remains visible when panels close');
    await page.screenshot({path:path.join(out,'mobile-party-plaza-'+engine+'-'+view.width+'x'+view.height+'.png')});
    assert.deepEqual(errors,[],'no runtime errors on mobile host');
    await context.close();
   }
-  console.log('MOBILE PARTY PLAZA '+engine+': full scene, QR/roster/settings overlays, no map resize');
+  console.log('MOBILE PARTY PLAZA '+engine+': central QR, roster/settings overlays and full scene stable');
  }finally{await browser.close();server.close();}
 }
 run().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>server.close());

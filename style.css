@@ -6605,3 +6605,49 @@ body.controller-playing #controller #controllerActive #buttonB.plaza-b-ready .fa
  display:block;width:100%;height:auto;max-width:100%;max-height:calc(100dvh - 145px);
  object-fit:contain;border-radius:10px;
 }
+
+
+/* Party Plaza: the former READY ring is now a single large central room QR.
+   It entirely masks the old READY art, while the real join QR stays sharp. */
+#hostLobby.plaza-loaded .plaza-center-qr-btn{
+ position:absolute;left:50%;top:80%;width:196px;height:196px;
+ transform:translate(-50%,-50%);z-index:6;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ gap:3%;margin:0;padding:7px;box-sizing:border-box;
+ border:4px solid #ef75fa;border-radius:50%;
+ background:radial-gradient(circle at 40% 35%,#273563 0%,#11142f 62%,#080c20 100%);
+ box-shadow:0 0 0 6px #572bc4b8,0 0 23px 4px #ff4ceea9,inset 0 0 28px #2e8df56e;
+ color:#e6faff;font-weight:850;line-height:1;
+ cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+ pointer-events:auto;overflow:hidden;isolation:isolate;
+}
+#hostLobby.plaza-loaded .plaza-center-qr-btn:focus-visible{
+ outline:3px solid #ffdf83;outline-offset:7px;
+}
+#hostLobby.plaza-loaded .plaza-center-qr-btn:disabled{
+ opacity:1!important;cursor:default;
+}
+#hostLobby.plaza-loaded .plaza-center-qr-image{
+ width:73%;aspect-ratio:1;min-height:0;flex:0 1 auto;
+ background:#fff;color:#1b2c43;display:grid;place-items:center;
+ border:5px solid #fff;border-radius:7px;overflow:hidden;
+ font-size:.8em;font-weight:900;text-align:center;line-height:1.3;
+ box-shadow:0 0 0 2px #a6faff,0 0 12px #48d9fa82;
+}
+#hostLobby.plaza-loaded .plaza-center-qr-image canvas,
+#hostLobby.plaza-loaded .plaza-center-qr-image img{
+ display:block;width:100%!important;height:100%!important;
+ max-width:100%;object-fit:contain;image-rendering:pixelated;grid-area:1 / 1;
+}
+#hostLobby.plaza-loaded .plaza-center-qr-label{
+ display:block;white-space:nowrap;max-width:90%;text-align:center;
+ font-size:.85em;color:#fff2a5;line-height:1.2;text-shadow:0 1px 7px #080c20;
+ pointer-events:none;
+}
+#hostLobby.plaza-loaded .plaza-center-qr-btn:not(:disabled):active{
+ filter:brightness(1.18);
+}
+/* The old popup/header QR action is superseded by the one central button.
+   Retain its hidden URL/input elements internally for room/session logic. */
+#hostLobby.plaza-loaded #plazaRoomToggle,
+#hostLobby.plaza-loaded #plazaRoomPanel{display:none!important}

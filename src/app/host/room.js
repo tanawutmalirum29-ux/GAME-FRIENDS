@@ -199,7 +199,9 @@ function castLobbyReadyVote(conn){
   if(round||gameSelection||currentView!=='hostLobby'||!conn?.playerId)return false;
   const p=players.find(p=>p.id===conn.playerId&&p.conn===conn&&p.type==='remote');
   if(!p)return false;
-  if(typeof window!=='undefined'&&window.PartyPlaza&&!window.PartyPlaza.inZone(p,'ready_area'))return false;
+  // The physical READY pad was removed: only A pressed in an empty lobby
+  // space may vote; other interaction zones keep their own meanings.
+  if(typeof window!=='undefined'&&window.PartyPlaza?.zoneAt(p))return false;
   if(lobbyReadyVotes.has(p.id))lobbyReadyVotes.delete(p.id);
   else lobbyReadyVotes.add(p.id);
   renderRoster();
@@ -661,7 +663,10 @@ function shareUrl(code){
 function renderQr(code){
   const link=shareUrl(code);
   $('roomUrl').value=link;
-  const box=$('qrBox');box.replaceChildren();
+  const box=$('qrBox'),button=$('plazaCenterQrBtn');
+  button.disabled=false;
+  $('plazaCenterQrLabel').textContent='แตะคัดลอกลิงก์';
+  box.replaceChildren();
   const paint=()=>{
     if(!onlineHost||roomCode!==code)return;
     box.replaceChildren();
@@ -1052,9 +1057,27 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
 }
 function copyInvite(){
   const value=$('roomUrl').value;if(!value)return;
-  const done=()=>{const b=$('copyBtn');b.textContent='คัดลอกแล้ว';setTimeout(()=>b.textContent='คัดลอกลิงก์',1600);};
-  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(value).then(done).catch(()=>{ $('roomUrl').select();document.execCommand('copy');done();});}
-  else{$('roomUrl').select();document.execCommand('copy');done();}
+  const done=()=>{
+    showToast('คัดลอกลิงก์เข้าห้องแล้ว');
+    $('plazaCenterQrLabel').textContent='คัดลอกแล้ว';
+    const b=$('copyBtn');b.textContent='คัดลอกแล้ว';
+    setTimeout(()=>{
+      b.textContent='คัดลอกลิงก์';
+      $('plazaCenterQrLabel').textContent='แตะคัดลอกลิงก์';
+    },1600);
+  };
+  const fallback=()=>{
+    const temp=document.createElement('textarea');
+    temp.value=value;temp.readOnly=true;
+    temp.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.append(temp);temp.focus();temp.select();
+    let copied=false;
+    try{copied=document.execCommand('copy');}catch(_){}
+    temp.remove();
+    if(copied)done();else showToast('คัดลอกไม่สำเร็จ • โปรดตรวจสิทธิ์ Clipboard');
+  };
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(value).then(done).catch(fallback);
+  else fallback();
 }
 let phoneSelectionOpen=false;
 let plazaPickerOpen=false;

@@ -183,6 +183,9 @@ function openOfflineLobby(){
  if(!players.length){addLocal();addLocal();}
  $('hostRoomBadge').textContent='OFFLINE';
  $('roomPanel').classList.add('hidden');$('offlineRoomHint').classList.remove('hidden');
+ $('plazaCenterQrBtn').disabled=true;
+ $('qrBox').textContent='OFFLINE';
+ $('plazaCenterQrLabel').textContent='เล่นออฟไลน์';
  setView('hostLobby');renderRoster();
 }
 $('offlineBtn').addEventListener('click',()=>{
@@ -203,6 +206,7 @@ $('closeRoomBtn').addEventListener('click',()=>{
   .then(yes=>{if(yes)closeHostRoom();});
 });
 $('copyBtn').addEventListener('click',copyInvite);
+$('plazaCenterQrBtn').addEventListener('click',copyInvite);
 $('exitBtn').addEventListener('click',returnToLobby);
 // Results/scoring exists only in the Host bundle; bind lazily for Controller.
 $('backBtn').addEventListener('click',()=>onResultBack());
