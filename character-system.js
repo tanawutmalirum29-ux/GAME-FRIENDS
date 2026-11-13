@@ -185,7 +185,7 @@ function draw(ctx,p,opts={}){
  const fx=combat();
  if(window.PartyPlayerAvatar?.draw)
    window.PartyPlayerAvatar.draw(ctx,p,{
-     ...opts,attacking:opts.attacking??!!fx?.isAttacking(p)
+     ...opts,label:false,attacking:opts.attacking??!!fx?.isAttacking(p)
    });
  else{
    // Keep visible avatar art even before SVG images have decoded.
