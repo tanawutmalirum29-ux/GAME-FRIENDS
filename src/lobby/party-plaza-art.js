@@ -29,5 +29,7 @@ function sceneUrl(){
  })().catch(e=>{pending=null;throw e;});
  return pending;
 }
-window.PartyPlazaArt=Object.freeze({sceneUrl});
+// Drop an encoded URL after a failed decode so retry can refetch all chunks.
+function reset(){url=null;pending=null;}
+window.PartyPlazaArt=Object.freeze({sceneUrl,reset});
 })();
