@@ -352,9 +352,18 @@ function arenaPointer(e){
 // across Retina tablets/large monitors. This changes graphics only: coordinates,
 // speeds, physics, HUD geometry and the controller's video quality are unchanged.
 const ARENA_WIDTH=960,ARENA_HEIGHT=540,MAX_ARENA_SCALE=3;
-let arenaResolutionDirty=true,arenaLastDpr=0,arenaLastModeKey='',arenaLastBoxKey='';
+let arenaResolutionDirty=true,arenaLastDpr=0,arenaLastModeKey='',arenaLastBoxKey='',arenaLastViewportKey='';
 function markArenaResolutionDirty(){arenaResolutionDirty=true;}
 function syncArenaResolution(){
+ // Standalone iPadOS may resume with a changed visual viewport but NO window
+ // resize event. Cheap numeric checks every frame avoid forced layout reads
+ // while still invalidating the stale portrait-shaped BOARD bitmap.
+ const vv=window.visualViewport;
+ const viewportKey=[window.innerWidth,window.innerHeight,vv?.width,vv?.height,
+  vv?.scale,arenaIsRotated()].join('|');
+ if(viewportKey!==arenaLastViewportKey){
+  arenaLastViewportKey=viewportKey;markArenaResolutionDirty();
+ }
  const rawDpr=Number(window.devicePixelRatio);
  const dpr=Number.isFinite(rawDpr)&&rawDpr>0?rawDpr:1;
  // Keep the dense 8–12 player board at a still-sharp 2.4x bitmap cap.
@@ -410,6 +419,13 @@ function syncArenaResolution(){
 window.addEventListener('resize',markArenaResolutionDirty);
 window.addEventListener('orientationchange',markArenaResolutionDirty);
 window.visualViewport?.addEventListener?.('resize',markArenaResolutionDirty);
+// Safari's restored canvas size may change without a window resize.
+// Observe changes in element boxes without per-frame layout reflow.
+if(typeof ResizeObserver==='function'){
+ const arenaObserver=new ResizeObserver(()=>markArenaResolutionDirty());
+ arenaObserver.observe(canvas);
+ arenaObserver.observe($('game'));
+}
 document.addEventListener('fullscreenchange',markArenaResolutionDirty);
 document.addEventListener('webkitfullscreenchange',markArenaResolutionDirty);
 canvas.addEventListener('contextrestored',markArenaResolutionDirty);
@@ -442,10 +458,12 @@ function finishConfirmation(answer){
  if(resolve)resolve(answer);
 }
 
-// Only lock page zoom while playing. Keep the lobby and nickname form accessible.
+// Host HOME, room lobby and gameplay are fixed-screen interfaces, NOT zoomable
+// documents. Only the unjoined controller's code/name form uses a free viewport.
 const FREE_VIEWPORT='width=device-width,initial-scale=1,viewport-fit=cover';
 const LOCKED_VIEWPORT='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
-const gameZoomLocked=()=>currentView==='game'||(currentView==='controller'&&controllerReady);
+const gameZoomLocked=()=>['home','hostLobby','game'].includes(currentView)||
+ (currentView==='controller'&&controllerReady);
 // Browser/OS chrome cannot be hidden by page gestures. Installed iOS Home
 // Screen Web Apps run standalone; offer that supported path for Chrome users.
 const isIOSBrowser=()=>{
@@ -531,6 +549,31 @@ function tryLandscapeOrientation(){
  window.addEventListener('resize',syncLandscapePresentation);
  window.addEventListener('pageshow',syncLandscapePresentation);
  window.visualViewport?.addEventListener?.('resize',syncLandscapePresentation);
+ // An installed iPadOS Host can be suspended while locked in landscape. Its
+ // CSS/visual viewport settles over several frames when it is foregrounded.
+ // Reapply orientation, zoom policy and canvas bitmap measurements without
+ // changing map camera zoom, turn state, positions or game simulation.
+ let foregroundRecoverySerial=0;
+ function recoverForegroundPresentation(){
+  if(document.hidden)return;
+  const serial=++foregroundRecoverySerial;
+  const restore=()=>{
+   if(serial!==foregroundRecoverySerial||document.hidden)return;
+   syncLandscapePresentation();syncZoomPolicy();markArenaResolutionDirty();
+  };
+  restore();
+  // Use delayed tasks rather than requestAnimationFrame: Safari may already
+  // have an intentionally suspended frame queue on initial launch/resume.
+  // Never replace or steal the Host's single pending game-render callback.
+  window.setTimeout(restore,80);
+  window.setTimeout(restore,240);
+  window.setTimeout(restore,600);
+ }
+ window.addEventListener('pageshow',recoverForegroundPresentation);
+ window.addEventListener('focus',recoverForegroundPresentation);
+ document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden)recoverForegroundPresentation();
+ });
  // Restore the original fullscreen behavior on any browser that supports it.
 // Browser/OS permission prompts remain under the browser's control.
 function requestHostFullscreen(){

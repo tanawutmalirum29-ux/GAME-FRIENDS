@@ -96,7 +96,11 @@ body.controller-playing .controller-help{font-size:11px;text-align:center;color:
 
 
 
-/* Zoom guard for actively playing screens only: don't disable zoom in lobby / join form. */
+/* Host HOME, room lobby and game are fixed-screen: prevent native
+   double-tap zoom without blocking scrolling inside longer lobby panels.
+   The unjoined phone controller form still uses a free viewport. */
+body.zoom-locked #home,
+body.zoom-locked #hostLobby{touch-action:manipulation}
 body.zoom-locked #game,
 body.zoom-locked #controllerActive{
   -webkit-user-select:none;
