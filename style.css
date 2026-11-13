@@ -6534,3 +6534,25 @@ body.controller-playing #controller .phone-game-choices{
 #game .result-overlay.board-minigame-results #resultList>.result-player>.result-ordinal{
   grid-row:1/4;
 }
+
+/* FLOATING STICK — show a readable home position on every fresh join, then
+   hide after first release; subsequent finger-downs always show it again.
+   The touch target remains full-width for free movement. No DPR changes. */
+body.controller-playing #controller #controllerActive #joystickZone:not(.has-used) .joystick-base{
+ left:25%;
+ visibility:visible;
+ opacity:1;
+}
+body.controller-playing #controller #controllerActive #joystickZone.is-active .joystick-base{
+ left:50%;
+ visibility:visible;
+ opacity:1;
+}
+body.controller-playing #controller #controllerActive #joystickZone.has-used:not(.is-active) .joystick-base{
+ visibility:hidden;
+ opacity:0;
+}
+body.controller-playing #controller #controllerActive .controller-buttons.is-picking #joystickZone .joystick-base{
+ visibility:hidden!important;
+ opacity:0!important;
+}
