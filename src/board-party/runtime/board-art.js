@@ -674,8 +674,19 @@ function actors(g,s,t){
   g.restore();
   // Names belong ABOVE every explorer (including grouped players). Do not
   // overlap the active-turn arrow/shield or the HP/roster HUD below the map.
-  window.PartyCharacters?.drawName?.(g,p,{x:xy.x,y:xy.y,
-   offsetY:p.id===active?.id?74:52,fontSize:12,maxWidth:98});
+  // The board camera zoom changes world-pixel size. Keep every name readable,
+  // even when explorers stack on a tile, without overlapping the HP footer.
+  const zoom=Math.max(.25,Math.min(1.6,Number(s.camera.zoom)||1));
+  const nameSize=Math.min(34,Math.max(12,12/zoom));
+  const nameGap=Math.max(p.id===active?.id?74:52,(p.id===active?.id?41:31)/zoom);
+  if(window.PartyCharacters?.drawName)
+   window.PartyCharacters.drawName(g,p,{x:xy.x,y:xy.y,
+    offsetY:nameGap,fontSize:nameSize,maxWidth:Math.min(270,98/zoom)});
+  else{
+   const ty=xy.y-nameGap-nameSize-8;
+   box(g,xy.x-46,ty,92,nameSize+7,6,'#15394cda');
+   label(g,p.name,xy.x,ty+(nameSize+7)/2,nameSize,p.color,'center',700,86);
+  }
   if(s.move?.kind==='rocket'&&s.move.playerId===p.id){g.save();g.translate(pos.x,pos.y+20);if(from)g.rotate(Math.atan2(to.y-from.y,to.x-from.x)+Math.PI/2);icon(g,'rocket',0,0,25);g.restore();}
  }
 }
