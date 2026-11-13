@@ -399,12 +399,18 @@ function syncArenaResolution(){
  }
  if(boardActive&&box?.width){
   const toolScale=content.scale,originX=content.left,originY=content.top;
-  // BOARD icon row, left to right: Exit, Show ID, Pause.
-  // Coordinates stay in 960-wide canvas space and follow the existing scale.
-  $('boardExitBtn').style.cssText='left:'+(originX+849*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
-  $('boardTools').style.cssText='left:'+(originX+885*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
-  $('pauseBtn').style.cssText='left:'+(originX+921*toolScale)+'px;top:'+(originY+101*toolScale)+'px;transform:scale('+toolScale+');';
- }else {$('pauseBtn').style.cssText='';$('boardExitBtn').style.cssText='';}
+  // Identical 29×27 CSS-world cells, centered icons and one transform origin.
+  // Columns are 36 units apart; the possess icon is one row BELOW Pause.
+  const boardToolCell=(x,y)=>'left:'+(originX+x*toolScale)+'px;top:'+
+   (originY+y*toolScale)+'px;transform:scale('+toolScale+');';
+  $('boardExitBtn').style.cssText=boardToolCell(849,101);
+  $('boardTools').style.cssText=boardToolCell(885,101);
+  $('pauseBtn').style.cssText=boardToolCell(921,101);
+  $('botPossessBtn').style.cssText=boardToolCell(921,133);
+ }else{
+  for(const id of ['pauseBtn','boardExitBtn','boardTools','botPossessBtn'])
+   $(id).style.cssText='';
+ }
  // Long/short sides are intentional: portrait fallback may rotate the
  // host canvas by 90 degrees without changing the game world's coordinates.
  const longSide=Math.max(Number(box?.width)||0,Number(box?.height)||0);
