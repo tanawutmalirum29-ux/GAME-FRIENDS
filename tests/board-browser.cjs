@@ -143,7 +143,22 @@ async function main(){
   }
   await roulette.close();
   const host=await context.newPage(),errors=[];host.on('pageerror',e=>errors.push(String(e)));
-  await host.goto(base);await host.evaluate(()=>document.getElementById('offlineBtn').click());
+  await host.goto(base);
+  const pageZoom=()=>host.evaluate(()=>({
+   content:document.querySelector('#viewportMeta').content,
+   locked:document.body.classList.contains('zoom-locked'),
+   view:document.querySelector('#home:not(.hidden)')?'home':
+        document.querySelector('#hostLobby:not(.hidden)')?'hostLobby':'other'
+  }));
+  const homeZoom=await pageZoom();
+  assert.equal(homeZoom.view,'home');
+  assert.equal(homeZoom.locked,true,'Host HOME must never allow native page zoom');
+  assert.match(homeZoom.content,/user-scalable=no/);
+  await host.evaluate(()=>document.getElementById('offlineBtn').click());
+  const lobbyZoom=await pageZoom();
+  assert.equal(lobbyZoom.view,'hostLobby');
+  assert.equal(lobbyZoom.locked,true,'Host lobby must never allow native page zoom');
+  assert.match(lobbyZoom.content,/maximum-scale=1/);
   for(let n=1;n<=12;n++){
    await host.evaluate(n=>{const a=__boardTest;a.returnToLobby();a.players.splice(n);while(a.players.length<n)a.addLocal();a.beginBoard();a.drawGame(0);},n);
    assert.equal(await host.evaluate(()=>__boardTest.board.players.length),n);await noScroll(host);
@@ -191,6 +206,33 @@ async function main(){
    const bitmap=await host.locator('#arena').evaluate(c=>({w:c.width,h:c.height}));assert.ok(bitmap.w>=960&&bitmap.h>=540);
    await host.screenshot({path:path.join(out,`order-${view.width}.png`)});
   }
+  // Safari can resume from the background without any resize event, leaving
+  // a portrait-proportioned bitmap inside a landscape frame (black sidebars).
+  // Invalidate that stale bitmap via the same focus/visibility lifecycle.
+  await host.setViewportSize({width:1474,height:1024});
+  await host.evaluate(()=>{
+   __boardTest.drawGame(0);
+   const canvas=document.getElementById('arena');
+   canvas.width=960;canvas.height=890;
+   document.dispatchEvent(new Event('visibilitychange'));
+   window.dispatchEvent(new Event('focus'));
+  });
+  await host.waitForTimeout(260);
+  await host.evaluate(()=>__boardTest.drawGame(0));
+  const resumed=await host.evaluate(()=>{
+   const canvas=document.getElementById('arena'),rect=canvas.getBoundingClientRect();
+   return{worldH:__boardTest.board.camera.viewHeight,cssRatio:rect.width/rect.height,
+    bitmapRatio:canvas.width/canvas.height,cssWidth:rect.width,
+    gameWidth:document.getElementById('game').getBoundingClientRect().width,
+    zoomLocked:document.body.classList.contains('zoom-locked')};
+  });
+  assert.ok(Math.abs(resumed.cssRatio-resumed.bitmapRatio)<.025,
+    'resumed BOARD bitmap must match viewport aspect without black sidebars');
+  assert.ok(Math.abs(resumed.cssWidth-resumed.gameWidth)<3,
+    'restored BOARD scene covers entire Host width');
+  assert.equal(resumed.zoomLocked,true,'resume keeps Host page zoom locked');
+  assert.ok(resumed.worldH>540&&resumed.worldH<850,
+    'BOARD world height recalculated from restored landscape viewport');
   await host.setViewportSize({width:1024,height:768});
   await host.evaluate(()=>__boardTest.drawGame(0));
   // The real host controls must explore the map without touching gameplay state.
