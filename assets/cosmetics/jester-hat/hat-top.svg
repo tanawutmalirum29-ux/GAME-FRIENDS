@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="112" height="80" viewBox="-24 -8 112 80" role="img" aria-label="GAME FRIENDS jester hat — top-down, player color alternating with gold" color="#36d9e5" data-cosmetic="jester-hat" data-view="top" data-anchor="32 32" data-color-binding="root-color">
+<title>GAME FRIENDS jester hat — top-down, player color alternating with gold</title>
+<desc>Transparent two-horned jester hat seen from above; horns sweep left and right with gold bells. Segments alternate between player color (currentColor) and fixed gold. Forward is negative Y. Use the documented anchor 32 32.</desc>
+<defs>
+  <radialGradient id="gf-jest-top-shade" cx=".3" cy=".25" r=".95">
+    <stop offset="0" stop-color="#ffffff" stop-opacity=".4"/><stop offset=".5" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#000000" stop-opacity=".28"/>
+  </radialGradient>
+  <radialGradient id="gf-jest-top-bell" cx=".35" cy=".3" r=".85">
+    <stop offset="0" stop-color="#fff3b0"/><stop offset=".45" stop-color="#f6c52c"/><stop offset="1" stop-color="#b8860b"/>
+  </radialGradient>
+  <clipPath id="gf-jest-top-horn"><path d="M14 24 C4 20-8 24-13 38 C-6 44 2 46 12 44 Z"/></clipPath>
+  <clipPath id="gf-jest-top-dome"><ellipse cx="32" cy="33" rx="24" ry="24"/></clipPath>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+  <g data-color-source="currentColor">
+  <g data-part="left-horn">
+    <g clip-path="url(#gf-jest-top-horn)">
+      <rect x="-30" y="10" width="60" height="50" fill="#f3bd1f"/>
+      <polygon points="4.0,17 2.3,50 -30,50 -30,17" fill="currentColor"/>
+      <polygon points="-6.26,17 -5.4,50 -30,50 -30,17" fill="#f3bd1f"/>
+      <path d="M4.0 17 L2.3 50 M-6.26 17 L-5.4 50" fill="none" stroke="#2c2108" stroke-width="1" stroke-opacity=".85"/>
+      <path d="M14 24 C4 20-8 24-13 38 C-6 44 2 46 12 44 Z" fill="url(#gf-jest-top-shade)"/>
+    </g>
+    <path d="M14 24 C4 20-8 24-13 38 C-6 44 2 46 12 44 Z" fill="none" stroke="#2c2108" stroke-width="1.1"/>
+    <g data-part="bell">
+      <circle cx="-13" cy="41" r="5.6" fill="url(#gf-jest-top-bell)" stroke="#5a3f00" stroke-width=".9"/>
+      <path d="M-18.2 42.4 H-7.8" fill="none" stroke="#5a3f00" stroke-width=".9"/>
+      <circle cx="-13" cy="44.2" r="1.1" fill="#3a2800"/>
+      <path d="M-16.6 37.6 Q-14.8 36 -12 35.8" fill="none" stroke="#ffffff" stroke-width=".9" stroke-opacity=".85"/>
+    </g>
+  </g>
+  </g>
+  <g data-color-source="currentColor">
+  <g data-part="right-horn" transform="translate(64 0) scale(-1 1)">
+    <g clip-path="url(#gf-jest-top-horn)">
+      <rect x="-30" y="10" width="60" height="50" fill="currentColor"/>
+      <polygon points="4.0,17 2.3,50 -30,50 -30,17" fill="#f3bd1f"/>
+      <polygon points="-6.26,17 -5.4,50 -30,50 -30,17" fill="currentColor"/>
+      <path d="M4.0 17 L2.3 50 M-6.26 17 L-5.4 50" fill="none" stroke="#2c2108" stroke-width="1" stroke-opacity=".85"/>
+      <path d="M14 24 C4 20-8 24-13 38 C-6 44 2 46 12 44 Z" fill="url(#gf-jest-top-shade)"/>
+    </g>
+    <path d="M14 24 C4 20-8 24-13 38 C-6 44 2 46 12 44 Z" fill="none" stroke="#2c2108" stroke-width="1.1"/>
+    <g data-part="bell">
+      <circle cx="-13" cy="41" r="5.6" fill="url(#gf-jest-top-bell)" stroke="#5a3f00" stroke-width=".9"/>
+      <path d="M-18.2 42.4 H-7.8" fill="none" stroke="#5a3f00" stroke-width=".9"/>
+      <circle cx="-13" cy="44.2" r="1.1" fill="#3a2800"/>
+      <path d="M-16.6 37.6 Q-14.8 36 -12 35.8" fill="none" stroke="#ffffff" stroke-width=".9" stroke-opacity=".85"/>
+    </g>
+  </g>
+  </g>
+  <g data-part="dome">
+    <g clip-path="url(#gf-jest-top-dome)">
+      <rect x="0" y="5" width="32" height="60" fill="currentColor" data-color-source="currentColor"/>
+      <rect x="32" y="5" width="32" height="60" fill="#f3bd1f"/>
+      <path d="M32 8 V58" fill="none" stroke="#2c2108" stroke-width="1" stroke-opacity=".85"/>
+      <ellipse cx="32" cy="33" rx="24" ry="24" fill="url(#gf-jest-top-shade)"/>
+      <path d="M13 26 C15 18 21 13 28 11.5" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-opacity=".65"/>
+    </g>
+    <ellipse cx="32" cy="33" rx="24" ry="24" fill="none" stroke="#2c2108" stroke-width="1.1"/>
+    <ellipse cx="32" cy="33" rx="21" ry="21" fill="none" stroke="#2c2108" stroke-width="4.6" stroke-opacity=".85"/>
+    <ellipse cx="32" cy="33" rx="21" ry="21" fill="none" stroke="#f3bd1f" stroke-width="3.2"/>
+    <g data-color-source="currentColor" stroke="#101925" stroke-width=".8" stroke-opacity=".85">
+      <polygon points="32,9.6 35,12.3 32,15 29,12.3" fill="currentColor"/>
+      <polygon points="53,33 55.7,36 53,39 50.3,36" fill="currentColor" transform="translate(0 -3)"/>
+      <polygon points="32,51 35,53.7 32,56.4 29,53.7" fill="currentColor"/>
+      <polygon points="11,33 13.7,36 11,39 8.3,36" fill="currentColor" transform="translate(0 -3)"/>
+    </g>
+    <circle cx="32" cy="33" r="3.6" fill="url(#gf-jest-top-bell)" stroke="#5a3f00" stroke-width=".8"/>
+  </g>
+</g>
+</svg>
