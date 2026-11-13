@@ -2685,6 +2685,11 @@ assert.match(source,/const touchZone=btn.parentElement\?\.classList\?\.contains\
  const api=ui.scope.window.__ghostTest,r=api.getRound();
  assert.equal(r.mode,'ghost');
  assert.equal(ui.elements.get('botGhostIdsBtn').classList.contains('hidden'),false);
+ assert.equal(ui.elements.get('botTestControls').classList.contains('hidden'),false,
+  'GHOST inspector remains accessible on right before possessing a bot');
+ assert.equal(ui.elements.get('botTestStick').classList.contains('hidden'),true,
+  'GHOST inspection must not steal the left half of the game');
+ assert.equal(ui.elements.get('botTestPad').classList.contains('ghost-only'),true);
  assert.equal(ui.elements.get('ghostMapInspector').classList.contains('hidden'),true);
  assert.equal(r.ghost.showObstacleIds,false);
  const original=JSON.stringify(r.ghost.obstacles);
