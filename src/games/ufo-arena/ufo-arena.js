@@ -566,6 +566,8 @@ function draw(g,time,round,ps){
    tx:d.tx,ty:d.ty,thrust:d.thrust,flash:d.flash,alpha:blink?.35:1});
  }
  drawFx(g,s,'over');
+ // Keep names on individual craft; the health hearts stay in their arena-rim HUD.
+ for(const p of alive)window.PartyCharacters?.drawName?.(g,p,{offsetY:50*u,fontSize:Math.max(11,12*u),maxWidth:95*u});
  drawRoster(g,s,ps);
  g.restore();
 }
