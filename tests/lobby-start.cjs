@@ -55,11 +55,28 @@ assert.match(html,/<input id="autoNext"[^>]*hidden/,'underlying auto-next prefer
 assert.match(css,/#hostLobby \.lobby-controls>\.lobby-room-actions/,'buttons positioned on right');
 assert.match(source,/msg\.t==='lobby-ready'/,'host listens for controller-ready packets');
 assert.doesNotMatch(source,/send\(controllerConn,\{t:'lobby-ready'\}\)/,
- 'controller A must not cast ready outside Party Plaza READY zone');
+ 'controller A must not cast ready outside authoritative Party Plaza input');
 assert.match(source,/window\.PartyPlaza\?\.configure\(/,
  'lobby zones must be wired into the existing host controller');
-assert.match(source,/case 'ready_area':/,
- 'READY interaction triggers the existing vote path');
+assert.doesNotMatch(source,/case 'ready_area':/,
+ 'the old physical READY pad no longer exists');
+assert.match(source,/if\(typeof window!=='undefined'&&window\.PartyPlaza\?\.zoneAt\(p\)\)return false;/,
+ 'A can toggle ready only in free lobby space without overriding stations');
+assert.match(source,/if\(!z\)\{[\s\S]*?castLobbyReadyVote\(p\.conn\)/,
+ 'A in empty lobby space retains ready vote functionality');
+const plazaLayout=JSON.parse(fs.readFileSync(path.join(root,'src/lobby/lobby-zones.json'),'utf8'));
+assert.ok(!plazaLayout.zones.some(z=>z.id==='ready_area'||z.id==='room_corner'),
+ 'no obsolete physical READY/room-popup zones remain');
+assert.match(html,/id="plazaCenterQrBtn"/,
+ 'one central tappable QR replaces the READY disc');
+assert.match(html,/id="qrBox"/,
+ 'existing QR generator targets the central button');
+assert.match(source,/\$\('plazaCenterQrBtn'\)\.addEventListener\('click',copyInvite\)/,
+ 'tapping the central QR copies the room invite');
+assert.match(css,/\.plaza-center-qr-btn\{/,
+ 'central QR has an opaque round backing that masks old READY artwork');
+assert.match(html,/id="plazaRoomToggle"[^>]*hidden/,
+ 'the redundant top QR button is no longer shown');
 
 // The shared host palette must stay distinct at every room size. Verify actual
 // app.js source rather than copying a second palette into the tests.
