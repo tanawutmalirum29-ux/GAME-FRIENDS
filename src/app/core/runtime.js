@@ -570,6 +570,7 @@ function setView(view) {
   currentView=view;
   if(view==='game')markArenaResolutionDirty();
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
+  document.documentElement.classList.remove('gf-boot-controller');
   document.body.classList.toggle('host-playing',view==='game');
   if(view==='hostLobby'){
    if(window.PartyPlaza?.isReady?.())hideTransitionLoading();

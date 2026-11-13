@@ -4,6 +4,15 @@
   <meta charset="utf-8">
   <meta id="viewportMeta" name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d1122">
+  <script>
+    // Correct FIRST paint even when app-controller.js takes time to load.
+    if(new URLSearchParams(location.search).get('host')!=='1')
+      document.documentElement.classList.add('gf-boot-controller');
+  </script>
+  <style>
+    html.gf-boot-controller #home{display:none!important}
+    html.gf-boot-controller #controller{display:flex!important}
+  </style>
   <meta name="description" content="GAME FRIENDS เกมปาร์ตี้แบบเพิ่มมินิเกมอัตโนมัติ เล่นได้สูงสุด 12 คน ผ่านมือถือเป็นจอย">
   <title>GAME FRIENDS | Multiplayer Party Games</title>
   <link rel="icon" type="image/svg+xml" sizes="any" href="./assets/game-friends-icon.svg">
@@ -164,7 +173,7 @@
           <button id="startBtn" class="btn btn-green" type="button" disabled>สุ่มและเริ่มเล่น ▶</button>
         </div>
       </div>
-      <div id="plazaZoneHint" class="plaza-zone-hint" aria-live="polite">เดินด้วยจอย • ไปที่จุดต่าง ๆ แล้วกด A</div>
+
     </main>
 
     <main id="game" class="game-page hidden" aria-label="จอเกมเต็มหน้าจอ">

@@ -168,13 +168,44 @@ const server=http.createServer((req,res)=>{
   assert.equal(scanned.rotated,false,'camera must not inherit virtual landscape CSS rotation');
   assert.ok(Math.abs(scanned.size[0]-390)<2&&Math.abs(scanned.size[1]-844)<2,
    'QR overlay matches real device portrait bounds: '+JSON.stringify(scanned));
-  assert.equal(scanned.frame.width,210);
-  assert.equal(scanned.frame.height,210);
+  assert.equal(scanned.frame.width,252);
+  assert.equal(scanned.frame.height,252);
   await phone.locator('#cancelScanBtn').evaluate(button=>button.click());
   await phone.waitForFunction(()=>document.body.classList.contains('gf-virtual-landscape'),
    null,{timeout:8000});
   assert.equal(await phone.locator('#roomScannerPanel').isVisible(),false);
   assert.deepEqual(phoneErrors,[],'QR camera fallback must not cause page errors');
+  // On Android, native QR decoding should start WITHOUT fetching html5-qrcode
+  // and should release the camera when the player closes the scanner.
+  await phone.evaluate(()=>{
+   window.Html5Qrcode=undefined;
+   window.__qrNativeStarts=0;
+   window.BarcodeDetector=class {
+    static async getSupportedFormats(){return ['qr_code'];}
+    constructor(options){if(options.formats[0]!=='qr_code')throw Error('format');}
+    async detect(){return [];}
+   };
+   const media=new MediaStream();
+   Object.defineProperty(navigator,'mediaDevices',{configurable:true,
+    value:{getUserMedia:async spec=>{
+     window.__qrNativeStarts++;
+     window.__qrNativeCamera=spec.video;
+     return media;
+    }}});
+   HTMLMediaElement.prototype.play=function(){return Promise.resolve();};
+  });
+  await phone.locator('#scanRoomBtn').evaluate(button=>button.click());
+  await phone.waitForFunction(()=>!!document.querySelector('#roomQrReader video.gf-native-qr-video'),
+   null,{timeout:8000});
+  assert.equal(await phone.evaluate(()=>window.__qrNativeStarts),1,
+    'native scanning starts once without downloading an external QR library');
+  assert.equal(await phone.evaluate(()=>window.__qrNativeCamera.facingMode.ideal),
+    'environment','scanner prefers the rear camera');
+  await phone.locator('#cancelScanBtn').evaluate(button=>button.click());
+  await phone.waitForFunction(()=>!document.querySelector('#roomQrReader video.gf-native-qr-video'),
+   null,{timeout:8000});
+  assert.equal(await phone.locator('#roomScannerPanel').isVisible(),false);
+  assert.deepEqual(phoneErrors,[],'native QR scanner setup and cleanup have no errors');
   await phone.close();
   await page.evaluate(()=>window.__lazyGameTest.beginGameSelection('ghost'));
   const initialSelection=await page.evaluate(()=>({

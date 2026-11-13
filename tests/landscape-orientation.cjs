@@ -116,6 +116,27 @@ assert.match(controller,/syncLandscapePresentation\(\);[\s\S]*?await releaseQrSe
 assert.match(controller,/session\.reader\.start\(\{facingMode:'environment'\},\{/);
 assert.match(controller,/qrbox:\(width,height\)=>/,
  'camera scan region must adapt to real sensor dimensions');
+assert.match(controller,/new Detector\(\{formats:\['qr_code'\]\}\)/,
+ 'native Android BarcodeDetector is first choice when available');
+assert.match(controller,/session\.stream=stream/,
+ 'native scanner owns and closes its media stream');
+assert.match(controller,/await startNativeRoomScanner\(session\)/,
+ 'scanner starts without waiting for an external QR script on supported phones');
+assert.match(controller,/startFallbackRoomScanner\(session\)/,
+ 'unsupported devices still use the compatible html5-qrcode fallback');
+const mainHtml=fs.readFileSync('index.html','utf8');
+const controllerBootIndex=mainHtml.indexOf("classList.add('gf-boot-controller')");
+const hostDomIndex=mainHtml.indexOf('<main id="home"');
+assert.ok(controllerBootIndex>0&&hostDomIndex>controllerBootIndex,
+ 'controller role is selected before the Host home can be painted');
+assert.doesNotMatch(mainHtml,/id="plazaZoneHint"/,
+ 'no stale HOST hint at the bottom-left of PARTY PLAZA');
+for(const manifest of ['manifest.webmanifest','host.webmanifest']){
+ const m=JSON.parse(fs.readFileSync(manifest,'utf8'));
+ assert.equal(m.display,'standalone','iPad PWA retains standalone fallback');
+ assert.ok(m.display_override.includes('fullscreen'));
+}
+
 assert.match(css,/#roomScannerPanel #roomQrReader video\{[\s\S]*?height:auto!important/,
  'scanner video keeps intrinsic aspect rather than stretching to its parent');
 console.log('LANDSCAPE ORIENTATION PASS: physical QR camera, PWA native/fallback switching, world touch, BOARD map and controller fallback');

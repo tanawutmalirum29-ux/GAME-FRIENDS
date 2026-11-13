@@ -22,5 +22,9 @@
       "purpose": "any"
     }
   ],
-  "orientation": "landscape"
+  "orientation": "landscape",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ]
 }

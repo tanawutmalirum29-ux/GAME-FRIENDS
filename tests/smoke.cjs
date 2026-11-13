@@ -157,7 +157,10 @@ assert.equal(appManifest.start_url,'./','controller install still starts at the 
 const hostManifest=JSON.parse(fs.readFileSync('host.webmanifest','utf8'));
 assert.equal(hostManifest.id,'./host.html','HOST is a separate installable Web App');
 assert.equal(hostManifest.start_url,'./host.html','HOST icon opens the stable launch document');
-assert.equal(hostManifest.display,'standalone');
+assert.equal(hostManifest.display,'standalone','iPad Host keeps safe-area standalone fallback');
+assert.equal(appManifest.display,'standalone','iPad Controller keeps safe-area standalone fallback');
+assert.deepEqual(hostManifest.display_override,['fullscreen','standalone']);
+assert.deepEqual(appManifest.display_override,['fullscreen','standalone']);
 assert.notEqual(new URL(hostManifest.start_url,'https://game.example/').href,
  new URL(appManifest.start_url,'https://game.example/').href,
  'controller and host installed shortcuts may not launch the same URL');
