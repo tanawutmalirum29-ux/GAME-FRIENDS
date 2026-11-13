@@ -21,6 +21,17 @@ assert.equal(C.randomBot(()=>0),'white-rope-wrap');
 assert.equal(C.randomBot(()=>.999999),'paper-bag-mask');
 assert.ok(!Array.from({length:100},(_,i)=>C.randomBot(()=>i/100)).includes('none'),
  'every freshly spawned bot receives a random visible outfit');
+const initialOutfits=[];
+for(let seat=0;seat<12;seat++){
+ const costume=C.randomAvailable(initialOutfits,()=>seat/12);
+ assert.notEqual(costume,'none','every room seat starts dressed');
+ assert.ok(!initialOutfits.includes(costume),'all 12 starting outfits must differ');
+ initialOutfits.push(costume);
+}
+assert.equal(new Set(initialOutfits).size,12);
+assert.equal(C.randomBot(()=>0,['white-rope-wrap']),'pirate-hat');
+assert.equal(C.randomAvailable(['white-rope-wrap'],()=>0),'pirate-hat');
+assert.equal(C.randomAvailable(C.IDS.slice(1),()=>0),'white-rope-wrap');
 const colors=[
  'c62222','36d9e5','215a94','d7b000','f53695','f57a00',
  '36d595','000094','009400','b800f5','008484','94004a'
@@ -109,7 +120,12 @@ assert.equal(saved.length,0,'portrait fallback keeps canvas save/restore balance
 portraitImage.naturalWidth=wasReady;
 const host=read('app.js'),plaza=read('src/lobby/party-plaza.js');
 assert.match(host,/p\.cosmetic=cosmetics\.next\(p\.cosmetic\)/);
-assert.match(host,/cosmetic:type==='local'\?\(window\.PartyCosmetics\?\.randomBot/);
+assert.match(host,/randomAvailable\?\.\(players\.map\(p=>p\.cosmetic\)\)/,
+ 'bot and human seats share unique random costume allocation');
+assert.match(host,/const reservedCosmetics=new Set/,
+ 'restore preserves saved visible outfits before migrating older seats');
+assert.match(host,/claimedCosmetics\.add\(cosmetic\)/,
+ 'restoring a room repairs duplicate and bare outfits');
 assert.match(host,/bp\.cosmetic=window\.PartyCosmetics/);
 assert.match(plaza,/if\(b&&!p\.plazaBPressed\)/);
 assert.match(plaza,/zone\?\.id==='wardrobe'/);

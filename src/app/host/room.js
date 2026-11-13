@@ -8,11 +8,13 @@ function makePlayer(name,type,conn) {
   if(players.length>=MAX_PLAYERS)return null;
   const color=pickUnusedColor();
   if(!color)return null;
+  // Assign every new bot AND remote player a distinct visible starting outfit.
+  const cosmetic=(typeof window!=='undefined'?window.PartyCosmetics?.randomAvailable?.(players.map(p=>p.cosmetic)):null)||'white-rope-wrap';
   const p={id:'p'+nextId++,name:cleanName(name),type,color,conn:conn||null,
     input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,score:0,total:0,
     choice:type==='local'?'ghost':null,
     ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
-    cosmetic:type==='local'?(window.PartyCosmetics?.randomBot?.()||'none'):'none',
+    cosmetic,
     isBot:type==='local'};
   players.push(p);renderRoster();return p;
 }

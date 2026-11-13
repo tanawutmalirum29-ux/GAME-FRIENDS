@@ -471,6 +471,10 @@ function savePhone(){
 function restorePlayers(list){
  if(!Array.isArray(list)||list.length>MAX_PLAYERS)return;
  const originalColors=new Set(),ids=new Set();
+ const cosmetics=typeof window!=='undefined'?window.PartyCosmetics:null;
+ // Reserve valid saved choices before migrating an undressed or duplicate seat.
+ const reservedCosmetics=new Set(list.map(p=>cosmetics?.normalize?.(p?.cosmetic)).filter(id=>id&&id!=='none'));
+ const claimedCosmetics=new Set();
  players=[];
  for(const a of list){
   if(!a||!/^p\d+$/.test(String(a.id))||ids.has(a.id)||
@@ -484,12 +488,16 @@ function restorePlayers(list){
    ?savedColor:pickUnusedColor();
   if(!color)continue;
   ids.add(a.id);originalColors.add(savedColor);
+  const savedCosmetic=cosmetics?.normalize?.(a.cosmetic)||'none';
+  const cosmetic=savedCosmetic!=='none'&&!claimedCosmetics.has(savedCosmetic)
+    ?savedCosmetic
+    :cosmetics?.randomAvailable?.(new Set([...reservedCosmetics,...claimedCosmetics]))||'white-rope-wrap';
+  claimedCosmetics.add(cosmetic);
   players.push({id:a.id,name:cleanName(a.name),color,type:a.type,
    clientToken:a.token||null,conn:null,input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,
    score:0,total:Number(a.total)||0,choice:Object.hasOwn(MODES,a.choice)?a.choice:null,
    ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
-    cosmetic:(typeof window!=='undefined'&&window.PartyCosmetics?.IDS?.includes(a.cosmetic))?a.cosmetic:
-      a.type==='local'?(typeof window!=='undefined'?(window.PartyCosmetics?.randomBot?.()||'none'):'none'):'none',
+    cosmetic,
     isBot:a.type==='local'});
  }
  nextId=Math.max(nextId,...players.map(p=>Number(p.id.slice(1))+1));
@@ -1078,11 +1086,13 @@ function makePlayer(name,type,conn) {
   if(players.length>=MAX_PLAYERS)return null;
   const color=pickUnusedColor();
   if(!color)return null;
+  // Assign every new bot AND remote player a distinct visible starting outfit.
+  const cosmetic=(typeof window!=='undefined'?window.PartyCosmetics?.randomAvailable?.(players.map(p=>p.cosmetic)):null)||'white-rope-wrap';
   const p={id:'p'+nextId++,name:cleanName(name),type,color,conn:conn||null,
     input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,score:0,total:0,
     choice:type==='local'?'ghost':null,
     ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
-    cosmetic:type==='local'?(window.PartyCosmetics?.randomBot?.()||'none'):'none',
+    cosmetic,
     isBot:type==='local'};
   players.push(p);renderRoster();return p;
 }
