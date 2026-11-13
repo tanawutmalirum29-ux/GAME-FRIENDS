@@ -142,14 +142,19 @@ function drawName(ctx,p,opts={}){
  const maxWidth=Number.isFinite(opts.maxWidth)?opts.maxWidth:94;
  ctx.save();
  ctx.font='800 '+fontSize+'px system-ui,sans-serif';
+ const measured=value=>{
+  if(typeof ctx.measureText==='function'){
+   const metrics=ctx.measureText(value);
+   if(Number.isFinite(metrics?.width))return metrics.width;
+  }
+  return Array.from(value).length*fontSize*.62;
+ };
  const units=Array.from(raw);
  let name=raw;
- if(typeof ctx.measureText==='function'){
-  while(name.length>1&&ctx.measureText(name).width>maxWidth-12){
-   units.pop();name=units.join('')+'…';
-  }
+ while(units.length>1&&measured(name)>maxWidth-12){
+  units.pop();name=units.join('')+'…';
  }
- const width=Math.min(maxWidth,Math.max(26,(typeof ctx.measureText==='function'?ctx.measureText(name).width:name.length*fontSize*.6)+13));
+ const width=Math.min(maxWidth,Math.max(26,measured(name)+13));
  const height=fontSize+8;
  let left=x-width/2,top=y-offset-height;
  const occupied=nameRects.get(ctx);
