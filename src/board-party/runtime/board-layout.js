@@ -173,6 +173,19 @@ function remodelDesign(){
   if(!fits(node.position,isl.outline))throw Error('v8 node cannot fit on island '+node.id);
  }
 
+ // Restore legible separation at converging roads and bridge entrances.
+ // Only EXISTING bridge checkpoints move: node IDs and edges stay untouched.
+ // Keep this before allNodePositions/road segment sync so art and physics agree.
+ const bridgeClearance={
+  xba_1:[6710,2300],xba_2:[6580,2200],xba_5:[6050,1970],
+  xgl_6:[5945,5267],xmw_1:[2872,1400],xmw_4:[2958,1823],
+  xmw_8:[3230,2430],xwf_1:[3825,2538],xwla_1:[3881,2727]
+ };
+ for(const [id,[x,y]] of Object.entries(bridgeClearance)){
+  const n=find(id);
+  if(!n||n.islandId||!n.bridgeId)throw Error('Cannot relocate non-bridge tile '+id);
+  n.position={x,y};
+ }
  // All v7 bridge swords were single tiles, often in narrow water sections.
  // Replace them with four readable two-tile courts on distinct islands.
  const oldSingles=new Set(D.newNodes.filter(n=>n.type==='sword').map(n=>n.id));
@@ -216,7 +229,10 @@ function remodelDesign(){
   // bridge have one deliberate grade-separated crossing. Mark the upper
   // viaduct visually so players cannot mistake it for a walking junction.
   D.overpasses.push({x:5270,y:4821,upper:'n134>n135',crossesOld:true});
-  D.overpasses.push({x:6066,y:5341,upper:'xgl_6>g4',crossesOld:false});
+  const glacierEnd=D.allNodePositions.xgl_6,gingerEntry=D.allNodePositions.g4;
+  D.overpasses.push({x:Math.round((glacierEnd.x+gingerEntry.x)/2),
+   y:Math.round((glacierEnd.y+gingerEntry.y)/2),
+   upper:'xgl_6>g4',crossesOld:false});
  }
 }
 remodelDesign();
