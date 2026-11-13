@@ -3,6 +3,7 @@
    of running 12 independent Dijkstra searches over nearly identical obstacles.
    Each bot still has independent replan timing, steering and crowd avoidance. */
 import {C,clamp,Heap,NB,NBX,NBY,NBL} from './config.js';
+import {obstacleContact} from './map.js';
 const HEAP=new Heap(),QB=[];   // one shared heap + scratch list: fields are built one at a time
 export const BOT_NAV_CELL=10; // Original fidelity restored (was increased to 16 for speed).
 const WINDOW=420,SECTION=180,MAX_FIELD_AGE=.34,AVOID_RADIUS=66;
@@ -24,15 +25,16 @@ function buildField(s,x0,old){
   if(y<top+C.R||y>tr.bottom-C.R)blocked.fill(1,j*nc,(j+1)*nc);
  }
  for(const o of tr.query(x0-42,x1+42,QB)){
-  const r=o.shape==='circle'?o.r:0;
-  const ex=(r||o.hw)+R,ey=(r||o.hh)+R;
+  const r=o.shape==='circle'?o.r:0,a=o.angle||0,cs=Math.abs(Math.cos(a)),sn=Math.abs(Math.sin(a));
+  const ex=(r||cs*o.hw+sn*o.hh)+R,ey=(r||sn*o.hw+cs*o.hh)+R;
   const i0=Math.max(0,Math.floor((o.x-ex-x0)/BOT_NAV_CELL)),i1=Math.min(nc-1,Math.floor((o.x+ex-x0)/BOT_NAV_CELL));
   const j0=Math.max(0,Math.floor((o.y-ey-top)/BOT_NAV_CELL)),j1=Math.min(nr-1,Math.floor((o.y+ey-top)/BOT_NAV_CELL));
   for(let j=j0;j<=j1;j++){
    const y=top+(j+.5)*BOT_NAV_CELL,ay=Math.max(Math.abs(y-o.y)-(r||o.hh),0);
    for(let i=i0;i<=i1;i++){
     const x=x0+(i+.5)*BOT_NAV_CELL,ax=Math.max(Math.abs(x-o.x)-(r||o.hw),0);
-    const inside=o.shape==='circle'?(x-o.x)**2+(y-o.y)**2<(r+R)**2:ax*ax+ay*ay<R*R;
+    const inside=o.shape==='circle'?(x-o.x)**2+(y-o.y)**2<(r+R)**2:
+     a?obstacleContact(o,x,y).gap<R:ax*ax+ay*ay<R*R;
     if(inside)blocked[j*nc+i]=1;
    }
   }
