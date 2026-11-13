@@ -127,6 +127,14 @@
       "height": 104
     },
     {
+      "id": "color-studio-shop",
+      "type": "rect",
+      "x": 69,
+      "y": 342,
+      "width": 150,
+      "height": 53
+    },
+    {
       "id": "room-booth",
       "type": "rect",
       "x": 762,
