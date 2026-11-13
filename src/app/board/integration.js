@@ -188,6 +188,9 @@ function prewarmBoardCore(){
 }
 let boardCatalogPending=false,boardCorePending=null;
 function beginBoard(){
+  // Fully mask unfinished on-demand board/map assembly.
+  if(transitionLoadingKind!=='board')
+   showTransitionLoading('board','กำลังสร้างแผนที่บอร์ดเกม','กำลังเตรียมเกาะ เส้นทาง และระบบ BOARD PARTY...');
   const platform=window.GamePlatform;
   // Production no longer downloads legacy minigame engines at initial page load.
   // Wait for the versioned registry rather than mistaking them for missing games.
@@ -196,11 +199,14 @@ function beginBoard(){
     boardCatalogPending=true;
     void platform.refresh().then(()=>{
       boardCatalogPending=false;
-      if(currentView!=='hostLobby'||selectedSessionMode!=='board'||!players.length)return;
+      if(currentView!=='hostLobby'||selectedSessionMode!=='board'||!players.length){
+       hideTransitionLoading('board');return;
+      }
       if(platform.revision)beginBoard();
-      else showToast('กำลังรอรายชื่อมินิเกมจากเซิร์ฟเวอร์',true);
+      else{hideTransitionLoading('board');showToast('กำลังรอรายชื่อมินิเกมจากเซิร์ฟเวอร์',true);}
     }).catch(error=>{
       boardCatalogPending=false;
+      hideTransitionLoading('board');
       showToast('โหลดรายชื่อมินิเกมไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
     });
     return;
@@ -209,24 +215,27 @@ function beginBoard(){
   const core=window.BoardRuntime;
   if(core&&!core.ready()){
     if(boardCorePending)return boardCorePending;
-    showToast('กำลังเตรียม BOARD PARTY • เปิดเกมให้อัตโนมัติเมื่อพร้อม');
+    $('transitionLoadingDetail').textContent='กำลังโหลดระบบแผนที่ BOARD PARTY...';
     const sessionMode=selectedSessionMode;
     boardCorePending=core.ensure().then(()=>{
       boardCorePending=null;
       if(currentView==='hostLobby'&&!round&&!boardSession&&players.length&&
          selectedSessionMode===sessionMode)return beginBoard();
+      hideTransitionLoading('board');
     }).catch(error=>{
       boardCorePending=null;
+      hideTransitionLoading('board');
       console.error('BOARD PARTY asset load failed',error);
       showToast('โหลด BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
     });
     return boardCorePending;
   }
   const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt','PartyPlayerAvatar'];
-  if(required.some(name=>!window[name])){showToast('โหลด BOARD PARTY ไม่ครบ กรุณาโหลดหน้าใหม่',true);return;}
-  if(!window.BoardMinigame.eligible(boardRegistry(),players.length).length){showToast('ไม่มีมินิเกมที่พร้อมเล่น',true);return;}
+  if(required.some(name=>!window[name])){hideTransitionLoading('board');showToast('โหลด BOARD PARTY ไม่ครบ กรุณาโหลดหน้าใหม่',true);return;}
+  if(!window.BoardMinigame.eligible(boardRegistry(),players.length).length){hideTransitionLoading('board');showToast('ไม่มีมินิเกมที่พร้อมเล่น',true);return;}
   try{
     tournament=null;gameSelection=null;
+    $('transitionLoadingDetail').textContent='กำลังสร้างเกาะและตำแหน่งช่องเดิน...';
     boardSession=window.BoardParty.create(players);
     // BOARD makes its own player copies: pass visual wardrobe identity through
     // without modifying the generated BOARD engine or its gameplay rules.
@@ -243,6 +252,7 @@ function beginBoard(){
     window.PartyPlayerAvatar.preload(boardSession.players);
     showBoard();warmBoardGames();requestHostFullscreen();
   }catch(error){
+    hideTransitionLoading('board');
     console.error('BOARD PARTY start failed',error);returnToLobby();
     showToast('เริ่ม BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
   }
@@ -299,6 +309,11 @@ function showBoard(){
   // Paint the order/result screen in the Start event itself. Safari can delay
   // its first animation frame during fullscreen; old minigame clips must not survive.
   canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
+  // Keep the curtain over partial maps until at least one completed paint.
+  if(transitionLoadingKind==='board'){
+   requestAnimationFrame(()=>hideTransitionLoading('board'));
+   setTimeout(()=>hideTransitionLoading('board'),150); // WebKit/hidden-tab rAF fallback.
+  }
   renderLeaderboard();broadcastRoster();renderBotTestPad();
   remotePreviewClock=1.1;
   for(const conn of hostConnections){startHostVideoCall(conn);sendBoardMiniMap(conn);}
