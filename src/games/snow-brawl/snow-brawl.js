@@ -1,7 +1,8 @@
 /* SNOW BRAWL — host-authoritative 60Hz island survival.
  * Snowball weight NEVER modifies walking speed.
  * Released snowballs have NO surface/rolling friction: constant size-based
- * speed until impact, water exit or expiry. Smallest/fastest <= 1.5x largest.
+ * speed until impact, island-edge exit or expiry. Carried snowballs remain
+ * intact at the island rim. Smallest/fastest <= 1.5x largest.
  */
 (()=>{
 'use strict';
@@ -327,6 +328,15 @@ function resolveBodies(s,ps){
    if(d>=C.playerRadius*2)continue;
    const n=normal(dx,dy,i<j?1:-1,0);
    const overlap=C.playerRadius*2-d;
+   // Flattened players ignore contact; push only the mobile participant
+   // out of the overlap. No extra momentum or reposition on the victim.
+   if(a.snow.flat>0||b.snow.flat>0){
+    if(a.snow.flat>0&&b.snow.flat>0)continue;
+    const gap=overlap+1e-6;
+    if(a.snow.flat>0){b.x+=n.x*gap;b.y+=n.y*gap;}
+    else{a.x-=n.x*gap;a.y-=n.y*gap;}
+    continue;
+   }
    const correct=overlap*.51;
    a.x-=n.x*correct;a.y-=n.y*correct;
    b.x+=n.x*correct;b.y+=n.y*correct;
@@ -351,9 +361,15 @@ function contactTime(a,b,r){
  return t>=0&&t<=1?t:Infinity;
 }
 function hitBallPlayer(s,ball,p){
- // A pushed snowball remains attached after crushing a player. While the
- // target has crush immunity, ignore repeated held-ball contact entirely:
- // otherwise the same surviving snowball would apply knockback every tick.
+ // A flattened victim takes no further hits from carried or released balls.
+ // Released projectiles still shatter, but do not inflict force or refresh
+ // the flatten timer. This lasts only while physically flattened.
+ if(p.snow.flat>0){
+  if(ball.state==='ROLLING')destroy(s,ball);
+  return;
+ }
+ // The carried ball persists; prevent repeated crush after rising while the
+ // existing one-second immunity window has not yet expired.
  if(ball.state!=='ROLLING'&&p.snow.flatImmunity>0)return;
  const dx=p.x-ball.x,dy=p.y-ball.y;
  const n=normal(dx,dy,ball.vx,ball.vy);
@@ -370,6 +386,9 @@ function hitBallPlayer(s,ball,p){
  if(ball.state==='ROLLING')destroy(s,ball);
  else if(ball.ownerId!==p.id&&p.snow.flatImmunity<=0){
   p.snow.flat=C.flattenTime;p.snow.flatImmunity=C.flattenTime+C.flattenImmunity;
+  // The first crush leaves half the prior resulting knockback, so the
+  // victim travels 50% less. Further impulses are blocked while flattened.
+  p.kvx*=.5;p.kvy*=.5;
   // The flattened victim drops their held snowball even when hit from a
   // different side. The attacking held snowball DOES NOT break on a person;
   // only actual snowball-to-snowball contact destroys it.
@@ -394,7 +413,7 @@ function ballCollision(s,a,b,t=1){
  for(const ball of [a,b]){
   if(ball.state==='ROLLING')continue;
   const owner=s.roster.find(p=>p.id===ball.ownerId);
-  if(!owner?.snow?.alive)continue;
+  if(!owner?.snow?.alive||owner.snow.flat>0)continue;
   // The launched ball shatters against an unthrown one, but its impact
   // reaches the holder: NO blocking immunity and NO fixed recoil constant.
   // Larger/faster balls deliver more momentum, subject to a safety cap.
@@ -465,12 +484,15 @@ function step(dt,round,ps){
  }
  resolveBodies(s,ps);
  solveBallCollisions(s,ps);
- // Players cannot walk out by themselves. Only other players' snowballs,
- // body-push corrections or knockback may carry them over the protected rim.
+ // Players cannot walk out by themselves. Only already-delivered external
+ // knockback (including the halved initial crush) can carry them past the rim.
  for(const p of alive(ps))if(!inside(s,p.x,p.y,C.playerRadius*.75))eliminate(s,p);
  for(const b of s.balls){
   if(b.state==='DESTROYED')continue;
-  if(!inside(s,b.x,b.y,b.r*.45)||b.age>=b.ttl&&b.state==='ROLLING')destroy(s,b);
+  // A HELD/CHARGING ball must never break just for touching the island rim.
+  // A RELEASED ball still disappears on rim contact or normal expiration.
+  if(b.state==='ROLLING'&&(!inside(s,b.x,b.y,b.r*.45)||b.age>=b.ttl))
+   destroy(s,b);
  }
  s.balls=s.balls.filter(b=>b.state!=='DESTROYED');
  for(const fx of s.effects)fx.life-=dt;

@@ -263,6 +263,63 @@ for(const direction of [1,-1]){
 }
 }
 {
+
+ // Flattened people ignore new held-ball hits, launched snowballs, and body
+ // pushes. Initial crush movement is reduced by half, without repeated kicks.
+ {
+  const g=match(3),[attacker,victim,shooter]=g.ps;
+  attacker.x=-80;attacker.y=0;victim.x=0;victim.y=0;shooter.x=120;shooter.y=0;
+  for(const p of g.ps){p.vx=p.vy=p.kvx=p.kvy=0;p.snow.oldX=p.x;p.snow.oldY=p.y;}
+  attacker.snow.faceX=1;attacker.snow.faceY=0;
+  const ball=G.makeBall(g.s,attacker);
+  ball.oldX=-37;ball.x=-21;ball.oldY=ball.y=0;ball.vx=250;ball.vy=0;
+  G.solveBallCollisions(g.s,g.ps);
+  assert.equal(victim.snow.flat,C.flattenTime);
+  assert.ok(Math.abs(victim.kvx-30.625)<1e-6,'initial crush knockback must be half');
+  const kick=victim.kvx,flat=victim.snow.flat;
+  G.solveBallCollisions(g.s,g.ps);
+  assert.equal(victim.kvx,kick,'a carried ball cannot repeatedly kick flattened player');
+  G.destroy(g.s,ball,false);
+  const shot={id:60009,state:'ROLLING',ownerId:shooter.id,
+   x:-25,y:0,oldX:-40,oldY:0,r:12,mass:G.ballMass(12),
+   vx:320,vy:0,age:0,ttl:5.8,angle:0};
+  g.s.balls.push(shot);G.solveBallCollisions(g.s,g.ps);
+  assert.equal(shot.state,'DESTROYED','fired ball still shatters on contact');
+  assert.equal(victim.kvx,kick,'flattened victim is immune to fired ball knockback');
+  assert.equal(victim.snow.flat,flat,'fired ball cannot restart crush timer');
+  shooter.x=10;shooter.y=0;shooter.vx=-40;shooter.kvx=-30;
+  const x=victim.x;G.resolveBodies(g.s,g.ps);
+  assert.equal(victim.x,x,'body collision cannot move a flattened player');
+  assert.equal(victim.kvx,kick,'body collision cannot add knockback while flat');
+  assert.ok(shooter.x>38,'move the standing player away from the immune victim');
+  attacker.x=-150;attacker.y=0;shooter.x=150;shooter.y=0;
+  tick(g,43);
+  assert.equal(victim.snow.flat,0,'normal movement recovery still occurs');
+  victim.x=victim.y=victim.vx=victim.vy=victim.kvx=victim.kvy=0;
+  const recoveredShot={...shot,id:60010,state:'ROLLING',oldX:-40,x:-25};
+  g.s.balls=[recoveredShot];G.solveBallCollisions(g.s,g.ps);
+  assert.ok(victim.kvx>0,'after standing up, projectiles can hit again');
+ }
+ {
+  // Only HELD snowballs survive hitting the rim; RELEASED shots still break.
+  const g=match(2),p=g.ps[0];
+  p.x=g.s.radius-25;p.y=0;p.vx=p.vy=p.kvx=p.kvy=0;
+  p.snow.faceX=1;p.snow.faceY=0;
+  const held=G.makeBall(g.s,p);
+  tick(g);
+  assert.ok(p.snow.alive);
+  assert.ok(held.x>g.s.radius,'held snowball extends over island edge');
+  assert.equal(held.state,'FORMING','held snowball remains intact on rim');
+  assert.equal(p.snow.ballId,held.id);
+  p.snow.phase='WINDUP';p.snow.windup=.15;held.state='WINDUP';
+  tick(g,2);
+  assert.equal(held.state,'WINDUP','charging snowball remains intact on rim');
+  G.release(g.s,p,held);
+  tick(g);
+  assert.equal(held.state,'DESTROYED','released snowball still breaks at rim');
+  assert.equal(p.snow.ballId,null);
+  assert.ok(held.vx>0,'released projectile must not bounce backward');
+ }
 // True held-ball-to-held-ball contact still breaks BOTH balls, as before.
 const g=match(2),[left,right]=g.ps;
 left.x=-110;left.y=0;right.x=110;right.y=0;
