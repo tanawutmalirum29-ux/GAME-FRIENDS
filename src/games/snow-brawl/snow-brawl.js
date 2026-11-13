@@ -591,6 +591,8 @@ function draw(ctx,time,round,ps){
  for(const p of ps)if(p.snow?.alive&&p.snow.flat>0)drawPerson(ctx,p,time);
  for(const b of s.balls)if(b.state!=='DESTROYED')drawBall(ctx,b);
  for(const p of ps)if(p.snow?.alive&&p.snow.flat<=0)drawPerson(ctx,p,time);
+ // Nameplates are painted after the balls, even when a victim is flattened.
+ for(const p of ps)if(p.snow?.alive)window.PartyCharacters?.drawName?.(ctx,p,{offsetY:p.snow.flat>0?51:44});
  ctx.restore(); // drawIsland leaves a translated/scaled world transform
  // Extra mode/status banners removed; shared centre badge is the only HUD.
  ctx.restore();
