@@ -1702,8 +1702,12 @@ assert.match(css,/#hostLobby \.lobby-roster \.roster-pick\.picked\{[\s\S]*?heigh
    assert.ok(row.children[1].textContent.includes('คะแนน'),'each row shows total score');
  });
  assert.equal(rows[0].classList.contains('is-winner'),true,'first place is highlighted');
- assert.match(rows[0].children[2].innerHTML,/data-view="front"/,
-   'result banner portrait uses the clean vector front-view mask');
+ assert.equal(rows[0].children[2].className,'result-avatar',
+   'ranking avatar retains its medal slot');
+ assert.equal(rows[0].children[2].children[0].className,'result-avatar-face',
+   'the base portrait uses a separate circular face layer');
+ assert.match(rows[0].children[2].children[0].innerHTML,/data-view="front"/,
+   'the portrait inside the ring remains the clean vector front-view mask');
  assert.equal(rows[0].children[3].textContent,'1ST',
    'large metallic ranking number appears beside the portrait');
  assert.equal(rows[1].children[3].textContent,'2ND');

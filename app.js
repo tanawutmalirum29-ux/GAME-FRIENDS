@@ -3942,6 +3942,44 @@ function renderResultVotes(sendUpdate=false){
   }
 }
 
+// Map the canonical in-game front-hat rectangle to this responsive portrait.
+ // Clamp unusually tall hats to ~25% protrusion so 9–12-player rows remain legible.
+function resultHatProjection(front){
+ const [dx,dy,w,h]=front;
+ const scale=Math.min(1,72/Math.max(72,-dy));
+ const percent=v=>(100*v/96)+'%';
+ // Nudge upward by 7 source units so even close-fitting wraps rise above
+ // the ring; the face itself stays centered and clipped inside the circle.
+ return {left:percent(48+dx*scale),top:percent(41+dy*scale),
+  width:percent(w*scale),height:percent(h*scale)};
+}
+function renderResultAvatar(p,portrait){
+ const cosmetics=window.PartyCosmetics;
+ const cosmetic=cosmetics?.normalize?.(p?.cosmetic)||'none';
+ const key=String(p?.color||'')+'/'+cosmetic;
+ if(portrait.dataset.visualKey===key)return;
+ portrait.dataset.visualKey=key;
+ const face=document.createElement('div');
+ face.className='result-avatar-face';
+ face.innerHTML=window.PartyPlayerAvatar?.svgForFront(p.color)||'';
+ portrait.replaceChildren(face);
+ const spec=cosmetics?.ASSETS?.[cosmetic];
+ if(!spec?.front)return; // An intentionally uncostumed player keeps the ring.
+ const source=cosmetics.imageFor?.(p,'front');
+ if(!source)return;
+ const hat=document.createElement('img');
+ hat.className='result-avatar-hat';hat.alt='';hat.draggable=false;
+ hat.decoding='async';hat.setAttribute('aria-hidden','true');
+ const projection=resultHatProjection(spec.front);
+ for(const [property,value]of Object.entries(projection))hat.style[property]=value;
+ portrait.append(hat);
+ const sync=()=>{
+  if(portrait.dataset.visualKey===key&&source.naturalWidth>0&&source.src)
+   hat.src=source.src;
+ };
+ if(source.complete&&source.naturalWidth>0)sync();
+ else source.addEventListener?.('load',sync,{once:true});
+}
 function layoutFinalResults(){
   // Keep legacy label/score nodes first: voting, accessibility and game engines
   // consume those. The new vector portrait and rank plaque are decorative.
@@ -4007,8 +4045,8 @@ function layoutFinalResults(){
       portrait.className='result-avatar';portrait.setAttribute('aria-hidden','true');
       row.append(portrait);
     }
-    // The SVG is locally authored, colors strictly match the validated player.
-    portrait.innerHTML=window.PartyPlayerAvatar?.svgForFront(p.color)||'';
+    // Keep the face clipped to the medal while the actual outfit extends above it.
+    renderResultAvatar(p,portrait);
     let badge=Array.from(row.children).find(x=>x.className==='result-ordinal');
     if(!badge){
       badge=document.createElement('div');

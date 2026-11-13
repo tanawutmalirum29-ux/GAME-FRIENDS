@@ -140,6 +140,45 @@ scope.window.PartyPlayerAvatar.drawFront(fallbackCanvas,player,120,90,60);
 assert.equal(accessoryDepth,0,'portrait fallback restores local transform before outfit overlay');
 assert.equal(saved.length,0,'portrait fallback keeps canvas save/restore balanced');
 portraitImage.naturalWidth=wasReady;
+// The results medal clips only the body, and the actual wardrobe SVG is
+// positioned above the circular border without changing the 1–12-card grid.
+const resultSource=read('src/app/rounds/results.js');
+const resultStart=resultSource.indexOf('function resultHatProjection(');
+const resultEnd=resultSource.indexOf('function layoutFinalResults(',resultStart);
+assert.ok(resultStart>=0&&resultEnd>resultStart,'results include hat projection and mount');
+const fakeElement=()=>({dataset:{},style:{},children:[],setAttribute(){},
+ replaceChildren(...items){this.children=items;},append(item){this.children.push(item);}});
+const medalScope=vm.createContext({window:scope.window,
+ document:{createElement:()=>fakeElement()}});
+vm.runInContext(resultSource.slice(resultStart,resultEnd)+
+ '\nthis.render=renderResultAvatar;this.projection=resultHatProjection;',medalScope);
+const medal=fakeElement();
+medalScope.render(player,medal);
+assert.equal(medal.children.length,2,'dressed results portraits have face and hat layers');
+assert.equal(medal.children[0].className,'result-avatar-face');
+assert.match(medal.children[0].innerHTML,/<svg/,'canonical face is inside the ring');
+assert.equal(medal.children[1].className,'result-avatar-hat');
+assert.ok(medal.children[1].src.endsWith('/pirate-hat/colors/front-36d9e5.svg'),
+ 'the results hat uses the exact in-game front asset');
+assert.ok(parseFloat(medal.children[1].style.top)<0,
+ 'pirate hat crosses the circular frame');
+const wrapMedal=fakeElement();
+medalScope.render({...player,cosmetic:'white-rope-wrap'},wrapMedal);
+assert.ok(parseFloat(wrapMedal.children[1].style.top)<0,
+ 'close-fitting hats also protrude above the frame');
+const tall=medalScope.projection(C.ASSETS['wizard-hat'].front);
+assert.ok(parseFloat(tall.top)<0&&parseFloat(tall.top)>=-35,
+ 'tall hats remain visible without flooding neighboring rows');
+const bareMedal=fakeElement();
+medalScope.render({...player,cosmetic:'none'},bareMedal);
+assert.equal(bareMedal.children.length,1,'bare players have no costume overlay');
+const medalCss=read('style.css');
+assert.match(medalCss,/#game #resultList>\.result-player\{overflow:visible!important\}/,
+ 'the ranking row does not crop protruding hats');
+assert.match(medalCss,/\.result-avatar-face\{[\s\S]*?overflow:hidden!important/,
+ 'only the face is clipped inside the circular medal');
+assert.match(medalCss,/\.result-avatar-hat\{[\s\S]*?position:absolute/,
+ 'hat overlays do not modify the ranking layout');
 const host=read('app.js'),plaza=read('src/lobby/party-plaza.js');
 assert.match(host,/p\.cosmetic=cosmetics\.next\(p\.cosmetic\)/);
 assert.match(host,/randomAvailable\?\.\(players\.map\(p=>p\.cosmetic\)\)/,

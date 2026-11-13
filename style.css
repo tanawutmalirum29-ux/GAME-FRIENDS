@@ -6399,3 +6399,28 @@ body.controller-playing #controller .phone-game-choices{
 @media(max-height:420px){.transition-loading-card{gap:6px;padding:9px 16px}
  .transition-loading-orbit{width:40px;height:40px;margin:0}
  .transition-loading-card h2{font-size:18px}}
+
+/* RESULTS — the medal clips only the face; the actual costume sits on top.
+   Keep the 1–12-player grid dimensions and portrait resolution unchanged. */
+#game #resultList>.result-player{overflow:visible!important}
+#game #resultList>.result-player>.result-avatar{
+ position:relative;z-index:1;isolation:isolate;display:block;
+ padding:0;border:0;background:none;box-shadow:none;
+ overflow:visible!important;
+}
+#game #resultList>.result-player>.result-avatar>.result-avatar-face{
+ position:relative;z-index:1;display:grid;place-items:center;
+ width:100%;height:100%;box-sizing:border-box;
+ padding:3px;border:clamp(2px,.28vw,4px) solid #ffcf68;
+ border-radius:50%;overflow:hidden!important;
+ background:radial-gradient(circle at 40% 35%,#d0f8ff,#66b1e5);
+ box-shadow:inset 0 0 0 2px #fff6,0 0 0 1px #8b5e1f,0 0 10px #ffdc6a85;
+}
+#game #resultList>.result-player>.result-avatar>.result-avatar-face svg{
+ width:100%;height:100%;display:block;overflow:hidden;
+}
+#game #resultList>.result-player>.result-avatar>.result-avatar-hat{
+ position:absolute;z-index:2;display:block;
+ object-fit:fill;max-width:none;max-height:none;
+ pointer-events:none;user-select:none;
+}
