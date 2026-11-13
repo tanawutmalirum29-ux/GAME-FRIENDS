@@ -392,10 +392,27 @@ const luckyPlayer=lucky.players[0],tile=lucky.map.luckyTileIds[0];
 luckyPlayer.currentNodeId=tile;
 P.land(lucky);
 assert.equal(lucky.phase,'lucky_roulette');
+// The Lucky Star backdrop is opaque and covers the entire logical screen,
+// including top HUD and bottom inventory at 16:9, 4:3 and 1:1.
+const viewportSpy=brush(),fills=[];
+let pendingRect=null;
+viewportSpy.beginPath=()=>{pendingRect=null;};
+viewportSpy.roundRect=(x,y,w,h)=>{pendingRect={x,y,w,h};};
+viewportSpy.fill=()=>{if(pendingRect)fills.push({...pendingRect,color:viewportSpy.fillStyle});};
+for(const height of [540,720,960]){
+ lucky.camera.viewHeight=height;
+ fills.length=0;
+ A.draw(viewportSpy,lucky.time,lucky);
+ const full=fills.filter(r=>r.x===0&&r.y===0&&r.w===960&&r.h===height);
+ assert.equal(full.length,1,'Lucky Star must shade the entire '+height+'-unit viewport once');
+ assert.equal(full[0].color,'#0c2341','background must be fully opaque without HUD seams');
+}
+lucky.camera.viewHeight=540;
 const luckyItem=lucky.lucky.item;
 let luckyLabelStart=labels.length;A.draw(g,lucky.time,lucky);
 assert.ok(labels.slice(luckyLabelStart).includes('LUCKY STAR'));
-assert.ok(labels.slice(luckyLabelStart).some(x=>String(x).includes('กำลังสุ่มไอเทม')));
+assert.ok(!labels.slice(luckyLabelStart).some(x=>String(x).includes('กำลังสุ่มไอเทม')||String(x).includes('สุ่มไอเทม 1 ชิ้น')),
+ 'Lucky Star hides both redundant spinner captions');
 for(let i=0;i<41;i++)P.update(lucky,.05);
 luckyLabelStart=labels.length;A.draw(g,lucky.time,lucky);
 assert.ok(labels.slice(luckyLabelStart).some(x=>String(x).includes('ได้รับ: '+ctx.window.BoardItems.names[luckyItem])));
@@ -607,14 +624,15 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
   'the dice dialog has a separate A action badge');
  assert.ok(panel.some(x=>x.text==='เปลี่ยนไอเทม'&&x.x===524&&x.align==='left'),
   'the dice dialog has a separate B action badge');
- // The second screenshot shows Lucky Star copy above and below the reel.
+ // Lucky Star preserves the heading and result, not redundant spinner captions.
  const lucky=game(902);lucky.order=lucky.players.map(p=>p.id);
  P.startTurn(lucky);
  lucky.players[0].currentNodeId=lucky.map.luckyTileIds[0];
  P.land(lucky);assert.equal(lucky.phase,'lucky_roulette');
  first=labelDraws.length;A.draw(probe,lucky.time,lucky);
  const spin=labelDraws.slice(first);
- expectCenteredThai(spin,'สุ่มไอเทม 1 ชิ้น • เข้ากระเป๋าสะสมได้ไม่จำกัด');
+ assert.ok(!spin.some(x=>x.text.includes('สุ่มไอเทม 1 ชิ้น')||x.text.includes('กำลังสุ่มไอเทม')),
+  'the Lucky Star reel keeps both removed captions hidden');
  const luckyTitle=spin.find(x=>x.text==='LUCKY STAR');
  assert.equal(luckyTitle.x,480,'English heading remains naturally centered');
  assert.equal(luckyTitle.align,'center');
@@ -624,6 +642,6 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  expectCenteredThai(won,prize);
  expectCenteredThai(won,lucky.players[0].name+' • เพิ่มเข้ากระเป๋าแล้ว');
 }
-console.log('BOARD THAI CENTER PASS: dice panel and Lucky Star Thai text physically centered on Safari');
+console.log('BOARD THAI CENTER PASS: dice panel, Lucky Star heading and prize physically centered on Safari');
 
 console.log('BOARD VIEWPORT PASS: 16:9 / 4:3 / 1:1 map expansion, footer anchoring and stable game state');
