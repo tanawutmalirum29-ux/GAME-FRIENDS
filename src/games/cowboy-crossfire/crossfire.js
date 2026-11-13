@@ -437,7 +437,7 @@ function draw(g,time,round,ps){
   g.fillStyle='rgba(40,18,6,.28)';g.beginPath();g.ellipse(p.x+1,p.y+12,13,6,0,0,TAU);g.fill();
   g.strokeStyle=p.color||'#fff';g.globalAlpha=.85;g.lineWidth=2.4;g.beginPath();g.ellipse(p.x,p.y+12,15,7,0,0,TAU);g.stroke();g.globalAlpha=1;
   if(c.invuln>0&&Math.floor(s.clock*16)%2)g.globalAlpha=.4;
-  if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:s.clock,label:false});
+  if(window.PartyCharacters?.draw)window.PartyCharacters.draw(g,p,{time:s.clock,label:false,nameTag:false});
   else{g.fillStyle=p.color||'#eee';g.beginPath();g.arc(p.x,p.y,C.radius,0,TAU);g.fill();}
   // Headwear belongs to the shared avatar; the revolver remains game equipment.
   drawRevolver(g,p.x+p.dir.x*8,p.y+p.dir.y*8+2,Math.atan2(p.dir.y,p.dir.x),c.recoil);
@@ -445,6 +445,8 @@ function draw(g,time,round,ps){
   // HP pips sit just outside the track so they never cover the duel lanes
   const ox=Math.cos(c.theta),oy=Math.sin(c.theta),hx=p.x+ox*(C.radius+16),hy=p.y+oy*(C.radius+16);
   for(let i=0;i<C.hp;i++)drawHeart(g,hx+(i-(C.hp-1)/2)*10,hy,1,i<c.hp);
+  // The health pips orbit the player. Put the name above their highest edge.
+  window.PartyCharacters?.drawName?.(g,p,{offsetY:58});
  }
  for(const e of s.fx)if(e.k==='puff')drawFx(g,e);
  for(const bl of s.bullets)drawBullet(g,bl);
