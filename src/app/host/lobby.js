@@ -106,6 +106,8 @@ function beginGameSelection(mode){
   }
   if(boardSession){gameSelection.spinDuration=2;gameSelection.holdDuration=1.4;}
   setView('game');
+  // The game roulette is not the board map.
+  refreshBoardTools();
   // iOS fullscreen needs the original Start tap: request before the reel runs.
   requestHostFullscreen();
   broadcastRoster();
