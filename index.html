@@ -339,6 +339,16 @@
     </main>
     <footer>STICK SQUAD PARTY <span>•</span> Original browser party game <span>•</span> Built for GAME FRIENDS</footer>
   </div>
+  <!-- Covers unfinished lobby/map frames; game controls and networking remain mounted underneath. -->
+  <div id="transitionLoading" class="transition-loading hidden" role="status" aria-live="polite" aria-atomic="true" aria-label="กำลังเตรียมเกม">
+    <section class="transition-loading-card">
+      <div class="transition-loading-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
+      <small class="transition-loading-eyebrow">GAME FRIENDS</small>
+      <h2 id="transitionLoadingTitle">กำลังเตรียมห้อง...</h2>
+      <p id="transitionLoadingDetail">กำลังโหลดฉากเกม</p>
+      <button id="transitionLoadingRetry" class="btn btn-outline hidden" type="button">ลองโหลดฉากใหม่</button>
+    </section>
+  </div>
   <div id="uiToast" class="ui-toast" role="status" aria-live="polite"></div>
   <div id="bulkBotPicker" class="bulk-bot-picker hidden" role="dialog" aria-modal="true" aria-labelledby="bulkBotPickerTitle" aria-describedby="bulkBotPickerHint">
     <section class="bulk-bot-picker-card" role="document">
