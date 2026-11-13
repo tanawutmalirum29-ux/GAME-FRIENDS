@@ -584,7 +584,7 @@ function joinRoom(recovery=false){
           };
           showControllerMode(controllerGameMode);
           $('controllerState').textContent=controllerResultVotes.voteWaitSeconds>0?
-            'กำลังสรุปผล • กด A/B ได้ใน '+controllerResultVotes.voteWaitSeconds+' วิ':
+            'กำลังสรุปผล...':
             'กด A เพื่อเล่นต่อ หรือ B เพื่อ'+controllerResultVotes.backLabel;
         }
       }else if(data.t==='inventory'){
@@ -793,12 +793,9 @@ function showControllerMode(mode){
     voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
     controllerResultVotes.nextLabel)+
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
-    (controllerResultVotes.voteWaitSeconds>0?
-      ' • รอกด A/B '+controllerResultVotes.voteWaitSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
     playing?(labels.A||''):'';
   const bLabel=controllerGamePhase==='lobby'&&plazaPickerOpen?'ปิดรายการเกม':voting?controllerResultVotes.backLabel+
-    (controllerResultVotes.voteWaitSeconds>0?' • รอกด A/B '+controllerResultVotes.voteWaitSeconds+' วิ':'')+
     ' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
     ghost?($('controllerButtons').classList.contains('has-target')?
     'ยืนยันสโลว์':(labels.B||'ใช้ไอเทม')):(playing?(labels.B||''):'');
