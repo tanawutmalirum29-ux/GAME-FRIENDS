@@ -6489,3 +6489,48 @@ body.controller-playing #controller .phone-game-choices{
  object-fit:fill;max-width:none;max-height:none;
  pointer-events:none;user-select:none;
 }
+
+/* BOARD PARTY shares the NORMAL PARTY result cards; only rewards and a
+   read-only board-phase timer are specific to board minigame standings. */
+#game .result-overlay.board-minigame-results .result-card{
+  grid-template-rows:min-content min-content minmax(0,1fr) auto;
+}
+#game .result-overlay.board-minigame-results #replayBtn,
+#game .result-overlay.board-minigame-results #backBtn{display:none!important}
+#game .result-overlay .board-results-timer{display:none}
+#game .result-overlay.board-minigame-results .board-results-timer{
+  display:block;align-self:center;text-align:center;
+  font-size:clamp(12px,1.7dvh,18px);color:#b8dce9;
+}
+#game .result-overlay.board-minigame-results #resultList>.result-player{
+  grid-template-rows:repeat(3,minmax(0,1fr));
+}
+#game .result-overlay.board-minigame-results #resultList>.result-player>div:first-child{
+  grid-row:1;align-self:end;
+}
+#game .result-overlay.board-minigame-results #resultList>.result-player>span:not(.result-avatar){
+  grid-row:2;align-self:center;
+}
+#game .result-overlay.board-minigame-results #resultList>.result-player>.result-reward{
+  grid-column:2;grid-row:3;align-self:start;
+  display:flex;align-items:center;gap:clamp(3px,.45vw,8px);
+  min-width:0;white-space:nowrap;overflow:hidden;
+  font-size:clamp(9px,1.1vw,14px)!important;
+  color:#fff4be;
+}
+#game .result-overlay.board-minigame-results .result-reward>span:last-child{
+  overflow:hidden;min-width:0;text-overflow:ellipsis;
+}
+#game .result-overlay.board-minigame-results .result-reward-icon{
+  flex:none;display:inline-grid;place-items:center;
+  width:clamp(14px,2.8dvh,28px);height:clamp(14px,2.8dvh,28px);
+}
+#game .result-overlay.board-minigame-results .result-reward-icon svg{
+  display:block;width:100%;height:100%;
+}
+#game .result-overlay.board-minigame-results #resultList>.result-player>.result-avatar{
+  grid-row:1/4;transform:translateY(clamp(3px,.6dvh,7px));
+}
+#game .result-overlay.board-minigame-results #resultList>.result-player>.result-ordinal{
+  grid-row:1/4;
+}
