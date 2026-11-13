@@ -2763,7 +2763,7 @@ function joinRoom(recovery=false){
           };
           showControllerMode(controllerGameMode);
           $('controllerState').textContent=controllerResultVotes.voteWaitSeconds>0?
-            'กำลังสรุปผล • กด A/B ได้ใน '+controllerResultVotes.voteWaitSeconds+' วิ':
+            'กำลังสรุปผล...':
             'กด A เพื่อเล่นต่อ หรือ B เพื่อ'+controllerResultVotes.backLabel;
         }
       }else if(data.t==='inventory'){
@@ -2972,12 +2972,9 @@ function showControllerMode(mode){
     voting?(controllerResultVotes.nextLabel==='สุ่มชุดใหม่จากตัวเลือกเดิม'?'เล่นชุดใหม่':
     controllerResultVotes.nextLabel)+
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
-    (controllerResultVotes.voteWaitSeconds>0?
-      ' • รอกด A/B '+controllerResultVotes.voteWaitSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
     playing?(labels.A||''):'';
   const bLabel=controllerGamePhase==='lobby'&&plazaPickerOpen?'ปิดรายการเกม':voting?controllerResultVotes.backLabel+
-    (controllerResultVotes.voteWaitSeconds>0?' • รอกด A/B '+controllerResultVotes.voteWaitSeconds+' วิ':'')+
     ' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
     ghost?($('controllerButtons').classList.contains('has-target')?
     'ยืนยันสโลว์':(labels.B||'ใช้ไอเทม')):(playing?(labels.B||''):'');
@@ -3664,11 +3661,13 @@ function showBoard(){
   round={mode:'board',phase:'playing',paused:false,remaining:null,autoNextRemaining:0};
   resetInputs();boardStateToken=null;
   $('gameRoulette').classList.add('hidden');$('results').classList.add('hidden');
+  $('results').classList.remove('board-minigame-results');
   $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.remove('hidden');
   $('boardExitBtn').classList.remove('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');$('gameBanner').textContent='';
   document.body.classList.add('board-playing');
   setView('game');
+  if(typeof syncBoardMinigameResults==='function')syncBoardMinigameResults();
   // Paint the order/result screen in the Start event itself. Safari can delay
   // its first animation frame during fullscreen; old minigame clips must not survive.
   canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
@@ -3700,6 +3699,7 @@ function updateBoard(dt){
   // DOM updates only when a BOARD phase changes. Canvas overlay phases
   // must immediately hide the previous map's Exit/ID/Pause controls.
   if(s.phase!==previousToolbarPhase)refreshBoardTools();
+  if(typeof syncBoardMinigameResults==='function')syncBoardMinigameResults();
    if(s.phase==='minigame_pending'){
     const mode=window.BoardMinigame.pick(boardRegistry(),s.players.length,s.lastMinigame,s.rng);
     if(!mode)throw Error('No compatible minigame');

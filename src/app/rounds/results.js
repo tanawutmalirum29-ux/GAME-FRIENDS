@@ -53,11 +53,10 @@ function resultVoteSnapshot(){
 function renderResultVotes(sendUpdate=false){
   const v=resultVoteSnapshot();if(!v)return;
   const seconds=v.autoNextSeconds!==null?' • อีก '+v.autoNextSeconds+' วิ':'';
-  const wait=v.voteWaitSeconds>0?' • กด A/B ได้ใน '+v.voteWaitSeconds+' วิ':'';
   // Align A/B on the left, action text in the center and votes on the right.
   // The accessibility label contains the full sentence for screen readers.
   const next=$('replayBtn'),back=$('backBtn');
-  next.textContent=v.nextLabel+seconds+wait;
+  next.textContent=v.nextLabel+seconds;
   next.disabled=v.voteWaitSeconds>0;
   back.disabled=v.voteWaitSeconds>0;
   next.dataset.action='A';next.dataset.votes=v.next+'/'+v.total;
@@ -88,7 +87,10 @@ function resultHatProjection(front){
 }
 function renderResultAvatar(p,portrait){
  const cosmetics=window.PartyCosmetics;
- const cosmetic=cosmetics?.normalize?.(p?.cosmetic)||'none';
+ const owner=typeof players!=='undefined'&&Array.isArray(players)?
+   players.find(q=>q.id===p?.id):null;
+ const portraitPlayer=p&&!p.cosmetic&&owner?.cosmetic?{...p,cosmetic:owner.cosmetic}:p;
+ const cosmetic=cosmetics?.normalize?.(portraitPlayer?.cosmetic)||'none';
  const key=String(p?.color||'')+'/'+cosmetic;
  if(portrait.dataset.visualKey===key)return;
  portrait.dataset.visualKey=key;
@@ -98,7 +100,7 @@ function renderResultAvatar(p,portrait){
  portrait.replaceChildren(face);
  const spec=cosmetics?.ASSETS?.[cosmetic];
  if(!spec?.front)return; // An intentionally uncostumed player keeps the ring.
- const source=cosmetics.imageFor?.(p,'front');
+ const source=cosmetics.imageFor?.(portraitPlayer,'front');
  if(!source)return;
  const hat=document.createElement('img');
  hat.className='result-avatar-hat';hat.alt='';hat.draggable=false;
@@ -193,6 +195,62 @@ function layoutFinalResults(){
   });
 }
 
+function syncBoardMinigameResults(){
+  const root=$('results'),s=boardSession;
+  const active=round?.mode==='board'&&round.phase==='playing'&&s&&
+    ['standings','rewards'].includes(s.phase);
+  if(!active){
+    if(root.classList.contains('board-minigame-results')){
+      root.classList.add('hidden');
+      root.classList.remove('board-minigame-results');
+    }
+    return;
+  }
+  const remaining=Math.max(0,Math.ceil(s.deadline-s.time))+' วินาที';
+  const sessionKey=s.id+':'+s.roundNumber;
+  if(root.classList.contains('board-minigame-results')&&root.dataset.boardResultsId===sessionKey){
+    const timer=root.querySelector('.board-results-timer');
+    if(timer&&timer.textContent!==remaining)timer.textContent=remaining;
+    return;
+  }
+  root.dataset.boardResultsId=sessionKey;
+  root.querySelector('.eyebrow').textContent=MODES[s.lastMinigame]||'BOARD PARTY';
+  root.querySelector('h2').textContent='สรุปผลมินิเกม';
+  const list=$('resultList');
+  list.replaceChildren();
+  for(const result of [...s.results].sort((a,b)=>a.rank-b.rank)){
+    const p=s.players.find(player=>player.id===result.id);
+    if(!p)continue;
+    const row=document.createElement('div');row.className='result-player';
+    const name=document.createElement('div');name.style.color=p.color;
+    name.textContent='อันดับ '+result.rank+' • '+p.name;
+    const detail=document.createElement('span');
+    detail.textContent=typeof result.label==='string'?result.label:'';
+    const reward=document.createElement('small');reward.className='result-reward';
+    if(result.reward){
+      const icon=document.createElement('span');icon.className='result-reward-icon';
+      icon.setAttribute('aria-hidden','true');
+      icon.innerHTML=window.PartyUiArt?.svg?.(result.reward)||'';
+      reward.append(icon);
+    }
+    const rewardName=document.createElement('span');
+    rewardName.textContent=result.reward?
+      'ได้รับ: '+(window.BoardItems?.names?.[result.reward]||result.reward):
+      'ไม่มีไอเทมรางวัล';
+    reward.append(rewardName);
+    row.append(name,detail,reward);
+    list.append(row);
+  }
+  root.classList.add('board-minigame-results');
+  layoutFinalResults();
+  let timer=root.querySelector('.board-results-timer');
+  if(!timer){
+    timer=document.createElement('div');timer.className='board-results-timer';
+    root.querySelector('.result-card').append(timer);
+  }
+  timer.textContent=remaining;
+  root.classList.remove('hidden');
+}
 
 function showCumulativeScores(){
   if(!tournament?.endless||!round||round.phase!=='results')return false;
@@ -233,6 +291,7 @@ function onResultBack(){
   returnToLobby();
 }
 function beginResultVoting(){
+  $('results').classList.remove('board-minigame-results');
   layoutFinalResults();
   // Set a fresh, Host-authoritative A/B lock for each result/summary screen.
   // Held buttons from the minigame cannot skip ranking before it is readable.

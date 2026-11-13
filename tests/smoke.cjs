@@ -2396,18 +2396,18 @@ phoneConn.fire('data',{t:'roster',phase:'results',mode:'ghost',
 assert.equal(phone.elements.get('controllerInventory').classList.contains('hidden'),true,
  'role and item must disappear as soon as a round ends');
 assert.equal(phone.elements.get('inventoryItem').textContent,'');
-assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • รอกด A/B 3 วิ 0/0');
-assert.equal(phone.elements.get('buttonBLabel').textContent,'กลับล็อบบี้ • รอกด A/B 3 วิ 0/0');
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป 0/0');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'กลับล็อบบี้ 0/0');
 assert.equal(phone.elements.get('buttonA').disabled,true,'a new result locks A');
 assert.equal(phone.elements.get('buttonB').disabled,true,'a new result locks B');
 phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',autoNextSeconds:7,voteWaitSeconds:2});
-assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 7 วิ • รอกด A/B 2 วิ 1/2',
-  'controller displays the authoritative 3-second grace alongside auto-next');
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 7 วิ 1/2',
+  'controller keeps the authoritative auto-next label without exposing the grace text');
 assert.equal(phone.elements.get('buttonB').disabled,true,'B remains locked during the countdown');
 phoneConn.fire('data',{t:'result-votes',next:1,lobby:0,total:2,nextLabel:'เกมถัดไป',backLabel:'สรุปคะแนน',autoNextSeconds:6,voteWaitSeconds:1});
-assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 6 วิ • รอกด A/B 1 วิ 1/2',
-  'the result grace and automatic next-game timer count independently');
-assert.equal(phone.elements.get('buttonBLabel').textContent,'สรุปคะแนน • รอกด A/B 1 วิ 0/2');
+assert.equal(phone.elements.get('buttonALabel').textContent,'เกมถัดไป • อีก 6 วิ 1/2',
+  'the automatic next-game timer changes while A/B remain locked');
+assert.equal(phone.elements.get('buttonBLabel').textContent,'สรุปคะแนน 0/2');
 phoneConn.fire('data',{t:'roster',phase:'summary',mode:'color_switch',players:[{id:'p1',active:true,choice:'color_switch'}]});
 phoneConn.fire('data',{t:'result-votes',next:0,lobby:0,total:2,nextLabel:'เกมถัดไป',backLabel:'กลับล็อบบี้',autoNextSeconds:null,voteWaitSeconds:0});
 assert.equal(phone.elements.get('buttonBLabel').textContent,'กลับล็อบบี้ 0/2','B changes to lobby on score summary');
@@ -2962,7 +2962,11 @@ for(const count of [1,12]){
   assert.equal(api.getRound().mode,'board',mode+' must finish via the normal engine outcome');
   assert.equal(s.phase,'standings');assert.equal(s.results.length,count);
   assert.equal(JSON.stringify(P.snapshot(s)),saved,mode+' cannot change board data');
-  assert.equal(s.map,map);assert.equal(ui.elements.get('results').classList.contains('hidden'),true);
+  assert.equal(s.map,map);
+  assert.equal(ui.elements.get('results').classList.contains('hidden'),false,
+    'BOARD minigame standings reuse the visible NORMAL result overlay');
+  assert.equal(ui.elements.get('results').classList.contains('board-minigame-results'),true,
+    'BOARD standings activate item-reward result styling');
   assert.equal(api.resultVoteSnapshot(),null,'no NORMAL result vote in a board intermission');
  }
  // Complete results -> inventory -> original board, then real finish and replay.
