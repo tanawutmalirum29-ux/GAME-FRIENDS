@@ -6,7 +6,7 @@
   "lang": "th",
   "start_url": "./host.html",
   "scope": "./",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#0d1122",
   "theme_color": "#0d1122",
   "icons": [
