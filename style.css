@@ -6637,7 +6637,7 @@ body.controller-playing #controller #controllerActive #buttonB.plaza-b-ready .fa
 #hostLobby.plaza-loaded .plaza-center-qr-image canvas,
 #hostLobby.plaza-loaded .plaza-center-qr-image img{
  display:block;width:100%!important;height:100%!important;
- max-width:100%;object-fit:contain;image-rendering:pixelated;
+ max-width:100%;object-fit:contain;image-rendering:pixelated;grid-area:1 / 1;
 }
 #hostLobby.plaza-loaded .plaza-center-qr-label{
  display:block;white-space:nowrap;max-width:90%;text-align:center;
