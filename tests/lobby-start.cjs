@@ -127,4 +127,51 @@ assert.match(source,/case 'ready_area':/,
   assert.deepEqual(reloaded,restored,'new colors remain stable on subsequent reload');
  }
 }
+// COLOR STUDIO replaces the unused lower-left PLAY CORNER; only B acts there.
+const zones=JSON.parse(fs.readFileSync(path.join(root,'src/lobby/lobby-zones.json'),'utf8'));
+const station=zones.zones.find(z=>z.id==='color_studio');
+assert.ok(station&&station.center.x===144&&station.center.y===437);
+assert.equal(station.trigger,'button_B');
+assert.ok(station.interactionRadiusPx>=45,'left-bottom color zone must be walkable and usable');
+assert.ok(!zones.zones.some(z=>z.id==='play_corner'),'unused PLAY CORNER removed');
+const plaza=fs.readFileSync(path.join(root,'src/lobby/party-plaza.js'),'utf8');
+assert.match(plaza,/zone\?\.id==='color_studio'\)callbacks\.changeColor\?\.\(p\)/,
+ 'B input invokes color change only in the correct zone');
+assert.match(plaza,/plazaBPressed=b/,'held B is edge-triggered, not repeated');
+const colorStart=source.indexOf('function nextFreeLobbyColor(');
+const colorEnd=source.indexOf('window.PartyPlaza?.configure(',colorStart);
+assert.ok(colorStart>0&&colorEnd>colorStart);
+const pStart=source.indexOf('const COLORS = ');
+const pEnd=source.indexOf('// The legacy bridge',pStart);
+const colorContext={};
+vm.createContext(colorContext);
+vm.runInContext(source.slice(pStart,pEnd)+'\n'+source.slice(colorStart,colorEnd)+
+ '\nthis.colors=COLORS;this.cycle=nextFreeLobbyColor;',colorContext);
+const paletteForZone=Array.from(colorContext.colors);
+const p1={id:'p1',color:paletteForZone[0]};
+const p2={id:'p2',color:paletteForZone[1]};
+const p3={id:'p3',color:paletteForZone[2]};
+const room=[p1,p2,p3];
+assert.equal(colorContext.cycle(p1,room),paletteForZone[3],
+ 'B skips colors already worn by others');
+p1.color=paletteForZone[3];
+assert.equal(colorContext.cycle(p1,room),paletteForZone[4],
+ 'repeated B presses move to the next unoccupied color');
+assert.equal(new Set(room.map(p=>p.color)).size,3,'no duplicate after cycling');
+assert.equal(colorContext.cycle({id:'fake',color:paletteForZone[0]},room),null,
+ 'non-member cannot change a room color');
+const fullRoom=paletteForZone.map((color,i)=>({id:'seat-'+i,color}));
+assert.equal(colorContext.cycle(fullRoom[0],fullRoom),null,
+ 'full 12-player room has no free colors to cycle');
+fullRoom.splice(8,1);
+assert.equal(colorContext.cycle(fullRoom[7],fullRoom),paletteForZone[8],
+ 'a newly freed color immediately becomes available for selection');
+assert.match(source,/!players\.includes\(p\)/,
+ 'color change must require a current authoritative participant');
+assert.match(source,/inZone\(p,'color_studio'\)/,
+ 'color change must check real position before allowing B');
+assert.match(source,/broadcastRoster\(\); \/\/ Immediately update all clients/,
+ 'color changes must be sent to peers immediately');
+assert.match(source,/if\(self\)syncControllerAvatarColor\(self\.color\)/,
+ 'controller portrait must update when its roster color changes');
 console.log('LOBBY START PASS: votes, bot quorum, A toggle, UI cleanup, 12 distinct player colors and legacy migration');
