@@ -257,6 +257,41 @@ test('Directional walking: release stops mid-edge, A/B cannot move, counts only 
  until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';});assert.equal(p.currentNodeId,'n2');assert.equal(P.remainingSteps(s,p.id),0);
  assert.equal(P.remainingSteps(s,s.players[1].id),0);assert.equal(p.item,'rocket');assert.notEqual(s.turnId,token);
 });
+test('Held joystick flows through ordinary checkpoints with no dwell, snap or extra die step',()=>{
+ const s=ready(3,2311),p=s.players[0],nodes=s.map.nodes;
+ const dir=(a,b)=>{const dx=b.position.x-a.position.x,dy=b.position.y-a.position.y;
+  const d=Math.hypot(dx,dy);return{x:dx/d,y:dy/d};};
+ const trio=Object.values(nodes).flatMap(a=>a.nextNodes.length===1?
+  a.nextNodes.flatMap(mid=>{
+   const b=nodes[mid];if(b.nextNodes.length!==1)return [];
+   const c=nodes[b.nextNodes[0]],v=dir(a,b),w=dir(b,c);
+   const d=Math.hypot(a.position.x-b.position.x,a.position.y-b.position.y);
+   return v.x*w.x+v.y*w.y>.85&&d>150&&d<320?[[a,b,c,v]]:[];
+  }):[])[0];
+ assert.ok(trio,'find a straight connected-edge fixture');
+ const [a,b,c,stick]=trio;
+ p.currentNodeId=a.id;delete p.worldPosition;
+ P.beginMove(s,p,2);
+ press(s,p,null,{axisX:stick.x,axisY:stick.y});P.update(s,.05);
+ assert.equal(s.move.to,b.id,'one-way road should begin on the first input tick');
+ const token=s.turnId;let crossed=false;
+ for(let i=0;i<160&&s.move;i++){
+  const prior=p.currentNodeId,before=plain(I.position(s,p));
+  press(s,p,null,{axisX:stick.x,axisY:stick.y});P.update(s,.05);
+  if(prior===a.id&&p.currentNodeId===b.id){
+   const after=I.position(s,p);
+   assert.ok(Math.hypot(after.x-before.x,after.y-before.y)<=19,
+    'passing over a checkpoint must not teleport the character');
+   assert.equal(s.move.to,c.id,'holding a legal direction must enter the next edge immediately');
+   assert.equal(s.move.remaining,1,'only one completed edge consumes one die step');
+   assert.equal(s.turnId,token,'crossing a tile must not request a new control token');
+   crossed=true;break;
+  }
+ }
+ assert.ok(crossed,'crossing reached the intermediate tile');
+ press(s,p,null);const stopped=plain(I.position(s,p));
+ tick(s,.3);assert.deepEqual(plain(I.position(s,p)),stopped,'released stick still stops immediately');
+});
 test('Free 2D walking: reverse and sideways inputs are real movement, no accidental spent steps',()=>{
  const s=ready(),p=s.players[0];P.beginMove(s,p,3);
  const start=plain(I.position(s,p));
