@@ -340,11 +340,7 @@ function paint(){
    c.strokeStyle='#76eeeb';c.lineWidth=1;c.beginPath();c.arc(z.center.x,z.center.y,z.interactionRadiusPx,0,Math.PI*2);c.stroke();
   }
  }
- const focus=playerCache.find(p=>!p.isBot&&p.conn?.open)||playerCache[0];
- const zone=zoneAt(focus),hint=$('plazaZoneHint');
- if(hint)hint.textContent=zone?.id==='wardrobe'?'WARDROBE':
-  zone?.id==='color_studio'?'COLOR STUDIO':
-  zone?zone.label+' • A ใช้งาน':'เดินด้วยจอย • ไปที่จุดต่าง ๆ แล้วกด A';
+ // Contextual A/B actions are displayed on the owner's controller only.
 }
 window.PartyPlaza=Object.freeze({configure,setActive,sync,tick,inZone,zoneAt,retry,getLayout:()=>layout,getPlayers:()=>playerCache,isReady:()=>loaded,debug:v=>{debug=!!v;}});
 })();
