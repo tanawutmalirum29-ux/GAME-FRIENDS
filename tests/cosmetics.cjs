@@ -32,10 +32,32 @@ assert.equal(new Set(initialOutfits).size,12);
 assert.equal(C.randomBot(()=>0,['white-rope-wrap']),'pirate-hat');
 assert.equal(C.randomAvailable(['white-rope-wrap'],()=>0),'pirate-hat');
 assert.equal(C.randomAvailable(C.IDS.slice(1),()=>0),'white-rope-wrap');
+// Pre-rendered legacy colors remain available as static assets.
 const colors=[
  'c62222','36d9e5','215a94','d7b000','f53695','f57a00',
  '36d595','000094','009400','b800f5','008484','94004a'
 ];
+const newPlayerColors=[
+ 'e6194b','3cb44b','4363d8','ffe119','f58231','911eb4',
+ '42d4f4','f032e6','bfef45','9a6324','ffffff','222222'
+];
+// Verify the actual player palette and its non-random, distinguishable seat order.
+const runtimeSource=read('src/app/core/runtime.js');
+const start=runtimeSource.indexOf('const COLORS = '),end=runtimeSource.indexOf('// The legacy bridge',start);
+assert.ok(start>=0&&end>start,'player colors are declared in the modular runtime');
+const colorScope=vm.createContext({players:[]});
+vm.runInContext(runtimeSource.slice(start,end)+
+ '\nthis.palette=COLORS;this.legacy=LEGACY_COLORS;this.pick=pickUnusedColor;',colorScope);
+assert.deepEqual(Array.from(colorScope.palette),newPlayerColors.map(x=>'#'+x),
+ '12 player colors have the requested order');
+for(let seat=0;seat<12;seat++){
+ const expected='#'+newPlayerColors[seat];
+ assert.equal(colorScope.pick(),expected,'seat '+(seat+1)+' receives correct color');
+ colorScope.players.push({color:expected});
+}
+assert.equal(colorScope.pick(),null,'a 13th player cannot reuse an occupied color');
+for(const c of colors)assert.ok(Array.from(colorScope.legacy).includes('#'+c),
+ 'saved previous player color can migrate: '+c);
 const imageCalls=[];
 const ctx={drawImage:(image,...args)=>imageCalls.push({src:image.src,args})};
 for(const item of catalog.items.filter(x=>x.id!=='none')){
@@ -159,5 +181,25 @@ scope.fetch=async url=>({
   assert.ok(svg.includes('color="#'+item.color+'"'),'root color must match wearer');
   assert.ok(svg.includes('currentColor'),'tint is restricted to color-bound paths');
  }
- console.log('COSMETICS PASS: catalog, original 120 variants, 240 dynamic renders, portrait/overhead, B edge, bot and BOARD sync');
+ const recolored=[];
+ for(const item of catalog.items){
+  const spec=C.ASSETS[item.id];
+  if(!spec?.color)continue;
+  for(const view of ['top','front'])for(const color of newPlayerColors){
+   const im=C.imageFor({cosmetic:item.id,color:'#'+color},view);
+   assert.ok(im,'new color loads on '+item.id+'/'+view);
+   recolored.push({id:item.id,view,color,im});
+  }
+ }
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(recolored.length,360,'15 colored costumes x 2 views x 12 new player colors');
+ for(const entry of recolored){
+  const src=entry.im.src;
+  assert.ok(src?.startsWith('data:image/svg+xml;charset=utf-8,'),
+   'do not request missing static variants for '+entry.id+'/'+entry.view+'/'+entry.color);
+  const svg=decodeURIComponent(src.slice('data:image/svg+xml;charset=utf-8,'.length));
+  assert.ok(svg.includes('color="#'+entry.color+'"'),'new color is correct for '+entry.id);
+  assert.ok(svg.includes('currentColor'),'currentColor remains bound for '+entry.id);
+ }
+ console.log('COSMETICS PASS: 12 player colors, legacy migration, 120 old static variants, 240 old-color dynamic and 360 new-color renders');
 })().catch(error=>{console.error(error);process.exitCode=1;});

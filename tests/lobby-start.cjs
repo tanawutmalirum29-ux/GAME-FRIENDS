@@ -98,24 +98,33 @@ assert.match(source,/case 'ready_area':/,
  for(let i=0;i<palette.length;i++)for(let j=i+1;j<palette.length;j++){
   const a=lab(palette[i]),b=lab(palette[j]);
   const distance=Math.hypot(...a.map((v,k)=>v-b[k]));
-  assert.ok(distance>=30,'player colors '+(i+1)+'/'+(j+1)+' are too similar: '+distance);
+  // Requested purple/magenta are ~29.3 apart in CIELAB; prioritize six
+  // strongly separated starting colors (minimum >39) without changing HEX.
+  const minimum=i<6&&j<6?35:28;
+  assert.ok(distance>=minimum,'player colors '+(i+1)+'/'+(j+1)+' are too similar: '+distance);
  }
  const assigned=Array.from({length:12},()=>c.add());
  assert.deepEqual(assigned,palette,'colors issued in high-contrast priority order');
  assert.equal(c.add(),null,'thirteenth player cannot reuse another color');
- const saved=Array.from(c.legacy,(color,i)=>({
-  id:'p'+(i+1),name:'Bot '+i,color,type:'local',total:i,token:'token-'+i,choice:'ghost'
- }));
- const restored=c.restore(saved);
- assert.equal(restored.length,12,'legacy room retains all 12 players');
- assert.equal(new Set(restored.map(p=>p.color)).size,12,'legacy colors migrate uniquely');
- for(let i=0;i<12;i++){
-  assert.equal(restored[i].id,saved[i].id);
-  assert.equal(restored[i].name,saved[i].name);
-  assert.equal(restored[i].total,i);
-  assert.equal(restored[i].token,saved[i].token);
+ // Both the immediately previous 12-color palette and the older 12 pastel
+ // colors are valid persisted sessions and must migrate independently.
+ const legacy=Array.from(c.legacy);
+ assert.equal(legacy.length,24,'both historic palettes remain supported');
+ for(const oldColors of [legacy.slice(0,12),legacy.slice(12)]){
+  const saved=oldColors.map((color,i)=>({
+   id:'p'+(i+1),name:'Bot '+i,color,type:'local',total:i,token:'token-'+i,choice:'ghost'
+  }));
+  const restored=c.restore(saved);
+  assert.equal(restored.length,12,'legacy room retains all 12 players');
+  assert.equal(new Set(restored.map(p=>p.color)).size,12,'legacy colors migrate uniquely');
+  for(let i=0;i<12;i++){
+   assert.equal(restored[i].id,saved[i].id);
+   assert.equal(restored[i].name,saved[i].name);
+   assert.equal(restored[i].total,i);
+   assert.equal(restored[i].token,saved[i].token);
+  }
+  const reloaded=c.restore(restored.map(p=>({...p,type:'local',choice:'ghost'})));
+  assert.deepEqual(reloaded,restored,'new colors remain stable on subsequent reload');
  }
- const reloaded=c.restore(restored.map(p=>({...p,type:'local',choice:'ghost'})));
- assert.deepEqual(reloaded,restored,'new colors remain stable on subsequent reload');
 }
 console.log('LOBBY START PASS: votes, bot quorum, A toggle, UI cleanup, 12 distinct player colors and legacy migration');

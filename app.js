@@ -242,12 +242,15 @@ function cleanName(value){
 }
 const $ = (id) => document.getElementById(id);
 const MAX_PLAYERS = 12;
-// High-contrast identity palette. Earlier entries are spaced out intentionally,
-// keeping 2–6-player matches legible, not just the full 12-player roster.
-const COLORS = ['#c62222','#36d9e5','#215a94','#d7b000','#f53695','#f57a00',
- '#36d595','#000094','#009400','#b800f5','#008484','#94004a'];
-// Past sessions may contain older pastel IDs: migrate instead of losing players.
-const LEGACY_COLORS = ['#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0',
+// Player identity colors in seat order: primary + secondary hues first, then
+// cyan, magenta, lime, brown, white and dark gray. Keep the exact 12 HEX values.
+const COLORS = ['#e6194b','#3cb44b','#4363d8','#ffe119','#f58231','#911eb4',
+ '#42d4f4','#f032e6','#bfef45','#9a6324','#ffffff','#222222'];
+// Migrate both previous live palette and older pastel sessions without losing
+// player IDs, reconnection tokens, seats, or chosen costumes.
+const LEGACY_COLORS = ['#c62222','#36d9e5','#215a94','#d7b000','#f53695','#f57a00',
+ '#36d595','#000094','#009400','#b800f5','#008484','#94004a',
+ '#ff628c','#3fe4ef','#ffcf62','#ae94ff','#7fe5a0',
  '#ff9b64','#7fb4ff','#f283e9','#e5ed78','#83e1c8','#f8a9b6','#c4aafa'];
 function pickUnusedColor(){
   // Never choose randomly among colors that look similar in a small room.
