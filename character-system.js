@@ -154,7 +154,12 @@ function drawName(ctx,p,opts={}){
  while(units.length>1&&measured(name)>maxWidth-12){
   units.pop();name=units.join('')+'…';
  }
- const width=Math.min(maxWidth,Math.max(26,measured(name)+13));
+ // Use the SAME shaped-text measurement to size the plate and place its
+ // actual glyphs. The left-edge anchor is stable on iPad Safari; a centred
+ // fillText(..., maxWidth) was painting Thai labels shifted to the right while
+ // the plate stayed correctly centred over the actor.
+ const textWidth=measured(name);
+ const width=Math.min(maxWidth,Math.max(26,textWidth+16));
  const height=fontSize+8;
  let left=x-width/2,top=y-offset-height;
  const occupied=nameRects.get(ctx);
@@ -180,10 +185,18 @@ function drawName(ctx,p,opts={}){
  ctx.fillStyle='rgba(8,20,37,.87)';
  if(typeof ctx.roundRect==='function'){ctx.beginPath();ctx.roundRect(left,top,width,height,5);ctx.fill();}
  else ctx.fillRect?.(left,top,width,height);
- ctx.textAlign='center';ctx.textBaseline='middle';
+ // Explicit left alignment prevents the iOS canvas maxWidth/centre-anchor
+ // discrepancy. Never pass a fourth maxWidth argument: the text was already
+ // measured and ellipsized. Keep stroke and fill on the *identical* anchor.
+ ctx.textAlign='left';ctx.textBaseline='middle';ctx.direction='ltr';
+ const textX=left+(width-textWidth)/2,textY=top+height/2+0.5;
+ // Clip unexpected font-fallback width changes without clipping Thai accents.
+ if(typeof ctx.rect==='function'&&typeof ctx.clip==='function'){
+  ctx.beginPath();ctx.rect(left+3,top-4,width-6,height+8);ctx.clip();
+ }
  ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.strokeStyle='#071221';
- ctx.strokeText?.(name,left+width/2,top+height/2+0.5);
- ctx.fillStyle='#ffffff';ctx.fillText(name,left+width/2,top+height/2+0.5,maxWidth);
+ ctx.strokeText?.(name,textX,textY);
+ ctx.fillStyle='#ffffff';ctx.fillText(name,textX,textY);
  ctx.restore();
 }
 function draw(ctx,p,opts={}){
