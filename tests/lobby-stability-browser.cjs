@@ -21,7 +21,7 @@ async function geometry(page){
   const rect=id=>{const e=document.getElementById(id),r=e.getBoundingClientRect();
    return [r.left,r.top,r.width,r.height].map(n=>Math.round(n*4)/4);};
   return {
-   host:rect('hostLobby'),canvas:rect('plazaCanvas'),bar:rect('plazaRoomToggle'),
+   host:rect('hostLobby'),canvas:rect('plazaCanvas'),bar:rect('plazaRosterToggle'),
    slots:document.querySelectorAll('#roster .roster-item').length,
    bots:document.querySelectorAll('#roster .roster-item:not(.roster-empty)').length,
    loaded:document.getElementById('hostLobby').classList.contains('plaza-loaded'),
@@ -47,8 +47,10 @@ async function geometry(page){
    await page.goto('http://127.0.0.1:'+server.address().port+'/?host=1');
    await page.locator('#offlineBtn').click();
    assert.equal(await page.locator('#plazaCanvas').isVisible(),true,'scene visible');
-   await page.locator('#plazaRoomToggle').click();
-   assert.equal(await page.locator('#plazaRoomToggle').getAttribute('aria-expanded'),'true');
+   assert.equal(await page.locator('#plazaRoomToggle').isVisible(),false,
+    'old header QR / room action has been removed');
+   assert.equal(await page.locator('#plazaRoomPanel').isVisible(),false,
+    'old room panel is no longer used');
    await page.locator('#plazaRosterToggle').click();
    assert.equal(await page.locator('#roster').isVisible(),true,
     JSON.stringify(await page.evaluate(()=>{
@@ -62,7 +64,6 @@ async function geometry(page){
     })));
    assert.equal(await page.locator('#plazaRoomPanel').isVisible(),false,
     'opening roster closes the QR popup instead of layering both');
-   assert.equal(await page.locator('#plazaRoomToggle').getAttribute('aria-expanded'),'false');
    assert.equal(await page.locator('#plazaRosterToggle').getAttribute('aria-expanded'),'true');
    assert.equal(await page.locator('#plazaCanvas').evaluate(e=>[e.width,e.height].every(n=>n>=540)),true,'DPR-backed canvas');
    // Remove offline demo bots via their original, preserved DOM actions.
@@ -100,11 +101,29 @@ async function geometry(page){
    });
    assert.ok(walking.x1>walking.x0+5,'connected phone joystick moves the lobby avatar');
    assert.ok(walking.yWall>=153,'avatar cannot walk through the real Arcade wall');
-   assert.equal(walking.zone,'ready_area','READY area interaction comes from JSON zone geometry');
+   assert.equal(walking.zone,null,'READY zone is removed from canonical geometry');
    assert.equal(walking.colorZone,'color_studio','unused left-bottom PLAY CORNER becomes B color zone');
    assert.ok(walking.hasShop,'Color Studio is now a physical building zone');
    assert.ok(walking.shopWallY>=410,'player cannot walk through the Color Studio storefront');
    assert.equal(walking.stillReachable,true,'the B-button color zone remains accessible in front of the shop');
+   // Exercise the central QR's original copyInvite handler without PeerJS.
+   const copied=await page.evaluate(async()=>{
+    const button=document.getElementById('plazaCenterQrBtn'),
+      input=document.getElementById('roomUrl');
+    input.value='https://example.test/?join=ABC234';
+    button.disabled=false;
+    window.__copyResult=null;
+    Object.defineProperty(navigator,'clipboard',{configurable:true,
+      value:{writeText:async value=>{window.__copyResult=value;}}});
+    button.click();
+    await new Promise(resolve=>setTimeout(resolve,0));
+    const result=window.__copyResult;
+    button.disabled=true;input.value='';
+    return {value:result,label:document.getElementById('plazaCenterQrLabel').textContent};
+   });
+   assert.equal(copied.value,'https://example.test/?join=ABC234',
+    'tapping the central QR copies the exact room invite link');
+   assert.equal(copied.label,'คัดลอกแล้ว','QR confirms copied state');
    const stable=async label=>{
     const now=await geometry(page);
     assert.equal(now.slots,12,label+' 12 reserved slots');
@@ -122,8 +141,21 @@ async function geometry(page){
     assert.equal((await geometry(page)).bots,i);
     await stable(i+' bots');
    }
-   await page.locator('#plazaRoomToggle').click();await stable('hide QR');
-   await page.locator('#plazaRoomToggle').click();await stable('restore QR');
+   const center=await page.evaluate(()=>{
+    const qr=document.getElementById('plazaCenterQrBtn'),
+      canvas=document.getElementById('plazaCanvas'),
+      r=qr.getBoundingClientRect(),area=canvas.getBoundingClientRect();
+    return {size:[r.width,r.height],visible:getComputedStyle(qr).display!=='none',
+      relativeCenter:[r.left+r.width/2-area.left,r.top+r.height/2-area.top],
+      canvas:[area.width,area.height]};
+   });
+   assert.ok(center.visible&&center.size[0]>60,'central QR replaces READY visually');
+   assert.ok(Math.abs(center.size[0]-center.size[1])<1,'central code remains round');
+   assert.ok(Math.abs(center.relativeCenter[0]-center.canvas[0]/2)<2,
+    'QR is horizontally centered inside the fitted world');
+   assert.equal(await page.locator('#plazaCenterQrBtn').isDisabled(),true,
+    'offline demo has no invite to copy');
+   await stable('central QR geometry');
    await page.locator('#plazaRosterToggle').click();await stable('hide roster');
    await page.locator('#plazaRosterToggle').click();await stable('restore roster');
    for(const mode of ['endless','board','queue']){
