@@ -255,11 +255,25 @@ function hostCanControlBoardZoom(){
    (players.some(q=>q.id===p.id&&q.type==='local'&&!q.isBot)||s.players.every(q=>q.isBot))&&
    window.BoardArt?.canPan?.(s));
 }
+// The three BOARD controls belong only to the live map, never to its
+// standings/rewards, dice-order overlay, roulette or a minigame.
+const BOARD_MAP_TOOL_PHASES=new Set([
+ 'overview','intro_zoom','round_order','ready','dice','move_ready',
+ 'branch','moving','aim','car','rocket','lucky_roulette','effect','returning'
+]);
+function boardMapToolsActive(){
+ return currentView==='game'&&round?.mode==='board'&&round.phase==='playing'&&
+  !!boardSession&&!gameSelection&&BOARD_MAP_TOOL_PHASES.has(boardSession.phase);
+}
 function refreshBoardTools(){
- const active=round?.mode==='board'&&!!boardSession;
+ const active=boardMapToolsActive();
  $('boardTools').classList.toggle('hidden',!active);
  // Exit must be available during normal BOARD play, not only while paused.
  $('boardExitBtn').classList.toggle('hidden',!active);
+ // Normal-party pause is independent. During BOARD and its nested minigame
+ // these three controls must share the exact same map-only visibility.
+ if(boardSession||round?.mode==='board')
+  $('pauseBtn').classList.toggle('hidden',!active);
  if(active){
   // Debug overlays are local to the Host and never change BOARD rules or
   // network state. Leave the ID button visible in human and bot rooms.
@@ -291,6 +305,7 @@ function showBoard(){
 }
 function updateBoard(dt){
   const s=boardSession;if(!s||round.phase==='results')return;
+  const previousToolbarPhase=s.phase;
   // Local human keys follow the same sequence- and turn-checked path.
   for(const p of players.filter(p=>p.type==='local'&&!p.isBot)){
     const keys={...p.input,axisX:p.input.axisX||Number(p.input.right)-Number(p.input.left),axisY:p.input.axisY||Number(p.input.down)-Number(p.input.jump)};
@@ -305,7 +320,9 @@ function updateBoard(dt){
     pending-=step;
     if(s.phase==='minigame_pending'||s.phase==='minigame'||s.phase==='finished')break;
   }
-  // No per-frame DOM toolbar updates: only pause, exit and ID remain.
+  // DOM updates only when a BOARD phase changes. Canvas overlay phases
+  // must immediately hide the previous map's Exit/ID/Pause controls.
+  if(s.phase!==previousToolbarPhase)refreshBoardTools();
    if(s.phase==='minigame_pending'){
     const mode=window.BoardMinigame.pick(boardRegistry(),s.players.length,s.lastMinigame,s.rng);
     if(!mode)throw Error('No compatible minigame');
