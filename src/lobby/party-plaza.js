@@ -77,7 +77,8 @@ async function loadArt(){
  if(!uri)throw Error('Party Plaza scene URL unavailable');
  const next=new Image();next.decoding='async';
  await new Promise((resolve,reject)=>{next.onload=resolve;next.onerror=()=>reject(Error('Party Plaza SVG image load failed'));next.src=uri;});
- if(typeof next.decode==='function')await next.decode();
+ if(typeof next.decode==='function')try{await next.decode();}
+ catch(error){if(!next.naturalWidth)throw error;} // WebKit may reject decode after onload.
  image=next;
 }
 function retry(){
