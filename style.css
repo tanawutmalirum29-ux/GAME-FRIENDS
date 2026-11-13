@@ -6577,3 +6577,31 @@ body.controller-playing #controller #controllerActive #buttonB.plaza-b-ready .fa
 @media(prefers-reduced-motion:reduce){
   body.controller-playing #controller #controllerActive #buttonB.plaza-b-ready{animation:none;}
 }
+
+/* Phone camera must see the original 256px QR modules with a clear quiet
+   zone; the old 172px popup shrank/aliased the generated code. */
+#hostLobby.plaza-loaded .lobby-qr-panel{
+ width:min(310px,calc(100dvw - 18px))!important;
+ min-width:0!important;
+ max-width:calc(100dvw - 18px)!important;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel .qr-share-stack{
+ width:264px!important;min-width:0!important;max-width:100%!important;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel .qr-share-stack .qr-box{
+ width:264px!important;height:264px!important;
+ min-width:0!important;min-height:0!important;
+ max-width:100%!important;max-height:none!important;
+ flex:0 0 auto!important;
+ padding:4px!important;aspect-ratio:1!important;
+ background:#fff!important;
+}
+#hostLobby.plaza-loaded .lobby-qr-panel .qr-share-stack .qr-box canvas,
+#hostLobby.plaza-loaded .lobby-qr-panel .qr-share-stack .qr-box img{
+ image-rendering:pixelated!important;
+ width:100%!important;height:100%!important;
+}
+#roomScannerPanel #roomQrReader .gf-native-qr-video{
+ display:block;width:100%;height:auto;max-width:100%;max-height:calc(100dvh - 145px);
+ object-fit:contain;border-radius:10px;
+}
