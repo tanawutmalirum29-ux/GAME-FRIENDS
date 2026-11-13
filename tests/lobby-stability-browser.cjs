@@ -141,6 +141,26 @@ async function geometry(page){
     await page.locator('#roster .roster-item:not(.roster-empty) button[aria-label^="เอา"]').last().click();
     await stable('remove bot');
    }
+   // Post-UI host-authoritative B-zone probe. A disconnected or out-of-zone
+   // controller never receives a stale action, and reconnect resends it.
+   const bActions=await page.evaluate(()=>{
+    const api=window.PartyPlaza,actions=[];
+    api.configure({
+      zoneBAction:(p,z)=>['wardrobe','color_studio'].includes(z?.id)?z.id:null,
+      notifyZoneB:(p,action)=>actions.push(action)
+    });
+    const p={id:'b-zone-probe',name:'Probe',isBot:false,color:'#3cb44b',
+      conn:{open:true},input:{axisX:0,axisY:0,action:false,alt:false},
+      plazaX:480,plazaY:300};
+    const visit=(x,y)=>{p.plazaX=x;p.plazaY=y;api.tick(.016,[p]);};
+    visit(480,300);visit(151,190);visit(151,190);
+    visit(144,437);visit(480,300);
+    p.conn={open:true};visit(144,437);
+    api.sync([]);
+    return actions;
+   });
+   assert.deepEqual(bActions,[null,'wardrobe','color_studio',null,'color_studio'],
+    'host sends B actions only on true zone transitions and reconnects');
    await page.screenshot({path:path.join(out,engine+'-'+viewport.width+'x'+viewport.height+'.png')});
    assert.deepEqual(errors,[],'zero JavaScript errors');
    await context.close();
