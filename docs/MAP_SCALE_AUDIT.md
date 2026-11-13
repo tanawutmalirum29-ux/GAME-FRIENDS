@@ -52,6 +52,13 @@ MAP checks: the 5×5 arena, tile size 78 world units, board 390×390 at (285,116
 - **QR clarity:** floating Host room QR display expands from 172×172 to 264×264 CSS px with 4px quiet-zone padding, presenting the underlying **256×256 pixels** without downsampling. The phone scans using the rear-facing native `BarcodeDetector` plus `getUserMedia` when supported, and retains the existing html5-qrcode fallback with a larger 84%-of-camera QR box and 12 fps. The physical camera is never CSS-rotated; stream, frames and scanner are released on close.
 - **Validation:** first-paint/manifest and QR scanning contracts in Node; Chromium/WebKit camera fallback and native simulation, controller orientation, lazy boot and Host lobby geometry. No resolution or movement-scale reductions.
 
+### PARTY PLAZA center room QR replaces physical READY circle (2026-11-14)
+
+- **Presentation:** The neon lobby remains **960×540** world pixels, with the original decoded SVG art, DPR-sharp backing canvas and independent character/world scales unchanged. A circular, opaque clickable room QR button is world-anchored at **x=480, y=439**, **196 world units** in diameter: it completely masks the old READY badge beneath it without altering/rasterizing the original SVG. The embedded QR is generated at 256×256 source resolution, with a high-contrast white quiet zone. Actual on-screen size follows the canvas's object-fit:contain transform and ResizeObserver, including virtual landscape.
+- **Interaction:** Tapping/clicking the central QR copies the same canonical room join URL; keyboard focus is supported. A toast and label confirm success. The old top QR/room action and popup are no longer visible/interactive; their hidden room-link nodes remain for reuse by live QR rendering and copy fallback. Offline rooms display a nonclickable placeholder instead of a broken invite.
+- **READY voting:** Delete the READY trigger and room-popup trigger from both canonical and bundled zone geometry. A on any unoccupied Plaza walkable space now toggles the same authenticated host ready vote, while A inside Arcade/Board/Wardrobe/Color Studio retains its original action; no silent global auto-ready or change to votes/start scoring.
+- **Regression:** Node guards verify geometry, central link handling and authentic ready-input protection; Chromium/WebKit Plaza tests verify circular button placement, stable map geometry, offline placeholder and live copy handler. No change to resolution, map art, paths, collision dimensions, network security, or minigame mechanics.
+
 ## Findings and changes
 
 ### Shared avatar mounts (2026-11-12)
