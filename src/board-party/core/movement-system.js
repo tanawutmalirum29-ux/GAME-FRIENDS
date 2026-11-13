@@ -4,7 +4,7 @@ function beginMove(s,p,steps,kind='walk'){
  if(kind==='walk'&&!p.worldPosition)p.worldPosition={...position};
  s.move={playerId:p.id,kind,remaining:steps,total:steps,from:p.currentNodeId,to:null,
    t:0,lateral:0,nodeOffset:{x:position.x-origin.x,y:position.y-origin.y},
-   intent:null,intentTime:0,started:false,visited:[p.currentNodeId],completedSteps:0,auto:false,
+   started:false,visited:[p.currentNodeId],completedSteps:0,auto:false,
    expires:kind==='rocket'?s.time+5:Infinity};
  s.camera.explore=kind==='walk'&&!p.isBot;
  if(kind==='walk'&&s.inputs[p.id]){
@@ -44,7 +44,7 @@ function nextStep(s){
 const WALK_SPEED=240,ROAD_HALF_WIDTH=44,AVATAR_EDGE_CLEARANCE=10;
 const LANE_RADIUS=ROAD_HALF_WIDTH-AVATAR_EDGE_CLEARANCE;
 const NODE_RADIUS=ROAD_HALF_WIDTH-AVATAR_EDGE_CLEARANCE;
-const ROCKET_LANE_RADIUS=18,TURN_DELAY=.08;
+const ROCKET_LANE_RADIUS=18;
  // The Y-junction starts to curve before its centre. Keep branch steering
  // reversible inside the visibly shared curved plaza, not only when the
  // sprite is within a skinny 18-unit strip of the ALTERNATE straight line.
@@ -54,7 +54,7 @@ function step(s,to){
  const m=s.move,p=current(s);
  if(!m||m.to||!s.map.nodes[p.currentNodeId].nextNodes.includes(to)||(s.map.id!==M().MAP_ID&&m.visited.includes(to)))return false;
  const pos=I().position(s,p),a=s.map.nodes[p.currentNodeId].position,b=s.map.nodes[to].position;
- m.from=p.currentNodeId;m.to=to;m.intent=null;m.intentTime=0;
+ m.from=p.currentNodeId;m.to=to;
  if(m.kind==='walk'){
   // Keep the exact world-space location; never retarget the sprite to a pad centre.
   const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;
@@ -73,22 +73,18 @@ function roamNode(s,p,dt){
  const a=axes(s,p.id),strength=Math.hypot(a.x,a.y);
  if(strength>.11){
   if(!m.started){m.started=true;s.camera.explore=false;}
-  // Walk freely inside the plaza around each tile. An accidental touch does
-  // not commit a branch: direction must be held for 160 milliseconds.
+  // Walk freely inside the pad. A clear road direction enters immediately,
+  // with no time-based steering gate or automatic movement.
   const v=m.nodeOffset||{x:0,y:0};
   let x=v.x+a.x*WALK_SPEED*dt,y=v.y+a.y*WALK_SPEED*dt;
   const d=Math.hypot(x,y);
   if(d>NODE_RADIUS){x=x*NODE_RADIUS/d;y=y*NODE_RADIUS/d;}
   m.nodeOffset={x,y};
+  // Ambiguous directions leave the player free on the pad. A definite aim
+  // starts the directed edge in the first simulation update.
   const next=forwardInput(s,p);
-  if(next){
-   if(m.intent===next)m.intentTime+=dt;
-   else{m.intent=next;m.intentTime=dt;}
-   // Single-exit checkpoints should not force a new joystick hold.
-   // Genuine forks still debounce so unintended taps do not choose a route.
-   if(s.map.nodes[p.currentNodeId].nextNodes.length===1||m.intentTime>=TURN_DELAY){step(s,next);return;}
-  }else{m.intent=null;m.intentTime=0;}
- }else{m.intent=null;m.intentTime=0;}
+  if(next)step(s,next);
+ }
 }
 function walkEdge(s,p,dt){
  const m=s.move;
@@ -121,7 +117,7 @@ function walkEdge(s,p,dt){
      // Reproject the same world point; gradual lane easing below avoids
      // teleporting to the newly selected line or deducting a dice step.
      m.to=candidate;m.endPosition=end;m.t=projected;m.lateral=lateral;
-     m.walking=false;m.intent=null;m.intentTime=0;
+     m.walking=false;
      return;
     }
    }
@@ -154,7 +150,7 @@ function walkEdge(s,p,dt){
    const vx=pos.x-base.x,vy=pos.y-base.y,len=Math.hypot(vx,vy)||1;
    m.nodeOffset={x:len>NODE_RADIUS?vx*NODE_RADIUS/len:vx,y:len>NODE_RADIUS?vy*NODE_RADIUS/len:vy};
   }
-  m.to=null;m.lateral=0;m.intent=null;m.intentTime=0;
+  m.to=null;m.lateral=0;
   const options=s.map.nodes[p.currentNodeId].nextNodes;
   if(options.length>1){s.branch={options:[...options],selected:options[0]};movePhase(s,'branch');}
   else movePhase(s,'move_ready');
