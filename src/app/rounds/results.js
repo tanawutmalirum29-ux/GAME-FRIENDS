@@ -81,7 +81,9 @@ function resultHatProjection(front){
  const [dx,dy,w,h]=front;
  const scale=Math.min(1,72/Math.max(72,-dy));
  const percent=v=>(100*v/96)+'%';
- return {left:percent(48+dx*scale),top:percent(48+dy*scale),
+ // Nudge upward by 7 source units so even close-fitting wraps rise above
+ // the ring; the face itself stays centered and clipped inside the circle.
+ return {left:percent(48+dx*scale),top:percent(41+dy*scale),
   width:percent(w*scale),height:percent(h*scale)};
 }
 function renderResultAvatar(p,portrait){
