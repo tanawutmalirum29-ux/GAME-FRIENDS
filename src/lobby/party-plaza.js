@@ -11,7 +11,7 @@ const FALLBACK={
   {id:'main_plaza',label:'MAIN PLAZA',center:{x:480,y:327},interactionRadiusPx:0,priority:0},
   {id:'ready_area',label:'READY / START',center:{x:480,y:457},interactionRadiusPx:46,priority:80},
   {id:'room_corner',label:'ROOM CORNER',center:{x:816,y:439},interactionRadiusPx:43,priority:35},
-  {id:'play_corner',label:'PLAY CORNER',center:{x:144,y:437},interactionRadiusPx:0,priority:10}
+  {id:'color_studio',label:'COLOR STUDIO',center:{x:144,y:437},interactionRadiusPx:49,priority:45}
  ],
  obstacles:[
   {id:'wardrobe-building',type:'rect',x:68,y:52,width:167,height:100},
@@ -172,6 +172,7 @@ function tick(dt,players){
    if(b&&!p.plazaBPressed){
     const zone=zoneAt(p);
     if(zone?.id==='wardrobe')callbacks.changeCosmetic?.(p);
+    else if(zone?.id==='color_studio')callbacks.changeColor?.(p);
     else callbacks.cancel?.(p);
    }
    p.plazaAPressed=a;p.plazaBPressed=b;
@@ -198,11 +199,40 @@ function backgroundFallback(c){
   c.fillStyle='#f0d6ff';c.font='bold 14px sans-serif';c.textAlign='center';c.fillText(z.label,z.center.x,z.center.y);
  }
 }
+function paintColorStudio(c){
+ const zone=layout.zones.find(z=>z.id==='color_studio');
+ if(!zone)return;
+ const {x,y}=zone.center;
+ c.save();
+ // Overlay the formerly unused PLAY CORNER without reducing the original
+ // high-resolution Party Plaza SVG fidelity or altering collision geometry.
+ c.beginPath();c.arc(x,y,zone.interactionRadiusPx,0,Math.PI*2);
+ c.strokeStyle='rgba(139,236,246,.65)';c.lineWidth=2;c.stroke();
+ c.fillStyle='rgba(11,19,39,.96)';
+ c.fillRect(x-96,y-81,192,65);
+ c.strokeStyle='#79dbe8';c.lineWidth=1.5;
+ c.strokeRect(x-96.5,y-81.5,193,66);
+ c.textAlign='center';c.textBaseline='middle';
+ c.font='bold 14px sans-serif';c.fillStyle='#f4fdff';
+ c.fillText('COLOR STUDIO',x,y-66);
+ const colors=callbacks.colorPalette?.()||[];
+ const count=Math.min(colors.length,12);
+ for(let i=0;i<count;i++){
+  const px=x+(i-(count-1)/2)*14.5,py=y-47;
+  c.beginPath();c.arc(px,py,5.7,0,Math.PI*2);
+  c.fillStyle=colors[i];c.fill();
+  c.strokeStyle='rgba(255,255,255,.62)';c.lineWidth=.8;c.stroke();
+ }
+ c.font='bold 12px sans-serif';c.fillStyle='#c1f5ff';
+ c.fillText('B เปลี่ยนสี',x,y-28);
+ c.restore();
+}
 function paint(){
  const c=ctx;if(!c)return;
  const t=canvas.width/960;c.setTransform(t,0,0,canvas.height/540,0,0);
  c.clearRect(0,0,960,540);
  if(image)c.drawImage(image,0,0,960,540);else backgroundFallback(c);
+ paintColorStudio(c);
  const avatar=window.PartyPlayerAvatar;
  window.PartyCharacters?.beginNameFrame?.(c);
  for(const p of [...playerCache].sort((a,b)=>a.plazaY-b.plazaY)){
@@ -222,6 +252,7 @@ function paint(){
  const focus=playerCache.find(p=>!p.isBot&&p.conn?.open)||playerCache[0];
  const zone=zoneAt(focus),hint=$('plazaZoneHint');
  if(hint)hint.textContent=zone?.id==='wardrobe'?'WARDROBE • B เปลี่ยนเครื่องแต่งกาย':
+  zone?.id==='color_studio'?'COLOR STUDIO • กด B เปลี่ยนสี (ไม่ซ้ำเพื่อน)':
   zone?zone.label+' • A ใช้งาน':'เดินด้วยจอย • ไปที่จุดต่าง ๆ แล้วกด A';
 }
 window.PartyPlaza=Object.freeze({configure,setActive,sync,tick,inZone,zoneAt,getLayout:()=>layout,getPlayers:()=>playerCache,isReady:()=>loaded,debug:v=>{debug=!!v;}});
