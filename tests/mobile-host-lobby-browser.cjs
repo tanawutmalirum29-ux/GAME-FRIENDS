@@ -86,7 +86,7 @@ async function run(){
    assert.equal(await page.locator('#roster .roster-item:not(.roster-empty)').count(),3);
    // Hiding panels restores full map, not a new layout or smaller canvas.
    await page.locator('#plazaSettingsToggle').click();
-   await page.locator('#plazaRoomToggle').click();
+
    await page.locator('#plazaRosterToggle').click();
    const after=await page.locator('#plazaCanvas').boundingBox();
    for(const field of ['x','y','width','height'])
