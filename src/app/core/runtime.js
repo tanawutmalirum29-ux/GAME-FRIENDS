@@ -229,7 +229,7 @@ function savePhone(){
 function restorePlayers(list){
  if(!Array.isArray(list)||list.length>MAX_PLAYERS)return;
  const originalColors=new Set(),ids=new Set();
- const cosmetics=window.PartyCosmetics;
+ const cosmetics=typeof window!=='undefined'?window.PartyCosmetics:null;
  // Reserve valid saved choices before migrating an undressed or duplicate seat.
  const reservedCosmetics=new Set(list.map(p=>cosmetics?.normalize?.(p?.cosmetic)).filter(id=>id&&id!=='none'));
  const claimedCosmetics=new Set();
