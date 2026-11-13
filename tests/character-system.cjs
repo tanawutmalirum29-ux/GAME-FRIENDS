@@ -74,6 +74,26 @@ const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  rules.draw(ctx,make('m',20,20));
  assert.equal(ctx.drawn,1,'central character rendering delegates to the shared avatar');
 }
+// One nameplate per actor. A crowded label shifts above its neighbour rather
+// than covering it, and no name is drawn while a parent mount is rotating.
+{
+ const painted=[];
+ const canvas={save(){},restore(){},beginPath(){},roundRect(){},fill(){},
+  measureText(t){return{width:Array.from(t).length*7}},
+  getTransform(){return{a:1,b:0,c:0,d:1,e:0,f:0}},
+  fillText(t,x,y){painted.push({t,x,y})},strokeText(){}};
+ const a=make('a',180,200),b=make('b',180,200);
+ a.name='ผู้เล่น A';b.name='บอท B';
+ rules.beginNameFrame(canvas);
+ rules.drawName(canvas,a);
+ rules.drawName(canvas,b);
+ assert.equal(painted.length,2,'every player gets a label');
+ assert.ok(painted.every(q=>q.y<a.y-30),'labels sit above the character, not on its body');
+ assert.notEqual(painted[0].y,painted[1].y,'crowded labels never overlap one another');
+ rules.beginNameFrame(canvas);painted.length=0;
+ rules.drawName(canvas,a,{nameTag:false});
+ assert.equal(painted.length,0,'specific game HUD can suppress a redundant label');
+}
 // All shipped modes must explicitly invoke the shared physics resolver; no
 // minigame should silently replace the global default with pass-through.
 for(const filename of ['src/games/ghost-attack/ghost-attack.js','src/games/chickens/chickens.js','src/games/fruit-memory/fruit-memory.js',
