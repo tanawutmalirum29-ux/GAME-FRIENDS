@@ -14,6 +14,7 @@ global.window={PartyCharacters:{
  const game=(await import(pathToFileURL(path.join(base,'game.js')).href)).default;
  const {C,STEP}=await import(pathToFileURL(path.join(base,'config.js')).href);
  const {BOT_NAV_CELL}=await import(pathToFileURL(path.join(base,'bot.js')).href);
+ const {obstacleContact}=await import(pathToFileURL(path.join(base,'map.js')).href);
  assert.equal(C.speed,130,'reduced runner/dinosaur speed');
  assert.equal(BOT_NAV_CELL,10,'original 10-unit navigation grid MUST NOT be coarsened for speed');
  assert.equal(C.cell,8,'original precise track validation grid MUST remain unchanged');
@@ -97,6 +98,34 @@ global.window={PartyCharacters:{
   assert.ok(pushing,'moving into obstacle triggers the low-speed push state');
   assert.ok(o.x>oldX+3,'human actually pushes obstacle in world coordinates');
   assert.ok(tr.query(o.x-2,o.x+2).includes(o),'spatial index follows pushed scenery');
+ }
+ // Side brushing must NOT use the 38% push speed: only a normal impact does.
+ {
+  const {s,ps,round}=create(1,8124),p=ps[0],o=s.track.obstacles.find(o=>o.kind==='crate');
+  assert.ok(o,'test fixture needs one movable crate');
+  p.x=o.x-o.hw-C.R-.5;p.y=o.y;p.input.axisX=0;p.input.axisY=-1;
+  game.update(STEP,round,ps);
+  assert.equal(p.dino.pushing,false,'tangential movement along a crate does not count as pushing');
+  assert.ok(p.dino.iy<-C.speed*.95,'grazing keeps full running speed');
+  p.x=o.x-o.hw-C.R-.5;p.y=o.y;p.input.axisX=1;p.input.axisY=0;
+  game.update(STEP,round,ps);
+  assert.equal(p.dino.pushing,true,'normal movement into the same crate counts as pushing');
+  assert.ok(p.dino.ix<=C.speed*C.pushFactor+.01,'a genuine push still slows the runner');
+ }
+ // A log has a rotating collider as well as rotating art. Angular velocity
+ // is capped and its angle is integrated per 1/60 s; no instant flips.
+ {
+  const synthetic={shape:'rect',kind:'log',x:0,y:0,hw:60,hh:10,angle:Math.PI/2};
+  assert.ok(obstacleContact(synthetic,0,30).gap<0,'rotated log really occupies its vertical axis');
+  assert.ok(obstacleContact(synthetic,30,0).gap>15,'original horizontal axis is now unobstructed');
+  const {s}=create(1,8124),tr=s.track;
+  const log=tr.obstacles.find(o=>o.kind==='log');
+  assert.ok(log,'track fixture generates at least one log');
+  tr.impulseObstacle(log,4,0,log.x,log.y+(log.hh>log.hw?log.hh*.65:log.hh*.65));
+  assert.ok(Math.abs(log.spin)<=1.15+1e-9,'heavy logs cannot flip at 5 rad/s');
+  const initial=log.angle;
+  tr.tick++;tr.stepObstacles(STEP);
+  assert.ok(Math.abs(log.angle-initial)<=1.15*STEP+1e-9,'log angle advances smoothly per frame');
  }
  {
   const {s,ps,round}=create(12,15001);

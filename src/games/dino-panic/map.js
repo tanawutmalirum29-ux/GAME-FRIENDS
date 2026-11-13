@@ -6,6 +6,53 @@ const PO=[];                                   // scratch list for pushOut (no p
 let _b=new Uint8Array(8192),_d=new Float64Array(8192);const _h=new Heap();  // reusable validator buffers
 const PAD=26,BUCKET=128;
 
+// Exact surface contact for circular runners against a possibly rotated log/crate.
+// gap is signed: positive outside, negative when the runner's centre is inside.
+export function obstacleContact(o,x,y){
+ const dx=x-o.x,dy=y-o.y;
+ if(o.shape==='circle'){
+  const d=Math.hypot(dx,dy),nx=d>1e-8?dx/d:-1,ny=d>1e-8?dy/d:0;
+  return{nx,ny,gap:d-o.r,cx:o.x+nx*o.r,cy:o.y+ny*o.r};
+ }
+ const a=o.angle||0,cs=Math.cos(a),sn=Math.sin(a);
+ const lx=dx*cs+dy*sn,ly=dy*cs-dx*sn;
+ let px=clamp(lx,-o.hw,o.hw),py=clamp(ly,-o.hh,o.hh);
+ let ux=lx-px,uy=ly-py,gap=Math.hypot(ux,uy);
+ if(gap>1e-8){ux/=gap;uy/=gap;}
+ else{
+  // Inside a rectangle: choose its nearest outward face, not a zero normal.
+  const ex=o.hw-Math.abs(lx),ey=o.hh-Math.abs(ly);
+  if(ex<ey){ux=lx>=0?1:-1;uy=0;px=ux*o.hw;py=ly;gap=-ex;}
+  else{ux=0;uy=ly>=0?1:-1;px=lx;py=uy*o.hh;gap=-ey;}
+ }
+ return{nx:cs*ux-sn*uy,ny:sn*ux+cs*uy,gap,
+  cx:o.x+cs*px-sn*py,cy:o.y+sn*px+cs*py};
+}
+const xExtent=(o,a=o.angle||0)=>o.shape==='circle'?o.r:Math.abs(Math.cos(a))*o.hw+Math.abs(Math.sin(a))*o.hh;
+const yExtent=(o,a=o.angle||0)=>o.shape==='circle'?o.r:Math.abs(Math.sin(a))*o.hw+Math.abs(Math.cos(a))*o.hh;
+// Conservative X indexing means that rotation never leaves the obstacle's collider
+// outside the bucket map. Fences do not rotate.
+const indexRadius=o=>o.shape==='circle'?o.r:o.kind==='fence'?o.hw:Math.hypot(o.hw,o.hh);
+function intersects(a,ax,ay,aa,b,bx,by,ba,pad=1){
+ if(a.shape==='circle'&&b.shape==='circle')return Math.hypot(ax-bx,ay-by)<a.r+b.r+pad;
+ const circleRect=(c,cx,cy,r,rx,ry,ra)=>{
+  const dx=cx-rx,dy=cy-ry,cs=Math.cos(ra),sn=Math.sin(ra),
+   lx=dx*cs+dy*sn,ly=dy*cs-dx*sn,
+   nx=clamp(lx,-r.hw,r.hw),ny=clamp(ly,-r.hh,r.hh);
+  return(lx-nx)**2+(ly-ny)**2<(c.r+pad)**2;
+ };
+ if(a.shape==='circle')return circleRect(a,ax,ay,b,bx,by,ba);
+ if(b.shape==='circle')return circleRect(b,bx,by,a,ax,ay,aa);
+ const ac=Math.cos(aa),as=Math.sin(aa),bc=Math.cos(ba),bs=Math.sin(ba),dx=bx-ax,dy=by-ay;
+ const axes=[[ac,as],[-as,ac],[bc,bs],[-bs,bc]];
+ for(const [ux,uy] of axes){
+  const ad=Math.abs(ux*ac+uy*as)*a.hw+Math.abs(-ux*as+uy*ac)*a.hh;
+  const bd=Math.abs(ux*bc+uy*bs)*b.hw+Math.abs(-ux*bs+uy*bc)*b.hh;
+  if(Math.abs(dx*ux+dy*uy)>=ad+bd+pad)return false;
+ }
+ return true;
+}
+
 /* ───────── obstacle builders ───────── */
 const O=(kind,shape,x,y,hw,hh,v)=>({id:0,kind,shape,x,y,hw,hh,r:shape==='circle'?hw:0,v:v|0,alive:true,angle:0,prevAngle:0,spin:0,mvx:0,mvy:0});
 const crate=(x,y,G)=>O('crate','rect',x,y,C.crate,C.crate,G.rng()*4);
@@ -149,7 +196,7 @@ export function buildTrack(tier,seed,playerCount){
   x=acc.x1;
  }
  const buckets=new Map();
- for(const o of obstacles){const e=o.shape==='circle'?o.r:o.hw;
+ for(const o of obstacles){const e=indexRadius(o);
   o._bucketLo=Math.floor((o.x-e)/BUCKET);o._bucketHi=Math.floor((o.x+e)/BUCKET);
   for(let b=o._bucketLo;b<=o._bucketHi;b++){let a=buckets.get(b);if(!a)buckets.set(b,a=[]);a.push(o);}}
  let stamp=0;
@@ -160,31 +207,20 @@ export function buildTrack(tier,seed,playerCount){
  // Obstacles stay in the bucket index when shoved by a runner: otherwise
  // colliders and visible sprites would diverge after crossing a bucket edge.
  const QM=[];let out2;
+ const canTransform=(o,nx,ny,angle)=>{
+  const rx=xExtent(o,angle),ry=yExtent(o,angle);
+  if(ny-ry<top-3||ny+ry>bottom+3||nx-rx<lastSpawn+45||nx+rx>finishX-35)return false;
+  for(const q of query(nx-indexRadius(o)-5,nx+indexRadius(o)+5,QM)){
+   if(q===o)continue;
+   if(intersects(o,nx,ny,angle,q,q.x,q.y,q.angle||0))return false;
+  }
+  return true;
+ };
  const moveObstacle=(o,dx,dy)=>{
   if(!o.alive||o.kind==='rock'||o.kind==='fence'||(!dx&&!dy))return false;
-  const rx=o.shape==='circle'?o.r:o.hw,ry=o.shape==='circle'?o.r:o.hh;
   const nx=o.x+dx,ny=o.y+dy;
-  if(ny-ry<top-3||ny+ry>bottom+3||nx-rx<lastSpawn+45||nx+rx>finishX-35)return false;
-  for(const q of query(nx-rx-5,nx+rx+5,QM)){
-   if(q===o)continue;
-   // Circle–rectangle contact remains exact when movable crates/logs hit fixed rocks.
-   const pad=1;
-   let blocked=false;
-   if(o.shape==='circle'&&q.shape==='circle'){
-    blocked=Math.hypot(nx-q.x,ny-q.y)<o.r+q.r+pad;
-   }else if(o.shape==='circle'){
-    const cx=clamp(nx,q.x-q.hw,q.x+q.hw);
-    const cy=clamp(ny,q.y-q.hh,q.y+q.hh);
-    blocked=Math.hypot(nx-cx,ny-cy)<o.r+pad;
-   }else if(q.shape==='circle'){
-    const cx=clamp(q.x,nx-rx,nx+rx),cy=clamp(q.y,ny-ry,ny+ry);
-    blocked=Math.hypot(q.x-cx,q.y-cy)<q.r+pad;
-   }else{
-    blocked=Math.abs(nx-q.x)<rx+q.hw+pad&&Math.abs(ny-q.y)<ry+q.hh+pad;
-   }
-   if(blocked)return false;
-  }
-  const lo=Math.floor((nx-rx)/BUCKET),hi=Math.floor((nx+rx)/BUCKET);
+  if(!canTransform(o,nx,ny,o.angle))return false;
+  const rx=indexRadius(o),lo=Math.floor((nx-rx)/BUCKET),hi=Math.floor((nx+rx)/BUCKET);
   if(lo!==o._bucketLo||hi!==o._bucketHi){
    for(let i=o._bucketLo;i<=o._bucketHi;i++){
     const list=buckets.get(i);if(!list)continue;
@@ -194,7 +230,7 @@ export function buildTrack(tier,seed,playerCount){
    for(let i=lo;i<=hi;i++){let list=buckets.get(i);if(!list)buckets.set(i,list=[]);list.push(o);}
    o._bucketLo=lo;o._bucketHi=hi;
   }
-  if(o.mt!==out2.tick){o.mt=out2.tick;o.ox=o.x;o.oy=o.y;}   // position at the start of this tick (render interpolation)
+  if(o.mt!==out2.tick){o.mt=out2.tick;o.ox=o.x;o.oy=o.y;}
   o.x=nx;o.y=ny;return true;
  };
  // Fixed-step inertia applies ONLY to crates/logs. Rocks and fences never move
@@ -206,7 +242,9 @@ export function buildTrack(tier,seed,playerCount){
   o.mvy=clamp(o.mvy+iy*11,-95,95);
   const lever=(cx-o.x)*iy-(cy-o.y)*ix;
   const inertia=Math.max(180,(o.hw*o.hw+o.hh*o.hh)*.5);
-  o.spin=clamp(o.spin+lever*150/inertia,-5,5);
+  // Angular impulse / moment of inertia. Logs are heavy and cannot flip instantly.
+  const torqueGain=o.kind==='log'?12:18,maxSpin=o.kind==='log'?1.15:1.8;
+  o.spin=clamp(o.spin+lever*torqueGain/inertia,-maxSpin,maxSpin);
   moving.add(o);
  };
  const stepObstacles=dt=>{
@@ -225,7 +263,11 @@ export function buildTrack(tier,seed,playerCount){
     if(!moved){o.mvx*=.18;o.mvy*=.18;o.spin*=.7;}
    }
    if(o.at!==out2.tick){o.at=out2.tick;o.prevAngle=o.angle;}
-   o.angle+=o.spin*dt;
+   // Rotate the REAL collider with the artwork. Do not spin through rocks,
+   // neighbouring objects or corridor boundaries.
+   const nextAngle=o.angle+o.spin*dt;
+   if(canTransform(o,o.x,o.y,nextAngle))o.angle=nextAngle;
+   else o.spin=0;
    const damping=Math.exp(-5*dt);
    o.mvx*=damping;o.mvy*=damping;o.spin*=Math.exp(-4*dt);
    if(Math.abs(o.mvx)+Math.abs(o.mvy)+Math.abs(o.spin)<.06){
@@ -241,19 +283,9 @@ export function buildTrack(tier,seed,playerCount){
 /* ───────── collision helpers (circle body vs obstacle / corridor walls) ───────── */
 export function pushOut(track,p,R=C.R){
  let hit=false;
- const list=track.query(p.x-R-4,p.x+R+4,PO);
- for(const o of list){
-  if(o.shape==='circle'){
-   const dx=p.x-o.x,dy=p.y-o.y,d=Math.hypot(dx,dy),m=o.r+R;
-   if(d<m){const nx=d>1e-6?dx/d:-1,ny=d>1e-6?dy/d:0;p.x=o.x+nx*m;p.y=o.y+ny*m;hit=true;}
-  }else{
-   const cx=clamp(p.x,o.x-o.hw,o.x+o.hw),cy=clamp(p.y,o.y-o.hh,o.y+o.hh),dx=p.x-cx,dy=p.y-cy,d2=dx*dx+dy*dy;
-   if(d2>1e-9){if(d2<R*R){const d=Math.sqrt(d2);p.x=cx+dx/d*R;p.y=cy+dy/d*R;hit=true;}}
-   else{ // centre inside the rectangle: leave through the nearest face
-    const l=p.x-(o.x-o.hw),r=o.x+o.hw-p.x,t=p.y-(o.y-o.hh),b=o.y+o.hh-p.y,m=Math.min(l,r,t,b);
-    if(m===l)p.x=o.x-o.hw-R;else if(m===r)p.x=o.x+o.hw+R;else if(m===t)p.y=o.y-o.hh-R;else p.y=o.y+o.hh+R;hit=true;
-   }
-  }
+ for(const o of track.query(p.x-R-4,p.x+R+4,PO)){
+  const c=obstacleContact(o,p.x,p.y);
+  if(c.gap<R){const shift=R-c.gap;p.x+=c.nx*shift;p.y+=c.ny*shift;hit=true;}
  }
  const lo=track.top+R,hi=track.bottom-R;
  if(p.y<lo){p.y=lo;hit=true;}else if(p.y>hi){p.y=hi;hit=true;}
