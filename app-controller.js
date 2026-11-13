@@ -2563,7 +2563,10 @@ async function startRoomScanner(){
     }
   }
 }
+let controllerPlazaBZone=null;
 function resetControllerForRoomChange(message,awaitLeaveAck=false){
+  controllerPlazaBZone=null;
+  $('buttonB').classList.remove('plaza-b-ready');
   disconnectRequested=true;
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;reconnectTries=0;
@@ -2681,6 +2684,7 @@ function joinRoom(recovery=false){
           $('joinBtn').disabled=false;safePeerDestroy();return;
         }
         controllerId=data.id;controllerReady=true;plazaPickerOpen=false;
+        controllerPlazaBZone=null;
         // A fresh room connection shows the centered walking stick again.
         // Its first touch floats to the finger, then hides on release.
         releaseStick();
@@ -2737,7 +2741,14 @@ function joinRoom(recovery=false){
       }else if(data.t==='plaza-picker'){
         plazaPickerOpen=data.open===true;
         updatePhoneGamePicker('lobby',myChosenMode);
+        showControllerMode(controllerGameMode);
         $('controllerState').textContent=plazaPickerOpen?'เลือกมินิเกม • กด B เพื่อปิด':'เดินใน PARTY PLAZA ด้วยจอย';
+      }else if(data.t==='plaza-b-zone'){
+        if(controllerReady&&controllerGamePhase==='lobby'){
+          // Only a known action sent by the authoritative HOST can light B.
+          controllerPlazaBZone=['wardrobe','color_studio'].includes(data.zone)?data.zone:null;
+          showControllerMode(controllerGameMode);
+        }
       }else if(data.t==='plaza-color-changed'){
         if(controllerReady&&typeof data.name==='string'){
           syncControllerAvatarColor(data.color);
@@ -2751,10 +2762,10 @@ function joinRoom(recovery=false){
           total:Math.max(0,Math.min(MAX_PLAYERS,Number(ready.total)||0)),
           selfReady:Array.isArray(ready.voted)&&ready.voted.includes(controllerId)
         };
-        showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
         if(self)syncControllerAvatarColor(self.color);
         setControllerGameContext(data.mode,data.phase,!!(self&&self.active));
+        showControllerMode(data.mode);
          controllerPlayerEliminated=!!(data.mode==='shockwave'&&self?.eliminated);
         updatePhoneGamePicker(data.phase,self&&self.choice);
         $('controllerState').textContent=data.phase==='paused'?'จอหลักหยุดเกมชั่วคราว':
@@ -2864,8 +2875,8 @@ function joinRoom(recovery=false){
           $('buttonA').title=seconds>.03?'รอตีอีก '+seconds.toFixed(1)+' วิ':'พร้อมตี';
         }
       }else if(data.t==='state'){
-        showControllerMode(data.mode);
         setControllerGameContext(data.mode,data.phase,controllerPlayerActive);
+        showControllerMode(data.mode);
         if(data.phase!=='lobby')updatePhoneGamePicker(data.phase,myChosenMode);
         const pluginStatus=data.phase==='playing'?pluginControllerPlayingStatus(data.mode,data):null;
         $('controllerState').textContent=data.phase==='paused'?'หยุดเกมชั่วคราว • รอเจ้าของห้อง':
@@ -2902,6 +2913,8 @@ function retryPhone(){
 }
 function controllerDisconnected(){
  if(disconnectRequested)return;
+ controllerPlazaBZone=null;
+ $('buttonB').classList.remove('plaza-b-ready');
  retryPhone();
 }
 function isLiveGameContext(){
@@ -2913,6 +2926,10 @@ function setControllerGameContext(mode,phase,active){
   if(mode!=='shockwave'||!['countdown','playing','paused'].includes(phase))controllerPlayerEliminated=false;
   const previousControllerPhase=controllerGamePhase;
   controllerGamePhase=phase||'lobby';
+  if(controllerGamePhase!=='lobby'||previousControllerPhase!=='lobby'){
+    controllerPlazaBZone=null;
+    $('buttonB').classList.remove('plaza-b-ready');
+  }
   // Remote board camera tools are never shown in a minigame or room lobby.
   const boardZoomActive=controllerReady&&mode==='board'&&
    controllerGamePhase==='playing'&&controllerBoard?.canZoom===true;
@@ -2987,10 +3004,14 @@ function showControllerMode(mode){
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
     playing?(labels.A||''):'';
-  const bLabel=controllerGamePhase==='lobby'&&plazaPickerOpen?'ปิดรายการเกม':voting?controllerResultVotes.backLabel+
+  const plazaBAction=controllerReady&&controllerGamePhase==='lobby'&&!plazaPickerOpen?
+    controllerPlazaBZone==='color_studio'?'เปลี่ยนสี':
+    controllerPlazaBZone==='wardrobe'?'เปลี่ยนหมวก/ชุด':'':'';
+  const bLabel=controllerGamePhase==='lobby'&&plazaPickerOpen?'ปิดรายการเกม':
+    plazaBAction|| (voting?controllerResultVotes.backLabel+
     ' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
     ghost?($('controllerButtons').classList.contains('has-target')?
-    'ยืนยันสโลว์':(labels.B||'ใช้ไอเทม')):(playing?(labels.B||''):'');
+    'ยืนยันสโลว์':(labels.B||'ใช้ไอเทม')):(playing?(labels.B||''):''));
   $('controllerButtons').classList.remove('board-bomber-aim');
   $('buttonC').disabled=true;
   $('controllerButtons').classList.toggle('chickens-mode',chickens);
@@ -3008,6 +3029,7 @@ function showControllerMode(mode){
   }
   if(!fruit)$('buttonA').disabled=false;
   $('buttonB').disabled=false;
+  $('buttonB').classList.toggle('plaza-b-ready',!!plazaBAction);
   if(playing&&plugin?.global){
     const actions=plugin.controls||[];
     if(!actions.includes('A'))$('buttonA').disabled=true;
@@ -3326,6 +3348,7 @@ function bindControl(btn, target, id){
     if(id==='remote'){
       if(pressed&&key==='alt'&&controllerReady&&controllerGamePhase==='lobby'&&plazaPickerOpen){
         plazaPickerOpen=false;updatePhoneGamePicker('lobby',myChosenMode);
+        showControllerMode(controllerGameMode);
       }
       if(pressed&&controllerReady&&controllerPlayerActive&&['results','summary'].includes(controllerGamePhase)){
         const choice=key==='action'?'next':key==='alt'?'lobby':null;
@@ -4635,9 +4658,21 @@ window.PartyPlaza?.configure({
     else showToast(p.name+' ขอเล่น BOARD PARTY • เจ้าของห้องเลือกโหมดที่แถบตั้งค่า');
     break;
    case 'room_corner': togglePlazaPanel('room');break;
-   case 'wardrobe':showToast('WARDROBE • กด B เพื่อเปลี่ยนเครื่องแต่งกาย');break;
-   case 'color_studio':showToast('COLOR STUDIO • กด B เพื่อเปลี่ยนเป็นสีที่ยังว่าง');break;
+   // Wardrobe and Color Studio use the owner's glowing controller B button,
+   // never a shared HOST toast that confuses other players.
+   case 'wardrobe':case 'color_studio':break;
   }
+ },
+ zoneBAction(p,zone){
+  if(round||boardSession||gameSelection||currentView!=='hostLobby'||
+     p?.type!=='remote'||p.isBot||!p.conn?.open||!players.includes(p))return null;
+  if(zone?.id==='wardrobe')return 'wardrobe';
+  if(zone?.id==='color_studio'&&nextFreeLobbyColor(p))return 'color_studio';
+  return null;
+ },
+ notifyZoneB(p,zone){
+  // The HOST computes real positional eligibility; the client only lights B.
+  if(p?.conn?.open)send(p.conn,{t:'plaza-b-zone',zone});
  },
  changeCosmetic(p){
   // Only the authenticated player physically in Wardrobe may cycle outfits.
