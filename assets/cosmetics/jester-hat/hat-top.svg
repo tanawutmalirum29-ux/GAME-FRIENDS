@@ -35,7 +35,7 @@
     <g clip-path="url(#gf-jest-top-horn)">
       <rect x="-30" y="10" width="60" height="50" fill="currentColor"/>
       <polygon points="4.0,17 2.3,50 -30,50 -30,17" fill="#f3bd1f"/>
-      <polygon points="-6.26,17 -5.4,50 -30,10 -30,-17" fill="currentColor"/>
+      <polygon points="-6.26,17 -5.4,50 -30,50 -30,17" fill="currentColor"/>
       <path d="M4.0 17 L2.3 50 M-6.26 17 L-5.4 50" fill="none" stroke="#2c2108" stroke-width="1" stroke-opacity=".85"/>
       <path d="M14 24 C4 20-8 24-13 38 C-6 44 2 46 15 44 Z" fill="url(#gf-jest-top-shade)"/>
     </g>
