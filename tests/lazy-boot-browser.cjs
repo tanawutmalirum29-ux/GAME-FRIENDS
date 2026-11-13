@@ -168,8 +168,8 @@ const server=http.createServer((req,res)=>{
   assert.equal(scanned.rotated,false,'camera must not inherit virtual landscape CSS rotation');
   assert.ok(Math.abs(scanned.size[0]-390)<2&&Math.abs(scanned.size[1]-844)<2,
    'QR overlay matches real device portrait bounds: '+JSON.stringify(scanned));
-  assert.equal(scanned.frame.width,210);
-  assert.equal(scanned.frame.height,210);
+  assert.equal(scanned.frame.width,252);
+  assert.equal(scanned.frame.height,252);
   await phone.locator('#cancelScanBtn').evaluate(button=>button.click());
   await phone.waitForFunction(()=>document.body.classList.contains('gf-virtual-landscape'),
    null,{timeout:8000});
