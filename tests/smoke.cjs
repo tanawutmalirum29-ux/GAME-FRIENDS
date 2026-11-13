@@ -2962,7 +2962,11 @@ for(const count of [1,12]){
   assert.equal(api.getRound().mode,'board',mode+' must finish via the normal engine outcome');
   assert.equal(s.phase,'standings');assert.equal(s.results.length,count);
   assert.equal(JSON.stringify(P.snapshot(s)),saved,mode+' cannot change board data');
-  assert.equal(s.map,map);assert.equal(ui.elements.get('results').classList.contains('hidden'),true);
+  assert.equal(s.map,map);
+  assert.equal(ui.elements.get('results').classList.contains('hidden'),false,
+    'BOARD minigame standings reuse the visible NORMAL result overlay');
+  assert.equal(ui.elements.get('results').classList.contains('board-minigame-results'),true,
+    'BOARD standings activate item-reward result styling');
   assert.equal(api.resultVoteSnapshot(),null,'no NORMAL result vote in a board intermission');
  }
  // Complete results -> inventory -> original board, then real finish and replay.
