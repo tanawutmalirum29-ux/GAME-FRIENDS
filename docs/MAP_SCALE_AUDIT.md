@@ -37,6 +37,14 @@ MAP checks: the 5×5 arena, tile size 78 world units, board 390×390 at (285,116
 - **Mobile controller:** On a fresh connection a 72px floating-joystick base is visible at the left 25% of the touch zone; on finger-down it follows the actual touch, stays visible throughout drag, and hides only after release. The same motion feedback repeats on subsequent touches and reconnect. A/B and game picker keep independent higher-priority hit targets. Landscape/rotated portrait stage geometry, device pixel ratio and Host preview resolution remain unchanged.
 - **Verification:** Existing and extended controller-stage Chromium/WebKit checks cover visible-on-join, hide-on-release, visible-on-hold and left-side positioning, and lobby browser checks keep color zone accessibility while testing storefront collision. No gameplay/minigame geometry is changed.
 
+### PARTY PLAZA controller-only contextual B affordance (2026-11-14)
+
+- The Color Studio and Wardrobe **keep their existing physical coordinates, reachable interaction radii, walls and canvas fidelity**; the 960×540 logical world and DPR-backed pixel resolution remain unchanged.
+- Remove the Color Studio floor placard `B • เปลี่ยนสี`, the HUD prompts that exposed B commands on the shared HOST, and A-triggered global wardrobe/color B instruction toasts. Other map lettering is unchanged.
+- The HOST alone checks each **connected player’s true zone after movement and player collision**, the current lobby phase and unique-color availability, then transmits one `plaza-b-zone` update only when that player’s actionable B state changes (or after a reconnection). This does **not** send continuous joystick/position traffic.
+- The phone labels B **เปลี่ยนสี** in Color Studio or **เปลี่ยนหมวก/ชุด** at Wardrobe and animates a visible neon glow. Outside those zones, while the game picker is open, after a room/phase transition or on disconnect, the glow is removed. Actual B actions are still rejected by the original HOST zone check and input edge guard.
+- Regressions: controller-stage browser checks the B halo’s visual state, plaza browser verifies entry/exit/reconnect event transitions, and lobby Node tests ensure no HOST B legend, no untrusted zone labels and no per-frame duplicate events.
+
 ## Findings and changes
 
 ### Shared avatar mounts (2026-11-12)
