@@ -100,6 +100,9 @@ const T={
   for(let i=0;i<k;i++){const gw=rr(G,G.large?86:76,G.large?112:98),x=x0+40+PAD+i*sp,mat=pickMat(G);
    o.push(...(fromTop?barrierV(G,x,G.top,G.bottom-gw,mat):barrierV(G,x,G.top+gw,G.bottom,mat)));fromTop=!fromTop;}
   return{w,obs:o};},
+ crossbar(G,x0){ // guaranteed horizontal log across a central running lane
+  const w=300,L=rr(G,142,185),y=G.cy+(G.rng()-.5)*G.H*.15,u=x0+(w-L)/2;
+  return{w,obs:[logH(u,u+L,y)]};},
  channel(G,x0){const w=320,L=rr(G,200,250),g=rr(G,52,60),yc=G.top+G.H*(.3+.4*G.rng()),u=x0+(w-L)/2;
   return{w,obs:[logH(u,u+L,yc-g/2-13),logH(u,u+L,yc+g/2+13)]};},
  fork(G,x0){const w=340,yd=G.cy+(G.rng()-.5)*40,o=[logH(x0+40,x0+w-40,yd)],upper=G.rng()<.5;
@@ -119,7 +122,7 @@ const T={
   return{w,obs:o};}
 };
 const NAMES=Object.keys(T);
-const WEIGHT={single:[3,0],pairH:[3,1],cluster:[2,1],gate:[1,2],slalom:[.4,2.4],channel:[.5,2],fork:[.8,2],rocks:[1,1.6],cratefield:[.6,2.4]};
+const WEIGHT={single:[3,0],pairH:[3,1],cluster:[2,1],gate:[1,2],slalom:[.4,2.4],crossbar:[.8,1.3],channel:[.5,2],fork:[.8,2],rocks:[1,1.6],cratefield:[.6,2.4]};
 function pickTemplate(G,last,t){
  const ws=NAMES.map(n=>n===last?0:WEIGHT[n][0]+(WEIGHT[n][1]-WEIGHT[n][0])*t),sum=ws.reduce((a,b)=>a+b,0);
  let r=G.rng()*sum;for(let i=0;i<NAMES.length;i++){r-=ws[i];if(r<=0)return NAMES[i];}
@@ -172,7 +175,7 @@ export function buildTrack(tier,seed,playerCount){
  const rng=mkRng(seed),G={rng,top,bottom,H,cy,large:tier.maxPlayers>6};
  const flow=new Flow(G),obstacles=[],chunks=[];
  const firstX=lastSpawn+C.firstGap,limit=finishX-C.endRun;
- let x=firstX-80,last='',prevOver=0,fallbacks=0;
+ let x=firstX-80,last='',prevOver=0,fallbacks=0,hasHorizontal=false;
  // the validator starts at the spawn column so the whole run-up is measured too
  flow.base=0;flow.front=null;
  {const r=flow.test(lastSpawn,x,[]);flow.commit(r);}
@@ -180,7 +183,10 @@ export function buildTrack(tier,seed,playerCount){
   const t=clamp((x-firstX)/Math.max(1,limit-firstX),0,1);
   let acc=null;
   for(let a=0;a<12&&!acc;a++){
-   const name=pickTemplate(G,last,t),spacer=a<8?rr(G,50,140):rr(G,120,200),x0=x+spacer;
+   // Ensure one horizontal log reaches the actual track in every race.
+   // It must still pass the exact same path/overhead validator as other chunks.
+   const name=!hasHorizontal&&a<8?'crossbar':pickTemplate(G,last,t),
+    spacer=a<8?rr(G,50,140):rr(G,120,200),x0=x+spacer;
    const res=T[name](G,x0),x1=x0+res.w;
    if(res.obs.some(o=>{const e=o.shape==='circle'?o.r:o.hw;return o.x-e<x0+PAD-4||o.x+e>x1-PAD+4;}))continue;
    const r=flow.test(x,x1,res.obs);
@@ -191,7 +197,10 @@ export function buildTrack(tier,seed,playerCount){
   }
   if(!acc){fallbacks++;const x1=x+170,r=flow.test(x,x1,[]);acc={name:'open',x0:x,x1,res:{w:170,obs:[]},r};}
   flow.commit(acc.r);prevOver=acc.r.over;last=acc.name;
-  for(const o of acc.res.obs){o.id=obstacles.length;obstacles.push(o);}
+  for(const o of acc.res.obs){
+   o.id=obstacles.length;obstacles.push(o);
+   if(o.kind==='log'&&o.hw>o.hh)hasHorizontal=true;
+  }
   chunks.push({name:acc.name,x0:acc.x0,x1:acc.x1,count:acc.res.obs.length});
   x=acc.x1;
  }
