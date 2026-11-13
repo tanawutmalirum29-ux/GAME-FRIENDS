@@ -380,7 +380,10 @@ async function startRoomScanner(){
     }
   }
 }
+let controllerPlazaBZone=null;
 function resetControllerForRoomChange(message,awaitLeaveAck=false){
+  controllerPlazaBZone=null;
+  $('buttonB').classList.remove('plaza-b-ready');
   disconnectRequested=true;
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;reconnectTries=0;
@@ -498,6 +501,7 @@ function joinRoom(recovery=false){
           $('joinBtn').disabled=false;safePeerDestroy();return;
         }
         controllerId=data.id;controllerReady=true;plazaPickerOpen=false;
+        controllerPlazaBZone=null;
         // A fresh room connection shows the centered walking stick again.
         // Its first touch floats to the finger, then hides on release.
         releaseStick();
@@ -554,7 +558,14 @@ function joinRoom(recovery=false){
       }else if(data.t==='plaza-picker'){
         plazaPickerOpen=data.open===true;
         updatePhoneGamePicker('lobby',myChosenMode);
+        showControllerMode(controllerGameMode);
         $('controllerState').textContent=plazaPickerOpen?'เลือกมินิเกม • กด B เพื่อปิด':'เดินใน PARTY PLAZA ด้วยจอย';
+      }else if(data.t==='plaza-b-zone'){
+        if(controllerReady&&controllerGamePhase==='lobby'){
+          // Only a known action sent by the authoritative HOST can light B.
+          controllerPlazaBZone=['wardrobe','color_studio'].includes(data.zone)?data.zone:null;
+          showControllerMode(controllerGameMode);
+        }
       }else if(data.t==='plaza-color-changed'){
         if(controllerReady&&typeof data.name==='string'){
           syncControllerAvatarColor(data.color);
@@ -730,6 +741,7 @@ function setControllerGameContext(mode,phase,active){
   if(mode!=='shockwave'||!['countdown','playing','paused'].includes(phase))controllerPlayerEliminated=false;
   const previousControllerPhase=controllerGamePhase;
   controllerGamePhase=phase||'lobby';
+  if(controllerGamePhase!=='lobby'||previousControllerPhase!=='lobby')controllerPlazaBZone=null;
   // Remote board camera tools are never shown in a minigame or room lobby.
   const boardZoomActive=controllerReady&&mode==='board'&&
    controllerGamePhase==='playing'&&controllerBoard?.canZoom===true;
@@ -804,10 +816,14 @@ function showControllerMode(mode){
     (controllerResultVotes.autoNextSeconds!==null?' • อีก '+controllerResultVotes.autoNextSeconds+' วิ':'')+
     ' '+controllerResultVotes.next+'/'+controllerResultVotes.total:
     playing?(labels.A||''):'';
-  const bLabel=controllerGamePhase==='lobby'&&plazaPickerOpen?'ปิดรายการเกม':voting?controllerResultVotes.backLabel+
+  const plazaBAction=controllerReady&&controllerGamePhase==='lobby'&&!plazaPickerOpen?
+    controllerPlazaBZone==='color_studio'?'เปลี่ยนสี':
+    controllerPlazaBZone==='wardrobe'?'เปลี่ยนหมวก/ชุด':'':'';
+  const bLabel=controllerGamePhase==='lobby'&&plazaPickerOpen?'ปิดรายการเกม':
+    plazaBAction|| (voting?controllerResultVotes.backLabel+
     ' '+controllerResultVotes.lobby+'/'+controllerResultVotes.total:
     ghost?($('controllerButtons').classList.contains('has-target')?
-    'ยืนยันสโลว์':(labels.B||'ใช้ไอเทม')):(playing?(labels.B||''):'');
+    'ยืนยันสโลว์':(labels.B||'ใช้ไอเทม')):(playing?(labels.B||''):''));
   $('controllerButtons').classList.remove('board-bomber-aim');
   $('buttonC').disabled=true;
   $('controllerButtons').classList.toggle('chickens-mode',chickens);
@@ -825,6 +841,7 @@ function showControllerMode(mode){
   }
   if(!fruit)$('buttonA').disabled=false;
   $('buttonB').disabled=false;
+  $('buttonB').classList.toggle('plaza-b-ready',!!plazaBAction);
   if(playing&&plugin?.global){
     const actions=plugin.controls||[];
     if(!actions.includes('A'))$('buttonA').disabled=true;
@@ -1143,6 +1160,7 @@ function bindControl(btn, target, id){
     if(id==='remote'){
       if(pressed&&key==='alt'&&controllerReady&&controllerGamePhase==='lobby'&&plazaPickerOpen){
         plazaPickerOpen=false;updatePhoneGamePicker('lobby',myChosenMode);
+        showControllerMode(controllerGameMode);
       }
       if(pressed&&controllerReady&&controllerPlayerActive&&['results','summary'].includes(controllerGamePhase)){
         const choice=key==='action'?'next':key==='alt'?'lobby':null;
