@@ -471,7 +471,7 @@ function savePhone(){
 function restorePlayers(list){
  if(!Array.isArray(list)||list.length>MAX_PLAYERS)return;
  const originalColors=new Set(),ids=new Set();
- const cosmetics=window.PartyCosmetics;
+ const cosmetics=typeof window!=='undefined'?window.PartyCosmetics:null;
  // Reserve valid saved choices before migrating an undressed or duplicate seat.
  const reservedCosmetics=new Set(list.map(p=>cosmetics?.normalize?.(p?.cosmetic)).filter(id=>id&&id!=='none'));
  const claimedCosmetics=new Set();
@@ -1087,7 +1087,7 @@ function makePlayer(name,type,conn) {
   const color=pickUnusedColor();
   if(!color)return null;
   // Assign every new bot AND remote player a distinct visible starting outfit.
-  const cosmetic=window.PartyCosmetics?.randomAvailable?.(players.map(p=>p.cosmetic))||'white-rope-wrap';
+  const cosmetic=(typeof window!=='undefined'?window.PartyCosmetics?.randomAvailable?.(players.map(p=>p.cosmetic)):null)||'white-rope-wrap';
   const p={id:'p'+nextId++,name:cleanName(name),type,color,conn:conn||null,
     input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,score:0,total:0,
     choice:type==='local'?'ghost':null,
