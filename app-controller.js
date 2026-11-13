@@ -772,11 +772,42 @@ function syncZoomPolicy(){
   $('viewportMeta').setAttribute('content',locked?LOCKED_VIEWPORT:FREE_VIEWPORT);
   document.body.classList.toggle('zoom-locked',locked);
 }
+// Shared transition curtain for first room SVG decode and BOARD map assembly.
+// Networking, saved room data, and canvas resolution remain intact underneath.
+let transitionLoadingKind=null,transitionLoadingRetry=null;
+function showTransitionLoading(kind,title,detail){
+ const el=$('transitionLoading');
+ if(!el)return;
+ transitionLoadingKind=kind;transitionLoadingRetry=null;
+ $('transitionLoadingTitle').textContent=title;
+ $('transitionLoadingDetail').textContent=detail;
+ $('transitionLoadingRetry').classList.add('hidden');
+ el.classList.remove('hidden');
+}
+function hideTransitionLoading(kind=null){
+ if(kind&&transitionLoadingKind!==kind)return;
+ transitionLoadingKind=null;transitionLoadingRetry=null;
+ $('transitionLoading')?.classList.add('hidden');
+ $('transitionLoadingRetry')?.classList.add('hidden');
+}
+function failTransitionLoading(kind,detail,retry){
+ if(transitionLoadingKind!==kind)return;
+ $('transitionLoadingTitle').textContent='โหลดฉากไม่สำเร็จ';
+ $('transitionLoadingDetail').textContent=detail;
+ transitionLoadingRetry=typeof retry==='function'?retry:null;
+ $('transitionLoadingRetry').classList.toggle('hidden',!transitionLoadingRetry);
+}
+$('transitionLoadingRetry')?.addEventListener('click',()=>transitionLoadingRetry?.());
 function setView(view) {
   currentView=view;
   if(view==='game')markArenaResolutionDirty();
   ['home','hostLobby','game','controller'].forEach(v=>$(v).classList.toggle('hidden',v!==view));
   document.body.classList.toggle('host-playing',view==='game');
+  if(view==='hostLobby'){
+   if(window.PartyPlaza?.isReady?.())hideTransitionLoading();
+   else showTransitionLoading('plaza','กำลังเตรียมล็อบบี้','กำลังโหลดฉาก PARTY PLAZA และตำแหน่งโซน...');
+  }else if(view==='home'||view==='controller')hideTransitionLoading();
+  else hideTransitionLoading('plaza');
   window.PartyPlaza?.setActive(view==='hostLobby');
   syncLandscapePresentation();
   if(view!=='game')hostFullscreenWasEntered=false;
@@ -1673,6 +1704,7 @@ function resetInputs(){
   players.forEach(p=>{for(const k of INPUT_NAMES)p.input[k]=false;p.input.axisX=0;p.input.axisY=0;p.latch=false;});
 }
 function closeHost({goHome=true}={}){
+  hideTransitionLoading();
   stopHostReconnect();
   lobbyReadyVotes.clear();
   ++hostOpenAttempt;
@@ -1790,6 +1822,9 @@ function acceptFastAxisConnection(conn){
 let hostNetworkLoad=null;
 function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   if(expectedAttempt!==null&&expectedAttempt!==hostOpenAttempt)return;
+  // Display first-time connection as a real loading screen, before the SVG.
+  if(!onlineHost&&currentView==='home')
+    showTransitionLoading('plaza','กำลังสร้างห้อง','กำลังติดต่อเซิร์ฟเวอร์และเตรียมล็อบบี้...');
   if(onlineHost){setView('hostLobby');return;}
   if(typeof Peer!=='function'){
     const deps=window.GameRuntimeDeps;
@@ -1803,6 +1838,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
           startHost(retries,resumeCode,expectedAttempt);
       }).catch(error=>{
         hostNetworkLoad=null;$('hostBtn').disabled=false;
+        hideTransitionLoading('plaza');
         setStatus('โหลดระบบเชื่อมต่อไม่สำเร็จ',true);
         showToast('โหลดเครือข่ายไม่สำเร็จ: '+String(error.message||error),true);
       });
@@ -2038,6 +2074,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     // PeerJS "close" means destroyed; never erase a live game/room because
     // the library closed after a transient network error.
     stopHostReconnect();
+    if(!onlineHost)hideTransitionLoading('plaza');
     setStatus('การเชื่อมต่อห้องหยุดทำงาน • สถานะเกมยังถูกเก็บไว้',true);
   });
   peer.on('error',err=>{
@@ -2082,6 +2119,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
       return;
     }
     $('hostBtn').disabled=false;
+    hideTransitionLoading('plaza');
     setStatus('เชื่อมต่อห้อง '+code+' ไม่สำเร็จ: '+type,true);
   });
 }
@@ -3468,6 +3506,9 @@ function prewarmBoardCore(){
 }
 let boardCatalogPending=false,boardCorePending=null;
 function beginBoard(){
+  // Fully mask unfinished on-demand board/map assembly.
+  if(transitionLoadingKind!=='board')
+   showTransitionLoading('board','กำลังสร้างแผนที่บอร์ดเกม','กำลังเตรียมเกาะ เส้นทาง และระบบ BOARD PARTY...');
   const platform=window.GamePlatform;
   // Production no longer downloads legacy minigame engines at initial page load.
   // Wait for the versioned registry rather than mistaking them for missing games.
@@ -3476,11 +3517,14 @@ function beginBoard(){
     boardCatalogPending=true;
     void platform.refresh().then(()=>{
       boardCatalogPending=false;
-      if(currentView!=='hostLobby'||selectedSessionMode!=='board'||!players.length)return;
+      if(currentView!=='hostLobby'||selectedSessionMode!=='board'||!players.length){
+       hideTransitionLoading('board');return;
+      }
       if(platform.revision)beginBoard();
-      else showToast('กำลังรอรายชื่อมินิเกมจากเซิร์ฟเวอร์',true);
+      else{hideTransitionLoading('board');showToast('กำลังรอรายชื่อมินิเกมจากเซิร์ฟเวอร์',true);}
     }).catch(error=>{
       boardCatalogPending=false;
+      hideTransitionLoading('board');
       showToast('โหลดรายชื่อมินิเกมไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
     });
     return;
@@ -3489,24 +3533,27 @@ function beginBoard(){
   const core=window.BoardRuntime;
   if(core&&!core.ready()){
     if(boardCorePending)return boardCorePending;
-    showToast('กำลังเตรียม BOARD PARTY • เปิดเกมให้อัตโนมัติเมื่อพร้อม');
+    $('transitionLoadingDetail').textContent='กำลังโหลดระบบแผนที่ BOARD PARTY...';
     const sessionMode=selectedSessionMode;
     boardCorePending=core.ensure().then(()=>{
       boardCorePending=null;
       if(currentView==='hostLobby'&&!round&&!boardSession&&players.length&&
          selectedSessionMode===sessionMode)return beginBoard();
+      hideTransitionLoading('board');
     }).catch(error=>{
       boardCorePending=null;
+      hideTransitionLoading('board');
       console.error('BOARD PARTY asset load failed',error);
       showToast('โหลด BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
     });
     return boardCorePending;
   }
   const required=['BoardMap','BoardDice','BoardItems','BoardBots','BoardMinigame','BoardParty','BoardArt','PartyPlayerAvatar'];
-  if(required.some(name=>!window[name])){showToast('โหลด BOARD PARTY ไม่ครบ กรุณาโหลดหน้าใหม่',true);return;}
-  if(!window.BoardMinigame.eligible(boardRegistry(),players.length).length){showToast('ไม่มีมินิเกมที่พร้อมเล่น',true);return;}
+  if(required.some(name=>!window[name])){hideTransitionLoading('board');showToast('โหลด BOARD PARTY ไม่ครบ กรุณาโหลดหน้าใหม่',true);return;}
+  if(!window.BoardMinigame.eligible(boardRegistry(),players.length).length){hideTransitionLoading('board');showToast('ไม่มีมินิเกมที่พร้อมเล่น',true);return;}
   try{
     tournament=null;gameSelection=null;
+    $('transitionLoadingDetail').textContent='กำลังสร้างเกาะและตำแหน่งช่องเดิน...';
     boardSession=window.BoardParty.create(players);
     // BOARD makes its own player copies: pass visual wardrobe identity through
     // without modifying the generated BOARD engine or its gameplay rules.
@@ -3523,6 +3570,7 @@ function beginBoard(){
     window.PartyPlayerAvatar.preload(boardSession.players);
     showBoard();warmBoardGames();requestHostFullscreen();
   }catch(error){
+    hideTransitionLoading('board');
     console.error('BOARD PARTY start failed',error);returnToLobby();
     showToast('เริ่ม BOARD PARTY ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
   }
@@ -3579,6 +3627,11 @@ function showBoard(){
   // Paint the order/result screen in the Start event itself. Safari can delay
   // its first animation frame during fullscreen; old minigame clips must not survive.
   canvas.width=canvas.width;markArenaResolutionDirty();refreshBoardTools();drawGame(graphicsClock);
+  // Keep the curtain over partial maps until at least one completed paint.
+  if(transitionLoadingKind==='board'){
+   requestAnimationFrame(()=>hideTransitionLoading('board'));
+   setTimeout(()=>hideTransitionLoading('board'),150); // WebKit/hidden-tab rAF fallback.
+  }
   renderLeaderboard();broadcastRoster();renderBotTestPad();
   remotePreviewClock=1.1;
   for(const conn of hostConnections){startHostVideoCall(conn);sendBoardMiniMap(conn);}
@@ -4496,6 +4549,18 @@ function nextFreeLobbyColor(p,roomPlayers=players){
 }
 window.PartyPlaza?.configure({
  colorPalette(){return COLORS;},
+ ready(){hideTransitionLoading('plaza');},
+ progress(message){
+  if(transitionLoadingKind==='plaza')$('transitionLoadingDetail').textContent=message;
+ },
+ error(error){
+  console.warn('Party Plaza cannot show scene',error);
+  failTransitionLoading('plaza','ภาพล็อบบี้ยังโหลดไม่สำเร็จ ห้องยังเชื่อมต่ออยู่ สามารถลองใหม่ได้โดยไม่ต้องสร้างห้องซ้ำ',()=>{
+   if(currentView!=='hostLobby')return;
+   showTransitionLoading('plaza','กำลังเตรียมล็อบบี้','กำลังลองโหลดภาพ PARTY PLAZA ใหม่...');
+   window.PartyPlaza?.retry?.();
+  });
+ },
  interact(p,z){
   if(!z)return;
   switch(z.id){
