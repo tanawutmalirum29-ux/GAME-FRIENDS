@@ -492,10 +492,16 @@ function renderBotTestPad(){
  if(!eligible&&possessedBotId){releaseBotPossession();return;}
  const visible=eligible&&currentView==='game'&&!!round&&!gameSelection&&
   !['results','summary'].includes(round.phase);
+ // GHOST inspector was usable BEFORE possession; retain this test-mode feature
+ // on the right half, without exposing the joystick or other controls.
+ const ghostOnly=visible&&!active&&canInspectGhostMap();
  el.classList.toggle('hidden',!visible);
+ el.classList.toggle('ghost-only',ghostOnly);
  // Bot possess is outside the pad, immediately below Pause. No public-room leak.
  $('botPossessBtn').classList.toggle('hidden',!visible||active);
- $('botTestControls').classList.toggle('hidden',!active);
+ $('botTestControls').classList.toggle('hidden',!active&&!ghostOnly);
+ $('botTestStick').classList.toggle('hidden',!active);
+ $('botTestKeys').classList.toggle('hidden',!active);
  $('botTestName').classList.toggle('hidden',!active);
  $('botNextBtn').classList.toggle('hidden',!active||players.length<2);
  $('botReleaseBtn').classList.toggle('hidden',!active);
