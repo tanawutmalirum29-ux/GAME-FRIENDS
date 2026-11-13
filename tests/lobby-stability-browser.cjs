@@ -101,7 +101,7 @@ async function geometry(page){
    });
    assert.ok(walking.x1>walking.x0+5,'connected phone joystick moves the lobby avatar');
    assert.ok(walking.yWall>=153,'avatar cannot walk through the real Arcade wall');
-   assert.equal(walking.zone,null,'READY zone is removed from canonical geometry');
+   assert.ok(walking.zone==null,'READY zone is removed from canonical geometry');
    assert.equal(walking.colorZone,'color_studio','unused left-bottom PLAY CORNER becomes B color zone');
    assert.ok(walking.hasShop,'Color Studio is now a physical building zone');
    assert.ok(walking.shopWallY>=410,'player cannot walk through the Color Studio storefront');
