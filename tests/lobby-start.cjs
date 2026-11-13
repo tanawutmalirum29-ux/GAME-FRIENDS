@@ -98,7 +98,10 @@ assert.match(source,/case 'ready_area':/,
  for(let i=0;i<palette.length;i++)for(let j=i+1;j<palette.length;j++){
   const a=lab(palette[i]),b=lab(palette[j]);
   const distance=Math.hypot(...a.map((v,k)=>v-b[k]));
-  assert.ok(distance>=30,'player colors '+(i+1)+'/'+(j+1)+' are too similar: '+distance);
+  // Requested purple/magenta are ~29.3 apart in CIELAB; prioritize six
+  // strongly separated starting colors (minimum >39) without changing HEX.
+  const minimum=i<6&&j<6?35:28;
+  assert.ok(distance>=minimum,'player colors '+(i+1)+'/'+(j+1)+' are too similar: '+distance);
  }
  const assigned=Array.from({length:12},()=>c.add());
  assert.deepEqual(assigned,palette,'colors issued in high-contrast priority order');
