@@ -1,3 +1,12 @@
+// Update the connected phone portrait on every authoritative roster change.
+function syncControllerAvatarColor(color){
+ if(typeof color!=='string'||!/^#[0-9a-f]{6}$/i.test(color))return;
+ const avatar=$('controllerAvatar');
+ if(!avatar||avatar.dataset.playerColor===color)return;
+ avatar.dataset.playerColor=color;
+ avatar.style.background=color;
+ avatar.innerHTML=window.PartyPlayerAvatar?.svgForFront(color)||'';
+}
 function updatePhoneGamePicker(phase,choice){
   phoneSelectionOpen=phase==='lobby'&&controllerReady&&controllerSessionMode!=='board'&&plazaPickerOpen;
   myChosenMode=Object.hasOwn(MODES,choice)?choice:null;
@@ -495,8 +504,8 @@ function joinRoom(recovery=false){
         reconnectTimer=null;savePhone();
         $('leaveConfirm').classList.add('hidden');
         resetPhonePreview();
-        $('controllerName').textContent=data.name;$('controllerAvatar').style.background=data.color;
-     $('controllerAvatar').innerHTML=window.PartyPlayerAvatar?.svgForFront(data.color)||'';
+        $('controllerName').textContent=data.name;
+        syncControllerAvatarColor(data.color);
         $('joinForm').classList.add('hidden');$('controllerActive').classList.remove('hidden');
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
         $('controllerInventory').classList.remove('is-ghost');
@@ -552,6 +561,7 @@ function joinRoom(recovery=false){
         };
         showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
+        if(self)syncControllerAvatarColor(self.color);
         setControllerGameContext(data.mode,data.phase,!!(self&&self.active));
          controllerPlayerEliminated=!!(data.mode==='shockwave'&&self?.eliminated);
         updatePhoneGamePicker(data.phase,self&&self.choice);

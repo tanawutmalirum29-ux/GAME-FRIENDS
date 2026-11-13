@@ -2094,6 +2094,15 @@ function copyInvite(){
 let phoneSelectionOpen=false;
 let plazaPickerOpen=false;
 let myChosenMode=null;
+// Update the connected phone portrait on every authoritative roster change.
+function syncControllerAvatarColor(color){
+ if(typeof color!=='string'||!/^#[0-9a-f]{6}$/i.test(color))return;
+ const avatar=$('controllerAvatar');
+ if(!avatar||avatar.dataset.playerColor===color)return;
+ avatar.dataset.playerColor=color;
+ avatar.style.background=color;
+ avatar.innerHTML=window.PartyPlayerAvatar?.svgForFront(color)||'';
+}
 function updatePhoneGamePicker(phase,choice){
   phoneSelectionOpen=phase==='lobby'&&controllerReady&&controllerSessionMode!=='board'&&plazaPickerOpen;
   myChosenMode=Object.hasOwn(MODES,choice)?choice:null;
@@ -2591,8 +2600,8 @@ function joinRoom(recovery=false){
         reconnectTimer=null;savePhone();
         $('leaveConfirm').classList.add('hidden');
         resetPhonePreview();
-        $('controllerName').textContent=data.name;$('controllerAvatar').style.background=data.color;
-     $('controllerAvatar').innerHTML=window.PartyPlayerAvatar?.svgForFront(data.color)||'';
+        $('controllerName').textContent=data.name;
+        syncControllerAvatarColor(data.color);
         $('joinForm').classList.add('hidden');$('controllerActive').classList.remove('hidden');
         controllerState('เชื่อมต่อแล้ว • รอเจ้าของห้องเริ่มเกม');
         $('controllerInventory').classList.remove('is-ghost');
@@ -2648,6 +2657,7 @@ function joinRoom(recovery=false){
         };
         showControllerMode(data.mode);
         const self=(data.players||[]).find(p=>p.id===controllerId);
+        if(self)syncControllerAvatarColor(self.color);
         setControllerGameContext(data.mode,data.phase,!!(self&&self.active));
          controllerPlayerEliminated=!!(data.mode==='shockwave'&&self?.eliminated);
         updatePhoneGamePicker(data.phase,self&&self.choice);
@@ -4865,7 +4875,20 @@ document.addEventListener('keydown',e=>{
  if(currentView==='hostLobby'&&e.key==='Escape')setPlazaPanel();
 });
 $('plazaStartBtn')?.addEventListener('click',()=>{if(!$('startBtn').disabled)beginParty();});
+// Cycle through the canonical 12 seat colors; skip only other players' colors.
+// At full capacity all 12 colors are occupied, so no color change is possible.
+function nextFreeLobbyColor(p,roomPlayers=players){
+ if(!p||!roomPlayers.includes(p))return null;
+ const taken=new Set(roomPlayers.filter(q=>q!==p).map(q=>q.color));
+ const start=COLORS.indexOf(p.color);
+ for(let offset=1;offset<COLORS.length;offset++){
+  const color=COLORS[(start+offset)%COLORS.length];
+  if(!taken.has(color))return color;
+ }
+ return null;
+}
 window.PartyPlaza?.configure({
+ colorPalette(){return COLORS;},
  interact(p,z){
   if(!z)return;
   switch(z.id){
@@ -4884,6 +4907,7 @@ window.PartyPlaza?.configure({
     break;
    case 'room_corner': togglePlazaPanel('room');break;
    case 'wardrobe':showToast('WARDROBE • กด B เพื่อเปลี่ยนเครื่องแต่งกาย');break;
+   case 'color_studio':showToast('COLOR STUDIO • กด B เพื่อเปลี่ยนเป็นสีที่ยังว่าง');break;
   }
  },
  changeCosmetic(p){
@@ -4896,6 +4920,21 @@ window.PartyPlaza?.configure({
   cosmetics.preload(p);
   broadcastRoster(); // room snapshot + reconnect persistence
   showToast('เปลี่ยนเครื่องแต่งกายแล้ว');
+  return true;
+ },
+ changeColor(p){
+  // Only the connected owner of this actual seat can change its own color,
+  // and only while physically present in the lobby Color Studio.
+  if(round||boardSession||gameSelection||currentView!=='hostLobby'||
+     p?.type!=='remote'||!p?.conn?.open||!players.includes(p)||
+     !window.PartyPlaza?.inZone(p,'color_studio'))return false;
+  const color=nextFreeLobbyColor(p);
+  if(!color){showToast('สีทั้ง 12 สีถูกใช้งานครบแล้ว');return false;}
+  p.color=color;
+  window.PartyCosmetics?.preload?.(p);
+  renderRoster(); // Save the new color for room reload/reconnect.
+  broadcastRoster(); // Immediately update all clients and their portraits.
+  showToast(p.name+' เปลี่ยนสีเป็น '+color.toUpperCase());
   return true;
  },
  cancel(p){if(p.conn?.open)send(p.conn,{t:'plaza-picker',open:false});}

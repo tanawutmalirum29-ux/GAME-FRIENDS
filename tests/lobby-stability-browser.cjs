@@ -86,12 +86,15 @@ async function geometry(page){
     const yWall=player.plazaY;
     player.plazaX=480;player.plazaY=457;
     const zone=api.zoneAt(player)?.id;
+    player.plazaX=144;player.plazaY=437;
+    const colorZone=api.zoneAt(player)?.id;
     api.sync([]);
-    return {x0,x1,yWall,zone};
+    return {x0,x1,yWall,zone,colorZone};
    });
    assert.ok(walking.x1>walking.x0+5,'connected phone joystick moves the lobby avatar');
    assert.ok(walking.yWall>=153,'avatar cannot walk through the real Arcade wall');
    assert.equal(walking.zone,'ready_area','READY area interaction comes from JSON zone geometry');
+   assert.equal(walking.colorZone,'color_studio','unused left-bottom PLAY CORNER becomes B color zone');
    const stable=async label=>{
     const now=await geometry(page);
     assert.equal(now.slots,12,label+' 12 reserved slots');

@@ -33,7 +33,20 @@ document.addEventListener('keydown',e=>{
  if(currentView==='hostLobby'&&e.key==='Escape')setPlazaPanel();
 });
 $('plazaStartBtn')?.addEventListener('click',()=>{if(!$('startBtn').disabled)beginParty();});
+// Cycle through the canonical 12 seat colors; skip only other players' colors.
+// At full capacity all 12 colors are occupied, so no color change is possible.
+function nextFreeLobbyColor(p,roomPlayers=players){
+ if(!p||!roomPlayers.includes(p))return null;
+ const taken=new Set(roomPlayers.filter(q=>q!==p).map(q=>q.color));
+ const start=COLORS.indexOf(p.color);
+ for(let offset=1;offset<COLORS.length;offset++){
+  const color=COLORS[(start+offset)%COLORS.length];
+  if(!taken.has(color))return color;
+ }
+ return null;
+}
 window.PartyPlaza?.configure({
+ colorPalette(){return COLORS;},
  interact(p,z){
   if(!z)return;
   switch(z.id){
@@ -52,6 +65,7 @@ window.PartyPlaza?.configure({
     break;
    case 'room_corner': togglePlazaPanel('room');break;
    case 'wardrobe':showToast('WARDROBE • กด B เพื่อเปลี่ยนเครื่องแต่งกาย');break;
+   case 'color_studio':showToast('COLOR STUDIO • กด B เพื่อเปลี่ยนเป็นสีที่ยังว่าง');break;
   }
  },
  changeCosmetic(p){
@@ -64,6 +78,21 @@ window.PartyPlaza?.configure({
   cosmetics.preload(p);
   broadcastRoster(); // room snapshot + reconnect persistence
   showToast('เปลี่ยนเครื่องแต่งกายแล้ว');
+  return true;
+ },
+ changeColor(p){
+  // Only the connected owner of this actual seat can change its own color,
+  // and only while physically present in the lobby Color Studio.
+  if(round||boardSession||gameSelection||currentView!=='hostLobby'||
+     p?.type!=='remote'||!p?.conn?.open||!players.includes(p)||
+     !window.PartyPlaza?.inZone(p,'color_studio'))return false;
+  const color=nextFreeLobbyColor(p);
+  if(!color){showToast('สีทั้ง 12 สีถูกใช้งานครบแล้ว');return false;}
+  p.color=color;
+  window.PartyCosmetics?.preload?.(p);
+  renderRoster(); // Save the new color for room reload/reconnect.
+  broadcastRoster(); // Immediately update all clients and their portraits.
+  showToast(p.name+' เปลี่ยนสีเป็น '+color.toUpperCase());
   return true;
  },
  cancel(p){if(p.conn?.open)send(p.conn,{t:'plaza-picker',open:false});}
