@@ -44,17 +44,24 @@ async function toolbarInside(page){
      return ['boardExitBtn','boardNodeDebugBtn','pauseBtn'].map(id=>{
        const b=document.getElementById(id),r=b.getBoundingClientRect();
        return{id,left:(r.left-x)/scale,top:(r.top-y)/scale,
-        width:r.width/scale,height:r.height/scale,
+        width:r.width/scale,height:r.height/scale,hidden:b.classList.contains('hidden'),
+        inlineLeft:parseFloat(b.style.left),inlineTop:parseFloat(b.style.top),
         iconOnly:!!b.querySelector('svg')&&!b.textContent.trim(),
         accessible:!!b.getAttribute('aria-label')};
      });
    });
    assert.deepEqual(controls.map(v=>v.id),['boardExitBtn','boardNodeDebugBtn','pauseBtn']);
    controls.forEach((v,i)=>{
-     assert.ok(Math.abs(v.left-[849,885,921][i])<=2&&Math.abs(v.top-101)<=2,
-      v.id+' aligns inside the BOARD icon toolbar below the roster');
-     assert.ok(Math.abs(v.width-29)<=2&&Math.abs(v.height-27)<=2,
-      v.id+' has matching compact icon-button dimensions');
+     if(v.id==='boardExitBtn'){
+      assert.equal(v.hidden,true,'Exit stays hidden during normal BOARD play');
+      assert.ok(Number.isFinite(v.inlineLeft)&&Number.isFinite(v.inlineTop),
+       'hidden Exit keeps its aligned map position for the paused state');
+     }else{
+      assert.ok(Math.abs(v.left-[849,885,921][i])<=2&&Math.abs(v.top-101)<=2,
+       v.id+' aligns inside the BOARD icon toolbar below the roster');
+      assert.ok(Math.abs(v.width-29)<=2&&Math.abs(v.height-27)<=2,
+       v.id+' has matching compact icon-button dimensions');
+     }
      assert.ok(v.iconOnly&&v.accessible,v.id+' shows an accessible icon without a visible text label');
    });
    assert.equal(await page.locator('#boardTools button').count(),1,'only Show ID remains in the BOARD toolbar');
@@ -62,10 +69,11 @@ async function toolbarInside(page){
     assert.equal(await page.locator('#'+id).count(),0,'retired BOARD control must not exist: '+id);
 }
 // Check computed visibility, including the parent #boardTools hidden state.
-async function assertBoardMapToolbar(page,visible,stage){
+async function assertBoardMapToolbar(page,visible,stage,paused=false){
  for(const id of ['boardExitBtn','boardNodeDebugBtn','pauseBtn']){
-  assert.equal(await page.locator('#'+id).isVisible(),visible,
-   stage+': '+id+' should '+(visible?'be visible':'be hidden'));
+  const expected=id==='boardExitBtn'?(visible&&paused):visible;
+  assert.equal(await page.locator('#'+id).isVisible(),expected,
+   stage+': '+id+' should '+(expected?'be visible':'be hidden'));
  }
 }
 async function main(){
@@ -192,11 +200,18 @@ async function main(){
   });
   await host.evaluate(()=>{__boardTest.pauseGame();BoardArt.overview(__boardTest.board);});
   assert.equal(await host.evaluate(()=>__boardTest.round.paused),true);
+  await assertBoardMapToolbar(host,true,'paused BOARD map',true);
+  assert.equal(await host.locator('#pauseBtn svg').evaluate(el=>getComputedStyle(el).display),'none',
+   'paused BOARD shows the play triangle without the pause-bars SVG');
   assert.equal((await drawnTexts()).includes('ทอยลูกเต๋าเพื่อจัดลำดับ'),false,
     'overview hides any dice-order overlay while inspecting the map');
   await host.evaluate(()=>{BoardArt.follow(__boardTest.board);__boardTest.resumeGame();});
   assert.equal(await host.evaluate(()=>__boardTest.round.paused),false,
     'local turn owner can follow/resume after inspecting overview');
+  assert.equal(await host.locator('#boardExitBtn').isVisible(),false,
+   'resuming the Board hides Exit again');
+  assert.equal(await host.locator('#pauseBtn svg').evaluate(el=>getComputedStyle(el).display),'block',
+   'resuming restores only the pause-bars SVG');
   assert.equal(await host.evaluate(()=>__boardTest.board.phase),'move_ready');
   await host.evaluate(()=>__boardTest.refreshBoardTools());
   await assertBoardMapToolbar(host,true,'BOARD active map restored');
