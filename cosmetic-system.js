@@ -85,6 +85,10 @@ function imageFor(player,view){
 function preload(player){
  imageFor(player,'top');imageFor(player,'front');
 }
+function preloadCycle(player,view='top'){
+ const projection=view==='front'?'front':'top';
+ return IDS.slice(1).map(cosmetic=>imageFor({...player,cosmetic},projection)).filter(Boolean);
+}
 function drawTop(ctx,player){
  const spec=ASSETS[normalize(player?.cosmetic)],img=imageFor(player,'top');
  if(!spec||!img?.complete||!img.naturalWidth)return false;
@@ -98,5 +102,5 @@ function drawFront(ctx,player,x,y,size=60){
  ctx.drawImage(img,x+dx*scale,y+dy*scale,w*scale,h*scale);
  return true;
 }
-window.PartyCosmetics=Object.freeze({IDS,ASSETS,normalize,next,randomAvailable,randomBot,preload,drawTop,drawFront,imageFor});
+window.PartyCosmetics=Object.freeze({IDS,ASSETS,normalize,next,randomAvailable,randomBot,preload,preloadCycle,drawTop,drawFront,imageFor});
 })();
