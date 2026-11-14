@@ -167,9 +167,12 @@ assert.equal(station.trigger,'button_B');
 assert.ok(station.interactionRadiusPx>=45,'left-bottom color zone must be walkable and usable');
 assert.ok(!zones.zones.some(z=>z.id==='play_corner'),'unused PLAY CORNER removed');
 const plaza=fs.readFileSync(path.join(root,'src/lobby/party-plaza.js'),'utf8');
-assert.match(plaza,/zone\?\.id==='color_studio'\)callbacks\.changeColor\?\.\(p\)/,
- 'B input invokes color change only in the correct zone');
-assert.match(plaza,/plazaBPressed=b/,'held B is edge-triggered, not repeated');
+assert.match(plaza,/function pressB\(p\)[\s\S]*?zone\?\.id==='color_studio'\)return callbacks\.changeColor\?\.\(p\)===true/,
+ 'direct B press invokes color change only in the Color Studio zone');
+assert.match(plaza,/zone\?\.id==='wardrobe'\)return callbacks\.changeCosmetic\?\.\(p\)===true/,
+ 'the same direct B press invokes hat changes only in Wardrobe');
+assert.doesNotMatch(plaza,/plazaBPressed|if\(b&&/,
+ 'B is no longer sampled by the Party Plaza animation loop');
 const colorStart=source.indexOf('function nextFreeLobbyColor(');
 const colorEnd=source.indexOf('window.PartyPlaza?.configure(',colorStart);
 assert.ok(colorStart>0&&colorEnd>colorStart);
