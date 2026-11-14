@@ -278,8 +278,8 @@ function boardMapToolsActive(){
 function refreshBoardTools(){
  const active=boardMapToolsActive();
  $('boardTools').classList.toggle('hidden',!active);
- // Exit must be available during normal BOARD play, not only while paused.
- $('boardExitBtn').classList.toggle('hidden',!active);
+ // Exit is available only while an active BOARD session is paused.
+ $('boardExitBtn').classList.toggle('hidden',!active||!round.paused);
  // Normal-party pause is independent. During BOARD and its nested minigame
  // these three controls must share the exact same map-only visibility.
  if(boardSession||round?.mode==='board')
@@ -303,7 +303,6 @@ function showBoard(){
   $('gameRoulette').classList.add('hidden');$('results').classList.add('hidden');
   $('results').classList.remove('board-minigame-results');
   $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.remove('hidden');
-  $('boardExitBtn').classList.remove('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');$('gameBanner').textContent='';
   document.body.classList.add('board-playing');
   setView('game');
