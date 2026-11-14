@@ -80,6 +80,9 @@ window.PartyPlaza?.configure({
    case 'wardrobe':case 'color_studio':break;
   }
  },
+ preloadWardrobe(p){
+  window.PartyCosmetics?.preloadCycle?.(p,'top');
+ },
  zoneBAction(p,zone){
   if(round||boardSession||gameSelection||currentView!=='hostLobby'||
      p?.type!=='remote'||p.isBot||!p.conn?.open||!players.includes(p))return null;
