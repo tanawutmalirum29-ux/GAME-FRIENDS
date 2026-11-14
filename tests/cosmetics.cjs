@@ -207,7 +207,7 @@ const plazaSandbox=vm.createContext({
  document:{addEventListener(){},getElementById(){return null;}},
  console,Math
 });
-vm.runInContext(plaza,{filename:'src/lobby/party-plaza.js'},plazaSandbox);
+vm.runInContext(plaza,plazaSandbox,{filename:'src/lobby/party-plaza.js'});
 let wardrobeChanges=0,colorChanges=0,cancels=0;
 plazaSandbox.window.PartyPlaza.configure({
  changeCosmetic(){wardrobeChanges++;return true;},
