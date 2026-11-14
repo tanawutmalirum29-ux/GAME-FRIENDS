@@ -94,11 +94,11 @@ function positionCenterQr(){
  const w=canvas.clientWidth,h=canvas.clientHeight;
  if(w<=0||h<=0)return;
  const scale=Math.min(w/WORLD.width,h/WORLD.height);
- // The large 960×540 Plaza occupies (480,330), radius about 141.
- // Anchor the QR to that exact world center, not the former READY pad (y=439).
+ // Keep the hit target exactly around the visible QR square; do not cover
+ // the surrounding central Plaza artwork with an oversized circular button.
  const left=(w-WORLD.width*scale)/2+480*scale;
  const top=(h-WORLD.height*scale)/2+330*scale;
- const size=264*scale;
+ const size=172*scale;
  Object.assign(button.style,{
   left:left+'px',top:top+'px',width:size+'px',height:size+'px',
   fontSize:Math.max(10,13*scale)+'px'
