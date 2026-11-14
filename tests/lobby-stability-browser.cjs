@@ -151,11 +151,13 @@ async function geometry(page){
       inline:[parseFloat(qr.style.left),parseFloat(qr.style.top),parseFloat(qr.style.width)],
       expected:(()=>{
        const w=canvas.clientWidth,h=canvas.clientHeight,k=Math.min(w/960,h/540);
-       return [(w-960*k)/2+480*k,(h-540*k)/2+330*k,264*k];
+       return [(w-960*k)/2+480*k,(h-540*k)/2+330*k,172*k];
       })()};
    });
    assert.ok(center.visible&&center.size[0]>60,'central QR replaces READY visually');
-   assert.ok(Math.abs(center.size[0]-center.size[1])<1,'central code remains round');
+   assert.ok(Math.abs(center.size[0]-center.size[1])<1,'QR hit area stays square');
+   assert.ok(Math.abs(center.size[0]-center.expected[2])<2,
+    'QR hit area matches the visible QR square without covering surrounding Plaza art');
    for(let i=0;i<3;i++)
     assert.ok(Math.abs(center.inline[i]-center.expected[i])<2,
       'QR follows the canvas object-fit world coordinates even on rotated displays: '+
