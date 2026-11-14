@@ -74,7 +74,9 @@ assert.match(html,/id="qrBox"/,
 assert.match(source,/\$\('plazaCenterQrBtn'\)\.addEventListener\('click',copyInvite\)/,
  'tapping the central QR copies the room invite');
 assert.match(css,/\.plaza-center-qr-btn\{/,
- 'room QR button has a large, circular Plaza backing');
+ 'room QR button keeps a dedicated central hit area');
+assert.match(css,/border:0;border-radius:0;background:transparent;box-shadow:none/,
+ 'the QR hit area has no oversized circle, opaque fill, or backing glow');
 const plazaArt=fs.readFileSync(path.join(root,'src/lobby/party-plaza-art.js'),'utf8');
 const plazaSource=fs.readFileSync(path.join(root,'src/lobby/party-plaza.js'),'utf8');
 assert.match(plazaArt,/ready-platform/,
@@ -83,8 +85,8 @@ assert.doesNotMatch(html,/id="plazaCenterQrLabel"/,
  'no obsolete tap-to-copy instruction under the QR');
 assert.match(plazaSource,/top=\(h-WORLD\.height\*scale\)\/2\+330\*scale/,
  'room QR aligns with the large Plaza center at 960×540 world position (480,330)');
-assert.match(plazaSource,/size=264\*scale/,
- 'room QR covers the large Plaza, not the small former READY pad');
+assert.match(plazaSource,/size=172\*scale/,
+ 'QR hit area is limited to the QR square, not the surrounding Plaza');
 assert.match(html,/id="plazaRoomToggle"[^>]*hidden/,
  'the redundant top QR button is no longer shown');
 
