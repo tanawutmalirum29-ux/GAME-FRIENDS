@@ -974,7 +974,10 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
           }
           window.BoardParty.input(boardSession,p.id,input);return;
         }
+        const wardrobeBPressed=!p.input.alt&&msg.keys?.alt===true;
         for(const k of INPUT_NAMES)p.input[k]=msg.keys&&msg.keys[k]===true;
+        if(wardrobeBPressed&&!round&&!gameSelection&&currentView==='hostLobby')
+          window.PartyPlaza?.pressB?.(p);
         if(!(conn.fastAxisConn?.open&&Date.now()-(conn.fastAxisLastAt||0)<250)){
           p.input.axisX=Number.isFinite(msg.keys&&msg.keys.axisX)?clamp(msg.keys.axisX,-1,1):0;
           p.input.axisY=Number.isFinite(msg.keys&&msg.keys.axisY)?clamp(msg.keys.axisY,-1,1):0;
