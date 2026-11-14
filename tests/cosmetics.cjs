@@ -111,6 +111,9 @@ const canvas=new Proxy({},{
 });
 const player={id:'p1',name:'P1',cosmetic:'pirate-hat',color:'#36d9e5',
  x:100,y:200,dir:{x:0,y:-1},vx:0,vy:0};
+scope.fetch=async url=>({
+ ok:true,text:async()=>read(String(url).replace('./',''))
+});
 const warmTop=C.preloadCycle(player,'top');
 assert.equal(warmTop.length,C.IDS.length-1,'WARDROBE warms every wearable top-down image');
 assert.ok(warmTop.every(img=>img.complete&&img.naturalWidth>0),
@@ -231,9 +234,7 @@ assert.equal(plazaSandbox.window.PartyPlaza.pressB({...wardrobePlayer,conn:{open
 assert.match(main,/preloadWardrobe\(p\)[\s\S]*preloadCycle/);
 // Dynamic hats use just two source masters each, then recolor currentColor in memory.
 // Test all 10 x 2 x 12 paths with the same async image pipeline as the browser.
-scope.fetch=async url=>({
- ok:true,text:async()=>read(String(url).replace('./',''))
-});
+
 (async()=>{
  const loaded=[];
  for(const item of catalog.items){
