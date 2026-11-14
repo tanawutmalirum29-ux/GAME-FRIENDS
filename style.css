@@ -4529,8 +4529,13 @@ body.board-playing #game #pauseBtn{
  border-radius:7px;box-sizing:border-box;
  transform-origin:top left;place-items:center;line-height:0;
 }
-body.board-playing #game #pauseBtn svg{width:18px;height:18px;margin:auto}
-body.board-playing #game #pauseBtn.board-resume::before{margin:0;align-self:center;justify-self:center}
+body.board-playing #game #pauseBtn:not(.board-resume) svg{
+ display:block;width:18px;height:18px;margin:auto;
+}
+body.board-playing #game #pauseBtn.board-resume svg{display:none}
+body.board-playing #game #pauseBtn.board-resume::before{
+ margin:0;align-self:center;justify-self:center;
+}
 body.board-playing #game #botPossessBtn{
  position:fixed;right:auto;top:auto;
  width:29px;height:27px;min-width:29px;min-height:27px;
