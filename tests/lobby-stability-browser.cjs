@@ -151,7 +151,7 @@ async function geometry(page){
       inline:[parseFloat(qr.style.left),parseFloat(qr.style.top),parseFloat(qr.style.width)],
       expected:(()=>{
        const w=canvas.clientWidth,h=canvas.clientHeight,k=Math.min(w/960,h/540);
-       return [(w-960*k)/2+480*k,(h-540*k)/2+330*k,172*k];
+       return [(w-960*k)/2+480*k,(h-540*k)/2+330*k,.65*(264*k-26)];
       })()};
    });
    assert.ok(center.visible&&center.size[0]>60,'central QR replaces READY visually');
