@@ -185,7 +185,7 @@ assert.match(medalCss,/\.result-avatar-face\{[\s\S]*?overflow:hidden!important/,
  'only the face is clipped inside the circular medal');
 assert.match(medalCss,/\.result-avatar-hat\{[\s\S]*?position:absolute/,
  'hat overlays do not modify the ranking layout');
-const host=read('app.js'),plaza=read('src/lobby/party-plaza.js');
+const host=read('app.js'),plaza=read('src/lobby/party-plaza.js'),main=read('src/app/main.js');
 assert.match(host,/p\.cosmetic=cosmetics\.next\(p\.cosmetic\)/);
 assert.match(host,/randomAvailable\?\.\(players\.map\(p=>p\.cosmetic\)\)/,
  'bot and human seats share unique random costume allocation');
