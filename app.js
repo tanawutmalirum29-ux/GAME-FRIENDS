@@ -3796,7 +3796,6 @@ function showBoard(){
   $('gameRoulette').classList.add('hidden');$('results').classList.add('hidden');
   $('results').classList.remove('board-minigame-results');
   $('pauseMenu').classList.add('hidden');$('pauseBtn').classList.remove('hidden');
-  $('boardExitBtn').classList.remove('hidden');
   $('pauseBtn').setAttribute('aria-expanded','false');$('gameBanner').textContent='';
   document.body.classList.add('board-playing');
   setView('game');
