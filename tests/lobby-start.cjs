@@ -76,13 +76,14 @@ assert.match(source,/\$\('plazaCenterQrBtn'\)\.addEventListener\('click',copyInv
 assert.match(css,/\.plaza-center-qr-btn\{/,
  'room QR button has a large, circular Plaza backing');
 const plazaArt=fs.readFileSync(path.join(root,'src/lobby/party-plaza-art.js'),'utf8');
+const plazaSource=fs.readFileSync(path.join(root,'src/lobby/party-plaza.js'),'utf8');
 assert.match(plazaArt,/ready-platform/,
  'retired READY small circle is stripped from decoded SVG before display');
 assert.doesNotMatch(html,/id="plazaCenterQrLabel"/,
  'no obsolete tap-to-copy instruction under the QR');
-assert.match(source,/top=\(h-WORLD\.height\*scale\)\/2\+330\*scale/,
+assert.match(plazaSource,/top=\(h-WORLD\.height\*scale\)\/2\+330\*scale/,
  'room QR aligns with the large Plaza center at 960×540 world position (480,330)');
-assert.match(source,/size=264\*scale/,
+assert.match(plazaSource,/size=264\*scale/,
  'room QR covers the large Plaza, not the small former READY pad');
 assert.match(html,/id="plazaRoomToggle"[^>]*hidden/,
  'the redundant top QR button is no longer shown');
