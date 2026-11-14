@@ -116,8 +116,8 @@ scope.fetch=async url=>({
 });
 const warmTop=C.preloadCycle(player,'top');
 assert.equal(warmTop.length,C.IDS.length-1,'WARDROBE warms every wearable top-down image');
-assert.ok(warmTop.every(img=>img.complete&&img.naturalWidth>0),
- 'top-down hat images are ready before the first B press');
+assert.ok(warmTop.every(img=>img instanceof FakeImage),
+ 'every top-down hat starts loading as soon as WARDROBE becomes available');
 const warmFront=C.preloadCycle(player,'front');
 assert.equal(warmFront.length,C.IDS.length-1,'optional front projection preloads the same outfit cycle');
 scope.window.PartyPlayerAvatar.draw(canvas,player,{label:false});
@@ -236,6 +236,11 @@ assert.match(main,/preloadWardrobe\(p\)[\s\S]*preloadCycle/);
 // Test all 10 x 2 x 12 paths with the same async image pipeline as the browser.
 
 (async()=>{
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(warmTop.every(img=>img.complete&&img.naturalWidth>0),
+  'top-down hat images are ready after their async SVG fetches resolve');
+ assert.ok(warmFront.every(img=>img.complete&&img.naturalWidth>0),
+  'front hat images are ready after their async SVG fetches resolve');
  const loaded=[];
  for(const item of catalog.items){
   const spec=C.ASSETS[item.id];
