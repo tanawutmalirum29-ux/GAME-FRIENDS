@@ -6607,20 +6607,17 @@ body.controller-playing #controller #controllerActive #buttonB.plaza-b-ready .fa
 }
 
 
-/* Party Plaza: one QR inside the original large central Plaza circle.
-   Its independent position follows the 960×540 world; the small READY platform
-   is removed from SVG before decode, not covered up or rasterized. */
+/* Party Plaza: only the QR square occupies the center; leave the surrounding
+   authored Plaza artwork visible and clickable through the transparent hit area. */
 #hostLobby.plaza-loaded .plaza-center-qr-btn{
- position:absolute;left:50%;top:61%;width:264px;height:264px;
+ position:absolute;left:50%;top:61%;width:172px;height:172px;
  transform:translate(-50%,-50%);z-index:6;
  display:flex;align-items:center;justify-content:center;
- margin:0;padding:9px;box-sizing:border-box;
- border:4px solid #ef75fa;border-radius:50%;
- background:radial-gradient(circle at 40% 35%,#273563 0%,#11142f 62%,#080c20 100%);
- box-shadow:0 0 0 6px #572bc4b8,0 0 23px 4px #ff4ceea9,inset 0 0 28px #2e8df56e;
- color:#e6faff;font-weight:850;line-height:1;
+ margin:0;padding:0;box-sizing:border-box;
+ border:0;border-radius:0;background:transparent;box-shadow:none;
+ color:#1b2c43;font-weight:850;line-height:1;
  cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
- pointer-events:auto;overflow:hidden;isolation:isolate;
+ pointer-events:auto;overflow:visible;isolation:isolate;
 }
 #hostLobby.plaza-loaded .plaza-center-qr-btn:focus-visible{
  outline:3px solid #ffdf83;outline-offset:7px;
@@ -6629,11 +6626,11 @@ body.controller-playing #controller #controllerActive #buttonB.plaza-b-ready .fa
  opacity:1!important;cursor:default;
 }
 #hostLobby.plaza-loaded .plaza-center-qr-image{
- width:65%;aspect-ratio:1;min-height:0;flex:0 1 auto;
+ width:100%;height:100%;aspect-ratio:1;min-height:0;flex:0 0 100%;
  background:#fff;color:#1b2c43;display:grid;place-items:center;
  border:5px solid #fff;border-radius:7px;overflow:hidden;
- font-size:.8em;font-weight:900;text-align:center;line-height:1.3;
- box-shadow:0 0 0 2px #a6faff,0 0 12px #48d9fa82;
+ font-size:.8em;font-weight:900;text-align:center;line-height:1;
+ box-shadow:0 0 0 2px #a6faff,0 0 8px #48d9fa70;
 }
 #hostLobby.plaza-loaded .plaza-center-qr-image canvas,
 #hostLobby.plaza-loaded .plaza-center-qr-image img{
