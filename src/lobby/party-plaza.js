@@ -98,7 +98,9 @@ function positionCenterQr(){
  // the surrounding central Plaza artwork with an oversized circular button.
  const left=(w-WORLD.width*scale)/2+480*scale;
  const top=(h-WORLD.height*scale)/2+330*scale;
- const size=172*scale;
+ // Preserve the exact old QR face size: 65% of the previous button's
+ // content box after its 9px padding and 4px border on each side.
+ const size=.65*(264*scale-26);
  Object.assign(button.style,{
   left:left+'px',top:top+'px',width:size+'px',height:size+'px',
   fontSize:Math.max(10,13*scale)+'px'
