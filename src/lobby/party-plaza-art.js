@@ -21,10 +21,12 @@ function sceneUrl(){
    new DecompressionStream('gzip'))).text();
   if(!svg.includes('<svg')||!svg.includes('viewBox="0 0 960 540"'))
    throw Error('Party Plaza original SVG invalid');
-  // A self-contained data URL survives WebKit's rapid room-to-game
-  // transition without asynchronous blob access-control errors on reload.
-  // The decoded SVG paths remain byte-for-byte unchanged (no rasterization).
-  url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  // Remove only the small retired READY group at (480,457).
+  // Preserve every other original vector, the 960x540 viewport and the neon Plaza.
+  const plazaSvg=svg.replace(/<g id="ready-platform">[\s\S]*?<\/g>/,'');
+  if(plazaSvg===svg)throw Error('Party Plaza READY platform group not found');
+  // This self-contained URL remains safe during fast WebKit room transitions.
+  url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(plazaSvg);
   return url;
  })().catch(e=>{pending=null;throw e;});
  return pending;

@@ -665,7 +665,6 @@ function renderQr(code){
   $('roomUrl').value=link;
   const box=$('qrBox'),button=$('plazaCenterQrBtn');
   button.disabled=false;
-  $('plazaCenterQrLabel').textContent='แตะคัดลอกลิงก์';
   box.replaceChildren();
   const paint=()=>{
     if(!onlineHost||roomCode!==code)return;
@@ -676,7 +675,7 @@ function renderQr(code){
         return;
       }catch(error){console.warn('QR generation failed',error);}
     }
-    box.textContent='QR ไม่พร้อม • คัดลอกลิงก์เชิญด้านล่างได้';
+    box.textContent='QR ยังไม่พร้อม';
   };
   if(typeof QRCode==='function'){paint();return;}
   // The room and copyable invite are ready without waiting for a second CDN.
@@ -1057,15 +1056,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
 }
 function copyInvite(){
   const value=$('roomUrl').value;if(!value)return;
-  const done=()=>{
-    showToast('คัดลอกลิงก์เข้าห้องแล้ว');
-    $('plazaCenterQrLabel').textContent='คัดลอกแล้ว';
-    const b=$('copyBtn');b.textContent='คัดลอกแล้ว';
-    setTimeout(()=>{
-      b.textContent='คัดลอกลิงก์';
-      $('plazaCenterQrLabel').textContent='แตะคัดลอกลิงก์';
-    },1600);
-  };
+  const done=()=>showToast('คัดลอกลิงก์เข้าห้องแล้ว');
   const fallback=()=>{
     const temp=document.createElement('textarea');
     temp.value=value;temp.readOnly=true;

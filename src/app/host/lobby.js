@@ -185,7 +185,6 @@ function openOfflineLobby(){
  $('roomPanel').classList.add('hidden');$('offlineRoomHint').classList.remove('hidden');
  $('plazaCenterQrBtn').disabled=true;
  $('qrBox').textContent='OFFLINE';
- $('plazaCenterQrLabel').textContent='เล่นออฟไลน์';
  setView('hostLobby');renderRoster();
 }
 $('offlineBtn').addEventListener('click',()=>{

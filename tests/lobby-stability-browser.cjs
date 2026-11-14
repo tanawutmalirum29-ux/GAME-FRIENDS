@@ -119,11 +119,11 @@ async function geometry(page){
     await new Promise(resolve=>setTimeout(resolve,0));
     const result=window.__copyResult;
     button.disabled=true;input.value='';
-    return {value:result,label:document.getElementById('plazaCenterQrLabel').textContent};
+    return {value:result,hasCaption:!!document.getElementById('plazaCenterQrLabel')};
    });
    assert.equal(copied.value,'https://example.test/?join=ABC234',
     'tapping the central QR copies the exact room invite link');
-   assert.equal(copied.label,'คัดลอกแล้ว','QR confirms copied state');
+   assert.equal(copied.hasCaption,false,'no instructional caption appears under the QR');
    const stable=async label=>{
     const now=await geometry(page);
     assert.equal(now.slots,12,label+' 12 reserved slots');
@@ -151,7 +151,7 @@ async function geometry(page){
       inline:[parseFloat(qr.style.left),parseFloat(qr.style.top),parseFloat(qr.style.width)],
       expected:(()=>{
        const w=canvas.clientWidth,h=canvas.clientHeight,k=Math.min(w/960,h/540);
-       return [(w-960*k)/2+480*k,(h-540*k)/2+439*k,196*k];
+       return [(w-960*k)/2+480*k,(h-540*k)/2+330*k,264*k];
       })()};
    });
    assert.ok(center.visible&&center.size[0]>60,'central QR replaces READY visually');
@@ -160,6 +160,15 @@ async function geometry(page){
     assert.ok(Math.abs(center.inline[i]-center.expected[i])<2,
       'QR follows the canvas object-fit world coordinates even on rotated displays: '+
       JSON.stringify(center));
+   const art=await page.evaluate(async()=>{
+    const uri=await window.PartyPlazaArt.sceneUrl();
+    const svg=decodeURIComponent(uri.slice(uri.indexOf(',')+1));
+    return {hasSmallReady:svg.includes('id="ready-platform"'),
+      mainPlaza:svg.includes('cx="480" cy="330"'),
+      nativeSvg:svg.includes('viewBox="0 0 960 540"')};
+   });
+   assert.equal(art.hasSmallReady,false,'small READY SVG disc is removed from art, not merely covered');
+   assert.ok(art.mainPlaza&&art.nativeSvg,'original large Plaza and 960×540 SVG survive');
    assert.equal(await page.locator('#plazaCenterQrBtn').isDisabled(),true,
     'offline demo has no invite to copy');
    await stable('central QR geometry');
