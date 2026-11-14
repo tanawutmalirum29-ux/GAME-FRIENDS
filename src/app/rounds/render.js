@@ -241,7 +241,6 @@ function pauseGame(){
   if(round.mode==='board'&&boardSession){
     boardSession.camera.paused=true;
     $('pauseMenu').classList.add('hidden'); // Keep the frozen map touchable.
-    $('boardExitBtn').classList.remove('hidden');
   }else {$('pauseMenu').classList.remove('hidden');$('boardExitBtn').classList.add('hidden');}
   $('pauseBtn').setAttribute('aria-expanded',String(round.mode!=='board'));
   refreshBoardTools();
@@ -254,7 +253,6 @@ function resumeGame(){
   round.paused=false;
   if(round.mode==='board'&&boardSession){const s=boardSession;s.camera.paused=false;s.camera.overview=false;s.camera.manualZoom=null;s.inputs={};}
   $('pauseMenu').classList.add('hidden');
-  $('boardExitBtn').classList.toggle('hidden',round.mode!=='board'||!boardSession);
   $('pauseBtn').setAttribute('aria-expanded','false');
   refreshBoardTools();
   broadcastRoster();

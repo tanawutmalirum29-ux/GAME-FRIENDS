@@ -76,8 +76,20 @@ async function main(){
    await page.waitForFunction(()=>__drawnTexts.includes('ทอยลูกเต๋า')&&__boardStartup.board.phase==='ready',{},{timeout:20000});
    assert.equal(await page.evaluate(()=>__boardStartup.view),'game');
    const sizes=await page.evaluate(()=>__terrainSizes);assert.equal(sizes.length,1);assert.ok(sizes[0]<=3500000);
-   await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
-   await page.locator('#pauseBtn').click();assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
+   await page.locator('#pauseBtn').click();
+   assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
+   const resumeGlyph=await page.evaluate(()=>{
+    const btn=document.getElementById('pauseBtn'),svg=btn.querySelector('svg');
+    const before=getComputedStyle(btn,'::before');
+    return{svg:getComputedStyle(svg).display,triangle:before.borderLeftWidth,content:before.content};
+   });
+   assert.equal(resumeGlyph.svg,'none','resume state must hide the original pause-bars SVG');
+   assert.equal(resumeGlyph.triangle,'10px','resume state shows only one centered play triangle');
+   assert.equal(resumeGlyph.content,'""','resume state has a single CSS play glyph');
+   await page.locator('#pauseBtn').click();
+   assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
+   assert.equal(await page.locator('#pauseBtn svg').evaluate(el=>getComputedStyle(el).display),'block',
+    'running state restores only the pause-bars SVG');
    await page.screenshot({path:path.join(out,engine+'-terrain-'+(denyTerrain?'fallback':'normal')+'.png')});
    // Only Pause, Exit and Show ID may remain on the BOARD Host.
    await page.evaluate(()=>{
@@ -92,22 +104,29 @@ async function main(){
    assert.equal(await page.evaluate(()=>__boardStartup.board.camera.debugNodes),true);
    await page.locator('#boardNodeDebugBtn').click();
    assert.equal(await page.evaluate(()=>__boardStartup.board.camera.debugNodes),false);
-   // EXIT must be available in live BOARD, without having to pause first.
+   // Exit is hidden during normal play and appears only when the Board is paused.
+   assert.equal(await page.locator('#boardExitBtn').isVisible(),false,
+    'board exit must stay hidden while a session is running');
+   await page.locator('#pauseBtn').click();
+   assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
    assert.equal(await page.locator('#boardExitBtn').isVisible(),true,
-    'board exit remains visible while a session is running');
+    'board exit appears only while the map is paused');
    await page.locator('#boardExitBtn').click();
    assert.equal(await page.locator('#uiModal').isVisible(),true,
     'exit requires a separate confirmation');
    await page.locator('#uiCancelBtn').click();
    assert.equal(await page.evaluate(()=>__boardStartup.view),'game',
     'cancel keeps the current board session');
-   assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
-   // Exit while paused, cancel and resume must also work on WebKit.
-   await page.locator('#pauseBtn').click();
-   await page.locator('#boardExitBtn').click();
-   await page.locator('#uiCancelBtn').click();
    assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'เล่นต่อ');
+   assert.equal(await page.locator('#boardExitBtn').isVisible(),true,
+    'cancelling exit leaves the Board paused and Exit available');
    await page.locator('#pauseBtn').click();
+   assert.equal(await page.locator('#pauseBtn').getAttribute('aria-label'),'หยุดเกม');
+   assert.equal(await page.locator('#boardExitBtn').isVisible(),false,
+    'resuming hides Exit immediately');
+   // Confirming an exit is possible only after pausing again.
+   await page.locator('#pauseBtn').click();
+   assert.equal(await page.locator('#boardExitBtn').isVisible(),true);
    await page.locator('#boardExitBtn').click();
    await page.locator('#uiConfirmBtn').click();
    await page.waitForFunction(()=>__boardStartup.board===null&&__boardStartup.view==='hostLobby',
