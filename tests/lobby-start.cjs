@@ -85,8 +85,8 @@ assert.doesNotMatch(html,/id="plazaCenterQrLabel"/,
  'no obsolete tap-to-copy instruction under the QR');
 assert.match(plazaSource,/top=\(h-WORLD\.height\*scale\)\/2\+330\*scale/,
  'room QR aligns with the large Plaza center at 960×540 world position (480,330)');
-assert.match(plazaSource,/size=172\*scale/,
- 'QR hit area is limited to the QR square, not the surrounding Plaza');
+assert.match(plazaSource,/size=\.65\*\(264\*scale-26\)/,
+ 'QR hit area matches the old visible QR face after removing the oversized backing');
 assert.match(html,/id="plazaRoomToggle"[^>]*hidden/,
  'the redundant top QR button is no longer shown');
 
