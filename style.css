@@ -6629,7 +6629,7 @@ body.controller-playing #controller #controllerActive #buttonB.plaza-b-ready .fa
  opacity:1!important;cursor:default;
 }
 #hostLobby.plaza-loaded .plaza-center-qr-image{
- width:71%;aspect-ratio:1;min-height:0;flex:0 1 auto;
+ width:65%;aspect-ratio:1;min-height:0;flex:0 1 auto;
  background:#fff;color:#1b2c43;display:grid;place-items:center;
  border:5px solid #fff;border-radius:7px;overflow:hidden;
  font-size:.8em;font-weight:900;text-align:center;line-height:1.3;
