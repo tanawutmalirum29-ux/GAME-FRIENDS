@@ -194,6 +194,11 @@ async function run(){
   });
   assert.equal(staged.pending,true,'Changed built-in map is staged while BOARD is active');
   assert.equal(staged.stillPinned,true,'Board map source cannot swap mid-session');
+  assert.equal(await page.locator('#boardExitBtn').isVisible(),false,
+   'BOARD Exit must stay hidden while the map is running');
+  await page.locator('#pauseBtn').click();
+  assert.equal(await page.locator('#boardExitBtn').isVisible(),true,
+   'BOARD Exit becomes available only after pausing the map');
   await page.locator('#boardExitBtn').click();
   await page.locator('#uiConfirmBtn').click();
   await page.waitForFunction(expected=>
