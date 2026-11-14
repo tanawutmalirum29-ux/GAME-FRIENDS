@@ -170,7 +170,7 @@ function sync(players){
   if(slot>=12)slot=[...Array(12).keys()].find(s=>!occupied.has(s))??i%12;
   const spot=getSpawn(slot);
   p.plazaSlot=slot;p.plazaX=spot.x;p.plazaY=spot.y;p.plazaVX=0;p.plazaVY=0;p.plazaHeading={x:0,y:-1};
-  p.plazaAPressed=false;p.plazaBPressed=false;p.plazaWalkClock=0;
+  p.plazaAPressed=false;p.plazaWalkClock=0;
   p.plazaBotPhase=0;p.plazaBotAngle=(i*.97+1.9)%(Math.PI*2);p.plazaBotChange=0;
  }
 }
@@ -179,6 +179,13 @@ function zoneAt(p){
  return layout.zones.filter(z=>z.interactionRadiusPx>0&&Math.hypot(p.plazaX-z.center.x,p.plazaY-z.center.y)<=z.interactionRadiusPx).sort((a,b)=>b.priority-a.priority||Math.hypot(p.plazaX-a.center.x,p.plazaY-a.center.y)-Math.hypot(p.plazaX-b.center.x,p.plazaY-b.center.y))[0]||null;
 }
 function inZone(p,id){return zoneAt(p)?.id===id;}
+function pressB(p){
+ if(!playerCache.includes(p)||p.isBot||!p.conn?.open)return false;
+ const zone=zoneAt(p);
+ if(zone?.id==='wardrobe')return callbacks.changeCosmetic?.(p)===true;
+ if(zone?.id==='color_studio')return callbacks.changeColor?.(p)===true;
+ callbacks.cancel?.(p);return true;
+}
 const key={up:false,down:false,left:false,right:false};
 function keyEvent(e,pressed){
  if(!active||e.target?.matches?.('input,textarea,select,button,[contenteditable]'))return;
@@ -232,17 +239,13 @@ function tick(dt,players){
   const oldX=p.plazaX,oldY=p.plazaY;
   move(p,vx,vy,dt);
   if(p.isBot&&oldX===p.plazaX&&oldY===p.plazaY){p.plazaBotAngle+=2.2;p.plazaBotChange=0;}
-  // A and B are interpreted only when the player is physically in a zone.
+  // A remains frame-polled. B is dispatched directly by the Host when its
+  // authenticated input packet changes from released to pressed, so a quick
+  // tap cannot disappear between two animation frames.
   if(!p.isBot&&p.conn?.open){
-   const a=!!p.input.action,b=!!p.input.alt;
+   const a=!!p.input.action;
    if(a&&!p.plazaAPressed)callbacks.interact?.(p,zoneAt(p));
-   if(b&&!p.plazaBPressed){
-    const zone=zoneAt(p);
-    if(zone?.id==='wardrobe')callbacks.changeCosmetic?.(p);
-    else if(zone?.id==='color_studio')callbacks.changeColor?.(p);
-    else callbacks.cancel?.(p);
-   }
-   p.plazaAPressed=a;p.plazaBPressed=b;
+   p.plazaAPressed=a;
   }
  }
  for(let iter=0;iter<3;iter++)for(let i=0;i<playerCache.length;i++)for(let j=i+1;j<playerCache.length;j++){
@@ -260,6 +263,7 @@ function tick(dt,players){
   const action=callbacks.zoneBAction?.(p,zoneAt(p))||null;
   if(p.plazaBActionConn===p.conn&&p.plazaBAction===action)continue;
   p.plazaBActionConn=p.conn;p.plazaBAction=action;
+  if(action==='wardrobe')callbacks.preloadWardrobe?.(p);
   callbacks.notifyZoneB?.(p,action);
  }
  paint();
@@ -367,5 +371,5 @@ function paint(){
  }
  // Contextual A/B actions are displayed on the owner's controller only.
 }
-window.PartyPlaza=Object.freeze({configure,setActive,sync,tick,inZone,zoneAt,retry,getLayout:()=>layout,getPlayers:()=>playerCache,isReady:()=>loaded,positionCenterQr,debug:v=>{debug=!!v;}});
+window.PartyPlaza=Object.freeze({configure,setActive,sync,tick,inZone,zoneAt,pressB,retry,getLayout:()=>layout,getPlayers:()=>playerCache,isReady:()=>loaded,positionCenterQr,debug:v=>{debug=!!v;}});
 })();
