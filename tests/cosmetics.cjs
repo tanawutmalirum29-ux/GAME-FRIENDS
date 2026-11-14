@@ -111,6 +111,12 @@ const canvas=new Proxy({},{
 });
 const player={id:'p1',name:'P1',cosmetic:'pirate-hat',color:'#36d9e5',
  x:100,y:200,dir:{x:0,y:-1},vx:0,vy:0};
+const warmTop=C.preloadCycle(player,'top');
+assert.equal(warmTop.length,C.IDS.length-1,'WARDROBE warms every wearable top-down image');
+assert.ok(warmTop.every(img=>img.complete&&img.naturalWidth>0),
+ 'top-down hat images are ready before the first B press');
+const warmFront=C.preloadCycle(player,'front');
+assert.equal(warmFront.length,C.IDS.length-1,'optional front projection preloads the same outfit cycle');
 scope.window.PartyPlayerAvatar.draw(canvas,player,{label:false});
 assert.ok(calls.some(c=>c.src.endsWith('pirate-hat/colors/top-36d9e5.svg')),
  'overhead renderer composites player outfit after the body');
@@ -188,10 +194,41 @@ assert.match(host,/const reservedCosmetics=new Set/,
 assert.match(host,/claimedCosmetics\.add\(cosmetic\)/,
  'restoring a room repairs duplicate and bare outfits');
 assert.match(host,/bp\.cosmetic=window\.PartyCosmetics/);
-assert.match(plaza,/if\(b&&!p\.plazaBPressed\)/);
-assert.match(plaza,/zone\?\.id==='wardrobe'/);
+assert.match(plaza,/function pressB\(p\)/);
 assert.match(plaza,/callbacks\.changeCosmetic\?\.\(p\)/);
-assert.match(plaza,/p\.plazaBPressed=b/);
+assert.match(plaza,/callbacks\.preloadWardrobe\?\.\(p\)/);
+assert.doesNotMatch(plaza,/plazaBPressed|if\(b&&/,
+ 'WARDROBE B is not sampled by the animation loop');
+const roomSource=read('src/app/host/room.js');
+assert.match(roomSource,/const wardrobeBPressed=!p\.input\.alt&&msg\.keys\?\.alt===true/);
+assert.match(roomSource,/if\(wardrobeBPressed&&!round&&!gameSelection&&currentView==='hostLobby'\)[\s\S]*?PartyPlaza\?\.pressB/);
+const plazaSandbox=vm.createContext({
+ window:{addEventListener(){}},
+ document:{addEventListener(){},getElementById(){return null;}},
+ console,Math
+});
+vm.runInContext(plaza,{filename:'src/lobby/party-plaza.js'},plazaSandbox);
+let wardrobeChanges=0,colorChanges=0,cancels=0;
+plazaSandbox.window.PartyPlaza.configure({
+ changeCosmetic(){wardrobeChanges++;return true;},
+ changeColor(){colorChanges++;return true;},
+ cancel(){cancels++;}
+});
+const wardrobePlayer={id:'wardrobe',isBot:false,conn:{open:true},plazaX:151,plazaY:190};
+plazaSandbox.window.PartyPlaza.sync([wardrobePlayer]);
+assert.equal(plazaSandbox.window.PartyPlaza.pressB(wardrobePlayer),true);
+assert.equal(wardrobeChanges,1,'one physical B press applies exactly one outfit step');
+const studioPlayer={id:'studio',isBot:false,conn:{open:true},plazaX:144,plazaY:437};
+plazaSandbox.window.PartyPlaza.sync([studioPlayer]);
+assert.equal(plazaSandbox.window.PartyPlaza.pressB(studioPlayer),true);
+assert.equal(colorChanges,1,'B keeps its existing Color Studio action');
+const lobbyPlayer={id:'lobby',isBot:false,conn:{open:true},plazaX:480,plazaY:327};
+plazaSandbox.window.PartyPlaza.sync([lobbyPlayer]);
+assert.equal(plazaSandbox.window.PartyPlaza.pressB(lobbyPlayer),true);
+assert.equal(cancels,1,'B outside a station keeps its cancel action');
+assert.equal(plazaSandbox.window.PartyPlaza.pressB({...wardrobePlayer,conn:{open:false}}),false,
+ 'a disconnected or stale player cannot trigger a wardrobe change');
+assert.match(main,/preloadWardrobe\(p\)[\s\S]*preloadCycle/);
 // Dynamic hats use just two source masters each, then recolor currentColor in memory.
 // Test all 10 x 2 x 12 paths with the same async image pipeline as the browser.
 scope.fetch=async url=>({
