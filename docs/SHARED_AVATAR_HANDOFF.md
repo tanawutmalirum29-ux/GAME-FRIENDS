@@ -1,9 +1,8 @@
 # GAME FRIENDS — ตัวละครกลางในมินิเกม
 
-สาขาเดิม: **`art/rope-hat-svg-2077-2078`**  
-ฐาน `main` ที่อ่านก่อนแก้: `34a22766949bb4f696be88062ad0a6294a5148eb`
-
-ผู้ใช้อนุญาตให้แก้โค้ด renderer เพิ่มจากชุด SVG เพื่อให้ทุกแมพดึงตัวละครกลางไปใช้ โดยยก LAWN MOWER เป็นตัวอย่าง **รอบนี้ไม่ได้รันเกม, browser, build, syntax check, tests, QA หรือ CI และไม่รวม main** การตรวจและรวมเป็นงานของ AI ตัวถัดไปตามคำสั่งผู้ใช้
+> **บันทึกประวัติการย้าย renderer** จากงาน `art/rope-hat-svg-2077-2078` เอกสารนี้เก็บบริบทและข้อตกลงด้านภาพในช่วงพัฒนานั้น ไม่ใช่สถานะงานปัจจุบัน
+>
+> ปัจจุบันโค้ดตัวละครกลางและ wardrobe integration อยู่บน `main` แล้ว: `player-avatar.js`, `cosmetic-system.js`, `character-system.js`, `src/lobby/party-plaza.js` และ `src/app/host/room.js` เป็นจุดเชื่อมหลัก; `tests/cosmetics.cjs`, `tests/avatar-topdown.cjs` และ `tests/character-system.cjs` เป็นชุด regression ที่เกี่ยวข้อง การเปลี่ยนชุดไม่ควรแก้ hitbox หรือ gameplay physics
 
 ## สิ่งที่เปลี่ยน
 
