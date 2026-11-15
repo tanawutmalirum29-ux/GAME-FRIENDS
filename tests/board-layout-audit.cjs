@@ -6,9 +6,9 @@ const fs=require('fs'),vm=require('vm'),ctx=vm.createContext({window:{},Math,Dat
 // Object-literal duplicate keys are valid JavaScript and silently overwrite.
 // Guard the authored BOARD lane overrides explicitly, as no ESLint config is used here.
 const laneSource=fs.readFileSync('src/board-party/runtime/board-layout.js','utf8');
-const laneBlock=laneSource.match(/const lanePositions\\s*=\\s*\\{([\\s\\S]*?)^\\s*\\};/m);
+const laneBlock=laneSource.match(/const lanePositions\s*=\s*\{([\s\S]*?)^\s*\};/m);
 if(!laneBlock)throw Error('Unable to locate BOARD lanePositions object');
-const laneKeys=[...laneBlock[1].matchAll(/(?:^|,)\\s*([A-Za-z_$][\\w$]*)\\s*:/g)].map(match=>match[1]);
+const laneKeys=[...laneBlock[1].matchAll(/(?:^|,)\s*([A-Za-z_$][\w$]*)\s*:/g)].map(match=>match[1]);
 const duplicateLaneKeys=[...new Set(laneKeys.filter((key,index)=>laneKeys.indexOf(key)!==index))];
 if(duplicateLaneKeys.length)throw Error('Duplicate BOARD lanePositions keys: '+duplicateLaneKeys.join(', '));
 for(const file of ['src/board-party/runtime/board-map.js','src/board-party/runtime/board-design.js','src/board-party/runtime/board-layout.js'])
