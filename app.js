@@ -240,15 +240,17 @@ function clipGraphemes(value,maxLength=14){
 function cleanName(value){
  return clipGraphemes(String(value??'').trim().replace(/[<>]/g,''),14)||'เพื่อนใหม่';
 }
-function uniquePlayerName(value,roster=[]){
+function uniquePlayerName(value,roster=[],reservedNames=[]){
  const base=cleanName(value);
  const names=new Set((Array.isArray(roster)?roster:[]).map(item=>
   typeof item==='string'?item:item?.name).filter(name=>typeof name==='string'));
+ const reserved=new Set((Array.isArray(reservedNames)?reservedNames:[])
+  .filter(name=>typeof name==='string'));
  if(!names.has(base))return base;
  for(let index=2;index<100;index++){
   const suffix=' '+index;
   const candidate=clipGraphemes(base,Math.max(0,14-Array.from(suffix).length))+suffix;
-  if(!names.has(candidate))return candidate;
+  if(!names.has(candidate)&&!reserved.has(candidate))return candidate;
  }
  return clipGraphemes(base,9)+' '+String(names.size+1);
 }
@@ -514,6 +516,8 @@ function restorePlayers(list){
  // Reserve valid saved choices before migrating an undressed or duplicate seat.
  const reservedCosmetics=new Set(list.map(p=>cosmetics?.normalize?.(p?.cosmetic)).filter(id=>id&&id!=='none'));
  const claimedCosmetics=new Set();
+ const reservedNames=list.filter(item=>item&&typeof item.name==='string'&&item.name.trim())
+  .map(item=>cleanName(item.name));
  players=[];
  for(const a of list){
   if(!a||!/^p\d+$/.test(String(a.id))||ids.has(a.id)||
@@ -532,7 +536,7 @@ function restorePlayers(list){
     ?savedCosmetic
     :cosmetics?.randomAvailable?.(new Set([...reservedCosmetics,...claimedCosmetics]))||'white-rope-wrap';
   claimedCosmetics.add(cosmetic);
-  players.push({id:a.id,name:uniquePlayerName(a.name,players),color,type:a.type,
+  players.push({id:a.id,name:uniquePlayerName(a.name,players,reservedNames),color,type:a.type,
    clientToken:a.token||null,conn:null,input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,
    score:0,total:Number(a.total)||0,choice:Object.hasOwn(MODES,a.choice)?a.choice:null,
    ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
