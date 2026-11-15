@@ -1,6 +1,6 @@
 (() => {
 'use strict';
-const names={potion:'Healing Potion',ufo:'UFO Position Swap',rocket:'Rocket Ride',bomber:'Bomber Aircraft',car:'RC Bomb Car',shield:'Protection Shield'};
+const names={potion:'Healing Potion',ufo:'UFO Position Swap',rocket:'Rocket Ride',bomber:'Santa Sleigh',car:'RC Bomb Car',shield:'Protection Shield'};
 const ids=Object.keys(names),radius=18,ufoRadius=48,blastRadius=72,UFO_AIM_TRAVEL_MIN=14;
 // Only UFO ends the current turn. Every other item permits exactly one dice
 // roll afterward; the round-wide one-item limit is independent of this rule.

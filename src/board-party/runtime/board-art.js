@@ -59,7 +59,17 @@ function icon(g,kind,x,y,size=20,color='#fff'){
  }else if(kind==='rocket'){
   path(g,[[-6,7],[-10,15],[-9,0],[-5,-5]],'#ef6e7e');path(g,[[6,7],[10,15],[9,0],[5,-5]],'#ef6e7e');path(g,[[-6,10],[-6,-7],[0,-18],[6,-7],[6,10]],'#effcff','#669ab3');circle(g,0,-4,3.5,'#5fcbe5');path(g,[[-4,11],[0,22],[4,11]],'#ffcd6c');
  }else if(kind==='bomber'){
-  path(g,[[0,-18],[5,-3],[20,6],[19,11],[4,6],[3,15],[10,20],[-10,20],[-3,15],[-4,6],[-19,11],[-20,6],[-5,-3]],'#f5c969','#8f683c');line(g,0,-9,0,12,'#fff2c4',3);
+  // Santa Sleigh Canvas fallback for the brief period before its SVG is decoded.
+  path(g,[[-17,5],[-13,12],[5,13],[17,5],[14,1],[7,5],[-10,1]],'#cf4056','#702b43',1.5);
+  line(g,-17,14,10,14,'#e9c36e',2.4);line(g,-15,16,-8,18,'#e9c36e',2);
+  circle(g,-7,-5,5,'#f3c7a4','#9e6d51',1);
+  path(g,[[-12,-7],[-10,-14],[-2,-12],[0,-7]],'#d83f52','#792c42',1);
+  line(g,-11,-7,-1,-7,'#fff4e6',2);
+  path(g,[[-11,0],[-7,0],[-5,7],[-12,8]],'#d83f52','#792c42',1);
+  circle(g,7,-3,5,'#277a5a','#f0d28d',1);
+  path(g,[[10,-6],[14,-12],[18,-10],[19,-4],[14,1]],'#a8754d','#67452f',1);
+  line(g,14,-10,12,-16,'#a8754d',1.5);line(g,16,-11,19,-15,'#a8754d',1.5);
+  circle(g,18,-5,1.8,'#ed414c');
  }else if(kind==='car'){
   box(g,-12,-13,5,9,2,'#263c55');box(g,7,-13,5,9,2,'#263c55');box(g,-12,6,5,9,2,'#263c55');box(g,7,6,5,9,2,'#263c55');box(g,-8,-15,16,32,5,'#ed8398','#fff');circle(g,0,2,6,'#314860');line(g,0,-4,4,-9,'#f5d783',2);
  }else if(kind==='shield'){
@@ -898,7 +908,7 @@ function hud(g,s){
     dice(g,2,11,-10,20,false,0,1,true);
    }else icon(g,kind,0,-9,20);
    g.globalAlpha=1;
-   const shortName=kind==='roll'?'ทอย':{potion:'ยา',ufo:'UFO',rocket:'จรวด',bomber:'เครื่องบิน',car:'รถระเบิด',shield:'โล่'}[kind]||kind;
+   const shortName=kind==='roll'?'ทอย':{potion:'ยา',ufo:'UFO',rocket:'จรวด',bomber:'Santa Sleigh',car:'รถระเบิด',shield:'โล่'}[kind]||kind;
    label(g,shortName,-4,16,10,dimmed?'#6f8491':chosen?'#ffe9b0':'#e4f2fa','center',800,cardW-26);
    if(amount!==null){
     box(g,cardW/2-18,cardH/2-18,15,15,5,
@@ -1043,7 +1053,7 @@ function aimControls(g,s){
  const bomber=s.skill.kind==='bomber',x=14,y=100,w=294,h=162;
  box(g,x,y,w,h,12,'#102b41f5','#d9c890');
  box(g,x+9,y+8,w-18,26,7,'#21485b','#688ea1');
- label(g,bomber?'เล็งเป้า • เครื่องบินรบ':'เล็งเป้า • UFO',x+17,y+21,15,'#ffedb7','left',850,w-35);
+ label(g,bomber?'เล็งเป้า • Santa Sleigh':'เล็งเป้า • UFO',x+17,y+21,15,'#ffedb7','left',850,w-35);
  const rows=bomber?[
   ['A','ยืนยันโจมตี','#318268'],
   ['B','หมุนทิศ 45° • 8 ทิศ','#427bb4'],

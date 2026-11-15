@@ -24,7 +24,7 @@ function controls(s,id){
   if(s.phase==='branch')return{a:'',b:'',help:'ชี้ทิศทางที่แยกด้วยอนาล็อก'};
  if(s.phase==='aim')return s.skill.kind==='bomber'?
   {a:'ยืนยันโจมตี',b:'หมุน 45°',c:'ยกเลิก',
-   help:'กำลังเล็งเครื่องบิน • ทิศ '+(Math.round(s.skill.angle/(Math.PI/4))%8+1)+'/8 • A ยืนยันโจมตี / B หมุนทิศ / C ยกเลิก'}:
+   help:'กำลังเล็ง Santa Sleigh • ทิศ '+(Math.round(s.skill.angle/(Math.PI/4))%8+1)+'/8 • A ยืนยันโจมตี / B หมุนทิศ / C ยกเลิก'}:
   {a:'ยืนยันสลับ',b:'ไม่ใช้',c:'ยกเลิก',
    help:!s.skill.targetId?'ขยับจอยเพื่อเล็ง UFO • A ยืนยันเมื่อเลือกได้ / B ไม่ใช้ / C ยกเลิก':
     'เป้าหมาย: '+(s.players.find(q=>q.id===s.skill.targetId)?.name||'ผู้เล่น')+
