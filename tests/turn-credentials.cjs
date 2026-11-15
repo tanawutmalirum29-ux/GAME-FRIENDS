@@ -15,6 +15,7 @@ const path=require('node:path');
  const issued=module.mintTurnCredentials(settings,at);
  assert.equal(issued.iceServers.length,1);
  assert.equal(issued.expiresAt,at+600000);
+ assert.equal(issued.ttlSeconds,600,'relative lifetime avoids device clock skew');
  assert.ok(issued.iceServers[0].username.startsWith(String(Math.floor(issued.expiresAt/1000))+':'));
  const digest=crypto.createHmac('sha1',settings.TURN_SHARED_SECRET)
    .update(issued.iceServers[0].username).digest('base64');
@@ -29,6 +30,7 @@ const path=require('node:path');
   assert.equal(response.statusCode,200);
   assert.equal(response.headers['cache-control'],'no-store, private');
   assert.equal(JSON.parse(response.body).iceServers[0].urls.length,2);
+  assert.equal(JSON.parse(response.body).ttlSeconds,600,'HTTP response includes a relative TTL');
   assert.equal((await module.handler({...req,headers:{origin:'https://attacker.test'}})).statusCode,403);
   assert.equal((await module.handler({...req,httpMethod:'POST'})).statusCode,405);
   assert.equal((await module.handler({...req,httpMethod:'OPTIONS'})).statusCode,204);
