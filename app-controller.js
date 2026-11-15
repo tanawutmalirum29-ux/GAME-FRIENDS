@@ -4936,5 +4936,16 @@ window.GAME_PREPARE_AUTO_RELOAD=()=>{
  return true;
 };
 window.GAME_NOTIFY_UPDATE=()=>showToast('มีแพตช์ใหม่ • ระบบจะอัปเดตเมื่อออกจากห้อง');
+// The Service Worker asks each open tab before collecting old immutable hashes.
+function hasActiveAssetSession(){
+ return !!(round||gameSelection||boardSession||onlineHost||hostPeer||hostNetworkLoad||
+  controllerReady||controllerPeer||controllerConn||controllerNetworkLoad||currentView==='hostLobby');
+}
+if(navigator.serviceWorker?.addEventListener){
+ navigator.serviceWorker.addEventListener('message',event=>{
+  if(event.data?.type!=='gf-query-session'||!event.ports?.[0])return;
+  try{event.ports[0].postMessage({active:hasActiveAssetSession()});}catch(_){}
+ });
+}
 requestAnimationFrame(animate);
 })();
