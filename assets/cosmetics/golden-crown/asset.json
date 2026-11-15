@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "golden-crown",
   "nameTh": "มงกุฎทอง",
-  "status": "svg-art-only-unintegrated-untested",
+  "status": "integrated-and-regression-covered",
   "sourceBaseCommit": "34a22766949bb4f696be88062ad0a6294a5148eb",
   "branch": "art/rope-hat-svg-2077-2078",
   "references": {
@@ -111,68 +111,6 @@
     "externalImageCssInheritance": false,
     "recipe": "Set root color before decoding. Tint only the front gemstone, never the gold body or spherical tips."
   },
-  "readyColorVariants": [
-    {
-      "color": "#c62222",
-      "front": "colors/front-c62222.svg",
-      "topDown": "colors/top-c62222.svg"
-    },
-    {
-      "color": "#36d9e5",
-      "front": "colors/front-36d9e5.svg",
-      "topDown": "colors/top-36d9e5.svg"
-    },
-    {
-      "color": "#215a94",
-      "front": "colors/front-215a94.svg",
-      "topDown": "colors/top-215a94.svg"
-    },
-    {
-      "color": "#d7b000",
-      "front": "colors/front-d7b000.svg",
-      "topDown": "colors/top-d7b000.svg"
-    },
-    {
-      "color": "#f53695",
-      "front": "colors/front-f53695.svg",
-      "topDown": "colors/top-f53695.svg"
-    },
-    {
-      "color": "#f57a00",
-      "front": "colors/front-f57a00.svg",
-      "topDown": "colors/top-f57a00.svg"
-    },
-    {
-      "color": "#36d595",
-      "front": "colors/front-36d595.svg",
-      "topDown": "colors/top-36d595.svg"
-    },
-    {
-      "color": "#000094",
-      "front": "colors/front-000094.svg",
-      "topDown": "colors/top-000094.svg"
-    },
-    {
-      "color": "#009400",
-      "front": "colors/front-009400.svg",
-      "topDown": "colors/top-009400.svg"
-    },
-    {
-      "color": "#b800f5",
-      "front": "colors/front-b800f5.svg",
-      "topDown": "colors/top-b800f5.svg"
-    },
-    {
-      "color": "#008484",
-      "front": "colors/front-008484.svg",
-      "topDown": "colors/top-008484.svg"
-    },
-    {
-      "color": "#94004a",
-      "front": "colors/front-94004a.svg",
-      "topDown": "colors/top-94004a.svg"
-    }
-  ],
   "interactionHandoff": {
     "implemented": false,
     "zoneId": "wardrobe",

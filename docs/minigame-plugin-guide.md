@@ -1,55 +1,6 @@
-# GAME-FRIENDS — คู่มือมินิเกมแบบ Plug-in
+# GAME-FRIENDS — Minigame Engine API and runtime hooks
 
-## โครงสร้างแยกขาดจาก Core
-
-สร้างโฟลเดอร์ใหม่ที่ `src/games/<slug>/` (ชื่อโฟลเดอร์เป็น kebab-case) โดยวางไฟล์เหล่านี้ภายในเกมเท่านั้น:
-
-```text
-src/games/meteor-dodge/
-├── manifest.json
-├── game.js
-├── cover.svg
-└── ... ไฟล์ Engine, Bot, Map และ SVG ที่เกม import ใช้งาน
-```
-
-ไม่ต้องเพิ่มชื่อเกมหรือ `<script>` ใหม่ลง `app.js`, `index.html`, `src/board-party/runtime/board-minigame.js` หรือรายการพิเศษในตัวเลือกเกม และไม่ต้องบันทึก Game Registry ด้วยมือ เพราะ `scripts/build-game-catalog.cjs` ค้นหาโฟลเดอร์ที่มี `manifest.json` ตอน Build และคัดลอกไฟล์เป็น `game-assets/<id>/<hash>/` โดยอัตโนมัติ
-
-`manifest.json` ตัวอย่าง:
-
-```json
-{
-  "id": "meteor_dodge",
-  "name": "METEOR DODGE",
-  "version": "1.0.0",
-  "apiVersion": 1,
-  "enabled": true,
-  "players": { "min": 1, "max": 12 },
-  "modes": ["normal", "board"],
-  "controls": ["joystick", "A"],
-  "controller": {
-    "help": "หลบอุกกาบาตและกด A เพื่อกระโดด",
-    "labels": {"A": "กระโดด"},
-    "status": "{name} • เหลือ {remaining} วินาที"
-  },
-  "entry": "./game.js",
-  "cover": "cover.svg",
-  "legacyScripts": []
-}
-```
-
-กรณีเกมหลายเกมใช้ศิลป์ฉากร่วมกัน ให้เก็บ Source ใน `src/shared/` แล้วใส่
-`src/shared/ชื่อไฟล์.js` ไว้ใน `legacyScripts` เฉพาะ Manifest ของเกมที่ต้องใช้
-Build จะสำเนาเป็น Asset ที่มี Game Hash ของเกมนั้น และ Hot Update ได้โดยไม่เพิ่ม
-Core Runtime หรือโหลดบน Controller ทุกครั้ง ไฟล์ `farm-ice-art.js` และ
-`graveyard-art.js` ไม่อยู่ Root แล้ว ห้ามอ้าง Root Legacy ในเกมใหม่
-
-สำหรับเกมใหม่ที่ไม่มี `global` ระบบ Controller อ่าน `controls` และ
-`controller.help`, `controller.labels.A/B/C`, `controller.status` จาก
-Manifest ที่อยู่ใน Game Catalog โดยตรงโดยไม่ต้องโหลด Engine ลงมือถือ
-ข้อความสถานะรองรับ `{name}`, `{survivors}` และ `{remaining}` (ปัดเวลาขึ้น)
-ปุ่มที่ไม่อยู่ใน `controls` จะถูกปิด และ Core ไม่ต้องเพิ่มกรณีพิเศษตาม ID
-
-เกมใหม่ควรใช้ native ES Module ไม่ใช้ global name; `global` มีไว้เฉพาะ Engine แบบเก่าที่ยังต้องรองรับ Dev Compatibility เท่านั้น
+หน้านี้เป็นคู่มือส่วนเสริมสำหรับ **สัญญา Engine API และ hook ขณะเล่น** เท่านั้น ส่วนการสร้างโฟลเดอร์เกม, manifest, การค้นพบเกม, การ deploy และขั้นตอน validation เบื้องต้นให้ยึด [ADDING_MINIGAMES.md](ADDING_MINIGAMES.md) เป็นแหล่งหลัก เพื่อลดการคัดลอกคำแนะนำเดียวกันไว้หลายแห่ง
 
 ## สัญญา Engine API v1
 
@@ -129,7 +80,7 @@ node tests/board-party.cjs
 node tests/smoke.cjs
 ```
 
-ทดสอบอย่างน้อย 1, 6, 7 และ 12 ผู้เล่น; ล็อบบี้/การสุ่ม NORMAL และ BOARD, อันดับร่วม, อัปเดต Catalog ระหว่างรอบ, การย้อนกลับรุ่นเก่าเมื่อโหลดล้มเหลว, ปิดเกมด้วย `enabled:false`, การขาดเน็ต และ Browser QA Chromium/WebKit ทั้ง 7 Shards ก่อนรวมเข้า `main`.
+ทดสอบอย่างน้อย 1, 6, 7 และ 12 ผู้เล่น; ล็อบบี้/การสุ่ม NORMAL และ BOARD, อันดับร่วม, อัปเดต Catalog ระหว่างรอบ, การย้อนกลับรุ่นเก่าเมื่อโหลดล้มเหลว, ปิดเกมด้วย `enabled:false`, การขาดเน็ต และ Browser QA Chromium/WebKit ตาม impact matrix ที่ CI วางแผนให้โดยอัตโนมัติก่อนรวมเข้า `main`.
 
 ### ข้อมูล Controller สำหรับเกมเก่าและใหม่
 

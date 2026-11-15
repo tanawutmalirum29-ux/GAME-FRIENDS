@@ -41,7 +41,7 @@ Use each builder's `--check` mode before changing or committing a generated coun
 ## Assets and documentation
 
 - `assets/game-friends-*.svg/png` are site-level brand/share assets.
-- `assets/cosmetics/<id>/` contains costume masters, color variants, and design previews. `asset.json` describes an individual costume; `assets/cosmetics/wardrobe-assets.json` is the canonical 18-entry runtime wardrobe catalog; `wardrobe-cycle.svg` is a shared design reference, not a runtime registration file.
+- `assets/cosmetics/<id>/` contains one front/top SVG master per costume, metadata, and design previews. Player-color details use the root SVG `color` attribute plus `currentColor`, not per-palette SVG copies. `asset.json` describes an individual costume; `assets/cosmetics/wardrobe-assets.json` is the canonical 18-entry runtime wardrobe catalog; `wardrobe-cycle.svg` is a shared design reference, not a runtime registration file.
 - `docs/*.md` contains architecture, operating rules, design handoffs, and implementation notes. Handoff files may describe the state at the time they were written; check the current source and tests before treating an old “next steps” paragraph as unfinished work.
 - `tools/art-preview.html` is a standalone art-inspection page, not a production entrypoint.
 
