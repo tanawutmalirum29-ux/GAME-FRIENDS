@@ -25,12 +25,14 @@ function fixture({failFirst=false}={}){
 async function success(){
  const f=fixture();
  assert.equal(f.tags.length,0,'offline and join screen bootstrap require no network');
-  assert.match(f.window.GameRuntimeDeps.toString?.()||'',/./,'runtime dependency facade exists');
+
  assert.equal(f.window.GameRuntimeDeps.ready('peer'),false);
  const first=f.window.GameRuntimeDeps.ensureController();
  const duplicate=f.window.GameRuntimeDeps.ensureController();
  assert.equal(f.tags.length,1,'concurrent controller requests dedupe PeerJS');
  assert.ok(f.tags[0].src.includes('peerjs@1.5.5'));
+  assert.equal(f.tags[0].integrity,'sha512-XEKeWX+mI3Ov+tg2evDlVQFzVOIp4T8J3cNcCEPaEUGpxJV3eZaN8rHuvnFPvQpGJBHPmrozJDMpm2xcDvtmyQ==');
+  assert.equal(f.tags[0].crossOrigin,'anonymous');
  assert.equal(f.tags.some(t=>t.src.includes('qrcodejs@')),false);
  f.flush();
  await Promise.all([first,duplicate]);
@@ -43,6 +45,8 @@ async function success(){
  const duplicateQr=f.window.GameRuntimeDeps.ensureQr();
  assert.equal(f.tags.length,2,'QR is requested on demand, once');
  assert.ok(f.tags[1].src.includes('qrcodejs@1.0.0'));
+  assert.equal(f.tags[1].integrity,'sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==');
+  assert.equal(f.tags[1].crossOrigin,'anonymous');
  await f.window.GameRuntimeDeps.ensureHost();
  assert.equal(f.tags.length,2,'opening the room does not wait on QR');
  f.flush();await Promise.all([qr,duplicateQr]);
