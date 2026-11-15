@@ -540,7 +540,7 @@ function joinRoom(recovery=false){
     }).catch(error=>{
       $('joinBtn').disabled=false;
       controllerState('เตรียมระบบเครือข่ายไม่สำเร็จ: '+String(error?.message||error),true);
-    });;
+    });
     return;
   }
   if(!recovery)reconnectTries=0;
