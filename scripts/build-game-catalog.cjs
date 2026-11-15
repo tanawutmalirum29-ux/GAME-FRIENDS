@@ -29,43 +29,37 @@ function list(dir,relative=''){
  }
  return found.sort();
 }
-function coreHash(){
+const CORE_SCRIPT_EXCLUDES=new Set([
+ // These four built-in BOARD map presentation modules are versioned by the
+ // independent map catalog; changing them must not invalidate the game Core.
+ 'src/board-party/runtime/board-map.js',
+ 'src/board-party/runtime/board-design.js',
+ 'src/board-party/runtime/board-scenery.js',
+ 'src/board-party/runtime/board-art.js'
+]);
+function coreHashFiles(base=root){
+ const html=fs.readFileSync(path.join(base,'index.html'),'utf8');
+ const localScripts=Array.from(html.matchAll(/<script\\b[^>]*\\bsrc=["']([^"']+)["'][^>]*>/gi),match=>match[1])
+  .filter(src=>src.startsWith('./')&&!src.startsWith('../'))
+  .map(src=>src.slice(2))
+  .filter(src=>!CORE_SCRIPT_EXCLUDES.has(src));
+ for(const relative of localScripts){
+  if(!fs.existsSync(path.join(base,relative)))
+   throw Error('Missing local script referenced by index.html: '+relative);
+ }
+ return [...new Set([
+  'index.html','style.css','manifest.webmanifest','auto-update.js','sw.js',
+  ...localScripts
+ ])].sort();
+}
+function coreHash(base=root){
  const h=crypto.createHash('sha256');
- // A change to ANY shared runtime source requires a new core fingerprint.
- // Game-specific engines and the built-in BOARD map/art assets are omitted:
- // their independent immutable catalog hashes permit safe lobby-only hot patches.
- // Board rules, layout, controls, network and shared APIs REMAIN in the Core hash.
- for(const relative of [
-  "index.html",
-  "app.js",
-  "app-controller.js",
-  "style.css",
-  "manifest.webmanifest",
-  "auto-update.js",
-  "sw.js",
-  "arena-scale.js",
-  "arena-art.js",
-  "combat-motion.js",
-  "player-avatar.js",
-  "character-system.js",
-  "party-arena-scenes.js",
-  "party-ui-art.js",
-  "game-cover-art.js",
-  "src/board-party/runtime/board-branch-naming.js",
-  "src/board-party/runtime/board-layout.js",
-  "src/board-party/runtime/board-dice.js",
-  "src/board-party/runtime/board-dice-renderer.js",
-  "src/board-party/runtime/board-items.js",
-  "src/board-party/runtime/board-bots.js",
-  "src/board-party/runtime/board-minigame.js",
-  "src/board-party/runtime/board-party.js",
-  "src/board-party/runtime/board-controller-camera.js",
-  "src/platform/game-platform.js","src/platform/runtime-deps.js",
-  "src/platform/board-runtime.js","src/platform/main-loader.js","src/platform/host-runtime.js",
-  "src/platform/board-items-brief.js"
-]){
-  if(fs.existsSync(path.join(root,relative))){
-   h.update(relative+'\0');h.update(fs.readFileSync(path.join(root,relative)));
+ // Every local script loaded directly by index.html is fingerprinted
+ // automatically. Only the four map-catalog-owned presentation files above
+ // are excluded; game-owned code and assets retain their own immutable hashes.
+ for(const relative of coreHashFiles(base)){
+  if(fs.existsSync(path.join(base,relative))){
+   h.update(relative+'\\0');h.update(fs.readFileSync(path.join(base,relative)));
   }
  }
  return h.digest('hex').slice(0,20);
@@ -137,4 +131,4 @@ if(require.main===module){
  const catalog=build({write:cmd==='--write'});
  process.stdout.write('Game catalog validated: '+catalog.games.length+' plug-ins, core '+catalog.coreHash+'\n');
 }
-module.exports={build,coreHash};
+module.exports={build,coreHash,coreHashFiles,CORE_SCRIPT_EXCLUDES};
