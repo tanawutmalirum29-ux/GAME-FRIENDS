@@ -53,7 +53,7 @@ function copyTree(root,dist,relative){
    else if(entry.isFile()){
     // Artwork handoff notes and design documentation are repository-only;
     // only browser-readable assets enter the hosting artifact.
-    if(/\\.(?:md|mdx)$/i.test(entry.name))continue;
+    if(/\.(?:md|mdx)$/i.test(entry.name))continue;
     copyFile(root,dist,child);
    }else throw Error('Unsupported public artifact entry: '+child);
   }
