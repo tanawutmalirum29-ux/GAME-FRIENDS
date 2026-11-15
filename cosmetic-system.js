@@ -53,7 +53,9 @@ function imageFor(player,view){
  const color=spec.color?safeColor(player?.color):'fixed';
  const key=id+'/'+view+'/'+color;
  if(cache.has(key))return cache.get(key);
- const img=new Image();img.decoding='async';cache.set(key,img);
+ const img=new Image();img.decoding='async';
+  img.onerror=()=>{if(cache.get(key)===img)cache.delete(key);};
+  cache.set(key,img);
  const url=assetPath(id,view);
  // Both current and previously saved player colors use the same master SVG.
  // Only currentColor artwork is affected; fixed cloth, metal and shading stay intact.
@@ -70,7 +72,10 @@ function imageFor(player,view){
   source.then(svg=>{
    const colored=svg.replace(/(<svg\b[^>]*\bcolor=")#[0-9a-f]{6}(")/i,'$1#'+color+'$2');
    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(colored);
-  }).catch(()=>{img.src=url;});
+  }).catch(()=>{
+    if(fallbackSources.get(sourceKey)===source)fallbackSources.delete(sourceKey);
+    img.src=url;
+   });
  }else img.src=url;
  return img;
 }
