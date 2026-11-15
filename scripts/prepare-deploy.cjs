@@ -55,7 +55,7 @@ function copyTree(root,dist,relative){
 }
 function validateHtml(root,dist,file){
  const html=fs.readFileSync(path.join(dist,file),'utf8');
- const refs=[...html.matchAll(/\\b(?:src|href)="([^"]+)"/g)].map(m=>m[1]);
+ const refs=[...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map(m=>m[1]);
  for(const raw of refs){
   if(/^(?:https?:|data:|blob:|#|mailto:|tel:|javascript:)/i.test(raw))continue;
   let url;
@@ -72,7 +72,7 @@ function validateManifest(dist,file){
  const manifest=JSON.parse(fs.readFileSync(path.join(dist,file),'utf8'));
  for(const icon of manifest.icons||[]){
   if(typeof icon.src!=='string')throw Error('Invalid icon src in '+file);
-  const target=path.resolve(dist,icon.src.replace(/^\\//,''));
+  const target=path.resolve(dist,icon.src.replace(/^\//,''));
   if(!inside(dist,target)||!fs.existsSync(target)||!fs.statSync(target).isFile())
    throw Error('Manifest icon missing from deploy output: '+file+' -> '+icon.src);
  }
@@ -107,6 +107,6 @@ function build({root=DEFAULT_ROOT}={}){
 if(require.main===module){
  const result=build();
  process.stdout.write('Public deploy artifact: '+result.files+' files, '+result.bytes+
-  ' bytes -> dist/ (non-runtime repository files excluded)\\n');
+  ' bytes -> dist/ (non-runtime repository files excluded)\n');
 }
 module.exports={build};
