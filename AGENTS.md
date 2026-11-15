@@ -8,6 +8,10 @@
 
 
 
+## Repository structure and safe cleanup
+
+Read [docs/REPOSITORY_STRUCTURE.md](docs/REPOSITORY_STRUCTURE.md) before moving, renaming, or deleting files. Root-level browser scripts and generated bundles may be required by HTML URLs, route loaders, static hosting, compatibility tests, or integrity builders. Do not delete files based only on age, size, folder location, or the absence of a static import. For exact duplicates, retain one canonical asset, update all references, and verify the change with the owning tests.
+
 ## FAST PR-FIRST WORKFLOW — mandatory for every future AI
 
 **Never run the entire QA matrix before opening a Pull Request.** Check the latest `main` and existing PRs, implement the smallest scoped change, run syntax and a relevant game-level preflight, then **commit, push, and OPEN a non-draft PR immediately**. Creating a PR does not require completed CI checks. Let GitHub Actions test while the PR is open; merge only after all applicable required checks pass on the latest head and there are no conflicts.

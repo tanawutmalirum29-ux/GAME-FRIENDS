@@ -206,6 +206,7 @@ jobs:
         run: |
           node tests/avatar-topdown.cjs
           node tests/character-system.cjs
+          node tests/cosmetics.cjs
       - name: Scenery cache and physics isolation
         if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'art') }}
         run: node tests/arena-art.cjs

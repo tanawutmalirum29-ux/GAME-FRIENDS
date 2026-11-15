@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "white-rope-wrap",
   "nameTh": "หมวกผ้าขาวเชือกคู่",
-  "status": "svg-art-only-unintegrated-untested",
+  "status": "integrated-and-regression-covered",
   "sourceBaseCommit": "34a22766949bb4f696be88062ad0a6294a5148eb",
   "references": {
     "front": "User image 2077",
@@ -128,7 +128,7 @@
     }
   ],
   "interactionHandoff": {
-    "implemented": false,
+    "implemented": true,
     "zoneId": "wardrobe",
     "zoneGeometrySource": "src/lobby/lobby-zones.json",
     "input": "B / input.alt",
@@ -141,12 +141,22 @@
       "shades-white-beard",
       "pharaoh-nemes",
       "plumed-turban",
+      "viking-helmet",
+      "wizard-hat",
+      "samurai-kabuto",
+      "chef-hat",
+      "cowboy-hat",
+      "knight-helmet",
+      "devil-hat",
+      "astronaut-helmet",
+      "mining-helmet",
+      "jester-hat",
       "paper-bag-mask"
     ],
     "outsideZone": "preserve existing B behavior",
     "holdingButton": "one change per physical press",
     "promptTh": "B เปลี่ยนเครื่องแต่งกาย",
-    "persistence": "keep selection after leaving the zone; use existing player identity persistence for reconnects",
+    "persistence": "Stored in the authoritative player cosmetic state and carried through room restoration/reconnect.",
     "sharedCatalog": "../wardrobe-assets.json"
   },
   "assetRules": {
@@ -163,5 +173,5 @@
     "front": "examples/front-wearing.svg",
     "topDown": "examples/top-wearing.svg"
   },
-  "integrationOwner": "Next AI: integrate all seven accessories, test, then merge after required checks pass."
+  "integrationOwner": "Integrated in main. Runtime owner: cosmetic-system.js, player-avatar.js, src/lobby/party-plaza.js and src/app/host/room.js; regression coverage: tests/cosmetics.cjs."
 }
