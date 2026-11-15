@@ -16,8 +16,7 @@ function startAttack(entity){
   entity.attackRemaining=TOTAL;
   entity.attackHit=false;
   const dir=entity.dir||{x:1,y:0};
-  const fx=Number.isFinite(dir.x)?dir.x:0,fy=Number.isFinite(dir.y)?dir.y:0;
-  entity.attackFacing=fx===0&&fy===0?{x:1,y:0}:{x:fx,y:fy};
+  entity.attackFacing={x:dir.x||1,y:dir.y||0};
   entity.punchCooldown=ATTACK.cooldown;
   entity.vx=0;entity.vy=0;
   return true;
