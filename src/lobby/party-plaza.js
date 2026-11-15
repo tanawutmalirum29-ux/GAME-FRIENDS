@@ -191,12 +191,14 @@ function keyEvent(e,pressed){
  if(!active||e.target?.matches?.('input,textarea,select,button,[contenteditable]'))return;
  const k={ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right'}[e.code];
  if(k){e.preventDefault();key[k]=pressed;}
- if(pressed&&e.code==='Space'&&playerCache.length) {
-  e.preventDefault();
-  const p=playerCache.find(q=>q.isBot)||playerCache[0];
-  if(p&&!p.plazaAPressed){p.plazaAPressed=true;callbacks.interact?.(p,zoneAt(p));}
- }
- if(!pressed&&e.code==='Space')for(const p of playerCache)p.plazaAPressed=false;
+ if(pressed&&e.code==='Space'){
+  // Keyboard A belongs to the first bot only; never impersonate a phone player.
+  const p=playerCache.find(q=>q.isBot);
+  if(p){
+   e.preventDefault();
+   if(!p.plazaAPressed){p.plazaAPressed=true;callbacks.interact?.(p,zoneAt(p));}
+  }
+ } if(!pressed&&e.code==='Space')for(const p of playerCache)p.plazaAPressed=false;
 }
 document.addEventListener('keydown',e=>keyEvent(e,true));
 document.addEventListener('keyup',e=>keyEvent(e,false));
