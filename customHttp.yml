@@ -1,6 +1,6 @@
-# Security headers apply to every successful static response. The CSP is
-# intentionally limited to anti-framing/object/base restrictions so the
-# game's inline UI, PeerJS CDN, QR camera and WebRTC connections remain intact.
+# Security headers apply to every successful static response. The CSP allows
+# the same-origin runtime, inline static UI, pinned jsDelivr libraries, QR
+# camera assets and the HTTPS/WSS connections used by the game.
 customHeaders:
   - pattern: '/'
     headers:
@@ -45,4 +45,4 @@ customHeaders:
       - key: Permissions-Policy
         value: 'camera=(self), microphone=(self), geolocation=(), fullscreen=(self)'
       - key: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: wss:; media-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
+        value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: wss: ws:; media-src 'self' blob:; worker-src 'self' blob:; manifest-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
