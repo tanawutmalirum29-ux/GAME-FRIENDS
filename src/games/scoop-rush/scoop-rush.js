@@ -446,7 +446,7 @@ function playerScoops(s,live,firstPass){
    const dx=sc.x-p.x,dy=sc.y-p.y,minD=sc.r+R;
    if(dx*dx+dy*dy>=minD*minD)continue;
    let d=hyp(dx,dy),nx,ny;
-   if(d<1e-6){const fx=Number.isFinite(p.dir?.x)?p.dir.x:0,fy=Number.isFinite(p.dir?.y)?p.dir.y:0,m=hyp(fx,fy);nx=m>1e-6?fx/m:1;ny=m>1e-6?fy/m:0;d=0;}else{nx=dx/d;ny=dy/d;}
+   if(d<1e-6){nx=p.dir?.x||1;ny=p.dir?.y||0;d=0;}else{nx=dx/d;ny=dy/d;}
    const st=p.sr;
    sc.x+=nx*(minD-d);sc.y+=ny*(minD-d);
    const pvx=st.cvx+st.kx,pvy=st.cvy+st.ky;
@@ -470,7 +470,7 @@ function separate(s,live){
    let dx=sc.x-p.x,dy=sc.y-p.y;const minD=sc.r+R,d2=dx*dx+dy*dy;
    if(d2>=minD*minD)continue;
    let d=Math.sqrt(d2),nx,ny;
-   if(d<1e-6){const fx=Number.isFinite(p.dir?.x)?p.dir.x:0,fy=Number.isFinite(p.dir?.y)?p.dir.y:0,m=hyp(fx,fy);nx=m>1e-6?fx/m:1;ny=m>1e-6?fy/m:0;d=0;}else{nx=dx/d;ny=dy/d;}
+   if(d<1e-6){nx=p.dir?.x||1;ny=p.dir?.y||0;d=0;}else{nx=dx/d;ny=dy/d;}
    const pen=minD-d;
    const f=fitBody(bd,p.x-nx*pen,p.y-ny*pen,R);
    p.x=f.x;p.y=f.y;
