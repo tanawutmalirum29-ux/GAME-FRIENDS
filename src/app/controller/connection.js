@@ -315,6 +315,7 @@ function loadQrLibrary(){
     qrLibraryPromise=new Promise((resolve,reject)=>{
       const script=document.createElement('script');
       script.src=QR_READER_CDN;script.async=true;
+       script.integrity='sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==';script.crossOrigin='anonymous';
       script.onload=()=>typeof window.Html5Qrcode==='function'?resolve():reject(new Error('QR scanner unavailable'));
       script.onerror=()=>reject(new Error('QR scanner could not be downloaded'));
       document.head.appendChild(script);
