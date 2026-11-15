@@ -8,6 +8,10 @@ function run(expr){return vm.runInContext(expr,context);}
 assert.equal(run("cleanName('   ')"),'เพื่อนใหม่');
 assert.equal(run("uniquePlayerName('เพื่อนใหม่',[{name:'เพื่อนใหม่'}])"),'เพื่อนใหม่ 2');
 assert.equal(run("uniquePlayerName('เพื่อนใหม่',[{name:'เพื่อนใหม่'},{name:'เพื่อนใหม่ 2'}])"),'เพื่อนใหม่ 3');
+assert.equal(run("uniquePlayerName('เพื่อนใหม่',[{name:'เพื่อนใหม่'}],['เพื่อนใหม่','เพื่อนใหม่ 2'])"),'เพื่อนใหม่ 3',
+ 'restoring duplicate names must reserve another player’s existing suffixed name');
+assert.equal(run("uniquePlayerName('เพื่อนใหม่ 2',[{name:'เพื่อนใหม่'}],['เพื่อนใหม่','เพื่อนใหม่ 2'])"),'เพื่อนใหม่ 2',
+ 'restoring a unique suffixed name must preserve it');
 assert.equal(run("Array.from(uniquePlayerName('abcdefghijklmn',[{name:'abcdefghijklmn'}])).length"),14);
 assert.equal(run("cleanName('AB<CD>EF')"),'ABCDEF');
 assert.equal(run("cleanName('abcdefghijklmno')"),'abcdefghijklmn');
