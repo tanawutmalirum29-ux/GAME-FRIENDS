@@ -51,6 +51,22 @@ function steer(s,p,to=s.move?.to||s.map.nodes[p.currentNodeId].nextNodes[0]){
  press(s,p,null,{axisX:(b.x-a.x)/d,axisY:(b.y-a.y)/d});
 }
 const tests=[];function test(name,fn){fn();tests.push(name);console.log('PASS',name);}
+test('bag cursor clamps to valid slots before selecting and after consuming',()=>{
+ const s={phase:'ready',roundNumber:9,rolled:false,time:0,readyDeadline:10};
+ const p={id:'bag-test',bag:['plugin-a','plugin-b'],item:'plugin-a',bagIndex:99,usedRound:null};
+ let chosen=null;
+ ctx.window.BoardSystemPlugins={get(category,id){
+  if(category!=='items')return null;
+  return {begin(session,player,api,helpers){
+   chosen=id;helpers.consume(session,player,id);return true;
+  }};
+ }};
+ assert.equal(I.begin(s,p,{}),true,'stale selection index clamps to last held item');
+ assert.equal(chosen,'plugin-b','last valid item is selected rather than an out-of-range slot');
+ assert.deepEqual(Array.from(p.bag),['plugin-a']);
+ assert.equal(p.bagIndex,0,'cursor clamps after the selected item is consumed');
+ ctx.window.BoardSystemPlugins=null;
+});
 test('extension items require their own explicit bot-use policy',()=>{
  const bot={id:'bot',isBot:true,usedRound:null,hp:60};
  const s={roundNumber:4,players:[bot]};
@@ -70,6 +86,10 @@ test('extension items require their own explicit bot-use policy',()=>{
  assert.equal(B.canUse(s,bot,api,'plugin-no-policy'),false,
   'an extension without botCanUse is never guessed as a legacy attack item');
  assert.equal(B.canUse(s,bot,api,'plugin-decline'),false);
+ ctx.window.BoardSystemPlugins={get:()=>null};
+ assert.equal(B.canUse(s,bot,api,'unknown-item'),false,
+  'unregistered extension IDs are not guessed as a legacy item');
+ assert.equal(B.canUse(s,bot,api,'bomber'),true,'legacy items retain their own policy');
  bot.usedRound=s.roundNumber;
  assert.equal(B.canUse(s,bot,api,'plugin-item'),false,'bots cannot reuse a turn item');
  ctx.window.BoardSystemPlugins=null;
