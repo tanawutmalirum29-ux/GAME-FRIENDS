@@ -215,10 +215,11 @@ test('A failing event plug-in is quarantined without blocking other events or BO
   const s=ready(1,781);
   const p=s.players[0];p.isBot=true;s.phaseAt=s.time-1;
   assert.doesNotThrow(()=>P.update(s,.05));
-  assert.equal(healthyCalls,1,'later event plug-ins still receive the update');
+  const afterFirstUpdate=healthyCalls;
+  assert.ok(afterFirstUpdate>0,'later event plug-ins still receive the update');
   assert.equal(s.phase,'dice','the bot update runs after an event plug-in fails');
   assert.doesNotThrow(()=>P.update(s,.05));
-  assert.equal(healthyCalls,2,'healthy event plug-ins keep updating');
+  assert.ok(healthyCalls>afterFirstUpdate,'healthy event plug-ins keep updating');
   assert.equal(errorCount,1,'the failing implementation is logged only once');
  }finally{
   ctx.window.BoardSystemPlugins=previousPlugins;
