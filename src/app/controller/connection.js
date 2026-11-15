@@ -807,7 +807,6 @@ function joinRoom(recovery=false){
       return;
      }
      controllerState('ยังไม่พบห้องเดิม • กำลังตรวจสอบอีกครั้ง',true);
-     reconnectTries=0;
      retryPhone(4);
      return;
     }
