@@ -50,8 +50,12 @@ function copyTree(root,dist,relative){
    if(entry.isSymbolicLink())throw Error('Symlink forbidden in public artifact: '+path.join(local,entry.name));
    const child=path.posix.join(local,entry.name),full=path.join(directory,entry.name);
    if(entry.isDirectory())walk(full,child);
-   else if(entry.isFile())copyFile(root,dist,child);
-   else throw Error('Unsupported public artifact entry: '+child);
+   else if(entry.isFile()){
+    // Artwork handoff notes and design documentation are repository-only;
+    // only browser-readable assets enter the hosting artifact.
+    if(/\\.(?:md|mdx)$/i.test(entry.name))continue;
+    copyFile(root,dist,child);
+   }else throw Error('Unsupported public artifact entry: '+child);
   }
  };
  walk(source,relative);
