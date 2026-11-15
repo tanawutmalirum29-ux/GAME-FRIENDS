@@ -164,7 +164,7 @@ assert.match(html,/id="plazaRoomToggle"[^>]*hidden/,
   {id:'p2',name:'เพื่อนใหม่',color:palette[1],type:'local',total:0},
   {id:'p3',name:'เพื่อนใหม่ 2',color:palette[2],type:'local',total:0}
  ]);
- assert.deepEqual(duplicateRestore.map(p=>p.name),
+ assert.deepEqual(Array.from(duplicateRestore,p=>p.name),
   ['เพื่อนใหม่','เพื่อนใหม่ 3','เพื่อนใหม่ 2'],
   'generated names must not take a different restored player’s saved suffix');
 }
