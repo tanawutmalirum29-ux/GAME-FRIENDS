@@ -25,6 +25,8 @@ const ROOT_DIRS=[
 const CATALOG_FILES=[
  'game-catalog.json','board-map-catalog.json','board-system-catalog.json'
 ];
+// Some generated asset families are empty until their first optional plug-in exists.
+const OPTIONAL_DIRS=new Set(['board-system-assets']);
 function inside(parent,child){
  const relative=path.relative(parent,child);
  return relative!==''&&!relative.startsWith('..'+path.sep)&&relative!=='..'&&!path.isAbsolute(relative);
@@ -40,6 +42,7 @@ function copyFile(root,dist,relative){
 }
 function copyTree(root,dist,relative){
  const source=path.resolve(root,relative);
+ if(!fs.existsSync(source)&&OPTIONAL_DIRS.has(relative))return;
  if(!inside(root,source)||!fs.existsSync(source)||!fs.statSync(source).isDirectory())
   throw Error('Missing or unsafe public directory: '+relative);
  const walk=(directory,local)=>{
