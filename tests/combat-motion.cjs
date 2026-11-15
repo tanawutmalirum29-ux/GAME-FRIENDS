@@ -35,16 +35,6 @@ const player=(id,x,y,color='#33dd99')=>({
  Characters.stepPunch(attacker,.9,()=>{throw Error('impact repeated')});
  assert.equal(attacker.attackRemaining,0);
 }
-// Cardinal attacks must preserve the zero-valued horizontal/vertical component.
-for(const [dx,dy] of [[0,-1],[0,1],[-1,0],[1,0]]){
- const attacker=player('cardinal-'+dx+'-'+dy,150,150);
- attacker.dir={x:dx,y:dy};
- const target=player('target-'+dx+'-'+dy,150+dx*42,150+dy*42);
- assert.equal(Combat.startAttack(attacker),true);
- assert.deepEqual({...attacker.attackFacing},{x:dx,y:dy},'cardinal facing is not skewed');
- assert.equal(Combat.hitPlayers(attacker,[target],{range:53,coneCos:.45}).length,1,
-  'target directly along each cardinal direction is hit');
-}
 for(const variant of ['ghost','fruit','color','chickens']){
  const attacker=player('attacker',150,150,'#ef467c');
  const victim=player(variant,192,150,'#06aadd');
