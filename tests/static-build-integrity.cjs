@@ -60,6 +60,15 @@ try{
   assert.ok(!fs.existsSync(path.join(publicRoot,forbidden)),
    'non-runtime repo content must not be published: '+forbidden);
  }
+ const publicMarkdown=[];
+ (function scanPublic(directory){
+  for(const entry of fs.readdirSync(directory,{withFileTypes:true})){
+   const filename=path.join(directory,entry.name);
+   if(entry.isDirectory())scanPublic(filename);
+   else if(entry.isFile()&&/\\.(?:md|mdx)$/i.test(entry.name))publicMarkdown.push(filename);
+  }
+ })(publicRoot);
+ assert.deepEqual(publicMarkdown,[],'internal artwork handoff documentation must not enter public deploy output');
  for(const file of ['index.html','host.html']){
   const source=fs.readFileSync(path.join(publicRoot,file),'utf8');
   for(const [,ref] of source.matchAll(/\b(?:src|href)="\.\/([^"?]+)"/g)){
