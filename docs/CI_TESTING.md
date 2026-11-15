@@ -51,6 +51,10 @@ The browser registry [ci/browser-tests.json](../ci/browser-tests.json) includes 
 - **Do not hardcode the number of shards** or add a test to every game. Every new `tests/*-browser.cjs` must be registered with `areas`, browsers and estimated seconds. Shard count remains bounded by `minShards`, `targetSecondsPerShard`, `maxShards`.
 - The weekly full run is insurance against unexpected game-to-game interactions. Full tests on a merged main commit also confirm release integrity; a main failure is a release bug, not permission to claim success.
 
+## Shared avatar and wardrobe coverage
+
+The `tests/cosmetics.cjs` Node regression is part of the shared avatar validation step in `verify.yml`. It checks the 18-entry wardrobe catalog against the runtime, real SVG file paths, player-color overlays, portrait/overhead rendering, result medals, one-press wardrobe interaction, and restored player state. Keep it registered in CI when changing `cosmetic-system.js`, `player-avatar.js`, `src/lobby/party-plaza.js`, wardrobe metadata, or cosmetic SVG assets. Cosmetic asset changes are treated as shared/unclassified input by the impact planner and therefore fail closed to full QA.
+
 ## Useful commands
 
 ```sh
