@@ -4269,6 +4269,7 @@ function animate(ts){
     // Recovery UI is optional; scheduling the next frame is not.
     requestAnimationFrame(animate);
   }
+}
 
 function broadcastGameState(){
   if(!round||gameSelection)return;
