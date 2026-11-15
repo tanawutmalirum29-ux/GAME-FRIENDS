@@ -5268,7 +5268,9 @@ boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
 });
 setInterval(sendInputs,100);
 let pageExitCleaned=false;
-function cleanupLobbyPageExit(){
+function cleanupLobbyPageExit(event){
+ // Do not tear down a live Host when Safari/Chromium places it in the BFCache.
+ if(event?.persisted)return;
  if(pageExitCleaned)return;
  pageExitCleaned=true;
  void stopRoomScanner();safePeerDestroy();
