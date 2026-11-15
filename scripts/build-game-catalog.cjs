@@ -39,7 +39,7 @@ const CORE_SCRIPT_EXCLUDES=new Set([
 ]);
 function coreHashFiles(base=root){
  const html=fs.readFileSync(path.join(base,'index.html'),'utf8');
- const localScripts=Array.from(html.matchAll(/<script\\b[^>]*\\bsrc=["']([^"']+)["'][^>]*>/gi),match=>match[1])
+ const localScripts=Array.from(html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi),match=>match[1])
   .filter(src=>src.startsWith('./')&&!src.startsWith('../'))
   .map(src=>src.slice(2))
   .filter(src=>!CORE_SCRIPT_EXCLUDES.has(src));
@@ -59,7 +59,7 @@ function coreHash(base=root){
  // are excluded; game-owned code and assets retain their own immutable hashes.
  for(const relative of coreHashFiles(base)){
   if(fs.existsSync(path.join(base,relative))){
-   h.update(relative+'\\0');h.update(fs.readFileSync(path.join(base,relative)));
+   h.update(relative+'\0');h.update(fs.readFileSync(path.join(base,relative)));
   }
  }
  return h.digest('hex').slice(0,20);
