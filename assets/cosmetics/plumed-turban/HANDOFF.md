@@ -10,7 +10,7 @@
 
 - [hat-front.svg](hat-front.svg): หมวกด้านหน้า ผ้าขาวจีบโค้ง แถบทอง ขนนกสูง และอัญมณีกลมในตัวเรือนทอง
 - [hat-top.svg](hat-top.svg): หมวกมุมบน ขนนกเอนไปทางท้ายศีรษะ แถบทองและอัญมณีอยู่ด้านหน้า
-- `colors/front-<hex>.svg`, `colors/top-<hex>.svg`: 24 ไฟล์สำหรับสีผู้เล่นทั้ง 12 สี แยก IDs ของ gradient/clip ตามสีและมุม
+- `hat-front.svg`, `hat-top.svg`: SVG master; ตั้ง root `color` ก่อน decode เพื่อเปลี่ยนเฉพาะขนนกและอัญมณี
 - [preview.svg](preview.svg): ด้านหน้าเทียบสีเหลืองกับสีเขียว ด้านบนสองทิศ และตัวอย่าง 12 สี
 - `examples/front-wearing.svg`, `examples/front-green.svg`: ตัวอย่างบนรูปทรงตัวละครเดิม สีเหลือง/เขียว
 - `examples/top-wearing.svg`, `examples/top-green.svg`: ตัวอย่าง overhead สีเหลือง/เขียว

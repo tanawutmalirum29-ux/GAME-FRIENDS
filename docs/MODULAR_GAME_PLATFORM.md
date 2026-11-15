@@ -20,8 +20,7 @@ Old engines have `legacyScripts` and `global` in their manifests, and
 `game.js` exports their original engine global. They retain game-specific
 legacy result paths until migrated individually.
 
-`node scripts/build-game-catalog.cjs --check` validates 15 existing
-manifests (and all future entries). `--write` builds the deploy artifacts.
+`node scripts/build-game-catalog.cjs --check` validates every discovered game manifest (currently 26, including 15 legacy-global adapters) and all future entries. `--write` builds the deploy artifacts.
 The AWS build invokes this before validating the static HTML.
 
 ## Version and session integrity
@@ -86,7 +85,7 @@ good replacement and continued BOARD mounting without navigation.
 
 ### Host-only rendering and collision dependencies
 
-In AWS builds `src/platform/host-runtime.js` defers five host-only scripts:
+In AWS builds `src/platform/host-runtime.js` defers four host-only scripts:
 `arena-scale.js`, `arena-art.js`,
 `combat-motion.js` and `character-system.js`. A controller link loads
 `app.js` and its avatar/game-picker dependencies, but not this rendering

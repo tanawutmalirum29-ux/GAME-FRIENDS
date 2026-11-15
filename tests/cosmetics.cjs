@@ -4,6 +4,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const path=require('node:path');
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
+(async()=>{
 const catalog=JSON.parse(read('assets/cosmetics/wardrobe-assets.json'));
 class FakeImage{
  constructor(){this.complete=false;this.naturalWidth=0;}
@@ -32,7 +33,7 @@ assert.equal(new Set(initialOutfits).size,12);
 assert.equal(C.randomBot(()=>0,['white-rope-wrap']),'pirate-hat');
 assert.equal(C.randomAvailable(['white-rope-wrap'],()=>0),'pirate-hat');
 assert.equal(C.randomAvailable(C.IDS.slice(1),()=>0),'white-rope-wrap');
-// Pre-rendered legacy colors remain available as static assets.
+// Previously saved legacy colors remain valid; all are now recolored from masters.
 const colors=[
  'c62222','36d9e5','215a94','d7b000','f53695','f57a00',
  '36d595','000094','009400','b800f5','008484','94004a'
@@ -72,12 +73,15 @@ for(const item of catalog.items.filter(x=>x.id!=='none')){
   assert.match(svg,/<svg\s/);
   assert.doesNotMatch(svg,/<script\s|<foreignObject\s|\bonload\s*=/i);
   if(spec.dynamic){
-   assert.equal(spec.color,true,'new costume uses player-color overlays');
-   assert.ok(svg.includes('currentColor'),'new master SVG uses color-bound details');
-   assert.ok(/<svg[^>]*color="#[0-9a-f]{6}"/i.test(svg),'color is assigned at SVG root');
+   assert.equal(spec.color,true,'player-colored costume uses a master SVG');
+   assert.ok(svg.includes('currentColor'),'master SVG uses color-bound details');
+   assert.ok(/<svg[^>]*color="#[0-9a-f]{6}"/i.test(svg),'master has a replaceable root color');
+   assert.ok(!fs.existsSync(path.join(__dirname,'..','assets/cosmetics',item.id,'colors')),
+    'per-color SVG copies are not stored: '+item.id);
    assert.ok(!svg.includes('<script'),'art SVG is inert');
-   continue; // Runtime renders colored master SVG asynchronously; verify below.
+   continue; // Runtime recolors the master before decoding it as an Image.
   }
+  assert.equal(spec.color,false,'all color-bound outfits use the master-SVG pipeline');
   const p={cosmetic:item.id,color:'#36d9e5'};
   const before=imageCalls.length;
   if(view==='top')assert.equal(C.drawTop(ctx,p),true);
@@ -88,13 +92,7 @@ for(const item of catalog.items.filter(x=>x.id!=='none')){
   if(view==='front')assert.deepEqual(draw.args,
    [200+spec.front[0],100+spec.front[1],spec.front[2],spec.front[3]]);
   else assert.deepEqual(draw.args,Array.from(spec.top));
-  if(spec.color){
-   for(const color of colors){
-    const file='assets/cosmetics/'+item.id+'/colors/'+view+'-'+color+'.svg';
-    assert.ok(fs.existsSync(path.join(__dirname,'..',file)),file);
-   }
-   assert.ok(draw.src.endsWith('/colors/'+view+'-36d9e5.svg'));
-  }else assert.ok(draw.src.endsWith('/'+projection.file));
+  assert.ok(draw.src.endsWith('/'+projection.file),'fixed-color outfit loads its canonical master');
  }
 }
 assert.equal(C.drawTop(ctx,{cosmetic:'none',color:'#c62222'}),false);
@@ -114,19 +112,26 @@ const player={id:'p1',name:'P1',cosmetic:'pirate-hat',color:'#36d9e5',
 scope.fetch=async url=>({
  ok:true,text:async()=>read(String(url).replace('./',''))
 });
+const isColoredMaster=(src,id,color)=>{
+ if(!src?.startsWith('data:image/svg+xml;charset=utf-8,'))return false;
+ const svg=decodeURIComponent(src.slice('data:image/svg+xml;charset=utf-8,'.length));
+ return svg.includes('data-cosmetic="'+id+'"')&&
+  svg.includes('color="#'+color+'"')&&svg.includes('currentColor');
+};
 const warmTop=C.preloadCycle(player,'top');
 assert.equal(warmTop.length,C.IDS.length-1,'WARDROBE warms every wearable top-down image');
 assert.ok(warmTop.every(img=>img instanceof FakeImage),
  'every top-down hat starts loading as soon as WARDROBE becomes available');
 const warmFront=C.preloadCycle(player,'front');
+await new Promise(resolve=>setImmediate(resolve));
 assert.equal(warmFront.length,C.IDS.length-1,'optional front projection preloads the same outfit cycle');
 scope.window.PartyPlayerAvatar.draw(canvas,player,{label:false});
-assert.ok(calls.some(c=>c.src.endsWith('pirate-hat/colors/top-36d9e5.svg')),
- 'overhead renderer composites player outfit after the body');
+assert.ok(calls.some(c=>isColoredMaster(c.src,'pirate-hat','36d9e5')),
+ 'overhead renderer composites the recolored master after the body');
 calls.length=0;
 scope.window.PartyPlayerAvatar.drawFront(canvas,player,120,90,60);
-assert.ok(calls.some(c=>c.src.endsWith('pirate-hat/colors/front-36d9e5.svg')),
- 'BOARD/lobby portrait renderer composites the same outfit');
+assert.ok(calls.some(c=>isColoredMaster(c.src,'pirate-hat','36d9e5')),
+ 'BOARD/lobby portrait renderer composites the same recolored master');
 // The first portrait frame can render before the base SVG decodes.
 // The fallback's local transform must not affect the accessory anchor.
 const portraitImage=scope.window.PartyPlayerAvatar.imageForFront(player.color);
@@ -139,7 +144,7 @@ const fallbackCanvas=new Proxy({}, {
   if(key==='restore')return()=>{transformDepth=saved.pop();};
   if(key==='translate'||key==='scale'||key==='rotate')return()=>{transformDepth++;};
   if(key==='drawImage')return image=>{
-   if(image.src.endsWith('pirate-hat/colors/front-36d9e5.svg'))accessoryDepth=transformDepth;
+   if(isColoredMaster(image.src,'pirate-hat','36d9e5'))accessoryDepth=transformDepth;
   };
   if(key==='createRadialGradient'||key==='createLinearGradient')return()=>({addColorStop(){}});
   return target[key]??(()=>{});
@@ -167,8 +172,8 @@ assert.equal(medal.children.length,2,'dressed results portraits have face and ha
 assert.equal(medal.children[0].className,'result-avatar-face');
 assert.match(medal.children[0].innerHTML,/<svg/,'canonical face is inside the ring');
 assert.equal(medal.children[1].className,'result-avatar-hat');
-assert.ok(medal.children[1].src.endsWith('/pirate-hat/colors/front-36d9e5.svg'),
- 'the results hat uses the exact in-game front asset');
+assert.ok(isColoredMaster(medal.children[1].src,'pirate-hat','36d9e5'),
+ 'the results medal uses the same recolored master as the game');
 assert.ok(parseFloat(medal.children[1].style.top)<0,
  'pirate hat crosses the circular frame');
 const wrapMedal=fakeElement();
@@ -232,8 +237,8 @@ assert.equal(cancels,1,'B outside a station keeps its cancel action');
 assert.equal(plazaSandbox.window.PartyPlaza.pressB({...wardrobePlayer,conn:{open:false}}),false,
  'a disconnected or stale player cannot trigger a wardrobe change');
 assert.match(main,/preloadWardrobe\(p\)[\s\S]*preloadCycle/);
-// Dynamic hats use just two source masters each, then recolor currentColor in memory.
-// Test all 10 x 2 x 12 paths with the same async image pipeline as the browser.
+// Color-bound costumes use one master per view; player colors are decoded on demand.
+// Exercise all 15 x 2 x 12 legacy/current-color combinations.
 
 (async()=>{
  await new Promise(resolve=>setImmediate(resolve));
@@ -254,7 +259,7 @@ assert.match(main,/preloadWardrobe\(p\)[\s\S]*preloadCycle/);
   }
  }
  await new Promise(resolve=>setImmediate(resolve));
- assert.equal(loaded.length,240,'exactly 10 hats x 2 views x 12 player colors');
+ assert.equal(loaded.length,360,'exactly 15 colored costumes x 2 views x 12 legacy colors');
  for(const item of loaded){
   const uri=item.im.src;
   assert.ok(uri?.startsWith('data:image/svg+xml;charset=utf-8,'),
@@ -283,5 +288,6 @@ assert.match(main,/preloadWardrobe\(p\)[\s\S]*preloadCycle/);
   assert.ok(svg.includes('color="#'+entry.color+'"'),'new color is correct for '+entry.id);
   assert.ok(svg.includes('currentColor'),'currentColor remains bound for '+entry.id);
  }
- console.log('COSMETICS PASS: 12 player colors, legacy migration, 120 old static variants, 240 old-color dynamic and 360 new-color renders');
+ console.log('COSMETICS PASS: 12 player colors, legacy migration, one master per projection, 360 legacy-color and 360 current-color renders');
+})().catch(error=>{console.error(error);process.exitCode=1;});
 })().catch(error=>{console.error(error);process.exitCode=1;});

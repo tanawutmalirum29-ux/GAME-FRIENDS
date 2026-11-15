@@ -10,7 +10,7 @@
 
 - [hat-front.svg](hat-front.svg): overlay มงกุฎด้านหน้า ยอดทรงกลมและพื้นผิวทอง อัญมณีกลมที่แถบหน้ามงกุฎ
 - [hat-top.svg](hat-top.svg): overlay overhead วาดวงมงกุฎเปิด มีซี่หน้า/หลังและช่องเห็นหัวตัวละครจริง อัญมณีอยู่ด้านหน้าที่ชี้ −Y
-- `colors/front-<hex>.svg`, `colors/top-<hex>.svg`: สีอัญมณีสำเร็จรูปครบ 12 สีผู้เล่น
+- `hat-front.svg`, `hat-top.svg`: SVG master; ตั้ง root `color` ก่อน decode เพื่อเปลี่ยนเฉพาะอัญมณีด้วย `currentColor`
 - [preview.svg](preview.svg): ตัวอย่างสองมุมและทุกสี ด้านบนขวามือหันซ้ายตามภาพอ้างอิง
 - `examples/front-wearing.svg`, `examples/top-wearing.svg`: ตัวอย่างวางบนตัวละครเดิมสีเขียว ใช้ดูงาน ไม่ใช้แทน sprite เคลื่อนไหว
 - [asset.json](asset.json): พิกัด overlay, อัญมณี, color binding และรายการไฟล์

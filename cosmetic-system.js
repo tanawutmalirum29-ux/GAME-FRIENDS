@@ -1,7 +1,6 @@
-/* GAME-FRIENDS outfit overlays: one canonical projection per accessory.
- * Costumes are visual-only and never alter hitboxes, movement, or timing.
- * Old palette SVGs are retained as static assets; new player colors use
- * currentColor on existing masters without recoloring fixed metal/cloth. */
+/* GAME-FRIENDS outfit overlays: one canonical SVG master per projection.
+ * Every player-colored costume binds player.color to root SVG color/currentColor.
+ * Costumes remain visual-only and never alter hitboxes, movement, or timing. */
 (() => {
 'use strict';
 const IDS=Object.freeze([
@@ -9,19 +8,14 @@ const IDS=Object.freeze([
  'shades-white-beard','pharaoh-nemes','plumed-turban',
  'viking-helmet','wizard-hat','samurai-kabuto','chef-hat','cowboy-hat','knight-helmet','devil-hat','astronaut-helmet','mining-helmet','jester-hat','paper-bag-mask'
 ]);
-// Colors that physically exist as pre-rendered legacy SVGs in colors/ folders.
-const STATIC_PALETTE=new Set([
- 'c62222','36d9e5','215a94','d7b000','f53695','f57a00',
- '36d595','000094','009400','b800f5','008484','94004a'
-]);
 const ASSETS=Object.freeze({
- 'white-rope-wrap': {prefix:'hat',color:true,top:[-26,-26,52,52],front:[-48,-48,96,96]},
- 'pirate-hat': {prefix:'hat',color:true,top:[-32.5,-32.5,65,65],front:[-60,-68,120,116]},
- 'golden-crown': {prefix:'hat',color:true,top:[-26,-26,52,52],front:[-48,-68,96,116]},
+ 'white-rope-wrap': {prefix:'hat',color:true,dynamic:true,top:[-26,-26,52,52],front:[-48,-48,96,96]},
+ 'pirate-hat': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-68,120,116]},
+ 'golden-crown': {prefix:'hat',color:true,dynamic:true,top:[-26,-26,52,52],front:[-48,-68,96,116]},
  'shades-white-beard': {prefix:'accessory',color:false,top:[-32.5,-39,65,65],front:[-48,-48,96,116]},
- 'pharaoh-nemes': {prefix:'hat',color:true,top:[-32.5,-32.5,65,65],front:[-72,-88,144,144]},
- 'plumed-turban': {prefix:'hat',color:true,top:[-32.5,-32.5,65,78],front:[-60,-112,120,168]},
- /* NEW: canonical SVG masters load lazily and inherit only player-color details. */
+ 'pharaoh-nemes': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-72,-88,144,144]},
+ 'plumed-turban': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,78],front:[-60,-112,120,168]},
+ /* All other color-bound costumes use this same master-SVG recoloring path. */
  'viking-helmet': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-84,120,132]},
  'wizard-hat': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-138,120,186]},
  'samurai-kabuto': {prefix:'hat',color:true,dynamic:true,top:[-32.5,-32.5,65,65],front:[-60,-110,120,158]},
@@ -49,10 +43,8 @@ function randomAvailable(occupied=[],random=Math.random){
 }
 function randomBot(random=Math.random,occupied=[]){return randomAvailable(occupied,random);}
 const safeColor=value=>/^#[0-9a-f]{6}$/i.test(String(value||''))?String(value).slice(1).toLowerCase():'e6194b';
-function assetPath(id,view,color){
+function assetPath(id,view){
  const spec=ASSETS[id],prefix='./assets/cosmetics/'+id+'/';
- if(spec.dynamic)return prefix+spec.prefix+'-'+(view==='top'?'top':'front')+'.svg';
- if(spec.color&&STATIC_PALETTE.has(color))return prefix+'colors/'+view+'-'+color+'.svg';
  return prefix+spec.prefix+'-'+(view==='top'?'top':'front')+'.svg';
 }
 function imageFor(player,view){
@@ -62,10 +54,10 @@ function imageFor(player,view){
  const key=id+'/'+view+'/'+color;
  if(cache.has(key))return cache.get(key);
  const img=new Image();img.decoding='async';cache.set(key,img);
- const url=assetPath(id,view,color);
- // Old colors reuse existing static variants. New player colors decode the
- // unchanged master SVG with its root color replaced (only currentColor paths).
- if(spec.color&&(spec.dynamic||!STATIC_PALETTE.has(color))&&typeof fetch==='function'){
+ const url=assetPath(id,view);
+ // Both current and previously saved player colors use the same master SVG.
+ // Only currentColor artwork is affected; fixed cloth, metal and shading stay intact.
+ if(spec.color&&typeof fetch==='function'){
   const sourceKey=id+'/'+view;
   let source=fallbackSources.get(sourceKey);
   if(!source){

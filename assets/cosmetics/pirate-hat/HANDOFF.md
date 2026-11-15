@@ -10,7 +10,7 @@
 
 - [hat-front.svg](hat-front.svg): overlay ด้านหน้า ปีกดำกว้าง ปลายปีกม้วน ขอบสี และตรากะโหลก/กระดูกขาว
 - [hat-top.svg](hat-top.svg): overlay overhead วาดหน้าปีกที่เอียงแยกจากมงกุฎหมวกเว้า มีผิวผ้าทอและขอบบนตามมุมกล้อง ตราด้านหน้าถูกย่อตามความลึกของมุมมอง
-- `colors/front-<hex>.svg` และ `colors/top-<hex>.svg`: รุ่นสีสำเร็จรูปสำหรับผู้เล่น 12 สี
+- `hat-front.svg` และ `hat-top.svg`: SVG master ที่เปลี่ยน root `color` ก่อน decode; ไม่เก็บสำเนาแยกตามสี
 - [preview.svg](preview.svg): ตัวอย่างสองมุมและ 12 สี ตัวอย่าง overhead ขวามือหมุน −90° ให้หันซ้ายตามภาพอ้างอิง
 - `examples/front-wearing.svg`, `examples/top-wearing.svg`: ภาพประกอบหมวกวางบนรูปทรงตัวละครเดิมสีฟ้า ใช้ดูงาน ไม่ใช่ sprite สำหรับแทนตัวละครเคลื่อนไหว
 - [asset.json](asset.json): anchor, viewBox, color binding, รายการไฟล์ และข้อตกลงลำดับ B
