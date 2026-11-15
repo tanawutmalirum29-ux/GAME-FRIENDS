@@ -18,8 +18,9 @@
 
 ภาพปกเกมอยู่ใน `assets/game-friends-cover.svg` พร้อมภาพแชร์ `assets/game-friends-social.png` และไอคอน `assets/game-friends-icon.svg` ใช้จากไฟล์ใน repository โดยตรง
 
-เกมปาร์ตี้เล่นบนเว็บแบบจอใหญ่ + จอยมือถือผ่าน QR Code สูงสุด **12 ผู้เล่น**
-มีมินิเกม **GHOST ATTACK**, **CHICKENS**, **FRUIT MEMORY**, **SHOCKWAVE**, **COLOR SWITCH** และ **PIZZA TIME** ใช้ระบบห้อง จอยมือถือ พรีวิวและการแข่งขันเดียวกัน; มินิเกมเก่า STAR RUSH, BRAWL, LAVA RUN, TANKS, FOOTBALL, RALLY และ COLOR CLASH ไม่ได้ถูกนำกลับมา
+เกมปาร์ตี้บนเว็บแบบจอใหญ่ + จอยมือถือผ่าน QR Code สูงสุด **12 ผู้เล่น** ปัจจุบันมีมินิเกม **26 เกม** ที่ค้นพบจาก manifest ใน `src/games/<slug>/` อัตโนมัติ ใช้ระบบห้อง จอยมือถือ พรีวิว และการแข่งขันร่วมกัน โดยเพิ่มเกมใหม่ผ่านโฟลเดอร์และ manifest แทนการแก้รายชื่อเกมส่วนกลาง
+
+ดูแผนผัง source of truth, ไฟล์ที่สร้างอัตโนมัติ และแนวทางย้าย/ลบไฟล์ได้ที่ [docs/REPOSITORY_STRUCTURE.md](docs/REPOSITORY_STRUCTURE.md)
 
 ## สนาม CHICKENS / SNOW BRAWL / BOULDER BASH
 
