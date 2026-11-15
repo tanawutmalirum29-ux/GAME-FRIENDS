@@ -4,6 +4,14 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../src/platform/runtime-deps.js'),'utf8');
+const controllerSource=fs.readFileSync(path.join(__dirname,'../src/app/controller/connection.js'),'utf8');
+const indexSource=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+assert.match(controllerSource,/script\.integrity='sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq\+GAlNkNNqVC7YyIV\+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm\/HCzGYg=='/,
+ 'dynamically loaded QR scanner verifies the pinned CDN bytes');
+assert.match(controllerSource,/script\.crossOrigin='anonymous'/,
+ 'dynamic QR scanner SRI request is CORS-enabled');
+assert.match(indexSource,/integrity="sha512-XEKeWX\+mI3Ov\+tg2evDlVQFzVOIp4T8J3cNcCEPaEUGpxJV3eZaN8rHuvnFPvQpGJBHPmrozJDMpm2xcDvtmyQ=="/);
+assert.match(indexSource,/integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA=="/);
 function fixture({failFirst=false}={}){
  const window={},tags=[],pending=[];
  const document={
