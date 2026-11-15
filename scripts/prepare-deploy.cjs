@@ -66,7 +66,7 @@ function resolvePublicOrigin(env=process.env){
   let url;
   try{url=new URL(configured);}catch(_){throw Error('PUBLIC_SITE_URL must be a valid HTTPS URL');}
   if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash)
-   throw Error('PUBLIC_SITE_URL must be an HTTPS origin without credentials, query or fragment');
+   throw Error('PUBLIC_SITE_URL must be a valid HTTPS URL origin without credentials, query or fragment');
   return url.origin;
  }
  // AWS Amplify exposes both values for each connected branch. The default
