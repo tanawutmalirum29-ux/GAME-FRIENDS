@@ -5,15 +5,28 @@
 'use strict';
 const current=new Map(),catalog=new Map(),pending=new Map(),rejected=new Map();
 // Broken immutable assets must not trap a running BOARD PARTY in a failed roulette.
-const RETRY_DELAY_MS=90_000;
+const RETRY_DELAY_MS=90_000,LOAD_TIMEOUT_MS=18_000;
 let coreHash='',pendingCore=false,refreshing=null,revision=0,invalidEntries=[];
 const emitted=()=>{if(typeof window.dispatchEvent==='function'&&typeof CustomEvent==='function')
  window.dispatchEvent(new CustomEvent('gameplatform:catalog',{detail:{revision}}));};
 function validUrl(value){
- if(typeof value!=='string'||!/^\/game-assets\/[a-z][a-z0-9_]*\/[a-f0-9]{24}\//.test(value))throw Error('Invalid versioned game asset');
- const url=new URL(value,location.origin);
- if(url.origin!==location.origin)throw Error('Cross-origin engine blocked');
+ const relative=typeof value==='string'?value.replace(/^\/+/, ''):'';
+ if(!/^game-assets\/[a-z][a-z0-9_]*\/[a-f0-9]{24}\//.test(relative))
+  throw Error('Invalid versioned game asset');
+ const base=new URL('.',document.baseURI||location.href);
+ const url=new URL(relative,base),assetsBase=new URL('game-assets/',base).pathname;
+ if(url.origin!==base.origin||!url.pathname.startsWith(assetsBase))
+  throw Error('Cross-origin engine blocked');
  return url.href;
+}
+function withLoadTimeout(promise,label){
+ let timer=null;
+ const timeout=new Promise((_,reject)=>{
+  timer=setTimeout(()=>reject(Error(label+' timed out after '+LOAD_TIMEOUT_MS+'ms')),LOAD_TIMEOUT_MS);
+ });
+ return Promise.race([Promise.resolve(promise),timeout]).finally(()=>{
+  if(timer!==null)clearTimeout(timer);
+ });
 }
 function inspect(data){
  if(!data||data.schema!==1||!Array.isArray(data.games)||typeof data.coreHash!=='string'||!/^[a-f0-9]{20}$/.test(data.coreHash))throw Error('Invalid game catalog');
@@ -105,9 +118,22 @@ function ready(id){const d=descriptor(id),e=current.get(id);return !!(d&&e&&e.ha
 function addScript(url){
  return new Promise((resolve,reject)=>{
   const tag=document.createElement('script');
+  let settled=false,timer=null;
+  const finish=(fn,value)=>{
+   if(settled)return;settled=true;
+   if(timer!==null)clearTimeout(timer);
+   fn(value);
+  };
   tag.async=false;tag.src=validUrl(url);
-  tag.onload=()=>resolve();
-  tag.onerror=()=>{tag.remove();reject(Error('Unable to fetch game dependency'));};
+  timer=setTimeout(()=>{
+   try{tag.remove();}catch(_){}
+   finish(reject,Error('Game dependency timed out after '+LOAD_TIMEOUT_MS+'ms'));
+  },LOAD_TIMEOUT_MS);
+  tag.onload=()=>finish(resolve);
+  tag.onerror=()=>{
+   try{tag.remove();}catch(_){}
+   finish(reject,Error('Unable to fetch game dependency'));
+  };
   document.head.appendChild(tag);
  });
 }
@@ -129,7 +155,7 @@ async function ensure(id){
     for(const url of d.legacyUrls)await addScript(url);
    }
   }
-  const namespace=await import(validUrl(d.entryUrl));
+  const namespace=await withLoadTimeout(import(validUrl(d.entryUrl)),'Game module download');
   const plugin=namespace.default;
   if(!plugin||typeof plugin.setup!=='function'||typeof plugin.update!=='function'||
      typeof plugin.draw!=='function'||typeof plugin.hud!=='function'||
