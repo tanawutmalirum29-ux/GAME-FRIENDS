@@ -19,6 +19,10 @@ function registerPlugins(plugins=[]){
  }
 }
 
+function clampBagIndex(p,items){
+ const raw=Number.isFinite(p.bagIndex)?Math.trunc(p.bagIndex):0;
+ return items.length?Math.min(Math.max(0,raw),items.length-1):0;
+}
 function bag(p){
  if(!Array.isArray(p.bag))p.bag=[];
  // Accept older single-slot session data without losing a previously held item.
@@ -97,12 +101,12 @@ function consume(s,p,kind){
  // Debug stock is host-only: infinite use never consumes a slot.
  if(index>=0&&!p.debugUnlimitedItems)items.splice(index,1);
  p.item=items[0]||null;
- p.bagIndex=items.length?Math.min(Math.max(0,Math.trunc(p.bagIndex||0)),items.length-1):0;
+ p.bagIndex=clampBagIndex(p,items);
  p.bagOpen=false;p.usedRound=s.roundNumber;
 }
 function begin(s,p,api,kind){
  if(kind===undefined){
-  const items=bag(p),index=items.length?Math.min(Math.max(0,Math.trunc(p.bagIndex||0)),items.length-1):0;
+  const items=bag(p),index=clampBagIndex(p,items);
   kind=items[index];
  }
  if(s.phase!=='ready'||!kind||!bag(p).includes(kind)||
