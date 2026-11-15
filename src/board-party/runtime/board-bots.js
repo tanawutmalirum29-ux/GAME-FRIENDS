@@ -76,7 +76,7 @@ function canUse(s,p,api,kind){
  return (kind==='potion'?p.hp<70:kind==='shield'?false:
   kind==='rocket'?true:kind==='ufo'?!!forwardTarget(s,p):
   kind==='car'?!!forwardTarget(s,p):
-  s.players.some(q=>q.id!==p.id&&!api.isProtected(s,q)));
+  kind==='bomber'?s.players.some(q=>q.id!==p.id&&!api.isProtected(s,q)):false);
 }
 function update(s,dt,api){
  // Rewards are added directly to every bot's backpack by the host.
