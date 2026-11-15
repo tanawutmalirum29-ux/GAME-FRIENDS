@@ -150,5 +150,5 @@ function update(s,dt,api){
   send(s,p,api,dx/d,dy/d);
  }
 }
-window.BoardBots=Object.freeze({update,chooseNext,route});
+window.BoardBots=Object.freeze({update,chooseNext,route,canUse});
 })();
