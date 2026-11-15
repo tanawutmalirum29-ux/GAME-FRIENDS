@@ -29,6 +29,24 @@ for(const game of catalog.games){
   'Per-game dependencies must be explicit and version pinned: '+game.id);
 }
 const originalHTML=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const hashedCoreFiles=builder.coreHashFiles();
+const localIndexScripts=Array.from(originalHTML.matchAll(/<script\\b[^>]*\\bsrc=["']([^"']+)["'][^>]*>/gi),match=>match[1])
+ .filter(src=>src.startsWith('./')&&!src.startsWith('../'))
+ .map(src=>src.slice(2));
+for(const script of localIndexScripts){
+ assert.ok(hashedCoreFiles.includes(script)||builder.CORE_SCRIPT_EXCLUDES.has(script),
+  'every local index script is hashed or explicitly excluded: '+script);
+}
+for(const script of ['cosmetic-system.js','src/lobby/party-plaza.js',
+ 'src/lobby/party-plaza-art.js','reference-arena-art.js']){
+ assert.ok(hashedCoreFiles.includes(script),'shared script change invalidates Core hash: '+script);
+}
+assert.deepEqual([...builder.CORE_SCRIPT_EXCLUDES].sort(),[
+ 'src/board-party/runtime/board-art.js',
+ 'src/board-party/runtime/board-design.js',
+ 'src/board-party/runtime/board-map.js',
+ 'src/board-party/runtime/board-scenery.js'
+].sort(),'only catalog-owned built-in map presentation files are excluded');
 const lazyHTML=pruneGameCover(pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog))))));
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/peerjs@'),'offline bootstrap never fetches PeerJS');
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/qrcodejs@'),'controller bootstrap never fetches QRCode');
