@@ -46,6 +46,35 @@ try{
  for(const file of ['index.html','deployment.json','runtime-config.js',
   'app.js','app-controller.js','src/board-party/runtime/board-design.js','src/board-party/runtime/board-scenery.js',
   'game-catalog.json','board-map-catalog.json','board-system-catalog.json','sw.js'])exists(file);
+ const publicRoot=path.join(target,'dist');
+ const publicFile=file=>assert.ok(fs.statSync(path.join(publicRoot,file)).isFile(),
+  'public artifact missing runtime dependency: '+file);
+ for(const file of ['index.html','host.html','app.js','app-controller.js','style.css',
+  'runtime-config.js','deployment.json','manifest.webmanifest','host.webmanifest','sw.js',
+  'auto-update.js','game-catalog.json','board-map-catalog.json','board-system-catalog.json',
+  'src/platform/main-loader.js','src/platform/board-runtime.js',
+  'src/lobby/party-plaza.js','src/lobby/lobby-zones.json',
+  'src/board-party/runtime/board-map.js','src/shared/farm-ice-art.js',
+  'assets/game-friends-icon.svg'])publicFile(file);
+ for(const forbidden of ['tests','scripts','docs','server','.github','ci','tools','src/app','src/games']){
+  assert.ok(!fs.existsSync(path.join(publicRoot,forbidden)),
+   'non-runtime repo content must not be published: '+forbidden);
+ }
+ for(const file of ['index.html','host.html']){
+  const source=fs.readFileSync(path.join(publicRoot,file),'utf8');
+  for(const [,ref] of source.matchAll(/\\b(?:src|href)="\\.\\/([^"?]+)"/g)){
+   if(/^(?:https?:|data:)/i.test(ref))continue;
+   const local=path.resolve(publicRoot,ref);
+   assert.ok(local.startsWith(publicRoot+path.sep)&&fs.existsSync(local),
+    'published HTML points outside/missing from dist: '+file+' -> '+ref);
+  }
+ }
+ const amplify=fs.readFileSync(path.join(target,'amplify.yml'),'utf8');
+ assert.match(amplify,/baseDirectory:\\s*dist\\b/,'Amplify must publish the staged allowlist');
+ const headers=fs.readFileSync(path.join(target,'customHttp.yml'),'utf8');
+ for(const header of ['X-Content-Type-Options','Referrer-Policy','X-Frame-Options',
+  'Permissions-Policy','Content-Security-Policy'])assert.ok(headers.includes(header),
+  'custom HTTP security header missing: '+header);
  assert.equal(JSON.parse(fs.readFileSync(path.join(target,'deployment.json'),'utf8')).deployId,deploy);
  const html=fs.readFileSync(path.join(target,'index.html'),'utf8');
  assert.ok(html.includes('src="./src/platform/board-runtime.js"'),
