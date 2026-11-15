@@ -85,8 +85,8 @@ function rewriteSocialImage(dist,env=process.env){
  const image=origin+'/assets/game-friends-social.png';
  let html=fs.readFileSync(filename,'utf8');
  const before=html;
- html=html.replace(/(<meta\\s+property=["']og:image["']\\s+content=["'])[^"']*(["'][^>]*>)/i,'$1'+image+'$2');
- html=html.replace(/(<meta\\s+name=["']twitter:image["']\\s+content=["'])[^"']*(["'][^>]*>)/i,'$1'+image+'$2');
+ html=html.replace(/(<meta\s+property=["']og:image["']\s+content=["'])[^"']*(["'][^>]*>)/i,'$1'+image+'$2');
+ html=html.replace(/(<meta\s+name=["']twitter:image["']\s+content=["'])[^"']*(["'][^>]*>)/i,'$1'+image+'$2');
  if(html===before)throw Error('Social image metadata tags are missing from index.html');
  if(!fs.existsSync(path.join(dist,'assets','game-friends-social.png')))
   throw Error('Social preview image is missing from the public artifact');
