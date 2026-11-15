@@ -7,9 +7,23 @@ function send(s,p,api,x=0,y=0,button=null){
  if(button)api.input(s,p.id,packet({axisX:x,axisY:y,action:button==='A',alt:button==='B'}));
 }
 function route(s,from,to){
- const queue=[[from]],seen=new Set([from]);
- while(queue.length){const path=queue.shift(),id=path[path.length-1];if(id===to)return path;
-  for(const next of s.map.nodes[id].nextNodes)if(!seen.has(next)){seen.add(next);queue.push([...path,next]);}}
+ const nodes=s?.map?.nodes;
+ if(!nodes?.[from]||!nodes?.[to])return null;
+ // Keep one predecessor per visited node. A head index avoids O(n) queue
+ // shifts, and reconstructing only the winning path avoids per-edge copies.
+ const queue=[from],previous=new Map([[from,null]]);
+ for(let head=0;head<queue.length;head++){
+  const id=queue[head];
+  if(id===to){
+   const path=[];
+   for(let at=id;at!==null;at=previous.get(at))path.push(at);
+   return path.reverse();
+  }
+  for(const next of nodes[id].nextNodes||[]){
+   if(!nodes[next]||previous.has(next))continue;
+   previous.set(next,id);queue.push(next);
+  }
+ }
  return null;
 }
 function forwardTarget(s,p,maxSteps=Infinity){
