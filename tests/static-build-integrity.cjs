@@ -84,6 +84,10 @@ try{
  for(const header of ['Strict-Transport-Security','X-Content-Type-Options','Referrer-Policy','X-Frame-Options',
   'Permissions-Policy','Content-Security-Policy'])assert.ok(headers.includes(header),
   'custom HTTP security header missing: '+header);
+ assert.match(headers,/script-src 'self' 'unsafe-inline' https:\/\/cdn\.jsdelivr\.net/,
+  'only self-hosted scripts and pinned jsDelivr runtime libraries are executable');
+ assert.match(headers,/connect-src 'self' https: wss:/,
+  'PeerJS/WebRTC and HTTPS TURN bootstrap can connect under CSP');
  assert.equal(JSON.parse(fs.readFileSync(path.join(target,'deployment.json'),'utf8')).deployId,deploy);
  const html=fs.readFileSync(path.join(target,'index.html'),'utf8');
  assert.ok(html.includes('src="./src/platform/board-runtime.js"'),
