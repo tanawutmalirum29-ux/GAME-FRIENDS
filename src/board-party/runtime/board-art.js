@@ -660,6 +660,8 @@ function actors(g,s,t){
  const list=s.players.map(p=>({p,pos:I.position(s,p)})).sort((a,b)=>a.pos.y-b.pos.y);
  for(const {p,pos}of list){
   const dead=p.death&&s.time-p.death.at<1.2,xy=dead?p.death.position:pos;
+  const ridingUfo=s.phase==='aim'&&s.skill?.kind==='ufo'&&active?.id===p.id;
+  const actorXY=ridingUfo?{x:s.skill.x,y:s.skill.y-70}:xy;
   g.save();if(window.BoardParty.isProtected(s,p)){circle(g,xy.x,xy.y,29,'#8cddf42d','#8bd8f1',2);icon(g,'shield',xy.x-22,xy.y-25,10);}
   // A used shield disappears immediately; brief icy fragments signal the
   // single attack was absorbed and further attacks are now effective.
@@ -671,7 +673,7 @@ function actors(g,s,t){
     star(g,xy.x+Math.cos(angle)*r,xy.y+Math.sin(angle)*r,Math.max(1,5*(1-age)),'#e9faff');
    }
   }
-  if(p.id===active?.id){circle(g,xy.x,xy.y,29+Math.sin(t*4)*2,null,'#ffdc83',3);path(g,[[xy.x-6,xy.y-48],[xy.x+6,xy.y-48],[xy.x,xy.y-39]],'#ffcf76');}
+  if(p.id===active?.id&&!ridingUfo){circle(g,xy.x,xy.y,29+Math.sin(t*4)*2,null,'#ffdc83',3);path(g,[[xy.x-6,xy.y-48],[xy.x+6,xy.y-48],[xy.x,xy.y-39]],'#ffcf76');}
   if(dead){g.globalAlpha=Math.max(.1,1-(s.time-p.death.at)/1.2);g.translate(xy.x,xy.y);g.rotate((s.time-p.death.at)*2);g.translate(-xy.x,-xy.y);}
   const moving=s.move?.playerId===p.id&&s.move.to,from=moving?s.map.nodes[s.move.from].position:null,to=moving?s.map.nodes[s.move.to].position:null;
   const joystick=window.BoardParty.axes(s,p.id);
@@ -679,7 +681,6 @@ function actors(g,s,t){
   const facing=freeWalking?joystick:moving?{x:to.x-from.x,y:to.y-from.y}:actorFacing.get(p)||{x:0,y:-1};
   if(Math.hypot(facing.x,facing.y)>.001)actorFacing.set(p,{x:facing.x,y:facing.y});
   const shake=p.hurtUntil>s.time?Math.sin(t*50)*3:0;
-  const ridingUfo=s.phase==='aim'&&s.skill?.kind==='ufo'&&active?.id===p.id;
   if(!ridingUfo)window.PartyPlayerAvatar.draw(g,{...p,x:xy.x+shake,y:xy.y,vx:freeWalking?joystick.x*90:moving&&s.move.walking?40:0,vy:freeWalking?joystick.y*90:0,
     dir:facing},{time:t,scale:.86,label:false,holding:s.effect?.kind==='heal'&&s.effect.targets.includes(p.id)});
   g.restore();
@@ -691,12 +692,12 @@ function actors(g,s,t){
   const nameSize=Math.min(34,Math.max(12,12/zoom));
   const nameGap=Math.max(p.id===active?.id?74:52,(p.id===active?.id?41:31)/zoom);
   if(window.PartyCharacters?.drawName)
-   window.PartyCharacters.drawName(g,p,{x:xy.x,y:xy.y,
+   window.PartyCharacters.drawName(g,p,{x:actorXY.x,y:actorXY.y,
     offsetY:nameGap,fontSize:nameSize,maxWidth:Math.min(270,98/zoom)});
   else{
-   const ty=xy.y-nameGap-nameSize-8;
-   box(g,xy.x-46,ty,92,nameSize+7,6,'#15394cda');
-   label(g,p.name,xy.x,ty+(nameSize+7)/2,nameSize,p.color,'center',700,86);
+   const ty=actorXY.y-nameGap-nameSize-8;
+   box(g,actorXY.x-46,ty,92,nameSize+7,6,'#15394cda');
+   label(g,p.name,actorXY.x,ty+(nameSize+7)/2,nameSize,p.color,'center',700,86);
   }
   if(s.move?.kind==='rocket'&&s.move.playerId===p.id){g.save();g.translate(pos.x,pos.y+20);if(from)g.rotate(Math.atan2(to.y-from.y,to.x-from.x)+Math.PI/2);icon(g,'rocket',0,0,25);g.restore();}
  }
