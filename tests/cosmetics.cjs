@@ -109,9 +109,26 @@ const canvas=new Proxy({},{
 });
 const player={id:'p1',name:'P1',cosmetic:'pirate-hat',color:'#36d9e5',
  x:100,y:200,dir:{x:0,y:-1},vx:0,vy:0};
-scope.fetch=async url=>({
- ok:true,text:async()=>read(String(url).replace('./',''))
-});
+let masterFetchAttempts=0;
+scope.fetch=async url=>{
+ masterFetchAttempts++;
+ if(masterFetchAttempts===1)throw Error('simulated transient master-SVG fetch failure');
+ return {ok:true,text:async()=>read(String(url).replace('./',''))};
+};
+const firstAttempt=C.imageFor({cosmetic:'pirate-hat',color:'#aa1111'},'front');
+await new Promise(resolve=>setImmediate(resolve));
+assert.ok(firstAttempt.src?.includes('pirate-hat'),
+ 'a failed color-master fetch still falls back to its original SVG');
+const recoveredAttempt=C.imageFor({cosmetic:'pirate-hat',color:'#bb2222'},'front');
+await new Promise(resolve=>setImmediate(resolve));
+assert.equal(masterFetchAttempts,2,'a rejected master-SVG promise is evicted and retried for the next color');
+assert.ok(recoveredAttempt.src?.startsWith('data:image/svg+xml;charset=utf-8,'),
+ 'the next color uses a recolored master instead of a permanently failed cache entry');
+const cachedAttempt=C.imageFor({cosmetic:'pirate-hat',color:'#bb2222'},'front');
+assert.equal(cachedAttempt,recoveredAttempt,'successful image remains cached');
+recoveredAttempt.onerror();
+const retriedImage=C.imageFor({cosmetic:'pirate-hat',color:'#bb2222'},'front');
+assert.notEqual(retriedImage,recoveredAttempt,'a failed Image object is evicted from the per-color cache');
 const isColoredMaster=(src,id,color)=>{
  if(!src?.startsWith('data:image/svg+xml;charset=utf-8,'))return false;
  const svg=decodeURIComponent(src.slice('data:image/svg+xml;charset=utf-8,'.length));
