@@ -62,7 +62,7 @@ try{
  }
  for(const file of ['index.html','host.html']){
   const source=fs.readFileSync(path.join(publicRoot,file),'utf8');
-  for(const [,ref] of source.matchAll(/\\b(?:src|href)="\\.\\/([^"?]+)"/g)){
+  for(const [,ref] of source.matchAll(/\b(?:src|href)="\.\/([^"?]+)"/g)){
    if(/^(?:https?:|data:)/i.test(ref))continue;
    const local=path.resolve(publicRoot,ref);
    assert.ok(local.startsWith(publicRoot+path.sep)&&fs.existsSync(local),
@@ -70,7 +70,7 @@ try{
   }
  }
  const amplify=fs.readFileSync(path.join(target,'amplify.yml'),'utf8');
- assert.match(amplify,/baseDirectory:\\s*dist\\b/,'Amplify must publish the staged allowlist');
+ assert.match(amplify,/baseDirectory:\s*dist\b/,'Amplify must publish the staged allowlist');
  const headers=fs.readFileSync(path.join(target,'customHttp.yml'),'utf8');
  for(const header of ['X-Content-Type-Options','Referrer-Policy','X-Frame-Options',
   'Permissions-Policy','Content-Security-Policy'])assert.ok(headers.includes(header),
