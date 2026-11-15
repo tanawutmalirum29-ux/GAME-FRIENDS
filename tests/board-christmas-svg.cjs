@@ -36,8 +36,8 @@ assert.match(board,/icon\(g,'bomber',0,0,62\)/,'aircraft is visibly larger than 
 assert.match(board,/g\.rotate\(sk\.angle\)/,'Santa Sleigh follows the aimed direction without the old aircraft 90-degree offset');
 assert.match(board,/g\.rotate\(direction\)/,'Santa Sleigh keeps the flight path direction');
 assert.match(board,/const ridingUfo=s\.phase==='aim'&&s\.skill\?\.kind==='ufo'/,'the UFO pilot is hidden at the ground position while aiming');
-assert.match(board,/window\.PartyPlayerAvatar\?\.draw\(g,\{\.\.\.rider,x:sk\.x,y:sk\.y-70/,'the pilot rides on the UFO during aiming');
-assert.match(board,/window\.PartyPlayerAvatar\?\.draw\(g,\{\.\.\.rider,x:p\.x,y:p\.y-152/,'the pilot rides on the UFO during the swap effect');
+assert.match(board,/if\(rider&&window\.PartyPlayerAvatar\?\.draw\)window\.PartyPlayerAvatar\.draw\(g,\{\.\.\.rider,x:sk\.x,y:sk\.y-70/,'the pilot rides on the UFO during aiming');
+assert.match(board,/if\(rider&&window\.PartyPlayerAvatar\?\.draw\)window\.PartyPlayerAvatar\.draw\(g,\{\.\.\.rider,x:p\.x,y:p\.y-152/,'the pilot rides on the UFO during the swap effect');
 assert.match(dice,/face\.value%2\?'#ac4052':'#28735f'/,
  'ivory 3D dice have alternating Christmas red and evergreen trim');
 assert.match(dice,/engraved snowflake/);
