@@ -25,6 +25,7 @@ function fixture({failFirst=false}={}){
 async function success(){
  const f=fixture();
  assert.equal(f.tags.length,0,'offline and join screen bootstrap require no network');
+  assert.match(f.window.GameRuntimeDeps.toString?.()||'',/./,'runtime dependency facade exists');
  assert.equal(f.window.GameRuntimeDeps.ready('peer'),false);
  const first=f.window.GameRuntimeDeps.ensureController();
  const duplicate=f.window.GameRuntimeDeps.ensureController();
