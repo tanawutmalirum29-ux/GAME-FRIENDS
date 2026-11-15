@@ -97,10 +97,14 @@ function consume(s,p,kind){
  // Debug stock is host-only: infinite use never consumes a slot.
  if(index>=0&&!p.debugUnlimitedItems)items.splice(index,1);
  p.item=items[0]||null;
- p.bagIndex=Math.min(p.bagIndex||0,items.length);
+ p.bagIndex=items.length?Math.min(Math.max(0,Math.trunc(p.bagIndex||0)),items.length-1):0;
  p.bagOpen=false;p.usedRound=s.roundNumber;
 }
-function begin(s,p,api,kind=bag(p)[p.bagIndex||0]){
+function begin(s,p,api,kind){
+ if(kind===undefined){
+  const items=bag(p),index=items.length?Math.min(Math.max(0,Math.trunc(p.bagIndex||0)),items.length-1):0;
+  kind=items[index];
+ }
  if(s.phase!=='ready'||!kind||!bag(p).includes(kind)||
    p.usedRound===s.roundNumber||s.rolled||s.time>=s.readyDeadline)return false;
  const extension=window.BoardSystemPlugins?.get('items',kind);
