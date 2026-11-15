@@ -4,9 +4,12 @@ on:
     branches: [main, feat/color-switch-game-5]
   pull_request:
     branches: [main]
+permissions:
+  contents: read
 jobs:
   node-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
