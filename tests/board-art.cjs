@@ -519,13 +519,13 @@ console.log('BOARD AVATAR PASS: retained world heading, unchanged player state, 
  assert.equal(P.action(s,p.id,'A'),true);
  assert.equal(s.phase,'aim');
  view=capture();
- for(const title of ['เล็งเป้า • เครื่องบินรบ','ยืนยันโจมตี','หมุนทิศ 45° • 8 ทิศ','ยกเลิกการใช้']){
-  assert.ok(view.some(v=>v.text===title),'aircraft targeting guide includes: '+title);
+ for(const title of ['เล็งเป้า • Santa Sleigh','ยืนยันโจมตี','หมุนทิศ 45° • 8 ทิศ','ยกเลิกการใช้']){
+  assert.ok(view.some(v=>v.text===title),'Santa Sleigh targeting guide includes: '+title);
  }
  const keys=['A','B','C'].map(key=>view.find(v=>v.text===key&&v.x===41.5));
  assert.deepEqual(keys.map(v=>v?.y),[155,186,217],
   'A/B/C appear as three distinct rows under player number one');
- assert.ok(view.find(v=>v.text==='เล็งเป้า • เครื่องบินรบ').x<100,
+ assert.ok(view.find(v=>v.text==='เล็งเป้า • Santa Sleigh').x<100,
   'aim legend is upper-left, not over the center dice popup');
  assert.equal(P.action(s,p.id,'C'),true);
  p.item='ufo';p.actionIndex=I.ids.indexOf('ufo')+1;
