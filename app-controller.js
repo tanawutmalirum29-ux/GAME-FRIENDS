@@ -240,6 +240,20 @@ function clipGraphemes(value,maxLength=14){
 function cleanName(value){
  return clipGraphemes(String(value??'').trim().replace(/[<>]/g,''),14)||'เพื่อนใหม่';
 }
+function uniquePlayerName(value,roster=[],reservedNames=[]){
+ const base=cleanName(value);
+ const names=new Set((Array.isArray(roster)?roster:[]).map(item=>
+  typeof item==='string'?item:item?.name).filter(name=>typeof name==='string'));
+ const reserved=new Set((Array.isArray(reservedNames)?reservedNames:[])
+  .filter(name=>typeof name==='string'));
+ if(!names.has(base))return base;
+ for(let index=2;index<100;index++){
+  const suffix=' '+index;
+  const candidate=clipGraphemes(base,Math.max(0,14-Array.from(suffix).length))+suffix;
+  if(!names.has(candidate)&&!reserved.has(candidate))return candidate;
+ }
+ return clipGraphemes(base,9)+' '+String(names.size+1);
+}
 const $ = (id) => document.getElementById(id);
 const MAX_PLAYERS = 12;
 // Player identity colors in seat order: primary + secondary hues first, then
@@ -502,6 +516,8 @@ function restorePlayers(list){
  // Reserve valid saved choices before migrating an undressed or duplicate seat.
  const reservedCosmetics=new Set(list.map(p=>cosmetics?.normalize?.(p?.cosmetic)).filter(id=>id&&id!=='none'));
  const claimedCosmetics=new Set();
+ const reservedNames=list.filter(item=>item&&typeof item.name==='string'&&item.name.trim())
+  .map(item=>cleanName(item.name));
  players=[];
  for(const a of list){
   if(!a||!/^p\d+$/.test(String(a.id))||ids.has(a.id)||
@@ -520,7 +536,7 @@ function restorePlayers(list){
     ?savedCosmetic
     :cosmetics?.randomAvailable?.(new Set([...reservedCosmetics,...claimedCosmetics]))||'white-rope-wrap';
   claimedCosmetics.add(cosmetic);
-  players.push({id:a.id,name:cleanName(a.name),color,type:a.type,
+  players.push({id:a.id,name:uniquePlayerName(a.name,players,reservedNames),color,type:a.type,
    clientToken:a.token||null,conn:null,input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,
    score:0,total:Number(a.total)||0,choice:Object.hasOwn(MODES,a.choice)?a.choice:null,
    ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
@@ -1153,7 +1169,7 @@ function makePlayer(name,type,conn) {
   if(!color)return null;
   // Assign every new bot AND remote player a distinct visible starting outfit.
   const cosmetic=(typeof window!=='undefined'?window.PartyCosmetics?.randomAvailable?.(players.map(p=>p.cosmetic)):null)||'white-rope-wrap';
-  const p={id:'p'+nextId++,name:cleanName(name),type,color,conn:conn||null,
+  const p={id:'p'+nextId++,name:uniquePlayerName(name,players),type,color,conn:conn||null,
     input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,score:0,total:0,
     choice:type==='local'?'ghost':null,
     ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
@@ -1900,7 +1916,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   // Display first-time connection as a real loading screen, before the SVG.
   if(!onlineHost&&currentView==='home')
     showTransitionLoading('plaza','กำลังสร้างห้อง','กำลังติดต่อเซิร์ฟเวอร์และเตรียมล็อบบี้...');
-  if(onlineHost){setView('hostLobby');return;}
+  if(onlineHost&&hostPeer&&!hostPeer.destroyed){setView('hostLobby');return;}
   if(typeof Peer!=='function'){
     const deps=window.GameRuntimeDeps;
     if(deps){
@@ -1933,6 +1949,12 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     void turnBootstrap.then(()=>{
       if(initialAttempt===hostOpenAttempt&&initialView===currentView)
         startHost(retries,resumeCode,expectedAttempt);
+    }).catch(error=>{
+      if(initialAttempt!==hostOpenAttempt)return;
+      $('hostBtn').disabled=false;
+      hideTransitionLoading('plaza');
+      setStatus('เตรียมการเชื่อมต่อเครือข่ายไม่สำเร็จ',true);
+      showToast('เตรียมเครือข่ายไม่สำเร็จ: '+String(error?.message||error),true);
     });
     return;
   }
@@ -1985,7 +2007,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
           if(boardSession){send(conn,{t:'reject',reason:'BOARD PARTY กำลังเล่นอยู่ • เข้าร่วมได้เมื่อกลับล็อบบี้'});return;}
           if(players.length>=MAX_PLAYERS){send(conn,{t:'reject',reason:'ห้องเต็มแล้ว (สูงสุด '+MAX_PLAYERS+' คน)'});return;}
           p=makePlayer(msg.name,'remote',conn);
-          if(!p)return;
+          if(!p){send(conn,{t:'reject',reason:'ไม่สามารถเพิ่มผู้เล่นได้ในขณะนี้ • ไม่พบสีหรือที่นั่งว่าง'});return;}
           p.clientToken=token;
           if(round&&round.phase!=='results')p.active=false;
         }
@@ -2112,7 +2134,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
             // Independent server sequence prevents unordered axis updates from
             // suppressing a later reliable A/B/C button transition.
             input.actionId=(boardSession.lastActions[p.id]??-1)+1;
-            if(Date.now()-(conn.fastAxisLastAt||0)<250){
+            if(!locked&&Date.now()-(conn.fastAxisLastAt||0)<250){
               input.keys.axisX=conn.fastAxisX||0;input.keys.axisY=conn.fastAxisY||0;
             }
           }
@@ -2149,19 +2171,34 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   });
   peer.on('close',()=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
-    // PeerJS "close" means destroyed; never erase a live game/room because
-    // the library closed after a transient network error.
+    // A destroyed Peer cannot reconnect(). Re-open the same room ID while
+    // preserving the in-memory roster, round and BOARD state for controllers
+    // to reclaim through their stable client tokens.
     stopHostReconnect();
-    if(!onlineHost)hideTransitionLoading('plaza');
-    setStatus('การเชื่อมต่อห้องหยุดทำงาน • สถานะเกมยังถูกเก็บไว้',true);
+    if(!onlineHost){
+      hideTransitionLoading('plaza');
+      setStatus('การเชื่อมต่อห้องหยุดทำงาน',true);
+      return;
+    }
+    const code=roomCode;
+    hostPeer=null;
+    if(hostRetryTimeout!==null)clearTimeout(hostRetryTimeout);
+    const reopenAttempt=++hostOpenAttempt;
+    resetHostReconnect();
+    setStatus('การเชื่อมต่อห้องหยุดทำงาน • กำลังเปิดห้องเดิมอีกครั้ง...',true);
+    hostRetryTimeout=setTimeout(()=>{
+      hostRetryTimeout=null;
+      if(onlineHost&&roomCode===code&&hostOpenAttempt===reopenAttempt&&!hostPeer)
+        startHost(0,code,reopenAttempt);
+    },1200);
   });
   peer.on('error',err=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
     const type=String(err?.type||'unknown');
     const fatal=new Set(['browser-incompatible','invalid-id','invalid-key','ssl-unavailable']);
-    const signaling=new Set(['network','socket-error','socket-closed','server-error','disconnected']);
+    const signaling=new Set(['network','socket-error','socket-closed','server-error','disconnected','unavailable-id']);
     if(onlineHost){
-      if(fatal.has(type)||type==='unavailable-id'||peer.destroyed){
+      if(fatal.has(type)||peer.destroyed){
         stopHostReconnect();
         setStatus('ไม่สามารถเชื่อมต่อห้องเดิม: '+type+' • สถานะเกมยังอยู่',true);
       }else if(peer.open&&!peer.disconnected&&!signaling.has(type)){
@@ -4522,8 +4559,8 @@ $('closeRoomBtn').addEventListener('click',()=>{
 $('copyBtn').addEventListener('click',copyInvite);
 $('plazaCenterQrBtn').addEventListener('click',copyInvite);
 $('exitBtn').addEventListener('click',returnToLobby);
-// Results/scoring exists only in the Host bundle; bind lazily for Controller.
-$('backBtn').addEventListener('click',()=>onResultBack());
+// Results/scoring exists only in the Host bundle; the Controller bundle omits it.
+if(typeof onResultBack==='function')$('backBtn').addEventListener('click',()=>onResultBack());
 $('replayBtn').addEventListener('click',advanceParty);
 document.querySelectorAll('[data-session-mode]').forEach(button=>{
  button.addEventListener('click',()=>{
@@ -4883,7 +4920,15 @@ window.GAME_CAN_AUTO_RELOAD=()=>{
  // Host lobby as well as its logical view from a destructive Core reload.
  if(currentView==='hostLobby'||!$('hostLobby').classList.contains('hidden'))return false;
  if(currentView==='home')return true;
- return currentView==='controller';
+ if(currentView==='controller'){
+  const codeInput=$('roomCodeInput'),nameInput=$('nick');
+  const scanning=!$('roomScannerPanel').classList.contains('hidden');
+  // Do not discard an unsubmitted room code, an active text edit or a live QR scan.
+  if(scanning||document.activeElement===codeInput||document.activeElement===nameInput||
+     String(codeInput.value||'').trim())return false;
+  return true;
+ }
+ return false;
 };
 window.GAME_PREPARE_AUTO_RELOAD=()=>{
  if(currentView==='hostLobby')return onlineHost?saveHost():(!hostPeer&&saveOffline());
@@ -4891,5 +4936,18 @@ window.GAME_PREPARE_AUTO_RELOAD=()=>{
  return true;
 };
 window.GAME_NOTIFY_UPDATE=()=>showToast('มีแพตช์ใหม่ • ระบบจะอัปเดตเมื่อออกจากห้อง');
+// The Service Worker may remove old content-addressed hashes only after every
+// open tab confirms there is no active lobby, room, round or Controller session.
+function hasActiveAssetSession(){
+ return !!(round||gameSelection||boardSession||onlineHost||hostPeer||hostNetworkLoad||
+  controllerReady||controllerPeer||controllerConn||controllerNetworkLoad||currentView==='hostLobby');
+}
+if(navigator.serviceWorker?.addEventListener){
+ navigator.serviceWorker.addEventListener('message',event=>{
+  if(event.data?.type!=='gf-query-session'||!event.ports?.[0])return;
+  try{event.ports[0].postMessage({active:hasActiveAssetSession()});}
+  catch(_){}
+ });
+}
 requestAnimationFrame(animate);
 })();

@@ -8,7 +8,7 @@ function finishBoard(){
   const list=$('resultList');list.replaceChildren();
   for(const p of ranked){
     const progress=s.map.nodes[p.currentNodeId].progress,rank=1+ranked.filter(q=>s.map.nodes[q.currentNodeId].progress>progress).length;
-    const row=document.createElement('div');row.className='result-player';
+    const row=document.createElement('div');row.className='result-player';row.dataset.playerId=String(p.id);
     const name=document.createElement('div');name.textContent='อันดับ '+rank+' • '+p.name;name.style.color=p.color;
     const note=document.createElement('small');note.textContent=Math.round(progress/s.map.length*100)+'% • HP '+p.hp+'/'+window.BoardParty.MAX_HP;
     row.append(name,note);list.append(row);

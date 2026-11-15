@@ -2,7 +2,7 @@
    Bots share short-lived navigation fields for the same corridor segment instead
    of running 12 independent Dijkstra searches over nearly identical obstacles.
    Each bot still has independent replan timing, steering and crowd avoidance. */
-import {C,clamp,Heap,NB,NBX,NBY,NBL} from './config.js';
+import {C,clamp,Heap,NBX,NBY,NBL} from './config.js';
 import {obstacleContact} from './map.js';
 const HEAP=new Heap(),QB=[];   // one shared heap + scratch list: fields are built one at a time
 export const BOT_NAV_CELL=10; // Original fidelity restored (was increased to 16 for speed).

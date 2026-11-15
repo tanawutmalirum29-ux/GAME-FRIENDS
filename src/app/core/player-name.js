@@ -27,3 +27,17 @@ function clipGraphemes(value,maxLength=14){
 function cleanName(value){
  return clipGraphemes(String(value??'').trim().replace(/[<>]/g,''),14)||'เพื่อนใหม่';
 }
+function uniquePlayerName(value,roster=[],reservedNames=[]){
+ const base=cleanName(value);
+ const names=new Set((Array.isArray(roster)?roster:[]).map(item=>
+  typeof item==='string'?item:item?.name).filter(name=>typeof name==='string'));
+ const reserved=new Set((Array.isArray(reservedNames)?reservedNames:[])
+  .filter(name=>typeof name==='string'));
+ if(!names.has(base))return base;
+ for(let index=2;index<100;index++){
+  const suffix=' '+index;
+  const candidate=clipGraphemes(base,Math.max(0,14-Array.from(suffix).length))+suffix;
+  if(!names.has(candidate)&&!reserved.has(candidate))return candidate;
+ }
+ return clipGraphemes(base,9)+' '+String(names.size+1);
+}

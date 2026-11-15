@@ -115,6 +115,12 @@ function renderResultAvatar(p,portrait){
  if(source.complete&&source.naturalWidth>0)sync();
  else source.addEventListener?.('load',sync,{once:true});
 }
+function resultColorsEqual(playerColor,labelColor){
+ if(String(playerColor||'')===String(labelColor||''))return true;
+ const swatch=document.createElement('span');
+ swatch.style.color=String(playerColor||'');
+ return !!swatch.style.color&&swatch.style.color===String(labelColor||'');
+}
 function layoutFinalResults(){
   // Keep legacy label/score nodes first: voting, accessibility and game engines
   // consume those. The new vector portrait and rank plaque are decorative.
@@ -164,16 +170,16 @@ function layoutFinalResults(){
     row.dataset.rank=String(rank);
     row.classList.toggle('is-winner',rank===1);
     row.classList.toggle('is-podium',rank<=3);
-    row.style.setProperty('--result-accent',color);
-    // Distinct player-owned banner colors, NEVER fixed purple/silver/green by rank.
-    const playerName=(name.includes(' • ')?name.split(' • ').pop():
-      name.replace(/^(?:ผู้ชนะ\s*)?อันดับ\s*\d+(?:\s*ร่วม)?\s*[.\-–]?\s*/, '')).trim();
-    // The shiny 1ST/2ND/3RD ordinal already communicates position. The text
-    // line should be just "บอท 4", never "อันดับ 1 • บอท 4".
-    if(label){label.textContent=playerName;label.title=playerName;}
-    const p=roster.find(q=>q.name===playerName&&q.color===color)||
+    // Resolve the row using its stable identity. The label is only a legacy fallback.
+    const playerName=name.replace(/^(?:ผู้ชนะ\s*)?อันดับ\s*\d+(?:\s*ร่วม)?\s*•\s*/,'').trim();
+    const existingId=String(row.dataset.playerId||'');
+    const p=(existingId&&roster.find(q=>String(q.id)===existingId))||
+      roster.find(q=>q.name===playerName&&resultColorsEqual(q.color,color))||
       roster.find(q=>q.name===playerName)||{color};
-    row.dataset.playerId=String(p.id||'');
+    const displayName=String(p.name||playerName);
+    if(label){label.textContent=displayName;label.title=displayName;}
+    row.dataset.playerId=String(p.id||existingId||'');
+    row.style.setProperty('--result-accent',p.color||color);
     let portrait=Array.from(row.children).find(x=>x.className==='result-avatar');
     if(!portrait){
       portrait=document.createElement('div');
@@ -221,7 +227,7 @@ function syncBoardMinigameResults(){
   for(const result of [...s.results].sort((a,b)=>a.rank-b.rank)){
     const p=s.players.find(player=>player.id===result.id);
     if(!p)continue;
-    const row=document.createElement('div');row.className='result-player';
+    const row=document.createElement('div');row.className='result-player';row.dataset.playerId=String(p.id);
     const name=document.createElement('div');name.style.color=p.color;
     name.textContent='อันดับ '+result.rank+' • '+p.name;
     const detail=document.createElement('span');
@@ -267,7 +273,7 @@ function showCumulativeScores(){
   for(const p of ranked){
     const rank=1+ranked.filter(q=>(q.total||0)>(p.total||0)).length;
     const tied=ranked.filter(q=>(q.total||0)===(p.total||0)).length>1;
-    const row=document.createElement('div');row.className='result-player';
+    const row=document.createElement('div');row.className='result-player';row.dataset.playerId=String(p.id);
     const label=document.createElement('div');
     label.style.color=p.color;
     label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
@@ -342,7 +348,7 @@ function endPluginRound(){
  const list=$('resultList');list.replaceChildren();
  for(const p of ranked){
   const item=scores.get(p.id),row=document.createElement('div');
-  row.className='result-player';
+  row.className='result-player';row.dataset.playerId=String(p.id);
   const label=document.createElement('div');label.style.color=p.color;
   label.textContent='อันดับ '+rank(p)+(winners.length>1&&rank(p)===1?' ร่วม':'')+' • '+p.name;
   const detail=document.createElement('span');
@@ -363,7 +369,7 @@ function endPluginRound(){
   list.append(heading);
   for(const p of overall){
    const ranking=1+overall.filter(q=>(q.total||0)>(p.total||0)).length;
-   const row=document.createElement('div');row.className='result-player';
+   const row=document.createElement('div');row.className='result-player';row.dataset.playerId=String(p.id);
    const name=document.createElement('div');name.style.color=p.color;
    name.textContent='อันดับ '+ranking+' • '+p.name;
    const detail=document.createElement('span');detail.textContent=(p.total||0)+' คะแนนรวม';

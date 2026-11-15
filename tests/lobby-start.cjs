@@ -101,9 +101,10 @@ assert.match(html,/id="plazaRoomToggle"[^>]*hidden/,
  assert.ok(start>=0&&stop>start&&rStart>=0&&rStop>rStart);
  const c={};
  vm.createContext(c);
- vm.runInContext(source.slice(start,stop)+
+ const playerNameSource=fs.readFileSync(path.join(root,'src/app/core/player-name.js'),'utf8');
+ vm.runInContext(playerNameSource+"\n"+source.slice(start,stop)+
   "\nconst MODES={ghost:'GHOST ATTACK'};let players=[],nextId=1;"+
-  "const cleanName=x=>String(x||'');const blankInput=()=>({});\n"+
+  "const blankInput=()=>({});\n"+
   source.slice(rStart,rStop)+
   "\nthis.palette=COLORS;this.legacy=LEGACY_COLORS;"+
   "this.add=()=>{const color=pickUnusedColor();if(color)players.push({color});return color};"+
@@ -158,6 +159,14 @@ assert.match(html,/id="plazaRoomToggle"[^>]*hidden/,
   const reloaded=c.restore(restored.map(p=>({...p,type:'local',choice:'ghost'})));
   assert.deepEqual(reloaded,restored,'new colors remain stable on subsequent reload');
  }
+ const duplicateRestore=c.restore([
+  {id:'p1',name:'เพื่อนใหม่',color:palette[0],type:'local',total:0},
+  {id:'p2',name:'เพื่อนใหม่',color:palette[1],type:'local',total:0},
+  {id:'p3',name:'เพื่อนใหม่ 2',color:palette[2],type:'local',total:0}
+ ]);
+ assert.deepEqual(Array.from(duplicateRestore,p=>p.name),
+  ['เพื่อนใหม่','เพื่อนใหม่ 3','เพื่อนใหม่ 2'],
+  'generated names must not take a different restored player’s saved suffix');
 }
 // COLOR STUDIO replaces the unused lower-left PLAY CORNER; only B acts there.
 const zones=JSON.parse(fs.readFileSync(path.join(root,'src/lobby/lobby-zones.json'),'utf8'));

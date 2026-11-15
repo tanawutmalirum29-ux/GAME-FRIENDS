@@ -5,7 +5,7 @@ frontend:
       commands:
         - node scripts/build-static.cjs
   artifacts:
-    baseDirectory: .
+    baseDirectory: dist
     files:
       - '**/*'
   cache:

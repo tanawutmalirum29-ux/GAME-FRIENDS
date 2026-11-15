@@ -160,13 +160,6 @@ function calculateBlastCells(s,p){
  }
  return ids;
 }
-function touchedByBlast(s,p,tileIds){
- const radius=C.radius;for(const id of tileIds){
-  const t=s.tiles[id],dx=p.x-clamp(p.x,t.x,t.x+s.size),dy=p.y-clamp(p.y,t.y,t.y+s.size);
-  if(dx*dx+dy*dy<=radius*radius)return true;
- }
- return false;
-}
 function applyStun(p,seconds,color='#ffe28a'){
  const c=p.cs;if(!c||c.stunImmunity>0)return false;
  c.punchState=null;c.stunRemaining=Math.max(c.stunRemaining,seconds);

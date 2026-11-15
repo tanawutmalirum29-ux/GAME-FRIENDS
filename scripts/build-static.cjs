@@ -67,4 +67,7 @@ if(gameCatalog){
  html=lazy.pruneGameCover(lazy.pruneAppBoot(lazy.pruneHostCore(lazy.pruneExternal(lazy.pruneBoardCore(lazy.pruneLegacy(html,gameCatalog))))));
 }
 fs.writeFileSync(indexPath,html);
+// Amplify publishes only the verified browser runtime, not repository tooling.
+const publicArtifact=require('./prepare-deploy.cjs').build({root});
+console.log('Public deployment artifact:',publicArtifact.files,'files,',publicArtifact.bytes,'bytes');
 process.stdout.write('Static deploy '+id.slice(0,12)+'\n');

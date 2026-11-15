@@ -10,7 +10,7 @@ function makePlayer(name,type,conn) {
   if(!color)return null;
   // Assign every new bot AND remote player a distinct visible starting outfit.
   const cosmetic=(typeof window!=='undefined'?window.PartyCosmetics?.randomAvailable?.(players.map(p=>p.cosmetic)):null)||'white-rope-wrap';
-  const p={id:'p'+nextId++,name:cleanName(name),type,color,conn:conn||null,
+  const p={id:'p'+nextId++,name:uniquePlayerName(name,players),type,color,conn:conn||null,
     input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,score:0,total:0,
     choice:type==='local'?'ghost':null,
     ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
@@ -757,7 +757,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   // Display first-time connection as a real loading screen, before the SVG.
   if(!onlineHost&&currentView==='home')
     showTransitionLoading('plaza','กำลังสร้างห้อง','กำลังติดต่อเซิร์ฟเวอร์และเตรียมล็อบบี้...');
-  if(onlineHost){setView('hostLobby');return;}
+  if(onlineHost&&hostPeer&&!hostPeer.destroyed){setView('hostLobby');return;}
   if(typeof Peer!=='function'){
     const deps=window.GameRuntimeDeps;
     if(deps){
@@ -790,6 +790,12 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     void turnBootstrap.then(()=>{
       if(initialAttempt===hostOpenAttempt&&initialView===currentView)
         startHost(retries,resumeCode,expectedAttempt);
+    }).catch(error=>{
+      if(initialAttempt!==hostOpenAttempt)return;
+      $('hostBtn').disabled=false;
+      hideTransitionLoading('plaza');
+      setStatus('เตรียมการเชื่อมต่อเครือข่ายไม่สำเร็จ',true);
+      showToast('เตรียมเครือข่ายไม่สำเร็จ: '+String(error?.message||error),true);
     });
     return;
   }
@@ -842,7 +848,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
           if(boardSession){send(conn,{t:'reject',reason:'BOARD PARTY กำลังเล่นอยู่ • เข้าร่วมได้เมื่อกลับล็อบบี้'});return;}
           if(players.length>=MAX_PLAYERS){send(conn,{t:'reject',reason:'ห้องเต็มแล้ว (สูงสุด '+MAX_PLAYERS+' คน)'});return;}
           p=makePlayer(msg.name,'remote',conn);
-          if(!p)return;
+          if(!p){send(conn,{t:'reject',reason:'ไม่สามารถเพิ่มผู้เล่นได้ในขณะนี้ • ไม่พบสีหรือที่นั่งว่าง'});return;}
           p.clientToken=token;
           if(round&&round.phase!=='results')p.active=false;
         }
@@ -969,7 +975,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
             // Independent server sequence prevents unordered axis updates from
             // suppressing a later reliable A/B/C button transition.
             input.actionId=(boardSession.lastActions[p.id]??-1)+1;
-            if(Date.now()-(conn.fastAxisLastAt||0)<250){
+            if(!locked&&Date.now()-(conn.fastAxisLastAt||0)<250){
               input.keys.axisX=conn.fastAxisX||0;input.keys.axisY=conn.fastAxisY||0;
             }
           }
@@ -1006,19 +1012,34 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   });
   peer.on('close',()=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
-    // PeerJS "close" means destroyed; never erase a live game/room because
-    // the library closed after a transient network error.
+    // A destroyed Peer cannot reconnect(). Re-open the same room ID while
+    // preserving the in-memory roster, round and BOARD state for controllers
+    // to reclaim through their stable client tokens.
     stopHostReconnect();
-    if(!onlineHost)hideTransitionLoading('plaza');
-    setStatus('การเชื่อมต่อห้องหยุดทำงาน • สถานะเกมยังถูกเก็บไว้',true);
+    if(!onlineHost){
+      hideTransitionLoading('plaza');
+      setStatus('การเชื่อมต่อห้องหยุดทำงาน',true);
+      return;
+    }
+    const code=roomCode;
+    hostPeer=null;
+    if(hostRetryTimeout!==null)clearTimeout(hostRetryTimeout);
+    const reopenAttempt=++hostOpenAttempt;
+    resetHostReconnect();
+    setStatus('การเชื่อมต่อห้องหยุดทำงาน • กำลังเปิดห้องเดิมอีกครั้ง...',true);
+    hostRetryTimeout=setTimeout(()=>{
+      hostRetryTimeout=null;
+      if(onlineHost&&roomCode===code&&hostOpenAttempt===reopenAttempt&&!hostPeer)
+        startHost(0,code,reopenAttempt);
+    },1200);
   });
   peer.on('error',err=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
     const type=String(err?.type||'unknown');
     const fatal=new Set(['browser-incompatible','invalid-id','invalid-key','ssl-unavailable']);
-    const signaling=new Set(['network','socket-error','socket-closed','server-error','disconnected']);
+    const signaling=new Set(['network','socket-error','socket-closed','server-error','disconnected','unavailable-id']);
     if(onlineHost){
-      if(fatal.has(type)||type==='unavailable-id'||peer.destroyed){
+      if(fatal.has(type)||peer.destroyed){
         stopHostReconnect();
         setStatus('ไม่สามารถเชื่อมต่อห้องเดิม: '+type+' • สถานะเกมยังอยู่',true);
       }else if(peer.open&&!peer.disconnected&&!signaling.has(type)){

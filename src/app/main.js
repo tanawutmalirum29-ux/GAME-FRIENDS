@@ -175,7 +175,15 @@ window.GAME_CAN_AUTO_RELOAD=()=>{
  // Host lobby as well as its logical view from a destructive Core reload.
  if(currentView==='hostLobby'||!$('hostLobby').classList.contains('hidden'))return false;
  if(currentView==='home')return true;
- return currentView==='controller';
+ if(currentView==='controller'){
+  const codeInput=$('roomCodeInput'),nameInput=$('nick');
+  const scanning=!$('roomScannerPanel').classList.contains('hidden');
+  // Do not discard an unsubmitted room code, an active text edit or a live QR scan.
+  if(scanning||document.activeElement===codeInput||document.activeElement===nameInput||
+     String(codeInput.value||'').trim())return false;
+  return true;
+ }
+ return false;
 };
 window.GAME_PREPARE_AUTO_RELOAD=()=>{
  if(currentView==='hostLobby')return onlineHost?saveHost():(!hostPeer&&saveOffline());
@@ -183,4 +191,17 @@ window.GAME_PREPARE_AUTO_RELOAD=()=>{
  return true;
 };
 window.GAME_NOTIFY_UPDATE=()=>showToast('มีแพตช์ใหม่ • ระบบจะอัปเดตเมื่อออกจากห้อง');
+// The Service Worker may remove old content-addressed hashes only after every
+// open tab confirms there is no active lobby, room, round or Controller session.
+function hasActiveAssetSession(){
+ return !!(round||gameSelection||boardSession||onlineHost||hostPeer||hostNetworkLoad||
+  controllerReady||controllerPeer||controllerConn||controllerNetworkLoad||currentView==='hostLobby');
+}
+if(navigator.serviceWorker?.addEventListener){
+ navigator.serviceWorker.addEventListener('message',event=>{
+  if(event.data?.type!=='gf-query-session'||!event.ports?.[0])return;
+  try{event.ports[0].postMessage({active:hasActiveAssetSession()});}
+  catch(_){}
+ });
+}
 requestAnimationFrame(animate);

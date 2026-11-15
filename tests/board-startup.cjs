@@ -16,7 +16,8 @@ const server=http.createServer((req,res)=>{
 });
 async function main(){
  await new Promise(r=>server.listen(0,'127.0.0.1',r));fs.mkdirSync(out,{recursive:true});
- const executablePath=engine==='chromium'?(process.env.CHROME_PATH||'/usr/bin/chromium'):undefined;
+ const executablePath=engine==='chromium'?(process.env.CHROME_PATH||
+  (fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined)):undefined;
  const browser=await playwright[engine].launch({headless:true,executablePath,args:engine==='chromium'?['--no-sandbox']:[]});
  try{
   for(const denyTerrain of [false,true]){
