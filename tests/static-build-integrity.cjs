@@ -65,7 +65,7 @@ try{
   for(const entry of fs.readdirSync(directory,{withFileTypes:true})){
    const filename=path.join(directory,entry.name);
    if(entry.isDirectory())scanPublic(filename);
-   else if(entry.isFile()&&/\\.(?:md|mdx)$/i.test(entry.name))publicMarkdown.push(filename);
+   else if(entry.isFile()&&/\.(?:md|mdx)$/i.test(entry.name))publicMarkdown.push(filename);
   }
  })(publicRoot);
  assert.deepEqual(publicMarkdown,[],'internal artwork handoff documentation must not enter public deploy output');
