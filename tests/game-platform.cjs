@@ -168,11 +168,11 @@ async function platform(){
  let attempted=0;
  const document={hidden:false,baseURI:'https://example.org/repo/index.html',
   createElement(){return {remove(){}};},
-  head:{appendChild(tag){attempted++;queueMicrotask(()=>tag.onerror());}},
+  head:{appendChild(tag){attempted++;lastScriptUrl=tag.src;queueMicrotask(()=>tag.onerror());}},
   addEventListener(){}};
  let outage=false,lastScriptUrl='';
  const ctx={window,document,location:{origin:'https://example.org',href:'https://example.org/?host=1'},
-  URL,Date,CustomEvent:class{constructor(){}},setInterval(){},console,
+  URL,Date,CustomEvent:class{constructor(){}},setInterval(){},setTimeout,clearTimeout,console,
   fetch:async()=>{if(outage)throw Error('offline');return {ok:true,json:async()=>JSON.parse(JSON.stringify(data))};}};
  vm.runInNewContext(moduleSource,ctx);
  await window.GamePlatform.initialize();
