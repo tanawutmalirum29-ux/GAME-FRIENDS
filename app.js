@@ -240,6 +240,18 @@ function clipGraphemes(value,maxLength=14){
 function cleanName(value){
  return clipGraphemes(String(value??'').trim().replace(/[<>]/g,''),14)||'เพื่อนใหม่';
 }
+function uniquePlayerName(value,roster=[]){
+ const base=cleanName(value);
+ const names=new Set((Array.isArray(roster)?roster:[]).map(item=>
+  typeof item==='string'?item:item?.name).filter(name=>typeof name==='string'));
+ if(!names.has(base))return base;
+ for(let index=2;index<100;index++){
+  const suffix=' '+index;
+  const candidate=clipGraphemes(base,Math.max(0,14-Array.from(suffix).length))+suffix;
+  if(!names.has(candidate))return candidate;
+ }
+ return clipGraphemes(base,9)+' '+String(names.size+1);
+}
 const $ = (id) => document.getElementById(id);
 const MAX_PLAYERS = 12;
 // Player identity colors in seat order: primary + secondary hues first, then
@@ -520,7 +532,7 @@ function restorePlayers(list){
     ?savedCosmetic
     :cosmetics?.randomAvailable?.(new Set([...reservedCosmetics,...claimedCosmetics]))||'white-rope-wrap';
   claimedCosmetics.add(cosmetic);
-  players.push({id:a.id,name:cleanName(a.name),color,type:a.type,
+  players.push({id:a.id,name:uniquePlayerName(a.name,players),color,type:a.type,
    clientToken:a.token||null,conn:null,input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,
    score:0,total:Number(a.total)||0,choice:Object.hasOwn(MODES,a.choice)?a.choice:null,
    ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
@@ -1153,7 +1165,7 @@ function makePlayer(name,type,conn) {
   if(!color)return null;
   // Assign every new bot AND remote player a distinct visible starting outfit.
   const cosmetic=(typeof window!=='undefined'?window.PartyCosmetics?.randomAvailable?.(players.map(p=>p.cosmetic)):null)||'white-rope-wrap';
-  const p={id:'p'+nextId++,name:cleanName(name),type,color,conn:conn||null,
+  const p={id:'p'+nextId++,name:uniquePlayerName(name,players),type,color,conn:conn||null,
     input:blankInput(),x:480,y:270,vx:0,vy:0,face:1,score:0,total:0,
     choice:type==='local'?'ghost':null,
     ghost:false,item:null,selecting:false,targetId:null,alive:true,active:false,
@@ -1900,7 +1912,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   // Display first-time connection as a real loading screen, before the SVG.
   if(!onlineHost&&currentView==='home')
     showTransitionLoading('plaza','กำลังสร้างห้อง','กำลังติดต่อเซิร์ฟเวอร์และเตรียมล็อบบี้...');
-  if(onlineHost){setView('hostLobby');return;}
+  if(onlineHost&&hostPeer&&!hostPeer.destroyed){setView('hostLobby');return;}
   if(typeof Peer!=='function'){
     const deps=window.GameRuntimeDeps;
     if(deps){
@@ -1933,6 +1945,12 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
     void turnBootstrap.then(()=>{
       if(initialAttempt===hostOpenAttempt&&initialView===currentView)
         startHost(retries,resumeCode,expectedAttempt);
+    }).catch(error=>{
+      if(initialAttempt!==hostOpenAttempt)return;
+      $('hostBtn').disabled=false;
+      hideTransitionLoading('plaza');
+      setStatus('เตรียมการเชื่อมต่อเครือข่ายไม่สำเร็จ',true);
+      showToast('เตรียมเครือข่ายไม่สำเร็จ: '+String(error?.message||error),true);
     });
     return;
   }
@@ -1985,7 +2003,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
           if(boardSession){send(conn,{t:'reject',reason:'BOARD PARTY กำลังเล่นอยู่ • เข้าร่วมได้เมื่อกลับล็อบบี้'});return;}
           if(players.length>=MAX_PLAYERS){send(conn,{t:'reject',reason:'ห้องเต็มแล้ว (สูงสุด '+MAX_PLAYERS+' คน)'});return;}
           p=makePlayer(msg.name,'remote',conn);
-          if(!p)return;
+          if(!p){send(conn,{t:'reject',reason:'ไม่สามารถเพิ่มผู้เล่นได้ในขณะนี้ • ไม่พบสีหรือที่นั่งว่าง'});return;}
           p.clientToken=token;
           if(round&&round.phase!=='results')p.active=false;
         }
@@ -2112,7 +2130,7 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
             // Independent server sequence prevents unordered axis updates from
             // suppressing a later reliable A/B/C button transition.
             input.actionId=(boardSession.lastActions[p.id]??-1)+1;
-            if(Date.now()-(conn.fastAxisLastAt||0)<250){
+            if(!locked&&Date.now()-(conn.fastAxisLastAt||0)<250){
               input.keys.axisX=conn.fastAxisX||0;input.keys.axisY=conn.fastAxisY||0;
             }
           }
@@ -2149,19 +2167,34 @@ function startHost(retries=0,resumeCode=null,expectedAttempt=null){
   });
   peer.on('close',()=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
-    // PeerJS "close" means destroyed; never erase a live game/room because
-    // the library closed after a transient network error.
+    // A destroyed Peer cannot reconnect(). Re-open the same room ID while
+    // preserving the in-memory roster, round and BOARD state for controllers
+    // to reclaim through their stable client tokens.
     stopHostReconnect();
-    if(!onlineHost)hideTransitionLoading('plaza');
-    setStatus('การเชื่อมต่อห้องหยุดทำงาน • สถานะเกมยังถูกเก็บไว้',true);
+    if(!onlineHost){
+      hideTransitionLoading('plaza');
+      setStatus('การเชื่อมต่อห้องหยุดทำงาน',true);
+      return;
+    }
+    const code=roomCode;
+    hostPeer=null;
+    if(hostRetryTimeout!==null)clearTimeout(hostRetryTimeout);
+    const reopenAttempt=++hostOpenAttempt;
+    resetHostReconnect();
+    setStatus('การเชื่อมต่อห้องหยุดทำงาน • กำลังเปิดห้องเดิมอีกครั้ง...',true);
+    hostRetryTimeout=setTimeout(()=>{
+      hostRetryTimeout=null;
+      if(onlineHost&&roomCode===code&&hostOpenAttempt===reopenAttempt&&!hostPeer)
+        startHost(0,code,reopenAttempt);
+    },1200);
   });
   peer.on('error',err=>{
     if(hostPeer!==peer||attempt!==hostOpenAttempt)return;
     const type=String(err?.type||'unknown');
     const fatal=new Set(['browser-incompatible','invalid-id','invalid-key','ssl-unavailable']);
-    const signaling=new Set(['network','socket-error','socket-closed','server-error','disconnected']);
+    const signaling=new Set(['network','socket-error','socket-closed','server-error','disconnected','unavailable-id']);
     if(onlineHost){
-      if(fatal.has(type)||type==='unavailable-id'||peer.destroyed){
+      if(fatal.has(type)||peer.destroyed){
         stopHostReconnect();
         setStatus('ไม่สามารถเชื่อมต่อห้องเดิม: '+type+' • สถานะเกมยังอยู่',true);
       }else if(peer.open&&!peer.disconnected&&!signaling.has(type)){
@@ -3984,7 +4017,7 @@ function finishBoard(){
   const list=$('resultList');list.replaceChildren();
   for(const p of ranked){
     const progress=s.map.nodes[p.currentNodeId].progress,rank=1+ranked.filter(q=>s.map.nodes[q.currentNodeId].progress>progress).length;
-    const row=document.createElement('div');row.className='result-player';
+    const row=document.createElement('div');row.className='result-player';row.dataset.playerId=String(p.id);
     const name=document.createElement('div');name.textContent='อันดับ '+rank+' • '+p.name;name.style.color=p.color;
     const note=document.createElement('small');note.textContent=Math.round(progress/s.map.length*100)+'% • HP '+p.hp+'/'+window.BoardParty.MAX_HP;
     row.append(name,note);list.append(row);
@@ -4188,6 +4221,12 @@ function renderResultAvatar(p,portrait){
  if(source.complete&&source.naturalWidth>0)sync();
  else source.addEventListener?.('load',sync,{once:true});
 }
+function resultColorsEqual(playerColor,labelColor){
+ if(String(playerColor||'')===String(labelColor||''))return true;
+ const swatch=document.createElement('span');
+ swatch.style.color=String(playerColor||'');
+ return !!swatch.style.color&&swatch.style.color===String(labelColor||'');
+}
 function layoutFinalResults(){
   // Keep legacy label/score nodes first: voting, accessibility and game engines
   // consume those. The new vector portrait and rank plaque are decorative.
@@ -4237,16 +4276,16 @@ function layoutFinalResults(){
     row.dataset.rank=String(rank);
     row.classList.toggle('is-winner',rank===1);
     row.classList.toggle('is-podium',rank<=3);
-    row.style.setProperty('--result-accent',color);
-    // Distinct player-owned banner colors, NEVER fixed purple/silver/green by rank.
-    const playerName=(name.includes(' • ')?name.split(' • ').pop():
-      name.replace(/^(?:ผู้ชนะ\s*)?อันดับ\s*\d+(?:\s*ร่วม)?\s*[.\-–]?\s*/, '')).trim();
-    // The shiny 1ST/2ND/3RD ordinal already communicates position. The text
-    // line should be just "บอท 4", never "อันดับ 1 • บอท 4".
-    if(label){label.textContent=playerName;label.title=playerName;}
-    const p=roster.find(q=>q.name===playerName&&q.color===color)||
+    // Resolve the row using its stable identity. The label is only a legacy fallback.
+    const playerName=name.replace(/^(?:ผู้ชนะ\s*)?อันดับ\s*\d+(?:\s*ร่วม)?\s*•\s*/,'').trim();
+    const existingId=String(row.dataset.playerId||'');
+    const p=(existingId&&roster.find(q=>String(q.id)===existingId))||
+      roster.find(q=>q.name===playerName&&resultColorsEqual(q.color,color))||
       roster.find(q=>q.name===playerName)||{color};
-    row.dataset.playerId=String(p.id||'');
+    const displayName=String(p.name||playerName);
+    if(label){label.textContent=displayName;label.title=displayName;}
+    row.dataset.playerId=String(p.id||existingId||'');
+    row.style.setProperty('--result-accent',p.color||color);
     let portrait=Array.from(row.children).find(x=>x.className==='result-avatar');
     if(!portrait){
       portrait=document.createElement('div');
@@ -4294,7 +4333,7 @@ function syncBoardMinigameResults(){
   for(const result of [...s.results].sort((a,b)=>a.rank-b.rank)){
     const p=s.players.find(player=>player.id===result.id);
     if(!p)continue;
-    const row=document.createElement('div');row.className='result-player';
+    const row=document.createElement('div');row.className='result-player';row.dataset.playerId=String(p.id);
     const name=document.createElement('div');name.style.color=p.color;
     name.textContent='อันดับ '+result.rank+' • '+p.name;
     const detail=document.createElement('span');
@@ -4340,7 +4379,7 @@ function showCumulativeScores(){
   for(const p of ranked){
     const rank=1+ranked.filter(q=>(q.total||0)>(p.total||0)).length;
     const tied=ranked.filter(q=>(q.total||0)===(p.total||0)).length>1;
-    const row=document.createElement('div');row.className='result-player';
+    const row=document.createElement('div');row.className='result-player';row.dataset.playerId=String(p.id);
     const label=document.createElement('div');
     label.style.color=p.color;
     label.textContent='อันดับ '+rank+(tied?' ร่วม':'')+' • '+p.name;
@@ -4415,7 +4454,7 @@ function endPluginRound(){
  const list=$('resultList');list.replaceChildren();
  for(const p of ranked){
   const item=scores.get(p.id),row=document.createElement('div');
-  row.className='result-player';
+  row.className='result-player';row.dataset.playerId=String(p.id);
   const label=document.createElement('div');label.style.color=p.color;
   label.textContent='อันดับ '+rank(p)+(winners.length>1&&rank(p)===1?' ร่วม':'')+' • '+p.name;
   const detail=document.createElement('span');
@@ -4436,7 +4475,7 @@ function endPluginRound(){
   list.append(heading);
   for(const p of overall){
    const ranking=1+overall.filter(q=>(q.total||0)>(p.total||0)).length;
-   const row=document.createElement('div');row.className='result-player';
+   const row=document.createElement('div');row.className='result-player';row.dataset.playerId=String(p.id);
    const name=document.createElement('div');name.style.color=p.color;
    name.textContent='อันดับ '+ranking+' • '+p.name;
    const detail=document.createElement('span');detail.textContent=(p.total||0)+' คะแนนรวม';
@@ -5015,8 +5054,8 @@ $('closeRoomBtn').addEventListener('click',()=>{
 $('copyBtn').addEventListener('click',copyInvite);
 $('plazaCenterQrBtn').addEventListener('click',copyInvite);
 $('exitBtn').addEventListener('click',returnToLobby);
-// Results/scoring exists only in the Host bundle; bind lazily for Controller.
-$('backBtn').addEventListener('click',()=>onResultBack());
+// Results/scoring exists only in the Host bundle; the Controller bundle omits it.
+if(typeof onResultBack==='function')$('backBtn').addEventListener('click',()=>onResultBack());
 $('replayBtn').addEventListener('click',advanceParty);
 document.querySelectorAll('[data-session-mode]').forEach(button=>{
  button.addEventListener('click',()=>{
@@ -5376,7 +5415,15 @@ window.GAME_CAN_AUTO_RELOAD=()=>{
  // Host lobby as well as its logical view from a destructive Core reload.
  if(currentView==='hostLobby'||!$('hostLobby').classList.contains('hidden'))return false;
  if(currentView==='home')return true;
- return currentView==='controller';
+ if(currentView==='controller'){
+  const codeInput=$('roomCodeInput'),nameInput=$('nick');
+  const scanning=!$('roomScannerPanel').classList.contains('hidden');
+  // Do not discard an unsubmitted room code, an active text edit or a live QR scan.
+  if(scanning||document.activeElement===codeInput||document.activeElement===nameInput||
+     String(codeInput.value||'').trim())return false;
+  return true;
+ }
+ return false;
 };
 window.GAME_PREPARE_AUTO_RELOAD=()=>{
  if(currentView==='hostLobby')return onlineHost?saveHost():(!hostPeer&&saveOffline());
