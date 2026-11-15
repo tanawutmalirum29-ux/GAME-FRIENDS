@@ -189,6 +189,42 @@ test('Bot order still progresses without human auto-roll timeout',()=>{
  assert.ok(s.players.every(p=>p.dice&&p.dice.length===2));
  assert.ok(s.order.length===4,'all bots determine their order by AI');
 });
+test('Bot BFS returns shortest directed paths and safely handles missing routes',()=>{
+ const graph={map:{nodes:{
+  start:{nextNodes:['long-a','short-a']},
+  'long-a':{nextNodes:['long-b']},
+  'long-b':{nextNodes:['finish']},
+  'short-a':{nextNodes:['finish']},
+  finish:{nextNodes:[]},
+  isolated:{nextNodes:[]}
+ }}};
+ assert.deepEqual(plain(ctx.window.BoardBots.route(graph,'start','finish')),
+  ['start','short-a','finish'],'BFS must choose a shortest directed route');
+ assert.deepEqual(plain(ctx.window.BoardBots.route(graph,'start','start')),['start']);
+ assert.equal(ctx.window.BoardBots.route(graph,'isolated','finish'),null);
+ assert.equal(ctx.window.BoardBots.route(graph,'missing','finish'),null);
+});
+test('A failing event plug-in is quarantined without blocking other events or BOARD bots',()=>{
+ const previousPlugins=ctx.window.BoardSystemPlugins,previousError=ctx.console.error;
+ let healthyCalls=0,errorCount=0;
+ const broken={id:'test-broken-event',onUpdate(){throw Error('intentional test failure');}};
+ const healthy={id:'test-healthy-event',onUpdate(){healthyCalls++;}};
+ ctx.window.BoardSystemPlugins={list:category=>category==='events'?[broken,healthy]:[]};
+ ctx.console.error=()=>{errorCount++;};
+ try{
+  const s=ready(1,781);
+  const p=s.players[0];p.isBot=true;s.phaseAt=s.time-1;
+  assert.doesNotThrow(()=>P.update(s,.05));
+  assert.equal(healthyCalls,1,'later event plug-ins still receive the update');
+  assert.equal(s.phase,'dice','the bot update runs after an event plug-in fails');
+  assert.doesNotThrow(()=>P.update(s,.05));
+  assert.equal(healthyCalls,2,'healthy event plug-ins keep updating');
+  assert.equal(errorCount,1,'the failing implementation is logged only once');
+ }finally{
+  ctx.window.BoardSystemPlugins=previousPlugins;
+  ctx.console.error=previousError;
+ }
+});
 test('B cycles [Roll, inventory], A activates selected action; no bag popup',()=>{
  const s=ready(3),p=s.players[0];p.hp=1;
  I.add(p,'shield');I.add(p,'potion');I.add(p,'rocket');

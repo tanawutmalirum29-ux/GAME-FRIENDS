@@ -1,3 +1,4 @@
+const failedEventPlugins=new WeakSet();
 function update(s,dt){
  M().assertCompatible(s.map);
  if(!Number.isFinite(dt)||dt<=0)return;dt=Math.min(dt,.1);s.time+=dt;
@@ -59,7 +60,14 @@ function update(s,dt){
   s.order=[...s.nextOrder];s.turnIndex=0;phase(s,'round_order',1.8);
  }
  else if(s.phase==='round_order'&&s.time>=s.deadline)startTurn(s);
- for(const plugin of window.BoardSystemPlugins?.list('events')||[])
-  plugin.onUpdate({session:s,dt,api});
+ for(const plugin of window.BoardSystemPlugins?.list('events')||[]){
+  if(!plugin||(typeof plugin!=='object'&&typeof plugin!=='function')||
+     failedEventPlugins.has(plugin))continue;
+  try{plugin.onUpdate({session:s,dt,api});}
+  catch(error){
+   failedEventPlugins.add(plugin);
+   console.error('[BOARD PARTY] Disabled event plug-in after onUpdate failed:',plugin.id||'(unknown)',error);
+  }
+ }
  window.BoardBots?.update(s,dt,api);
 }

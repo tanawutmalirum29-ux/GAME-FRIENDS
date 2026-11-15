@@ -27,6 +27,12 @@ identity `id` and category `category`.
   deterministic synchronous hook; no network calls or promises during a turn.
 - `events`: `onUpdate({session,dt,api})` may mutate
   host-owned state in the authoritative fixed-step BOARD update loop.
+  Each event implementation is isolated: if `onUpdate` throws, that exact
+  implementation is quarantined from later ticks and its error is logged once.
+  Other event plug-ins and the BOARD core/bot update continue. A new content-
+  addressed implementation can be activated in a later BOARD session. State
+  mutations completed before an exception are not rolled back, so validate
+  inputs before mutating session state.
 
 Old BOARD items (`potion`, `ufo`, `rocket`,
 `bomber`, `car`, `shield`) and legacy spaces
