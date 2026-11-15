@@ -80,6 +80,36 @@ const FESTIVE=Object.freeze({
  <path d="M19 40h10l7 4H12Z" fill="url(#gf-crimson)" stroke="#f7e6c4" stroke-width="1.3"/>
  <path d="M23 30h2v9h-2Z" fill="url(#gf-brass)"/>
  <path d="m21 44 3-2 3 2-3 2Z" fill="#fff9dd"/>`,
+ bomber:`<ellipse cx="24" cy="44.5" rx="20" ry="2" fill="#173e4b" opacity=".22"/>
+  <path d="M3 40c9 3 21 3 29 0 4-1.5 6-5 4-9" fill="none" stroke="#9c7a3a" stroke-width="4.4" stroke-linecap="round"/>
+  <path d="M3 40c9 3 21 3 29 0 4-1.5 6-5 4-9" fill="none" stroke="url(#gf-brass)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M10 39.5v-5m14 5.2v-5" stroke="#b48a47" stroke-width="1.8"/>
+  <ellipse cx="9" cy="22" rx="6.5" ry="7.5" fill="#b5835a" stroke="#6d4a2d" stroke-width="1.2"/>
+  <path d="M5 15.5h8" stroke="#f2d88e" stroke-width="1.8" stroke-linecap="round"/>
+  <rect x="3.6" y="10.6" width="4.6" height="4.6" rx=".8" fill="#e8505b" stroke="#fff3c4" stroke-width=".7" transform="rotate(-14 6 13)"/>
+  <rect x="9.2" y="9.4" width="4.2" height="4.2" rx=".8" fill="#3fbf7f" stroke="#fff3c4" stroke-width=".7" transform="rotate(14 11 11.5)"/>
+  <ellipse cx="17" cy="26" rx="5.8" ry="6" fill="#e5424f" stroke="#8d1b2a" stroke-width="1"/>
+  <path d="M2 21c-1 8 3 15 9 15h14c5 0 8-5 9-12-3 2-6 2-8 2H12C8 26 4 24 2 21Z" fill="url(#gf-crimson)" stroke="#742d4d" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M5 31h27" stroke="url(#gf-brass)" stroke-width="1.7"/>
+  <circle cx="34.4" cy="23.2" r="1.9" fill="url(#gf-brass)"/>
+  <circle cx="17" cy="15.5" r="4.4" fill="#f8cfa7" stroke="#c9926b" stroke-width=".7"/>
+  <path d="M12.8 16.2c-.4 6 5.4 7 8.4 0-2.2 1.6-6.2 1.6-8.4 0Z" fill="#fff" stroke="#c9dde8" stroke-width=".6"/>
+  <circle cx="15.4" cy="14.6" r=".7" fill="#26262e"/><circle cx="18.8" cy="14.6" r=".7" fill="#26262e"/>
+  <circle cx="17.1" cy="16.1" r="1.1" fill="#f0a58f"/>
+  <rect x="12.4" y="10.6" width="9.4" height="3.2" rx="1.6" fill="#fff" stroke="#c9dde8" stroke-width=".6"/>
+  <path d="M13 11c-.2-4 4-6 8-4.6l-2.4 1.4c-2-.4-3.8.2-5.2 3.2Z" fill="#e5424f" stroke="#8d1b2a" stroke-width=".8" stroke-linejoin="round"/>
+  <circle cx="22.6" cy="6.8" r="2" fill="#fff" stroke="#c9dde8" stroke-width=".6"/>
+  <path d="M20 20l5-3 2-6" fill="none" stroke="#d83a4a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="27.4" cy="10.4" r="2" fill="#fff" stroke="#c9dde8" stroke-width=".6"/>
+  <path d="M33 22.5l6.5 .5" stroke="#f2d88e" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M30 11 33 14M36 11l-3 3" stroke="#fff5c8" stroke-width="1.2" stroke-linecap="round"/>
+  <ellipse cx="41" cy="25" rx="5.4" ry="3.2" fill="#a8734b" stroke="#6b4529" stroke-width=".9"/>
+  <path d="M39.3 22.6l1.6-5.2 4.4-1.6" fill="none" stroke="#a8734b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="46" cy="16.4" rx="2.8" ry="2.2" fill="#b57e50" stroke="#6b4529" stroke-width=".7"/>
+  <circle cx="47.8" cy="16.7" r="1.2" fill="#ff4d4d"/>
+  <path d="M43.6 14l-1-4.4m1 1.4 3.2-2.4m-3.6 1.2-2.4-2.6" stroke="#ecd8ac" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+  <path d="M37.5 27.5l-1.6 5m4.6-4.6 2.6 4.4m3-4.4 2.4 3.6" stroke="#8c5a37" stroke-width="1.7" stroke-linecap="round"/>
+  <circle cx="43" cy="21.6" r="1.2" fill="#ffd75e"/>`,
  car:`<ellipse cx="24" cy="44" rx="18" ry="2.2" fill="#153448" opacity=".22"/>
  <path d="M7 13h8v10H7Zm26 0h8v10h-8ZM7 30h8v10H7Zm26 0h8v10h-8Z" fill="url(#gf-shadow)" stroke="#0b2839" stroke-width="1.8"/>
  <path d="M12 11 32 8 40 15l-1 26-23 3-8-9 1-18Z" fill="url(#gf-shadow)" stroke="#587a8d" stroke-width="1.3"/>
