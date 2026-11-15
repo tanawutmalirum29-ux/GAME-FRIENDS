@@ -150,8 +150,8 @@ async function catalog(request,name='game-catalog.json'){
   const res=await fetch(request);
   if(res.ok){
    try{await cache.put(key,res.clone());}catch(_){/* cache is optional */}
-   // Cleanup checks every scoped tab before touching any pinned asset.
-   await cleanupImmutableAssets();
+   // Cleanup is best-effort; a quota/message/cache error must never break a fresh catalog.
+   try{await cleanupImmutableAssets();}catch(_){}
   }
   return res;
  }catch(error){
