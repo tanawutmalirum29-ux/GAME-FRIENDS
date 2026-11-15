@@ -79,6 +79,12 @@ assert.match(css,/border:0;border-radius:0;background:transparent;box-shadow:non
  'the QR hit area has no oversized circle, opaque fill, or backing glow');
 const plazaArt=fs.readFileSync(path.join(root,'src/lobby/party-plaza-art.js'),'utf8');
 const plazaSource=fs.readFileSync(path.join(root,'src/lobby/party-plaza.js'),'utf8');
+assert.match(plazaSource,/const p=playerCache\.find\(q=>q\.isBot\)/,
+ 'keyboard Space targets only the bot used by arrow-key movement');
+assert.doesNotMatch(plazaSource,/playerCache\.find\(q=>q\.isBot\)\|\|playerCache\[0\]/,
+ 'keyboard Space never impersonates a human phone player');
+assert.match(source,/window\.addEventListener\('pagehide',cleanupLobbyPageExit\)/,
+ 'iOS pagehide triggers Peer cleanup even when beforeunload is skipped');
 assert.match(plazaArt,/ready-platform/,
  'retired READY small circle is stripped from decoded SVG before display');
 assert.doesNotMatch(html,/id="plazaCenterQrLabel"/,
