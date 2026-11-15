@@ -21,6 +21,8 @@ on:
       - 'index.html'
       - 'game-cover-art.js'
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
