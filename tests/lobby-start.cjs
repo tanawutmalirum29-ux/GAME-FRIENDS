@@ -103,8 +103,8 @@ assert.match(html,/id="plazaRoomToggle"[^>]*hidden/,
  vm.createContext(c);
  const playerNameSource=fs.readFileSync(path.join(root,'src/app/core/player-name.js'),'utf8');
  vm.runInContext(playerNameSource+"\n"+source.slice(start,stop)+
-  "\\nconst MODES={ghost:'GHOST ATTACK'};let players=[],nextId=1;"+
-  "const blankInput=()=>({});\\n"+
+  "\nconst MODES={ghost:'GHOST ATTACK'};let players=[],nextId=1;"+
+  "const blankInput=()=>({});\n"+
   source.slice(rStart,rStop)+
   "\nthis.palette=COLORS;this.legacy=LEGACY_COLORS;"+
   "this.add=()=>{const color=pickUnusedColor();if(color)players.push({color});return color};"+
