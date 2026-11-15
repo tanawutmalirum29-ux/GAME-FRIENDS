@@ -313,7 +313,7 @@ function botControls(s,p,ps){
    for(let row=Math.max(0,t.row-1);row<=Math.min(s.rows-1,t.row+1);row++)
     for(let col=Math.max(0,t.column-1);col<=Math.min(s.cols-1,t.column+1);col++)
      if(s.tiles[row*s.cols+col].ownerId!==p.id)paintable++;
-   const forward=distance>0?(dx*(p.dir?.x??1)+dy*(p.dir?.y??0))/distance:0;
+   const forward=distance>0?(dx*(p.dir?.x||1)+dy*(p.dir?.y||0))/distance:0;
    const value=paintable*12-distance*.6+Math.max(0,forward)*8+
     (t.ownerId!=null?6:0)+rand(s)*3;
    if(value>bestValue){bestValue=value;best=t.id;}
@@ -341,7 +341,7 @@ function botControls(s,p,ps){
  // A punch is defensive only when another avatar physically blocks the path.
  const threatened=active(ps).some(q=>q.id!==p.id&&
   Math.hypot(q.x-p.x,q.y-p.y)<=C.radius*2+5&&
-  ((q.x-p.x)*(p.dir?.x??1)+(q.y-p.y)*(p.dir?.y??0))>5);
+  ((q.x-p.x)*(p.dir?.x||1)+(q.y-p.y)*(p.dir?.y||0))>5);
  const action=threatened&&s.clock>=c.botNextPunch&&c.punchCooldown===0;
  const ids=calculateBlastCells(s,p),gain=ids.filter(id=>s.tiles[id].ownerId!==p.id).length;
  const blast=c.blastCooldown===0&&s.clock>=c.botNextBlast&&gain>=4;
