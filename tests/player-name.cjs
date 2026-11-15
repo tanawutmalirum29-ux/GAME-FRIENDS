@@ -6,6 +6,9 @@ const context=vm.createContext({Intl,Date,Math,window:{}});
 vm.runInContext(fs.readFileSync('src/app/core/player-name.js','utf8'),context);
 function run(expr){return vm.runInContext(expr,context);}
 assert.equal(run("cleanName('   ')"),'เพื่อนใหม่');
+assert.equal(run("uniquePlayerName('เพื่อนใหม่',[{name:'เพื่อนใหม่'}])"),'เพื่อนใหม่ 2');
+assert.equal(run("uniquePlayerName('เพื่อนใหม่',[{name:'เพื่อนใหม่'},{name:'เพื่อนใหม่ 2'}])"),'เพื่อนใหม่ 3');
+assert.equal(run("Array.from(uniquePlayerName('abcdefghijklmn',[{name:'abcdefghijklmn'}])).length"),14);
 assert.equal(run("cleanName('AB<CD>EF')"),'ABCDEF');
 assert.equal(run("cleanName('abcdefghijklmno')"),'abcdefghijklmn');
 assert.equal(run("clipGraphemes('ก้'.repeat(15),14)"),'ก้'.repeat(14));
