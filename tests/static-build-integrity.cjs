@@ -72,7 +72,7 @@ try{
  const amplify=fs.readFileSync(path.join(target,'amplify.yml'),'utf8');
  assert.match(amplify,/baseDirectory:\s*dist\b/,'Amplify must publish the staged allowlist');
  const headers=fs.readFileSync(path.join(target,'customHttp.yml'),'utf8');
- for(const header of ['X-Content-Type-Options','Referrer-Policy','X-Frame-Options',
+ for(const header of ['Strict-Transport-Security','X-Content-Type-Options','Referrer-Policy','X-Frame-Options',
   'Permissions-Policy','Content-Security-Policy'])assert.ok(headers.includes(header),
   'custom HTTP security header missing: '+header);
  assert.equal(JSON.parse(fs.readFileSync(path.join(target,'deployment.json'),'utf8')).deployId,deploy);
