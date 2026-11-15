@@ -3,11 +3,13 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');
+const {MessageChannel}=require('node:worker_threads');
 const ORIGIN='https://game.example';
 const cacheContents=new Map(); // Shared origin-wide CacheStorage across SW registrations.
 class FakeResponse{
  constructor(body,ok=true){this.body=body;this.ok=ok;this.status=ok?200:503;}
  clone(){return new FakeResponse(this.body,this.ok);}
+ json(){return JSON.parse(this.body);}
 }
 class FakeRequest{
  constructor(url){this.url=String(url);this.method='GET';}
@@ -25,21 +27,33 @@ const caches={
  }
 };
 const swSource=fs.readFileSync(path.resolve(__dirname,'../sw.js'),'utf8');
-function worker(scope){
- const handlers=new Map(),counts=new Map();
+function worker(scope,initialActivity=null){
+ const handlers=new Map(),counts=new Map(),catalogPayloads=new Map();
  let offline=false;
+ const testClient=initialActivity===null?null:{
+  url:ORIGIN+scope+'index.html',active:initialActivity,
+  postMessage(message,ports){
+   if(message?.type==='gf-query-session')ports?.[0]?.postMessage({active:this.active});
+  }
+ };
  const self={
   location:{origin:ORIGIN},registration:{scope:ORIGIN+scope},
-  clients:{async claim(){}},async skipWaiting(){},
+  clients:{async claim(){},async matchAll(){return testClient?[testClient]:[];}},async skipWaiting(){},
   addEventListener(type,fn){handlers.set(type,fn);}
  };
  async function fetchMock(req){
   if(offline)throw Error('offline');
   const url=typeof req==='string'?req:req.url;
   counts.set(url,(counts.get(url)||0)+1);
+  const pathname=new URL(url).pathname;
+  const catalogName=['game-catalog.json','board-map-catalog.json','board-system-catalog.json']
+   .find(name=>pathname.endsWith('/'+name));
+  if(catalogName&&catalogPayloads.has(catalogName))
+   return new FakeResponse(JSON.stringify(catalogPayloads.get(catalogName)));
   return new FakeResponse('fetched '+url+' #'+counts.get(url));
  }
- vm.runInNewContext(swSource,{self,caches,Request:FakeRequest,URL,fetch:fetchMock},
+ vm.runInNewContext(swSource,{self,caches,Request:FakeRequest,URL,MessageChannel,
+  fetch:fetchMock,setTimeout,clearTimeout},
   {filename:'sw.js'});
  async function request(url,method='GET'){
   let answer=null;
@@ -47,7 +61,9 @@ function worker(scope){
   handlers.get('fetch')(event);
   return answer?await answer:null;
  }
- return {request,counts,setOffline(value){offline=value;}};
+ return {request,counts,setOffline(value){offline=value;},
+  setCatalog(name,payload){catalogPayloads.set(name,payload);},
+  setClientActive(value){if(testClient)testClient.active=value;}};
 }
 const asset=(prefix,hash)=>ORIGIN+prefix+'game-assets/ghost/'+hash.repeat(24)+'/game.js';
 async function suite(scope){
@@ -113,5 +129,47 @@ async function suite(scope){
  const unprimed=worker('/fresh/');unprimed.setOffline(true);
  await assert.rejects(unprimed.request(ORIGIN+'/fresh/game-catalog.json'),/offline/,
   'a fresh scope must not read another scope\'s catalog');
+ // Verify stale hashes are evicted only when all same-scope tabs report idle.
+ async function cleanupCase(scope,active){
+  const sw=worker(scope,active);
+  const gameOld='a'.repeat(24),gameCurrent='b'.repeat(24);
+  const mapOld='c'.repeat(24),mapCurrent='d'.repeat(24);
+  const systemOld='e'.repeat(24),systemCurrent='f'.repeat(24);
+  const gameUrl=h=>ORIGIN+scope+'game-assets/ghost/'+h+'/entry.js';
+  const mapUrl=h=>ORIGIN+scope+'board-map-assets/winter-expedition/'+h+'/entry.js';
+  const systemUrl=h=>ORIGIN+scope+'board-system-assets/items/bonus/'+h+'/entry.js';
+  for(const url of [gameUrl(gameOld),gameUrl(gameCurrent),mapUrl(mapOld),mapUrl(mapCurrent),
+   systemUrl(systemOld),systemUrl(systemCurrent)])await sw.request(url);
+  sw.setCatalog('game-catalog.json',{schema:1,games:[
+   {enabled:true,entryUrl:'/game-assets/ghost/'+gameCurrent+'/entry.js',legacyUrls:[],coverUrl:null}
+  ]});
+  sw.setCatalog('board-map-catalog.json',{schema:1,maps:[
+   {enabled:true,entryUrl:'/board-map-assets/winter-expedition/'+mapCurrent+'/entry.js',legacyUrls:[]}
+  ]});
+  sw.setCatalog('board-system-catalog.json',{schema:1,systems:[
+   {enabled:true,entryUrl:'/board-system-assets/items/bonus/'+systemCurrent+'/entry.js'}
+  ]});
+  for(const name of ['game-catalog.json','board-map-catalog.json','board-system-catalog.json'])
+   await sw.request(ORIGIN+scope+name);
+  const games=cacheContents.get('gf-immutable-games-v1:'+encodeURIComponent(scope));
+  const boards=cacheContents.get('gf-immutable-board-maps-v1:'+encodeURIComponent(scope));
+  const oldKeys=[gameUrl(gameOld),mapUrl(mapOld),systemUrl(systemOld)];
+  const newKeys=[gameUrl(gameCurrent),mapUrl(mapCurrent),systemUrl(systemCurrent)];
+  if(active===false){
+   for(const key of oldKeys)assert.ok(!games?.has(key)&&!boards?.has(key),
+    'idle tab permits stale hash eviction: '+key);
+  }else{
+   for(const key of oldKeys)assert.ok(games?.has(key)||boards?.has(key),
+    'active/unresponsive tab pins its old hash: '+key);
+   sw.setClientActive(false);
+   await sw.request(ORIGIN+scope+'game-catalog.json?refresh=idle');
+   for(const key of oldKeys)assert.ok(!games?.has(key)&&!boards?.has(key),
+    'stale hash is removed after every tab reports idle: '+key);
+  }
+  for(const key of newKeys)assert.ok(games?.has(key)||boards?.has(key),
+   'hashes in the latest catalogs remain cached: '+key);
+ }
+ await cleanupCase('/idle/',false);
+ await cleanupCase('/active/',true);
  console.log('CACHE WORKER PASS: root/subpath assets, offline, updates, scope isolation and guards');
 })().catch(err=>{console.error(err);process.exitCode=1;});
