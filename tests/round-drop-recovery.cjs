@@ -121,7 +121,75 @@ function boardRecovery(){
  assert.equal(result.returned,1,'normal round faults still have a controlled abort');
  assert.equal(result.raf,1);
 }
+function pluginDisposal(){
+ const runtime=read('src/app/core/runtime.js');
+ const start=runtime.indexOf('const disposedPluginRounds = new WeakSet();');
+ const end=runtime.indexOf('\nfunction gameCover(',start);
+ assert.ok(start>=0&&end>start,'round disposal helper source is discoverable');
+ const errors=[];
+ const context=vm.createContext({console:{error(...args){errors.push(args);}}});
+ vm.runInContext(runtime.slice(start,end)+'\nthis.disposePluginRound=disposePluginRound;',context);
+ const dispose=context.disposePluginRound;
+
+ let calls=[];
+ const primary={mode:'test',pluginEngine:{dispose(target,reason){
+  calls.push({same:target===primary,reason});
+ }}};
+ assert.equal(dispose(primary,'next game selected'),true);
+ assert.equal(dispose(primary,'returned to lobby'),false,'a round can only be disposed once');
+ assert.deepEqual(calls,[{same:true,reason:'next game selected'}]);
+
+ for(const hook of ['cleanup','teardown']){
+  const legacy={pluginEngine:{[hook](target,reason){calls.push({hook,target,reason});}}};
+  assert.equal(dispose(legacy,'legacy alias'),true,hook+' is supported');
+  assert.equal(calls.at(-1).hook,hook);
+ }
+ const noHook={pluginEngine:{setup(){}}};
+ assert.equal(dispose(noHook,'no disposer'),false,'engines without a cleanup hook remain valid');
+ let lateCalls=0;
+ noHook.pluginEngine.dispose=()=>{lateCalls++;};
+ assert.equal(dispose(noHook,'hook attached'),true,'missing hooks are not permanently marked disposed');
+ assert.equal(lateCalls,1);
+
+ const broken={mode:'broken',pluginEngine:{dispose(){throw Error('expected cleanup failure');}}};
+ assert.equal(dispose(broken,'test failure'),false,'cleanup failures are contained');
+ assert.equal(dispose(broken,'second attempt'),false,'a failing disposer is not invoked repeatedly');
+ assert.equal(errors.length,1,'cleanup errors are recorded once');
+
+ const engine=read('src/app/rounds/engine.js');
+ const startRound=engine.slice(engine.indexOf('function startRound('),engine.indexOf('\nfunction updateRound(',engine.indexOf('function startRound(')));
+ assert.ok(startRound.indexOf("disposePluginRound(round,'starting next round')")<
+  startRound.indexOf("round={mode,pluginEngine:engine"),'old round is disposed before replacement');
+ assert.ok(startRound.indexOf("disposePluginRound(round,'setup failed')")<
+  startRound.indexOf('round=null',startRound.indexOf('}catch(error){')),
+  'partially initialized rounds are disposed before dropping the reference');
+
+ const lobby=read('src/app/host/lobby.js');
+ const selection=lobby.slice(lobby.indexOf('function beginGameSelection(mode){'),lobby.indexOf('\nfunction updateGameSelection(',lobby.indexOf('function beginGameSelection(mode){')));
+ assert.ok(selection.indexOf("disposePluginRound(round,'next game selected')")<
+  selection.indexOf("round={mode,phase:'roulette'"),'new selection disposes the previous round');
+
+ const board=read('src/app/board/integration.js');
+ const showBoard=board.slice(board.indexOf('function showBoard(){'),board.indexOf('\nfunction updateBoard(',board.indexOf('function showBoard(){')));
+ assert.ok(showBoard.indexOf("disposePluginRound(round,'returned to BOARD PARTY')")<
+  showBoard.indexOf("round={mode:'board'"),'BOARD minigame is disposed after its results are copied');
+
+ const render=read('src/app/rounds/render.js');
+ const lobbyReturn=render.slice(render.indexOf('function returnToLobby(){'),render.indexOf("\n$('pauseBtn').addEventListener",render.indexOf('function returnToLobby(){')));
+ assert.ok(lobbyReturn.indexOf("disposePluginRound(round,'returned to lobby')")<
+  lobbyReturn.indexOf('tournament=null;round=null'),'lobby exit disposes before clearing round state');
+
+ const room=read('src/app/host/room.js');
+ const close=room.slice(room.indexOf('function closeHost('),room.indexOf('\nfunction shareUrl(',room.indexOf('function closeHost(')));
+ assert.ok(close.indexOf("disposePluginRound(round,'room closed')")<
+  close.indexOf('tournament=null;gameSelection=null;round=null'),'room close disposes before clearing round state');
+
+ const results=read('src/app/rounds/results.js');
+ const finish=results.slice(results.indexOf('function endPluginRound(){'),results.indexOf('\nfunction endRound(){',results.indexOf('function endPluginRound(){')));
+ assert.ok(!finish.includes('disposePluginRound'),'result collection must keep engine state alive for results/HUD');
+}
+
 simulate().then(()=>{
- seatExpiry();boardRecovery();
- console.log('ROUND DROP RECOVERY PASS: seven game AI transitions, seat expiry, BOARD cancellation');
+ seatExpiry();boardRecovery();pluginDisposal();
+ console.log('ROUND DROP RECOVERY PASS: seat expiry, BOARD cancellation and one-shot minigame disposal lifecycle');
 }).catch(error=>{console.error(error);process.exitCode=1;});

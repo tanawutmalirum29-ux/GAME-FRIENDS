@@ -289,6 +289,26 @@ function syncGameCatalog(){
 }
 const BOARD_ENGINE={draw:(g,t)=>window.BoardArt.draw(g,t,boardSession),hud:()=>({survivors:boardSession?.players.length||0})};
 
+// Round-owned resources are released only when the round leaves the Host.
+// Results/HUD hooks may still need the engine state after gameplay ends.
+const disposedPluginRounds = new WeakSet();
+function disposePluginRound(targetRound=round,reason='round transition'){
+ if(!targetRound||typeof targetRound!=='object'||disposedPluginRounds.has(targetRound))return false;
+ const engine=targetRound.pluginEngine;
+ if(!engine||(typeof engine!=='object'&&typeof engine!=='function'))return false;
+ const dispose=typeof engine.dispose==='function'?engine.dispose:
+  typeof engine.cleanup==='function'?engine.cleanup:
+  typeof engine.teardown==='function'?engine.teardown:null;
+ if(typeof dispose!=='function')return false;
+ // Mark before invocation so re-entrant or parallel teardown paths cannot run twice.
+ disposedPluginRounds.add(targetRound);
+ try{dispose.call(engine,targetRound,reason);return true;}
+ catch(error){
+  console.error('Minigame round cleanup failed',targetRound.mode,reason,error);
+  return false;
+ }
+}
+
 function gameCover(mode){
  const cover=document.createElement('span');
  cover.className='mode-cover';
@@ -1771,6 +1791,7 @@ function closeHost({goHome=true}={}){
   hostConnections.clear();
   if(hostPeer){const oldPeer=hostPeer;hostPeer=null;try{oldPeer.destroy();}catch(e){}}
   for(const p of players.filter(p=>p.type==='remote')){players.splice(players.indexOf(p),1);}
+  disposePluginRound(round,'room closed');
   tournament=null;gameSelection=null;round=null;boardSession=null;boardStateToken=null;
   document.body.classList.remove('board-playing');
   $('boardTools').classList.add('hidden');
@@ -3794,6 +3815,8 @@ function refreshBoardTools(){
  }
 }
 function showBoard(){
+  // BOARD minigame results have already been copied into the board session.
+  disposePluginRound(round,'returned to BOARD PARTY');
   round={mode:'board',phase:'playing',paused:false,remaining:null,autoNextRemaining:0};
   resetInputs();boardStateToken=null;
   $('gameRoulette').classList.add('hidden');$('results').classList.add('hidden');
@@ -4218,6 +4241,7 @@ function returnToLobby(){
   gameSelection=null;$('gameRoulette').classList.add('hidden');
   boardSession=null;boardStateToken=null;document.body.classList.remove('board-playing');
   $('pauseBtn').style.cssText='';$('boardExitBtn').style.cssText='';$('boardExitBtn').classList.add('hidden');$('pauseBtn').classList.remove('board-resume');
+  disposePluginRound(round,'returned to lobby');
   tournament=null;round=null;resetInputs();
   drawFailureStreak=0;
   // A timed-out remote participant who became a round-only bot must not
@@ -4373,6 +4397,8 @@ function beginGameSelection(mode){
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').classList.add('hidden');
   $('gameBanner').textContent='';
+  // Keep the engine alive through the results screen; release it as the next game is selected.
+  disposePluginRound(round,'next game selected');
   round={mode,phase:'roulette',paused:false,remaining:null,autoNextRemaining:0};
   resetInputs();
   gameSelection={mode,elapsed:0,spinDuration:1.45,holdDuration:1.18,

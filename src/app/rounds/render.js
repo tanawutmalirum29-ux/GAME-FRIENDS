@@ -265,6 +265,7 @@ function returnToLobby(){
   gameSelection=null;$('gameRoulette').classList.add('hidden');
   boardSession=null;boardStateToken=null;document.body.classList.remove('board-playing');
   $('pauseBtn').style.cssText='';$('boardExitBtn').style.cssText='';$('boardExitBtn').classList.add('hidden');$('pauseBtn').classList.remove('board-resume');
+  disposePluginRound(round,'returned to lobby');
   tournament=null;round=null;resetInputs();
   drawFailureStreak=0;
   // A timed-out remote participant who became a round-only bot must not

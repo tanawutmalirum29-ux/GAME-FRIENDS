@@ -31,6 +31,7 @@ function startRound(forcedMode=null){
     return;
   }
   $('results').classList.add('hidden');
+  disposePluginRound(round,'starting next round');
   round={mode,pluginEngine:engine,pluginHash:window.GamePlatform?.descriptor(mode)?.hash||null,phase:'countdown',paused:false,countdown:Number.isFinite(engine.countdownSeconds)?engine.countdownSeconds:3,remaining:null,autoNextRemaining:0,
     rules:{viewMode:'topdown'}};
   try{
@@ -40,6 +41,8 @@ function startRound(forcedMode=null){
     engine.setup(round,players);
   }catch(error){
     console.error('Game setup failed',mode,error);
+    // setup() may have allocated images/pools before it threw; release the partial round.
+    disposePluginRound(round,'setup failed');
     round=null;
     showToast('เริ่ม '+(MODES[mode]||mode)+' ไม่สำเร็จ: '+String(error?.message||error).slice(0,100),true);
     return;
