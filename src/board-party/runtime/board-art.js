@@ -660,6 +660,8 @@ function actors(g,s,t){
  const list=s.players.map(p=>({p,pos:I.position(s,p)})).sort((a,b)=>a.pos.y-b.pos.y);
  for(const {p,pos}of list){
   const dead=p.death&&s.time-p.death.at<1.2,xy=dead?p.death.position:pos;
+  const ridingUfo=s.phase==='aim'&&s.skill?.kind==='ufo'&&active?.id===p.id;
+  const actorXY=ridingUfo?{x:s.skill.x,y:s.skill.y-70}:xy;
   g.save();if(window.BoardParty.isProtected(s,p)){circle(g,xy.x,xy.y,29,'#8cddf42d','#8bd8f1',2);icon(g,'shield',xy.x-22,xy.y-25,10);}
   // A used shield disappears immediately; brief icy fragments signal the
   // single attack was absorbed and further attacks are now effective.
@@ -671,7 +673,7 @@ function actors(g,s,t){
     star(g,xy.x+Math.cos(angle)*r,xy.y+Math.sin(angle)*r,Math.max(1,5*(1-age)),'#e9faff');
    }
   }
-  if(p.id===active?.id){circle(g,xy.x,xy.y,29+Math.sin(t*4)*2,null,'#ffdc83',3);path(g,[[xy.x-6,xy.y-48],[xy.x+6,xy.y-48],[xy.x,xy.y-39]],'#ffcf76');}
+  if(p.id===active?.id&&!ridingUfo){circle(g,xy.x,xy.y,29+Math.sin(t*4)*2,null,'#ffdc83',3);path(g,[[xy.x-6,xy.y-48],[xy.x+6,xy.y-48],[xy.x,xy.y-39]],'#ffcf76');}
   if(dead){g.globalAlpha=Math.max(.1,1-(s.time-p.death.at)/1.2);g.translate(xy.x,xy.y);g.rotate((s.time-p.death.at)*2);g.translate(-xy.x,-xy.y);}
   const moving=s.move?.playerId===p.id&&s.move.to,from=moving?s.map.nodes[s.move.from].position:null,to=moving?s.map.nodes[s.move.to].position:null;
   const joystick=window.BoardParty.axes(s,p.id);
@@ -679,7 +681,7 @@ function actors(g,s,t){
   const facing=freeWalking?joystick:moving?{x:to.x-from.x,y:to.y-from.y}:actorFacing.get(p)||{x:0,y:-1};
   if(Math.hypot(facing.x,facing.y)>.001)actorFacing.set(p,{x:facing.x,y:facing.y});
   const shake=p.hurtUntil>s.time?Math.sin(t*50)*3:0;
-  window.PartyPlayerAvatar.draw(g,{...p,x:xy.x+shake,y:xy.y,vx:freeWalking?joystick.x*90:moving&&s.move.walking?40:0,vy:freeWalking?joystick.y*90:0,
+  if(!ridingUfo)window.PartyPlayerAvatar.draw(g,{...p,x:xy.x+shake,y:xy.y,vx:freeWalking?joystick.x*90:moving&&s.move.walking?40:0,vy:freeWalking?joystick.y*90:0,
     dir:facing},{time:t,scale:.86,label:false,holding:s.effect?.kind==='heal'&&s.effect.targets.includes(p.id)});
   g.restore();
   // Names belong ABOVE every explorer (including grouped players). Do not
@@ -690,12 +692,12 @@ function actors(g,s,t){
   const nameSize=Math.min(34,Math.max(12,12/zoom));
   const nameGap=Math.max(p.id===active?.id?74:52,(p.id===active?.id?41:31)/zoom);
   if(window.PartyCharacters?.drawName)
-   window.PartyCharacters.drawName(g,p,{x:xy.x,y:xy.y,
+   window.PartyCharacters.drawName(g,p,{x:actorXY.x,y:actorXY.y,
     offsetY:nameGap,fontSize:nameSize,maxWidth:Math.min(270,98/zoom)});
   else{
-   const ty=xy.y-nameGap-nameSize-8;
-   box(g,xy.x-46,ty,92,nameSize+7,6,'#15394cda');
-   label(g,p.name,xy.x,ty+(nameSize+7)/2,nameSize,p.color,'center',700,86);
+   const ty=actorXY.y-nameGap-nameSize-8;
+   box(g,actorXY.x-46,ty,92,nameSize+7,6,'#15394cda');
+   label(g,p.name,actorXY.x,ty+(nameSize+7)/2,nameSize,p.color,'center',700,86);
   }
   if(s.move?.kind==='rocket'&&s.move.playerId===p.id){g.save();g.translate(pos.x,pos.y+20);if(from)g.rotate(Math.atan2(to.y-from.y,to.x-from.x)+Math.PI/2);icon(g,'rocket',0,0,25);g.restore();}
  }
@@ -709,10 +711,12 @@ function effects(g,s,t){
     circle(g,p.x,p.y,7,'#b6475f','#ffe7a7',2);
     star(g,p.x,p.y,3.5,'#fff4c7');
    }
-   g.save();g.translate(sk.x,sk.y-16);g.rotate(sk.angle+Math.PI/2);
+   g.save();g.translate(sk.x,sk.y-16);g.rotate(sk.angle);
    icon(g,'bomber',0,0,44);g.restore();
   }else if(sk.kind==='ufo'){
    circle(g,sk.x,sk.y,I.ufoRadius+I.radius,'#9beef32b',sk.targetId?'#b5ffb8':'#9eefff',3);icon(g,'ufo',sk.x,sk.y-38,33);
+   const rider=window.BoardParty.current(s);
+   if(rider&&window.PartyPlayerAvatar?.draw)window.PartyPlayerAvatar.draw(g,{...rider,x:sk.x,y:sk.y-70,dir:{x:0,y:-1}},{time:t,scale:.58,label:false,shadow:false});
    if(sk.targetId){const p=s.players.find(p=>p.id===sk.targetId);label(g,window.BoardParty.isProtected(s,p)?'โล่ป้องกัน • '+p.name:'A • '+p.name,sk.x,sk.y+46,16,'#163c53','center');}
   }else {
    const n=s.map.nodes[sk.nodeId];if(!sk.step&&n.nextNodes.length>1)for(const id of n.nextNodes){const q=s.map.nodes[id].position;line(g,n.position.x,n.position.y,q.x,q.y,id===sk.selectedNext?'#ffe1a0':'#91b8c7',id===sk.selectedNext?6:2);}
@@ -723,7 +727,11 @@ function effects(g,s,t){
  if(fx){const f=Math.min(1,(s.time-fx.at)/fx.duration);
   for(const p of fx.points){
    if(fx.kind==='car'){circle(g,p.x,p.y,I.blastRadius*(.3+.7*f),'#ffc97655','#fff0b8',3);for(let i=0;i<10;i++){const a=i*TAU/10;circle(g,p.x+Math.cos(a)*f*I.blastRadius,p.y+Math.sin(a)*f*I.blastRadius,12*(1-f)+2,i%2?'#ffb971':'#fff1bb');}}
-   else if(fx.kind==='ufo'){path(g,[[p.x-36,p.y],[p.x+36,p.y],[p.x+12,p.y-120],[p.x-12,p.y-120]],'#b0f4ff66');icon(g,'ufo',p.x,p.y-120,32);}
+   else if(fx.kind==='ufo'){
+    path(g,[[p.x-36,p.y],[p.x+36,p.y],[p.x+12,p.y-120],[p.x-12,p.y-120]],'#b0f4ff66');icon(g,'ufo',p.x,p.y-120,32);
+    if(p===fx.points[0]){const rider=s.players.find(q=>q.id===fx.targets?.[0]);
+     if(rider&&window.PartyPlayerAvatar?.draw)window.PartyPlayerAvatar.draw(g,{...rider,x:p.x,y:p.y-152,dir:{x:0,y:-1}},{time:t,scale:.58,label:false,shadow:false});}
+   }
    else if(fx.kind==='shield'){circle(g,p.x,p.y,25+f*35,null,'#a2e8ff',4);icon(g,'shield',p.x,p.y-40-f*20,23);}
    else if(fx.kind==='shieldBreak'){
     circle(g,p.x,p.y,24+f*43,null,'#d9f9ff',Math.max(.6,4*(1-f)));
@@ -786,7 +794,7 @@ function effects(g,s,t){
     }
     if(flight.plane.visible){
      const aircraft=flight.plane,direction=aircraft.angle;
-     g.save();g.translate(aircraft.x,aircraft.y-57);g.rotate(direction+Math.PI/2);
+     g.save();g.translate(aircraft.x,aircraft.y-57);g.rotate(direction);
      // Swift white motion streaks and a broad fuselage silhouette make the
      // flight unmistakable even at an island-scale camera zoom.
      for(let i=-1;i<=1;i++){
