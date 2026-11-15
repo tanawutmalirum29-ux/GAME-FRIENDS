@@ -148,11 +148,11 @@ async function platform(){
   dispatchEvent(){},
  };
  let attempted=0;
- const document={hidden:false,
+ const document={hidden:false,baseURI:'https://example.org/repo/index.html',
   createElement(){return {remove(){}};},
   head:{appendChild(tag){attempted++;queueMicrotask(()=>tag.onerror());}},
   addEventListener(){}};
- let outage=false;
+ let outage=false,lastScriptUrl='';
  const ctx={window,document,location:{origin:'https://example.org',href:'https://example.org/?host=1'},
   URL,Date,CustomEvent:class{constructor(){}},setInterval(){},console,
   fetch:async()=>{if(outage)throw Error('offline');return {ok:true,json:async()=>JSON.parse(JSON.stringify(data))};}};
@@ -187,6 +187,8 @@ async function platform(){
  assert.equal(await window.GamePlatform.refresh(),true);
  await assert.rejects(window.GamePlatform.ensure('missing'),/Unable to fetch game dependency/,
   'fresh broken game must fail closed');
+  assert.ok(lastScriptUrl.startsWith('https://example.org/repo/game-assets/'),
+   'catalog assets resolve inside a deployed sub-path');
  assert.equal(window.GamePlatform.descriptor('missing'),null,'unplayable new game is hidden');
  assert.equal(window.GamePlatform.games().length,1);
  // A malformed new game cannot poison another valid game update in the
