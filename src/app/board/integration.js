@@ -298,6 +298,8 @@ function refreshBoardTools(){
  }
 }
 function showBoard(){
+  // BOARD minigame results have already been copied into the board session.
+  disposePluginRound(round,'returned to BOARD PARTY');
   round={mode:'board',phase:'playing',paused:false,remaining:null,autoNextRemaining:0};
   resetInputs();boardStateToken=null;
   $('gameRoulette').classList.add('hidden');$('results').classList.add('hidden');

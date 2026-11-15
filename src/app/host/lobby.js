@@ -84,6 +84,8 @@ function beginGameSelection(mode){
   $('pauseMenu').classList.add('hidden');
   $('pauseBtn').classList.add('hidden');
   $('gameBanner').textContent='';
+  // Keep the engine alive through the results screen; release it as the next game is selected.
+  disposePluginRound(round,'next game selected');
   round={mode,phase:'roulette',paused:false,remaining:null,autoNextRemaining:0};
   resetInputs();
   gameSelection={mode,elapsed:0,spinDuration:1.45,holdDuration:1.18,

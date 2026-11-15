@@ -648,6 +648,7 @@ function closeHost({goHome=true}={}){
   hostConnections.clear();
   if(hostPeer){const oldPeer=hostPeer;hostPeer=null;try{oldPeer.destroy();}catch(e){}}
   for(const p of players.filter(p=>p.type==='remote')){players.splice(players.indexOf(p),1);}
+  disposePluginRound(round,'room closed');
   tournament=null;gameSelection=null;round=null;boardSession=null;boardStateToken=null;
   document.body.classList.remove('board-playing');
   $('boardTools').classList.add('hidden');

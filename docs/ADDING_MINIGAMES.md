@@ -53,7 +53,15 @@ the phone's actions and help text.
 **Native plug-ins do not set `global`.** `game.js` exports one object as
 `default`; the host loader validates its `setup`, `update`, `draw`,
 `hud` and `getResult` functions. Return the result schema expected by
-`BoardMinigame.ranking` so the board can award placements. Review an existing
+`BoardMinigame.ranking` so the board can award placements. An engine may also
+export a synchronous `dispose(round, reason)` hook to release round-owned
+resources such as image caches, object pools or temporary canvases. The Host
+calls it once when the round is actually replaced, returned to the lobby or
+BOARD PARTY, the room closes, or `setup()` fails. Cleanup is deliberately delayed
+until after results have been collected and rendered; do not release state that
+`getResult`, `getRoster`, `renderRoster` or `hud` still needs. The hook must tolerate
+partially initialized round state because `setup()` can fail midway. `cleanup` and
+`teardown` remain accepted as legacy hook names. Review an existing
 engine and the shared avatar/physics APIs before implementing a new one;
 a file with empty methods is not a playable game. Use relative imports for
 other files inside this directory. The older `global`/`legacyScripts` bridge

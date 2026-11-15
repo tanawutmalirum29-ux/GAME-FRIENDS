@@ -47,6 +47,26 @@ function syncGameCatalog(){
 }
 const BOARD_ENGINE={draw:(g,t)=>window.BoardArt.draw(g,t,boardSession),hud:()=>({survivors:boardSession?.players.length||0})};
 
+// Round-owned resources are released only when the round leaves the Host.
+// Results/HUD hooks may still need the engine state after gameplay ends.
+const disposedPluginRounds = new WeakSet();
+function disposePluginRound(targetRound=round,reason='round transition'){
+ if(!targetRound||typeof targetRound!=='object'||disposedPluginRounds.has(targetRound))return false;
+ const engine=targetRound.pluginEngine;
+ if(!engine||(typeof engine!=='object'&&typeof engine!=='function'))return false;
+ const dispose=typeof engine.dispose==='function'?engine.dispose:
+  typeof engine.cleanup==='function'?engine.cleanup:
+  typeof engine.teardown==='function'?engine.teardown:null;
+ if(typeof dispose!=='function')return false;
+ // Mark before invocation so re-entrant or parallel teardown paths cannot run twice.
+ disposedPluginRounds.add(targetRound);
+ try{dispose.call(engine,targetRound,reason);return true;}
+ catch(error){
+  console.error('Minigame round cleanup failed',targetRound.mode,reason,error);
+  return false;
+ }
+}
+
 function gameCover(mode){
  const cover=document.createElement('span');
  cover.className='mode-cover';
