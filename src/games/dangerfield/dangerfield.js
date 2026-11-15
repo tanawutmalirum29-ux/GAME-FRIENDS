@@ -121,24 +121,6 @@ function lattice(s){
 function overlaps(ob,x,y,pad){
  return ob.type==='radar'?Math.hypot(x-ob.x,y-ob.y)<ob.r+pad:(Math.abs(x-ob.x)<ob.hw+pad&&Math.abs(y-ob.y)<ob.hh+pad);
 }
-function carvePath(L,rng,open,from,to,jit,pen){
- const {cols,rows}=L,n=cols*rows,dist=new Float64Array(n).fill(Infinity),prev=new Int32Array(n).fill(-1),done=new Uint8Array(n);
- dist[from]=0;
- for(;;){
-  let u=-1,b=Infinity;for(let k=0;k<n;k++)if(!done[k]&&dist[k]<b){b=dist[k];u=k;}
-  if(u<0||u===to)break;done[u]=1;
-  const i=u%cols,j=(u/cols)|0;
-  for(const [dx,dy] of NB.slice(0,4)){
-   const ni=i+dx,nj=j+dy;if(ni<0||nj<0||ni>=cols||nj>=rows)continue;
-   const v=nj*cols+ni;if(L.forbid[v]&&v!==to)continue;
-   const w=1+rng()*jit+(open[v]?pen:0)+(dx<0?.8:0);
-   if(dist[u]+w<dist[v]){dist[v]=dist[u]+w;prev[v]=u;}
-  }
- }
- if(!isFinite(dist[to]))return[];
- const out=[];for(let v=to;v>=0;v=prev[v]){out.push(v);if(v===from)break;}
- return out;
-}
 function carveRoutes(L,rng,open,template,fallback){
  // One genuinely serpentine ROAD, not the old almost-full-width straight
  // lower lane. Grid tiles and mine sizes are untouched; topology uses every
