@@ -129,6 +129,11 @@ function punchFriends(attacker,players,opts){return combat().hitPlayers(attacker
 // Existing health/status UI keeps its own position; game-specific mounts can
 // request a larger gap with offsetY without moving the health indicator.
 const nameRects=new WeakMap();
+function graphemeUnits(value){
+ if(typeof Intl!=='undefined'&&typeof Intl.Segmenter==='function')
+  return Array.from(new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(value),part=>part.segment);
+ return Array.from(value);
+}
 function beginNameFrame(ctx){if(ctx)nameRects.set(ctx,[]);}
 function drawName(ctx,p,opts={}){
  if(!ctx||!p||opts.nameTag===false||typeof ctx.fillText!=='function')return;
@@ -147,9 +152,9 @@ function drawName(ctx,p,opts={}){
    const metrics=ctx.measureText(value);
    if(Number.isFinite(metrics?.width))return metrics.width;
   }
-  return Array.from(value).length*fontSize*.62;
+  return graphemeUnits(value).length*fontSize*.62;
  };
- const units=Array.from(raw);
+ const units=graphemeUnits(raw);
  let name=raw;
  while(units.length>1&&measured(name)>maxWidth-12){
   units.pop();name=units.join('')+'…';
