@@ -65,30 +65,21 @@ function chooseNext(s,p,from=p.currentNodeId){
  const score=id=>tileCost(s.map.nodes[id],tier)+(cost.get(id)??Infinity);
  return [...options].sort((a,b)=>score(a)-score(b))[0];
 }
-function canUse(s,p,api,kind){
- if(p.usedRound===s.roundNumber)return false;
- const extension=window.BoardSystemPlugins?.get('items',kind);
- if(extension){
-  if(typeof extension.botCanUse!=='function')return false;
-  try{return extension.botCanUse({session:s,player:p,api})===true;}
-  catch(_){return false;}
- }
- return (kind==='potion'?p.hp<70:kind==='shield'?false:
-  kind==='rocket'?true:kind==='ufo'?!!forwardTarget(s,p):
-  kind==='car'?!!forwardTarget(s,p):
-  kind==='bomber'?s.players.some(q=>q.id!==p.id&&!api.isProtected(s,q)):false);
-}
 function update(s,dt,api){
  // Rewards are added directly to every bot's backpack by the host.
  const p=api.current(s);if(!p?.isBot)return;
  if(s.time-s.phaseAt<.5&&!(s.phase==='moving'&&s.move?.kind==='walk'))return;
  if(s.phase==='ready'){
   const bag=window.BoardItems.bag(p);
-  const itemCanUse=kind=>canUse(s,p,api,kind);
+  const canUse=kind=>p.usedRound!==s.roundNumber&&(
+   kind==='potion'?p.hp<70:kind==='shield'?false:
+   kind==='rocket'?true:kind==='ufo'?!!forwardTarget(s,p):
+   kind==='car'?!!forwardTarget(s,p):
+   s.players.some(q=>q.id!==p.id&&!api.isProtected(s,q)));
   // A failed UFO/bomber aim expires back to ready. Without a forced-roll
   // timeout a bot must not enter the same failed item indefinitely.
   const botTurnKey=s.roundNumber+':'+s.turnIndex;
-  const target=p.botItemAttemptKey===botTurnKey?null:bag.find(itemCanUse);
+  const target=p.botItemAttemptKey===botTurnKey?null:bag.find(canUse);
   const desiredIndex=target?window.BoardItems.ids.indexOf(target)+1:0;
   const currentIndex=Math.min(window.BoardItems.ids.length,Math.max(0,Math.trunc(p.actionIndex||0)));
   // The bot uses the same fixed [Roll, ...item types] cycle as a phone.
@@ -150,5 +141,5 @@ function update(s,dt,api){
   send(s,p,api,dx/d,dy/d);
  }
 }
-window.BoardBots=Object.freeze({update,chooseNext,route,canUse});
+window.BoardBots=Object.freeze({update,chooseNext,route});
 })();
