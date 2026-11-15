@@ -138,7 +138,7 @@ function remodelDesign(){
  }
  // Curated clearance near the two sword courts and side trails.
  const lanePositions={
-  ws9_0:[3550,2620],ws9_1:[3340,2425],ws9_2:[3080,2445],
+  ws9_0:[3550,2620],
   ms19_0:[2610,1000],ms20_0:[2490,1280],
   hs29_0:[2940,4955],hs30_0:[2610,5300],
   gs39_0:[6240,5180],
