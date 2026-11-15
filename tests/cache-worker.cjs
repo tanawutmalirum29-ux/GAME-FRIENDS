@@ -140,14 +140,15 @@ async function suite(scope){
   const systemUrl=h=>ORIGIN+scope+'board-system-assets/items/bonus/'+h+'/entry.js';
   for(const url of [gameUrl(gameOld),gameUrl(gameCurrent),mapUrl(mapOld),mapUrl(mapCurrent),
    systemUrl(systemOld),systemUrl(systemCurrent)])await sw.request(url);
+  // Catalog URLs follow their registration scope for this isolated cleanup fixture.
   sw.setCatalog('game-catalog.json',{schema:1,games:[
-   {enabled:true,entryUrl:'/game-assets/ghost/'+gameCurrent+'/entry.js',legacyUrls:[],coverUrl:null}
+   {enabled:true,entryUrl:scope+'game-assets/ghost/'+gameCurrent+'/entry.js',legacyUrls:[],coverUrl:null}
   ]});
   sw.setCatalog('board-map-catalog.json',{schema:1,maps:[
-   {enabled:true,entryUrl:'/board-map-assets/winter-expedition/'+mapCurrent+'/entry.js',legacyUrls:[]}
+   {enabled:true,entryUrl:scope+'board-map-assets/winter-expedition/'+mapCurrent+'/entry.js',legacyUrls:[]}
   ]});
   sw.setCatalog('board-system-catalog.json',{schema:1,systems:[
-   {enabled:true,entryUrl:'/board-system-assets/items/bonus/'+systemCurrent+'/entry.js'}
+   {enabled:true,entryUrl:scope+'board-system-assets/items/bonus/'+systemCurrent+'/entry.js'}
   ]});
   for(const name of ['game-catalog.json','board-map-catalog.json','board-system-catalog.json'])
    await sw.request(ORIGIN+scope+name);
