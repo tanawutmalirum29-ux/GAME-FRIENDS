@@ -223,11 +223,6 @@ function scheduleBreak(s){
    s.version++;s.lastPattern=name;return true;}}
  return false;
 }
-function breakInterval(s,d){
- let t=lerp(2.6,.7,Math.pow(d,.85));
- if(s.clock>s.cap)t*=Math.max(.35,1-(s.clock-s.cap)/25);
- return t*(.85+rng(s)*.3);
-}
 /* Contact-based, not movement-based: standing in place triggers both
    layers after their independent delay and grace period. */
 function triggerContact(s,ps){
