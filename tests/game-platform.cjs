@@ -30,7 +30,7 @@ for(const game of catalog.games){
 }
 const originalHTML=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const hashedCoreFiles=builder.coreHashFiles();
-const localIndexScripts=Array.from(originalHTML.matchAll(/<script\\b[^>]*\\bsrc=["']([^"']+)["'][^>]*>/gi),match=>match[1])
+const localIndexScripts=Array.from(originalHTML.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi),match=>match[1])
  .filter(src=>src.startsWith('./')&&!src.startsWith('../'))
  .map(src=>src.slice(2));
 for(const script of localIndexScripts){
