@@ -97,8 +97,9 @@ function boardRecovery(){
  const i=source.indexOf('function animate(ts){'),j=source.indexOf('\nfunction broadcastGameState()',i);
  assert.ok(i>=0&&j>i,'host animation loop found');
  const animateSource=source.slice(i,j);
- const run=(board)=>{
+ const run=(board,throwRecovery=false)=>{
   let returned=0,shown=0,cancelled=0,raf=0,notices=0;
+  const fail=()=>{if(throwRecovery)throw Error('simulated recovery UI failure');};
   const boardState=board?{phase:'minigame'}:null;
   const ctx=vm.createContext({
    Math,frameLast:0,currentView:'game',gameSelection:null,graphicsClock:0,
@@ -106,8 +107,8 @@ function boardRecovery(){
    boardSession:boardState,window:{BoardParty:{minigameCancelled(s){
     assert.equal(s,boardState);cancelled++;s.phase='standings';return true;}}},
    updateRound(){throw Error('simulated bad game update');},
-   logRoundFault(){},showBoard(){shown++;},returnToLobby(){returned++;},
-   showToast(){notices++;},requestAnimationFrame(){raf++;},MODES:{mole_mayhem:'MOLE MAYHEM'}
+   logRoundFault(){},showBoard(){shown++;fail();},returnToLobby(){returned++;fail();},
+   showToast(){notices++;fail();},requestAnimationFrame(){raf++;},MODES:{mole_mayhem:'MOLE MAYHEM'}
   });
   vm.runInContext(animateSource+'; animate(16);',ctx);
   return{returned,shown,cancelled,raf,notices};
@@ -120,6 +121,12 @@ function boardRecovery(){
  result=run(false);
  assert.equal(result.returned,1,'normal round faults still have a controlled abort');
  assert.equal(result.raf,1);
+ result=run(true,true);
+ assert.equal(result.cancelled,1,'BOARD cancellation survives a failing recovery UI');
+ assert.equal(result.raf,1,'throwing showBoard/showToast cannot kill the render loop');
+ result=run(false,true);
+ assert.equal(result.returned,1,'normal lobby recovery is still attempted');
+ assert.equal(result.raf,1,'throwing returnToLobby/showToast cannot kill the render loop');
 }
 function pluginDisposal(){
  const runtime=read('src/app/core/runtime.js');
