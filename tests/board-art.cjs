@@ -290,15 +290,10 @@ assert.match(artSource,/s\.move\?\.kind!=='walk'/,
  assert.equal(A.pan(s,30,0),true);
  assert.equal(s.camera.panned,true,'dragging detaches tracking again');
 }
-assert.match(artSource,/const samples=curved\?8:1/,
- 'quadratic arrow shafts must follow real curved path samples');
-assert.match(artSource,/function curvedForkRoad\(/,'real curved road renderer exists');
-assert.match(artSource,/g\.quadraticCurveTo\(control\.x,control\.y,b\.x,b\.y\)/,
- 'n3 forks are drawn with smooth rounded curves, not overlapping sharp road edges');
-assert.match(artSource,/curvedForkRoad\(g,n\.id,id,n\.position,p\)/,
- 'cached high-detail roads use the same Y-curve');
-assert.match(artSource,/curvedForkRoad\(g,n\.id,id,a,b,true\)/,
- 'low-memory fallback also uses Y-curve');
+assert.match(artSource,/const samples=1;/,
+ 'route arrows use the same straight node-to-node geometry as gameplay');
+assert.doesNotMatch(artSource,/curvedForkRoad|quadraticCurveTo\\(control\\.x,control\\.y,b\\.x,b\\.y\\)/,
+ 'high-detail and low-memory road renderers must not offset the visible fork from the walking corridor');
 assert.match(artSource,/for\(const \[from,to\] of map\.bridges\)/,
  'the low-memory renderer must also paint bridge decks');
 const initialSurfaces=surfaces.length;

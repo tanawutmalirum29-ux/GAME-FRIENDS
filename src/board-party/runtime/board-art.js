@@ -267,25 +267,6 @@ function decorations(g,s){
   if(visible(zone.landmark))landmark(g,zone);
  }
 }
-// Visually split n3's Y-junction into two curved, rounded banks. Road
-// boundary lines no longer stack at the same straight crossing. Endpoints
-// stay on their real game tiles and the narrow travel corridor remains safe.
-function curvedForkRoad(g,from,to,a,b,lowDetail=false){
- if(from!=='n3'||!['n4','b3_1'].includes(to))return false;
- const control=to==='n4'?{x:1227,y:4734}:{x:1082,y:4664};
- const layers=lowDetail?[
-  ['#f9ffff',92],['#bdd9df',65]
- ]:[
-  ['#7da9b733',101],['#f9ffff',92],['#bdd9df',68],['#dbeef0',61]
- ];
- g.save();g.lineCap='round';g.lineJoin='round';
- for(const [color,width] of layers){
-  g.beginPath();g.moveTo(a.x,a.y);
-  g.quadraticCurveTo(control.x,control.y,b.x,b.y);
-  g.strokeStyle=color;g.lineWidth=width;g.stroke();
- }
- g.restore();return true;
-}
 function scenery(g,map){
  g.fillStyle='#183e5d';g.fillRect(0,0,map.width,map.height);
  // Ocean texture is fixed too; gameplay RNG never enters the renderer.
@@ -295,7 +276,6 @@ function scenery(g,map){
  for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
   if(bridgeKeys.has(n.id+'>'+id))continue;
   const p=map.nodes[id].position;
-  if(curvedForkRoad(g,n.id,id,n.position,p))continue;
   line(g,n.position.x,n.position.y,p.x,p.y,'#7da9b733',101);
   line(g,n.position.x,n.position.y,p.x,p.y,'#f9ffff',92);
   line(g,n.position.x,n.position.y,p.x,p.y,'#bdd9df',68);
@@ -314,7 +294,6 @@ function sceneryLite(g,s){
  for(const n of Object.values(map.nodes))for(const id of n.nextNodes){
   const a=n.position,b=map.nodes[id].position;
   if(!intersects(a,b)||bridges.has(n.id+'>'+id))continue;
-  if(curvedForkRoad(g,n.id,id,a,b,true))continue;
   line(g,a.x,a.y,b.x,b.y,'#f9ffff',92);line(g,a.x,a.y,b.x,b.y,'#bdd9df',65);
  }
  for(const [from,to] of map.bridges){const a=map.nodes[from].position,b=map.nodes[to].position;if(intersects(a,b))bridge(g,a,b,map.bridgeStyles?.[from+'>'+to]||'wood');}

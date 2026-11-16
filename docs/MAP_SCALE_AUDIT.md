@@ -227,3 +227,5 @@ Do not merge until `verify.yml` tests and browser checks finish without failures
 - Analog forward entry accepts a wider approach cone, and diagonal forward input receives a small assist. Pure sideways/backward/released input remains non-advancing.
 - Fork road artwork now uses the same straight node-to-node centreline as walking physics; the prior decorative Bezier offset is removed so the visible deck and walkable corridor no longer disagree.
 - Regression coverage checks off-centre reverse continuity, diagonal 75-degree forward entry/progress, and road/arrow geometry parity.
+
+- The n3 Y-fork now uses the standard straight graph-edge deck in both cached high-detail and low-memory scenery paths; there is no special visual curve offset from the movement centreline.
