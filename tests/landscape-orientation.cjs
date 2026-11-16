@@ -9,6 +9,14 @@ for(const path of ['host.webmanifest','manifest.webmanifest'])
 assert.match(runtime,/function syncLandscapePresentation\(/);
 assert.match(runtime,/isStandaloneWebApp\(\)\|\|currentView==='hostLobby'\|\|currentView==='game'/);
 assert.match(css,/body\.gf-virtual-landscape\.host-playing #game\.game-page/);
+assert.match(css,/body\.gf-virtual-landscape \.transition-loading\{\s*width:100%!important;height:100%!important;/,
+ 'rotated loading curtain must fill the transposed body box');
+assert.match(css,/grid-template-rows:auto auto;/,
+ 'portrait home cover row must size to its intrinsic aspect ratio');
+assert.match(css,/height:auto;\s*aspect-ratio:1200 \/ 630;/,
+ 'portrait home cover must not stretch to fill leftover viewport height');
+assert.match(css,/orientation:portrait\) and \(min-width:700px\)[\s\S]*?padding-top:max\(26px,env\(safe-area-inset-top,0px\)\)/,
+ 'iPad portrait fullscreen home reserves room for the system status bar');
 assert.match(css,/#controller #rotateNotice,[\s\S]*?display:none!important/);
 assert.match(read('index.html'),/id="rotateNotice"[^>]*hidden aria-hidden="true"/);
 assert.match(controller,/followDeviceOrientation\(\); \/\/ automatic/);
