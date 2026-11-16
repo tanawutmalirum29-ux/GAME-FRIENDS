@@ -38,7 +38,7 @@ try{
  fs.writeFileSync(path.join(fixture,'game.js'),
   'export default {setup(){},update(){},draw(){},hud(){return {}},getResult(){return []}};\n');
  execFileSync(process.execPath,['scripts/build-static.cjs'],{
-  cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:deploy},
+  cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:deploy,AWS_APP_ID:'testapp123',AWS_BRANCH:'main'},
   encoding:'utf8',stdio:['ignore','pipe','pipe']
  });
  const exists=file=>assert.ok(fs.statSync(path.join(target,file)).isFile(),
