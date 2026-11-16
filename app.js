@@ -2773,6 +2773,13 @@ function resetControllerForRoomChange(message,awaitLeaveAck=false){
 let controllerNetworkLoad=null;
 function joinRoom(recovery=false){
   recovery=recovery===true;
+  // Validate before any asynchronous dependency/TURN bootstrap can disable Join.
+  const code=parseRoomCode($('roomCodeInput').value);
+  if(!code){
+    $('joinBtn').disabled=false;
+    controllerState('รหัสห้องไม่ถูกต้อง กรุณากรอก 6 ตัวหรือสแกน QR',true);
+    return;
+  }
   if(typeof Peer!=='function'){
     const deps=window.GameRuntimeDeps;
     if(deps){
@@ -2814,8 +2821,6 @@ function joinRoom(recovery=false){
   if(!recovery)reconnectTries=0;
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;
-  const code=parseRoomCode($('roomCodeInput').value);
-  if(!code){controllerState('รหัสห้องไม่ถูกต้อง กรุณากรอก 6 ตัวหรือสแกน QR',true);return;}
   selectRoomCode(code);
   const name=cleanName($('nick').value);$('nick').value=name;rememberNickname();
   void stopRoomScanner();
