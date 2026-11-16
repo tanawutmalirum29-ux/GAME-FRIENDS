@@ -399,11 +399,10 @@ function roadGuides(g,s){
   (edge.kind?crossings:regular).push(edge);
  }
  function trace(e){
-  g.beginPath();g.moveTo(e.a.x,e.a.y);
-  if(e.from==='n3'&&(e.to==='n4'||e.to==='b3_1')){
-   const ctrl=e.to==='n4'?{x:1227,y:4734}:{x:1082,y:4664};
-   g.quadraticCurveTo(ctrl.x,ctrl.y,e.b.x,e.b.y);
-  }else g.lineTo(e.b.x,e.b.y);
+  // Gameplay and artwork share the same straight node-to-node centreline.
+  // A decorative Bezier on the fork made the visible road drift away from
+  // the actual 2D walking corridor and feel like an invisible wall.
+  g.beginPath();g.moveTo(e.a.x,e.a.y);g.lineTo(e.b.x,e.b.y);
  }
  function strokeEdge(e,color,width,sideOffset=0){
   if(sideOffset){
@@ -449,19 +448,9 @@ function roadGuides(g,s){
  // At forks, incoming roads still point INTO the junction, not away from it.
  // Visual symmetry must never invent a traversal direction.
  function arrowPoint(e,t){
-  if(e.from==='n3'&&(e.to==='n4'||e.to==='b3_1')){
-   const q=e.to==='n4'?{x:1227,y:4734}:{x:1082,y:4664},v=1-t;
-   return{x:v*v*e.a.x+2*v*t*q.x+t*t*e.b.x,
-          y:v*v*e.a.y+2*v*t*q.y+t*t*e.b.y};
-  }
   return{x:e.a.x+(e.b.x-e.a.x)*t,y:e.a.y+(e.b.y-e.a.y)*t};
  }
- function arrowTangent(e,t){
-  if(e.from==='n3'&&(e.to==='n4'||e.to==='b3_1')){
-   const q=e.to==='n4'?{x:1227,y:4734}:{x:1082,y:4664};
-   return{x:2*(1-t)*(q.x-e.a.x)+2*t*(e.b.x-q.x),
-          y:2*(1-t)*(q.y-e.a.y)+2*t*(e.b.y-q.y)};
-  }
+ function arrowTangent(e){
   return{x:e.b.x-e.a.x,y:e.b.y-e.a.y};
  }
  function arrowHead(e){
@@ -480,10 +469,8 @@ function roadGuides(g,s){
   g.save();g.globalAlpha=z<.18?.85:1;
   g.strokeStyle='#fff4db';g.fillStyle='#fff4db';
   g.lineCap='round';g.lineJoin='round';g.lineWidth=Math.max(3,Math.min(26,free*.40));
-  // The shaft samples the actual curved path, not its straight endpoint chord.
-  // Its final section meets the tangent-oriented head without a visual gap.
-  const curved=e.from==='n3'&&(e.to==='n4'||e.to==='b3_1');
-  const samples=curved?8:1;
+  // The arrow shaft follows the same straight graph edge as the road deck.
+  const samples=1;
   g.beginPath();g.moveTo(a.x,a.y);
   for(let i=1;i<=samples;i++){
    const point=arrowPoint(e,from+(neck-from)*i/samples);

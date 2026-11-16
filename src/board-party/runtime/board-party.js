@@ -301,7 +301,10 @@ function walkEdge(s,p,dt){
   // walkable lane bounds prevent shortcuts while the dice still count nodes.
   // Gentle forward assist for diagonal input; a released or sideways stick
   // must never move automatically. Reverse remains a real reverse.
-  const along=tangent>.14*magnitude?Math.max(tangent,.45*magnitude):tangent;
+  // A modest forward component is enough to advance. This prevents a
+  // diagonal thumb direction from feeling blocked at the edge of the lane,
+  // while a purely sideways or backward input still cannot move forward.
+  const along=tangent>.05*magnitude?Math.max(tangent,.35*magnitude):tangent;
   // A turn may reproject slightly before the next road's origin. Clamping
   // this offset to zero immediately teleports the character at junctions.
   m.t=bound(m.t+along*WALK_SPEED*dt/d,-NODE_RADIUS/d,1);
@@ -314,7 +317,10 @@ function walkEdge(s,p,dt){
  m.walking=Math.abs(m.t-beforeT)>1e-6||Math.abs(m.lateral-beforeL)>1e-6;
  if(m.t<=.001&&tangent<-.15){
   // Reverse to the fork and choose again without consuming a die step.
-  const pos=I().position(s,p),base=I().positionOnNode(s,p,m.from);
+  const pos=I().position(s,p),base=s.map.nodes[m.from].position;
+  // nodeOffset is always measured from the canonical node centre. Using
+  // positionOnNode() here can return the persisted worldPosition anchor,
+  // mixing two origins and snapping the avatar when the edge is released.
   m.nodeOffset={x:0,y:0};
   if(Number.isFinite(pos.x)&&Number.isFinite(pos.y)){
    const vx=pos.x-base.x,vy=pos.y-base.y,len=Math.hypot(vx,vy)||1;
@@ -399,7 +405,9 @@ function forwardForce(s,p,toId){
  const from=s.map.nodes[p.currentNodeId].position,to=s.map.nodes[toId]?.position;if(!to)return 0;
  const dx=to.x-from.x,dy=to.y-from.y;
  const dot=(dx*a.x+dy*a.y)/Math.hypot(dx,dy)/strength;
- return dot>.35?Math.min(1,strength)*dot:0;
+ // Accept a wider approach cone for analog/touch sticks. The player can
+ // still roam on the pad when the input is almost perpendicular.
+ return dot>.18?Math.min(1,strength)*dot:0;
 }
 function forwardInput(s,p){
  const a=axes(s,p.id),id=M().choose(s.map,p.currentNodeId,a.x,a.y);

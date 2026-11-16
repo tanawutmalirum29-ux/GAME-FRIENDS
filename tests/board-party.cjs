@@ -404,6 +404,42 @@ test('Free 2D walking: reverse and sideways inputs are real movement, no acciden
  until(s,()=>{if(s.move)steer(s,p);return s.phase==='effect';},30);
  assert.equal(p.currentNodeId,'n3','resuming the joystick completes only manual steps');
 });
+test('Reverse-to-node handoff preserves the exact world position instead of snapping to the stale anchor',()=>{
+ const s=ready(),p=s.players[0],from=s.map.nodes.n0.position,to=s.map.nodes.n1.position;
+ const dx=to.x-from.x,dy=to.y-from.y,d=Math.hypot(dx,dy),ux=dx/d,uy=dy/d;
+ const nx=-uy,ny=ux;
+ // Start off-centre on the pad, as happens after a player has walked sideways.
+ p.worldPosition={x:from.x+ux*12+nx*24,y:from.y+uy*12+ny*24};
+ P.beginMove(s,p,2);
+ assert.equal(s.move.to,'n1');
+ const before=plain(I.position(s,p));
+ press(s,p,null,{axisX:-ux,axisY:-uy});
+ P.update(s,.05);
+ assert.equal(s.phase,'move_ready','reversing past the edge origin returns to the same node');
+ const after=I.position(s,p);
+ assert.ok(Math.hypot(after.x-before.x,after.y-before.y)<15,
+  'one reverse tick may move the player, but must not pull it across the pad');
+ const offset={x:after.x-from.x,y:after.y-from.y};
+ assert.ok(Math.abs(offset.x*nx+offset.y*ny)>20,
+  'the existing sideways position is preserved after returning to the node');
+ assert.equal(s.move.remaining,2,'reversing does not consume a die step');
+});
+test('A diagonal forward approach can enter and advance along a road without an invisible directional wall',()=>{
+ const s=ready(),p=s.players[0],a=s.map.nodes.n0.position,b=s.map.nodes.n1.position;
+ const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy),ux=dx/d,uy=dy/d;
+ const nx=-uy,ny=ux,angle=75*Math.PI/180;
+ const stick={x:ux*Math.cos(angle)+nx*Math.sin(angle),
+              y:uy*Math.cos(angle)+ny*Math.sin(angle)};
+ P.beginMove(s,p,2);
+ press(s,p,null,{axisX:stick.x,axisY:stick.y});
+ P.update(s,.05);
+ assert.equal(s.phase,'moving','a clear 75-degree forward approach can enter the road');
+ assert.equal(s.move.to,'n1');
+ const before=s.move.t;
+ for(let i=0;i<4;i++){press(s,p,null,{axisX:stick.x,axisY:stick.y});P.update(s,.05);}
+ assert.ok(s.move.t>before+.02,'diagonal forward input produces real forward progress');
+ assert.equal(s.move.remaining,2,'directional assistance does not skip or consume a node');
+});
 test('Player can reach the inner edge of an 88-unit road and circular pad without skipping steps',()=>{
  const s=ready(3,608),p=s.players[0];
  P.beginMove(s,p,3);
