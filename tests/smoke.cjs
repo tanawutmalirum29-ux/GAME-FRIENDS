@@ -130,8 +130,8 @@ assert.match(css,/#home\.party-entry \.hero:has\(\.hero-cover\)\{[\s\S]*?grid-te
  'landscape host page uses bounded side-by-side cover instead of an overflowing image below actions');
 assert.match(css,/#home\.party-entry \.hero \.hero-cover\{[\s\S]*?height:100%;[\s\S]*?max-height:100%;[\s\S]*?object-fit:contain;/,
  'entire six-game cover must be contained without any cropping');
-assert.match(css,/@media\(orientation:portrait\) and \(max-width:1100px\), \(max-width:620px\)\{[\s\S]*?grid-template-rows:auto minmax\(0,1fr\);/,
- 'portrait devices allocate leftover viewport height to the cover below controls');
+assert.match(css,/@media\(orientation:portrait\) and \(max-width:1100px\), \(max-width:620px\)\{[\s\S]*?grid-template-rows:auto auto;[\s\S]*?align-content:center;[\s\S]*?height:auto;[\s\S]*?aspect-ratio:1200 \/ 630;/,
+ 'portrait devices center a content-sized control and cover group without stretching the image');
 assert.match(css,/@media\(orientation:landscape\) and \(max-width:620px\)\{[\s\S]*?grid-template-columns:minmax\(0,\.95fr\) minmax\(0,1\.05fr\);/,
  'short narrow landscape keeps a side-by-side arrangement');
 
