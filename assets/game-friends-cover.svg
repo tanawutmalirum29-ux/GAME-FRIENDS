@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
-<title id="title">GAME FRIENDS</title><desc id="description">Twelve original party game worlds: GHOST ATTACK, CHICKENS, FRUIT MEMORY, SHOCKWAVE, COLOR SWITCH, PIZZA TIME, KNIGHT MATCH, BOULDER BASH, SNOW BRAWL, SHOPPING TIME, WITCHING SNAKE and LAWN MOWER.</desc>
+<title id="title">GAME FRIENDS</title><desc id="description">Twenty-six playable mini-games across twelve illustrated party worlds: GHOST ATTACK, CHICKENS, FRUIT MEMORY, SHOCKWAVE, COLOR SWITCH, PIZZA TIME, KNIGHT MATCH, BOULDER BASH, SNOW BRAWL, SHOPPING TIME, WITCHING SNAKE and LAWN MOWER.</desc>
 <defs><linearGradient id="heroNight" x2="1" y2="1"><stop stop-color="#203f50"/><stop offset="1" stop-color="#13243c"/></linearGradient></defs>
 <rect width="1200" height="630" rx="24" fill="url(#heroNight)"/>
 <path d="M37 31h63l15 54-24 7-17-16H62L47 91 22 83Z" fill="#eddba8" stroke="#fff4d3" stroke-width="3"/><path d="M46 48v22M35 59h22" stroke="#34516a" stroke-width="6" stroke-linecap="round"/><circle cx="88" cy="51" r="5" fill="#e57582"/><circle cx="98" cy="65" r="5" fill="#5cbbd0"/>
 <text x="139" y="71" font-family="Arial, sans-serif" font-size="50" font-weight="900" letter-spacing="2" fill="#fff1cf">GAME FRIENDS</text>
-<text x="1170" y="52" text-anchor="end" font-family="Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="2" fill="#e1d5b3">12 WORLDS TO PLAY</text>
+<text x="1170" y="52" text-anchor="end" font-family="Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="1.5" fill="#e1d5b3">26 GAMES • 12 WORLDS</text>
 <text x="1170" y="79" text-anchor="end" font-family="Arial, sans-serif" font-size="15" letter-spacing="1.5" fill="#97b5bd">ONE BIG PARTY</text>
 <svg xmlns="http://www.w3.org/2000/svg" x="30" y="122" width="273" height="154" viewBox="0 0 320 180" class="mode-cover-svg" aria-hidden="true" focusable="false" data-cover="ghost"><defs>
  <linearGradient id="gc1-grass" x2=".3" y2="1"><stop stop-color="#6a9a47"/><stop offset="1" stop-color="#bdd569"/></linearGradient>

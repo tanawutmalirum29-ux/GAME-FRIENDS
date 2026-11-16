@@ -4200,7 +4200,8 @@ body:has(#home:not(.hidden)) footer{
 @media(orientation:portrait) and (max-width:1100px), (max-width:620px){
   #home.party-entry .hero:has(.hero-cover){
     grid-template-columns:minmax(0,1fr);
-    grid-template-rows:auto minmax(0,1fr);
+    grid-template-rows:auto auto;
+    align-content:center;
     gap:clamp(5px,1dvh,13px);
     padding:clamp(9px,2.5vw,19px);
   }
@@ -4212,6 +4213,9 @@ body:has(#home:not(.hidden)) footer{
   #home.party-entry .hero .hero-cover{
     grid-column:1;
     grid-row:2;
+    height:auto;
+    aspect-ratio:1200 / 630;
+    align-self:center;
   }
   #home.party-entry .hero .hero-content h1{
     font-size:clamp(21px,min(5.7vw,4.6dvh),41px);
@@ -5370,6 +5374,14 @@ body.controller-playing #controllerActive #joystickZone .board-camera-mode-hint.
 /* iPadOS Fullscreen API: WebKit may keep its system time/battery strip visible
    with safe-area-inset-top=0. Never put interactive controls behind the strip.
    Standalone PWA is already handled by the opaque status-bar meta tag. */
+@media (orientation:portrait) and (min-width:700px){
+  /* iPadOS native fullscreen can leave the status strip over the page even
+     when safe-area-inset-top reports zero. Reserve a visible top clearance. */
+  html.ipad-native-fullscreen body:has(#home:not(.hidden)) .topbar{
+    height:calc(90px + max(26px,env(safe-area-inset-top,0px)));
+    padding-top:max(26px,env(safe-area-inset-top,0px));
+  }
+}
 @media (orientation:landscape) and (min-width:700px){
   html.ipad-native-fullscreen body:has(#home:not(.hidden)) .topbar{
     height:clamp(74px,11dvh,100px);
@@ -6441,6 +6453,13 @@ body.controller-playing #controller .phone-game-choices{
   max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
  background:radial-gradient(ellipse at 50% 42%,#1d3557 0%,#0d1c35 42%,#080e1f 100%);
  color:#f4f9ff;text-align:center;box-sizing:border-box;
+}
+/* The virtual-landscape body is already transposed before its 90deg
+   rotation. Size fixed descendants to that local box, not physical dvw/dvh. */
+@media(orientation:portrait){
+ body.gf-virtual-landscape .transition-loading{
+  width:100%!important;height:100%!important;
+ }
 }
 .transition-loading.hidden{display:none!important}
 .transition-loading-card{
