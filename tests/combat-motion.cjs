@@ -15,6 +15,19 @@ const player=(id,x,y,color='#33dd99')=>({
  id,name:id,active:true,x,y,color,dir:{x:1,y:0},
  vx:0,vy:0,stun:0,punchCooldown:0
 });
+for(const direction of [
+ {name:'right',x:1,y:0},{name:'left',x:-1,y:0},
+ {name:'down',x:0,y:1},{name:'up',x:0,y:-1}
+]){
+ const attacker=player('attacker',100,100);attacker.dir={x:direction.x,y:direction.y};
+ const victim=player('victim',100+direction.x*42,100+direction.y*42);
+ const behind=player('behind',100-direction.x*42,100-direction.y*42);
+ assert.equal(Combat.startAttack(attacker),true,direction.name+' attack starts');
+ assert.deepEqual({...attacker.attackFacing},{x:direction.x,y:direction.y},
+  direction.name+' facing must not be replaced by a horizontal default');
+ assert.deepEqual(Combat.hitPlayers(attacker,[victim,behind],{range:53,coneCos:.45}).map(p=>p.id),
+  ['victim'],direction.name+' punch hits only the player in front');
+}
 {
  const attacker=player('a',100,120,'#bb55ff');
  const victim=player('b',142,120,'#4499ff');
