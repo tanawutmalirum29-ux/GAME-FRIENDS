@@ -13,6 +13,10 @@ assert.match(css,/body\.gf-virtual-landscape \.transition-loading\{\s*width:100%
  'rotated loading curtain must fill the transposed body box');
 assert.match(css,/grid-template-rows:auto auto;/,
  'portrait home cover row must size to its intrinsic aspect ratio');
+assert.match(css,/grid-template-rows:auto auto;\s*align-content:center;/,
+ 'portrait home content and cover must stay grouped instead of stretching auto tracks');
+assert.match(read('assets/game-friends-cover.svg'),/26 GAMES • 12 WORLDS/,
+ 'cover must distinguish the 26 playable games from the 12 illustrated worlds');
 assert.match(css,/height:auto;\s*aspect-ratio:1200 \/ 630;/,
  'portrait home cover must not stretch to fill leftover viewport height');
 assert.match(css,/orientation:portrait\) and \(min-width:700px\)[\s\S]*?padding-top:max\(26px,env\(safe-area-inset-top,0px\)\)/,

@@ -4201,6 +4201,7 @@ body:has(#home:not(.hidden)) footer{
   #home.party-entry .hero:has(.hero-cover){
     grid-template-columns:minmax(0,1fr);
     grid-template-rows:auto auto;
+    align-content:center;
     gap:clamp(5px,1dvh,13px);
     padding:clamp(9px,2.5vw,19px);
   }
