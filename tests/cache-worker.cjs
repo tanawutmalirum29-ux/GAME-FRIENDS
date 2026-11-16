@@ -171,6 +171,11 @@ async function suite(scope){
   ]});
   for(const name of ['game-catalog.json','board-map-catalog.json','board-system-catalog.json'])
    await sw.request(ORIGIN+scope+name);
+  // Catalog fetches no longer wait for cleanup. Let the first coalesced task
+  // finish, then poll again with the complete manifest set available.
+  await sw.waitForBackground();
+  await sw.request(ORIGIN+scope+'game-catalog.json?cleanup=all-catalogs');
+  await sw.waitForBackground();
   const games=cacheContents.get('gf-immutable-games-v1:'+encodeURIComponent(scope));
   const boards=cacheContents.get('gf-immutable-board-maps-v1:'+encodeURIComponent(scope));
   const oldKeys=[gameUrl(gameOld),mapUrl(mapOld),systemUrl(systemOld)];
@@ -183,6 +188,7 @@ async function suite(scope){
     'active/unresponsive tab pins its old hash: '+key);
    sw.setClientActive(false);
    await sw.request(ORIGIN+scope+'game-catalog.json?refresh=idle');
+   await sw.waitForBackground();
    for(const key of oldKeys)assert.ok(!games?.has(key)&&!boards?.has(key),
     'stale hash is removed after every tab reports idle: '+key);
   }
