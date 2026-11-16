@@ -4,7 +4,9 @@ function forwardForce(s,p,toId){
  const from=s.map.nodes[p.currentNodeId].position,to=s.map.nodes[toId]?.position;if(!to)return 0;
  const dx=to.x-from.x,dy=to.y-from.y;
  const dot=(dx*a.x+dy*a.y)/Math.hypot(dx,dy)/strength;
- return dot>.35?Math.min(1,strength)*dot:0;
+ // Accept a wider approach cone for analog/touch sticks. The player can
+ // still roam on the pad when the input is almost perpendicular.
+ return dot>.18?Math.min(1,strength)*dot:0;
 }
 function forwardInput(s,p){
  const a=axes(s,p.id),id=M().choose(s.map,p.currentNodeId,a.x,a.y);

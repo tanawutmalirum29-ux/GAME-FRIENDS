@@ -219,3 +219,13 @@ Do not merge until `verify.yml` tests and browser checks finish without failures
 - Completely removed the `TURN_DELAY` 0.08-second branch confirmation, `intentTime` and per-move intent accumulation; single-exit roads and forks both accept a deliberate joystick direction on the first movement update, with **no time-based selection**.
 - Preserve the forward dot-product threshold (strength 0.25, directional dot > 0.35). On multi-exit nodes, require the strongest normalized directional dot to exceed every competing exit by 0.08. An ambiguous bisector leaves the avatar freely walkable on the current pad instead of guessing an exit. The moment aim becomes distinct, traversal starts immediately.
 - Directed graph, 302 node geometry, 88-unit pads, 34-unit lanes, speed 240, free pan/zoom, late branch switching, reverse, release-to-stop, authoritative die-step counting and controls remain unchanged. Canonical runtime regenerated from authored source modules; 1/6/12-player 1ms fork-choice regressions added.
+
+
+### BOARD PARTY walking continuity and approach clearance (2026-11-16)
+
+- Returning from an edge to its source node preserves the live world position by measuring the pad offset from the canonical node centre, never a stale persisted world-position anchor.
+- Analog forward entry accepts a wider approach cone, and diagonal forward input receives a small assist. Pure sideways/backward/released input remains non-advancing.
+- Fork road artwork now uses the same straight node-to-node centreline as walking physics; the prior decorative Bezier offset is removed so the visible deck and walkable corridor no longer disagree.
+- Regression coverage checks off-centre reverse continuity, diagonal 75-degree forward entry/progress, and road/arrow geometry parity.
+
+- The n3 Y-fork now uses the standard straight graph-edge deck in both cached high-detail and low-memory scenery paths; there is no special visual curve offset from the movement centreline.
