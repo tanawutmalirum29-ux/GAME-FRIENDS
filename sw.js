@@ -143,23 +143,23 @@ async function cleanupImmutableAssets(){
  })().finally(()=>{cleanupPending=null;});
  return cleanupPending;
 }
-async function catalog(request,name='game-catalog.json',event){
- const cache=await caches.open(CATALOG_CACHE);
- const key=new Request(new URL(name,self.registration.scope));
+async function catalog(request,name='game-catalog.json',finishCleanup){
+ let shouldCleanup=false,cache=null,key=null;
  try{
+  cache=await caches.open(CATALOG_CACHE);
+  key=new Request(new URL(name,self.registration.scope));
   const res=await fetch(request);
   if(res.ok){
    try{await cache.put(key,res.clone());}catch(_){/* cache is optional */}
-   // Stale-asset collection must not hold the catalog response. Keep the
-   // worker alive for cleanup, but never let cleanup errors affect the response.
-   const cleanup=cleanupImmutableAssets().catch(()=>{});
-   try{event.waitUntil(cleanup);}catch(_){void cleanup;}
+   shouldCleanup=true;
   }
   return res;
  }catch(error){
-  const hit=await cache.match(key);
+  const hit=cache&&key?await cache.match(key):null;
   if(hit)return hit;
   throw error;
+ }finally{
+  try{finishCleanup(shouldCleanup);}catch(_){}
  }
 }
 self.addEventListener('fetch',e=>{
@@ -168,8 +168,14 @@ self.addEventListener('fetch',e=>{
  if(url.origin!==self.location.origin)return;
  if(!url.pathname.startsWith(base))return;
  const rel=url.pathname.slice(base.length);
- if(rel==='game-catalog.json'||rel==='board-map-catalog.json'||rel==='board-system-catalog.json')
-  e.respondWith(catalog(e.request,rel,e));
+ if(rel==='game-catalog.json'||rel==='board-map-catalog.json'||rel==='board-system-catalog.json'){
+  // Register lifetime work synchronously. The response decides whether cleanup runs.
+  let finishCleanup;
+  const cleanupReady=new Promise(resolve=>{finishCleanup=resolve;});
+  e.waitUntil(cleanupReady.then(shouldCleanup=>
+   shouldCleanup?cleanupImmutableAssets():undefined).catch(()=>{}));
+  e.respondWith(catalog(e.request,rel,finishCleanup));
+ }
  else if(/^game-assets\/[a-z][a-z0-9_]*\/[a-f0-9]{24}\//.test(rel))
   e.respondWith(gameAsset(e.request));
  else if(/^(?:board-map-assets\/[a-z][a-z0-9-]*|board-system-assets\/(?:items|spaces|events)\/[a-z][a-z0-9-]*)\/[a-f0-9]{24}\//.test(rel))
