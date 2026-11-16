@@ -27,13 +27,15 @@ const caches={
  }
 };
 const swSource=fs.readFileSync(path.resolve(__dirname,'../sw.js'),'utf8');
-function worker(scope,initialActivity=null){
+function worker(scope,initialActivity=null,{respondToSession=true}={}){
  const handlers=new Map(),counts=new Map(),catalogPayloads=new Map();
- let offline=false;
+ const backgroundTasks=[];
+ let offline=false,waitUntilCount=0;
  const testClient=initialActivity===null?null:{
   url:ORIGIN+scope+'index.html',active:initialActivity,
   postMessage(message,ports){
-   if(message?.type==='gf-query-session')ports?.[0]?.postMessage({active:this.active});
+   if(message?.type==='gf-query-session'&&respondToSession)
+    ports?.[0]?.postMessage({active:this.active});
   }
  };
  const self={
@@ -57,13 +59,17 @@ function worker(scope,initialActivity=null){
   {filename:'sw.js'});
  async function request(url,method='GET'){
   let answer=null;
-  const event={request:{method,url},respondWith(promise){answer=Promise.resolve(promise);}};
+  const event={request:{method,url},
+   waitUntil(promise){waitUntilCount++;backgroundTasks.push(Promise.resolve(promise));},
+   respondWith(promise){answer=Promise.resolve(promise);}};
   handlers.get('fetch')(event);
   return answer?await answer:null;
  }
  return {request,counts,setOffline(value){offline=value;},
   setCatalog(name,payload){catalogPayloads.set(name,payload);},
-  setClientActive(value){if(testClient)testClient.active=value;}};
+  setClientActive(value){if(testClient)testClient.active=value;},
+  waitUntilCount(){return waitUntilCount;},
+  async waitForBackground(){await Promise.all(backgroundTasks);}};
 }
 const asset=(prefix,hash)=>ORIGIN+prefix+'game-assets/ghost/'+hash.repeat(24)+'/game.js';
 async function suite(scope){
@@ -129,6 +135,19 @@ async function suite(scope){
  const unprimed=worker('/fresh/');unprimed.setOffline(true);
  await assert.rejects(unprimed.request(ORIGIN+'/fresh/game-catalog.json'),/offline/,
   'a fresh scope must not read another scope\'s catalog');
+ // An unresponsive tab consumes the full 900 ms safety timeout, but catalog
+ // responses must return immediately while cleanup remains attached to the event.
+ const delayed=worker('/slow-client/',true,{respondToSession:false});
+ for(const poll of [1,2]){
+  const started=Date.now();
+  const response=await delayed.request(ORIGIN+'/slow-client/game-catalog.json?poll='+poll);
+  const elapsed=Date.now()-started;
+  assert.ok(response?.ok,'network catalog remains available with an unresponsive tab');
+  assert.ok(elapsed<500,'catalog response must not wait for tab timeout (elapsed '+elapsed+' ms)');
+ }
+ assert.equal(delayed.waitUntilCount(),2,'each catalog fetch extends worker lifetime for best-effort cleanup');
+ await delayed.waitForBackground();
+
  // Verify stale hashes are evicted only when all same-scope tabs report idle.
  async function cleanupCase(scope,active){
   const sw=worker(scope,active);
@@ -152,6 +171,11 @@ async function suite(scope){
   ]});
   for(const name of ['game-catalog.json','board-map-catalog.json','board-system-catalog.json'])
    await sw.request(ORIGIN+scope+name);
+  // Catalog fetches no longer wait for cleanup. Let the first coalesced task
+  // finish, then poll again with the complete manifest set available.
+  await sw.waitForBackground();
+  await sw.request(ORIGIN+scope+'game-catalog.json?cleanup=all-catalogs');
+  await sw.waitForBackground();
   const games=cacheContents.get('gf-immutable-games-v1:'+encodeURIComponent(scope));
   const boards=cacheContents.get('gf-immutable-board-maps-v1:'+encodeURIComponent(scope));
   const oldKeys=[gameUrl(gameOld),mapUrl(mapOld),systemUrl(systemOld)];
@@ -164,6 +188,7 @@ async function suite(scope){
     'active/unresponsive tab pins its old hash: '+key);
    sw.setClientActive(false);
    await sw.request(ORIGIN+scope+'game-catalog.json?refresh=idle');
+   await sw.waitForBackground();
    for(const key of oldKeys)assert.ok(!games?.has(key)&&!boards?.has(key),
     'stale hash is removed after every tab reports idle: '+key);
   }

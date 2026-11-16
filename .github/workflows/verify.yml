@@ -104,6 +104,8 @@ jobs:
       - name: Verify immutable cache and offline catalog behavior
         if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'loading') || contains(fromJSON(needs.browser-plan.outputs.areas), 'deployment') }}
         run: node tests/cache-worker.cjs
+      - name: Fixed-scale tournament result scoring regressions
+        run: node tests/results-scoring.cjs
       - name: Lazy online dependency bootstrap and retries
         if: ${{ needs.browser-plan.outputs.full == 'true' || contains(fromJSON(needs.browser-plan.outputs.areas), 'loading') || contains(fromJSON(needs.browser-plan.outputs.areas), 'platform') }}
         run: node tests/runtime-deps.cjs

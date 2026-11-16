@@ -4155,13 +4155,13 @@ function resultNextLabel(){
 }
 // Rank 1 earns 11, rank 2 earns 10 and rank 12 earns 0, always using
 // twelve as the fixed scale (even if a room has fewer players).
-function pointsForRank(rank,count){
-  return tournament?.endless?Math.max(0,MAX_PLAYERS-rank):Math.max(1,count-rank+1);
+function pointsForRank(rank){
+  return Math.max(0,MAX_PLAYERS-rank);
 }
 function awardRoundPoints(ordered,rankOf){
   if(!tournament)return;
   for(const p of ordered){
-    const points=pointsForRank(rankOf(p),ordered.length);
+    const points=pointsForRank(rankOf(p));
     p.total=(p.total||0)+points;
     p.lastRoundPoints=points;
   }

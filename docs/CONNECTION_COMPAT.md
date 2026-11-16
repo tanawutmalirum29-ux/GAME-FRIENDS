@@ -11,7 +11,6 @@ accepting a room. No numbered map, game, or transport release is necessary.
 - Board inputs include a stable `mapId`, the turn token and action sequence.
 - Existing live games finish before an application deployment reload.
 
-See `src/app/core/connection-compat.js`,
-`tests/connection-compat.cjs` and `tests/peer-protocol.cjs`
-for transport validation. The internal fingerprint exists for safety, not as a
+See `src/app/core/connection-compat.js` and
+`tests/connection-compat.cjs` for transport compatibility validation. The internal fingerprint exists for safety, not as a
 numbered release or asset URL suffix.
