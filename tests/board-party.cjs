@@ -67,6 +67,35 @@ test('bag cursor clamps to valid slots before selecting and after consuming',()=
  assert.equal(p.bagIndex,0,'cursor clamps after the selected item is consumed');
  ctx.window.BoardSystemPlugins=null;
 });
+test('Bot item selection honors plug-in botCanUse eligibility',()=>{
+ I.registerPlugins([{category:'items',id:'bot-bonus',name:'Bot Bonus',begin(){return true;}}]);
+ const p={id:'bot-plugin',isBot:true,bag:[],item:null,usedRound:0,actionIndex:0,
+  hp:100,currentNodeId:'n0'};
+ I.add(p,'bot-bonus');
+ const s={players:[p],phase:'ready',time:1,phaseAt:0,roundNumber:1,turnIndex:1,
+  lastActions:{},map:{finishId:'n1',nodes:{n0:{progress:0},n1:{progress:1}}}};
+ const packets=[];
+ const api={current:()=>p,input(_s,_id,packet){packets.push(packet);},isProtected:()=>false};
+ let eligible=false,calls=0;
+ ctx.window.BoardSystemPlugins={get(category,id){
+  return category==='items'&&id==='bot-bonus'?{
+   botCanUse(session,player,hostApi){
+    calls++;assert.equal(session,s);assert.equal(player,p);assert.equal(hostApi,api);
+    return eligible;
+   }
+  }:null;
+ }};
+ B.update(s,.1,api);
+ assert.equal(calls,1,'bot calls the plug-in eligibility hook');
+ assert.equal(packets.at(-1).keys.action,true,
+  'ineligible extension is skipped in favor of Roll, not generic fallback');
+ packets.length=0;eligible=true;
+ B.update(s,.1,api);
+ assert.equal(calls,2);
+ assert.equal(packets.at(-1).keys.alt,true,
+  'eligible extension is selected through the normal item cycle');
+ ctx.window.BoardSystemPlugins=null;I.registerPlugins([]);
+});
 test('1,000 seeds: connected DAG, reciprocal edges, all branches finish',()=>{
  for(let seed=0;seed<1000;seed++){
   const map=M.create(seed);assert.equal(M.validate(map),true);
