@@ -411,6 +411,7 @@ test('Reverse-to-node handoff preserves the exact world position instead of snap
  // Start off-centre on the pad, as happens after a player has walked sideways.
  p.worldPosition={x:from.x+ux*12+nx*24,y:from.y+uy*12+ny*24};
  P.beginMove(s,p,2);
+ assert.equal(P.step(s,'n1'),true,'enter the outgoing edge before testing its reverse handoff');
  assert.equal(s.move.to,'n1');
  const before=plain(I.position(s,p));
  press(s,p,null,{axisX:-ux,axisY:-uy});
