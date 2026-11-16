@@ -23,7 +23,7 @@ export function mintTurnCredentials(env=process.env,now=Date.now()){
  const expiresAt=now+settings.seconds*1000;
  const username=Math.floor(expiresAt/1000)+':'+randomBytes(12).toString('hex');
  const credential=createHmac('sha1',settings.secret).update(username).digest('base64');
- return {expiresAt,iceServers:[{urls:settings.urls,username,credential}]};
+ return {expiresAt,ttlSeconds:settings.seconds,iceServers:[{urls:settings.urls,username,credential}]};
 }
 export async function handler(event={},context={}){
  let settings;

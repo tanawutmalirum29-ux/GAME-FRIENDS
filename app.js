@@ -409,9 +409,14 @@ function partyPeerOptions(){
  // An optional public endpoint issues coturn REST credentials for each Peer
  // lifecycle. No shared TURN secret is ever present in browser source.
  let partyIceFetch=null,partyIceExpiry=0,partyIceLastAttempt=0,partyIceTimer=null;
+ // TURN expiry and retry windows use a monotonic clock, not the device wall clock.
+ function partyIceNow(){
+  return typeof performance!=='undefined'&&typeof performance.now==='function'?
+   performance.now():Date.now();
+ }
  function partyIceUpdatePeers(servers){
   for(const peer of [hostPeer,controllerPeer]){
-   if(!peer?.options)return;
+   if(!peer?.options)continue;
    try{peer.options.config={...peer.options.config,iceServers:servers};}catch(_){}
   }
  }
@@ -421,7 +426,7 @@ function partyPeerOptions(){
    partyIceTimer=null;
    const pending=partyIceCredentialsReady();
    if(pending)void pending.catch(()=>{});
-  },Math.max(30000,expiresAt-Date.now()-90000));
+  },Math.max(30000,expiresAt-partyIceNow()-90000));
  }
  // Return null for unconfigured/fresh/cooldown paths, Promise only when an
  // asynchronous fetch is actually required. Existing offline and smoke flows
@@ -429,7 +434,7 @@ function partyPeerOptions(){
  function partyIceCredentialsReady(){
   const setting=window.GF_TURN_CREDENTIALS_ENDPOINT;
   if(typeof setting!=='string'||!setting.trim())return null;
-  const now=Date.now();
+  const now=partyIceNow();
   if(partyIceExpiry-now>90000)return null;
   if(partyIceFetch)return partyIceFetch;
   if(now-partyIceLastAttempt<30000)return null;
@@ -448,25 +453,29 @@ function partyPeerOptions(){
       cache:'no-store',signal:abort?.signal});
     if(!response.ok)throw Error('TURN endpoint returned HTTP '+response.status);
     const data=await response.json();
-    if(!data||!Array.isArray(data.iceServers)||!Number.isFinite(data.expiresAt)||
-       data.expiresAt<Date.now()+60000||data.expiresAt>Date.now()+3600000||
-       !data.iceServers.some(entry=>{
-        const urls=Array.isArray(entry?.urls)?entry.urls:[entry?.urls];
-        return urls.some(url=>typeof url==='string'&&/^turns?:/i.test(url));
-       }))throw Error('TURN endpoint returned invalid/expired ICE data');
-    const before=window.GF_ICE_SERVERS;
+   // Relative TTL avoids rejecting valid credentials when the device clock is wrong.
+   // expiresAt remains as compatibility for a rolling Lambda rollout.
+   const ttlSeconds=Number.isFinite(data?.ttlSeconds)?data.ttlSeconds:
+    Number.isFinite(data?.expiresAt)?(data.expiresAt-Date.now())/1000:NaN;
+   if(!data||!Array.isArray(data.iceServers)||!Number.isFinite(ttlSeconds)||
+      ttlSeconds<60||ttlSeconds>3600||
+      !data.iceServers.some(entry=>{
+       const urls=Array.isArray(entry?.urls)?entry.urls:[entry?.urls];
+       return urls.some(url=>typeof url==='string'&&/^turns?:/i.test(url));
+      }))throw Error('TURN endpoint returned invalid/expired ICE data');
+   const before=window.GF_ICE_SERVERS;
     window.GF_ICE_SERVERS=data.iceServers;
     const validated=partyPeerOptions().config?.iceServers;
     if(!validated){window.GF_ICE_SERVERS=before;throw Error('Invalid ICE configuration');}
-    partyIceExpiry=data.expiresAt;
+    partyIceExpiry=partyIceNow()+ttlSeconds*1000;
     partyIceUpdatePeers(validated);
     partyIceRefreshLater(partyIceExpiry);
    }catch(error){
-    if(partyIceExpiry<=Date.now()){
+    if(partyIceExpiry<=partyIceNow()){
      partyIceExpiry=0;window.GF_ICE_SERVERS=null;
     }
     console.warn('TURN credentials unavailable; using direct PeerJS ICE fallback',error);
-    if(hostPeer||controllerPeer)partyIceRefreshLater(Date.now()+120000);
+    if(hostPeer||controllerPeer)partyIceRefreshLater(partyIceNow()+120000);
    }finally{
     if(timeout!==null)clearTimeout(timeout);
     partyIceFetch=null;
@@ -2574,6 +2583,7 @@ function loadQrLibrary(){
     qrLibraryPromise=new Promise((resolve,reject)=>{
       const script=document.createElement('script');
       script.src=QR_READER_CDN;script.async=true;
+       script.integrity='sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==';script.crossOrigin='anonymous';
       script.onload=()=>typeof window.Html5Qrcode==='function'?resolve():reject(new Error('QR scanner unavailable'));
       script.onerror=()=>reject(new Error('QR scanner could not be downloaded'));
       document.head.appendChild(script);
@@ -2763,6 +2773,13 @@ function resetControllerForRoomChange(message,awaitLeaveAck=false){
 let controllerNetworkLoad=null;
 function joinRoom(recovery=false){
   recovery=recovery===true;
+  // Validate before any asynchronous dependency/TURN bootstrap can disable Join.
+  const code=parseRoomCode($('roomCodeInput').value);
+  if(!code){
+    $('joinBtn').disabled=false;
+    controllerState('รหัสห้องไม่ถูกต้อง กรุณากรอก 6 ตัวหรือสแกน QR',true);
+    return;
+  }
   if(typeof Peer!=='function'){
     const deps=window.GameRuntimeDeps;
     if(deps){
@@ -2789,15 +2806,21 @@ function joinRoom(recovery=false){
     controllerState('กำลังเตรียม TURN สำหรับจอย...');
     void turnBootstrap.then(()=>{
       if(currentView===activeView&&activeView==='controller'&&
-         $('roomCodeInput').value===inputCode)joinRoom(recovery);
+         $('roomCodeInput').value===inputCode){
+       joinRoom(recovery);
+      }else{
+       // The user changed rooms/views while TURN preflight was pending.
+       $('joinBtn').disabled=false;
+      }
+    }).catch(error=>{
+      $('joinBtn').disabled=false;
+      controllerState('เตรียมระบบเครือข่ายไม่สำเร็จ: '+String(error?.message||error),true);
     });
     return;
   }
   if(!recovery)reconnectTries=0;
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;
-  const code=parseRoomCode($('roomCodeInput').value);
-  if(!code){controllerState('รหัสห้องไม่ถูกต้อง กรุณากรอก 6 ตัวหรือสแกน QR',true);return;}
   selectRoomCode(code);
   const name=cleanName($('nick').value);$('nick').value=name;rememberNickname();
   void stopRoomScanner();
@@ -3051,19 +3074,28 @@ function joinRoom(recovery=false){
   });
   peer.on('error',err=>{
     if(controllerPeer!==peer)return;
+    if(err?.type==='peer-unavailable'){
+     if(!recovery){
+      resetControllerForRoomChange('ไม่พบห้องนี้ • ตรวจรหัสห้อง หรือให้เจ้าของห้องเปิดห้องใหม่');
+      return;
+     }
+     controllerState('ยังไม่พบห้องเดิม • กำลังตรวจสอบอีกครั้ง',true);
+     retryPhone(4);
+     return;
+    }
     controllerState('เชื่อมต่อไม่ได้ ('+(err.type||'network')+') • กำลังลองใหม่',true);
     retryPhone();
-  });
-}
-function retryPhone(){
+   });
+ }
+ function retryPhone(maxTries=14){
  if(disconnectRequested||reconnectTimer!==null)return;
  if(!parseRoomCode($('roomCodeInput').value))return;
- if(reconnectTries>=14){
+ if(reconnectTries>=maxTries){
    resetControllerForRoomChange('กลับเข้าห้องไม่สำเร็จ กรุณากดเข้าห้องเดิมเพื่อลองอีกครั้ง');
    return;
  }
  reconnectTries++;
- controllerState('กำลังเชื่อมต่อห้องเดิมใหม่ ('+reconnectTries+'/14)');
+ controllerState('กำลังเชื่อมต่อห้องเดิมใหม่ ('+reconnectTries+'/'+maxTries+')');
  reconnectTimer=setTimeout(()=>{
    reconnectTimer=null;
    if(!disconnectRequested)joinRoom(true);
@@ -4714,27 +4746,33 @@ function animate(ts){
     }
    }
   }catch(error){
-    const mode=round?.mode;
-    logRoundFault('simulation',error,mode);
+    let mode=null;
+    try{
+      mode=round?.mode;
+      logRoundFault('simulation',error,mode);
+    }catch(_){}
     drawFailureStreak=0;
     // A failing minigame must NEVER destroy a live BOARD PARTY map, turn,
     // inventory or HP. The existing canonical cancellation gives no rewards.
     let resumedBoard=false;
     if(boardSession?.phase==='minigame'&&mode!=='board'){
-     try{
-      resumedBoard=window.BoardParty?.minigameCancelled?.(boardSession)===true;
-      if(resumedBoard){
-       showBoard();
-       showToast('มินิเกมมีปัญหา • ข้ามรอบนี้และกลับบอร์ด โดยไม่เสียความคืบหน้า',true);
-      }
-     }catch(recoveryError){logRoundFault('board-recovery',recoveryError,mode);}
+     try{resumedBoard=window.BoardParty?.minigameCancelled?.(boardSession)===true;}
+     catch(recoveryError){try{logRoundFault('board-recovery',recoveryError,mode);}catch(_){}}
+     if(resumedBoard){
+      try{showBoard();}catch(recoveryError){try{logRoundFault('board-show',recoveryError,mode);}catch(_){}}
+      try{showToast('มินิเกมมีปัญหา • ข้ามรอบนี้และกลับบอร์ด โดยไม่เสียความคืบหน้า',true);}
+      catch(recoveryError){try{logRoundFault('board-notice',recoveryError,mode);}catch(_){}}
+     }
     }
     if(!resumedBoard&&mode){
-      returnToLobby();
-      showToast((MODES[mode]||mode)+' หยุดเพราะมีข้อผิดพลาด: '+String(error?.message||error).slice(0,100),true);
+      try{returnToLobby();}catch(recoveryError){try{logRoundFault('lobby-recovery',recoveryError,mode);}catch(_){}}
+      try{showToast((MODES[mode]||mode)+' หยุดเพราะมีข้อผิดพลาด: '+String(error?.message||error).slice(0,100),true);}
+      catch(recoveryError){try{logRoundFault('round-notice',recoveryError,mode);}catch(_){}}
     }
+  }finally{
+    // Recovery UI is optional; scheduling the next frame is not.
+    requestAnimationFrame(animate);
   }
-  requestAnimationFrame(animate);
 }
 
 function broadcastGameState(){
@@ -5235,12 +5273,20 @@ boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
   }
 });
 setInterval(sendInputs,100);
-window.addEventListener('beforeunload',()=>{
-  void stopRoomScanner();safePeerDestroy();
-  try{if(controllerChannel)controllerChannel.close();}catch(_){}
-  stopHostReconnect();
-  if(hostPeer)hostPeer.destroy();
-});
+let pageExitCleaned=false;
+function cleanupLobbyPageExit(event){
+ // Do not tear down a live Host when Safari/Chromium places it in the BFCache.
+ if(event?.persisted)return;
+ if(pageExitCleaned)return;
+ pageExitCleaned=true;
+ void stopRoomScanner();safePeerDestroy();
+ try{if(controllerChannel)controllerChannel.close();}catch(_){}
+ stopHostReconnect();
+ if(hostPeer)hostPeer.destroy();
+}
+window.addEventListener('pagehide',cleanupLobbyPageExit);
+window.addEventListener('beforeunload',cleanupLobbyPageExit);
+window.addEventListener('pageshow',()=>{pageExitCleaned=false;});
 
 // PARTY PLAZA overlays never resize/reflow the map. Existing room, roster and
 // session controls are retained; only their presentation changes.

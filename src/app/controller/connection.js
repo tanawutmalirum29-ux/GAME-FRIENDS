@@ -315,6 +315,7 @@ function loadQrLibrary(){
     qrLibraryPromise=new Promise((resolve,reject)=>{
       const script=document.createElement('script');
       script.src=QR_READER_CDN;script.async=true;
+       script.integrity='sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==';script.crossOrigin='anonymous';
       script.onload=()=>typeof window.Html5Qrcode==='function'?resolve():reject(new Error('QR scanner unavailable'));
       script.onerror=()=>reject(new Error('QR scanner could not be downloaded'));
       document.head.appendChild(script);
@@ -504,6 +505,13 @@ function resetControllerForRoomChange(message,awaitLeaveAck=false){
 let controllerNetworkLoad=null;
 function joinRoom(recovery=false){
   recovery=recovery===true;
+  // Validate before any asynchronous dependency/TURN bootstrap can disable Join.
+  const code=parseRoomCode($('roomCodeInput').value);
+  if(!code){
+    $('joinBtn').disabled=false;
+    controllerState('รหัสห้องไม่ถูกต้อง กรุณากรอก 6 ตัวหรือสแกน QR',true);
+    return;
+  }
   if(typeof Peer!=='function'){
     const deps=window.GameRuntimeDeps;
     if(deps){
@@ -530,15 +538,21 @@ function joinRoom(recovery=false){
     controllerState('กำลังเตรียม TURN สำหรับจอย...');
     void turnBootstrap.then(()=>{
       if(currentView===activeView&&activeView==='controller'&&
-         $('roomCodeInput').value===inputCode)joinRoom(recovery);
+         $('roomCodeInput').value===inputCode){
+       joinRoom(recovery);
+      }else{
+       // The user changed rooms/views while TURN preflight was pending.
+       $('joinBtn').disabled=false;
+      }
+    }).catch(error=>{
+      $('joinBtn').disabled=false;
+      controllerState('เตรียมระบบเครือข่ายไม่สำเร็จ: '+String(error?.message||error),true);
     });
     return;
   }
   if(!recovery)reconnectTries=0;
   if(reconnectTimer!==null&&typeof clearTimeout==='function')clearTimeout(reconnectTimer);
   reconnectTimer=null;
-  const code=parseRoomCode($('roomCodeInput').value);
-  if(!code){controllerState('รหัสห้องไม่ถูกต้อง กรุณากรอก 6 ตัวหรือสแกน QR',true);return;}
   selectRoomCode(code);
   const name=cleanName($('nick').value);$('nick').value=name;rememberNickname();
   void stopRoomScanner();
@@ -792,19 +806,28 @@ function joinRoom(recovery=false){
   });
   peer.on('error',err=>{
     if(controllerPeer!==peer)return;
+    if(err?.type==='peer-unavailable'){
+     if(!recovery){
+      resetControllerForRoomChange('ไม่พบห้องนี้ • ตรวจรหัสห้อง หรือให้เจ้าของห้องเปิดห้องใหม่');
+      return;
+     }
+     controllerState('ยังไม่พบห้องเดิม • กำลังตรวจสอบอีกครั้ง',true);
+     retryPhone(4);
+     return;
+    }
     controllerState('เชื่อมต่อไม่ได้ ('+(err.type||'network')+') • กำลังลองใหม่',true);
     retryPhone();
-  });
-}
-function retryPhone(){
+   });
+ }
+ function retryPhone(maxTries=14){
  if(disconnectRequested||reconnectTimer!==null)return;
  if(!parseRoomCode($('roomCodeInput').value))return;
- if(reconnectTries>=14){
+ if(reconnectTries>=maxTries){
    resetControllerForRoomChange('กลับเข้าห้องไม่สำเร็จ กรุณากดเข้าห้องเดิมเพื่อลองอีกครั้ง');
    return;
  }
  reconnectTries++;
- controllerState('กำลังเชื่อมต่อห้องเดิมใหม่ ('+reconnectTries+'/14)');
+ controllerState('กำลังเชื่อมต่อห้องเดิมใหม่ ('+reconnectTries+'/'+maxTries+')');
  reconnectTimer=setTimeout(()=>{
    reconnectTimer=null;
    if(!disconnectRequested)joinRoom(true);

@@ -29,6 +29,24 @@ for(const game of catalog.games){
   'Per-game dependencies must be explicit and version pinned: '+game.id);
 }
 const originalHTML=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const hashedCoreFiles=builder.coreHashFiles();
+const localIndexScripts=Array.from(originalHTML.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi),match=>match[1])
+ .filter(src=>src.startsWith('./')&&!src.startsWith('../'))
+ .map(src=>src.slice(2));
+for(const script of localIndexScripts){
+ assert.ok(hashedCoreFiles.includes(script)||builder.CORE_SCRIPT_EXCLUDES.has(script),
+  'every local index script is hashed or explicitly excluded: '+script);
+}
+for(const script of ['cosmetic-system.js','src/lobby/party-plaza.js',
+ 'src/lobby/party-plaza-art.js','reference-arena-art.js']){
+ assert.ok(hashedCoreFiles.includes(script),'shared script change invalidates Core hash: '+script);
+}
+assert.deepEqual([...builder.CORE_SCRIPT_EXCLUDES].sort(),[
+ 'src/board-party/runtime/board-art.js',
+ 'src/board-party/runtime/board-design.js',
+ 'src/board-party/runtime/board-map.js',
+ 'src/board-party/runtime/board-scenery.js'
+].sort(),'only catalog-owned built-in map presentation files are excluded');
 const lazyHTML=pruneGameCover(pruneAppBoot(pruneHostCore(pruneExternal(pruneBoardCore(pruneLegacy(originalHTML,catalog))))));
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/peerjs@'),'offline bootstrap never fetches PeerJS');
 assert.ok(!lazyHTML.includes('cdn.jsdelivr.net/npm/qrcodejs@'),'controller bootstrap never fetches QRCode');
@@ -148,13 +166,13 @@ async function platform(){
   dispatchEvent(){},
  };
  let attempted=0;
- const document={hidden:false,
+ const document={hidden:false,baseURI:'https://example.org/repo/index.html',
   createElement(){return {remove(){}};},
-  head:{appendChild(tag){attempted++;queueMicrotask(()=>tag.onerror());}},
+  head:{appendChild(tag){attempted++;lastScriptUrl=tag.src;queueMicrotask(()=>tag.onerror());}},
   addEventListener(){}};
- let outage=false;
+ let outage=false,lastScriptUrl='';
  const ctx={window,document,location:{origin:'https://example.org',href:'https://example.org/?host=1'},
-  URL,Date,CustomEvent:class{constructor(){}},setInterval(){},console,
+  URL,Date,CustomEvent:class{constructor(){}},setInterval(){},setTimeout,clearTimeout,console,
   fetch:async()=>{if(outage)throw Error('offline');return {ok:true,json:async()=>JSON.parse(JSON.stringify(data))};}};
  vm.runInNewContext(moduleSource,ctx);
  await window.GamePlatform.initialize();
@@ -187,6 +205,8 @@ async function platform(){
  assert.equal(await window.GamePlatform.refresh(),true);
  await assert.rejects(window.GamePlatform.ensure('missing'),/Unable to fetch game dependency/,
   'fresh broken game must fail closed');
+  assert.ok(lastScriptUrl.startsWith('https://example.org/repo/game-assets/'),
+   'catalog assets resolve inside a deployed sub-path');
  assert.equal(window.GamePlatform.descriptor('missing'),null,'unplayable new game is hidden');
  assert.equal(window.GamePlatform.games().length,1);
  // A malformed new game cannot poison another valid game update in the

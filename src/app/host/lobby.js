@@ -386,10 +386,18 @@ boardCameraController=window.BoardControllerCamera.attach($('joystickZone'),{
   }
 });
 setInterval(sendInputs,100);
-window.addEventListener('beforeunload',()=>{
-  void stopRoomScanner();safePeerDestroy();
-  try{if(controllerChannel)controllerChannel.close();}catch(_){}
-  stopHostReconnect();
-  if(hostPeer)hostPeer.destroy();
-});
+let pageExitCleaned=false;
+function cleanupLobbyPageExit(event){
+ // Do not tear down a live Host when Safari/Chromium places it in the BFCache.
+ if(event?.persisted)return;
+ if(pageExitCleaned)return;
+ pageExitCleaned=true;
+ void stopRoomScanner();safePeerDestroy();
+ try{if(controllerChannel)controllerChannel.close();}catch(_){}
+ stopHostReconnect();
+ if(hostPeer)hostPeer.destroy();
+}
+window.addEventListener('pagehide',cleanupLobbyPageExit);
+window.addEventListener('beforeunload',cleanupLobbyPageExit);
+window.addEventListener('pageshow',()=>{pageExitCleaned=false;});
 

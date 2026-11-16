@@ -9,6 +9,8 @@ try{
  enabled:true,entry:'./index.js'};
  fs.writeFileSync(path.join(folder,'manifest.json'),JSON.stringify(m));
  fs.writeFileSync(path.join(folder,'index.js'),"export default {id:'bonus',category:'items',begin(){return false}};\n");
+ // The Core hash is derived from the source index, even in isolated fixtures.
+ fs.writeFileSync(path.join(temp,'index.html'),'<!doctype html>\\n');
  const env={...process.env,GAME_BUILD_ROOT:temp};
  const build=()=>cp.execFileSync(process.execPath,['scripts/build-board-system-catalog.cjs','--write'],{cwd:original,env,encoding:'utf8'});
  assert.match(build(),/1 plug-ins/);

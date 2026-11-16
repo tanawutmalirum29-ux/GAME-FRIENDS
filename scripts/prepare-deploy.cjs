@@ -60,6 +60,39 @@ function copyTree(root,dist,relative){
  };
  walk(source,relative);
 }
+function resolvePublicOrigin(env=process.env){
+ const configured=String(env.PUBLIC_SITE_URL||'').trim();
+ if(configured){
+  let url;
+  try{url=new URL(configured);}catch(_){throw Error('PUBLIC_SITE_URL must be a valid HTTPS URL');}
+  if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash)
+   throw Error('PUBLIC_SITE_URL must be a valid HTTPS URL origin without credentials, query or fragment');
+  return url.origin;
+ }
+ // AWS Amplify exposes both values for each connected branch. The default
+ // branch URL uses <branch>.<app-id>.amplifyapp.com; use it for social cards
+ // unless a custom canonical URL is configured above.
+ const branch=String(env.AWS_BRANCH||'').trim().toLowerCase();
+ const appId=String(env.AWS_APP_ID||'').trim().toLowerCase();
+ if(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(branch)&&/^[a-z0-9]{6,32}$/.test(appId))
+  return 'https://'+branch+'.'+appId+'.amplifyapp.com';
+ return null;
+}
+function rewriteSocialImage(dist,env=process.env){
+ const origin=resolvePublicOrigin(env);
+ if(!origin)return false;
+ const filename=path.join(dist,'index.html');
+ const image=origin+'/assets/game-friends-social.png';
+ let html=fs.readFileSync(filename,'utf8');
+ const before=html;
+ html=html.replace(/(<meta\s+property=["']og:image["']\s+content=["'])[^"']*(["'][^>]*>)/i,'$1'+image+'$2');
+ html=html.replace(/(<meta\s+name=["']twitter:image["']\s+content=["'])[^"']*(["'][^>]*>)/i,'$1'+image+'$2');
+ if(html===before)throw Error('Social image metadata tags are missing from index.html');
+ if(!fs.existsSync(path.join(dist,'assets','game-friends-social.png')))
+  throw Error('Social preview image is missing from the public artifact');
+ fs.writeFileSync(filename,html);
+ return true;
+}
 function validateHtml(root,dist,file){
  const html=fs.readFileSync(path.join(dist,file),'utf8');
  const refs=[...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map(m=>m[1]);
@@ -92,6 +125,7 @@ function build({root=DEFAULT_ROOT}={}){
  fs.mkdirSync(dist,{recursive:true});
  for(const file of [...ROOT_FILES,...CATALOG_FILES])copyFile(root,dist,file);
  for(const directory of ROOT_DIRS)copyTree(root,dist,directory);
+ rewriteSocialImage(dist);
  for(const file of ['index.html','host.html'])validateHtml(root,dist,file);
  for(const file of ['manifest.webmanifest','host.webmanifest'])validateManifest(dist,file);
  for(const forbidden of ['tests','scripts','docs','server','.github','ci','tools','src/app','src/games']){
@@ -116,4 +150,4 @@ if(require.main===module){
  process.stdout.write('Public deploy artifact: '+result.files+' files, '+result.bytes+
   ' bytes -> dist/ (non-runtime repository files excluded)\n');
 }
-module.exports={build};
+module.exports={build,resolvePublicOrigin,rewriteSocialImage};

@@ -21,7 +21,7 @@ try{
  for(const file of ['src/board-party/runtime/board-design.js','src/board-party/runtime/board-scenery.js','game-catalog.json'])
   fs.rmSync(path.join(target,file),{force:true});
  execFileSync(process.execPath,['scripts/build-static.cjs'],{
-  cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:deploy},
+  cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:deploy,AWS_APP_ID:'testapp123',AWS_BRANCH:'main'},
   encoding:'utf8',stdio:['ignore','pipe','pipe']
  });
  const baseline=execFileSync(process.execPath,
@@ -38,7 +38,7 @@ try{
  fs.writeFileSync(path.join(fixture,'game.js'),
   'export default {setup(){},update(){},draw(){},hud(){return {}},getResult(){return []}};\n');
  execFileSync(process.execPath,['scripts/build-static.cjs'],{
-  cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:deploy},
+  cwd:target,env:{...process.env,GAME_BUILD_ROOT:target,AWS_COMMIT_ID:deploy,AWS_APP_ID:'testapp123',AWS_BRANCH:'main'},
   encoding:'utf8',stdio:['ignore','pipe','pipe']
  });
  const exists=file=>assert.ok(fs.statSync(path.join(target,file)).isFile(),
@@ -81,9 +81,23 @@ try{
  const amplify=fs.readFileSync(path.join(target,'amplify.yml'),'utf8');
  assert.match(amplify,/baseDirectory:\s*dist\b/,'Amplify must publish the staged allowlist');
  const headers=fs.readFileSync(path.join(target,'customHttp.yml'),'utf8');
+ const {resolvePublicOrigin}=require(path.join(target,'scripts/prepare-deploy.cjs'));
+ assert.equal(resolvePublicOrigin({AWS_APP_ID:'testapp123',AWS_BRANCH:'main'}),
+  'https://main.testapp123.amplifyapp.com','Amplify default branch domain is derived from build metadata');
+ assert.equal(resolvePublicOrigin({PUBLIC_SITE_URL:'https://games.example.test',AWS_APP_ID:'testapp123',AWS_BRANCH:'main'}),
+  'https://games.example.test','explicit canonical origin takes precedence over the Amplify default');
+ assert.throws(()=>resolvePublicOrigin({PUBLIC_SITE_URL:'javascript:alert(1)'}),/HTTPS URL/);
+ const publicHtml=fs.readFileSync(path.join(publicRoot,'index.html'),'utf8');
+ assert.match(publicHtml,/property="og:image" content="https:\/\/main\.testapp123\.amplifyapp\.com\/assets\/game-friends-social\.png"/,
+  'social preview image is hosted on the deployed site instead of raw GitHub');
+ assert.match(publicHtml,/name="twitter:image" content="https:\/\/main\.testapp123\.amplifyapp\.com\/assets\/game-friends-social\.png"/);
  for(const header of ['Strict-Transport-Security','X-Content-Type-Options','Referrer-Policy','X-Frame-Options',
   'Permissions-Policy','Content-Security-Policy'])assert.ok(headers.includes(header),
   'custom HTTP security header missing: '+header);
+ assert.match(headers,/script-src 'self' 'unsafe-inline' https:\/\/cdn\.jsdelivr\.net/,
+  'only self-hosted scripts and pinned jsDelivr runtime libraries are executable');
+ assert.match(headers,/connect-src 'self' https: wss:/,
+  'PeerJS/WebRTC and HTTPS TURN bootstrap can connect under CSP');
  assert.equal(JSON.parse(fs.readFileSync(path.join(target,'deployment.json'),'utf8')).deployId,deploy);
  const html=fs.readFileSync(path.join(target,'index.html'),'utf8');
  assert.ok(html.includes('src="./src/platform/board-runtime.js"'),

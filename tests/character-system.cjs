@@ -84,6 +84,10 @@ const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   getTransform(){return{a:1,b:0,c:0,d:1,e:0,f:0}},
   fillText(...args){const [t,x,y]=args;painted.push({t,x,y,args,align:this.textAlign});},
   strokeText(...args){outlines.push(args);}};
+ const narrow=[],canvasNarrow={save(){},restore(){},beginPath(){},roundRect(){},rect(){},clip(){},fill(){},
+  measureText(value){return{width:Array.from(value).length*7};},fillText(value){narrow.push(value);},strokeText(){}};
+ rules.drawName(canvasNarrow,{name:'กิขีคึ',x:0,y:0},{maxWidth:33});
+ assert.equal(narrow[0],'กิ…','Thai vowel/tone marks stay attached to their base grapheme');
  const a=make('a',180,200),b=make('b',180,200);
  a.name='ผู้เล่น A';b.name='บอท B';
  rules.beginNameFrame(canvas);

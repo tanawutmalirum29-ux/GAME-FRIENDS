@@ -202,27 +202,33 @@ function animate(ts){
     }
    }
   }catch(error){
-    const mode=round?.mode;
-    logRoundFault('simulation',error,mode);
+    let mode=null;
+    try{
+      mode=round?.mode;
+      logRoundFault('simulation',error,mode);
+    }catch(_){}
     drawFailureStreak=0;
     // A failing minigame must NEVER destroy a live BOARD PARTY map, turn,
     // inventory or HP. The existing canonical cancellation gives no rewards.
     let resumedBoard=false;
     if(boardSession?.phase==='minigame'&&mode!=='board'){
-     try{
-      resumedBoard=window.BoardParty?.minigameCancelled?.(boardSession)===true;
-      if(resumedBoard){
-       showBoard();
-       showToast('มินิเกมมีปัญหา • ข้ามรอบนี้และกลับบอร์ด โดยไม่เสียความคืบหน้า',true);
-      }
-     }catch(recoveryError){logRoundFault('board-recovery',recoveryError,mode);}
+     try{resumedBoard=window.BoardParty?.minigameCancelled?.(boardSession)===true;}
+     catch(recoveryError){try{logRoundFault('board-recovery',recoveryError,mode);}catch(_){}}
+     if(resumedBoard){
+      try{showBoard();}catch(recoveryError){try{logRoundFault('board-show',recoveryError,mode);}catch(_){}}
+      try{showToast('มินิเกมมีปัญหา • ข้ามรอบนี้และกลับบอร์ด โดยไม่เสียความคืบหน้า',true);}
+      catch(recoveryError){try{logRoundFault('board-notice',recoveryError,mode);}catch(_){}}
+     }
     }
     if(!resumedBoard&&mode){
-      returnToLobby();
-      showToast((MODES[mode]||mode)+' หยุดเพราะมีข้อผิดพลาด: '+String(error?.message||error).slice(0,100),true);
+      try{returnToLobby();}catch(recoveryError){try{logRoundFault('lobby-recovery',recoveryError,mode);}catch(_){}}
+      try{showToast((MODES[mode]||mode)+' หยุดเพราะมีข้อผิดพลาด: '+String(error?.message||error).slice(0,100),true);}
+      catch(recoveryError){try{logRoundFault('round-notice',recoveryError,mode);}catch(_){}}
     }
+  }finally{
+    // Recovery UI is optional; scheduling the next frame is not.
+    requestAnimationFrame(animate);
   }
-  requestAnimationFrame(animate);
 }
 
 function broadcastGameState(){
