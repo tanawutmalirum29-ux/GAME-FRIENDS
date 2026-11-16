@@ -59,10 +59,8 @@ Use only graph-authoritative map coordinates to paint the roads and sword courts
 Run from the project root after restoring the canonical design sources:
 
 ```bash
-node scripts/build-board-canonical.cjs
+node scripts/build-board-assets.cjs
 node tests/board-layout-audit.cjs
-node tests/board-canonical-layout.cjs
-node tests/board-canonical.cjs
 node tests/board-party.cjs
 node tests/board-art.cjs
 node tests/board-layout.cjs

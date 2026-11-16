@@ -63,7 +63,7 @@ Read [docs/ADDING_BOARD_SYSTEMS.md](docs/ADDING_BOARD_SYSTEMS.md). New BOARD sys
 
 ## PeerJS core compatibility
 
-Read [docs/CONNECTION_COMPAT.md](docs/CONNECTION_COMPAT.md) before changing peer messages. Production Host/Controller must agree on `coreHash` at join/welcome; never disconnect an existing room merely to update. Minigame code is Host-authoritative and pinned until the next round. Run `node tests/version-handshake.cjs` and browser QA.
+Read [docs/CONNECTION_COMPAT.md](docs/CONNECTION_COMPAT.md) before changing peer messages. Production Host/Controller must agree on `coreHash` at join/welcome; never disconnect an existing room merely to update. Minigame code is Host-authoritative and pinned until the next round. Run `node tests/connection-compat.cjs` and browser QA.
 
 ## Single BOARD runtime location (no legacy root duplicates)
 

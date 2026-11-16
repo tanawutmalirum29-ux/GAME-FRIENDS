@@ -143,15 +143,17 @@ async function cleanupImmutableAssets(){
  })().finally(()=>{cleanupPending=null;});
  return cleanupPending;
 }
-async function catalog(request,name='game-catalog.json'){
+async function catalog(request,name='game-catalog.json',event){
  const cache=await caches.open(CATALOG_CACHE);
  const key=new Request(new URL(name,self.registration.scope));
  try{
   const res=await fetch(request);
   if(res.ok){
    try{await cache.put(key,res.clone());}catch(_){/* cache is optional */}
-   // Cleanup is best-effort; a quota/message/cache error must never break a fresh catalog.
-   try{await cleanupImmutableAssets();}catch(_){}
+   // Stale-asset collection must not hold the catalog response. Keep the
+   // worker alive for cleanup, but never let cleanup errors affect the response.
+   const cleanup=cleanupImmutableAssets().catch(()=>{});
+   try{event.waitUntil(cleanup);}catch(_){void cleanup;}
   }
   return res;
  }catch(error){
@@ -167,7 +169,7 @@ self.addEventListener('fetch',e=>{
  if(!url.pathname.startsWith(base))return;
  const rel=url.pathname.slice(base.length);
  if(rel==='game-catalog.json'||rel==='board-map-catalog.json'||rel==='board-system-catalog.json')
-  e.respondWith(catalog(e.request,rel));
+  e.respondWith(catalog(e.request,rel,e));
  else if(/^game-assets\/[a-z][a-z0-9_]*\/[a-f0-9]{24}\//.test(rel))
   e.respondWith(gameAsset(e.request));
  else if(/^(?:board-map-assets\/[a-z][a-z0-9-]*|board-system-assets\/(?:items|spaces|events)\/[a-z][a-z0-9-]*)\/[a-f0-9]{24}\//.test(rel))
