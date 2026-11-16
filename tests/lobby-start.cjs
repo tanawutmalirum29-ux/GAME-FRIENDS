@@ -48,6 +48,18 @@ assert.ok(!context.votes.has('removed-seat'));
 assert.ok(rendered>=4&&broadcast>=4,'live roster and controller counts update on every vote');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 const css=fs.readFileSync(path.join(root,'style.css'),'utf8');
+const controllerConnection=fs.readFileSync(path.join(root,'src/app/controller/connection.js'),'utf8');
+const joinStart=controllerConnection.indexOf('function joinRoom(recovery=false){');
+const earlyCodeCheck=controllerConnection.indexOf("const code=parseRoomCode($('roomCodeInput').value);",joinStart);
+const peerBootstrap=controllerConnection.indexOf("if(typeof Peer!=='function')",joinStart);
+const turnBootstrap=controllerConnection.indexOf('partyIceCredentialsReady()',joinStart);
+assert.ok(joinStart>=0&&earlyCodeCheck>joinStart&&earlyCodeCheck<peerBootstrap&&earlyCodeCheck<turnBootstrap,
+ 'invalid room code is rejected before dependency or TURN loading can disable Join');
+assert.match(controllerConnection,/\$\('joinBtn'\)\.disabled=false;[\s\S]*?controllerState\('รหัสห้องไม่ถูกต้อง/,
+ 'invalid code path always re-enables the Join button');
+assert.match(html,/ผู้เล่นเลือกได้ 26 เกม/,'visible lobby copy matches the current 26-game catalog');
+assert.match(html,/og:image:alt" content="GAME FRIENDS — รวมมินิเกมปาร์ตี้/,
+ 'social image alt text describes the current GAME FRIENDS collection');
 assert.ok(!html.includes('ให้เพื่อนสแกน QR'),'marked QR title removed');
 assert.ok(!html.includes('ทุกคนต้องเลือกก่อนเริ่ม • เลือกซ้ำ'),'marked hint removed');
 assert.ok(!html.includes('เล่นเกมต่อเนื่อง</label>'),'marked toggle removed');
