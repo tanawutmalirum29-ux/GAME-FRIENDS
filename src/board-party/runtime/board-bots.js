@@ -71,11 +71,19 @@ function update(s,dt,api){
  if(s.time-s.phaseAt<.5&&!(s.phase==='moving'&&s.move?.kind==='walk'))return;
  if(s.phase==='ready'){
   const bag=window.BoardItems.bag(p);
-  const canUse=kind=>p.usedRound!==s.roundNumber&&(
-   kind==='potion'?p.hp<70:kind==='shield'?false:
-   kind==='rocket'?true:kind==='ufo'?!!forwardTarget(s,p):
-   kind==='car'?!!forwardTarget(s,p):
-   s.players.some(q=>q.id!==p.id&&!api.isProtected(s,q)));
+  const canUse=kind=>{
+   if(p.usedRound===s.roundNumber)return false;
+   const extension=window.BoardSystemPlugins?.get('items',kind);
+   if(typeof extension?.botCanUse==='function'){
+    // Item plug-ins own their eligibility rules; a broken optional callback
+    // makes that item unavailable without interrupting the BOARD turn.
+    try{return extension.botCanUse(s,p,api)===true;}catch(_){return false;}
+   }
+   return kind==='potion'?p.hp<70:kind==='shield'?false:
+    kind==='rocket'?true:kind==='ufo'?!!forwardTarget(s,p):
+    kind==='car'?!!forwardTarget(s,p):
+    s.players.some(q=>q.id!==p.id&&!api.isProtected(s,q));
+  };
   // A failed UFO/bomber aim expires back to ready. Without a forced-roll
   // timeout a bot must not enter the same failed item indefinitely.
   const botTurnKey=s.roundNumber+':'+s.turnIndex;
