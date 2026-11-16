@@ -25,7 +25,7 @@ for(const direction of [
  assert.equal(Combat.startAttack(attacker),true,direction.name+' attack starts');
  assert.deepEqual({...attacker.attackFacing},{x:direction.x,y:direction.y},
   direction.name+' facing must not be replaced by a horizontal default');
- assert.deepEqual(Combat.hitPlayers(attacker,[victim,behind],{range:53,coneCos:.45}).map(p=>p.id),
+ assert.deepEqual(Array.from(Combat.hitPlayers(attacker,[victim,behind],{range:53,coneCos:.45}),p=>p.id),
   ['victim'],direction.name+' punch hits only the player in front');
 }
 {
