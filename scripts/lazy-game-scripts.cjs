@@ -38,7 +38,7 @@ const CDN_LIBRARIES=new Set([
 ]);
 function pruneExternal(html){
  assert(typeof html==='string','index source must be a string');
- const tag=/^[ \t]*<script\s+defer\s+src="(https:\/\/[^\"]+)"\s*><\/script>\s*$/gm;
+ const tag=/^[ \t]*<script\b(?=[^>]*\bdefer\b)[^>]*\bsrc=["'](https:\/\/[^"']+)["'][^>]*>[ \t]*<\/script>[ \t]*$/gm;
  return html.replace(tag,(whole,url)=>CDN_LIBRARIES.has(url)?'':whole);
 }
 function pruneAppBoot(html){
