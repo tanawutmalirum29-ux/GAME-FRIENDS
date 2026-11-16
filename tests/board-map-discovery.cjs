@@ -35,6 +35,10 @@ try{
   n2:{id:'n2',type:'finish',position:{x:100,y:0},nextNodes:[],previousNodes:['n1']}
  }};
  for(const tier of ['small','large'])fs.writeFileSync(path.join(fixture,tier+'.json'),JSON.stringify(graph));
+ // The game Core fingerprint now derives loaded scripts from index.html.
+ // This fixture has no full app shell, so supply a minimal valid source index.
+ fs.writeFileSync(path.join(tmp,'index.html'),
+  '<!doctype html><script defer src="./src/board-party/runtime/board-map.js"></script>\\n');
  const env={...process.env,GAME_BUILD_ROOT:tmp};
  const build=()=>{
   const result=execFileSync(process.execPath,['scripts/build-board-map-catalog.cjs','--write'],
